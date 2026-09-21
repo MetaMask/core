@@ -2,10 +2,8 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import {
-  createExtractionProject,
-  extractFromSourceFile,
-} from './extraction.js';
+import { extractFromSourceFile } from './extraction.js';
+import { createProject } from './ts-project.js';
 import { MessengerCapabilityPacket } from './types.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/extraction');
@@ -36,7 +34,7 @@ function withMessenger(
  * run `extractFromSourceFile` on it.
  *
  * This mirrors the logic that callers of the library use in production (via
- * `createExtractionProject` + `extractFromSourceFile`) without going through
+ * `createProject` + `extractFromSourceFile`) without going through
  * the now-removed `extractFromFile` convenience wrapper.
  *
  * @param filePath - Absolute path of the file to write and extract from.
@@ -52,7 +50,7 @@ async function extractFromWrittenFile(
 ): Promise<MessengerCapabilityPacket[]> {
   await fs.promises.writeFile(filePath, content);
   const parentDir = path.dirname(filePath);
-  const project = createExtractionProject();
+  const project = createProject();
   project.addSourceFilesAtPaths([
     path.join(parentDir, '**/*.ts'),
     path.join(parentDir, '**/*.d.cts'),
@@ -601,6 +599,44 @@ export type FooAction = {
 
       expect(items).toHaveLength(1);
       expect(items[0].jsDoc).toContain('\\{foo: bar\\}');
+    });
+  });
+
+  it('escapes angle brackets in JSDoc for MDX safety', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+
+      const items = await extractFromWrittenFile(
+        filePath,
+        withMessenger(
+          `
+/**
+ * Reads a Promise<Foo[]> from somewhere.
+ *
+ * @param filter - Accepts an Array<string> of ids.
+ * @returns Promise<PointsBoostDto[]> - The active boosts.
+ */
+export type FooAction = {
+  type: 'Foo:bar';
+  handler: (filter: string[]) => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+        directoryPath,
+      );
+
+      // An unescaped `<` is read by MDX as the start of a JSX tag, which
+      // fails the site build rather than rendering.
+      expect(items[0].jsDoc).toContain('Promise\\<Foo[]> from somewhere.');
+      expect(items[0].params[0].description).toContain(
+        'Array\\<string> of ids.',
+      );
+      expect(items[0].returns).toBe(
+        'Promise\\<PointsBoostDto[]> - The active boosts.',
+      );
     });
   });
 

@@ -6,19 +6,18 @@ export type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
-  AllowedActions,
-  AllowedEvents,
 } from './SubscriptionController.js';
 export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerGetBenefitsAction,
   SubscriptionControllerGetSubscriptionByProductAction,
   SubscriptionControllerGetSubscriptionsEligibilitiesAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerUnCancelSubscriptionAction,
-  SubscriptionControllerStartShieldSubscriptionWithCardAction,
+  SubscriptionControllerStartSubscriptionWithCardAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
-  SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction,
+  SubscriptionControllerSubmitSubscriptionCryptoApprovalAction,
   SubscriptionControllerGetCryptoApproveTransactionParamsAction,
   SubscriptionControllerUpdatePaymentMethodAction,
   SubscriptionControllerGetBillingPortalUrlAction,
@@ -41,16 +40,25 @@ export {
 export type {
   SubscriptionApiError,
   Subscription,
+  PerpsBenefitUsage,
+  PredictBenefitUsage,
+  SubscriptionBenefitsResponse,
+  SubscriptionBenefitsState,
+  SwapsBenefitUsage,
   AuthUtils,
   CancelSubscriptionRequest,
   CancelType,
+  CancellationReasonCode,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
+  StartDelegationCryptoSubscriptionRequest,
+  StartErc20CryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
+  SubmitSubscriptionCryptoApprovalRequest,
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
@@ -66,9 +74,14 @@ export type {
   ProductPrice,
   ProductPricing,
   TokenPaymentInfo,
+  SpotTokenPaymentInfo,
+  VaultTokenPaymentInfo,
   ChainPaymentInfo,
   Currency,
+  CryptoAuthMethod,
   PricingPaymentMethod,
+  PricingCardPaymentMethod,
+  PricingCryptoPaymentMethod,
   PricingResponse,
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
@@ -77,6 +90,7 @@ export type {
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
   CachedLastSelectedPaymentMethod,
+  CacheLastSelectedPaymentMethodRequest,
   SubmitSponsorshipIntentsMethodParams,
   Cohort,
   CohortName,
@@ -84,6 +98,11 @@ export type {
   AssignCohortRequest,
   GetSubscriptionsEligibilitiesRequest,
   ModalType,
+  MoneyAccountEntitlements,
+  MoneyAccountPlusClaim,
+  ProductEntitlementFeatureMap,
+  ProductEntitlements,
+  ShieldEntitlements,
 } from './types.js';
 export {
   CANCEL_TYPES,
@@ -92,16 +111,75 @@ export {
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   PAYMENT_TYPES,
+  CRYPTO_AUTH_METHODS,
   SubscriptionUserEvent,
   COHORT_NAMES,
   BALANCE_CATEGORIES,
   MODAL_TYPE,
+  MoneyAccountFeature,
+  ShieldFeature,
 } from './types.js';
+export { CANCELLATION_REASONS } from './constants.js';
+export {
+  selectHasEntitlement,
+  selectIsActiveSubscriber,
+  selectIsUsageAvailable,
+} from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
   Env,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
+  SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
-export type { SubscriptionServiceConfig } from './SubscriptionService.js';
-export { SubscriptionService } from './SubscriptionService.js';
+export type {
+  SubscriptionServiceOptions,
+  SubscriptionServiceMessenger,
+  SubscriptionServiceActions,
+  SubscriptionServiceEvents,
+  SubscriptionServiceCacheUpdatedEvent,
+  SubscriptionServiceGranularCacheUpdatedEvent,
+  SubscriptionServiceInvalidateQueriesAction,
+} from './SubscriptionService.js';
+export {
+  SubscriptionService,
+  serviceName as subscriptionServiceName,
+  SUBSCRIPTION_URL,
+} from './SubscriptionService.js';
+export type {
+  SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceGetBenefitsAction,
+  SubscriptionServiceCancelSubscriptionAction,
+  SubscriptionServiceUnCancelSubscriptionAction,
+  SubscriptionServiceStartSubscriptionWithCardAction,
+  SubscriptionServiceStartSubscriptionWithCryptoAction,
+  SubscriptionServiceUpdatePaymentMethodCardAction,
+  SubscriptionServiceUpdatePaymentMethodCryptoAction,
+  SubscriptionServiceGetSubscriptionsEligibilitiesAction,
+  SubscriptionServiceSubmitUserEventAction,
+  SubscriptionServiceAssignUserToCohortAction,
+  SubscriptionServiceSubmitSponsorshipIntentsAction,
+  SubscriptionServiceLinkRewardsAction,
+  SubscriptionServiceGetPricingAction,
+  SubscriptionServiceGetBillingPortalUrlAction,
+} from './SubscriptionService-method-action-types.js';
+
+export type {
+  SubscriptionDelegationServiceActions,
+  SubscriptionDelegationServiceEvents,
+  SubscriptionDelegationServiceMessenger,
+  SubscriptionDelegationServiceOptions,
+} from './subscription-delegation/SubscriptionDelegationService.js';
+export {
+  SubscriptionDelegationService,
+  serviceName as subscriptionDelegationServiceName,
+} from './subscription-delegation/SubscriptionDelegationService.js';
+export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type {
+  MoneyAccountBalanceCheckRequest,
+  MoneyAccountBalanceCheckResult,
+  PrepareSubscriptionDelegationRequest,
+  PreparedSubscriptionDelegation,
+} from './subscription-delegation/types.js';
+export { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './subscription-delegation/types.js';

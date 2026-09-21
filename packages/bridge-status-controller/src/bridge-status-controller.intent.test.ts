@@ -4,7 +4,6 @@
 import {
   BridgeClientId,
   UnifiedSwapBridgeEventName,
-  mergeQuoteMetadata,
   StatusTypes,
   QuoteResponse as QuoteResponseV1,
   getNativeAssetForChainId,
@@ -110,13 +109,15 @@ const minimalIntentQuoteResponse = (
     },
     ...overrides,
   };
-  return mergeQuoteMetadata(quote as never, {
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
-  });
+  return {
+    ...quote,
+    ...{
+      sentAmount: { amount: '1', usd: '1' },
+      gasFee: { effective: { amount: '0', usd: '0' } },
+      toTokenAmount: { usd: '1' },
+    },
+  };
 };
-validateQuoteResponseV1(minimalIntentQuoteResponse());
 
 const minimalBridgeQuoteResponse = (
   accountAddress: string,
@@ -174,11 +175,14 @@ const minimalBridgeQuoteResponse = (
     },
     ...overrides,
   };
-  return mergeQuoteMetadata(quote as never, {
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
-  });
+  return {
+    ...quote,
+    ...{
+      sentAmount: { amount: '1', usd: '1' },
+      gasFee: { effective: { amount: '0', usd: '0' } },
+      toTokenAmount: { usd: '1' },
+    },
+  };
 };
 validateQuoteResponseV1(minimalBridgeQuoteResponse('0xAccount1'));
 
@@ -288,6 +292,8 @@ const setup = (options?: {
   clientId?: BridgeClientId;
   keyringType?: string;
   mockTxHistory?: any;
+  isQuoteStatusManagerEnabled?: () => boolean;
+  onQuoteStatusManagerError?: (error: unknown) => void;
 }) => {
   const accountAddress = '0xAccount1' as const;
   const { messenger, transactions } = createMessengerHarness(
@@ -308,6 +314,8 @@ const setup = (options?: {
     fetchFn: (...args: any[]) => mockFetchFn(...args),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
+    isQuoteStatusManagerEnabled: options?.isQuoteStatusManagerEnabled,
+    onQuoteStatusManagerError: options?.onQuoteStatusManagerError as any,
   });
 
   const startPollingSpy = jest
@@ -741,6 +749,56 @@ describe('BridgeStatusController (intent swaps)', () => {
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
   });
 
+  it.each([
+    { description: 'COMPLETED', orderStatus: IntentOrderStatus.COMPLETED },
+    { description: 'EXPIRED', orderStatus: IntentOrderStatus.EXPIRED },
+  ])(
+    'intent polling: does not report any quote status when the order reaches $description',
+    async ({ orderStatus }) => {
+      const onQuoteStatusManagerError = jest.fn();
+      const orderUid = 'order-uid-quote-status-1';
+      const { controller } = setup({
+        isQuoteStatusManagerEnabled: () => true,
+        onQuoteStatusManagerError,
+        mockTxHistory: {
+          [orderUid]: {
+            txMetaId: orderUid,
+            originalTransactionId: orderUid,
+            quoteId: 'intent-quote-1',
+            quote: minimalIntentQuoteResponse().quote,
+            account: '0xAccount1',
+            startTime: Date.now(),
+            status: {
+              status: StatusTypes.PENDING,
+              srcChain: { chainId: 1, txHash: '0xhash' },
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
+        .mockResolvedValue({
+          id: orderUid,
+          status: orderStatus,
+          txHash: '0xsettlementhash',
+          metadata: { txHashes: ['0xsettlementhash'] },
+        });
+
+      await controller._executePoll({ bridgeTxMetaId: orderUid });
+
+      // The backend owns the quote status of intent orders, so reaching a
+      // terminal order status must not create or update a tracking entry.
+      expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+      expect(
+        controller.state.txHistory[orderUid]?.reportedSubmittedTxHash,
+      ).toBeUndefined();
+      expect(onQuoteStatusManagerError).not.toHaveBeenCalled();
+
+      controller.stopAllPolling();
+    },
+  );
+
   it('intent polling: stops polling when attempts reach MAX_ATTEMPTS', async () => {
     const orderUid = 'order-uid-3';
     const { controller, stopPollingSpy } = setup({
@@ -972,8 +1030,8 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     // make startPolling return different tokens for the same tx
     startPollingSpy.mockReturnValueOnce('tok1').mockReturnValueOnce('tok2');
 
-    const quoteResponse = mergeQuoteMetadata(
-      {
+    const quoteResponse = {
+      ...{
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -981,12 +1039,12 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         },
         estimatedProcessingTimeInSeconds: 1,
       },
-      {
+      ...{
         sentAmount: { amount: '0' },
         gasFee: { effective: { amount: '0' } },
         toTokenAmount: { usd: '0' },
       },
-    );
+    };
 
     // first time => starts polling tok1
     controller.startPollingForBridgeTxStatus({
@@ -1039,8 +1097,8 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       mockTxHistory,
     });
 
-    const quoteResponse = mergeQuoteMetadata(
-      {
+    const quoteResponse = {
+      ...{
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -1049,12 +1107,12 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         },
         estimatedProcessingTimeInSeconds: 1,
       },
-      {
+      ...{
         sentAmount: { amount: '0' },
         gasFee: { effective: { amount: '0' } },
         toTokenAmount: { usd: '0' },
       },
-    );
+    };
 
     const statusResponse = {
       status: {

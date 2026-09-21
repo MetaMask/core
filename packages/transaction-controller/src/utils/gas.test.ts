@@ -1,7 +1,7 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 import { remove0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import type {
   SimulationResponse,
@@ -10,7 +10,7 @@ import type {
 import { simulateTransactions } from '../api/simulation-api.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { TransactionEnvelopeType } from '../types.js';
-import type { TransactionMeta } from '../types.js';
+import type { TransactionMeta, TransactionParams } from '../types.js';
 import type {
   AuthorizationList,
   BatchTransactionParams,
@@ -31,7 +31,6 @@ import {
   estimateGasBatch,
   getProvidedBatchGasLimits,
   updateGas,
-  FIXED_GAS,
   DEFAULT_GAS_MULTIPLIER,
   MAX_GAS_BLOCK_PERCENT,
   INTRINSIC_GAS,
@@ -67,6 +66,8 @@ const GAS_2_MOCK = 12345;
 const SIMULATE_GAS_MOCK = 54321;
 const FROM_MOCK = '0xabc';
 const TO_MOCK = '0xdef';
+const NEW_ACCOUNT_MOCK = '0x0000000000000000000000000000000000000001';
+const DELEGATED_ACCOUNT_MOCK = '0x0000000000000000000000000000000000000002';
 const VALUE_MOCK = '0x1';
 const VALUE_MOCK_2 = '0x2';
 const DATA_MOCK = '0xabcdef';
@@ -461,45 +462,91 @@ describe('gas', () => {
         );
       });
 
-      describe('to fixed value', () => {
-        it('if not custom network and to parameter and no data and no code', async () => {
-          updateGasRequest.isCustomNetwork = false;
-          delete updateGasRequest.txMeta.txParams.data;
+      describe.each<[string, TransactionParams, Hex, Hex]>([
+        [
+          'self-transfer',
+          { from: FROM_MOCK, to: FROM_MOCK, value: '0x0' },
+          '0x5208',
+          '0x2ee0',
+        ],
+        [
+          'zero-value transfer to a distinct recipient',
+          { from: FROM_MOCK, to: TO_MOCK, value: '0x0' },
+          '0x5208',
+          '0x3a98',
+        ],
+        [
+          'value transfer to an existing recipient',
+          { from: FROM_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+          '0x5208',
+          '0x5208',
+        ],
+        [
+          'value transfer to a new account',
+          { from: FROM_MOCK, to: NEW_ACCOUNT_MOCK, value: VALUE_MOCK },
+          '0x5208',
+          '0xb3b0',
+        ],
+        [
+          'contract creation',
+          { from: FROM_MOCK, data: DATA_MOCK, value: '0x0' },
+          '0xcf08',
+          '0x5dc0',
+        ],
+        [
+          'transfer to a delegated recipient',
+          { from: FROM_MOCK, to: DELEGATED_ACCOUNT_MOCK, value: '0x0' },
+          '0x6590',
+          '0x6b6c',
+        ],
+        [
+          'transfer from a delegated sender',
+          { from: DELEGATED_ACCOUNT_MOCK, to: TO_MOCK, value: '0x0' },
+          '0x6978',
+          '0x7334',
+        ],
+      ])('%s', (_description, txParams, legacyNodeGas, upgradedNodeGas) => {
+        it.each<[string, Hex]>([
+          ['legacy node', legacyNodeGas],
+          ['upgraded node', upgradedNodeGas],
+        ])('uses the %s response', async (_node, estimatedGas) => {
+          updateGasRequest.txMeta.txParams = cloneDeep(txParams);
+          updateGasRequest.txMeta.disableGasBuffer = true;
 
           mockQuery({
-            getCodeResponse: null,
+            getBlockByNumberResponse: {
+              gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+            },
+            estimateGasResponse: estimatedGas,
           });
 
           await updateGas(updateGasRequest);
 
-          expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+          expect(updateGasRequest.txMeta.txParams.gas).toBe(estimatedGas);
+          expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(estimatedGas);
           expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-            updateGasRequest.txMeta.txParams.gas,
+            estimatedGas,
           );
-          expectEstimateGasNotCalled();
-        });
-
-        it('if not custom network and to parameter and no data and empty code', async () => {
-          updateGasRequest.isCustomNetwork = false;
-          delete updateGasRequest.txMeta.txParams.data;
-
-          mockQuery({
-            getCodeResponse: '0x',
+          expect(rpcRequestMock).toHaveBeenCalledWith({
+            messenger: MESSENGER_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            method: 'eth_estimateGas',
+            params: [
+              expect.objectContaining({
+                ...txParams,
+                value: txParams.value ?? '0x0',
+              }),
+            ],
           });
-
-          await updateGas(updateGasRequest);
-
-          expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
-          expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-            updateGasRequest.txMeta.txParams.gas,
+          expect(rpcRequestMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'eth_getCode' }),
           );
-          expectEstimateGasNotCalled();
         });
       });
     });
 
     describe('on estimate query error', () => {
-      it('sets gas to 35% of block gas limit', async () => {
+      it('sets gas to 35% of block gas limit for a plain transfer', async () => {
         const fallbackGas = Math.floor(
           BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
         );
@@ -507,6 +554,7 @@ describe('gas', () => {
         getGasEstimateFallbackMock.mockReturnValue(
           GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
         );
+        delete updateGasRequest.txMeta.txParams.data;
 
         mockQuery({
           getBlockByNumberResponse: {
@@ -520,6 +568,9 @@ describe('gas', () => {
         expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(fallbackGas));
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
+        );
+        expect(rpcRequestMock).toHaveBeenCalledWith(
+          expect.objectContaining({ method: 'eth_estimateGas' }),
         );
       });
 
@@ -870,37 +921,60 @@ describe('gas', () => {
       });
     });
 
-    it('normalizes value in estimate request', async () => {
-      mockQuery({
-        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-        estimateGasResponse: toHex(GAS_MOCK),
-      });
+    it.each<[string, string | null | undefined, string]>([
+      ['undefined', undefined, '0x0'],
+      ['null', null, '0x0'],
+      ['zero with leading zero digits', '0x00', '0x0'],
+      [
+        'a quantity with leading zero digits',
+        '0x0de0b6b3a7640000',
+        '0xde0b6b3a7640000',
+      ],
+      ['an already canonical quantity', '0x1', '0x1'],
+      ['not a strict hex string', '123', '123'],
+    ])(
+      'normalizes value in estimate request when value is %s',
+      async (_case, value, expectedValue) => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
 
-      await estimateGas({
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        messenger: MESSENGER_MOCK,
-        txParams: {
-          ...TRANSACTION_META_MOCK.txParams,
-          value: undefined,
-        },
-      });
-
-      expect(rpcRequestMock).toHaveBeenCalledWith({
-        messenger: MESSENGER_MOCK,
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        method: 'eth_estimateGas',
-        params: [
-          {
+        await estimateGas({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          isSimulationEnabled: false,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
+          txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            value: '0x0',
+            value: value as string | undefined,
           },
-        ],
-      });
-    });
+        });
 
-    it('normalizes authorization list in estimate request', async () => {
+        expect(rpcRequestMock).toHaveBeenCalledWith({
+          messenger: MESSENGER_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          method: 'eth_estimateGas',
+          params: [
+            {
+              ...TRANSACTION_META_MOCK.txParams,
+              value: expectedValue,
+            },
+          ],
+        });
+      },
+    );
+
+    it('forwards the complete transaction shape in estimate request', async () => {
+      const accessList = [
+        {
+          address: '0x0000000000000000000000000000000000000001',
+          storageKeys: [
+            '0x0000000000000000000000000000000000000000000000000000000000000002',
+          ],
+        },
+      ];
+
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
         estimateGasResponse: toHex(GAS_MOCK),
@@ -913,7 +987,9 @@ describe('gas', () => {
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
+          accessList,
           authorizationList: AUTHORIZATION_LIST_MOCK,
+          type: TransactionEnvelopeType.setCode,
           value: undefined,
         },
       });
@@ -925,6 +1001,7 @@ describe('gas', () => {
         params: [
           {
             ...TRANSACTION_META_MOCK.txParams,
+            accessList,
             authorizationList: [
               {
                 ...AUTHORIZATION_LIST_MOCK[0],
@@ -935,6 +1012,7 @@ describe('gas', () => {
                 yParity: '0x1',
               },
             ],
+            type: TransactionEnvelopeType.setCode,
             value: '0x0',
           },
         ],

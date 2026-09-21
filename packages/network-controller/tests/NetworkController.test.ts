@@ -10,6 +10,9 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
+import type { MockInternalProviderStub } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
@@ -18,9 +21,6 @@ import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import type { FakeProviderStub } from '../../../tests/fake-provider.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { NetworkStatus } from '../src/constants.js';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
@@ -57,6 +57,7 @@ import {
   buildInfuraNetworkClientConfiguration,
   buildInfuraNetworkConfiguration,
   buildInfuraRpcEndpoint,
+  buildMockConfigRegistryControllerNetwork,
   buildNetworkConfiguration,
   buildNetworkControllerMessenger,
   buildRootMessenger,
@@ -90,7 +91,9 @@ type Block = {
 };
 
 const createNetworkClientMock = jest.mocked(createNetworkClient);
-const uuidV4Mock = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV4Mock = jest.mocked<() => string>(uuidV4);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
@@ -991,6 +994,242 @@ describe('NetworkController', () => {
           expect(
             autoManagedNetworkClients[0].setRpcFailoverMode,
           ).not.toHaveBeenCalledWith('enabled');
+        },
+      );
+    });
+  });
+
+  describe('init', () => {
+    it('auto-enables networks that are set as auto-enabled in the config registry', async () => {
+      const networkConfig = buildMockConfigRegistryControllerNetwork({
+        chainId: 'eip155:9999',
+        config: {
+          ...buildMockConfigRegistryControllerNetwork().config,
+          isAutoEnabled: true,
+        },
+      });
+      await withController(
+        {
+          initializeController: false,
+          configRegistryNetworkConfigs: [networkConfig],
+        },
+        ({ controller }) => {
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).not.toHaveProperty('0x270f');
+
+          controller.init();
+
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfig.name,
+              nativeCurrency: networkConfig.assets.native.symbol,
+              blockExplorerUrls: [networkConfig.blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  networkClientId:
+                    networkConfig.rpcProviders.default.networkClientId,
+                  url: networkConfig.rpcProviders.default.url,
+                  type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
+        },
+      );
+    });
+  });
+
+  describe('ConfigRegistryController:stateChanged', () => {
+    it('enables Infura chains that are set as auto-enabled in the config registry', async () => {
+      const networkConfig = buildMockConfigRegistryControllerNetwork({
+        chainId: 'eip155:9999',
+        config: {
+          ...buildMockConfigRegistryControllerNetwork().config,
+          isAutoEnabled: true,
+        },
+      });
+      await withController(
+        { configRegistryNetworkConfigs: [networkConfig] },
+        async ({ controller, messenger }) => {
+          messenger.publish(
+            'ConfigRegistryController:stateChanged',
+            {
+              configs: { networks: { 'eip155:9999': networkConfig } },
+              lastFetched: 0,
+              etag: 'etag',
+              version: '1',
+            },
+            [],
+          );
+
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfig.name,
+              nativeCurrency: networkConfig.assets.native.symbol,
+              blockExplorerUrls: [networkConfig.blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  networkClientId:
+                    networkConfig.rpcProviders.default.networkClientId,
+                  url: networkConfig.rpcProviders.default.url,
+                  type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
+        },
+      );
+    });
+
+    it('enables custom networks that are set as auto-enabled in the config registry', async () => {
+      const networkConfig = buildMockConfigRegistryControllerNetwork({
+        chainId: 'eip155:9999',
+        rpcProviders: {
+          default: buildCustomRpcEndpoint({
+            url: 'https://test.network/1',
+            type: RpcEndpointType.Custom,
+          }),
+          fallbacks: [],
+        },
+        config: {
+          ...buildMockConfigRegistryControllerNetwork().config,
+          isAutoEnabled: true,
+        },
+      });
+      await withController(
+        { configRegistryNetworkConfigs: [networkConfig] },
+        async ({ controller, messenger }) => {
+          messenger.publish(
+            'ConfigRegistryController:stateChanged',
+            {
+              configs: { networks: { 'eip155:9999': networkConfig } },
+              lastFetched: 0,
+              etag: 'etag',
+              version: '1',
+            },
+            [],
+          );
+
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfig.name,
+              nativeCurrency: networkConfig.assets.native.symbol,
+              blockExplorerUrls: [networkConfig.blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  url: networkConfig.rpcProviders.default.url,
+                  type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
+        },
+      );
+    });
+
+    it('gracefully handles errors thrown when enabling networks from the config registry', async () => {
+      const networkConfigs = [
+        buildMockConfigRegistryControllerNetwork({
+          chainId: 'eip155:9997',
+          rpcProviders: {
+            default: buildCustomRpcEndpoint({
+              url: 'https://test.network/2',
+              type: RpcEndpointType.Custom,
+            }),
+            fallbacks: [],
+          },
+          config: {
+            ...buildMockConfigRegistryControllerNetwork().config,
+            isAutoEnabled: true,
+          },
+        }),
+        buildMockConfigRegistryControllerNetwork({
+          chainId: 'eip155:9998',
+          rpcProviders: {
+            default: buildCustomRpcEndpoint({
+              url: 'https://test.network/2',
+              type: RpcEndpointType.Custom,
+            }),
+            fallbacks: [],
+          },
+          config: {
+            ...buildMockConfigRegistryControllerNetwork().config,
+            isAutoEnabled: true,
+          },
+        }),
+        buildMockConfigRegistryControllerNetwork({
+          chainId: 'eip155:9999',
+          rpcProviders: {
+            default: buildCustomRpcEndpoint({
+              url: 'https://test.network/1',
+              type: RpcEndpointType.Custom,
+            }),
+            fallbacks: [],
+          },
+          config: {
+            ...buildMockConfigRegistryControllerNetwork().config,
+            isAutoEnabled: true,
+          },
+        }),
+      ];
+      await withController(
+        { configRegistryNetworkConfigs: networkConfigs },
+        async ({ controller, messenger, networkControllerMessenger }) => {
+          messenger.publish(
+            'ConfigRegistryController:stateChanged',
+            {
+              configs: { networks: { 'eip155:9999': networkConfigs[1] } },
+              lastFetched: 0,
+              etag: 'etag',
+              version: '1',
+            },
+            [],
+          );
+
+          expect(
+            networkControllerMessenger.captureException,
+          ).toHaveBeenCalled();
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).not.toHaveProperty('0x270e');
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfigs[2].name,
+              nativeCurrency: networkConfigs[2].assets.native.symbol,
+              blockExplorerUrls: [networkConfigs[2].blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  url: networkConfigs[2].rpcProviders.default.url,
+                  type: networkConfigs[2].rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
         },
       );
     });
@@ -16637,7 +16876,7 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker({
+    blockTracker: new MockPollingBlockTracker({
       provider,
     }),
     destroy: (): void => {
@@ -16656,7 +16895,7 @@ function buildFakeClient(
  * default.
  * @returns The object.
  */
-function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
+function buildFakeProvider(stubs: MockInternalProviderStub[] = []): Provider {
   const completeStubs = stubs.slice();
   if (!stubs.some((stub) => stub.request.method === 'eth_getBlockByNumber')) {
     completeStubs.unshift({
@@ -16665,7 +16904,7 @@ function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
       discardAfterMatching: false,
     });
   }
-  return new FakeProvider({ stubs: completeStubs });
+  return new MockInternalProvider({ stubs: completeStubs });
 }
 
 /**
@@ -16694,7 +16933,7 @@ async function setFakeProvider(
     stubs = [],
     stubLookupNetworkWhileSetting = false,
   }: {
-    stubs?: FakeProviderStub[];
+    stubs?: MockInternalProviderStub[];
     stubLookupNetworkWhileSetting?: boolean;
   } = {},
 ): Promise<void> {

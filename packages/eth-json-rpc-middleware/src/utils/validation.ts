@@ -3,6 +3,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import {
   array,
+  nullable,
   number,
   object,
   optional,
@@ -249,32 +250,36 @@ const QuantityStruct = union([string(), number()]);
 
 export const TransactionParamsStruct = object({
   accessList: optional(
-    array(object({ address: string(), storageKeys: array(string()) })),
-  ),
-  authorizationList: optional(
-    array(
-      object({
-        address: string(),
-        chainId: optional(string()),
-        nonce: optional(string()),
-        r: optional(string()),
-        s: optional(string()),
-        yParity: optional(string()),
-      }),
+    nullable(
+      array(object({ address: string(), storageKeys: array(string()) })),
     ),
   ),
-  chainId: optional(string()),
-  data: optional(string()),
+  authorizationList: optional(
+    nullable(
+      array(
+        object({
+          address: string(),
+          chainId: optional(nullable(QuantityStruct)),
+          nonce: optional(nullable(QuantityStruct)),
+          r: optional(nullable(string())),
+          s: optional(nullable(string())),
+          yParity: optional(nullable(QuantityStruct)),
+        }),
+      ),
+    ),
+  ),
+  chainId: optional(nullable(QuantityStruct)),
+  data: optional(nullable(string())),
   from: string(),
-  gas: optional(QuantityStruct),
-  gasLimit: optional(QuantityStruct),
-  gasPrice: optional(QuantityStruct),
-  maxFeePerGas: optional(QuantityStruct),
-  maxPriorityFeePerGas: optional(QuantityStruct),
-  nonce: optional(QuantityStruct),
-  to: optional(string()),
-  type: optional(string()),
-  value: optional(QuantityStruct),
+  gas: optional(nullable(QuantityStruct)),
+  gasLimit: optional(nullable(QuantityStruct)),
+  gasPrice: optional(nullable(QuantityStruct)),
+  maxFeePerGas: optional(nullable(QuantityStruct)),
+  maxPriorityFeePerGas: optional(nullable(QuantityStruct)),
+  nonce: optional(nullable(QuantityStruct)),
+  to: optional(nullable(string())),
+  type: optional(nullable(string())),
+  value: optional(nullable(QuantityStruct)),
 });
 
 // Upper bound derived from the largest valid eth_sendTransaction payload:

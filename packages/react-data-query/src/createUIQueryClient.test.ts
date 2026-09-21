@@ -1,4 +1,13 @@
-import { Messenger } from '@metamask/messenger';
+import {
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedPayload,
+} from '@metamask/base-data-service';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  MessengerActions,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import {
   InfiniteData,
@@ -10,39 +19,133 @@ import {
 
 import {
   ExampleDataService,
-  ExampleDataServiceActions,
-  ExampleDataServiceEvents,
+  ExampleMessenger,
   GetActivityResponse,
   PageParam,
+  serviceName,
 } from '../../base-data-service/tests/ExampleDataService.js';
 import {
   mockAssets,
   mockTransactionsPage1,
   mockTransactionsPage2,
 } from '../../base-data-service/tests/mocks.js';
+import {
+  StorageServiceGetItemAction,
+  StorageServiceSetItemAction,
+  StorageServiceRemoveItemAction,
+} from '../../storage-service/src/StorageService-method-action-types.js';
 import { createUIQueryClient } from './createUIQueryClient.js';
 
 const DATA_SERVICES = ['ExampleDataService'] as const;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction,
+  never
+>;
+
+/**
+ * Handles granular cache update events emitted by data services.
+ */
+type DataServiceGranularCacheUpdatedHandler = (
+  payload: DataServiceGranularCacheUpdatedPayload,
+) => void;
+
+/**
+ * Create a root messenger.
+ *
+ * @param args - The arguments.
+ * @param args.actionHandlers - The action handlers to mock.
+ * @returns The root messenger.
+ */
+function createRootMessenger({
+  actionHandlers = {
+    'StorageService:getItem': jest.fn(),
+    'StorageService:setItem': jest.fn(),
+    'StorageService:removeItem': jest.fn(),
+  },
+}: {
+  actionHandlers?: {
+    [Action in MessengerActions<RootMessenger> as Action['type']]?: Action['handler'];
+  };
+} = {}): RootMessenger {
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+    captureException: console.error,
+  });
+
+  for (const [actionType, actionHandler] of Object.entries(actionHandlers)) {
+    // @ts-expect-error TypeScript puts all types and all handlers into
+    // two unions, making it impossible to tell which belongs to which
+    messenger.registerActionHandler(actionType, actionHandler);
+  }
+
+  return messenger;
+}
+
+/**
+ * Create an ExampleDataService messenger.
+ *
+ * @param rootMessenger - The root messenger to derive the ExampleDataService
+ * messenger from.
+ * @returns The ExampleDataService messenger.
+ */
+function createServiceMessenger(
+  rootMessenger = createRootMessenger(),
+): ExampleMessenger {
+  const messenger: ExampleMessenger = new Messenger({
+    namespace: serviceName,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'StorageService:getItem',
+      'StorageService:setItem',
+      'StorageService:removeItem',
+    ],
+    messenger,
+  });
+  return messenger;
+}
 
 function createClients(config?: QueryClientConfig): {
   service: ExampleDataService;
   clientA: QueryClient;
   clientB: QueryClient;
-  messenger: Messenger<
-    'ExampleDataService',
-    ExampleDataServiceActions,
-    ExampleDataServiceEvents
-  >;
+  messenger: ExampleMessenger;
 } {
-  const serviceMessenger = new Messenger<
-    'ExampleDataService',
-    ExampleDataServiceActions,
-    ExampleDataServiceEvents
-  >({ namespace: 'ExampleDataService' });
+  const serviceMessenger = createServiceMessenger();
   const service = new ExampleDataService(serviceMessenger);
+  const messengerAdapter = {
+    call: (
+      actionType: `ExampleDataService:${string}`,
+      ...params: unknown[]
+    ): unknown => {
+      if (actionType.startsWith('ExampleDataService:')) {
+        // @ts-expect-error TypeScript cannot unify template literals with
+        // strings. We can safely assume that the ExampleDataService messenger
+        // accepts an action prefixed with "ExampleDataService:", though.
+        return serviceMessenger.call(actionType, ...params);
+      }
+      throw new Error(`Unknown action: ${actionType}`);
+    },
+    subscribe: (
+      eventType: DataServiceGranularCacheUpdatedEvent<'ExampleDataService'>['type'],
+      handler: DataServiceGranularCacheUpdatedHandler,
+    ): void => {
+      serviceMessenger.subscribe(eventType, handler);
+    },
+    unsubscribe: (
+      eventType: DataServiceGranularCacheUpdatedEvent<'ExampleDataService'>['type'],
+      handler: DataServiceGranularCacheUpdatedHandler,
+    ): void => {
+      serviceMessenger.unsubscribe(eventType, handler);
+    },
+  };
 
-  const clientA = createUIQueryClient(DATA_SERVICES, serviceMessenger, config);
-  const clientB = createUIQueryClient(DATA_SERVICES, serviceMessenger, config);
+  const clientA = createUIQueryClient(DATA_SERVICES, messengerAdapter, config);
+  const clientB = createUIQueryClient(DATA_SERVICES, messengerAdapter, config);
 
   return { service, clientA, clientB, messenger: serviceMessenger };
 }
@@ -100,28 +203,6 @@ describe('createUIQueryClient', () => {
       },
     ]);
 
-    service.destroy();
-  });
-
-  it('proxies requests to the messenger adapter', async () => {
-    const { service } = createClients();
-    const messengerAdapter = {
-      call: jest.fn((actionType, assets) => {
-        if (actionType === getAssetsQueryKey[0]) {
-          return service.getAssets(assets);
-        }
-        throw new Error(`Unknown action: ${actionType}`);
-      }),
-      subscribe: jest.fn(),
-      unsubscribe: jest.fn(),
-    };
-    const client = createUIQueryClient(DATA_SERVICES, messengerAdapter);
-
-    await client.fetchQuery({
-      queryKey: getAssetsQueryKey,
-    });
-
-    expect(messengerAdapter.call).toHaveBeenCalledWith(...getAssetsQueryKey);
     service.destroy();
   });
 
@@ -403,14 +484,14 @@ describe('createUIQueryClient', () => {
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,
-      initialPageParam: undefined,
+      initialPageParam: null,
       getNextPageParam,
       getPreviousPageParam,
     });
 
     const observerB = new InfiniteQueryObserver(clientB, {
       queryKey: getActivityQueryKey,
-      initialPageParam: undefined,
+      initialPageParam: null,
       getNextPageParam,
       getPreviousPageParam,
     });

@@ -3,13 +3,15 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
+import { v4 as uuid } from 'uuid';
 
+import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
 import type { BridgeClientId } from './constants/bridge.js';
 import {
   BRIDGE_CONTROLLER_NAME,
@@ -59,18 +61,22 @@ import {
 import {
   AbortReason,
   BatchSellMetricsEventName,
+  FailurePhase,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
+  SwapBridgeErrorCode,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants.js';
 import type {
   BridgeControllerMetricsEventName,
   BridgeControllerMetricsLocation,
 } from './utils/metrics/constants.js';
+import { getQuoteFetchErrorCode } from './utils/metrics/failure-telemetry.js';
 import {
   formatProviderLabel,
   getAccountHardwareType,
   getRequestParams,
+  getSwapType,
   getSwapTypeFromQuote,
   isCustomSlippage,
   toInputChangedPropertyKey,
@@ -91,6 +97,7 @@ import {
   isValidBatchSellQuoteRequest,
 } from './validators/quote-request.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -196,6 +203,31 @@ type BridgePollingInput = {
   quoteRequests: GenericQuoteRequest[];
   context: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesError] &
     RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesRequested];
+};
+
+type QuoteTraceResult = 'success' | 'cancelled' | 'no_quotes' | 'error';
+
+const QUOTE_ABORT_REASONS = new Set<string>(Object.values(AbortReason));
+
+const isExpectedQuoteAbort = (
+  error: unknown,
+  signal?: AbortSignal,
+): boolean => {
+  if (signal?.aborted) {
+    return true;
+  }
+
+  if (QUOTE_ABORT_REASONS.has(String(error))) {
+    return true;
+  }
+
+  const errorText =
+    error instanceof Error ? `${error.name} ${error.message}` : String(error);
+
+  return (
+    errorText.includes('AbortError') ||
+    errorText.includes('FetchRequestCanceledException')
+  );
 };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -427,13 +459,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     this.#trackQuoteValidationFailures(validationFailures, featureId);
+    const srcChainIds = Array.from(
+      new Set(baseQuotes.map((quote) => quote.quote.srcChainId)),
+    ).filter(Boolean);
 
-    const quotesWithFees = await appendFeesToQuotes(
-      baseQuotes,
-      this.messenger,
-      this.#getLayer1GasFee,
-      this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
-    );
+    const quotesWithFees =
+      srcChainIds.length > 1 || srcChainIds.length === 0
+        ? // Don't append fees if there are multiple srcChainIds
+          baseQuotes
+        : await appendFeesToQuotes(
+            formatChainIdToCaip(srcChainIds[0]),
+            baseQuotes,
+            this.messenger,
+            this.#getLayer1GasFee,
+            this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
+          );
 
     return sortQuotes(quotesWithFees, featureId);
   };
@@ -447,7 +487,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
    */
   updateBatchSellTrades = async (
-    quotes: (QuoteResponseV1 | null)[],
+    quotes: (QuoteResponse | null)[],
     stxEnabled: boolean,
   ): Promise<void> => {
     this.#batchSellTradesAbortController?.abort(
@@ -781,6 +821,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#batchSellTradesAbortController?.abort(AbortReason.NewQuoteRequest);
 
     this.#abortController = new AbortController();
+    const quoteTraceStartTime = Date.now();
+    const quoteTraceRequestId = uuid();
+    const quoteAbortSignal = this.#abortController.signal;
 
     this.#fetchAssetExchangeRates(quoteRequests).catch((error) =>
       console.warn('Failed to fetch asset exchange rates', error),
@@ -813,83 +856,110 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const jwt = await this.#getJwt();
 
-    try {
-      const [firstQuoteRequest] = quoteRequests;
-
-      const unifiedSwapTraceName = isCrossChain(
+    const [firstQuoteRequest] = quoteRequests;
+    let traceResult: QuoteTraceResult = 'error';
+    let traceName = TraceName.BatchSellQuotesFetched;
+    if (!isBatchSellRequest) {
+      traceName = isCrossChain(
         firstQuoteRequest.srcChainId,
         firstQuoteRequest.destChainId,
       )
         ? TraceName.BridgeQuotesFetched
         : TraceName.SwapQuotesFetched;
-
-      await this.#trace(
-        {
-          name: isBatchSellRequest
-            ? TraceName.BatchSellQuotesFetched
-            : unifiedSwapTraceName,
-          data: {
-            srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
-            destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
-          },
-        },
-        async () => {
-          const selectedAccount = this.#getMultichainSelectedAccount(
-            firstQuoteRequest.walletAddress,
-          );
-          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.#setMinimumBalanceForRentExemptionInLamports(
+    }
+    const tracedProviders = new Set<string>();
+    const traceWithoutImpact = async (request: TraceRequest): Promise<void> => {
+      try {
+        await this.#trace(request, () => undefined);
+      } catch {
+        // Telemetry failures must not affect quote fetching or state updates.
+      }
+    };
+    const traceProviderFirstResult = (
+      providerData: Parameters<typeof formatProviderLabel>[0],
+    ) => {
+      const provider = formatProviderLabel(providerData);
+      if (isBatchSellRequest || tracedProviders.has(provider)) {
+        return;
+      }
+      tracedProviders.add(provider);
+      // Provider telemetry must not delay quote processing.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      traceWithoutImpact({
+        name: TraceName.QuoteProviderFirstResult,
+        startTime: quoteTraceStartTime,
+        data: {
+          provider,
+          feature_id: context.feature_id,
+          request_id: quoteTraceRequestId,
+          swap_type: getSwapType(
             firstQuoteRequest.srcChainId,
-            selectedAccount?.metadata?.snap?.id,
-          );
-          // Use SSE if enabled and return early
-          if (shouldStream || isBatchSellRequest) {
-            await this.#handleQuoteStreaming(
-              quoteRequests,
-              context.feature_id,
-              jwt,
-              selectedAccount,
-            );
-            return;
-          }
-          // Otherwise use regular fetch
-          const quotes = await this.fetchQuotes(
-            firstQuoteRequest,
-            context.feature_id,
-            this.#abortController?.signal,
-          );
-          this.update((state) => {
-            // Set the initial load time if this is the first fetch
-            if (
-              state.quotesRefreshCount ===
-                DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount &&
-              this.#quotesFirstFetched
-            ) {
-              state.quotesInitialLoadTime =
-                Date.now() - this.#quotesFirstFetched;
-            }
-            state.quotes = quotes;
-            state.quotesLoadingStatus = RequestStatus.FETCHED;
-          });
+            firstQuoteRequest.destChainId,
+          ),
+          srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
+          destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
+          result: 'success',
         },
+      });
+    };
+
+    try {
+      const selectedAccount = this.#getMultichainSelectedAccount(
+        firstQuoteRequest.walletAddress,
       );
+      // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#setMinimumBalanceForRentExemptionInLamports(
+        firstQuoteRequest.srcChainId,
+        selectedAccount?.metadata?.snap?.id,
+      );
+      // Use SSE if enabled and return early
+      if (shouldStream || isBatchSellRequest) {
+        const quoteCount = await this.#handleQuoteStreaming({
+          quoteRequests,
+          featureId: context.feature_id,
+          jwt,
+          selectedAccount,
+          signal: quoteAbortSignal,
+          traceProviderFirstResult,
+        });
+        if (quoteAbortSignal.aborted) {
+          traceResult = 'cancelled';
+          return;
+        }
+        traceResult = quoteCount > 0 ? 'success' : 'no_quotes';
+      } else {
+        // Otherwise use regular fetch
+        const quotes = await this.fetchQuotes(
+          firstQuoteRequest,
+          context.feature_id,
+          quoteAbortSignal,
+        );
+        for (const quote of quotes) {
+          traceProviderFirstResult(quote.quote);
+        }
+        this.update((state) => {
+          // Set the initial load time if this is the first fetch
+          if (
+            state.quotesRefreshCount ===
+              DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount &&
+            this.#quotesFirstFetched
+          ) {
+            state.quotesInitialLoadTime = Date.now() - this.#quotesFirstFetched;
+          }
+          state.quotes = quotes.map(toQuoteResponseV2);
+          state.quotesLoadingStatus = RequestStatus.FETCHED;
+        });
+        traceResult = quotes.length > 0 ? 'success' : 'no_quotes';
+      }
     } catch (error) {
       // Reset the quotes list if the fetch fails to avoid showing stale quotes
       this.update((state) => {
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       // Ignore abort errors
-      if (
-        (error as Error).toString().includes('AbortError') ||
-        (error as Error).toString().includes('FetchRequestCanceledException') ||
-        [
-          AbortReason.ResetState,
-          AbortReason.NewQuoteRequest,
-          AbortReason.QuoteRequestUpdated,
-          AbortReason.TransactionSubmitted,
-        ].includes(error as AbortReason)
-      ) {
+      if (isExpectedQuoteAbort(error, quoteAbortSignal)) {
+        traceResult = 'cancelled';
         // Exit the function early to prevent other state updates
         return;
       }
@@ -910,14 +980,29 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotesLoadingStatus = RequestStatus.ERROR;
       });
       // Track event and log error
-      this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuotesError,
-        context,
-      );
+      this.trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.QuotesError, {
+        ...context,
+        failure_phase: FailurePhase.Quote,
+        error_code: getQuoteFetchErrorCode(error),
+      });
       console.log(
         `Failed to ${shouldStream ? 'stream' : 'fetch'} bridge quotes`,
         error,
       );
+    } finally {
+      await traceWithoutImpact({
+        name: traceName,
+        startTime: quoteTraceStartTime,
+        data: {
+          srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
+          destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
+          ...(!isBatchSellRequest && {
+            request_id: quoteTraceRequestId,
+            feature_id: context.feature_id,
+            result: traceResult,
+          }),
+        },
+      });
     }
 
     // Update refresh count after fetching, validation and fee calculation have completed
@@ -940,12 +1025,23 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
-  readonly #handleQuoteStreaming = async (
-    quoteRequests: GenericQuoteRequest[],
-    featureId: FeatureId,
-    jwt?: string,
-    selectedAccount?: InternalAccount,
-  ) => {
+  readonly #handleQuoteStreaming = async ({
+    quoteRequests,
+    featureId,
+    jwt,
+    selectedAccount,
+    signal,
+    traceProviderFirstResult,
+  }: {
+    quoteRequests: GenericQuoteRequest[];
+    featureId: FeatureId;
+    jwt?: string;
+    selectedAccount?: InternalAccount;
+    signal?: AbortSignal;
+    traceProviderFirstResult: (
+      providerData: Parameters<typeof formatProviderLabel>[0],
+    ) => void;
+  }): Promise<number> => {
     /**
      * Tracks the number of valid quotes received from the current stream, which is used
      * to determine when to clear the quotes list and set the initial load time
@@ -960,7 +1056,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     await fetchBridgeQuoteStream(
       this.#fetchFn,
       quoteRequests,
-      this.#abortController?.signal,
+      signal,
       featureId,
       this.#clientId,
       jwt,
@@ -968,9 +1064,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         onQuoteValidationFailure: (validationFailures) =>
           this.#trackQuoteValidationFailures(validationFailures, featureId),
-        onValidQuoteReceived: async (quote: QuoteResponseV1) => {
+        onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
+              quote.chainId,
               [quote],
               this.messenger,
               this.#getLayer1GasFee,
@@ -978,6 +1075,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             );
             if (quotesWithFees.length > 0) {
               validQuotesCounter += 1;
+              traceProviderFirstResult(quote.quote);
             }
             this.update((state) => {
               // Clear previous quotes and quotes load time when first quote in the current
@@ -1041,6 +1139,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       },
       this.#clientVersion,
     );
+
+    return validQuotesCounter;
   };
 
   readonly #setMinimumBalanceForRentExemptionInLamports = async (
@@ -1116,7 +1216,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     return {
-      slippage_limit: quoteRequest.slippage,
+      slippage_limit: quoteRequest.slippage ?? 0,
       swap_type: getSwapTypeFromQuote(quoteRequest),
       custom_slippage: isCustomSlippage(quoteRequest.slippage),
       account_hardware_type: accountHardwareType,
@@ -1265,6 +1365,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           refresh_count: this.state.quotesRefreshCount,
+          has_sufficient_funds: !quoteRequest.insufficientBal,
           ...inputPrimaryDenominationProperties,
           ...baseProperties,
         };
@@ -1288,7 +1389,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !quoteRequest.insufficientBal,
+          failure_phase: FailurePhase.Quote,
+          error_code: SwapBridgeErrorCode.QuoteFetchFailed,
           ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.Failed:
+        // Populate the properties that the error occurred before the tx was submitted
+        return {
+          ...baseProperties,
+          ...getRequestParams(
+            quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
+          ...this.#getRequestMetadata(),
+          ...this.#getQuoteFetchData(),
+          ...propertiesFromClient,
         };
       case UnifiedSwapBridgeEventName.AllQuotesOpened:
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
@@ -1302,19 +1417,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getQuoteFetchData(),
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.Failed: {
-        // Populate the properties that the error occurred before the tx was submitted
-        return {
-          ...baseProperties,
-          ...getRequestParams(
-            quoteRequest,
-            this.state.tokenSecurityTypeDestination,
-          ),
-          ...this.#getRequestMetadata(),
-          ...this.#getQuoteFetchData(),
-          ...propertiesFromClient,
-        };
-      }
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
       case UnifiedSwapBridgeEventName.AssetPickerOpened:
         return baseProperties;

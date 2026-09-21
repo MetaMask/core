@@ -5,6 +5,12 @@ import {
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  describe('PREVIOUS_LEVERAGE', () => {
+    it('exports PREVIOUS_LEVERAGE as previous_leverage', () => {
+      expect(PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE).toBe('previous_leverage');
+    });
+  });
+
   describe('advanced chart analytics property keys', () => {
     it('exports CHART_LIBRARY key', () => {
       expect(PERPS_EVENT_PROPERTY.CHART_LIBRARY).toBe('chart_library');
@@ -21,8 +27,8 @@ describe('PERPS_EVENT_PROPERTY', () => {
     });
   });
 
-  describe('consolidated analytics contract property keys (TAT-3463)', () => {
-    it('exports entry point / discovery attribution keys (TAT-3080)', () => {
+  describe('consolidated analytics contract property keys', () => {
+    it('exports entry point / discovery attribution keys', () => {
       expect(PERPS_EVENT_PROPERTY.ENTRY_POINT).toBe('entry_point');
       expect(PERPS_EVENT_PROPERTY.DISCOVERY_SOURCE).toBe('discovery_source');
       expect(PERPS_EVENT_PROPERTY.PERP_DISCOVERY_SOURCE).toBe(
@@ -30,7 +36,7 @@ describe('PERPS_EVENT_PROPERTY', () => {
       );
     });
 
-    it('exports UTM attribution keys (TAT-3133, TAT-3140)', () => {
+    it('exports UTM attribution keys', () => {
       expect(PERPS_EVENT_PROPERTY.UTM_SOURCE).toBe('utm_source');
       expect(PERPS_EVENT_PROPERTY.UTM_MEDIUM).toBe('utm_medium');
       expect(PERPS_EVENT_PROPERTY.UTM_CAMPAIGN).toBe('utm_campaign');
@@ -45,7 +51,7 @@ describe('PERPS_EVENT_PROPERTY', () => {
       expect(PERPS_EVENT_PROPERTY.ENVIRONMENT_TYPE).toBe('environment_type');
     });
 
-    it('exports order funnel / quote keys (TAT-3084)', () => {
+    it('exports order funnel / quote keys', () => {
       expect(PERPS_EVENT_PROPERTY.ORDER_CONTEXT).toBe('order_context');
       expect(PERPS_EVENT_PROPERTY.ORDER_SIZE_PERCENT).toBe(
         'order_size_percent',
@@ -81,15 +87,20 @@ describe('PERPS_EVENT_PROPERTY', () => {
       expect(PERPS_EVENT_PROPERTY.TO_CHAIN).toBe('to_chain');
     });
 
-    it('exports search keys (TAT-3144, TAT-3202, TAT-3151)', () => {
+    it('exports search keys', () => {
       expect(PERPS_EVENT_PROPERTY.SEARCH_QUERY).toBe('search_query');
       expect(PERPS_EVENT_PROPERTY.RESULTS_COUNT).toBe('results_count');
       expect(PERPS_EVENT_PROPERTY.RESULT_RANK).toBe('result_rank');
+      // Search intent — distinct from PERPS_MODE (Lite/Pro UI)
       expect(PERPS_EVENT_PROPERTY.MODE).toBe('mode');
       expect(PERPS_EVENT_PROPERTY.CURRENT_TOKEN).toBe('current_token');
     });
 
-    it('exports sort / filter and time-on-screen keys (TAT-3142, TAT-3136)', () => {
+    it('exports PERPS_MODE for Lite/Pro interface mode', () => {
+      expect(PERPS_EVENT_PROPERTY.PERPS_MODE).toBe('perps_mode');
+    });
+
+    it('exports sort / filter and time-on-screen keys', () => {
       expect(PERPS_EVENT_PROPERTY.SORT_FIELD).toBe('sort_field');
       expect(PERPS_EVENT_PROPERTY.SORT_DIRECTION).toBe('sort_direction');
       expect(PERPS_EVENT_PROPERTY.FILTER_CATEGORY).toBe('filter_category');
@@ -310,6 +321,35 @@ describe('PERPS_EVENT_VALUE.INTERACTION_TYPE extensions', () => {
   });
 });
 
+describe('Scale analytics constants', () => {
+  it('exports Scale property keys', () => {
+    expect(PERPS_EVENT_PROPERTY.SCALE_ORDER_COUNT).toBe('scale_order_count');
+    expect(PERPS_EVENT_PROPERTY.SCALE_RANGE_PCT).toBe('scale_range_pct');
+    expect(PERPS_EVENT_PROPERTY.SCALE_SKEW).toBe('scale_skew');
+    expect(PERPS_EVENT_PROPERTY.REDUCE_ONLY).toBe('reduce_only');
+  });
+
+  it('exports Scale interaction values', () => {
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SCALE_CONFIG_CHANGED).toBe(
+      'scale_config_changed',
+    );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.SCALE_VALIDATION_ERROR_SHOWN,
+    ).toBe('scale_validation_error_shown');
+  });
+
+  it('exports Scale setting values', () => {
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_START_PRICE).toBe(
+      'start_price',
+    );
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_END_PRICE).toBe('end_price');
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_TOTAL_ORDERS).toBe(
+      'total_orders',
+    );
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_SIZE_SKEW).toBe('size_skew');
+  });
+});
+
 describe('PERPS_EVENT_VALUE.BUTTON_CLICKED extensions', () => {
   it('exports WATCHLIST', () => {
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.WATCHLIST).toBe('watchlist');
@@ -334,13 +374,19 @@ describe('PERPS_EVENT_VALUE.BUTTON_LOCATION extensions', () => {
   });
 });
 
-describe('PERPS_EVENT_VALUE consolidated contract entries (TAT-3463)', () => {
-  it('exports new INTERACTION_TYPE values (TAT-3142, TAT-3144, TAT-3202, TAT-3151)', () => {
+describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
+  it('exports new INTERACTION_TYPE values', () => {
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SORT_APPLIED).toBe(
       'sort_applied',
     );
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.FILTER_APPLIED).toBe(
       'filter_applied',
+    );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.CHASE_BACKGROUNDED_CONVERTED,
+    ).toBe('chase_backgrounded_converted');
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.CHASE_TERMINATED).toBe(
+      'chase_terminated',
     );
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SEARCH_RESULT_TAPPED).toBe(
       'search_result_tapped',
@@ -359,11 +405,17 @@ describe('PERPS_EVENT_VALUE consolidated contract entries (TAT-3463)', () => {
     );
   });
 
-  it('exports ACTION.ABANDON_ORDER (TAT-3136)', () => {
+  it('exports ACTION.ABANDON_ORDER', () => {
     expect(PERPS_EVENT_VALUE.ACTION.ABANDON_ORDER).toBe('abandon_order');
   });
 
-  it('exports new BUTTON_CLICKED values (TAT-3135, TAT-3141)', () => {
+  it('exports the Chase background notification schema value', () => {
+    expect(PERPS_EVENT_VALUE.NOTIFICATION_TYPE.CHASE_BACKGROUNDED).toBe(
+      'chase_backgrounded',
+    );
+  });
+
+  it('exports new BUTTON_CLICKED values', () => {
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.PLACE_ORDER).toBe('place_order');
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.CLOSE).toBe('close');
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.REDUCE_EXPOSURE).toBe(
@@ -371,24 +423,24 @@ describe('PERPS_EVENT_VALUE consolidated contract entries (TAT-3463)', () => {
     );
   });
 
-  it('exports new SCREEN_TYPE values and keeps add/remove margin (TAT-3144, TAT-3145)', () => {
+  it('exports new SCREEN_TYPE values and keeps add/remove margin', () => {
     expect(PERPS_EVENT_VALUE.SCREEN_TYPE.SEARCH_RESULTS_SHOWN).toBe(
       'search_results_shown',
     );
     expect(PERPS_EVENT_VALUE.SCREEN_TYPE.SEARCH_NO_RESULTS).toBe(
       'search_no_results',
     );
-    // add_margin / remove_margin already existed — verify still present (TAT-3145)
+    // add_margin / remove_margin already existed — verify still present
     expect(PERPS_EVENT_VALUE.SCREEN_TYPE.ADD_MARGIN).toBe('add_margin');
     expect(PERPS_EVENT_VALUE.SCREEN_TYPE.REMOVE_MARGIN).toBe('remove_margin');
   });
 
-  it('keeps STATUS.SUBMITTED for transaction pipeline events (TAT-3134)', () => {
+  it('keeps STATUS.SUBMITTED for transaction pipeline events', () => {
     expect(PERPS_EVENT_VALUE.STATUS.SUBMITTED).toBe('submitted');
   });
 });
 
-describe('PerpsAnalyticsEvent (TAT-3463)', () => {
+describe('PerpsAnalyticsEvent', () => {
   it('adds exactly the five new event names and keeps the nine existing', () => {
     expect(PerpsAnalyticsEvent.TransactionConsidered).toBe(
       'Perp Transaction Considered',

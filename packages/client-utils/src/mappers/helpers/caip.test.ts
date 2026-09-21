@@ -1,10 +1,23 @@
+import { getChainById } from 'eth-chainlist';
+
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
+  getNativeAsset,
   resolveNativeAssetId,
 } from './caip.js';
 
+jest.mock('eth-chainlist', () => ({
+  getChainById: jest.fn(),
+}));
+
+const mockGetChainById = jest.mocked(getChainById);
+
 describe('caip helpers', () => {
+  beforeEach(() => {
+    mockGetChainById.mockReset();
+  });
+
   describe('formatChainIdToCaip', () => {
     it('formats numeric chain ids', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
@@ -98,19 +111,162 @@ describe('caip helpers', () => {
       );
     });
 
-    it('returns undefined without a symbol', () => {
-      expect(resolveNativeAssetId('eip155:8453', undefined)).toBeUndefined();
-      expect(resolveNativeAssetId('eip155:4663', undefined)).toBeUndefined();
+    it('resolves when symbol is missing but the chain has slip44', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(resolveNativeAssetId('eip155:8453', undefined)).toBe(
+        'eip155:8453/slip44:60',
+      );
     });
 
-    it('returns undefined for unknown symbols', () => {
+    it('falls back to the zero-address erc20 form when symbol and chainlist both miss slip44', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'Chiliz', symbol: 'CHZ', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(resolveNativeAssetId('eip155:88888', 'CHZ')).toBe(
+        'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      );
+      expect(resolveNativeAssetId('eip155:88888', undefined)).toBe(
+        'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      );
+    });
+
+    it('falls back to the zero-address erc20 form when the chain is absent from chainlist', () => {
+      mockGetChainById.mockReturnValue(undefined);
+
+      expect(resolveNativeAssetId('eip155:4663', undefined)).toBe(
+        'eip155:4663/erc20:0x0000000000000000000000000000000000000000',
+      );
+    });
+
+    it('returns undefined for non-eip155 chains without a slip44 hit', () => {
       expect(
         resolveNativeAssetId('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'NOPE'),
+      ).toBeUndefined();
+      expect(
+        resolveNativeAssetId(
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          undefined,
+        ),
       ).toBeUndefined();
     });
 
     it('returns undefined when the chain id cannot be normalized', () => {
       expect(resolveNativeAssetId('0xzzzz', 'ETH')).toBeUndefined();
+    });
+
+    it('returns undefined when chain id is missing', () => {
+      expect(resolveNativeAssetId(undefined, 'ETH')).toBeUndefined();
+      expect(resolveNativeAssetId(undefined, undefined)).toBeUndefined();
+    });
+  });
+
+  describe('getNativeAsset', () => {
+    it('resolves native asset from chainlist slip44', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:1')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('falls back to symbol lookup when chainlist omits slip44', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:42161')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:42161/slip44:60',
+      });
+    });
+
+    it('ignores chainlist testnet slip44:1 and uses the native symbol coin type', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 1,
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:11155111')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:11155111/slip44:60',
+      });
+    });
+
+    it('prefers chainlist slip44 over the slip44 registry symbol mapping', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 9005,
+        nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:43114')).toStrictEqual({
+        symbol: 'AVAX',
+        decimals: 18,
+        assetId: 'eip155:43114/slip44:9005',
+      });
+    });
+
+    it('returns undefined when the chain is unknown', () => {
+      mockGetChainById.mockReturnValue(undefined);
+
+      expect(getNativeAsset('eip155:999999991')).toBeUndefined();
+    });
+
+    it('returns undefined for non-eip155 chain ids', () => {
+      expect(
+        getNativeAsset('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBeUndefined();
+      expect(mockGetChainById).not.toHaveBeenCalled();
+    });
+
+    it('returns undefined when chainlist omits native currency symbol', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:1')).toBeUndefined();
+    });
+
+    it('defaults decimals when chainlist omits native currency decimals', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', symbol: 'ETH' },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:1')).toStrictEqual({
+        symbol: 'ETH',
+        decimals: 18,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('falls back to the zero-address erc20 assetId when slip44 and symbol lookup both fail', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: {
+          name: 'Chiliz',
+          symbol: 'CHZ',
+          decimals: 18,
+        },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:88888')).toStrictEqual({
+        symbol: 'CHZ',
+        decimals: 18,
+        assetId:
+          'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      });
     });
   });
 });

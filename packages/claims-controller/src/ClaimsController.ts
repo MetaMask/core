@@ -17,7 +17,7 @@ import type {
   ClaimsServiceGetClaimsAction,
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetRequestHeadersAction,
-} from './ClaimsService.js';
+} from './ClaimsService-method-action-types.js';
 import {
   ClaimsControllerErrorMessages,
   CONTROLLER_NAME,

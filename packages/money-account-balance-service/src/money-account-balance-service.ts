@@ -62,7 +62,7 @@ import type {
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
-} from './response.types';
+} from './response.types.js';
 import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs.js';
 import type { VaultConfig } from './types.js';
 
@@ -351,7 +351,6 @@ export class MoneyAccountBalanceService extends BaseDataService<
       });
 
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       (state) => this.#onRemoteFeatureFlagChange(state.remoteFeatureFlags),
     );

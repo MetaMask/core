@@ -26,16 +26,16 @@ const BASE_WETH_ASSET_ID =
 /**
  * Builds a minimal v6 balances response for tests.
  *
- * @param accounts - Account entries to include.
+ * @param balances - Flat balance rows to include.
  * @returns A v6 balances response.
  */
 function buildResponse(
-  accounts: V6BalancesResponse['accounts'],
+  balances: V6BalancesResponse['balances'],
 ): V6BalancesResponse {
   return {
     unprocessedNetworks: [],
     unprocessedIncludeAssetIds: [],
-    accounts,
+    balances,
   };
 }
 
@@ -44,42 +44,43 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'eip155:0:0xabc',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-            metadata: AAVE_METADATA,
-          },
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '100',
-            price: '1',
-            metadata: {
-              ...AAVE_METADATA,
-              positionType: 'deposit',
-              poolAddress: '0xpool2',
-            },
-          },
-          {
-            category: 'defi',
-            assetId: BASE_WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '2',
-            price: '2000',
-            metadata: AAVE_METADATA,
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+        metadata: AAVE_METADATA,
+      },
+      {
+        accountId: 'eip155:0:0xabc',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '100',
+        price: '1',
+        metadata: {
+          ...AAVE_METADATA,
+          positionType: 'deposit',
+          poolAddress: '0xpool2',
+        },
+      },
+      {
+        accountId: 'eip155:0:0xabc',
+        object: 'defi',
+        type: 'erc20',
+        assetId: BASE_WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '2',
+        price: '2000',
+        metadata: AAVE_METADATA,
       },
     ]);
 
@@ -116,38 +117,39 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'token',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-          },
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '100',
-            price: '1',
-          },
-          {
-            category: 'defi',
-            assetId: USDT_ASSET_ID,
-            name: 'Tether',
-            symbol: 'USDT',
-            decimals: 6,
-            balance: '50',
-            price: '1',
-            metadata: {
-              limit: '1',
-            },
-          },
-        ],
+        object: 'token',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '100',
+        price: '1',
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDT_ASSET_ID,
+        name: 'Tether',
+        symbol: 'USDT',
+        decimals: 6,
+        balance: '50',
+        price: '1',
+        metadata: {
+          limit: '1',
+        },
       },
     ]);
 
@@ -157,14 +159,14 @@ describe('groupDeFiPositionsV6', () => {
   });
 
   it('seeds an empty list for accounts with no DeFi positions', () => {
-    const response = buildResponse([
-      {
-        accountId: 'account-empty',
-        balances: [],
-      },
-    ]);
+    const response = buildResponse([]);
 
-    expect(groupDeFiPositionsV6(response)).toStrictEqual({
+    expect(
+      groupDeFiPositionsV6(
+        response,
+        new Map([['eip155:0:0xempty', 'account-empty']]),
+      ),
+    ).toStrictEqual({
       'account-empty': [],
     });
   });
@@ -173,35 +175,29 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'eip155:1:0xUnknown',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-            metadata: AAVE_METADATA,
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+        metadata: AAVE_METADATA,
       },
       {
         // Response uses a per-chain reference + mixed case; request map uses
         // the all-chains reference (`eip155:0:...`).
         accountId: 'eip155:1:0xKnown',
-        balances: [
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '10',
-            price: '1',
-            metadata: AAVE_METADATA,
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '10',
+        price: '1',
+        metadata: AAVE_METADATA,
       },
     ]);
 
@@ -218,43 +214,44 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            metadata: AAVE_METADATA,
-          },
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: 'not-a-number',
-            price: '1',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Aave V3 USDC',
-            },
-          },
-          {
-            category: 'defi',
-            assetId: USDT_ASSET_ID,
-            name: 'Tether',
-            symbol: 'USDT',
-            decimals: 6,
-            balance: '5',
-            price: '1',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Aave V3 USDT',
-            },
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        metadata: AAVE_METADATA,
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: 'not-a-number',
+        price: '1',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Aave V3 USDC',
+        },
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDT_ASSET_ID,
+        name: 'Tether',
+        symbol: 'USDT',
+        decimals: 6,
+        balance: '5',
+        price: '1',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Aave V3 USDT',
+        },
       },
     ]);
 
@@ -270,36 +267,35 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Aave V3 Supply',
-              positionType: 'deposit',
-            },
-          },
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '500',
-            price: '1',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Aave V3 Borrow',
-              positionType: 'loan',
-            },
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Aave V3 Supply',
+          positionType: 'deposit',
+        },
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '500',
+        price: '1',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Aave V3 Borrow',
+          positionType: 'loan',
+        },
       },
     ]);
 
@@ -315,35 +311,34 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Aave V3 Supply',
-            },
-          },
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '100',
-            price: '1',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Aave V3 Borrow',
-              positionType: 'loan',
-            },
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Aave V3 Supply',
+        },
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '100',
+        price: '1',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Aave V3 Borrow',
+          positionType: 'loan',
+        },
       },
     ]);
 
@@ -376,41 +371,42 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '100',
-            price: '1',
-            metadata: AAVE_METADATA,
-          },
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-            metadata: AAVE_METADATA,
-          },
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '0.5',
-            price: '2000',
-            metadata: {
-              ...AAVE_METADATA,
-              positionType: 'reward',
-            },
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '100',
+        price: '1',
+        metadata: AAVE_METADATA,
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+        metadata: AAVE_METADATA,
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '0.5',
+        price: '2000',
+        metadata: {
+          ...AAVE_METADATA,
+          positionType: 'reward',
+        },
       },
     ]);
 
@@ -429,18 +425,15 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1.5',
-            price: '2000',
-            metadata: AAVE_METADATA,
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1.5',
+        price: '2000',
+        metadata: AAVE_METADATA,
       },
     ]);
 
@@ -467,37 +460,36 @@ describe('groupDeFiPositionsV6', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
-        balances: [
-          {
-            category: 'defi',
-            assetId: WETH_ASSET_ID,
-            name: 'Wrapped Ether',
-            symbol: 'WETH',
-            decimals: 18,
-            balance: '1',
-            price: '2000',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Pendle YT',
-              groupId: 'group-yt-1',
-            },
-          },
-          {
-            category: 'defi',
-            assetId: USDC_ASSET_ID,
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balance: '100',
-            price: '1',
-            metadata: {
-              ...AAVE_METADATA,
-              productName: 'Pendle YT',
-              poolAddress: '0xpool2',
-              groupId: 'group-yt-2',
-            },
-          },
-        ],
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        price: '2000',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Pendle YT',
+          groupId: 'group-yt-1',
+        },
+      },
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: USDC_ASSET_ID,
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: '100',
+        price: '1',
+        metadata: {
+          ...AAVE_METADATA,
+          productName: 'Pendle YT',
+          poolAddress: '0xpool2',
+          groupId: 'group-yt-2',
+        },
       },
     ]);
 
@@ -508,5 +500,26 @@ describe('groupDeFiPositionsV6', () => {
     expect(
       group.sections[0].positions.map((position) => position.groupId),
     ).toStrictEqual(['group-yt-1', 'group-yt-2']);
+  });
+
+  it('supports DeFi metadata without a protocol icon URL', () => {
+    const { protocolIconUrl: _protocolIconUrl, ...metadata } = AAVE_METADATA;
+    const response = buildResponse([
+      {
+        accountId: 'account-1',
+        object: 'defi',
+        type: 'erc20',
+        assetId: WETH_ASSET_ID,
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        balance: '1',
+        metadata,
+      },
+    ]);
+
+    const [group] = groupDeFiPositionsV6(response)['account-1'];
+
+    expect(group.protocolIconUrl).toBe('');
   });
 });

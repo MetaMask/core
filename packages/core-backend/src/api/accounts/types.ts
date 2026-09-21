@@ -19,6 +19,11 @@ export type V5BalanceItem = {
   assetId: string;
   balance: string;
   accountId: string;
+  /**
+   * Token-level metadata such as Stellar trustline / native reserve fields.
+   * Present when the upstream balance row carries it.
+   */
+  metadata?: V6TokenBalanceMetadata;
 };
 
 /** V5 Multi-account balances response */
@@ -85,7 +90,7 @@ export const V6_DEFI_POSITION_TYPES = [
 export type V6DeFiPositionType = (typeof V6_DEFI_POSITION_TYPES)[number];
 
 /**
- * DeFi protocol metadata attached to a `category: defi` row in the v6 balances
+ * DeFi protocol metadata attached to an `object: defi` row in the v6 balances
  * response (`BalanceMetadataV3ResponseDto`).
  */
 export type V6BalanceMetadata = {
@@ -93,32 +98,49 @@ export type V6BalanceMetadata = {
   productName: string;
   description: string;
   protocolUrl: string;
-  protocolIconUrl: string;
+  protocolIconUrl?: string;
   positionType: V6DeFiPositionType;
   poolAddress: string;
   groupId: string;
 };
 
 /**
- * Token-level metadata attached to a `category: token` row in the v6 balances
- * response, e.g. Stellar trustline metadata. Additional keys may be present.
+ * Stellar-specific token metadata (trustline and native reserve fields).
  */
-export type V6TokenMetadata = {
+export type V6StellarTokenBalanceMetadata = {
   /** Stellar trustline limit. */
   limit?: string;
   /** Whether the Stellar trustline is authorized. */
   authorized?: boolean;
-  [key: string]: unknown;
+  /** Whether the Stellar trustline is sponsored. */
+  sponsored?: boolean;
+  /** Stellar native spendable balance (unscaled stroops). */
+  spendableBalance?: string;
+  /** Stellar native minimum / reserve balance (unscaled stroops). */
+  minimumReserveBalance?: string;
 };
 
 /**
+ * Token-level metadata attached to an `object: token` row in the v5/v6
+ * balances responses.
+ *
+ * Token decimals belong on the balance row (`decimals` / `assetsInfo`), not
+ * here. Compose additional chain-specific types into this alias as they ship
+ * (e.g. `V6StellarTokenBalanceMetadata & V6TronTokenBalanceMetadata`).
+ */
+export type V6TokenBalanceMetadata = V6StellarTokenBalanceMetadata;
+
+/**
  * A single balance row in the v6 balances response (`BalanceV3ResponseDto`).
- * `category: token` rows are EVM/Solana token balances (and may carry
- * {@link V6TokenMetadata}, e.g. Stellar trustline info). `category: defi` rows
+ * `object: token` rows are token balances (and may carry
+ * {@link V6TokenBalanceMetadata}, e.g. Stellar trustline info). `object: defi` rows
  * are flat DeFi positions and include {@link V6BalanceMetadata}.
  */
 export type V6BalanceItem = {
-  category: 'token' | 'defi';
+  accountId: string;
+  object: 'token' | 'defi';
+  /** Asset standard reported by the network (for example `native` or `erc20`). */
+  type: string;
   assetId: string;
   name: string;
   symbol: string;
@@ -131,25 +153,11 @@ export type V6BalanceItem = {
   /** Canonical head asset ID. Present when `includeCanonicalHead` is true. */
   canonicalHead?: string;
   /**
-   * DeFi protocol metadata for `category: defi` rows; token-level metadata such
-   * as Stellar trustline info (e.g. `limit`, `authorized`) for `category: token`
+   * DeFi protocol metadata for `object: defi` rows; token-level metadata such
+   * as Stellar trustline info (e.g. `limit`, `authorized`) for `object: token`
    * rows.
    */
-  metadata?: V6BalanceMetadata | V6TokenMetadata;
-};
-
-/**
- * A per-account entry in the v6 balances response
- * (`AccountBalancesV3EntryDto`).
- */
-export type V6AccountBalancesEntry = {
-  accountId: string;
-  balances: V6BalanceItem[];
-  /**
-   * When true, DeFi positions for this account are still being indexed
-   * upstream; poll again shortly.
-   */
-  processingDefiPositions?: boolean;
+  metadata?: V6BalanceMetadata | V6TokenBalanceMetadata;
 };
 
 /**
@@ -163,8 +171,14 @@ export type V6BalancesResponse = {
    * account, plus other IDs that still need a client fallback flow.
    */
   unprocessedIncludeAssetIds: string[];
-  /** Per-account balance entries. */
-  accounts: V6AccountBalancesEntry[];
+  /** Flat token and DeFi balance rows. */
+  balances: V6BalanceItem[];
+  /**
+   * CAIP-10 account IDs whose DeFi positions are still being indexed upstream;
+   * poll again shortly. DeFi balance rows for these accounts are omitted from
+   * `balances` until indexing completes.
+   */
+  processingDefiPositions?: string[];
 };
 
 // ============================================================================
@@ -176,12 +190,10 @@ export type V1SupportedNetworksResponse = {
   supportedNetworks: number[];
 };
 
-/** V2 Supported networks response */
+/** V2 Supported networks response (CAIP-2 chain IDs). */
 export type V2SupportedNetworksResponse = {
-  fullSupport: number[];
-  partialSupport: {
-    balances: number[];
-  };
+  fullSupport: string[];
+  partialSupport: string[];
 };
 
 /** Active networks response */

@@ -32,20 +32,16 @@ const MUSD_METADATA: FungibleAssetMetadata = {
 };
 
 /**
- * Harcoded metadata for USDC on Arc (5042/0x13b2).
- * USDC exists as both native (18 decimals) and ERC20 (6 decimals).
- * We choose to force-hide the native version to avoid double listing using
- * `CHAIN_IDS_WITH_NO_NATIVE_TOKEN`.
- * In the meantime, the code below force-shows USDC the ERC20 token.
+ * Arc's native USDC also exists as its own ERC20 (`0x3600...`); Accounts API
+ * resolves that identity without ever seeding native `assetsInfo` metadata.
  */
-const USDC_ON_ARC_ASSET_ID =
-  'eip155:5042/erc20:0x3600000000000000000000000000000000000000';
+const ARC_NATIVE_ASSET_ID = 'eip155:5042/slip44:5042';
 
-const USDC_ON_ARC_METADATA: FungibleAssetMetadata = {
-  type: 'erc20',
+const ARC_NATIVE_METADATA: FungibleAssetMetadata = {
+  type: 'native',
   symbol: 'USDC',
   name: 'USDC',
-  decimals: 6,
+  decimals: 18,
 };
 
 /**
@@ -76,7 +72,7 @@ export const DEFAULT_TRACKED_ASSETS_BY_CHAIN: ReadonlyMap<
   ['eip155:1' as ChainId, [musdAssetId('eip155:1' as ChainId)]],
   ['eip155:59144' as ChainId, [musdAssetId('eip155:59144' as ChainId)]],
   ['eip155:143' as ChainId, [musdAssetId('eip155:143' as ChainId)]],
-  ['eip155:5042' as ChainId, [USDC_ON_ARC_ASSET_ID]],
+  ['eip155:5042' as ChainId, [ARC_NATIVE_ASSET_ID]],
 ]);
 
 /**
@@ -97,7 +93,7 @@ export const DEFAULT_ASSET_METADATA: ReadonlyMap<string, AssetMetadata> =
     [musdAssetId('eip155:1' as ChainId), MUSD_METADATA],
     [musdAssetId('eip155:59144' as ChainId), MUSD_METADATA],
     [musdAssetId('eip155:143' as ChainId), MUSD_METADATA],
-    [USDC_ON_ARC_ASSET_ID, USDC_ON_ARC_METADATA],
+    [ARC_NATIVE_ASSET_ID, ARC_NATIVE_METADATA],
   ]);
 
 /**

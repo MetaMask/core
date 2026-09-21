@@ -22,6 +22,16 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    */
   getMetaMetricsId?: RemoteFeatureFlagControllerOptions['getMetaMetricsId'];
   /**
+   * Returns the canonical profile identifier used for threshold flags by
+   * default. Defaults to `() => ''`.
+   */
+  getCanonicalProfileId?: RemoteFeatureFlagControllerOptions['getCanonicalProfileId'];
+  /**
+   * Names of feature flags that should use MetaMetrics ID for threshold
+   * assignment. Flags not listed here use the canonical profile ID.
+   */
+  metaMetricsFlags?: RemoteFeatureFlagControllerOptions['metaMetricsFlags'];
+  /**
    * The current client version for version-based flag filtering. Must be a
    * valid 3-part SemVer or the controller throws. Defaults to `'0.0.0'`.
    */
@@ -42,4 +52,9 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    * `enable`/`disable` actions.
    */
   disabled?: RemoteFeatureFlagControllerOptions['disabled'];
+  /**
+   * Client-side default feature flags used as the lowest-precedence layer
+   * under processed remote flags and local overrides. Not persisted.
+   */
+  defaultFeatureFlags?: RemoteFeatureFlagControllerOptions['defaultFeatureFlags'];
 };

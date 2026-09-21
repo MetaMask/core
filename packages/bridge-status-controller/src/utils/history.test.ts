@@ -1,4 +1,4 @@
-import { StatusTypes, mergeQuoteMetadata } from '@metamask/bridge-controller';
+import { StatusTypes } from '@metamask/bridge-controller';
 import type { Quote } from '@metamask/bridge-controller';
 
 import type {
@@ -114,17 +114,17 @@ describe('History Utils', () => {
   describe('getInitialHistoryItem', () => {
     const baseArgs = {
       bridgeTxMeta: { id: 'tx1', hash: '0xhash' },
-      quoteResponse: mergeQuoteMetadata(
-        {
+      quoteResponse: {
+        ...{
           quote: { srcChainId: 1, destChainId: 10 },
           estimatedProcessingTimeInSeconds: 60,
         },
-        {
+        ...{
           sentAmount: { amount: '1', usd: '2' },
           gasFee: { effective: { amount: '0.001', usd: '3' } },
           toTokenAmount: { amount: '1', usd: '4' },
         },
-      ),
+      },
       startTime: 1,
       slippagePercentage: 0,
       accountAddress: '0xaccount',
@@ -155,6 +155,14 @@ describe('History Utils', () => {
         tokenSecurityTypeDestination: null,
       });
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
+    });
+
+    it('persists customSlippage when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        customSlippage: true,
+      });
+      expect(txHistoryItem.customSlippage).toBe(true);
     });
 
     it('persists inputPrimaryDenomination when provided', () => {

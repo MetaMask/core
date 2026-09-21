@@ -7,6 +7,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
+import type { RampsClientIdentity } from './client-identity.js';
+import { addRampsClientIdentityParams } from './client-identity.js';
 import { RAMPS_SDK_VERSION } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
@@ -92,6 +94,8 @@ export type TransakBuyQuote = {
   nonce: number;
   cryptoLiquidityProvider: string;
   notes: { [prop: string]: string | number | boolean | null }[];
+  requestedAssetId: string;
+  requestedChainId: string;
 };
 
 export type TransakKycRequirement = {
@@ -510,6 +514,8 @@ export class TransakService {
    */
   readonly #referrerDomain: string;
 
+  readonly #clientIdentity: RampsClientIdentity;
+
   constructor({
     messenger,
     environment = TransakEnvironment.Staging,
@@ -520,6 +526,8 @@ export class TransakService {
     orderRetryDelayMs = 2000,
     rampsApiBaseUrlOverride,
     referrerDomain = TRANSAK_REFERRER_DOMAIN,
+    clientProduct,
+    clientVersion,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -530,6 +538,8 @@ export class TransakService {
     orderRetryDelayMs?: number;
     rampsApiBaseUrlOverride?: string;
     referrerDomain?: string;
+    clientProduct?: string;
+    clientVersion?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -545,6 +555,10 @@ export class TransakService {
     this.#orderRetryDelayMs = orderRetryDelayMs;
     this.#rampsApiBaseUrlOverride = rampsApiBaseUrlOverride;
     this.#referrerDomain = referrerDomain;
+    this.#clientIdentity = {
+      clientProduct,
+      clientVersion,
+    };
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -782,6 +796,9 @@ export class TransakService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
+    addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
   async #ordersApiGet<ResponseType>(
@@ -794,6 +811,9 @@ export class TransakService {
 
     url.searchParams.set('action', 'deposit');
     url.searchParams.set('context', this.#context);
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
+    addRampsClientIdentityParams(url, this.#clientIdentity);
 
     if (params) {
       for (const [key, value] of Object.entries(params)) {
@@ -892,6 +912,7 @@ export class TransakService {
     genericNetwork: string,
     genericPaymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     const normalizedPaymentMethod = normalizePaymentMethodForTranslation(
       genericPaymentMethod || undefined,
@@ -911,14 +932,25 @@ export class TransakService {
       isBuyOrSell: 'BUY',
       network: translation.network,
       fiatAmount,
-      isFeeExcludedFromFiat: 'true',
     };
+
+    if (isFeeExcludedFromFiat) {
+      params.isFeeExcludedFromFiat = 'true';
+    }
 
     if (translation.paymentMethod) {
       params.paymentMethod = translation.paymentMethod;
     }
 
-    return this.#transakGet<TransakBuyQuote>('/api/v2/lookup/quotes', params);
+    const quote = await this.#transakGet<
+      Omit<TransakBuyQuote, 'requestedAssetId' | 'requestedChainId'>
+    >('/api/v2/lookup/quotes', params);
+
+    return {
+      ...quote,
+      requestedAssetId: genericCryptoCurrency,
+      requestedChainId: genericNetwork,
+    };
   }
 
   async getKycRequirement(quoteId: string): Promise<TransakKycRequirement> {

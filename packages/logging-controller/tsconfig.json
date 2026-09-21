@@ -1,12 +1,15 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../messenger" },
-    { "path": "../controller-utils" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    }
   ],
   "include": ["../../types", "./src"]
 }

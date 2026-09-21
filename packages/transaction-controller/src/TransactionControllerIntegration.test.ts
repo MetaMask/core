@@ -27,8 +27,7 @@ import {
 } from '@metamask/network-controller';
 import type {
   NetworkClientConfiguration,
-  NetworkControllerActions,
-  NetworkControllerEvents,
+  NetworkControllerMessenger,
   NetworkControllerOptions,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
@@ -36,12 +35,12 @@ import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
 
 import { jestAdvanceTime } from '../../../tests/helpers.js';
-import { mockNetwork } from '../../../tests/mock-network.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from '../../network-controller/tests/helpers.js';
+import { mockNetwork } from '../../network-controller/tests/mock-network.js';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   buildEthGasPriceRequestMock,
@@ -79,7 +78,7 @@ type AllTransactionControllerEvents =
 
 type AllActions =
   | AllTransactionControllerActions
-  | NetworkControllerActions
+  | MessengerActions<NetworkControllerMessenger>
   | ConnectivityControllerGetStateAction
   | ApprovalControllerActions
   | AccountsControllerActions
@@ -89,12 +88,14 @@ type AllActions =
 
 type AllEvents =
   | AllTransactionControllerEvents
-  | NetworkControllerEvents
+  | MessengerEvents<NetworkControllerMessenger>
   | ApprovalControllerEvents;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const uuidV4Mock = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV4Mock = jest.mocked<() => string>(uuidV4);
 
 const createMockInternalAccount = ({
   id = uuidV4(),
@@ -210,10 +211,8 @@ const setupController = async (
 
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    | NetworkControllerActions
-    | ConnectivityControllerGetStateAction
-    | RemoteFeatureFlagControllerGetStateAction,
-    NetworkControllerEvents,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>,
     typeof rootMessenger
   >({
     namespace: 'NetworkController',
@@ -222,10 +221,20 @@ const setupController = async (
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
     actions: [
+      'ConfigRegistryController:getState',
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],
   });
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: { networks: {} },
+      version: '1',
+      etag: '',
+      lastFetched: 0,
+    }),
+  );
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId,
@@ -491,8 +500,10 @@ describe('TransactionController Integration', () => {
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
           ],
@@ -506,6 +517,9 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'sepolia' },
         );
         expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions[0].txParams.gas).toBe(
+          '0x5208',
+        );
         expect(transactionController.state.transactions[0].status).toBe(
           'unapproved',
         );
@@ -1059,6 +1073,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_3_MOCK),
             buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),

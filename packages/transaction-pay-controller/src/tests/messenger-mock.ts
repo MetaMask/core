@@ -46,10 +46,13 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
  * @param options.skipRegister - Whether to skip registering action handlers.
  * @returns The mock messenger and associated mock functions.
  */
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+// TS2742: The inferred type of 'getMessengerMock' cannot be named without a
+// reference to '../../../../node_modules/@metamask/transaction-controller/dist/utils/gas.js'.
+// This is likely not portable. A type annotation is necessary.
 export function getMessengerMock({
   skipRegister,
-}: { skipRegister?: boolean } = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}: { skipRegister?: boolean } = {}): any {
   const getControllerStateMock: jest.MockedFn<
     TransactionPayControllerGetStateAction['handler']
   > = jest.fn();

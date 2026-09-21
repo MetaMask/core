@@ -1,6 +1,5 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
-import { concatBytes } from '@metamask/utils';
-import { sha256 } from '@noble/hashes/sha2';
+import { concatBytes, sha256 } from '@metamask/utils';
 
 import type { AuthenticatorTransportFuture } from '../types.js';
 import {
@@ -166,7 +165,7 @@ export async function verifyRegistrationResponse(opts: {
   } = parsedAuthData;
 
   if (expectedRPIDs.length > 0) {
-    matchExpectedRPID(rpIdHash, expectedRPIDs);
+    await matchExpectedRPID(rpIdHash, expectedRPIDs);
   }
 
   // Make sure someone was physically present
@@ -237,15 +236,6 @@ export async function verifyRegistrationResponse(opts: {
     return { verified: false };
   }
 
-  const aaguidHex = bytesToHex(aaguid);
-  const aaguidStr = [
-    aaguidHex.slice(0, 8),
-    aaguidHex.slice(8, 12),
-    aaguidHex.slice(12, 16),
-    aaguidHex.slice(16, 20),
-    aaguidHex.slice(20),
-  ].join('-');
-
   return {
     verified: true,
     registrationInfo: {
@@ -254,11 +244,59 @@ export async function verifyRegistrationResponse(opts: {
       counter,
       transports:
         attestationResponse.transports as AuthenticatorTransportFuture[],
-      aaguid: aaguidStr,
+      aaguid: formatAAGUID(aaguid),
       attestationFormat: fmt,
       userVerified: flags.uv,
     },
   };
+}
+
+/**
+ * Reads the authenticator AAGUID out of a registration response by decoding its
+ * attestation object and parsing the attested credential data within
+ * `authData`.
+ *
+ * The AAGUID identifies the authenticator model (e.g. iCloud Keychain, Google
+ * Password Manager, a hardware key), so it is useful for telemetry or for
+ * showing the user where their passkey lives.
+ *
+ * Unlike {@link verifyRegistrationResponse}, this reads the response as-is
+ * without verifying it, so treat the value as untrusted until enrollment
+ * completes; the verified AAGUID is persisted on
+ * `passkeyRecord.credential.aaguid`. Note also that many authenticators
+ * deliberately report an all-zero AAGUID.
+ *
+ * @param registrationResponse - Result of `navigator.credentials.create()`.
+ * @returns The AAGUID as a dashed UUID string, or `undefined` if the
+ * authenticator data carries no attested credential data.
+ * @throws If the attestation object or its authenticator data is malformed.
+ */
+export function getAAGUIDFromRegistrationResponse(
+  registrationResponse: PasskeyRegistrationResponse,
+): string | undefined {
+  const attestationObject = decodeAttestationObject(
+    base64URLToBytes(registrationResponse.response.attestationObject),
+  );
+  const { aaguid } = parseAuthenticatorData(attestationObject.get('authData'));
+  return aaguid ? formatAAGUID(aaguid) : undefined;
+}
+
+/**
+ * Format the raw 16-byte AAGUID from attested credential data as a dashed
+ * UUID string (8-4-4-4-12).
+ *
+ * @param aaguid - Raw AAGUID bytes.
+ * @returns The AAGUID in canonical UUID form.
+ */
+function formatAAGUID(aaguid: Uint8Array): string {
+  const aaguidHex = bytesToHex(aaguid);
+  return [
+    aaguidHex.slice(0, 8),
+    aaguidHex.slice(8, 12),
+    aaguidHex.slice(12, 16),
+    aaguidHex.slice(16, 20),
+    aaguidHex.slice(20),
+  ].join('-');
 }
 
 /**
@@ -308,7 +346,7 @@ async function verifyPackedAttestation(
     );
   }
 
-  const clientDataHash = sha256(base64URLToBytes(clientDataJSONB64url));
+  const clientDataHash = await sha256(base64URLToBytes(clientDataJSONB64url));
   const signatureBase = concatBytes([authData, clientDataHash]);
 
   return verifySignature({

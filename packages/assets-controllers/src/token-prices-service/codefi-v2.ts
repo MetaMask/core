@@ -243,11 +243,11 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
 export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
 
+// Price API v3/spot-prices chains only — verify support before adding:
 // Source: https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
-// This list is ONLY for chains that are supported by the Price API v3/spot-prices endpoint.
-// Please check that endpoint returns a price for the given assetId before including it in this list.
-// Please include a comment with the name of the chain and the native symbol.
-// Please keep the list sorted by chain ID.
+// https://price.api.cx.metamask.io/v2/supportedNetworks
+// https://price.api.cx.metamask.io/v3/spot-prices?assetIds=<CAIP-ASSET-ID>&vsCurrency=usd
+// Include chain name + native symbol. Keep sorted by chain ID.
 export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
   '0xa': 'eip155:10/slip44:60', // OP Mainnet - Native symbol: ETH
@@ -290,7 +290,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1079': 'eip155:4217/slip44:60', // Tempo Mainnet - No native asset
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
-  '0x13a7': 'eip155:5031/slip44:111115031', // Somnia Mainnet - Native symbol: SOMI
+  '0x13a7': 'eip155:5031/slip44:5031', // Somnia Mainnet - Native symbol: SOMI
   '0x13b2': 'eip155:5042/slip44:5042', // Arc - Native symbol: USDC
   '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
@@ -324,6 +324,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+  '0x4115': 'eip155:16661/slip44:1111116661', // 0G Chain - Native symbol: 0G
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES

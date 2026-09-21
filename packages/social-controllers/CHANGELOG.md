@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [2.8.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [2.8.0]
+
+### Added
+
+- Add optional `action` to `Trade` and optional `isOpen` to `Position`, plus the `TradeAction` type ([#9871](https://github.com/MetaMask/core/pull/9871))
+  - `action` is the fill's position-lifecycle stage (`opened` / `added` / `reduced` / `closed`), computed by the social-api. Unlike `intent`, it separates a partial exit from a full close.
+  - Both are optional so responses from a social-api deployment that predates them still validate.
+
+## [2.7.2]
+
+### Changed
+
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [2.7.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
 ## [2.7.0]
 
 ### Added
@@ -130,7 +182,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.0...@metamask/social-controllers@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.8.1...@metamask/social-controllers@3.0.0
+[2.8.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.8.0...@metamask/social-controllers@2.8.1
+[2.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.2...@metamask/social-controllers@2.8.0
+[2.7.2]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.1...@metamask/social-controllers@2.7.2
+[2.7.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.0...@metamask/social-controllers@2.7.1
 [2.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.6.0...@metamask/social-controllers@2.7.0
 [2.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.5.0...@metamask/social-controllers@2.6.0
 [2.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.4.0...@metamask/social-controllers@2.5.0

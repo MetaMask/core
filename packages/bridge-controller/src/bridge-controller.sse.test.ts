@@ -1,5 +1,6 @@
 import { BigNumber } from '@ethersproject/bignumber';
 import * as ethersContractUtils from '@ethersproject/contracts';
+import type { TraceRequest } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -8,12 +9,20 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { merge } from 'lodash';
 
 import { flushPromises } from '../../../tests/helpers.js';
-import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth.js';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import {
+  mockBridgeQuotesErc20Erc20V1,
+  getMockBridgeQuotesErc20Erc20V2,
+} from '../tests/mock-quotes-erc20-erc20.js';
+import {
+  getMockBridgeQuotesNativeErc20EthV2,
+  mockBridgeQuotesNativeErc20EthV1,
+} from '../tests/mock-quotes-native-erc20-eth.js';
+import {
+  getMockBridgeQuotesNativeErc20V2,
+  mockBridgeQuotesNativeErc20V1,
+} from '../tests/mock-quotes-native-erc20.js';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
@@ -30,6 +39,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge.js';
+import { TraceName } from './constants/traces.js';
 import { ChainId, RequestStatus } from './types.js';
 import type { BridgeControllerMessenger } from './types.js';
 import * as balanceUtils from './utils/balance.js';
@@ -39,11 +49,16 @@ import {
 } from './utils/caip-formatters.js';
 import * as featureFlagUtils from './utils/feature-flags.js';
 import * as fetchUtils from './utils/fetch.js';
+import { AbortReason } from './utils/metrics/constants.js';
 import { FeatureId } from './validators/feature-flags.js';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
 import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js';
 import { TokenFeatureType } from './validators/token-feature.js';
 import type { TxData } from './validators/trade.js';
+
+jest.mock('uuid', () => ({
+  v4: (): string => 'test-uuid-1234',
+}));
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -95,6 +110,16 @@ const metricsContext = {
   warnings: [],
   token_security_type_destination: null,
 };
+
+const createTraceCallback = (traceRequests: TraceRequest[]): jest.Mock =>
+  jest
+    .fn()
+    .mockImplementation(
+      async (request: TraceRequest, callback?: () => unknown) => {
+        traceRequests.push(request);
+        return await callback?.();
+      },
+    );
 
 const assetExchangeRates = {
   'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -234,6 +259,149 @@ describe('BridgeController SSE', function () {
     jest.resetAllMocks();
   });
 
+  describe('quote tracing', () => {
+    const runTraceScenario = async ({
+      response,
+      request = quoteRequest,
+      abort = false,
+    }: {
+      response: () => unknown;
+      request?: typeof quoteRequest;
+      abort?: boolean;
+    }): Promise<TraceRequest[]> => {
+      const traceRequests: TraceRequest[] = [];
+
+      await withController(
+        {
+          options: {
+            traceFn: createTraceCallback(traceRequests),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          mockFetchFn.mockImplementationOnce(async () => response());
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            request,
+            metricsContext,
+          );
+          jest.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          if (abort) {
+            controller.stopPollingForQuotes(AbortReason.NewQuoteRequest);
+          }
+          jest.advanceTimersByTime(11000);
+          await flushPromises();
+        },
+      );
+
+      return traceRequests;
+    };
+
+    const getTrace = (
+      requests: TraceRequest[],
+      name: TraceName,
+    ): TraceRequest | undefined =>
+      requests.find((request) => request.name === name);
+
+    it('records cross-chain success and the first result from each provider', async () => {
+      const firstQuote = mockBridgeQuotesErc20Erc20V1[0];
+      const secondProviderQuote = {
+        ...firstQuote,
+        quote: {
+          ...firstQuote.quote,
+          requestId: 'second-provider-request',
+          bridgeId: 'hop',
+          bridges: ['hop'],
+          protocols: ['hop'],
+        },
+      };
+
+      const requests = await runTraceScenario({
+        response: (): unknown =>
+          mockSseEventSource([firstQuote, firstQuote, secondProviderQuote]),
+      });
+      const providerTraces = requests.filter(
+        (request) => request.name === TraceName.QuoteProviderFirstResult,
+      );
+
+      expect(
+        getTrace(requests, TraceName.BridgeQuotesFetched)?.data,
+      ).toStrictEqual(
+        expect.objectContaining({
+          request_id: 'test-uuid-1234',
+          feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
+          result: 'success',
+        }),
+      );
+      expect(
+        providerTraces.map((request) => request.data?.provider),
+      ).toStrictEqual(['socket_across', 'hop_hop']);
+      expect(
+        providerTraces.every((request) => Number.isFinite(request.startTime)),
+      ).toBe(true);
+    });
+
+    it.each([
+      {
+        name: 'same-chain success',
+        response: (): unknown =>
+          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
+        request: {
+          ...quoteRequest,
+          destChainId: quoteRequest.srcChainId,
+        },
+        traceName: TraceName.SwapQuotesFetched,
+        result: 'success',
+        providerCount: 1,
+      },
+      {
+        name: 'no quotes',
+        response: (): unknown => mockSseEventSource([]),
+        request: quoteRequest,
+        traceName: TraceName.BridgeQuotesFetched,
+        result: 'no_quotes',
+        providerCount: 0,
+      },
+      {
+        name: 'error',
+        response: (): unknown => mockSseServerError('provider request failed'),
+        request: quoteRequest,
+        traceName: TraceName.BridgeQuotesFetched,
+        result: 'error',
+        providerCount: 0,
+      },
+    ])('records $name', async (scenario) => {
+      const requests = await runTraceScenario(scenario);
+
+      expect(getTrace(requests, scenario.traceName)?.data).toStrictEqual(
+        expect.objectContaining({
+          result: scenario.result,
+        }),
+      );
+      expect(
+        requests.filter(
+          (request) => request.name === TraceName.QuoteProviderFirstResult,
+        ),
+      ).toHaveLength(scenario.providerCount);
+    });
+
+    it('records cancellation for an expected abort', async () => {
+      const requests = await runTraceScenario({
+        response: (): unknown =>
+          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]], 10000),
+        abort: true,
+      });
+
+      expect(
+        getTrace(requests, TraceName.BridgeQuotesFetched)?.data,
+      ).toStrictEqual(
+        expect.objectContaining({
+          result: 'cancelled',
+        }),
+      );
+    });
+  });
+
   it('should trigger quote polling if request is valid', async function () {
     await withController(
       async ({
@@ -322,7 +490,7 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: mockBridgeQuotesNativeErc20V1.map((quote) => ({
+          quotes: getMockBridgeQuotesNativeErc20V2().map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
@@ -358,7 +526,7 @@ describe('BridgeController SSE', function () {
     ],
     ['swapping', '0', '0x1', undefined, false, 1],
   ])(
-    'should append resetApproval when %s USDT on Ethereum',
+    'should append resetApproval when %s USDT on Ethereum (%s, %s)',
     async function (
       _: string,
       allowance: string,
@@ -377,31 +545,21 @@ describe('BridgeController SSE', function () {
           fetchBridgeQuotesSpy,
           consoleLogSpy,
         }) => {
-          const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20V1.map(
-            (quote) => ({
-              ...quote,
-              quote: {
-                ...quote.quote,
-                srcAsset: {
-                  address: ETH_USDT_ADDRESS,
-                  assetId:
-                    `${formatChainIdToCaip(1)}/erc20:${srcTokenAddress}` as const,
-                  symbol: 'USDT',
-                  name: 'Tether USD',
-                  decimals: 6,
-                  chainId: 1,
-                  iconUrl: 'https://media.socket.tech/tokens/all/USDT',
-                },
-                srcChainId: 1,
-                destChainId: formatChainIdToDec(destChainId),
-                destAsset: {
-                  ...quote.quote.destAsset,
-                  assetId:
-                    `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
-                },
+          const mockUSDTQuoteResponse = getMockBridgeQuotesErc20Erc20V2({
+            quote: {
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId:
+                  `${formatChainIdToCaip(1)}/erc20:${srcTokenAddress}` as const,
+                symbol: 'USDT',
+                name: 'Tether USD',
+                decimals: 6,
+                chainId: 1,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
               },
-            }),
-          );
+              srcChainId: 1,
+            },
+          });
           mockFetchFn.mockImplementationOnce(async () => {
             return mockSseEventSource(mockUSDTQuoteResponse);
           });
@@ -507,39 +665,30 @@ describe('BridgeController SSE', function () {
                 resetApproval,
               },
             ],
-            quotes: mockBridgeQuotesErc20Erc20V1
-              .map((quote) =>
-                merge({}, quote, {
-                  quote: {
-                    srcAsset: {
-                      address: ETH_USDT_ADDRESS,
-                      assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
-                      symbol: 'USDT',
-                      name: 'Tether USD',
-                      decimals: 6,
-                      chainId: 1,
-                      iconUrl: 'https://media.socket.tech/tokens/all/USDT',
-                    },
-                    srcChainId: 1,
-                    destAsset: {
-                      ...quote.quote.destAsset,
-                      assetId:
-                        `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
-                    },
-                    destChainId: formatChainIdToDec(destChainId),
-                  },
-                }),
-              )
-              .map((quote) => ({
-                ...quote,
-                featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-                resetApproval: tradeData
-                  ? {
-                      ...quote.approval,
-                      data: tradeData,
-                    }
-                  : undefined,
-              })),
+            quotes: getMockBridgeQuotesErc20Erc20V2({
+              quote: {
+                srcAsset: {
+                  address: ETH_USDT_ADDRESS,
+                  assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                  symbol: 'USDT',
+                  name: 'Tether USD',
+                  decimals: 6,
+                  chainId: 1,
+                  iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                },
+                srcChainId: 1,
+                destChainId: formatChainIdToDec(destChainId),
+              },
+            }).map((quote) => ({
+              ...quote,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+              resetApproval: tradeData
+                ? {
+                    ...quote.approval,
+                    data: tradeData,
+                  }
+                : undefined,
+            })),
             quotesRefreshCount: 1,
             quotesLoadingStatus: 1,
             quotesLastFetched: t1,
@@ -701,31 +850,27 @@ describe('BridgeController SSE', function () {
               resetApproval: true,
             },
           ],
-          quotes: mockBridgeQuotesErc20Erc20V1
-            .map((quote) =>
-              merge({}, quote, {
-                quote: {
-                  srcAsset: {
-                    address: ETH_USDT_ADDRESS,
-                    assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
-                    name: 'Tether USD',
-                    decimals: 6,
-                    symbol: 'USDT',
-                    chainId: 1,
-                    iconUrl: 'https://media.socket.tech/tokens/all/USDT',
-                  },
-                  srcChainId: 1,
-                },
-              }),
-            )
-            .map((quote) => ({
-              ...quote,
-              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-              resetApproval: {
-                ...quote.approval,
-                data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+          quotes: getMockBridgeQuotesErc20Erc20V2({
+            quote: {
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                name: 'Tether USD',
+                decimals: 6,
+                symbol: 'USDT',
+                chainId: 1,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
               },
-            })),
+              srcChainId: 1,
+            },
+          }).map((quote) => ({
+            ...quote,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+            resetApproval: {
+              ...quote.approval,
+              data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
+            },
+          })),
           quotesRefreshCount: 1,
           quotesLoadingStatus: 1,
           quotesLastFetched: t1,
@@ -773,7 +918,7 @@ describe('BridgeController SSE', function () {
         jest.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(bridgeController.state.quotes).toStrictEqual(
-          mockBridgeQuotesNativeErc20V1.map((quote) => ({
+          getMockBridgeQuotesNativeErc20V2().map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
@@ -798,7 +943,7 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: [mockBridgeQuotesNativeErc20EthV1[0]].map((quote) => ({
+          quotes: [getMockBridgeQuotesNativeErc20EthV2()[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -825,7 +970,7 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
-          quotes: mockBridgeQuotesNativeErc20EthV1.map((quote) => ({
+          quotes: getMockBridgeQuotesNativeErc20EthV2().map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -895,7 +1040,7 @@ describe('BridgeController SSE', function () {
           FIRST_FETCH_DELAY,
         );
         expect(bridgeController.state.quotes).toStrictEqual(
-          mockBridgeQuotesNativeErc20EthV1.map((quote) => ({
+          getMockBridgeQuotesNativeErc20EthV2().map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -928,13 +1073,13 @@ describe('BridgeController SSE', function () {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         ).toBeGreaterThan(t2!);
         expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-                  [
-                    [
-                      "Failed to stream bridge quotes",
-                      "Network error",
-                    ],
-                  ]
-              `);
+          [
+            [
+              "Failed to stream bridge quotes",
+              "Network error",
+            ],
+          ]
+        `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
@@ -1067,7 +1212,7 @@ describe('BridgeController SSE', function () {
           quotesInitialLoadTime: THIRD_FETCH_DELAY,
           quotes: [
             {
-              ...mockBridgeQuotesNativeErc20V1[0],
+              ...getMockBridgeQuotesNativeErc20V2()[0],
               l1GasFeesInHexWei: '0x1',
               resetApproval: undefined,
               featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1102,8 +1247,8 @@ describe('BridgeController SSE', function () {
           quotesRefreshCount: 1,
           quotesLoadingStatus: RequestStatus.FETCHED,
           quotes: [
-            ...mockBridgeQuotesNativeErc20V1,
-            ...mockBridgeQuotesNativeErc20V1,
+            ...getMockBridgeQuotesNativeErc20V2(),
+            ...getMockBridgeQuotesNativeErc20V2(),
           ].map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
@@ -1250,8 +1395,8 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush(3);
         expect(bridgeController.state.quotes).toStrictEqual(
           [
-            ...mockBridgeQuotesNativeErc20V1,
-            ...mockBridgeQuotesNativeErc20V1,
+            ...getMockBridgeQuotesNativeErc20V2(),
+            ...getMockBridgeQuotesNativeErc20V2(),
           ].map((quote) => ({
             ...quote,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1281,7 +1426,7 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: [mockBridgeQuotesNativeErc20EthV1[0]].map((quote) => ({
+          quotes: [getMockBridgeQuotesNativeErc20EthV2()[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1310,20 +1455,15 @@ describe('BridgeController SSE', function () {
           [
             "Quote validation failed",
             [
-              "At path: trade (union) -- Expected the value to satisfy a union of \`type | type | type | union | string\`, but received: [object Object]",
-              "At path: trade.chainId (union) -- Expected a number, but received: undefined",
-              "At path: trade.to (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
-              "At path: trade.from (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
-              "At path: trade.value (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
-              "At path: trade.data (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
-              "At path: trade.gasLimit (union) -- Expected a number, but received: undefined",
-              "At path: trade.unsignedPsbtBase64 (union) -- Expected a string, but received: undefined",
-              "At path: trade.inputsToSign (union) -- Expected an array value, but received: undefined",
-              "At path: trade.raw_data_hex (union) -- Expected a string, but received: undefined",
-              "At path: trade (union) -- Expected the value to satisfy a union of \`type | type\`, but received: [object Object]",
-              "At path: trade.xdrBase64 (union) -- Expected a string, but received: undefined",
-              "At path: trade.xdr (union) -- Expected a string, but received: undefined",
-              "At path: trade (union) -- Expected a string, but received: [object Object]",
+              "At path: quote.src (type) -- Expected an object, but received: undefined",
+              "At path: quote.dest (type) -- Expected an object, but received: undefined",
+              "At path: quote.feeData.metabridge (type) -- Expected an array value, but received: [object Object]",
+              "At path: quote.aggregator (type) -- Expected a string, but received: undefined",
+              "At path: quote.protocols (type) -- Expected an array value, but received: undefined",
+              "At path: quote.steps.0.src (type) -- Expected an object, but received: undefined",
+              "At path: quote.steps.0.dest (type) -- Expected an object, but received: undefined",
+              "At path: quote.steps.1.src (type) -- Expected an object, but received: undefined",
+              "At path: quote.steps.1.dest (type) -- Expected an object, but received: undefined",
             ],
           ]
         `);

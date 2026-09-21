@@ -7,7 +7,7 @@ const config: KnipConfig = {
         'scripts/**/*.{ts,js,sh}',
         'tests/**/*.ts',
         '*.config.{js,cjs,mjs,ts}',
-        '.prettierrc.js',
+        '.prettierrc.cjs',
       ],
       project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
       ignore: ['scripts/create-package/package-template/**'],
@@ -41,7 +41,7 @@ const config: KnipConfig = {
       ignoreDependencies: [
         '@metamask/controller-utils',
         '@metamask/keyring-internal-api',
-        'lodash',
+        'lodash-es',
       ],
     },
     'packages/analytics-data-regulation-controller': {
@@ -66,7 +66,7 @@ const config: KnipConfig = {
       ignoreDependencies: [
         '@metamask/gas-fee-controller',
         '@metamask/remote-feature-flag-controller',
-        'lodash',
+        'lodash-es',
         'nock',
       ],
     },
@@ -94,9 +94,6 @@ const config: KnipConfig = {
     },
     'packages/eip1193-permission-middleware': {
       ignoreDependencies: ['@metamask/rpc-errors'],
-    },
-    'packages/ens-controller': {
-      ignoreDependencies: ['punycode'],
     },
     'packages/foundryup': {
       // `anvil` and `sysctl` are external system binaries, not npm packages.
@@ -130,7 +127,7 @@ const config: KnipConfig = {
       ignoreDependencies: [
         '@metamask/base-controller',
         '@metamask/superstruct',
-        'lodash',
+        'lodash-es',
       ],
     },
     'packages/multichain-network-controller': {
@@ -186,10 +183,10 @@ const config: KnipConfig = {
       ignoreDependencies: ['cockatiel', 'nock'],
     },
     'packages/selected-network-controller': {
-      ignoreDependencies: ['immer', 'lodash', 'nock'],
+      ignoreDependencies: ['immer', 'lodash-es', 'nock'],
     },
     'packages/signature-controller': {
-      ignoreDependencies: ['lodash'],
+      ignoreDependencies: ['lodash-es'],
     },
     'packages/snap-account-service': {
       ignoreDependencies: [
@@ -245,6 +242,9 @@ const config: KnipConfig = {
         // Webpack loader used by docusaurus' build pipeline; never imported
         // by source.
         'raw-loader',
+        // Not invoked by any script yet (this package builds via docusaurus,
+        // not `tsc`), kept for consistency with every other package.
+        '@typescript/native',
       ],
     },
   },

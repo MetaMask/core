@@ -27,10 +27,12 @@ export type MockAccountProvider = {
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
   deleteAccount: jest.Mock;
+  deleteAccounts: jest.Mock;
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
   isAligned: jest.Mock;
   getName: jest.Mock;
+  ensureReady: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
   setEnabled: jest.Mock;
@@ -61,10 +63,12 @@ export function makeMockAccountProvider(
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
     deleteAccount: jest.fn(),
+    deleteAccounts: jest.fn(),
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
     isAligned: jest.fn().mockReturnValue(false),
     getName: jest.fn(),
+    ensureReady: jest.fn().mockResolvedValue(undefined),
     isDisabled: jest.fn(),
     setEnabled: jest.fn(),
     isEnabled: true,
@@ -107,6 +111,20 @@ export function setupBip44AccountProvider({
       getAccounts().find((account) => account.id === id),
   );
   mocks.createAccounts.mockResolvedValue([]);
+  mocks.deleteAccounts.mockImplementation(async (ids: string[]) => {
+    const failures: { id: string; error: unknown }[] = [];
+    for (const id of ids) {
+      try {
+        await mocks.deleteAccount(id);
+      } catch (error) {
+        failures.push({ id, error });
+      }
+    }
+    if (failures.length > 0) {
+      return { ok: false, failures };
+    }
+    return { ok: true };
+  });
   mocks.init.mockImplementation(
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
       accountIds.forEach((id) => mocks.accounts.add(id));

@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -12,6 +9,12 @@
     },
     {
       "path": "../approval-controller"
+    },
+    {
+      "path": "../claims-controller"
+    },
+    {
+      "path": "../config-registry-controller"
     },
     {
       "path": "../base-controller"
@@ -44,10 +47,19 @@
       "path": "../seedless-onboarding-controller"
     },
     {
+      "path": "../shield-controller"
+    },
+    {
       "path": "../storage-service"
     },
     {
+      "path": "../subscription-controller"
+    },
+    {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

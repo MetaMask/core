@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import type { ClientControllerState } from '@metamask/client-controller';
+import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import {
   CONNECTIVITY_STATUSES,
   connectivityControllerSelectors,
@@ -265,16 +265,6 @@ export type NetworkConnectionBannerControllerEvents =
   NetworkConnectionBannerControllerStateChangedEvent;
 
 /**
- * Published when the state of `ClientController` changes. Defined here
- * because the `client-controller` package still exports the legacy
- * `:stateChange` event type.
- */
-type ClientControllerStateChangedEvent = ControllerStateChangedEvent<
-  'ClientController',
-  ClientControllerState
->;
-
-/**
  * Events from other messengers that
  * {@link NetworkConnectionBannerControllerMessenger} subscribes to.
  */
@@ -282,7 +272,7 @@ type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkEnablementControllerStateChangeEvent
   | ConnectivityControllerStateChangeEvent
-  | ClientControllerStateChangedEvent
+  | ClientControllerStateChangeEvent
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent;
 
@@ -474,7 +464,7 @@ export class NetworkConnectionBannerController extends BaseController<
     // Lifecycle: evaluate RPC health (and run the banner escalation timers)
     // only while the client UI is open on an unlocked wallet.
     this.messenger.subscribe(
-      'ClientController:stateChanged',
+      'ClientController:stateChange',
       (isUiOpen) => {
         this.#isUiOpen = isUiOpen;
         this.#updateLifecycle();

@@ -6,7 +6,11 @@ import type {
 } from '@metamask/messenger';
 
 import { controllerName } from '../../src/constants.js';
-import type { ShieldControllerMessenger } from '../../src/index.js';
+import type {
+  ShieldApiServiceMessenger,
+  ShieldControllerMessenger,
+} from '../../src/index.js';
+import { createMockShieldApiServiceHandlers } from './shield-api-service.js';
 
 type AllShieldControllerActions = MessengerActions<ShieldControllerMessenger>;
 
@@ -14,8 +18,8 @@ type AllShieldControllerEvents = MessengerEvents<ShieldControllerMessenger>;
 
 export type RootMessenger = Messenger<
   MockAnyNamespace,
-  AllShieldControllerActions,
-  AllShieldControllerEvents
+  AllShieldControllerActions | MessengerActions<ShieldApiServiceMessenger>,
+  AllShieldControllerEvents | MessengerEvents<ShieldApiServiceMessenger>
 >;
 
 /**
@@ -32,13 +36,33 @@ function getRootMessenger(): RootMessenger {
 /**
  * Create a mock messenger.
  *
- * @returns A mock messenger.
+ * @returns A mock messenger and service handlers.
  */
 export function createMockMessenger(): {
   rootMessenger: RootMessenger;
   messenger: ShieldControllerMessenger;
+  shieldApiService: ReturnType<typeof createMockShieldApiServiceHandlers>;
 } {
   const rootMessenger = getRootMessenger();
+  const shieldApiService = createMockShieldApiServiceHandlers();
+
+  rootMessenger.registerActionHandler(
+    'ShieldApiService:checkCoverage',
+    shieldApiService.checkCoverage,
+  );
+  rootMessenger.registerActionHandler(
+    'ShieldApiService:checkSignatureCoverage',
+    shieldApiService.checkSignatureCoverage,
+  );
+  rootMessenger.registerActionHandler(
+    'ShieldApiService:logSignature',
+    shieldApiService.logSignature,
+  );
+  rootMessenger.registerActionHandler(
+    'ShieldApiService:logTransaction',
+    shieldApiService.logTransaction,
+  );
+
   const messenger = new Messenger<
     typeof controllerName,
     AllShieldControllerActions,
@@ -48,8 +72,15 @@ export function createMockMessenger(): {
     namespace: controllerName,
     parent: rootMessenger,
   });
+
   rootMessenger.delegate({
     messenger,
+    actions: [
+      'ShieldApiService:checkCoverage',
+      'ShieldApiService:checkSignatureCoverage',
+      'ShieldApiService:logSignature',
+      'ShieldApiService:logTransaction',
+    ],
     events: [
       'SignatureController:stateChange',
       'TransactionController:stateChange',
@@ -59,5 +90,6 @@ export function createMockMessenger(): {
   return {
     rootMessenger,
     messenger,
+    shieldApiService,
   };
 }

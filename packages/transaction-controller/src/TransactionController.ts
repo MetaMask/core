@@ -68,7 +68,7 @@ import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
@@ -205,6 +205,12 @@ import {
  * the state and which parts should be persisted.
  */
 const metadata: StateMetadata<TransactionControllerState> = {
+  batchTransactionCounts: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   transactions: {
     includeInStateLogs: true,
     persist: true,
@@ -281,6 +287,9 @@ export type MethodData = {
  * Transaction controller state
  */
 export type TransactionControllerState = {
+  /** Number of transactions to sign for each active batch. */
+  batchTransactionCounts: Record<string, number>;
+
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
@@ -374,7 +383,7 @@ export type TransactionControllerOptions = {
   isFirstTimeInteractionEnabled?: () => boolean;
 
   /** Whether new transactions will be automatically simulated. */
-  isSimulationEnabled?: () => boolean;
+  isSimulationEnabled?: (transactionMeta?: TransactionMeta) => boolean;
 
   /** Whether timeout checking is enabled for a transaction. */
   isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
@@ -660,6 +669,7 @@ export enum ApprovalState {
  */
 function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
+    batchTransactionCounts: {},
     methodData: {},
     transactions: [],
     transactionBatches: [],
@@ -750,7 +760,7 @@ export class TransactionController extends BaseController<
 
   readonly #isFirstTimeInteractionEnabled: () => boolean;
 
-  readonly #isSimulationEnabled: () => boolean;
+  readonly #isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
 
   readonly #isSwapsDisabled: boolean;
 
@@ -774,6 +784,8 @@ export class TransactionController extends BaseController<
   readonly #signAbortCallbacks: Map<string, () => void> = new Map();
 
   readonly #skipSimulationTransactionIds: Set<string> = new Set();
+
+  readonly #simulationRequestTokens: Map<string, symbol> = new Map();
 
   readonly #testGasFeeFlows: boolean;
 
@@ -4037,7 +4049,7 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      if (!skipResimulateCheck && this.#isSimulationEnabled()) {
+      if (!skipResimulateCheck && this.#isSimulationEnabled(transactionMeta)) {
         resimulateResponse = shouldResimulate(
           originalTransactionMeta,
           transactionMeta,
@@ -4103,92 +4115,115 @@ export class TransactionController extends BaseController<
     let isGasFeeSponsored = false;
     let simulationRevert: Revert | undefined;
 
-    const isBalanceChangesSkipped =
-      this.#isBalanceChangesSkipped(transactionMeta);
+    const simulationRequestToken = Symbol(transactionId);
+    this.#simulationRequestTokens.set(transactionId, simulationRequestToken);
 
-    if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
-      const balanceChangesResult = await this.#trace(
-        { name: 'Simulate', parentContext: traceContext },
-        () =>
-          getBalanceChanges({
-            blockTime,
-            chainId,
-            messenger: this.messenger,
-            networkClientId,
-            getSimulationConfig: (url, opts) => {
-              return this.#getSimulationConfig(url, {
-                txMeta: transactionMeta,
-                ...opts,
-              });
-            },
-            nestedTransactions,
-            txParams,
-          }),
-      );
-      simulationData = balanceChangesResult.simulationData;
-      gasUsed = balanceChangesResult.gasUsed;
-      simulationRevert = balanceChangesResult.simulationRevert;
+    try {
+      const isSimulationEnabled = this.#isSimulationEnabled(transactionMeta);
+      const isBalanceChangesSkipped =
+        this.#isBalanceChangesSkipped(transactionMeta);
 
-      if (
-        blockTime &&
-        prevSimulationData &&
-        hasSimulationDataChanged(prevSimulationData, simulationData)
-      ) {
-        simulationData = {
-          ...simulationData,
-          isUpdatedAfterSecurityCheck: true,
-        };
+      if (isSimulationEnabled && !isBalanceChangesSkipped) {
+        const balanceChangesResult = await this.#trace(
+          { name: 'Simulate', parentContext: traceContext },
+          () =>
+            getBalanceChanges({
+              blockTime,
+              chainId,
+              messenger: this.messenger,
+              networkClientId,
+              getSimulationConfig: (url, opts) => {
+                return this.#getSimulationConfig(url, {
+                  txMeta: transactionMeta,
+                  ...opts,
+                });
+              },
+              nestedTransactions,
+              txParams,
+            }),
+        );
+        simulationData = balanceChangesResult.simulationData;
+        gasUsed = balanceChangesResult.gasUsed;
+        simulationRevert = balanceChangesResult.simulationRevert;
+
+        if (
+          blockTime &&
+          prevSimulationData &&
+          hasSimulationDataChanged(prevSimulationData, simulationData)
+        ) {
+          simulationData = {
+            ...simulationData,
+            isUpdatedAfterSecurityCheck: true,
+          };
+        }
       }
 
-      const gasFeeTokensResponse = await this.#getGasFeeTokens(transactionMeta);
+      if (isSimulationEnabled) {
+        const gasFeeTokensResponse =
+          await this.#getGasFeeTokens(transactionMeta);
 
-      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
-      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
-    }
+        gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
+        isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
+      }
 
-    const latestTransactionMeta = this.#getTransaction(transactionId);
+      if (
+        this.#simulationRequestTokens.get(transactionId) !==
+        simulationRequestToken
+      ) {
+        log('Ignoring stale simulation data', transactionId);
+        return;
+      }
 
-    /* istanbul ignore if */
-    if (!latestTransactionMeta) {
-      log(
-        'Cannot update simulation data as transaction not found',
-        transactionId,
-        simulationData,
+      const latestTransactionMeta = this.#getTransaction(transactionId);
+
+      /* istanbul ignore if */
+      if (!latestTransactionMeta) {
+        log(
+          'Cannot update simulation data as transaction not found',
+          transactionId,
+          simulationData,
+        );
+
+        return;
+      }
+
+      const updatedTransactionMeta = this.#updateTransactionInternal(
+        {
+          transactionId,
+          skipResimulateCheck: Boolean(blockTime),
+        },
+        (txMeta) => {
+          txMeta.gasFeeTokens = gasFeeTokens;
+          txMeta.isGasFeeSponsored =
+            txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
+
+          if (txMeta.isGasFeeSponsored) {
+            txMeta.isExternalSign = true;
+          }
+
+          if (!this.#isBalanceChangesSkipped(txMeta)) {
+            txMeta.gasUsed = gasUsed;
+            txMeta.simulationData = simulationData;
+
+            if (simulationRevert) {
+              txMeta.revert = {
+                ...txMeta.revert,
+                simulation: simulationRevert,
+              };
+            }
+          }
+        },
       );
 
-      return;
+      log('Updated simulation data', transactionId, updatedTransactionMeta);
+    } finally {
+      if (
+        this.#simulationRequestTokens.get(transactionId) ===
+        simulationRequestToken
+      ) {
+        this.#simulationRequestTokens.delete(transactionId);
+      }
     }
-
-    const updatedTransactionMeta = this.#updateTransactionInternal(
-      {
-        transactionId,
-        skipResimulateCheck: Boolean(blockTime),
-      },
-      (txMeta) => {
-        txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.isGasFeeSponsored =
-          txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
-
-        if (txMeta.isGasFeeSponsored) {
-          txMeta.isExternalSign = true;
-        }
-
-        txMeta.gasUsed = gasUsed;
-
-        if (!this.#isBalanceChangesSkipped(txMeta)) {
-          txMeta.simulationData = simulationData;
-
-          if (simulationRevert) {
-            txMeta.revert = {
-              ...txMeta.revert,
-              simulation: simulationRevert,
-            };
-          }
-        }
-      },
-    );
-
-    log('Updated simulation data', transactionId, updatedTransactionMeta);
   }
 
   #onGasFeePollerTransactionUpdate({
@@ -4302,7 +4337,7 @@ export class TransactionController extends BaseController<
 
     await updateGas({
       isCustomNetwork,
-      isSimulationEnabled: this.#isSimulationEnabled(),
+      isSimulationEnabled: this.#isSimulationEnabled(transactionMeta),
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       txMeta: transactionMeta,
@@ -4363,6 +4398,7 @@ export class TransactionController extends BaseController<
         {
           transactionId: transactionMeta.id,
           skipValidation: true,
+          skipResimulateCheck: true,
         },
         (draftTransactionMeta) => {
           draftTransactionMeta.status = TransactionStatus.failed;

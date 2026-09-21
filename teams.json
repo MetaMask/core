@@ -14,7 +14,6 @@
   "metamask/network-enablement-controller": "team-assets",
   "metamask/address-book-controller": "team-confirmations",
   "metamask/approval-controller": "team-confirmations",
-  "metamask/ens-controller": "team-confirmations",
   "metamask/gas-fee-controller": "team-confirmations",
   "metamask/logging-controller": "team-confirmations",
   "metamask/message-manager": "team-confirmations",
@@ -47,6 +46,7 @@
   "metamask/client-controller": "team-core-platform,team-extension-platform,team-mobile-platform",
   "metamask/base-controller": "team-core-platform",
   "metamask/base-data-service": "team-core-platform",
+  "metamask/utils": "team-core-platform",
   "metamask/build-utils": "team-core-platform",
   "metamask/composable-controller": "team-core-platform",
   "metamask/connectivity-controller": "team-core-platform",
@@ -62,7 +62,7 @@
   "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-mobile-platform,team-extension-platform",
   "metamask/wallet": "team-core-platform",
-  "metamask/wallet-cli": "team-core-platform,team-ocap-kernel",
+  "metamask/wallet-cli": "team-core-platform",
   "metamask/passkey-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
@@ -70,7 +70,7 @@
   "metamask/claims-controller": "team-shield",
   "metamask/announcement-controller": "team-core-extension-ux,team-mobile-ux",
   "metamask/client-utils": "team-core-extension-ux,team-mobile-ux",
-  "metamask/core-backend": "team-core-platform,team-assets",
+  "metamask/core-backend": "team-assets",
   "metamask/eth-block-tracker": "team-core-platform",
   "metamask/eth-json-rpc-middleware": "team-core-platform,team-confirmations",
   "metamask/eth-json-rpc-provider": "team-core-platform",
@@ -96,5 +96,8 @@
   "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework",
   "metamask/platform-api-docs": "team-core-platform",
-  "metamask/smart-transactions-controller": "team-transactions"
+  "metamask/smart-transactions-controller": "team-transactions",
+  "metamask/kyc-controller": "team-universal-kyc",
+  "metamask/cryptography": "team-core-platform",
+  "metamask/package-template": "team-core-platform"
 }

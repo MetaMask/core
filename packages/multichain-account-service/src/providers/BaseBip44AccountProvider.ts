@@ -43,6 +43,36 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
+/**
+ * A single account deletion that failed during {@link Bip44AccountProvider.deleteAccounts}.
+ */
+export type DeleteAccountsFailure = {
+  id: string;
+  error: unknown;
+};
+
+/**
+ * Result of a batch {@link Bip44AccountProvider.deleteAccounts} call.
+ *
+ * Failures are expected (the operation is best-effort), so they are returned
+ * rather than thrown. `{ ok: true }` means every requested id was deleted.
+ */
+export type DeleteAccountsResult =
+  | { ok: true }
+  | { ok: false; failures: DeleteAccountsFailure[] };
+
+/**
+ * Builds a {@link DeleteAccountsResult} from the collected per-id failures.
+ *
+ * @param failures - Failures recorded during the batch, if any.
+ * @returns `{ ok: true }` when `failures` is empty, otherwise `{ ok: false, failures }`.
+ */
+export function toDeleteAccountsResult(
+  failures: DeleteAccountsFailure[],
+): DeleteAccountsResult {
+  return failures.length > 0 ? { ok: false, failures } : { ok: true };
+}
+
 export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
@@ -90,6 +120,19 @@ export type Bip44AccountProvider<
    */
   deleteAccount(id: Account['id']): Promise<void>;
   /**
+   * Delete many accounts managed by this provider.
+   *
+   * Providers may reorder or batch internally (e.g. the EVM provider must
+   * delete from the highest group index down). The default implementation
+   * deletes sequentially via {@link deleteAccount} and is best-effort: a
+   * failure for one id does not skip the rest. If any deletion fails, the
+   * result is `{ ok: false, failures }` with every per-id failure.
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
+   */
+  deleteAccounts(ids: Account['id'][]): Promise<DeleteAccountsResult>;
+  /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
    * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
@@ -116,6 +159,14 @@ export type Bip44AccountProvider<
     context: { entropySource: EntropySourceId; groupIndex: number },
     accountIds: Account['id'][],
   ): boolean;
+  /**
+   * Ensures the provider is ready before any account operation is attempted:
+   * - EVM providers return immediately.
+   * - Snap providers will wait for the Snap platform and keyring to be available.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  ensureReady(): Promise<void>;
 };
 
 export abstract class BaseBip44AccountProvider<
@@ -234,6 +285,10 @@ export abstract class BaseBip44AccountProvider<
     );
   }
 
+  async ensureReady(): Promise<void> {
+    // No-op for non-snap providers.
+  }
+
   abstract get capabilities(): KeyringCapabilities;
 
   abstract getName(): string;
@@ -247,6 +302,28 @@ export abstract class BaseBip44AccountProvider<
   abstract createAccounts(options: CreateAccountOptions): Promise<Account[]>;
 
   abstract deleteAccount(id: Account['id']): Promise<void>;
+
+  /**
+   * Default batch deletion: sequential {@link deleteAccount} in the given
+   * order. Subclasses with extra constraints (EVM HD last-account-only)
+   * should override.
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
+   */
+  async deleteAccounts(ids: Account['id'][]): Promise<DeleteAccountsResult> {
+    const failures: DeleteAccountsFailure[] = [];
+
+    for (const id of ids) {
+      try {
+        await this.deleteAccount(id);
+      } catch (error) {
+        failures.push({ id, error });
+      }
+    }
+
+    return toDeleteAccountsResult(failures);
+  }
 
   abstract discoverAccounts({
     entropySource,

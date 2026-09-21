@@ -6,9 +6,8 @@ import type {
 import type {
   ChainId,
   FeatureId,
-  Quote,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   MetaMetricsSwapsEventSource,
   SimulatedGasFeeLimits,
   TxData,
@@ -77,7 +76,7 @@ export type StatusRequest = {
   bridge: string; // lifi, socket, squid
   srcChainId: ChainId; // lifi, socket, squid
   destChainId: ChainId; // lifi, socket, squid
-  quote?: Quote; // squid
+  quote?: QuoteResponseV1['quote']; // squid
   refuel?: boolean; // lifi
 };
 
@@ -120,7 +119,7 @@ export type RefuelStatusResponse = object & StatusResponse;
  */
 export type QuoteAndTxMetadata = {
   type: TransactionType;
-  quoteResponse: QuoteResponse & QuoteMetadata;
+  quoteResponse: QuoteResponseV1 & QuoteMetadata;
   /**
    * The approval or trade object from the quote response
    */
@@ -157,7 +156,7 @@ export type BridgeHistoryItem = {
    * persisted before this field was introduced.
    */
   quoteIds?: string[];
-  quote: Quote;
+  quote: QuoteResponseV1['quote'];
   /**
    * This is the the quote id used on single swaps/bridges. On batch sell, it is set
    * as the first item of `quoteIds`.
@@ -170,6 +169,11 @@ export type BridgeHistoryItem = {
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
+  /**
+   * Whether the user explicitly overrode the default slippage setting.
+   * Optional for history items created before this field was persisted.
+   */
+  customSlippage?: boolean;
   completionTime?: number; // timestamp in ms
   pricingData?: {
     /**
@@ -290,9 +294,10 @@ export type StartPollingForBridgeTxStatusArgs = {
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string;
-  quoteResponse: QuoteResponse & QuoteMetadata;
+  quoteResponse: QuoteResponseV1 & QuoteMetadata;
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
+  customSlippage?: BridgeHistoryItem['customSlippage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
@@ -319,7 +324,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & QuoteMetadata;
+  quoteResponse: QuoteResponseV1 & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;

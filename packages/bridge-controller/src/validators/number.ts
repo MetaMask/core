@@ -1,6 +1,6 @@
 import { define, pattern, string } from '@metamask/superstruct';
 
-export const NumberStringSchema = define<string>(
+export const PositiveNumberStringSchema = define<string>(
   'NumberString',
   (value: unknown) => typeof value === 'string' && /^\d+$/u.test(value),
 );

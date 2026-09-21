@@ -9,6 +9,8 @@ export {
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   PollingStatus,
+  FailurePhase,
+  SwapBridgeErrorCode,
 } from './utils/metrics/constants.js';
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants.js';
@@ -23,9 +25,16 @@ export type {
   RequestMetadata,
   TxStatusData,
   QuoteFetchData,
-  QuoteWarning,
   InputPrimaryDenominationData,
+  HashPresenceData,
+  FailureTelemetryData,
+  HashPresenceProperties,
+  FailureTelemetryProperties,
 } from './utils/metrics/types.js';
+
+export type { QuoteWarning } from './utils/quote-warnings/types.js';
+export { hasSufficientGasForQuote } from './utils/quote-warnings/insufficient-gas-for-quote.js';
+export { hasNetworkFee } from './utils/quote-warnings/network-fee-unavailable.js';
 
 export {
   getAccountHardwareType,
@@ -37,13 +46,14 @@ export {
   getQuotesReceivedProperties,
 } from './utils/metrics/properties.js';
 
+export { getQuoteFetchErrorCode } from './utils/metrics/failure-telemetry.js';
+
 export type {
   ChainConfiguration,
   L1GasFees,
   NonEvmFees,
   GasMultiplierByChainId,
   FeatureFlagResponse,
-  BridgeAsset,
   GenericQuoteRequest,
   BatchSellTradesResponse,
   GaslessProperties,
@@ -71,10 +81,12 @@ export type {
 export {
   type QuoteMetadata,
   type TokenAmountValues,
+  QuoteMetadataMigrationPhase,
 } from './utils/quote-metadata/types.js';
 export {
   validateQuoteResponseV1,
   QuoteResponseSchemaV1,
+  type QuoteResponseV1,
 } from './validators/quote-response-v1.js';
 export { mergeQuoteMetadata } from './utils/quote-metadata/merge.js';
 
@@ -114,24 +126,52 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade.js';
-export type {
-  QuoteResponseV1 as QuoteResponse,
-  QuoteResponseV1,
-} from './validators/quote-response-v1.js';
+export {
+  validateQuoteResponse,
+  type QuoteResponse,
+  isQuoteResponseV2,
+} from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
 export { ActionTypes } from './validators/step.js';
+export { toQuoteResponseV1 } from './coercers/quote-response-v2-to-v1.js';
+export { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
+
+export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
+export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
+
+export {
+  sumAmounts,
+  calcAtomicTokenAmount,
+  calcNormalizedTokenAmount,
+} from './utils/number-formatters.js';
+export { assetIdsMatch } from './utils/assets.js';
+
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete.js';
 export { BatchSellTransactionType } from './validators/batch-sell.js';
+export {
+  AmountsAndAssetSchema,
+  type AmountsAndAsset,
+} from './validators/amount-and-asset.js';
 export { TokenFeatureType } from './validators/token-feature.js';
+export type {
+  BridgeAsset,
+  BridgeAssetV2,
+  MinimalAsset,
+} from './validators/bridge-asset.js';
 export {
   BridgeAssetSchema,
   validateBridgeAsset,
+  validateBridgeAssetV2,
+  MinimalAssetSchema,
+  BridgeAssetV2Schema,
+  BridgeAssetSecurityDataType,
 } from './validators/bridge-asset.js';
 export { FeatureId } from './validators/feature-flags.js';
+export { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2.js';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
@@ -213,6 +253,7 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
   formatAddressToAssetId,
+  formatChainIdToDec,
 } from './utils/caip-formatters.js';
 
 export { extractTradeData } from './utils/trade-utils.js';

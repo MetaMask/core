@@ -1,9 +1,5 @@
 /* eslint-disable jest/unbound-method */
-import type {
-  V5BalanceItem,
-  V6BalanceItem,
-  V6AccountBalancesEntry,
-} from '@metamask/core-backend';
+import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
@@ -67,23 +63,24 @@ function createMockAccount(
 }
 
 function createMockApiClient(
-  supportedChains: number[] = [1, 137],
+  supportedChains: (number | string)[] = [1, 137],
   balances: V5BalanceItem[] = [],
   unprocessedNetworks: string[] = [],
-  v6Accounts: V6AccountBalancesEntry[] = [],
+  v6Balances: V6BalanceItem[] = [],
+  partialSupport: (number | string)[] = [],
 ): MockApiClient {
   return {
     accounts: {
       fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedChains,
-        partialSupport: [],
+        partialSupport,
       }),
       fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
         balances,
         unprocessedNetworks,
       }),
       fetchV6MultiAccountBalances: jest.fn().mockResolvedValue({
-        accounts: v6Accounts,
+        balances: v6Balances,
         unprocessedNetworks,
         unprocessedIncludeAssetIds: [],
       }),
@@ -92,19 +89,35 @@ function createMockApiClient(
 }
 
 function createMockV6BalanceItem(
+  accountId: string,
   assetId: string,
   balance: string,
-  category: 'token' | 'defi' = 'token',
+  object: 'token' | 'defi' = 'token',
+  type: string = 'erc20',
+  metadata?: V6BalanceItem['metadata'],
 ): V6BalanceItem {
-  return { category, assetId, balance } as V6BalanceItem;
+  return {
+    accountId,
+    object,
+    type,
+    assetId,
+    balance,
+    ...(metadata ? { metadata } : {}),
+  } as V6BalanceItem;
 }
 
 function createMockBalanceItem(
   accountId: string,
   assetId: string,
   balance: string,
+  metadata?: V5BalanceItem['metadata'],
 ): V5BalanceItem {
-  return { accountId, assetId, balance } as V5BalanceItem;
+  return {
+    accountId,
+    assetId,
+    balance,
+    ...(metadata ? { metadata } : {}),
+  } as V5BalanceItem;
 }
 
 function createDataRequest(
@@ -143,20 +156,22 @@ type SetupResult = {
 
 async function setupController(
   options: {
-    supportedChains?: number[];
+    supportedChains?: (number | string)[];
+    partialSupport?: (number | string)[];
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
     fetchTimeoutMs?: number;
-    v6Accounts?: V6AccountBalancesEntry[];
+    v6Balances?: V6BalanceItem[];
     remoteFeatureFlags?: Record<string, unknown>;
   } = {},
 ): Promise<SetupResult> {
   const {
     supportedChains = [1, 137],
+    partialSupport = [],
     balances = [],
     unprocessedNetworks = [],
     fetchTimeoutMs,
-    v6Accounts = [],
+    v6Balances = [],
     remoteFeatureFlags = {},
   } = options;
 
@@ -186,7 +201,7 @@ async function setupController(
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: ['RemoteFeatureFlagController:getState'],
-    // eslint-disable-next-line no-restricted-syntax
+
     events: ['RemoteFeatureFlagController:stateChange'],
   });
 
@@ -197,7 +212,8 @@ async function setupController(
     supportedChains,
     balances,
     unprocessedNetworks,
-    v6Accounts,
+    v6Balances,
+    partialSupport,
   );
 
   const controller = new AccountsApiDataSource({
@@ -281,7 +297,7 @@ describe('AccountsApiDataSource', () => {
     activeChainsUpdateHandler.mockClear();
     apiClient.accounts.fetchV2SupportedNetworks.mockClear();
     apiClient.accounts.fetchV2SupportedNetworks.mockResolvedValue({
-      fullSupport: [1, 137],
+      fullSupport: ['eip155:1', 'eip155:137'],
       partialSupport: [],
     });
 
@@ -480,6 +496,45 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('treats v2 CAIP-2 fullSupport and partialSupport arrays as active chains', async () => {
+    const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const SOLANA_DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+    const TRON_MAINNET = 'tron:728126428';
+    const STELLAR_PUBNET = 'stellar:pubnet';
+    const { controller } = await setupController({
+      supportedChains: ['eip155:1', 'eip155:137', 'eip155:59144'],
+      partialSupport: [
+        TRON_MAINNET,
+        SOLANA_MAINNET,
+        SOLANA_DEVNET,
+        STELLAR_PUBNET,
+      ],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.tron]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      },
+    });
+
+    expect(await controller.getActiveChains()).toStrictEqual([
+      CHAIN_MAINNET,
+      CHAIN_POLYGON,
+      'eip155:59144',
+      TRON_MAINNET,
+      SOLANA_MAINNET,
+      SOLANA_DEVNET,
+      STELLAR_PUBNET,
+    ]);
+
+    controller.destroy();
+  });
+
   it.each([
     { input: 1, expected: 'eip155:1' },
     { input: '137', expected: 'eip155:137' },
@@ -525,7 +580,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('uses a short-lived TanStack cache window when forceUpdate is true', async () => {
+  it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
     const { controller, apiClient } = await setupController();
 
     await controller.fetch(createDataRequest({ forceUpdate: true }));
@@ -533,7 +588,37 @@ describe('AccountsApiDataSource', () => {
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
-      { staleTime: 100, gcTime: 100 },
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch requests a full cache bypass when request.bypassServerCache is true', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(
+      createDataRequest({ forceUpdate: true, bypassServerCache: true }),
+    );
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0, bypassServerCache: true },
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch bypasses caches when bypassServerCache is set without forceUpdate', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(createDataRequest({ bypassServerCache: true }));
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
 
     controller.destroy();
@@ -561,6 +646,108 @@ describe('AccountsApiDataSource', () => {
       response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
         ?.amount,
     ).toBe('1000000000000000000');
+
+    controller.destroy();
+  });
+
+  it('fetch persists Stellar native and trustline metadata from v5 balances', async () => {
+    const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
+    const stellarAddress =
+      'GCRTHNJHYCV4F4JOAIMUE2ALYPE3C7Q53XTSUVGYJ4UXYIKWZAK7FWPG';
+    const nativeAssetId = 'stellar:pubnet/slip44:148';
+    const usdcAssetId =
+      'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+    // The Accounts API client parses balance-row metadata, so the data source
+    // only ever sees the `V6TokenBalanceMetadata` fields.
+    const nativeMetadata = {
+      spendableBalance: '8944804518',
+      minimumReserveBalance: '200000000',
+    };
+    const trustlineMetadata = {
+      limit: '9223372036854775807',
+      authorized: true,
+      sponsored: false,
+    };
+
+    const { controller } = await setupController({
+      supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      },
+      balances: [
+        createMockBalanceItem(
+          `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+          nativeAssetId,
+          '914.4804518',
+          nativeMetadata,
+        ),
+        createMockBalanceItem(
+          `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+          usdcAssetId,
+          '0',
+          trustlineMetadata,
+        ),
+      ],
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({
+        chainIds: [STELLAR_CHAIN_ID],
+        accounts: [
+          createMockAccount({
+            address: stellarAddress,
+            type: 'stellar:ss58',
+            scopes: [STELLAR_CHAIN_ID],
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[
+        nativeAssetId as Caip19AssetId
+      ],
+    ).toStrictEqual({
+      amount: '914.4804518',
+      metadata: nativeMetadata,
+    });
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[
+        usdcAssetId as Caip19AssetId
+      ],
+    ).toStrictEqual({
+      amount: '0',
+      metadata: trustlineMetadata,
+    });
+
+    controller.destroy();
+  });
+
+  it('excludes staking contract asset IDs from v5 balance response', async () => {
+    const stakingAssetId =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+    const balances = [
+      createMockBalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        'eip155:1/slip44:60',
+        '1000000000000000000',
+      ),
+      createMockBalanceItem(`eip155:1:${MOCK_ADDRESS}`, stakingAssetId, '0'),
+    ];
+
+    const { controller } = await setupController({ balances });
+
+    const response = await controller.fetch(createDataRequest());
+    const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+    expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+    expect(
+      Object.keys(accountBalances).some((id) =>
+        id.toLowerCase().includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+      ),
+    ).toBe(false);
 
     controller.destroy();
   });
@@ -704,18 +891,17 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('processes v6 token balances grouped by account', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
-        v6Accounts: [
-          {
-            accountId: `eip155:1:${MOCK_ADDRESS}`,
-            balances: [
-              createMockV6BalanceItem(
-                'eip155:1/slip44:60',
-                '1000000000000000000',
-              ),
-            ],
-          },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
         ],
       });
 
@@ -729,20 +915,104 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
+    it('persists Stellar native and trustline metadata from v6 balances', async () => {
+      const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
+      const stellarAddress =
+        'GDZRSRB4DOK3372HO2OKYVJKGTL5MYF5VUSO5CD5CJJNQVG35HMBQT6U';
+      const nativeAssetId = 'stellar:pubnet/slip44:148';
+      const aquaAssetId =
+        'stellar:pubnet/asset:AQUA-GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA';
+      // The Accounts API client parses balance-row metadata, so the data
+      // source only ever sees the `V6TokenBalanceMetadata` fields.
+      const nativeMetadata = {
+        spendableBalance: '8944803018',
+        minimumReserveBalance: '200000000',
+      };
+      const trustlineMetadata = {
+        limit: '9223372036854775807',
+        authorized: true,
+        sponsored: false,
+      };
+
+      const { controller } = await setupController({
+        supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+        remoteFeatureFlags: {
+          assetsAccountsApiV6: { value: true },
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+        },
+        v6Balances: [
+          createMockV6BalanceItem(
+            `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+            aquaAssetId,
+            '0',
+            'token',
+            'token',
+            trustlineMetadata,
+          ),
+          createMockV6BalanceItem(
+            `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+            nativeAssetId,
+            '914.4803018',
+            'token',
+            'native',
+            nativeMetadata,
+          ),
+        ],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({
+          chainIds: [STELLAR_CHAIN_ID],
+          accounts: [
+            createMockAccount({
+              address: stellarAddress,
+              type: 'stellar:ss58',
+              scopes: [STELLAR_CHAIN_ID],
+            }),
+          ],
+        }),
+      );
+
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[
+          aquaAssetId as Caip19AssetId
+        ],
+      ).toStrictEqual({
+        amount: '0',
+        metadata: trustlineMetadata,
+      });
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[
+          nativeAssetId as Caip19AssetId
+        ],
+      ).toStrictEqual({
+        amount: '914.4803018',
+        metadata: nativeMetadata,
+      });
+
+      controller.destroy();
+    });
+
     it('ignores v6 defi positions', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
-        v6Accounts: [
-          {
-            accountId: `eip155:1:${MOCK_ADDRESS}`,
-            balances: [
-              createMockV6BalanceItem(
-                'eip155:1/slip44:60',
-                '1000000000000000000',
-              ),
-              createMockV6BalanceItem('eip155:1/erc20:0xdefi', '500', 'defi'),
-            ],
-          },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/erc20:0xdefi',
+            '500',
+            'defi',
+          ),
         ],
       });
 
@@ -751,6 +1021,39 @@ describe('AccountsApiDataSource', () => {
       const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
       expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
       expect(accountBalances).not.toHaveProperty('eip155:1/erc20:0xdefi');
+
+      controller.destroy();
+    });
+
+    it('excludes staking contract asset IDs from v6 balance response', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
+      const stakingAssetId =
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(accountId, stakingAssetId, '0'),
+        ],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+      const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+      expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+      expect(
+        Object.keys(accountBalances).some((id) =>
+          id
+            .toLowerCase()
+            .includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+        ),
+      ).toBe(false);
 
       controller.destroy();
     });
@@ -886,6 +1189,34 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware skips Accounts API when balance is not requested', async () => {
+    const { controller, apiClient } = await setupController({
+      balances: [
+        createMockBalanceItem(
+          `eip155:1:${MOCK_ADDRESS}`,
+          'eip155:1/slip44:60',
+          '1',
+        ),
+      ],
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['price'] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
   it('middleware removes handled chains from next request', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
@@ -918,6 +1249,48 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('subscribe polling fetch always bypasses the TanStack cache', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
+  it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
+    const { controller, assetsUpdateHandler, apiClient } =
+      await setupController();
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+      skipInitialFetch: true,
+    });
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
 
     controller.destroy();
   });

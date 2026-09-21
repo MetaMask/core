@@ -18,12 +18,9 @@ import {
   SYMBOL_TO_SLIP44_MAP,
 } from '../constants/tokens.js';
 import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens.js';
-import type {
-  BridgeAsset,
-  BridgeControllerState,
-  GenericQuoteRequest,
-} from '../types.js';
+import type { BridgeControllerState, GenericQuoteRequest } from '../types.js';
 import { ChainId } from '../types.js';
+import type { BridgeAsset } from '../validators/bridge-asset.js';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
 import type { TxData } from '../validators/trade.js';
 import {

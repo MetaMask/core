@@ -18,6 +18,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -883,7 +884,8 @@ async function submitViaTransactionController(
   const isSourceGasFeeSponsored =
     transaction.isGasFeeSponsored &&
     quote.request.sourceChainId === transaction.chainId &&
-    quote.request.targetChainId === transaction.chainId;
+    quote.request.targetChainId === transaction.chainId &&
+    accountSupports7702(messenger, from);
 
   const gasFeeToken =
     !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken
@@ -900,12 +902,28 @@ async function submitViaTransactionController(
     quote.original.details.currencyIn.currency.chainId ===
     quote.original.details.currencyOut.currency.chainId;
 
+  // Single-tx keeps address/chainId only — TransactionController re-signs with
+  // `from`. Batch may need a different signer (Money Account) than the batch
+  // payer (EOA account override), so preserve the full pre-signed list.
   const authorizationList: AuthorizationList | undefined =
     isSameChain && quote.original.request.authorizationList?.length
       ? quote.original.request.authorizationList.map((a) => ({
           address: a.address,
           chainId: toHex(a.chainId),
         }))
+      : undefined;
+
+  const hasAccountOverride =
+    quote.request.from.toLowerCase() !==
+    (transaction.txParams.from as Hex).toLowerCase();
+
+  const batchAuthorizationList =
+    isSameChain &&
+    hasAccountOverride &&
+    quote.original.request.authorizationList?.length
+      ? mapSignedQuoteAuthorizationList(
+          quote.original.request.authorizationList,
+        )
       : undefined;
 
   const { metamask } = quote.original;
@@ -936,6 +954,7 @@ async function submitViaTransactionController(
       'TransactionController:addTransactionBatch',
       buildRelayTransactionBatchRequest({
         allParams,
+        authorizationList: batchAuthorizationList,
         isGasFeeSponsored: isSourceGasFeeSponsored,
         messenger,
         normalizedParams,
@@ -973,8 +992,22 @@ async function submitViaTransactionController(
   return hash as Hex;
 }
 
+function mapSignedQuoteAuthorizationList(
+  authorizationList: NonNullable<RelayQuote['request']['authorizationList']>,
+): AuthorizationList {
+  return authorizationList.map((a) => ({
+    address: a.address,
+    chainId: toHex(a.chainId),
+    nonce: toHex(a.nonce),
+    r: a.r,
+    s: a.s,
+    yParity: toHex(a.yParity),
+  }));
+}
+
 function buildRelayTransactionBatchRequest({
   allParams,
+  authorizationList,
   isGasFeeSponsored,
   messenger,
   normalizedParams,
@@ -982,6 +1015,7 @@ function buildRelayTransactionBatchRequest({
   transaction,
 }: {
   allParams: TransactionParams[];
+  authorizationList?: AuthorizationList;
   isGasFeeSponsored: boolean | undefined;
   messenger: TransactionPayControllerMessenger;
   normalizedParams: TransactionParams[];
@@ -998,6 +1032,7 @@ function buildRelayTransactionBatchRequest({
 
   return {
     from,
+    ...(authorizationList?.length ? { authorizationList } : {}),
     disable7702: !gasLimit7702,
     disableHook: Boolean(gasLimit7702),
     disableSequential: Boolean(gasLimit7702),

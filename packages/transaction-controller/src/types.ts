@@ -1831,6 +1831,16 @@ export type TransactionBatchRequest = {
    */
   atomic?: boolean;
 
+  /**
+   * Pre-signed or unsigned EIP-7702 authorizations to include on the batch
+   * type-4 transaction, in addition to any upgrade authorization generated for
+   * `from` when the batch payer is not yet upgraded.
+   *
+   * Used when vaulting/delegation requires upgrading a different account than
+   * `from` (e.g. Money Account deposits paid by an EOA with account override).
+   */
+  authorizationList?: AuthorizationList;
+
   batchId?: Hex;
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */

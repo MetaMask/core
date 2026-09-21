@@ -25,13 +25,11 @@ export type {
   Article,
   DigestService,
   MarketInsightsArticle,
-  MarketInsightsEntry,
   MarketInsightsReport,
   MarketInsightsSource,
   MarketInsightsTrend,
   MarketInsightsTweet,
   MarketOverview,
-  MarketOverviewEntry,
   MarketOverviewFrontPage,
   MarketOverviewItem,
   MarketOverviewTrend,
@@ -42,7 +40,5 @@ export type {
 
 export {
   controllerName as aiDigestControllerName,
-  CACHE_DURATION_MS,
-  MAX_CACHE_ENTRIES,
   AiDigestControllerErrorMessage,
 } from './ai-digest-constants.js';

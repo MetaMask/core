@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../account-tree-controller"
@@ -57,6 +54,12 @@
     },
     {
       "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

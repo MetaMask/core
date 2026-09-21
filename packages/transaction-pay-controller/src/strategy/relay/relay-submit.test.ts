@@ -5,7 +5,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { PaymentOverride } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
@@ -155,6 +155,7 @@ describe('Relay Submit Utils', () => {
     getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
     getPaymentOverrideDataMock,
+    getKeyringControllerStateMock,
     messenger,
   } = getMessengerMock();
 
@@ -176,6 +177,17 @@ describe('Relay Submit Utils', () => {
     jest.resetAllMocks();
 
     successfulFetchMock = jest.spyOn(global, 'fetch');
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
@@ -255,6 +267,8 @@ describe('Relay Submit Utils', () => {
     });
 
     it('passes sponsored gas options when parent sponsorship applies to same-chain quote', async () => {
+      request.transaction.txParams.from =
+        '0x1234567890123456789012345678901234567892';
       request.transaction.chainId = CHAIN_ID_MOCK;
       request.transaction.isGasFeeSponsored = true;
       request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
@@ -269,6 +283,70 @@ describe('Relay Submit Utils', () => {
         }),
       );
     });
+
+    it.each([1, 2])(
+      'does not sponsor %i source calls when the payer is unsupported despite a supported parent',
+      async (callCount) => {
+        const parentFrom = '0x1234567890123456789012345678901234567892';
+        getKeyringControllerStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [parentFrom],
+              metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+            },
+            {
+              type: 'Ledger Hardware',
+              accounts: [FROM_MOCK],
+              metadata: { id: 'ledger-keyring', name: 'Ledger Hardware' },
+            },
+          ],
+        });
+        request.transaction.txParams.from = parentFrom;
+        request.transaction.chainId = CHAIN_ID_MOCK;
+        request.transaction.isGasFeeSponsored = true;
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+        if (callCount === 2) {
+          request.quotes[0].original.steps[0].items.push(
+            cloneDeep(request.quotes[0].original.steps[0].items[0]),
+          );
+        }
+
+        await submitRelayQuotes(request);
+
+        const singleArgs = [
+          expect.objectContaining({
+            from: FROM_MOCK,
+            gas: '0x5208',
+          }),
+          expect.objectContaining({
+            isGasFeeSponsored: false,
+            gasFeeToken: undefined,
+          }),
+        ];
+        const batchArgs = [
+          expect.objectContaining({
+            from: FROM_MOCK,
+            isGasFeeSponsored: false,
+            gasFeeToken: undefined,
+            gasLimit7702: undefined,
+            disable7702: true,
+            disableSequential: false,
+          }),
+        ];
+        const submitMock =
+          callCount === 1 ? addTransactionMock : addTransactionBatchMock;
+        const otherSubmitMock =
+          callCount === 1 ? addTransactionBatchMock : addTransactionMock;
+
+        expect(submitMock).toHaveBeenCalledWith(
+          ...(callCount === 1 ? singleArgs : batchArgs),
+        );
+        expect(otherSubmitMock).not.toHaveBeenCalled();
+      },
+    );
 
     it('uses predictRelayDeposit type when parent transaction is predictDeposit', async () => {
       request.transaction = {
@@ -544,6 +622,81 @@ describe('Relay Submit Utils', () => {
           },
         ],
       });
+    });
+
+    it('passes signed authorizationList on batch when same-chain with account override', async () => {
+      const moneyAccountFrom = '0xmoneyaccount' as Hex;
+
+      request.transaction = {
+        ...request.transaction,
+        txParams: { from: moneyAccountFrom },
+      } as TransactionMeta;
+
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+          authorizationList: [
+            {
+              address: '0xabc',
+              chainId: '0x1',
+              nonce: '0x2',
+              r: '0xr',
+              s: '0xs',
+              yParity: '0x1',
+            },
+          ],
+        }),
+      );
+    });
+
+    it('does not pass authorizationList on batch when from matches transaction from', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+      );
     });
 
     it('uses mapped relay deposit type in batch when parent is predictDeposit', async () => {

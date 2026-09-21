@@ -263,6 +263,13 @@ export class Messenger<
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
 
   /**
+   * In-progress publishes, keyed by event type. A key is present for the
+   * duration of a publish (so presence means "publishing"); its array collects
+   * re-entrant publishes of that event, drained when the publish finishes.
+   */
+  readonly #deferredPublishes = new Map<Event['type'], (() => void)[]>();
+
+  /**
    * The set of messengers we've delegated events to and their event handlers, by event type.
    */
   readonly #subscriptionDelegationTargets = new Map<
@@ -646,6 +653,37 @@ export class Messenger<
   }
 
   #publish<EventType extends Event['type']>(
+    eventType: EventType,
+    ...payload: ExtractEventPayload<Event, EventType>
+  ): void {
+    // Defer a re-entrant publish of the same event (e.g. a subscriber that
+    // publishes the event it is handling). Delivering it inline would let the
+    // in-progress publish resume and re-deliver its now-stale payload to the
+    // subscribers it had not reached yet.
+    const inProgress = this.#deferredPublishes.get(eventType);
+    if (inProgress) {
+      inProgress.push((): void =>
+        this.#deliverToSubscribers(eventType, ...payload),
+      );
+      return;
+    }
+
+    const deferred: (() => void)[] = [];
+    this.#deferredPublishes.set(eventType, deferred);
+    try {
+      this.#deliverToSubscribers(eventType, ...payload);
+
+      // Drain deferred publishes in order. The array grows as further
+      // re-entrant publishes push onto it; the iterator reads those too.
+      for (const run of deferred) {
+        run();
+      }
+    } finally {
+      this.#deferredPublishes.delete(eventType);
+    }
+  }
+
+  #deliverToSubscribers<EventType extends Event['type']>(
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ): void {

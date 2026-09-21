@@ -12,11 +12,59 @@ or
 
 ## Usage
 
-```typescript
-import { PerpsController } from '@metamask/perps-controller';
+`PerpsController` provides a provider-agnostic API for perpetual trading. It
+normalizes market data, account state, trading, funding, transfers, risk
+calculations, and live subscriptions across enabled providers.
 
-// Full usage documentation coming in future releases
+Applications construct the controller with a messenger and their
+platform-specific dependencies:
+
+```typescript
+import {
+  PerpsController,
+  type PerpsControllerOptions,
+} from '@metamask/perps-controller';
+
+export async function createPerpsController(
+  options: PerpsControllerOptions,
+): Promise<PerpsController> {
+  const controller = new PerpsController(options);
+  await controller.init();
+  return controller;
+}
 ```
+
+The controller registers its public operations as `PerpsController:*`
+messenger actions, and clients can call the same methods directly. Its main
+capabilities are:
+
+- Provider and network lifecycle management.
+- Normalized market, account, position, order, and history reads.
+- Trading, position, margin, deposit, and withdrawal operations with
+  preflight validation and risk calculations.
+- Callback-based live prices, positions, orders, fills, order books, and
+  candles. Each subscription returns an unsubscribe function.
+
+The package exports the controller's parameter, result, provider, and
+messenger types for client integrations. Provider availability and aggregated
+routing are controlled by client configuration and feature flags.
+
+## Error codes
+
+`PERPS_ERROR_CODES` / `PerpsErrorCode` are the structured codes returned to
+the UI for translation. New codes are additive and ship as a minor. Clients
+should keep a catch-all for unrecognized codes instead of an exhaustive map,
+so a bump does not fail to compile when a code is added.
+
+## Explicit HyperLiquid margin mode
+
+Pass `marginMode: 'cross'` or `marginMode: 'isolated'` with an integer `leverage`
+to `placeOrder`. Omitted mode retains the existing isolated-leverage behavior.
+Explicit mode requests are validated before signing: Cross is unavailable on
+isolated-only markets and HIP-3 markets, and an order cannot change the mode of
+an asset with an open position, resting order, or active native TWAP schedule,
+including schedules whose first slice has not filled. Orders in the same mode may
+increase or reduce the existing position.
 
 ## Contributing
 

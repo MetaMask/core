@@ -3,7 +3,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   BridgeControllerMessenger,
-  QuoteResponse,
+  QuoteResponseV1,
   QuoteMetadata,
   TxData,
   TronTradeData,
@@ -19,7 +19,10 @@ import {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
   mergeQuoteMetadata,
+  validateQuoteResponseV1,
+  toQuoteResponseV2,
 } from '@metamask/bridge-controller';
+import type { TraceRequest } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -50,6 +53,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
+  TraceName,
 } from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
@@ -311,8 +315,8 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  quoteResponse: mergeQuoteMetadata(
-    {
+  quoteResponse: {
+    ...{
       quote: getMockQuote({ srcChainId, destChainId }),
       trade: {
         chainId: srcChainId,
@@ -325,7 +329,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
       approval: undefined,
       estimatedProcessingTimeInSeconds: 15,
     },
-    {
+    ...{
       sentAmount: {
         amount: '1.234',
         valueInCurrency: undefined,
@@ -353,7 +357,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
       swapRate: '1.234',
       cost: { valueInCurrency: undefined, usd: undefined },
     },
-  ),
+  },
   accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
@@ -586,6 +590,21 @@ const MockTxHistory = {
 };
 
 const addTransactionBatchFn = jest.fn();
+
+const createTraceCallback = (traceRequests: TraceRequest[]) =>
+  jest
+    .fn()
+    .mockImplementation(
+      async (request: TraceRequest, callback?: () => unknown) => {
+        traceRequests.push(request);
+        return await callback?.();
+      },
+    );
+
+const getSwapOperationCompletedTrace = (
+  traceRequests: TraceRequest[],
+): TraceRequest | undefined =>
+  traceRequests.find(({ name }) => name === TraceName.SwapOperationCompleted);
 
 function getRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
@@ -1160,7 +1179,7 @@ describe('BridgeStatusController constructor', () => {
                     chain_id_destination: 'eip155:10',
                     // eslint-disable-next-line jest/no-conditional-expect
                     chain_id_source: expect.any(String),
-                    custom_slippage: true,
+                    custom_slippage: false,
                     destination_transaction: 'PENDING',
                     feature_id: 'unified_swap_bridge',
                     gas_included: false,
@@ -1759,6 +1778,19 @@ describe('BridgeStatusController', () => {
         // Assertions
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        const failedCall = messengerCallSpy.mock.calls.find(
+          ([action, eventName]) =>
+            action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+            eventName === UnifiedSwapBridgeEventName.Failed,
+        );
+        expect(failedCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            failure_phase: 'source_execution',
+            error_code: 'status_failed_without_reason',
+            source_hash_present: true,
+            destination_hash_present: false,
+          }),
+        );
         expect(messengerPublishSpy).not.toHaveBeenCalledWith(
           'BridgeStatusController:destinationTransactionCompleted',
         );
@@ -1766,6 +1798,157 @@ describe('BridgeStatusController', () => {
         // Cleanup
         jest.restoreAllMocks();
       });
+    });
+
+    describe('swap operation completion tracing', () => {
+      it.each([
+        {
+          name: 'success',
+          result: 'success',
+          response: (): StatusResponse => MockStatusResponse.getComplete(),
+          destinationTxHash: '0xdestTxHash1',
+        },
+        {
+          name: 'failure',
+          result: 'error',
+          response: (): StatusResponse => MockStatusResponse.getFailed(),
+          destinationTxHash: undefined,
+        },
+      ])('records $name', async (scenario) => {
+        jest.useFakeTimers();
+        const startTime = 1729964825189;
+        const completionTime = 1736277625746;
+        jest.spyOn(Date, 'now').mockImplementation(() => completionTime);
+        const traceRequests: TraceRequest[] = [];
+
+        await withController(
+          {
+            options: {
+              traceFn: createTraceCallback(traceRequests),
+            },
+          },
+          async ({ rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            jest
+              .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+              .mockResolvedValueOnce({
+                status: scenario.response(),
+                validationFailures: [],
+              });
+
+            rootMessenger.call(
+              'BridgeStatusController:startPollingForBridgeTxStatus',
+              getMockStartPollingForBridgeTxStatusArgs(),
+            );
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            const trace = getSwapOperationCompletedTrace(traceRequests);
+            expect(trace).toStrictEqual(
+              expect.objectContaining({
+                name: TraceName.SwapOperationCompleted,
+                startTime,
+                data: expect.objectContaining({
+                  srcChainId: 'eip155:42161',
+                  destChainId: 'eip155:10',
+                  provider: 'lifi_across',
+                  swap_type: 'crosschain',
+                  terminal_stage: 'destination',
+                  quote_id: '197c402f-cb96-4096-9f8c-54aed84ca776',
+                  transaction_id: 'bridgeTxMetaId1',
+                  src_tx_hash: '0xsrcTxHash1',
+                  result: scenario.result,
+                }),
+              }),
+            );
+            expect(trace?.data?.dest_tx_hash ?? null).toBe(
+              scenario.destinationTxHash ?? null,
+            );
+            expect(
+              traceRequests.filter(
+                ({ name }) => name === TraceName.SwapOperationCompleted,
+              ),
+            ).toHaveLength(1);
+          },
+        );
+      });
+
+      it.each([
+        {
+          name: 'same-chain success',
+          history: () => MockTxHistory.getPendingSwap(),
+          transactionId: 'swapTxMetaId1',
+          transactionType: TransactionType.swap,
+          transactionStatus: TransactionStatus.confirmed,
+          result: 'success',
+          swapType: 'single_chain',
+        },
+        {
+          name: 'cross-chain source failure',
+          history: () => MockTxHistory.getPending(),
+          transactionId: 'bridgeTxMetaId1',
+          transactionType: TransactionType.bridge,
+          transactionStatus: TransactionStatus.failed,
+          result: 'error',
+          swapType: 'crosschain',
+        },
+      ])(
+        'records $name',
+        async ({
+          history,
+          transactionId,
+          transactionType,
+          transactionStatus,
+          result,
+          swapType,
+        }) => {
+          const traceRequests: TraceRequest[] = [];
+
+          await withController(
+            {
+              options: {
+                state: {
+                  txHistory: history(),
+                },
+                traceFn: createTraceCallback(traceRequests),
+              },
+            },
+            async ({ rootMessenger }) => {
+              registerDefaultActionHandlers(rootMessenger);
+              rootMessenger.publish(
+                'TransactionController:transactionStatusUpdated',
+                {
+                  transactionMeta: {
+                    chainId: CHAIN_IDS.ARBITRUM,
+                    hash: '0xsourceTxHash',
+                    networkClientId: 'eth-id',
+                    time: Date.now(),
+                    txParams: {} as unknown as TransactionParams,
+                    type: transactionType,
+                    status: transactionStatus,
+                    id: transactionId,
+                  } as TransactionMeta,
+                },
+              );
+              await flushPromises();
+
+              expect(
+                getSwapOperationCompletedTrace(traceRequests),
+              ).toStrictEqual(
+                expect.objectContaining({
+                  name: TraceName.SwapOperationCompleted,
+                  data: expect.objectContaining({
+                    result,
+                    swap_type: swapType,
+                    terminal_stage: 'source',
+                    transaction_id: transactionId,
+                  }),
+                }),
+              );
+            },
+          );
+        },
+      );
     });
 
     it.each([
@@ -2191,7 +2374,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: Solana bridge', () => {
-    const mockQuote: QuoteResponse<string> = {
+    const mockQuote: QuoteResponseV1<string> = {
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2258,40 +2441,43 @@ describe('BridgeStatusController', () => {
       trade:
         'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=',
     };
-    const mockQuoteResponse = mergeQuoteMetadata(mockQuote, {
-      sentAmount: {
-        amount: '1',
-        valueInCurrency: '100',
-        usd: '100',
+    const mockQuoteResponse = {
+      ...mockQuote,
+      ...{
+        sentAmount: {
+          amount: '1',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '0.5',
+          valueInCurrency: '1000',
+          usd: '1000',
+        },
+        minToTokenAmount: {
+          amount: '0.475',
+          valueInCurrency: '950',
+          usd: '950',
+        },
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        gasFee: {
+          total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        },
+        adjustedReturn: {
+          valueInCurrency: '985',
+          usd: '985',
+        },
+        cost: {
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        swapRate: '0.5',
       },
-      toTokenAmount: {
-        amount: '0.5',
-        valueInCurrency: '1000',
-        usd: '1000',
-      },
-      minToTokenAmount: {
-        amount: '0.475',
-        valueInCurrency: '950',
-        usd: '950',
-      },
-      totalNetworkFee: {
-        amount: '0.1',
-        valueInCurrency: '10',
-        usd: '10',
-      },
-      gasFee: {
-        total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
-      },
-      adjustedReturn: {
-        valueInCurrency: '985',
-        usd: '985',
-      },
-      cost: {
-        valueInCurrency: '15',
-        usd: '15',
-      },
-      swapRate: '0.5',
-    });
+    };
 
     const mockSolanaAccount = {
       id: 'solana-account-1',
@@ -2424,7 +2610,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: Solana swap', () => {
-    const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+    const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2677,7 +2863,7 @@ describe('BridgeStatusController', () => {
         '0a02aabb22084dde86d0f68ae3e5403a680801b2630a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412330a15418f7ea8cce9f8bba67d7ae59cd49a1965d617e71b121541a614f803b6fd780986a42c78ec9c7f77e6ded13c',
     };
 
-    const mockQuoteResponse: QuoteResponse<TronTradeData, TronTradeData> &
+    const mockQuoteResponse: QuoteResponseV1<TronTradeData, TronTradeData> &
       QuoteMetadata = {
       quote: {
         requestId: '123',
@@ -2944,7 +3130,8 @@ describe('BridgeStatusController', () => {
         chainId: 42161,
         gasLimit: 21000,
       },
-    } as QuoteResponse & QuoteMetadata;
+    };
+    validateQuoteResponseV1(mockEvmQuoteResponse);
 
     const mockEvmTxMeta = {
       id: 'test-tx-id',
@@ -3157,7 +3344,7 @@ describe('BridgeStatusController', () => {
         }) => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const quoteResponseV2 = mergeQuoteMetadata(
-            quoteWithoutApproval,
+            toQuoteResponseV2(quoteWithoutApproval),
             quoteWithoutApproval,
           );
           const quotesReceivedContext = getQuotesReceivedProperties(
@@ -4388,6 +4575,36 @@ describe('BridgeStatusController', () => {
       });
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const mockQuote = {
+        ...quoteWithoutApproval,
+        quote: {
+          ...quoteWithoutApproval.quote,
+          slippage: 0.01,
+          gasIncluded: true,
+          gasIncluded7702: false,
+          feeData: {
+            ...quoteWithoutApproval.quote.feeData,
+            txFee: {
+              amount: '100',
+              asset: mockEvmQuoteResponse.quote.feeData.metabridge.asset,
+              maxFeePerGas: '1395348', // Decimal string from quote
+              maxPriorityFeePerGas: '1000001',
+            },
+          },
+        },
+        trade: {
+          ...(quoteWithoutApproval.trade as TxData),
+          gasLimit: null,
+        },
+        sentAmount: {
+          amount: undefined,
+          valueInCurrency: undefined,
+          usd: undefined,
+        },
+      };
+      validateQuoteResponseV1(mockQuote);
+
       await withController(
         { mockMessengerCall },
         async ({
@@ -4395,36 +4612,10 @@ describe('BridgeStatusController', () => {
           rootMessenger,
           startPollingForBridgeTxStatusSpy,
         }) => {
-          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
             (mockEvmQuoteResponse.trade as TxData).from,
-            {
-              ...quoteWithoutApproval,
-              quote: {
-                ...quoteWithoutApproval.quote,
-                gasIncluded: true,
-                gasIncluded7702: false,
-                feeData: {
-                  ...quoteWithoutApproval.quote.feeData,
-                  txFee: {
-                    amount: '100',
-                    asset: quoteWithoutApproval.quote.feeData.metabridge.asset,
-                    maxFeePerGas: '1395348', // Decimal string from quote
-                    maxPriorityFeePerGas: '1000001',
-                  },
-                },
-              },
-              trade: {
-                ...(quoteWithoutApproval.trade as TxData),
-                gasLimit: null,
-              },
-              sentAmount: {
-                amount: null as never,
-                valueInCurrency: null,
-                usd: null,
-              },
-            },
+            mockQuote,
             false, // isStxEnabledOnClient = FALSE (key for this test)
           );
           controller.stopAllPolling();
@@ -4826,7 +5017,10 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
                 "error_message": "Failed to submit cross-chain swap batch transaction: unknown account in trade data",
+                "failure_phase": "broadcast",
                 "feature_id": "unified_swap_bridge",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -4835,6 +5029,8 @@ describe('BridgeStatusController', () => {
                 "price_impact": 0,
                 "provider": "lifi_across",
                 "quoted_time_minutes": 0,
+                "slippage_limit": 0,
+                "source_hash_present": false,
                 "stx_enabled": true,
                 "swap_type": "single_chain",
                 "token_address_destination": "eip155:10/slip44:60",
@@ -4914,7 +5110,10 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
                 "error_message": "Failed to update cross-chain swap transaction batch: tradeMeta not found",
+                "failure_phase": "broadcast",
                 "feature_id": "unified_swap_bridge",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -4923,6 +5122,8 @@ describe('BridgeStatusController', () => {
                 "price_impact": 0,
                 "provider": "lifi_across",
                 "quoted_time_minutes": 0,
+                "slippage_limit": 0,
+                "source_hash_present": false,
                 "stx_enabled": true,
                 "swap_type": "single_chain",
                 "token_address_destination": "eip155:10/slip44:60",
@@ -5506,7 +5707,10 @@ describe('BridgeStatusController', () => {
               "chain_id_destination": "eip155:42161",
               "chain_id_source": "eip155:42161",
               "custom_slippage": false,
+              "destination_hash_present": false,
+              "error_code": "unknown",
               "error_message": "Transaction failed. tx-error",
+              "failure_phase": "broadcast",
               "feature_id": "unified_swap_bridge",
               "gas_included": false,
               "gas_included_7702": false,
@@ -5518,6 +5722,8 @@ describe('BridgeStatusController', () => {
               "quoted_time_minutes": 0,
               "quoted_vs_used_gas_ratio": 0,
               "security_warnings": [],
+              "slippage_limit": 0,
+              "source_hash_present": false,
               "source_transaction": "FAILED",
               "stx_enabled": false,
               "swap_type": "crosschain",
@@ -5693,8 +5899,11 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": true,
+                "destination_hash_present": false,
                 "destination_transaction": "FAILED",
+                "error_code": "unknown",
                 "error_message": "Transaction failed. tx-error",
+                "failure_phase": "source_execution",
                 "feature_id": "quick_buy_follow_trading",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5707,6 +5916,7 @@ describe('BridgeStatusController', () => {
                 "quoted_vs_used_gas_ratio": 0,
                 "security_warnings": [],
                 "slippage_limit": 0,
+                "source_hash_present": true,
                 "source_transaction": "COMPLETE",
                 "stx_enabled": false,
                 "swap_type": "single_chain",
@@ -5771,8 +5981,11 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": true,
+                "destination_hash_present": false,
                 "destination_transaction": "FAILED",
+                "error_code": "unknown",
                 "error_message": "Transaction failed. tx-error",
+                "failure_phase": "source_execution",
                 "feature_id": "quick_buy_explore",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5785,6 +5998,7 @@ describe('BridgeStatusController', () => {
                 "quoted_vs_used_gas_ratio": 0,
                 "security_warnings": [],
                 "slippage_limit": 0,
+                "source_hash_present": true,
                 "source_transaction": "COMPLETE",
                 "stx_enabled": false,
                 "swap_type": "single_chain",
@@ -6617,7 +6831,7 @@ describe('BridgeStatusController', () => {
       const EVM_TX_META_ID = 'evmEarlyTxMetaId';
       const EVM_QUOTE_ID = 'evm-early-quote-1';
 
-      const mockEvmSwapQuoteResponse = {
+      const mockEvmSwapQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
         ...getMockQuote({ srcChainId: 42161, destChainId: 42161 }),
         quoteId: EVM_QUOTE_ID,
         quote: {
@@ -7116,6 +7330,153 @@ describe('BridgeStatusController', () => {
             ).toBe(BATCH_SRC_TX_HASH);
 
             controller.resetState();
+          },
+        );
+      });
+    });
+
+    describe('intent-based swaps', () => {
+      const INTENT_TX_META_ID = 'intentTxMetaId1';
+      const INTENT_SRC_TX_HASH = '0xintentSrcTxHash1';
+
+      /**
+       * Builds a history item for an intent-based order. The quote carries
+       * `intent` data, which is what marks the trade as backend-tracked.
+       *
+       * @param startTime - When the trade started, used to decide whether
+       * startup seeding considers the item.
+       * @returns The intent txHistory keyed by history id.
+       */
+      function buildIntentHistory(
+        startTime = 1729964825189,
+      ): Record<string, BridgeHistoryItem> {
+        const item = MockTxHistory.getPending({
+          txMetaId: INTENT_TX_META_ID,
+          srcTxHash: INTENT_SRC_TX_HASH,
+          startTime,
+        })[INTENT_TX_META_ID];
+
+        return {
+          [INTENT_TX_META_ID]: {
+            ...item,
+            quoteId: 'intent-quote-1',
+            quote: {
+              ...item.quote,
+              intent: {
+                protocol: 'cowswap',
+                order: {
+                  sellToken: '0x0000000000000000000000000000000000000001',
+                  buyToken: '0x0000000000000000000000000000000000000002',
+                  validTo: 1717027200,
+                  appData: 'some-app-data',
+                  appDataHash: '0xabcd',
+                  feeAmount: '100',
+                  kind: 'sell',
+                  partiallyFillable: false,
+                  sellAmount: '1000',
+                },
+                typedData: {
+                  types: {},
+                  primaryType: 'Order',
+                  domain: {},
+                  message: {},
+                },
+              },
+            },
+          },
+        };
+      }
+
+      const getIntentMessengerCall = () =>
+        jest.fn((...args: unknown[]) => {
+          const action = args[0] as string;
+          if (action === 'TransactionController:getState') {
+            return { transactions: [] };
+          }
+          if (action === 'AuthenticationController:getBearerToken') {
+            return Promise.resolve('auth-token');
+          }
+          return undefined;
+        });
+
+      it.each([
+        {
+          description: 'submitted',
+          status: TransactionStatus.submitted,
+          type: TransactionType.swap,
+        },
+        {
+          description: 'confirmed',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.swap,
+        },
+        {
+          description: 'failed',
+          status: TransactionStatus.failed,
+          type: TransactionType.swap,
+        },
+      ])(
+        'does not report any quote status when the intent tx is $description',
+        async ({ status, type }) => {
+          const onQuoteStatusManagerError = jest.fn();
+
+          await withController(
+            {
+              options: {
+                isQuoteStatusManagerEnabled: () => true,
+                onQuoteStatusManagerError,
+                state: { txHistory: buildIntentHistory() },
+              },
+              mockMessengerCall: getIntentMessengerCall(),
+            },
+            async ({ controller, rootMessenger }) => {
+              rootMessenger.publish(
+                'TransactionController:transactionStatusUpdated',
+                {
+                  transactionMeta: {
+                    chainId: CHAIN_IDS.ARBITRUM,
+                    networkClientId: 'eth-id',
+                    time: Date.now(),
+                    txParams: {} as unknown as TransactionParams,
+                    type,
+                    status,
+                    id: INTENT_TX_META_ID,
+                    hash: INTENT_SRC_TX_HASH,
+                  },
+                },
+              );
+
+              // The backend owns the quote status of intent orders, so the
+              // client neither creates a tracking entry nor marks the history
+              // item as reported.
+              expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+              expect(
+                controller.state.txHistory[INTENT_TX_META_ID]
+                  .reportedSubmittedTxHash,
+              ).toBeUndefined();
+              // Finalizing an untracked quote surfaces a "entry was not found"
+              // error, so silence here proves finalization was never attempted.
+              expect(onQuoteStatusManagerError).not.toHaveBeenCalled();
+            },
+          );
+        },
+      );
+
+      it('does not seed a quote status entry for an intent order on startup', async () => {
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: { txHistory: buildIntentHistory(Date.now()) },
+            },
+            mockMessengerCall: getIntentMessengerCall(),
+          },
+          async ({ controller }) => {
+            expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+            expect(
+              controller.state.txHistory[INTENT_TX_META_ID]
+                .reportedSubmittedTxHash,
+            ).toBeUndefined();
           },
         );
       });

@@ -9,13 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/accounts-controller` from `^39.0.7` to `^40.0.0` ([#9807](https://github.com/MetaMask/core/pull/9807), [#9969](https://github.com/MetaMask/core/pull/9969), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [7.1.2]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.6` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349), [#9470](https://github.com/MetaMask/core/pull/9470), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.7` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349), [#9470](https://github.com/MetaMask/core/pull/9470), [#9735](https://github.com/MetaMask/core/pull/9735), [#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.9` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349), [#9735](https://github.com/MetaMask/core/pull/9735))
-- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.7.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^24.0.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
-- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.1` ([#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676))
-- Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^11.0.2` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^10.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^12.0.0` ([#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
 
 ## [7.1.1]
 
@@ -301,7 +324,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133), [#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.2...@metamask/multichain-transactions-controller@8.0.0
+[7.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.1...@metamask/multichain-transactions-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.0...@metamask/multichain-transactions-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.4...@metamask/multichain-transactions-controller@7.1.0
 [7.0.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.3...@metamask/multichain-transactions-controller@7.0.4

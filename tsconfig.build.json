@@ -98,6 +98,9 @@
       "path": "./packages/core-backend/tsconfig.build.json"
     },
     {
+      "path": "./packages/cryptography/tsconfig.build.json"
+    },
+    {
       "path": "./packages/delegation-controller/tsconfig.build.json"
     },
     {
@@ -111,9 +114,6 @@
     },
     {
       "path": "./packages/eip1193-permission-middleware/tsconfig.build.json"
-    },
-    {
-      "path": "./packages/ens-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
@@ -149,6 +149,9 @@
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/kyc-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/local-node-utils/tsconfig.build.json"
     },
     {
@@ -167,10 +170,10 @@
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-balance-service/tsconfig.build.json"
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
+      "path": "./packages/money-account-balance-service/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-controller/tsconfig.build.json"
@@ -299,6 +302,9 @@
       "path": "./packages/user-operation-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/wallet-cli/tsconfig.build.json"
     },
     {
@@ -306,6 +312,9 @@
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/package-template/tsconfig.build.json"
     }
   ],
   "files": [],

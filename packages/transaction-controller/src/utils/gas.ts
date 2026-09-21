@@ -6,7 +6,12 @@ import {
 } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
+import {
+  add0x,
+  createModuleLogger,
+  isStrictHexString,
+  remove0x,
+} from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
@@ -52,7 +57,6 @@ export type EstimateGasBatchResult = {
 
 export const log = createModuleLogger(projectLogger, 'gas');
 
-export const FIXED_GAS = '0x5208';
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
 export const MAX_GAS_BLOCK_PERCENT = 90;
 export const INTRINSIC_GAS = 21000;
@@ -161,7 +165,7 @@ export async function estimateGas({
   log('Estimation fallback values', fallback);
 
   request.data = data ? add0x(data) : data;
-  request.value = value ?? '0x0';
+  request.value = normalizeValue(value);
 
   request.authorizationList = normalizeAuthorizationList(
     request.authorizationList,
@@ -511,11 +515,6 @@ async function getGas(
     return [txMeta.txParams.gas, undefined, txMeta.txParams.gas];
   }
 
-  if (await requiresFixedGas(request)) {
-    log('Using fixed value', FIXED_GAS);
-    return [FIXED_GAS, undefined, FIXED_GAS];
-  }
-
   const {
     blockGasLimit,
     estimatedGas,
@@ -562,60 +561,6 @@ async function getGas(
   log('Buffered gas', bufferedGas);
 
   return [bufferedGas, simulationFails, estimatedGas, gasRevert];
-}
-
-/**
- * Determine if the gas for the provided request should be fixed.
- *
- * @param options - The options object.
- * @param options.messenger - The messenger instance for communication.
- * @param options.txMeta - The transaction meta object.
- * @param options.isCustomNetwork - Whether the network is a custom network.
- * @returns Whether the gas should be fixed.
- */
-async function requiresFixedGas({
-  messenger,
-  txMeta,
-  isCustomNetwork,
-}: UpdateGasRequest): Promise<boolean> {
-  const {
-    networkClientId,
-    txParams: { to, data, type },
-  } = txMeta;
-
-  if (
-    isCustomNetwork ||
-    !to ||
-    data ||
-    type === TransactionEnvelopeType.setCode
-  ) {
-    return false;
-  }
-
-  const code = await getCode(messenger, networkClientId, to);
-
-  return !code || code === '0x';
-}
-
-/**
- * Get the contract code for the provided address.
- *
- * @param messenger - The messenger instance for communication.
- * @param networkClientId - The network client ID.
- * @param address - The address to get the code for.
- * @returns The contract code.
- */
-async function getCode(
-  messenger: TransactionControllerMessenger,
-  networkClientId: NetworkClientId,
-  address: string,
-): Promise<string | undefined> {
-  return (await rpcRequest({
-    messenger,
-    networkClientId,
-    method: 'eth_getCode',
-    params: [address, 'latest'],
-  })) as string | undefined;
 }
 
 /**
@@ -779,6 +724,26 @@ function normalizeAuthorizationList(
     s: authorization.s ?? DUMMY_AUTHORIZATION_SIGNATURE,
     yParity: authorization.yParity ?? '0x1',
   }));
+}
+
+/**
+ * Normalize the value to a canonical hex quantity with no leading zero digits.
+ * Some RPC nodes (e.g. Go's `hexutil`) reject quantities such as `0x00` or
+ * `0x0de0b6b3a7640000`, failing gas estimation entirely.
+ *
+ * @param value - The transaction value to normalize.
+ * @returns The normalized transaction value.
+ */
+function normalizeValue(value: string | undefined): string {
+  const valueOrDefault = value ?? '0x0';
+
+  if (!isStrictHexString(valueOrDefault)) {
+    return valueOrDefault;
+  }
+
+  const stripped = remove0x(valueOrDefault).replace(/^0+/u, '');
+
+  return stripped.length === 0 ? '0x0' : add0x(stripped);
 }
 
 /**

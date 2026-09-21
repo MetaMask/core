@@ -18,30 +18,38 @@ import {
   withdrawMethodIds,
   wrapMethodIds,
 } from './constants.js';
-import { formatAddressToAssetId } from './helpers/caip.js';
+import { formatAddressToAssetId, getNativeAsset } from './helpers/caip.js';
 import {
   getFees,
   getNftPaymentTransfer,
   getTokenAmountFromTransfer,
   getTokenMetadataFromKnownToken,
   parseValueTransfers,
-  withFallbackTokenAssetId,
 } from './helpers/transactions.js';
+import type { GetKnownTokenDecimals } from './helpers/transactions.js';
 
 /**
  * Maps an indexed API transaction into the shared activity item shape.
  *
+ * Fungible token amounts are only emitted when a decimals scale is known
+ * (transfer enrichment, native defaults, static metadata, or
+ * `getKnownTokenDecimals`). Pass that optional hook so hosts can recover
+ * decimals/symbol from on-device token state when the Accounts API omits them.
+ *
  * @param options - The mapping options.
  * @param options.transaction - The indexed API transaction to map.
  * @param options.subjectAddress - The account the activity is being mapped for.
+ * @param options.getKnownTokenDecimals - Optional host lookup for missing ERC-20 metadata.
  * @returns The normalized activity item.
  */
 export function mapApiTransaction({
   transaction,
   subjectAddress,
+  getKnownTokenDecimals,
 }: {
   transaction: V1TransactionByHashResponse;
   subjectAddress: string;
+  getKnownTokenDecimals?: GetKnownTokenDecimals;
 }): ActivityItem {
   const { hash, transactionCategory, valueTransfers, from, methodId } =
     transaction;
@@ -56,7 +64,12 @@ export function mapApiTransaction({
     transfer: ValueTransfer | undefined,
     direction: TokenAmount['direction'],
   ): TokenAmount | undefined =>
-    getTokenAmountFromTransfer(transfer, direction, chainId);
+    getTokenAmountFromTransfer(
+      transfer,
+      direction,
+      chainId,
+      getKnownTokenDecimals,
+    );
 
   const {
     sentTransfer,
@@ -216,7 +229,35 @@ export function mapApiTransaction({
         !equalsIgnoreCase(from, subjectAddress));
 
     const transfer = isReceive ? receivedTransfer : sentTransfer;
-    const direction = isReceive ? 'in' : 'out';
+    const direction: TokenAmount['direction'] = isReceive ? 'in' : 'out';
+    let token = getToken(transfer, direction);
+
+    if (!token) {
+      // Zero-value sends can omit valueTransfers
+      if (transactionCategory === 'STANDARD') {
+        const nativeAsset = getNativeAsset(chainId);
+        if (nativeAsset) {
+          token = {
+            symbol: nativeAsset.symbol,
+            decimals: nativeAsset.decimals,
+            assetId: nativeAsset.assetId,
+            amount: transaction.value,
+            direction,
+            assetType: 'native',
+          };
+        }
+      }
+    } else if (
+      !token.assetId &&
+      transfer?.transferType !== 'normal' &&
+      transfer?.transferType !== 'internal'
+    ) {
+      // ERC-20 transfer missing contractAddress — fall back to tx.to.
+      const assetId = formatAddressToAssetId(transaction.to, chainId);
+      if (assetId) {
+        token = { ...token, assetId };
+      }
+    }
 
     return {
       type: isReceive ? 'receive' : 'send',
@@ -224,12 +265,7 @@ export function mapApiTransaction({
       data: {
         from: transfer?.from ?? from,
         to: transfer?.to ?? transaction.to,
-        token: withFallbackTokenAssetId(
-          getToken(transfer, direction),
-          transaction.to,
-          transfer?.transferType,
-          chainId,
-        ),
+        token,
         fees: getFees(transaction),
       },
     };

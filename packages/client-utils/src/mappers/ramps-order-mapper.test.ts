@@ -102,14 +102,14 @@ describe('mapRampsOrder', () => {
     expect(item?.status).toBe('pending');
   });
 
-  it('maps a precreated stub order with an empty chain id to an undefined chainId, not eip155:0', () => {
+  it('hides a precreated stub order with an empty chain id instead of mapping eip155:0', () => {
     const item = mapRampsOrder({
       ...baseOrder,
       network: { chainId: '' },
       cryptoCurrency: undefined,
     });
 
-    expect(item?.chainId).toBeUndefined();
+    expect(item).toBeNull();
   });
 
   it('falls through an unparseable network name to cryptoCurrency.chainId', () => {
@@ -139,24 +139,24 @@ describe('mapRampsOrder', () => {
     expect(item?.chainId).toBe('eip155:1');
   });
 
-  it('returns an undefined chainId when cryptoCurrency.assetId has no valid chain segment', () => {
+  it('hides an order when cryptoCurrency.assetId has no valid chain segment', () => {
     const item = mapRampsOrder({
       ...baseOrder,
       network: 'ethereum',
       cryptoCurrency: { assetId: 'not-an-asset-id', symbol: 'ETH' },
     });
 
-    expect(item?.chainId).toBeUndefined();
+    expect(item).toBeNull();
   });
 
-  it('returns an undefined chainId when network is an unparseable name and crypto currency has no chain', () => {
+  it('hides an order when network is an unparseable name and crypto currency has no chain', () => {
     const item = mapRampsOrder({
       ...baseOrder,
       network: 'ethereum',
       cryptoCurrency: undefined,
     });
 
-    expect(item?.chainId).toBeUndefined();
+    expect(item).toBeNull();
   });
 
   it.each(['0x', '0x0000'])(

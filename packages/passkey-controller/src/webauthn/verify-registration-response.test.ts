@@ -8,7 +8,10 @@ import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
 import { decodeClientDataJSON } from './decode-client-data-json.js';
 import * as parseAuthenticatorDataModule from './parse-authenticator-data.js';
 import type { PasskeyRegistrationResponse } from './types.js';
-import { verifyRegistrationResponse } from './verify-registration-response.js';
+import {
+  getAAGUIDFromRegistrationResponse,
+  verifyRegistrationResponse,
+} from './verify-registration-response.js';
 
 const EXPECTED_ORIGIN = 'https://dev.dontneeda.pw';
 const EXPECTED_RP_ID = 'dev.dontneeda.pw';
@@ -802,6 +805,35 @@ describe('verifyRegistrationResponse edge cases', () => {
     ).rejects.toThrow('Unexpected tokenBinding.status value');
   });
 
+  it.each(['present', 'supported', 'not-supported'])(
+    'accepts tokenBinding with %s status',
+    async (status) => {
+      const clientDataJSON = bytesToBase64URL(
+        new TextEncoder().encode(
+          JSON.stringify({
+            ...decodeClientDataJSON(attestationNone.response.clientDataJSON),
+            tokenBinding: { status },
+          }),
+        ),
+      );
+
+      const verification = await verifyRegistrationResponse({
+        response: {
+          ...attestationNone,
+          response: {
+            ...attestationNone.response,
+            clientDataJSON,
+          },
+        },
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPIDs: [EXPECTED_RP_ID],
+      });
+
+      expect(verification.verified).toBe(true);
+    },
+  );
+
   it('rejects missing attested credential data', async () => {
     const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
     const authData = buildAuthenticatorData({
@@ -939,6 +971,70 @@ describe('verifyRegistrationResponse edge cases', () => {
     ).rejects.toThrow('No AAGUID was present during registration');
 
     spy.mockRestore();
+  });
+});
+
+describe('getAAGUIDFromRegistrationResponse', () => {
+  const TEST_AAGUID = new Uint8Array([
+    0x6d, 0x44, 0xba, 0x9b, 0xf6, 0xec, 0x2e, 0x49, 0xb9, 0x30, 0x0c, 0x8f,
+    0xe9, 0x20, 0xcb, 0x73,
+  ]);
+
+  it('returns the AAGUID as a dashed UUID string', () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    const authData = buildAuthenticatorData({
+      rpIdHash: sha256(new TextEncoder().encode(TEST_RP_ID)),
+      flags: 0x41,
+      counter: 0,
+      aaguid: TEST_AAGUID,
+      credentialID: new Uint8Array(16).fill(0x40),
+      credentialPublicKey: cosePublicKeyCBOR,
+    });
+
+    expect(
+      getAAGUIDFromRegistrationResponse(
+        buildRegistrationResponse(authData, 'Y3JlZC1pZA'),
+      ),
+    ).toBe('6d44ba9b-f6ec-2e49-b930-0c8fe920cb73');
+  });
+
+  it('returns the all-zero AAGUID reported by privacy-preserving authenticators', () => {
+    expect(getAAGUIDFromRegistrationResponse(attestationNone)).toBe(
+      '00000000-0000-0000-0000-000000000000',
+    );
+  });
+
+  it('returns undefined when there is no attested credential data', () => {
+    const authData = buildAuthenticatorData({
+      rpIdHash: sha256(new TextEncoder().encode(TEST_RP_ID)),
+      flags: 0x01,
+      counter: 0,
+    });
+
+    expect(
+      getAAGUIDFromRegistrationResponse(
+        buildRegistrationResponse(authData, 'Y3JlZC1pZA'),
+      ),
+    ).toBeUndefined();
+  });
+
+  it('throws when the attestation object cannot be decoded', () => {
+    const response = buildRegistrationResponse(new Uint8Array(0), 'Y3JlZC1pZA');
+    response.response.attestationObject = bytesToBase64URL(
+      new Uint8Array([0xff, 0xff, 0xff]),
+    );
+
+    expect(() => getAAGUIDFromRegistrationResponse(response)).toThrow(
+      'Unsupported or not well formed at 0',
+    );
+  });
+
+  it('throws when the authenticator data is truncated', () => {
+    expect(() =>
+      getAAGUIDFromRegistrationResponse(
+        buildRegistrationResponse(new Uint8Array(10), 'Y3JlZC1pZA'),
+      ),
+    ).toThrow('authenticatorData is 10 bytes, expected at least 37');
   });
 });
 

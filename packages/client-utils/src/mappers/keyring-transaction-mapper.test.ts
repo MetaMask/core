@@ -215,6 +215,29 @@ describe('mapKeyringTransaction', () => {
     });
   });
 
+  it('uses the subject outflow for a Solana bridge send', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.solanaBridgeSendWithForeignUsdc,
+    );
+
+    expect(item).toMatchObject({
+      type: 'send',
+      chainId: SolScope.Mainnet,
+      status: 'success',
+      hash: '3Tph6Faw2YMshJt7pkCaCbTHTX4mYJLE6h72DR6Q4uDta9HmrNCfReXuDDPKUCbCxn7NUNALvgNjii19fKdgWBfA',
+      data: {
+        from: keyringTransactionFixtures.addresses.solanaSubject,
+        to: keyringTransactionFixtures.addresses.solanaCounterparty,
+        token: {
+          amount: '0.00531264',
+          assetId: `${SolScope.Mainnet}/slip44:501`,
+          direction: 'out',
+          symbol: 'SOL',
+        },
+      },
+    });
+  });
+
   it('maps trustline approve TokenApprove to assetActivation', () => {
     const item = mapKeyringTransaction(
       keyringTransactionFixtures.mapArgs.trustlineApprove,

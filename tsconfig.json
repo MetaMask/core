@@ -5,7 +5,11 @@
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
+      "@metamask/utils": ["./packages/utils/src/index.ts"]
+    }
   },
   "references": [
     {
@@ -99,16 +103,22 @@
       "path": "./packages/core-backend"
     },
     {
+      "path": "./packages/cryptography"
+    },
+    {
       "path": "./packages/delegation-controller"
     },
     {
       "path": "./packages/earn-controller"
     },
     {
-      "path": "./packages/eip1193-permission-middleware"
+      "path": "./packages/eip-5792-middleware"
     },
     {
-      "path": "./packages/ens-controller"
+      "path": "./packages/eip-7702-internal-rpc-middleware"
+    },
+    {
+      "path": "./packages/eip1193-permission-middleware"
     },
     {
       "path": "./packages/eth-block-tracker"
@@ -144,7 +154,13 @@
       "path": "./packages/keyring-controller"
     },
     {
+      "path": "./packages/kyc-controller"
+    },
+    {
       "path": "./packages/local-node-utils"
+    },
+    {
+      "path": "./packages/logging-controller"
     },
     {
       "path": "./packages/message-manager"
@@ -159,10 +175,10 @@
       "path": "./packages/money-account-api-data-service"
     },
     {
-      "path": "./packages/money-account-balance-service"
+      "path": "./packages/money-account-api-data-service"
     },
     {
-      "path": "./packages/money-account-api-data-service"
+      "path": "./packages/money-account-balance-service"
     },
     {
       "path": "./packages/money-account-controller"
@@ -276,6 +292,9 @@
       "path": "./packages/stellar-quickstart-up"
     },
     {
+      "path": "./packages/storage-service"
+    },
+    {
       "path": "./packages/subscription-controller"
     },
     {
@@ -288,16 +307,7 @@
       "path": "./packages/user-operation-controller"
     },
     {
-      "path": "./packages/eip-5792-middleware"
-    },
-    {
-      "path": "./packages/eip-7702-internal-rpc-middleware"
-    },
-    {
-      "path": "./packages/logging-controller"
-    },
-    {
-      "path": "./packages/storage-service"
+      "path": "./packages/utils"
     },
     {
       "path": "./packages/wallet"
@@ -307,6 +317,9 @@
     },
     {
       "path": "./packages/wallet-framework-docs"
+    },
+    {
+      "path": "./packages/package-template"
     }
   ],
   "files": [],

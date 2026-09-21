@@ -3,8 +3,8 @@
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import {
-  TransactionType,
   hasTransactionType,
+  TransactionType,
 } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
@@ -61,7 +61,11 @@ import {
 } from '../../utils/token.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw.js';
+import {
+  applyPolymarketDepositWalletOverrides,
+  getPredictWithdrawSafeAddress,
+  isPredictWithdraw,
+} from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
 import { validateRelayQuotes } from './relay-validation.js';
@@ -82,6 +86,8 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
+type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'> &
+  Partial<Pick<RelayQuoteRequest, 'amount'>>;
 type RelayStepData = RelayTransactionStep['items'][0]['data'];
 
 type RelayGasResult = {
@@ -283,7 +289,6 @@ async function getSingleQuote(
 
   const {
     from,
-    isMaxAmount,
     sourceChainId,
     sourceTokenAddress,
     sourceTokenAmount,
@@ -303,12 +308,6 @@ async function getSingleQuote(
   );
 
   try {
-    // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
-    // and we show them how much they'll receive after fees.
-    // For regular flows with a target amount, use EXPECTED_OUTPUT.
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    const useExactInput = isMaxAmount || request.isPostQuote;
-
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
@@ -324,8 +323,7 @@ async function getSingleQuote(
       ? { ...request, recipient: nonAtomicRecipient }
       : request;
 
-    const body: RelayQuoteRequest = {
-      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
+    const body: RelayQuoteRequestDraft = {
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
@@ -338,7 +336,6 @@ async function getSingleQuote(
         : {}),
       recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
-      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
@@ -378,9 +375,24 @@ async function getSingleQuote(
       body.refundTo = effectiveRequest.refundTo;
     }
 
-    log('Request body', body);
+    const hasTransactions = Boolean(body.txs?.length);
+    const requiresExactOutput =
+      hasTransactions ||
+      hasTransactionType(transaction, [
+        TransactionType.perpsDepositAndOrder,
+        TransactionType.predictDepositAndOrder,
+      ]);
+    const finalBody: RelayQuoteRequest = {
+      ...body,
+      amount:
+        body.amount ??
+        (requiresExactOutput ? targetAmountMinimum : sourceTokenAmount),
+      tradeType: requiresExactOutput ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
+    };
 
-    const quote = await fetchRelayQuote(messenger, body, signal);
+    log('Request body', finalBody);
+
+    const quote = await fetchRelayQuote(messenger, finalBody, signal);
 
     log('Fetched relay quote', quote);
 
@@ -465,7 +477,7 @@ async function resolveNonAtomicRecipient(
 async function processTransactions(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  requestBody: RelayQuoteRequest,
+  requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<boolean> {
   // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
@@ -519,7 +531,6 @@ async function processTransactions(
   requestBody.authorizationList = normalizeAuthorizationList(
     delegation.authorizationList,
   );
-  requestBody.tradeType = 'EXACT_OUTPUT';
 
   const tokenTransferData = nestedTransactions?.find((nestedTx) =>
     nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
@@ -556,7 +567,7 @@ async function processTransactions(
 async function processMoneyAccountPostQuote(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  requestBody: RelayQuoteRequest,
+  requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { transactionData: transactionDataList } = messenger.call(
@@ -585,7 +596,6 @@ async function processMoneyAccountPostQuote(
   const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.tradeType = 'EXACT_OUTPUT';
   requestBody.amount = rawAmount;
   requestBody.txs = [
     {
@@ -722,6 +732,7 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
+    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = {
@@ -763,6 +774,7 @@ async function normalizeQuote(
       sourceNetwork,
       targetNetwork,
     },
+    isInputBased: quote.request.tradeType === 'EXACT_INPUT',
     original: {
       ...quote,
       metamask,
@@ -788,8 +800,9 @@ function calculateDustUsd(quote: RelayQuote, request: QuoteRequest): BigNumber {
 
   const targetUsdRate = new BigNumber(amountUsd).dividedBy(amountFormatted);
 
-  const dustRaw = new BigNumber(minimumAmount).minus(
-    request.targetAmountMinimum,
+  const dustRaw = BigNumber.maximum(
+    new BigNumber(minimumAmount).minus(request.targetAmountMinimum),
+    0,
   );
 
   return dustRaw.shiftedBy(-targetDecimals).multipliedBy(targetUsdRate);
@@ -858,6 +871,7 @@ function getFiatRates(
  * @param messenger - Controller messenger.
  * @param request - Quote request.
  * @param transaction - Original transaction metadata.
+ * @param accountSupports7702 - Whether the source account supports EIP-7702.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
@@ -865,6 +879,7 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
+  accountSupports7702: boolean | undefined,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
@@ -899,6 +914,7 @@ async function calculateSourceNetworkCost(
   }
 
   if (
+    accountSupports7702 &&
     transaction.isGasFeeSponsored &&
     request.sourceChainId === transaction.chainId &&
     request.targetChainId === transaction.chainId
@@ -925,9 +941,7 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
-  const isPredictWithdraw =
-    request.isPostQuote &&
-    hasTransactionType(transaction, [TransactionType.predictWithdraw]);
+  const isPredictWithdrawFlow = isPredictWithdraw(request, transaction);
 
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
@@ -937,9 +951,11 @@ async function calculateSourceNetworkCost(
   // native balance). Simulating those from the Safe proxy reverts and breaks
   // gas estimation. For swap-only routes, fall back to the relay params'
   // EOA `from` so simulation succeeds.
-  const hasDepositStep = quote.steps.some((step) => step.id === 'deposit');
-  const useFromOverride = isPredictWithdraw && hasDepositStep;
-  const fromOverride = useFromOverride ? request.refundTo : undefined;
+  const fromOverride = getPredictWithdrawSafeAddress(
+    request,
+    quote.steps,
+    transaction,
+  );
 
   // For post-quote flows the original transaction will be prepended to the
   // batch at submission time. Include it in the gas estimation so
@@ -1002,6 +1018,14 @@ async function calculateSourceNetworkCost(
     return result;
   }
 
+  if (accountSupports7702 === false) {
+    log('Skipping gas station as account does not support EIP-7702', {
+      from,
+    });
+
+    return result;
+  }
+
   const gasStationEligibility = getGasStationEligibility(
     messenger,
     sourceChainId,
@@ -1035,7 +1059,7 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  if (isPredictWithdraw && request.refundTo) {
+  if (isPredictWithdrawFlow && request.refundTo) {
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,
       sourceTokenAddress,

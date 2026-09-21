@@ -9,7 +9,11 @@ import nock, { cleanAll } from 'nock';
 import { flushPromises } from '../../../tests/helpers.js';
 import packageJson from '../package.json';
 import type { RampsServiceMessenger } from './RampsService.js';
-import { RampsService, RampsEnvironment } from './RampsService.js';
+import {
+  getDefaultRedirectCallbackUrl,
+  RampsService,
+  RampsEnvironment,
+} from './RampsService.js';
 
 const CONTROLLER_VERSION = packageJson.version;
 
@@ -33,6 +37,34 @@ describe('RampsService', () => {
         })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService();
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('us-tx');
+    });
+
+    it('sends client identity query params when constructor options are set', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        })
+        .reply(200, 'us-tx');
+      const { rootMessenger } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        },
+      });
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
@@ -1251,6 +1283,12 @@ describe('RampsService', () => {
             },
           },
         ],
+        sorted: [
+          {
+            sortBy: '1',
+            ids: ['/providers/paypal-staging'],
+          },
+        ],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
@@ -1271,6 +1309,7 @@ describe('RampsService', () => {
       expect(providersResponse.providers[0]?.id).toBe(
         '/providers/paypal-staging',
       );
+      expect(providersResponse.sorted).toStrictEqual(mockProviders.sorted);
     });
 
     it('normalizes region case', async () => {
@@ -1293,6 +1332,31 @@ describe('RampsService', () => {
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
+      expect(providersResponse.sorted).toStrictEqual([]);
+    });
+
+    it('defaults sorted to an empty array when ranking metadata is not an array', async () => {
+      const mockProviders = {
+        providers: [],
+        sorted: { sortBy: '1', ids: ['/providers/paypal-staging'] },
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+      expect(providersResponse.sorted).toStrictEqual([]);
     });
 
     it('preserves provider limits from the API response', async () => {
@@ -3128,6 +3192,93 @@ describe('RampsService', () => {
 
       await expect(orderPromise).rejects.toThrow("failed with status '500'");
     });
+  });
+
+  describe('getDefaultRedirectCallbackUrl', () => {
+    it.each([
+      [
+        RampsEnvironment.Production,
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      ],
+      [
+        RampsEnvironment.Staging,
+        'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+      ],
+      [
+        RampsEnvironment.Development,
+        'https://on-ramp.dev-api.cx.metamask.io/regions/fake-callback',
+      ],
+      [RampsEnvironment.Local, 'http://localhost:3000/regions/fake-callback'],
+    ])(
+      'returns the callback URL for the %s environment',
+      (environment, url) => {
+        const { service } = getService({ options: { environment } });
+
+        expect(service.getDefaultRedirectCallbackUrl()).toBe(url);
+      },
+    );
+
+    it('defaults to the staging callback URL, matching the default environment', () => {
+      const { service } = getService();
+
+      expect(service.getDefaultRedirectCallbackUrl()).toBe(
+        'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+      );
+    });
+
+    it('ignores baseUrlOverride, which only redirects the ramps API host', () => {
+      const { service } = getService({
+        options: {
+          environment: RampsEnvironment.Production,
+          baseUrlOverride: 'http://custom-url.test',
+        },
+      });
+
+      // The callback is served by the content host, not the API host, and the
+      // client matches this URL to detect flow completion, so a local API
+      // override must not move it.
+      expect(service.getDefaultRedirectCallbackUrl()).toBe(
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      );
+    });
+
+    it('is callable through the messenger', () => {
+      const { rootMessenger } = getService({
+        options: { environment: RampsEnvironment.Production },
+      });
+
+      expect(
+        rootMessenger.call('RampsService:getDefaultRedirectCallbackUrl'),
+      ).toBe(
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      );
+    });
+  });
+});
+
+describe('getDefaultRedirectCallbackUrl', () => {
+  it.each([
+    [
+      RampsEnvironment.Production,
+      'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+    ],
+    [
+      RampsEnvironment.Staging,
+      'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+    ],
+    [
+      RampsEnvironment.Development,
+      'https://on-ramp.dev-api.cx.metamask.io/regions/fake-callback',
+    ],
+    [RampsEnvironment.Local, 'http://localhost:3000/regions/fake-callback'],
+  ])('derives the callback URL for the %s environment', (environment, url) => {
+    expect(getDefaultRedirectCallbackUrl(environment)).toBe(url);
+  });
+
+  it('throws for an unknown environment', () => {
+    expect(() =>
+      getDefaultRedirectCallbackUrl('unknown' as unknown as RampsEnvironment),
+    ).toThrow('Invalid environment: unknown');
   });
 });
 

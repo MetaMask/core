@@ -35,8 +35,18 @@ export type { CacheEntry } from './CacheManager.js';
 export {
   PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
   getPhishingDetectionScanUrlParam,
+  isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
 } from './utils.js';
+export {
+  extractSignatureAddresses,
+  DEFAULT_MAX_SIGNATURE_ADDRESSES,
+  MAX_SIGNATURE_ADDRESSES_CEILING,
+} from './signature-address-extraction.js';
+export type {
+  ExtractedSignatureAddresses,
+  ExtractSignatureAddressesOptions,
+} from './signature-address-extraction.js';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,

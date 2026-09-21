@@ -82,6 +82,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'bridge-controller': {
@@ -101,6 +102,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-controller',
+  },
+  'claims-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-service',
   },
   'client-controller': {
     teams: [
@@ -119,7 +125,7 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/core-platform'],
   },
   'config-registry-controller': {
-    teams: ['@MetaMask/networks'],
+    teams: ['@MetaMask/networks', '@MetaMask/emerging-opportunities'],
   },
   'connectivity-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -129,7 +135,10 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/core-platform'],
   },
   'core-backend': {
-    teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+    teams: ['@MetaMask/metamask-assets'],
+  },
+  cryptography: {
+    teams: ['@MetaMask/core-platform'],
   },
   'delegation-controller': {
     teams: ['@MetaMask/delegation'],
@@ -145,9 +154,6 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'eip1193-permission-middleware': {
     teams: ['@MetaMask/core-platform'],
-  },
-  'ens-controller': {
-    teams: ['@MetaMask/confirmations'],
   },
   'eth-block-tracker': {
     teams: ['@MetaMask/core-platform'],
@@ -176,6 +182,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'json-rpc-engine': {
@@ -188,11 +195,15 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/accounts-engineers', '@MetaMask/core-platform'],
     initializationPath: 'keyring-controller',
   },
+  'kyc-controller': {
+    teams: ['@MetaMask/universal-kyc'],
+  },
   'local-node-utils': {
     teams: [
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'logging-controller': {
@@ -314,8 +325,13 @@ const PACKAGES: Record<string, PackageInfo> = {
   'sentinel-api-service': {
     teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
   },
+  'shield-api-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-api-service',
+  },
   'shield-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-controller',
   },
   'signature-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -334,6 +350,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'stellar-quickstart-up': {
@@ -341,6 +358,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'storage-service': {
@@ -353,6 +371,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-controller',
+  },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -364,11 +387,14 @@ const PACKAGES: Record<string, PackageInfo> = {
   'user-operation-controller': {
     teams: ['@MetaMask/confirmations'],
   },
+  utils: {
+    teams: ['@MetaMask/core-platform'],
+  },
   wallet: {
     teams: ['@MetaMask/core-platform'],
   },
   'wallet-cli': {
-    teams: ['@MetaMask/core-platform', '@MetaMask/ocap-kernel'],
+    teams: ['@MetaMask/core-platform'],
   },
   'wallet-framework-docs': {
     teams: ['@MetaMask/core-platform'],
@@ -429,6 +455,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('network-enablement-controller'),
         buildRuleForPackage('assets-controller'),
         buildRuleForPackage('advanced-chart-core'),
+        buildRuleForPackage('core-backend'),
       ],
     },
     {
@@ -436,7 +463,6 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [
         buildRuleForPackage('address-book-controller'),
         buildRuleForPackage('approval-controller'),
-        buildRuleForPackage('ens-controller'),
         buildRuleForPackage('gas-fee-controller'),
         buildRuleForPackage('logging-controller'),
         buildRuleForPackage('message-manager'),
@@ -501,6 +527,10 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [buildRuleForPackage('phishing-controller')],
     },
     {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
+    },
+    {
       title: 'Swaps-Bridge Team',
       rules: [
         buildRuleForPackage('bridge-controller'),
@@ -526,6 +556,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('composable-controller'),
         buildRuleForPackage('connectivity-controller'),
         buildRuleForPackage('controller-utils'),
+        buildRuleForPackage('cryptography'),
         buildRuleForPackage('eip-5792-middleware'),
         buildRuleForPackage('eip1193-permission-middleware'),
         buildRuleForPackage('eth-block-tracker'),
@@ -546,6 +577,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('react-data-query'),
         buildRuleForPackage('sample-controllers'),
         buildRuleForPackage('selected-network-controller'),
+        buildRuleForPackage('utils'),
         buildRuleForPackage('wallet'),
         buildRuleForPackage('wallet-cli'),
         buildRuleForPackage('wallet-framework-docs'),
@@ -561,6 +593,10 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('claims-controller'),
       ],
     },
+    {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
+    },
   ];
 }
 
@@ -575,7 +611,6 @@ function buildJointTeamOwnershipSection(): CodeownersSection {
     rules: [
       buildRuleForPackage('announcement-controller'),
       buildRuleForPackage('client-utils'),
-      buildRuleForPackage('core-backend'),
       {
         pattern: '/packages/eth-json-rpc-middleware/src/methods',
         owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
@@ -650,7 +685,6 @@ function buildPackageReleaseSection(): CodeownersSection {
     'earn-controller',
     'money-account-balance-service',
     'money-account-api-data-service',
-    'ens-controller',
     'gas-fee-controller',
     'gator-permissions-controller',
     'geolocation-controller',
@@ -700,6 +734,7 @@ function buildPackageReleaseSection(): CodeownersSection {
     'money-account-upgrade-controller',
     'money-account-utils',
     'snap-account-service',
+    'kyc-controller',
   ] as const satisfies (keyof typeof PACKAGES)[];
 
   return {
@@ -714,6 +749,7 @@ function buildPackageReleaseSection(): CodeownersSection {
         { pattern: `${workspacePath}/package.json`, owners },
         { pattern: `${workspacePath}/CHANGELOG.md`, owners },
         { pattern: `${workspacePath}/tsconfig.*`, owners },
+        { pattern: `${workspacePath}/typedoc.json`, owners },
       ];
     }),
   };

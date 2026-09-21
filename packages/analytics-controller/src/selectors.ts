@@ -1,4 +1,10 @@
 import type { AnalyticsControllerState } from './AnalyticsController.js';
+import type {
+  AnalyticsEventFragment,
+  AnalyticsEventFragments,
+} from './EventFragment.types.js';
+
+const EMPTY_EVENT_FRAGMENTS = Object.freeze({}) as AnalyticsEventFragments;
 
 /**
  * Selects the analytics ID from the controller state.
@@ -18,6 +24,15 @@ const selectAnalyticsId = (state: AnalyticsControllerState): string =>
  */
 const selectOptedIn = (state: AnalyticsControllerState): boolean =>
   state.optedIn;
+
+/**
+ * Selects the marketing opt-in status from the controller state.
+ *
+ * @param state - The controller state
+ * @returns Whether the user has opted in to marketing analytics
+ */
+const selectOptedInToMarketing = (state: AnalyticsControllerState): boolean =>
+  state.optedInToMarketing === true;
 
 /**
  * Selects whether analytics tracking is enabled.
@@ -41,12 +56,49 @@ const selectConsentDecisionMade = (state: AnalyticsControllerState): boolean =>
   state.consentDecisionMade ?? false;
 
 /**
+ * Selects whether the user has made a marketing consent decision.
+ *
+ * @param state - The controller state
+ * @returns Whether the user has made a marketing consent decision
+ */
+const selectMarketingConsentDecisionMade = (
+  state: AnalyticsControllerState,
+): boolean => state.marketingConsentDecisionMade ?? false;
+
+/**
+ * Selects the in-progress event fragments from the controller state.
+ *
+ * @param state - The controller state
+ * @returns The event fragments keyed by fragment ID, empty when the event
+ * fragments feature has never written any
+ */
+const selectEventFragments = (
+  state: AnalyticsControllerState,
+): AnalyticsEventFragments => state.eventFragments ?? EMPTY_EVENT_FRAGMENTS;
+
+/**
+ * Selects a single event fragment from the controller state.
+ *
+ * @param state - The controller state
+ * @param id - The fragment ID
+ * @returns The fragment, or `undefined` when no fragment has that ID
+ */
+const selectEventFragmentById = (
+  state: AnalyticsControllerState,
+  id: string,
+): AnalyticsEventFragment | undefined => state.eventFragments?.[id];
+
+/**
  * Selectors for the AnalyticsController state.
  * These can be used with Redux or directly with controller state.
  */
 export const analyticsControllerSelectors = {
   selectAnalyticsId,
   selectOptedIn,
+  selectOptedInToMarketing,
   selectEnabled,
   selectConsentDecisionMade,
+  selectMarketingConsentDecisionMade,
+  selectEventFragments,
+  selectEventFragmentById,
 };

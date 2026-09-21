@@ -19,6 +19,17 @@ import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeControl
  * active config no longer matches the recorded fingerprint, the sequence
  * re-runs.
  *
+ * A call that arrives while the bootstrap chain is still in flight —
+ * including runs scheduled while waiting — waits for it to settle rather
+ * than failing, so the upgrade always runs against the latest armed
+ * config. Scheduling a bootstrap for a changed vault config disarms the
+ * previous one, so it throws when no bootstrap has armed a config (feature
+ * disabled or the last bootstrap failed) or when the wallet is locked.
+ *
+ * The armed config is re-checked before every step: if a sync disarms or
+ * supersedes it while the sequence is running, the sequence aborts before
+ * the next step signs anything, and nothing is recorded.
+ *
  * @param address - The Money Account address to upgrade.
  */
 export type MoneyAccountUpgradeControllerUpgradeAccountAction = {

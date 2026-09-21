@@ -92,7 +92,6 @@ export type PerpsWatchlistExchange = {
 
 export type PerpsWatchlistMarkets = {
   hyperliquid: PerpsWatchlistExchange;
-  myx: PerpsWatchlistExchange;
 };
 
 export type PerpsPreference = {

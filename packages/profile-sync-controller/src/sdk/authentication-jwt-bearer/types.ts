@@ -9,6 +9,62 @@ export enum AuthType {
   SiWE = 'SiWE',
 }
 
+/**
+ * Login identifier type sent in the `/srp/login` metametrics object.
+ * Defaults to `SRP`; social-backed entropy overrides with the OAuth provider.
+ *
+ * Orthogonal to {@link SrpLoginTag}: a secondary entropy source can still be
+ * `GOOGLE` / `APPLE` / `TELEGRAM` if it is social-backed.
+ */
+export type LoginIdentifierType = 'SRP' | SocialIdentifierType;
+
+/**
+ * Social identifier types accepted by `POST /api/v2/profile/pair/identifier`.
+ * Telegram uses the same Web3Auth access token as Google/Apple; do not send
+ * `email` for Telegram (clients store a display name there, not an address).
+ */
+export type SocialIdentifierType = 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+
+/**
+ * Parameters for attaching a Google/Apple/Telegram identifier to an
+ * existing profile.
+ */
+export type PairSocialIdentifierParams = {
+  identifierType: SocialIdentifierType;
+  socialJwt: string;
+  /**
+   * Required by the API for `GOOGLE`. Optional for `APPLE`. Omit for
+   * `TELEGRAM`.
+   */
+  email?: string;
+};
+
+/**
+ * Claim names accepted by `POST /api/v2/oidc/token`. Only `email` is
+ * supported; `email_verified` is set by the server when email is present.
+ */
+export type OidcTokenClaim = 'email';
+
+/**
+ * Non-empty list of claims to embed. The API requires at least one name.
+ */
+export type OidcTokenClaims = [OidcTokenClaim, ...OidcTokenClaim[]];
+
+/**
+ * Partner audience stamped on the minted JWT.
+ */
+export type OidcTokenAudience = 'kyc' | 'iron';
+
+/**
+ * Tag appended to the SRP login `raw_message` so the auth server can
+ * distinguish primary vs secondary SRPs.
+ *
+ * Message format: `metamask:<nonce>:<pubkey>:<tag>`
+ *
+ * Orthogonal to {@link LoginIdentifierType}: tag is entropy-slot only.
+ */
+export type SrpLoginTag = 'primary' | 'secondary';
+
 export type AuthConfig = {
   env: Env;
   platform: Platform;

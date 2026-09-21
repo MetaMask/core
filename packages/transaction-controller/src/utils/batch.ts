@@ -36,6 +36,7 @@ import type {
 import { projectLogger } from '../logger.js';
 import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import type {
+  AuthorizationList,
   NestedTransactionMetadata,
   SecurityAlertResponse,
   TransactionBatchSingleRequest,
@@ -84,7 +85,7 @@ type AddTransactionBatchRequest = {
   ) => PendingTransactionTracker;
   getSimulationConfig: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
-  isSimulationEnabled: () => boolean;
+  isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
   publishTransaction: (transactionMeta: TransactionMeta) => Promise<Hex>;
@@ -99,6 +100,15 @@ type AddTransactionBatchRequest = {
     options: { transactionId: string },
     callback: (transactionMeta: TransactionMeta) => void,
   ) => void;
+};
+
+type AddTransactionBatchRequestWithBatchId = Omit<
+  AddTransactionBatchRequest,
+  'request'
+> & {
+  request: Omit<TransactionBatchRequest, 'batchId'> & {
+    batchId: Hex;
+  };
 };
 
 type IsAtomicBatchSupportedRequestInternal = {
@@ -151,21 +161,34 @@ export async function addTransactionBatch(
     throw rpcErrors.internal('Account does not support EIP-7702');
   }
 
-  if (!disable7702 && accountCanUse7702) {
-    try {
-      return await addTransactionBatchWith7702(request);
-    } catch (error: unknown) {
-      const isEIP7702NotSupportedError =
-        error instanceof JsonRpcError &&
-        error.message === 'Chain does not support EIP-7702';
+  const batchId = transactionBatchRequest.batchId ?? generateBatchId();
+  const requestWithBatchId: AddTransactionBatchRequestWithBatchId = {
+    ...request,
+    request: {
+      ...transactionBatchRequest,
+      batchId,
+    },
+  };
 
-      if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
-        throw error;
+  try {
+    if (!disable7702 && accountCanUse7702) {
+      try {
+        return await addTransactionBatchWith7702(requestWithBatchId);
+      } catch (error: unknown) {
+        const isEIP7702NotSupportedError =
+          error instanceof JsonRpcError &&
+          error.message === 'Chain does not support EIP-7702';
+
+        if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
+          throw error;
+        }
       }
     }
-  }
 
-  return await addTransactionBatchWithHook(request);
+    return await addTransactionBatchWithHook(requestWithBatchId);
+  } finally {
+    wipeBatchTransactionCount(request.update, batchId);
+  }
 }
 
 /**
@@ -283,13 +306,65 @@ async function getNestedTransactionMeta(
 }
 
 /**
+ * Build the authorization list for an EIP-7702 batch transaction.
+ *
+ * When the batch payer (`from`) requires an upgrade, an unsigned upgrade
+ * authorization for that account is included first. Any caller-provided
+ * authorizations (e.g. a pre-signed Money Account upgrade) are appended so
+ * both can be submitted on the same type-4 transaction.
+ *
+ * @param options - Options bag.
+ * @param options.chainId - Chain ID of the batch.
+ * @param options.messenger - Controller messenger.
+ * @param options.providedAuthorizationList - Optional authorizations from the batch request.
+ * @param options.publicKeyEIP7702 - Public key used to resolve the upgrade contract.
+ * @param options.requiresUpgrade - Whether the batch payer requires an EIP-7702 upgrade.
+ * @returns The combined authorization list, or undefined when none are needed.
+ */
+function buildBatchAuthorizationList({
+  chainId,
+  messenger,
+  providedAuthorizationList,
+  publicKeyEIP7702,
+  requiresUpgrade,
+}: {
+  chainId: Hex;
+  messenger: TransactionControllerMessenger;
+  providedAuthorizationList?: AuthorizationList;
+  publicKeyEIP7702: Hex;
+  requiresUpgrade: boolean;
+}): AuthorizationList | undefined {
+  const authorizationList: AuthorizationList = [];
+
+  if (requiresUpgrade) {
+    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      messenger,
+      publicKeyEIP7702,
+    );
+
+    if (!upgradeContractAddress) {
+      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
+    }
+
+    authorizationList.push({ address: upgradeContractAddress });
+  }
+
+  if (providedAuthorizationList?.length) {
+    authorizationList.push(...providedAuthorizationList);
+  }
+
+  return authorizationList.length ? authorizationList : undefined;
+}
+
+/**
  * Process a batch transaction using an EIP-7702 transaction.
  *
  * @param request - The request object including the user request and necessary callbacks.
  * @returns The batch result object including the batch ID.
  */
 async function addTransactionBatchWith7702(
-  request: AddTransactionBatchRequest,
+  request: AddTransactionBatchRequestWithBatchId,
 ): Promise<TransactionBatchResult> {
   const {
     addTransaction,
@@ -300,7 +375,8 @@ async function addTransactionBatchWith7702(
 
   const {
     atomic,
-    batchId: batchIdOverride,
+    authorizationList: providedAuthorizationList,
+    batchId,
     disableUpgrade,
     from,
     gasFeeToken,
@@ -382,22 +458,23 @@ async function addTransactionBatchWith7702(
     maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
-  if (requiresUpgrade) {
-    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
-      chainId,
-      messenger,
-      publicKeyEIP7702,
-    );
+  const authorizationList = buildBatchAuthorizationList({
+    chainId,
+    messenger,
+    providedAuthorizationList,
+    publicKeyEIP7702,
+    requiresUpgrade,
+  });
 
-    if (!upgradeContractAddress) {
-      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
-    }
-
+  if (authorizationList?.length) {
     txParams.type = TransactionEnvelopeType.setCode;
-    txParams.authorizationList = [{ address: upgradeContractAddress }];
+    txParams.authorizationList = authorizationList;
   }
 
   if (validateSecurity) {
+    // `delegationMock` applies to the batch payer (`from`) only. When
+    // `requiresUpgrade` is true, that upgrade authorization is always first in
+    // the list. Caller-provided auths for other accounts must not be used here.
     const securityRequest: ValidateSecurityRequest = {
       method: 'eth_sendTransaction',
       params: [
@@ -407,7 +484,9 @@ async function addTransactionBatchWith7702(
           type: TransactionEnvelopeType.feeMarket,
         },
       ],
-      delegationMock: txParams.authorizationList?.[0]?.address,
+      delegationMock: requiresUpgrade
+        ? authorizationList?.[0]?.address
+        : undefined,
       origin,
     };
 
@@ -420,7 +499,7 @@ async function addTransactionBatchWith7702(
 
   log('Adding batch transaction', txParams, networkClientId);
 
-  const batchId = batchIdOverride ?? generateBatchId();
+  setBatchTransactionCount(request.update, batchId, 1);
 
   const securityAlertResponse = securityAlertId
     ? ({ securityAlertId } as SecurityAlertResponse)
@@ -527,7 +606,7 @@ function waitForTransactionStatus(
     };
 
     messenger.subscribe(
-      'TransactionController:stateChange', // eslint-disable-line no-restricted-syntax
+      'TransactionController:stateChange',
       handler,
       (state: TransactionControllerState) =>
         state.transactions.find((tx) => tx.id === transactionId),
@@ -542,7 +621,7 @@ function waitForTransactionStatus(
  * @returns The batch result object including the batch ID.
  */
 async function addTransactionBatchWithHook(
-  request: AddTransactionBatchRequest,
+  request: AddTransactionBatchRequestWithBatchId,
 ): Promise<TransactionBatchResult> {
   const {
     messenger,
@@ -552,7 +631,7 @@ async function addTransactionBatchWithHook(
   } = request;
 
   const {
-    batchId: batchIdOverride,
+    batchId,
     from,
     networkClientId,
     origin,
@@ -599,14 +678,13 @@ async function addTransactionBatchWithHook(
   }
 
   let txBatchMeta: TransactionBatchMeta | undefined;
-  const batchId = batchIdOverride ?? generateBatchId();
-
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
     origin,
   }));
 
   const transactionCount = nestedTransactions.length;
+  setBatchTransactionCount(update, batchId, transactionCount);
   const collectHook = new CollectPublishHook(transactionCount);
 
   try {
@@ -892,6 +970,38 @@ function addBatchMetadata(
       ...state.transactionBatches,
       transactionBatchMeta,
     ];
+  });
+}
+
+/**
+ * Set the transaction count for an active batch.
+ *
+ * @param update - The update function to modify the transaction controller state.
+ * @param id - The ID of the transaction batch.
+ * @param count - The number of transactions to sign.
+ */
+function setBatchTransactionCount(
+  update: UpdateStateCallback,
+  id: string,
+  count: number,
+): void {
+  update((state) => {
+    state.batchTransactionCounts[id] = count;
+  });
+}
+
+/**
+ * Wipes the transaction count for a completed batch.
+ *
+ * @param update - The update function to modify the transaction controller state.
+ * @param id - The ID of the transaction batch.
+ */
+function wipeBatchTransactionCount(
+  update: UpdateStateCallback,
+  id: string,
+): void {
+  update((state) => {
+    delete state.batchTransactionCounts[id];
   });
 }
 

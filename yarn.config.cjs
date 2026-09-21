@@ -10,7 +10,6 @@
 // format, but also check the presence of certain files as well.
 
 /** @type {import('@yarnpkg/types')} */
-const { hasProperty } = require('@metamask/utils');
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
@@ -23,9 +22,24 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@tanstack/query-core': ['^4.43.0'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
+
+/**
+ * Whether `yarn constraints --fix` may resolve a dependency range disagreement
+ * on its own by aligning every workspace to the highest range.
+ *
+ * Off by default, so `yarn lint:fix` never turns an unrelated change into a
+ * monorepo-wide dependency bump. Dependency upgrades belong in their own pull
+ * requests, so this is set only by the workflow that repairs Dependabot pull
+ * requests. It is deliberately not exposed as a package script: a convenient
+ * front door is precisely what would tempt someone into bundling an upgrade
+ * into unrelated work.
+ *
+ * Note that this cannot be a command line flag: `yarn constraints` is a Yarn
+ * builtin and rejects any option other than `--fix` and `--json`.
+ */
+// eslint-disable-next-line n/no-process-env
+const ALIGN_DEPENDENCY_RANGES = process.env.ALIGN_DEPENDENCY_RANGES === 'true';
 
 /**
  * These packages are allowed as peer dependencies without requiring installation as
@@ -83,14 +97,20 @@ module.exports = defineConfig({
       const workspaceBasename = getWorkspaceBasename(workspace);
       const isChildWorkspace = workspace.cwd !== '.';
       const isPrivate =
-        hasProperty(workspace.manifest, 'private') &&
+        Object.hasOwn(workspace.manifest, 'private') &&
         workspace.manifest.private === true;
+      const isTemplate =
+        workspace.manifest.name === '@metamask/package-template';
+
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
       );
 
       // All packages must have a name.
       expectWorkspaceField(workspace, 'name');
+
+      // All workspaces must specify "type: module".
+      expectWorkspaceField(workspace, 'type', 'module');
 
       if (isChildWorkspace) {
         // All non-root packages must have a name that matches its directory
@@ -112,11 +132,19 @@ module.exports = defineConfig({
         expectWorkspaceField(workspace, 'keywords', ['Ethereum', 'MetaMask']);
 
         // All non-root packages must have a homepage URL that includes its name.
-        expectWorkspaceField(
-          workspace,
-          'homepage',
-          `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
-        );
+        if (isTemplate) {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/PACKAGE_DIRECTORY_NAME#readme`,
+          );
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
+          );
+        }
 
         // All non-root packages must have a URL for reporting bugs that points
         // to the Issues page for the repository.
@@ -147,21 +175,33 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must have a "build" script. All packages that
-        // do not exclusively deploy documentation sites must use `ts-bridge`.
+        // do not exclusively deploy documentation sites must use `tsc`.
         if (DOCSITE_PACKAGES.includes(workspace.ident)) {
           expectWorkspaceField(workspace, 'scripts.build');
         } else {
           expectWorkspaceField(
             workspace,
             'scripts.build',
-            'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+            'tsc --project tsconfig.build.json',
           );
 
           // All non-root packages must have the same "build:all" script.
           expectWorkspaceField(
             workspace,
             'scripts.build:all',
-            'ts-bridge --project tsconfig.build.json --verbose --clean',
+            'tsc --build tsconfig.build.json --verbose',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:clean',
+            'yarn build:only-clean && yarn build',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:only-clean',
+            `rimraf './dist' './tsconfig.build.tsbuildinfo'`,
           );
         }
 
@@ -264,19 +304,12 @@ module.exports = defineConfig({
         expectYarnPackageManager(workspace);
       }
 
-      // All packages must specify a minimum Node.js version of 18.18.
-      // @metamask/wallet-cli depends on `better-sqlite3`, which only ships
-      // prebuilt binaries for Node 20+; bumping its declared minimum keeps the
-      // engines field honest.
-      if (workspace.ident === '@metamask/wallet-cli') {
-        expectWorkspaceField(workspace, 'engines.node', '>=20');
-      } else {
-        expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
-      }
+      // All packages must specify a minimum Node.js version of 22.
+      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24');
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
-      if (isPrivate) {
+      if (isPrivate && !isTemplate) {
         workspace.unset('publishConfig');
       } else {
         expectWorkspaceField(workspace, 'publishConfig.access', 'public');
@@ -291,7 +324,9 @@ module.exports = defineConfig({
         // All non-root packages must have a valid README.md file.
         await expectReadme(workspace, workspaceBasename, isPrivate);
 
-        await expectCodeowner(workspace, workspaceBasename);
+        if (!isTemplate) {
+          await expectCodeowner(workspace, workspaceBasename);
+        }
       }
     }
 
@@ -417,7 +452,7 @@ async function workspaceFileExists(workspace, path) {
   try {
     await getWorkspaceFile(workspace, path);
   } catch (error) {
-    if (hasProperty(error, 'code') && error.code === 'ENOENT') {
+    if (Object.hasOwn(error, 'code') && error.code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -559,35 +594,16 @@ async function expectWorkspaceLicense(workspace) {
 function expectCorrectWorkspaceExports(workspace) {
   // All non-root packages must provide the location of the ESM-compatible
   // JavaScript entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.types',
-    './dist/index.d.mts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.default',
-    './dist/index.mjs',
-  );
+  expectWorkspaceField(workspace, 'exports["."].types', './dist/index.d.ts');
+  expectWorkspaceField(workspace, 'exports["."].default', './dist/index.js');
 
-  // All non-root package must provide the location of the CommonJS-compatible
-  // entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.types',
-    './dist/index.d.cts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.default',
-    './dist/index.cjs',
-  );
-  expectWorkspaceField(workspace, 'main', './dist/index.cjs');
-  expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
+  // Packages should not provide separate CommonJS/ESM exports.
+  expectWorkspaceField(workspace, 'exports["."].require', null);
+  expectWorkspaceField(workspace, 'exports["."].import', null);
 
-  // Types should not be set in the export object directly, but rather in the
-  // `import` and `require` subfields.
-  expectWorkspaceField(workspace, 'exports["."].types', null);
+  // Packages should not provide a "main" or "types" field.
+  expectWorkspaceField(workspace, 'main', null);
+  expectWorkspaceField(workspace, 'types', null);
 
   // All non-root packages must export a `package.json` file.
   expectWorkspaceField(
@@ -595,6 +611,36 @@ function expectCorrectWorkspaceExports(workspace) {
     'exports["./package.json"]',
     './package.json',
   );
+
+  const nonRootExports = Object.keys(workspace.manifest.exports).filter(
+    (key) => key !== '.' && key !== './package.json',
+  );
+
+  for (const key of nonRootExports) {
+    const prefix = `exports["${key}"]`;
+    expectWorkspaceField(workspace, `${prefix}.types`);
+    expectWorkspaceField(workspace, `${prefix}.default`);
+
+    const typesValue = get(workspace.manifest, `${prefix}.types`);
+    if (
+      typesValue &&
+      (typeof typesValue !== 'string' || !typesValue.endsWith('.d.ts'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.types" field to end with ".d.ts", but it was "${typesValue}".`,
+      );
+    }
+
+    const importValue = get(workspace.manifest, `${prefix}.default`);
+    if (
+      importValue &&
+      (typeof importValue !== 'string' || !importValue.endsWith('.js'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.default" field to end with ".js", but it was "${importValue}".`,
+      );
+    }
+  }
 }
 
 /**
@@ -955,10 +1001,60 @@ function getInconsistentDependenciesAndDevDependencies(
 }
 
 /**
+ * Given a set of version ranges for the same dependency, return the range which
+ * permits the highest minimum version.
+ *
+ * Returns `null` if any of the ranges cannot be compared, such as aliases
+ * (`npm:foo@^1.0.0`), protocols (`workspace:^`), or dist tags. In that case the
+ * caller is expected to ask a human to resolve the conflict instead.
+ *
+ * @param {string[]} ranges - The version ranges to compare.
+ * @returns {string | null} The highest range, or `null` if they are not all
+ * comparable.
+ */
+function getHighestRange(ranges) {
+  let highestRange = null;
+  let highestMinimumVersion = null;
+
+  for (const range of ranges) {
+    const minimumVersion = semver.validRange(range)
+      ? semver.minVersion(range)
+      : null;
+
+    if (minimumVersion === null) {
+      return null;
+    }
+
+    if (
+      highestMinimumVersion === null ||
+      semver.gt(minimumVersion, highestMinimumVersion)
+    ) {
+      highestRange = range;
+      highestMinimumVersion = minimumVersion;
+    }
+  }
+
+  return highestRange;
+}
+
+/**
  * Expect that across the entire monorepo all version ranges in `dependencies`
  * and `devDependencies` for the same dependency are the same (as long as it is
- * not a dependency on a workspace package). As it is impossible to compare NPM
- * version ranges, let the user decide if there are conflicts.
+ * not a dependency on a workspace package).
+ *
+ * By default a disagreement is an error for a human to resolve, so that routine
+ * use of `yarn lint:fix` cannot quietly fold a dependency bump into an
+ * unrelated pull request.
+ *
+ * Under `ALIGN_DEPENDENCY_RANGES` (see above) the rule instead becomes
+ * fixable: where every conflicting range is plain semver, the one permitting
+ * the highest minimum version wins and `yarn constraints --fix` aligns the
+ * rest. That is meant for the workflow that repairs Dependabot pull requests,
+ * whose security updates walk manifests one at a time rather than as a
+ * workspace and so routinely leave ranges disagreeing.
+ *
+ * Ranges that cannot be compared (aliases, protocols, dist tags) are always an
+ * error, opted in or not.
  *
  * @param {Yarn} Yarn - The Yarn "global".
  */
@@ -983,16 +1079,21 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
         dependenciesByRange,
       );
     const dependencyRanges = [...dependenciesToConsider.keys()].sort();
+    const highestRange = getHighestRange(dependencyRanges);
 
     for (const dependencies of dependenciesToConsider.values()) {
       for (const dependency of dependencies) {
-        dependency.error(
-          `Expected version range for ${dependencyIdent} (in ${
-            dependency.type
-          }) to be consistent across monorepo. Pick one: ${inspect(
-            dependencyRanges,
-          )}`,
-        );
+        if (highestRange !== null && ALIGN_DEPENDENCY_RANGES) {
+          dependency.update(highestRange);
+        } else {
+          dependency.error(
+            `Expected version range for ${dependencyIdent} (in ${
+              dependency.type
+            }) to be consistent across monorepo. Pick one: ${inspect(
+              dependencyRanges,
+            )}`,
+          );
+        }
       }
     }
   }

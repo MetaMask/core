@@ -17,7 +17,6 @@ import { calculateTransactionGasCost } from './gas.js';
  *
  * @param request - Request parameters.
  * @param request.fiatPaymentAmount - The amount of the transaction in fiat.
- * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.quotes - List of bridge quotes.
  * @param request.messenger - Controller messenger.
  * @param request.tokens - List of required tokens.
@@ -26,14 +25,12 @@ import { calculateTransactionGasCost } from './gas.js';
  */
 export function calculateTotals({
   fiatPaymentAmount,
-  isMaxAmount,
   quotes,
   messenger,
   tokens,
   transaction,
 }: {
   fiatPaymentAmount?: string;
-  isMaxAmount?: boolean;
   quotes: TransactionPayQuote<unknown>[];
   messenger: TransactionPayControllerMessenger;
   tokens: TransactionPayRequiredToken[];
@@ -78,30 +75,42 @@ export function calculateTotals({
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
   const hasQuotes = quotes.length > 0;
+  const isInputBased =
+    hasQuotes && quotes.every((quote) => quote.isInputBased === true);
 
   const sourceAmountFiat = getSourceAmount({
     hasFiatStrategy,
     fiatPaymentAmount,
-    isMaxAmount,
     hasQuotes,
     targetAmount: targetAmount.fiat,
     tokenAmount: amountFiat,
+    useTargetAmount: isInputBased,
   });
 
   const sourceAmountUsd = getSourceAmount({
     hasFiatStrategy,
     fiatPaymentAmount,
-    isMaxAmount,
     hasQuotes,
     targetAmount: targetAmount.usd,
     tokenAmount: amountUsd,
+    useTargetAmount: isInputBased,
   });
+
+  const includedFees = sumFiat(
+    quotes
+      .filter((quote) => quote.areFeesIncludedInSourceAmount)
+      .map((quote) => ({
+        fiat: getQuoteFeeTotal(quote, 'fiat'),
+        usd: getQuoteFeeTotal(quote, 'usd'),
+      })),
+  );
 
   const totalFiat = new BigNumber(providerFee.fiat)
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
     .plus(sourceAmountFiat)
+    .minus(includedFees.fiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
@@ -109,6 +118,7 @@ export function calculateTotals({
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
     .plus(sourceAmountUsd)
+    .minus(includedFees.usd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -137,6 +147,7 @@ export function calculateTotals({
       },
       targetNetwork: targetNetworkFee,
     },
+    isInputBased,
     sourceAmount,
     targetAmount,
     total: {
@@ -146,38 +157,49 @@ export function calculateTotals({
   };
 }
 
+function getQuoteFeeTotal(
+  quote: TransactionPayQuote<unknown>,
+  currency: keyof FiatValue,
+): string {
+  return new BigNumber(quote.fees.provider[currency])
+    .plus(quote.fees.metaMask[currency])
+    .plus(quote.fees.sourceNetwork.estimate[currency])
+    .plus(quote.fees.targetNetwork[currency])
+    .toString(10);
+}
+
 /**
  * Get the source amount to include in totals.
  *
  * @param request - Request parameters.
  * @param request.hasFiatStrategy - Whether a fiat strategy quote is present.
  * @param request.fiatPaymentAmount - The fiat payment amount, if applicable.
- * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.hasQuotes - Whether any quotes are present.
  * @param request.targetAmount - The target amount from quotes.
  * @param request.tokenAmount - The summed token amount.
+ * @param request.useTargetAmount - Whether fees are already included in the source amount.
  * @returns The payment amount to include in totals.
  */
 function getSourceAmount({
   hasFiatStrategy,
   fiatPaymentAmount,
-  isMaxAmount,
   hasQuotes,
   targetAmount,
   tokenAmount,
+  useTargetAmount,
 }: {
   hasFiatStrategy: boolean;
   fiatPaymentAmount?: string;
-  isMaxAmount?: boolean;
   hasQuotes: boolean;
   targetAmount: string;
   tokenAmount: string;
+  useTargetAmount: boolean;
 }): string {
   if (hasFiatStrategy) {
     return fiatPaymentAmount ?? '0';
   }
 
-  if (isMaxAmount && hasQuotes) {
+  if (useTargetAmount && hasQuotes) {
     return targetAmount;
   }
 

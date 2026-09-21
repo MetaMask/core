@@ -14,6 +14,7 @@ import type {
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
+import { handleAll, IterableBackoff, retry } from 'cockatiel';
 
 import { projectLogger, createModuleLogger } from '../../logger.js';
 import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types.js';
@@ -43,6 +44,16 @@ const SYSTEM_NOTIFICATIONS_CHANNEL = `system-notifications.v1.${SUBSCRIPTION_NAM
 /** Delay before actually unsubscribing from a channel after refCount reaches 0. */
 const GRACE_PERIOD_MS = 3_000;
 
+/** Backoff delays between failed WebSocket unsubscribe attempts. */
+const UNSUB_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
+
+const unsubRetryPolicy = retry(handleAll, {
+  // Cockatiel stops retrying once the failure index reaches `maxAttempts`, so
+  // `length` here yields one initial attempt plus three delayed retries (4 total).
+  maxAttempts: UNSUB_RETRY_DELAYS_MS.length,
+  backoff: new IterableBackoff([...UNSUB_RETRY_DELAYS_MS]),
+});
+
 // =============================================================================
 // Types — Channel Tracking
 // =============================================================================
@@ -50,6 +61,7 @@ const GRACE_PERIOD_MS = 3_000;
 type ChannelEntry = {
   refCount: number;
   gracePeriodTimer?: ReturnType<typeof setTimeout>;
+  retryAbort?: AbortController;
 };
 
 // =============================================================================
@@ -142,7 +154,9 @@ export type OHLCVServiceMessenger = Messenger<
  *
  * Features:
  * - Reference counting: multiple UI consumers share one WebSocket subscription
- * - Grace-period unsubscribe: avoids rapid unsub/resub during navigation
+ * - Grace-period unsubscribe: reuses same-channel subs on rapid back navigation
+ * - Grace-period flush: immediately unsubscribes other channels on navigation
+ * - Unsubscribe retry: retries failed unsubs with backoff before force reconnect
  * - Idempotency: duplicate subscribe calls for the same channel are no-ops
  * - Reconnect resilience: resubscribes all active channels on reconnect
  * - Chain-status forwarding: listens to system-notifications for chain up/down
@@ -228,7 +242,25 @@ export class OHLCVService {
   async #subscribeInner(channel: string): Promise<void> {
     const entry = this.#channels.get(channel);
 
-    if (entry?.gracePeriodTimer) {
+    if (entry?.retryAbort) {
+      entry.retryAbort.abort();
+      entry.retryAbort = undefined;
+      entry.refCount = 1;
+
+      if (
+        this.#messenger.call(
+          'BackendWebSocketService:channelHasSubscription',
+          channel,
+        )
+      ) {
+        await this.#flushOtherChannels(channel);
+        log('OHLCV-WS: Cancelled unsubscribe retry — reusing WS subscription', {
+          channel,
+        });
+        return;
+      }
+      // WS subscription was lost — fall through to recreate it.
+    } else if (entry?.gracePeriodTimer) {
       clearTimeout(entry.gracePeriodTimer);
       entry.gracePeriodTimer = undefined;
       log('OHLCV-WS: Cancelled grace-period unsubscribe', {
@@ -241,6 +273,7 @@ export class OHLCVService {
           channel,
         )
       ) {
+        await this.#flushOtherChannels(channel);
         entry.refCount += 1;
         log('OHLCV-WS: WS subscription still alive, bumped refCount', {
           channel,
@@ -254,6 +287,9 @@ export class OHLCVService {
       entry.refCount += 1;
       return;
     }
+
+    await this.#flushOtherChannels(channel);
+
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
@@ -330,7 +366,7 @@ export class OHLCVService {
     entry.gracePeriodTimer = setTimeout(() => {
       entry.gracePeriodTimer = undefined;
       this.#performUnsubscribe(channel).catch(() => {
-        // no-op
+        // no-op: retry scheduling and force-reconnection are handled internally
       });
     }, GRACE_PERIOD_MS);
   }
@@ -338,6 +374,127 @@ export class OHLCVService {
   // =============================================================================
   // Private — WebSocket Subscription Helpers
   // =============================================================================
+
+  /**
+   * Immediately unsubscribe other channels in grace or failed-cleanup state.
+   * Called while the subscribe mutex is held before opening a new channel.
+   *
+   * @param exceptChannel - Channel being subscribed; excluded from flush.
+   */
+  async #flushOtherChannels(exceptChannel: string): Promise<void> {
+    for (const [channel, channelEntry] of this.#channels.entries()) {
+      if (channel === exceptChannel || channelEntry.refCount > 0) {
+        continue;
+      }
+
+      this.#clearChannelTimers(channelEntry);
+      log('OHLCV-WS: Flushing grace-period channel before new subscribe', {
+        flushedChannel: channel,
+        newChannel: exceptChannel,
+      });
+
+      const success = await this.#unsubscribeChannelOnServer(channel);
+      if (success) {
+        this.#channels.delete(channel);
+      } else {
+        this.#scheduleUnsubscribeRetry(channel);
+      }
+    }
+  }
+
+  #clearChannelTimers(entry: ChannelEntry): void {
+    if (entry.gracePeriodTimer) {
+      clearTimeout(entry.gracePeriodTimer);
+      entry.gracePeriodTimer = undefined;
+    }
+    entry.retryAbort?.abort();
+    entry.retryAbort = undefined;
+  }
+
+  async #unsubscribeChannelOnServer(channel: string): Promise<boolean> {
+    try {
+      const subscriptions = this.#messenger.call(
+        'BackendWebSocketService:getSubscriptionsByChannel',
+        channel,
+      );
+
+      for (const sub of subscriptions) {
+        await sub.unsubscribe();
+      }
+      return true;
+    } catch (error) {
+      log('OHLCV-WS: Unsubscription failed', { channel, error });
+      this.#messenger.publish('OHLCVService:subscriptionError', {
+        channel,
+        error: String(error),
+        operation: 'unsubscribe',
+      });
+      return false;
+    }
+  }
+
+  #scheduleUnsubscribeRetry(channel: string): void {
+    const entry = this.#channels.get(channel);
+    if (!entry) {
+      // The channel was removed (e.g. destroy() or reconnect cleanup) while the
+      // unsubscribe was in flight. Do not resurrect it or start a new retry loop
+      // with an AbortController that teardown can no longer cancel — that could
+      // force a reconnection on the shared WebSocket after teardown.
+      return;
+    }
+
+    entry.retryAbort?.abort();
+    entry.retryAbort = new AbortController();
+
+    const { signal } = entry.retryAbort;
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.#runUnsubRetryLoop(channel, signal);
+  }
+
+  async #runUnsubRetryLoop(
+    channel: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    try {
+      await unsubRetryPolicy.execute(async () => {
+        const releaseLock = await this.#mutex.acquire();
+        try {
+          const current = this.#channels.get(channel);
+          if (current && current.refCount > 0) {
+            return;
+          }
+
+          const success = await this.#unsubscribeChannelOnServer(channel);
+          if (!success) {
+            throw new Error('unsubscribe failed');
+          }
+
+          this.#channels.delete(channel);
+          log('OHLCV-WS: WS unsubscribe completed', { channel });
+        } finally {
+          releaseLock();
+        }
+      }, signal);
+    } catch {
+      if (signal.aborted) {
+        return;
+      }
+
+      log('OHLCV-WS: Unsubscribe retries exhausted — forcing reconnection', {
+        channel,
+      });
+      this.#channels.delete(channel);
+      // Last resort: reconnects the shared BackendWebSocketService instance
+      // (AccountActivityService and other consumers share this connection).
+      // They resubscribe on CONNECTED; OHLCV only resubscribes refCount > 0.
+      await this.#messenger
+        .call('BackendWebSocketService:forceReconnection')
+        .catch(() => {
+          // no-op
+        });
+    }
+  }
 
   async #performUnsubscribe(channel: string): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
@@ -354,29 +511,13 @@ export class OHLCVService {
       log('OHLCV-WS: Grace period expired — performing actual WS unsubscribe', {
         channel,
       });
-      this.#channels.delete(channel);
 
-      try {
-        const subscriptions = this.#messenger.call(
-          'BackendWebSocketService:getSubscriptionsByChannel',
-          channel,
-        );
-
-        for (const sub of subscriptions) {
-          await sub.unsubscribe();
-        }
-        log('OHLCV-WS: WS unsubscribe completed', { channel });
-      } catch (error) {
-        log('OHLCV-WS: Unsubscription failed', { channel, error });
-        this.#messenger.publish('OHLCVService:subscriptionError', {
-          channel,
-          error: String(error),
-          operation: 'unsubscribe',
-        });
-      }
+      this.#clearChannelTimers(this.#channels.get(channel) ?? { refCount: 0 });
     } finally {
       releaseLock();
     }
+
+    this.#scheduleUnsubscribeRetry(channel);
   }
 
   /**
@@ -391,8 +532,10 @@ export class OHLCVService {
         count: channelCount,
       });
 
-      for (const [channel, entry] of this.#channels.entries()) {
+      for (const [channel, entry] of [...this.#channels.entries()]) {
         if (entry.refCount === 0) {
+          this.#clearChannelTimers(entry);
+          this.#channels.delete(channel);
           continue;
         }
 
@@ -534,9 +677,7 @@ export class OHLCVService {
    */
   destroy(): void {
     for (const entry of this.#channels.values()) {
-      if (entry.gracePeriodTimer) {
-        clearTimeout(entry.gracePeriodTimer);
-      }
+      this.#clearChannelTimers(entry);
     }
     this.#channels.clear();
     this.#chainsUp.clear();

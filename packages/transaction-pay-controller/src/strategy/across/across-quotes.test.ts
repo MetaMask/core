@@ -321,12 +321,14 @@ describe('Across Quotes', () => {
         json: async () => QUOTE_MOCK,
       } as Response);
 
-      await getAcrossQuotes({
+      const result = await getAcrossQuotes({
         accountSupports7702: true,
         messenger,
         requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
         transaction: TRANSACTION_META_MOCK,
       });
+
+      expect(result[0].isInputBased).toBe(true);
 
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;

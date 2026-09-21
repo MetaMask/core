@@ -7,7 +7,6 @@ import type {
 import {
   BatchSellTransactionType,
   FeatureId,
-  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -165,8 +164,9 @@ const mockQuotes = mockBatchSellErc20Erc20
       gasSponsored: undefined,
     },
   }))
-  .map((quote) =>
-    mergeQuoteMetadata(quote, {
+  .map((quote) => ({
+    ...quote,
+    ...{
       sentAmount: {
         usd: '100',
         valueInCurrency: '200',
@@ -175,8 +175,8 @@ const mockQuotes = mockBatchSellErc20Erc20
         usd: '101',
         valueInCurrency: '201',
       },
-    }),
-  );
+    },
+  }));
 const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
   chainId: 10,
   from: '0xaccount1',
@@ -318,6 +318,7 @@ describe('BridgeStatusController', () => {
                           chain_id_destination: 'eip155:10',
                           chain_id_source: 'eip155:10',
                           custom_slippage: false,
+                          destination_hash_present: false,
                           feature_id: FeatureId.BATCH_SELL,
                           gas_included: gasIncluded,
                           gas_included_7702: gasIncluded7702,
@@ -326,6 +327,8 @@ describe('BridgeStatusController', () => {
                           price_impact: 0,
                           provider: 'socket_across',
                           quoted_time_minutes: 1,
+                          slippage_limit: 0,
+                          source_hash_present: false,
                           stx_enabled: stxEnabled,
                           swap_type: 'single_chain',
                           token_address_destination:
@@ -550,6 +553,7 @@ describe('BridgeStatusController', () => {
                           chain_id_destination: 'eip155:10',
                           chain_id_source: 'eip155:10',
                           custom_slippage: true,
+                          destination_hash_present: false,
                           destination_transaction: 'PENDING',
                           gas_included: gasIncluded,
                           gas_included_7702: gasIncluded7702,
@@ -562,6 +566,7 @@ describe('BridgeStatusController', () => {
                           quoted_vs_used_gas_ratio: 0,
                           security_warnings: [],
                           slippage_limit: 0,
+                          source_hash_present: true,
                           source_transaction: 'COMPLETE',
                           stx_enabled: stxEnabled,
                           swap_type: 'single_chain',
@@ -628,8 +633,11 @@ describe('BridgeStatusController', () => {
                         chain_id_destination: 'eip155:10',
                         chain_id_source: 'eip155:10',
                         custom_slippage: true,
+                        destination_hash_present: false,
                         destination_transaction: 'FAILED',
+                        error_code: 'missing_error_object',
                         error_message: 'Transaction failed',
+                        failure_phase: 'source_execution',
                         feature_id: FeatureId.BATCH_SELL,
                         gas_included: gasIncluded,
                         gas_included_7702: gasIncluded7702,
@@ -644,6 +652,7 @@ describe('BridgeStatusController', () => {
                         quoted_vs_used_gas_ratio: 0,
                         security_warnings: [],
                         slippage_limit: 0,
+                        source_hash_present: true,
                         source_transaction: 'COMPLETE',
                         stx_enabled: stxEnabled,
                         swap_type: 'single_chain',
@@ -764,6 +773,7 @@ describe('BridgeStatusController', () => {
                 chain_id_destination: 'eip155:10',
                 chain_id_source: 'eip155:10',
                 custom_slippage: false,
+                destination_hash_present: false,
                 feature_id: FeatureId.BATCH_SELL,
                 gas_included: gasIncluded,
                 gas_included_7702: gasIncluded7702,
@@ -772,6 +782,8 @@ describe('BridgeStatusController', () => {
                 price_impact: 0,
                 provider: 'socket_across',
                 quoted_time_minutes: 1,
+                slippage_limit: 0,
+                source_hash_present: false,
                 stx_enabled: stxEnabled,
                 swap_type: 'single_chain',
                 token_address_destination:
@@ -805,8 +817,11 @@ describe('BridgeStatusController', () => {
                 chain_id_destination: 'eip155:10',
                 chain_id_source: 'eip155:10',
                 custom_slippage: false,
+                destination_hash_present: false,
+                error_code: 'unknown',
                 error_message:
                   'Failed to add BatchSell trade to history: txMeta not found',
+                failure_phase: 'broadcast',
                 feature_id: FeatureId.BATCH_SELL,
                 gas_included: false,
                 gas_included_7702: true,
@@ -815,6 +830,8 @@ describe('BridgeStatusController', () => {
                 price_impact: 0,
                 provider: 'socket_across',
                 quoted_time_minutes: 1,
+                slippage_limit: 0,
+                source_hash_present: false,
                 stx_enabled: false,
                 swap_type: 'single_chain',
                 token_address_destination:

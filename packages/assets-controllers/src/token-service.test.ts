@@ -2003,6 +2003,47 @@ describe('Token service', () => {
       expect(result).toStrictEqual(sampleRwasResponse);
     });
 
+    it('passes through offhours field when present in the response', async () => {
+      const responseWithOffhours = {
+        ...sampleRwasResponse,
+        data: [
+          {
+            ...sampleRwasResponse.data[0],
+            rwaData: {
+              ...sampleRwasResponse.data[0].rwaData,
+              offhours: {
+                nextOpen: '2026-08-08T00:05:00Z',
+                nextClose: '2026-08-09T23:55:00Z',
+              },
+            },
+          },
+        ],
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, responseWithOffhours)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result.data[0].rwaData.offhours).toStrictEqual({
+        nextOpen: '2026-08-08T00:05:00Z',
+        nextClose: '2026-08-09T23:55:00Z',
+      });
+    });
+
+    it('returns rwaData without offhours field when asset does not support off-hours trading', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result.data[0].rwaData.offhours).toBeUndefined();
+    });
+
     it('throws if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API).get('/v1/rwas?limit=100').reply(500);
 

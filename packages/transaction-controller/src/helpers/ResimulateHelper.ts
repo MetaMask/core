@@ -1,10 +1,10 @@
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 import { BN } from 'bn.js';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import { createModuleLogger, projectLogger } from '../logger.js';
-import { TransactionStatus } from '../types.js';
+import { TransactionContainerType, TransactionStatus } from '../types.js';
 import type {
   SimulationBalanceChange,
   SimulationData,
@@ -166,13 +166,24 @@ export function shouldResimulate(
     newTransactionMeta,
   );
 
+  const enforcedSimulationsUpdated =
+    originalTransactionMeta.containerTypes?.includes(
+      TransactionContainerType.EnforcedSimulations,
+    ) !==
+    newTransactionMeta.containerTypes?.includes(
+      TransactionContainerType.EnforcedSimulations,
+    );
+
   const valueAndNativeBalanceMismatch = hasValueAndNativeBalanceMismatch(
     originalTransactionMeta,
     newTransactionMeta,
   );
 
   const resimulate =
-    parametersUpdated || securityAlert || valueAndNativeBalanceMismatch;
+    parametersUpdated ||
+    securityAlert ||
+    enforcedSimulationsUpdated ||
+    valueAndNativeBalanceMismatch;
 
   let blockTime: number | undefined;
 
@@ -187,6 +198,7 @@ export function shouldResimulate(
       blockTime,
       parametersUpdated,
       securityAlert,
+      enforcedSimulationsUpdated,
       valueAndNativeBalanceMismatch,
     });
   }

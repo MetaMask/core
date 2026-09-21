@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "resolveJsonModule": true
   },
   "references": [
@@ -37,6 +36,9 @@
     },
     {
       "path": "../keyring-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./test"]

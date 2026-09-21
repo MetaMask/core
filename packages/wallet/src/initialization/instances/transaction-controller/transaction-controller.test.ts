@@ -57,6 +57,7 @@ describe('transactionController', () => {
 
     expect(instance).toBeInstanceOf(TransactionController);
     expect(rootMessenger.call('TransactionController:getState')).toStrictEqual({
+      batchTransactionCounts: {},
       methodData: {},
       transactions: [],
       transactionBatches: [],
@@ -125,6 +126,7 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    subscriptionController: {},
   };
 }
 

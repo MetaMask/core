@@ -138,7 +138,10 @@ export function mapKeyringTransaction({
 
   switch (type) {
     case KeyringTransactionType.Send: {
-      const fromToken = getToken(transaction.from, 'out');
+      const fromSubject = subjectAddress
+        ? transaction.from.filter(({ address }) => address === subjectAddress)
+        : transaction.from;
+      const fromToken = getToken(fromSubject, 'out');
       const token =
         !fromToken && chainId.startsWith('bip122:')
           ? getToken(transaction.to, 'out')

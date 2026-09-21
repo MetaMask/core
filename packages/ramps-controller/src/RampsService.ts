@@ -7,6 +7,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
+import type { RampsClientIdentity } from './client-identity.js';
+import { addRampsClientIdentityParams } from './client-identity.js';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
@@ -124,6 +126,22 @@ export type Provider = {
   supportedFiatCurrencies?: Record<string, boolean>;
   supportedPaymentMethods?: Record<string, boolean>;
   limits?: ProviderLimits;
+};
+
+/**
+ * Backend-defined ordering for providers.
+ */
+export type ProviderSortOrder = {
+  sortBy: string;
+  ids: string[];
+};
+
+/**
+ * Response from the region providers API.
+ */
+export type ProvidersResponse = {
+  providers: Provider[];
+  sorted?: ProviderSortOrder[];
 };
 
 /**
@@ -630,6 +648,12 @@ export type RampsOrder = {
   partnerFees?: number;
   networkFees?: number;
   paymentDetails?: OrderPaymentDetail[];
+  /**
+   * Last-updated timestamp used by User Storage order sync for LWW conflict
+   * resolution. Set locally by {@link RampsController}; not returned by the V2
+   * ramps API.
+   */
+  lastUpdatedAt?: number;
 };
 
 /**
@@ -672,6 +696,7 @@ export enum RampsApiService {
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getDefaultRedirectCallbackUrl',
   'getGeolocation',
   'getCountries',
   'getTokens',
@@ -744,6 +769,53 @@ function getBaseUrl(
       return `https://on-ramp${cache}.dev-api.cx.metamask.io`;
     case RampsEnvironment.Local:
       return 'http://localhost:3000';
+    default:
+      throw new Error(`Invalid environment: ${String(environment)}`);
+  }
+}
+
+/**
+ * The path served by the ramps content host that redirects back into the
+ * client once a non-native provider's widget flow completes.
+ */
+const FAKE_CALLBACK_PATH = '/regions/fake-callback';
+
+/**
+ * Derives the default redirect ("fake callback") URL for the widened Headless
+ * Buy quote fetch from the ramps environment.
+ *
+ * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+ * non-native provider needs) when a `redirectUrl` is present, so the widened
+ * aggregator path supplies this default when the caller omits one. Production
+ * and staging serve the callback from the `on-ramp-content` CDN hosts;
+ * development has no `on-ramp-content.dev-api` deployment, so it uses the
+ * `on-ramp.dev-api` host (which serves `/regions/fake-callback` and returns
+ * 200). This intentionally does not reuse {@link getBaseUrl}, whose Regions
+ * host is `on-ramp{-cache}`, not `on-ramp-content`.
+ *
+ * This is the canonical environment-to-callback map for the whole package.
+ * Prefer the `RampsService:getDefaultRedirectCallbackUrl` messenger action at
+ * runtime so the value always follows the environment the service is actually
+ * configured with. Call this function directly only where a synchronous,
+ * messenger-free value is needed (for example client UI that matches the
+ * callback URL in a WebView), and pass the same environment the service was
+ * constructed with.
+ *
+ * @param environment - The environment to derive the callback URL for.
+ * @returns The default redirect callback URL for that environment.
+ */
+export function getDefaultRedirectCallbackUrl(
+  environment: RampsEnvironment,
+): string {
+  switch (environment) {
+    case RampsEnvironment.Production:
+      return `https://on-ramp-content.api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Staging:
+      return `https://on-ramp-content.uat-api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp.dev-api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Local:
+      return `http://localhost:3000${FAKE_CALLBACK_PATH}`;
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
@@ -842,6 +914,8 @@ export class RampsService {
    */
   readonly #baseUrlOverride?: string;
 
+  readonly #clientIdentity: RampsClientIdentity;
+
   /**
    * Constructs a new RampsService object.
    *
@@ -856,6 +930,8 @@ export class RampsService {
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    * @param args.baseUrlOverride - Optional base URL override for local development.
+   * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
+   * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
    */
   constructor({
     messenger,
@@ -864,6 +940,8 @@ export class RampsService {
     fetch: fetchFunction,
     policyOptions = {},
     baseUrlOverride,
+    clientProduct,
+    clientVersion,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
@@ -871,6 +949,8 @@ export class RampsService {
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
     baseUrlOverride?: string;
+    clientProduct?: string;
+    clientVersion?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -879,6 +959,10 @@ export class RampsService {
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
+    this.#clientIdentity = {
+      clientProduct,
+      clientVersion,
+    };
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -897,6 +981,36 @@ export class RampsService {
       return this.#baseUrlOverride;
     }
     return getBaseUrl(this.#environment, service);
+  }
+
+  /**
+   * Returns the default redirect ("fake callback") URL for this service's
+   * environment.
+   *
+   * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+   * non-native provider needs) when a `redirectUrl` is present, so callers
+   * that omit one (MM Pay's widened Headless Buy fetch) use this value.
+   * Exposing it here makes the service's environment the single runtime source
+   * of truth, so the callback can never point at a different environment than
+   * the one the quotes themselves came from.
+   *
+   * `baseUrlOverride` deliberately does not apply. That option overrides the
+   * ramps API base URL for local development. In production and staging the
+   * callback lives on a different host (`on-ramp-content` versus
+   * `on-ramp{-cache}`), so an API override says nothing about where
+   * `/regions/fake-callback` lives. In development the callback already shares
+   * the API host family (`on-ramp.dev-api`). The redirect URL is also handed
+   * to the provider and matched by client UI to detect flow completion, so
+   * returning an unrelated local API origin here would break completion
+   * detection rather than help it. Point `environment` at
+   * {@link RampsEnvironment.Local} for a localhost callback, noting that URL
+   * is pinned to `http://localhost:3000` and does not follow a non-3000
+   * `baseUrlOverride`.
+   *
+   * @returns The default redirect callback URL for the configured environment.
+   */
+  getDefaultRedirectCallbackUrl(): string {
+    return getDefaultRedirectCallbackUrl(this.#environment);
   }
 
   /**
@@ -984,6 +1098,9 @@ export class RampsService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
+    addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
   /**
@@ -1153,7 +1270,7 @@ export class RampsService {
       crypto?: string | string[];
       payments?: string | string[];
     },
-  ): Promise<{ providers: Provider[] }> {
+  ): Promise<ProvidersResponse> {
     const normalizedRegion = regionCode.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/providers`),
@@ -1190,7 +1307,7 @@ export class RampsService {
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
         );
       }
-      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+      return fetchResponse.json() as Promise<Partial<ProvidersResponse>>;
     });
 
     if (!response || typeof response !== 'object') {
@@ -1201,7 +1318,10 @@ export class RampsService {
       throw new Error('Malformed response received from providers API');
     }
 
-    return response;
+    return {
+      providers: response.providers,
+      sorted: Array.isArray(response.sorted) ? response.sorted : [],
+    };
   }
 
   /**

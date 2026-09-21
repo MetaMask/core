@@ -1,6 +1,18 @@
 import type { ValueTransfer as _ValueTransfer } from '@metamask/core-backend';
 import type { CaipChainId } from '@metamask/utils';
 
+export type PerpsOrderKind =
+  | 'marketShort'
+  | 'stopMarketCloseShort'
+  | 'marketCloseShort'
+  | 'limitShort'
+  | 'limitCloseShort'
+  | 'marketLong'
+  | 'stopMarketCloseLong'
+  | 'marketCloseLong'
+  | 'limitLong'
+  | 'limitCloseLong';
+
 export type ActivityKind =
   | 'receive'
   | 'sell'
@@ -25,6 +37,8 @@ export type ActivityKind =
   | 'smartAccountUpgrade'
   | 'lendingDeposit'
   | 'lendingWithdrawal'
+  | 'stake'
+  | 'unstake'
   | 'predictionsAddFunds'
   | 'predictionsWithdrawFunds'
   | 'predictionClaimWinnings'
@@ -44,9 +58,7 @@ export type ActivityKind =
   | 'perpsReceivedFundingFees'
   | 'perpsCloseShortTakeProfit'
   | 'perpsCloseLongTakeProfit'
-  | 'marketShort'
-  | 'stopMarketCloseShort'
-  | 'marketCloseShort'
+  | PerpsOrderKind
   | 'assetActivation'
   | 'assetDeactivation'
   | 'rampBuy'
@@ -165,6 +177,39 @@ export type ActivityItem =
       }
     >
   | ActivityData<
+      | 'stake'
+      | 'unstake'
+      | 'sell'
+      | 'contractDeployment'
+      | 'smartAccountUpgrade'
+      | 'predictionsAddFunds'
+      | 'predictionsWithdrawFunds'
+      | 'predictionClaimWinnings'
+      | 'predictionCashedOut'
+      | 'predictionPlaced'
+      | 'perpsOpenLong'
+      | 'perpsCloseLong'
+      | 'perpsCloseLongLiquidated'
+      | 'perpsCloseLongStopLoss'
+      | 'perpsOpenShort'
+      | 'perpsCloseShort'
+      | 'perpsCloseShortLiquidated'
+      | 'perpsCloseShortStopLoss'
+      | 'perpsPaidFundingFees'
+      | 'perpsReceivedFundingFees'
+      | 'perpsCloseShortTakeProfit'
+      | 'perpsCloseLongTakeProfit'
+      | PerpsOrderKind,
+      {
+        from?: string;
+        to?: string;
+        token?: TokenAmount;
+        sourceToken?: TokenAmount;
+        destinationToken?: TokenAmount;
+        fees?: Fee[];
+      }
+    >
+  | ActivityData<
       'contractInteraction',
       {
         from: string;
@@ -176,34 +221,26 @@ export type ActivityItem =
         transactionProtocol?: string;
       }
     >
-  | (Omit<
-      ActivityData<
-        'rampBuy' | 'rampSell',
-        {
-          from?: string;
-          fiat?: FiatAmount;
-          token?: TokenAmount;
-          fees?: Fee[];
-          provider?: {
-            id?: string;
-            name?: string;
-            orderLink?: string;
-          };
-          statusDescription?: string;
-          paymentDetails?: RampOrderPaymentDetail[];
-          // Stable identifier for orders that may not have a hash yet (e.g. a
-          // ramp order pending fiat settlement, where `hash` is empty until it
-          // settles on-chain). Lives in `data` as a ramp-specific property.
+  | ActivityData<
+      'rampBuy' | 'rampSell',
+      {
+        from?: string;
+        fiat?: FiatAmount;
+        token?: TokenAmount;
+        fees?: Fee[];
+        provider?: {
           id?: string;
-        }
-      >,
-      'chainId'
-    > & {
-      // Precreated stub orders (see `RampsController.addPrecreatedOrder`) may
-      // not have an assigned network yet, so unlike every other activity
-      // kind, a ramp order's chain id isn't guaranteed.
-      chainId?: CaipChainId;
-    });
+          name?: string;
+          orderLink?: string;
+        };
+        statusDescription?: string;
+        paymentDetails?: RampOrderPaymentDetail[];
+        // Stable identifier for orders that may not have a hash yet (e.g. a
+        // ramp order pending fiat settlement, where `hash` is empty until it
+        // settles on-chain). Lives in `data` as a ramp-specific property.
+        id?: string;
+      }
+    >;
 
 // Note: Update core-backend
 export type ValueTransfer = _ValueTransfer & {

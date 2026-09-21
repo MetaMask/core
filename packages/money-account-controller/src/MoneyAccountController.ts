@@ -210,7 +210,6 @@ export class MoneyAccountController extends BaseController<
         exportable: false,
       },
       methods: [
-        EthMethod.SignTransaction,
         EthMethod.PersonalSign,
         EthMethod.SignTypedDataV1,
         EthMethod.SignTypedDataV3,

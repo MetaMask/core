@@ -3,6 +3,9 @@ export type {
   LogSignatureRequest,
   LogTransactionRequest,
   NormalizeSignatureRequestFn,
+  CheckCoverageRequest,
+  CheckSignatureCoverageRequest,
+  CoverageResult,
 } from './types.js';
 export type {
   ShieldControllerActions,
@@ -24,4 +27,24 @@ export {
   ShieldController,
   getDefaultShieldControllerState,
 } from './ShieldController.js';
-export { ShieldRemoteBackend, parseSignatureRequestMethod } from './backend.js';
+export {
+  ShieldApiService,
+  serviceName,
+  makeInitCoverageCheckBody,
+  parseSignatureRequestMethod,
+} from './shield-api-service.js';
+export type {
+  ShieldApiServiceMessenger,
+  ShieldApiServiceActions,
+  ShieldApiServiceEvents,
+  ShieldApiServiceInvalidateQueriesAction,
+  ShieldApiServiceCacheUpdatedEvent,
+  ShieldApiServiceGranularCacheUpdatedEvent,
+} from './shield-api-service.js';
+export type {
+  ShieldApiServiceCheckCoverageAction,
+  ShieldApiServiceCheckSignatureCoverageAction,
+  ShieldApiServiceLogSignatureAction,
+  ShieldApiServiceLogTransactionAction,
+} from './shield-api-service-method-action-types.js';
+export { Env, SHIELD_API_URL_MAP, getShieldApiBaseUrl } from './constants.js';

@@ -1,14 +1,14 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../analytics-controller"
     },
     {
       "path": "../base-controller"
+    },
+    {
+      "path": "../config-registry-controller"
     },
     {
       "path": "../messenger"
@@ -24,6 +24,9 @@
     },
     {
       "path": "../foundryup"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./bin", "./src", "./tests"]

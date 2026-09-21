@@ -346,6 +346,8 @@ export class EarnController extends BaseController<
 
   #initPromise: Promise<void> | null = null;
 
+  #lastRefreshedAddress: string | undefined;
+
   readonly #earnApiService: EarnApiService;
 
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
@@ -382,7 +384,12 @@ export class EarnController extends BaseController<
     // temporary array of supported chains
     // TODO: remove this once we export a supported chains list from the sdk
     // from sdk or api to get lending and pooled staking chains
-    this.#supportedPooledStakingChains = [ChainId.ETHEREUM, ChainId.HOODI];
+    //
+    // Only eagerly prefetch Ethereum on startup/network-change; Hoodi
+    // (testnet) is still fully supported on-demand via explicit chainId
+    // calls (e.g. refreshPooledStakes({ chainId: ChainId.HOODI })), we just
+    // don't unconditionally fetch it for every user on every unlock.
+    this.#supportedPooledStakingChains = [ChainId.ETHEREUM];
 
     this.#addTransactionFn = addTransactionFn;
 
@@ -416,6 +423,15 @@ export class EarnController extends BaseController<
       'AccountTreeController:selectedAccountGroupChange',
       () => {
         const address = this.#getSelectedEvmAccountAddress();
+
+        // Skip if this account group change didn't actually change the
+        // resolved address (e.g. it can fire again right after init()
+        // during startup hydration) - nothing new to fetch.
+        if (!address || address === this.#lastRefreshedAddress) {
+          return;
+        }
+
+        this.#lastRefreshedAddress = address;
 
         // TODO: temp solution, this will refresh lending eligibility also
         // we could have a more general check, as what is happening is a compliance address check
@@ -461,6 +477,7 @@ export class EarnController extends BaseController<
   }
 
   #refreshEarnPortfolio(address: string): void {
+    this.#lastRefreshedAddress = address;
     this.refreshEarnEligibility({ address }).catch(console.error);
     this.refreshPooledStakingData({ address }).catch(console.error);
     this.refreshLendingData().catch(console.error);

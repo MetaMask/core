@@ -195,7 +195,6 @@ export function shouldSupportChain(
   if (!namespace) {
     return true;
   }
-
   const stage = parseSnapsAssetsMigrationStage(
     remoteFeatureFlags?.[SNAPS_ASSETS_MIGRATION_FLAG_KEYS[namespace]],
   );

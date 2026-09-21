@@ -11,6 +11,7 @@ import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { AutorampStatus } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
@@ -21,7 +22,9 @@ import type {
 import {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
 } from './RampsController.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
@@ -63,18 +66,27 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
+
+/**
+ * The default redirect ("fake callback") URL a staging `RampsService` returns.
+ * Written out in full so the tests pin the exact host the widened quote path
+ * forwards, rather than re-deriving it from the code under test.
+ */
+const STAGING_REDIRECT_CALLBACK_URL =
+  'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback';
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
     'Execution prevented because the circuit breaker is open';
 
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
-    it('includes every RampsService action that RampsController calls', async () => {
+    it('includes every RampsService, TransakService, and NeoBankService action that RampsController calls', async () => {
       expect.hasAssertions();
       const controllerPath = path.join(__dirname, 'RampsController.ts');
       const source = await fs.promises.readFile(controllerPath, 'utf-8');
       const callPattern =
-        /messenger\.call\s*\(\s*['"]((RampsService|TransakService):[^'"]+)['"]/gu;
+        /messenger\.call\s*\(\s*['"]((RampsService|TransakService|NeoBankService):[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
       let match: RegExpExecArray | null;
       while ((match = callPattern.exec(source)) !== null) {
@@ -90,11 +102,46 @@ describe('RampsController', () => {
     });
   });
 
+  describe('RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS', () => {
+    it('includes every external controller action that ramps order code calls', async () => {
+      expect.hasAssertions();
+      const sourcePaths = [
+        path.join(__dirname, 'RampsController.ts'),
+        path.join(__dirname, 'order-syncing/controller-integration.ts'),
+        path.join(__dirname, 'order-syncing/sync-utils.ts'),
+      ];
+      const sources = await Promise.all(
+        sourcePaths.map((sourcePath) =>
+          fs.promises.readFile(sourcePath, 'utf-8'),
+        ),
+      );
+      const callPattern =
+        /(?:messenger|getMessenger\(\))\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
+      const calledActions = new Set<string>();
+      for (const source of sources) {
+        let match: RegExpExecArray | null;
+        while ((match = callPattern.exec(source)) !== null) {
+          if (!match[1].startsWith('RampsController:')) {
+            calledActions.add(match[1]);
+          }
+        }
+      }
+      const requiredSet = new Set(
+        RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS as readonly string[],
+      );
+      const missing = [...calledActions].filter((a) => !requiredSet.has(a));
+      const extra = [...requiredSet].filter((a) => !calledActions.has(a));
+      expect(missing).toHaveLength(0);
+      expect(extra).toHaveLength(0);
+    });
+  });
+
   describe('constructor', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -171,6 +218,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -389,6 +437,345 @@ describe('RampsController', () => {
         );
 
         expect(order).toStrictEqual(mockOrder);
+      });
+    });
+  });
+
+  describe('getQuoteWithFees', () => {
+    const GQF_ASSET_ID = 'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b';
+    const GQF_NETWORK = 'eip155:143';
+    const GQF_PAYMENT_METHOD = '/payments/debit-credit-card';
+    const GQF_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
+
+    /**
+     * Builds a single-quote `QuotesResponse` for the given provider and fees.
+     *
+     * @param provider - Provider id for the quote.
+     * @param fees - Optional provider/network fee overrides.
+     * @param fees.providerFee - Provider fee on the quote.
+     * @param fees.networkFee - Network fee on the quote.
+     * @returns A quotes response with a single success quote.
+     */
+    function buildQuotesResponse(
+      provider: string,
+      fees: { providerFee?: number; networkFee?: number } = {},
+    ): QuotesResponse {
+      return {
+        success: [
+          {
+            provider,
+            quote: {
+              amountIn: 15,
+              amountOut: 14.25,
+              amountOutInFiat: 14.3,
+              networkFee: fees.networkFee ?? 0.2,
+              paymentMethod: GQF_PAYMENT_METHOD,
+              providerFee: fees.providerFee ?? 0.5,
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+    }
+
+    /**
+     * Calls `RampsController:getQuoteWithFees` with default MM Pay-style options.
+     *
+     * @param messenger - The restricted controller messenger.
+     * @param overrides - Option overrides.
+     * @param overrides.isFeeExcludedFromFiat - Fee mode override.
+     * @param overrides.providers - Explicit provider ids override.
+     * @returns The reconciled quote, or undefined.
+     */
+    async function callGetQuoteWithFees(
+      messenger: RampsControllerMessenger,
+      overrides: { isFeeExcludedFromFiat?: boolean; providers?: string[] } = {},
+    ): Promise<Quote | undefined> {
+      return messenger.call('RampsController:getQuoteWithFees', {
+        amount: 15,
+        assetId: GQF_ASSET_ID,
+        fiat: 'USD',
+        paymentMethods: [GQF_PAYMENT_METHOD],
+        providers: ['/providers/transak-native'],
+        region: 'US',
+        walletAddress: GQF_WALLET,
+        ...overrides,
+      });
+    }
+
+    it('reconciles a Transak Native quote to the native total fee and keeps the network split', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        // Native total 0.9: aggregator network fee (0.2) stays on the network
+        // line, the remainder (0.7) goes to the provider fee, and the total is
+        // the native total.
+        expect(quote?.quote.providerFee).toBe('0.7');
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.totalFees).toBe('0.9');
+      });
+    });
+
+    it('clamps the network split when the native total is below the aggregator network fee', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () =>
+            buildQuotesResponse('/providers/transak-native', { networkFee: 1 }),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.3 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.networkFee).toBe('0.3');
+        expect(quote?.quote.providerFee).toBe('0');
+        expect(quote?.quote.totalFees).toBe('0.3');
+      });
+    });
+
+    it('requests the native quote in fee-on-top mode by default', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          GQF_PAYMENT_METHOD,
+          '15',
+          true,
+        );
+      });
+    });
+
+    it('forwards a fee-inclusive request when isFeeExcludedFromFiat is false', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger, { isFeeExcludedFromFiat: false });
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          GQF_PAYMENT_METHOD,
+          '15',
+          false,
+        );
+      });
+    });
+
+    it('uses the resolved quote payment method for the native lookup, not the request list', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        const quotesResponse = buildQuotesResponse('/providers/transak-native');
+        // The aggregator priced a method other than the caller's list head.
+        quotesResponse.success[0].quote.paymentMethod =
+          '/payments/sepa-bank-transfer';
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => quotesResponse,
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          '/payments/sepa-bank-transfer',
+          '15',
+          true,
+        );
+      });
+    });
+
+    it('leaves a non-native quote unchanged and does not fetch a native quote', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/moonpay'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/moonpay'],
+        });
+
+        expect(getBuyQuote).not.toHaveBeenCalled();
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('falls back to the aggregator quote when the native lookup fails', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => {
+            throw new Error('native lookup failed');
+          },
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('falls back to the aggregator quote when the native fee is unusable', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: -1 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('returns undefined when no quote is available', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => ({
+            success: [],
+            sorted: [],
+            error: [],
+            customActions: [],
+          }),
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote).toBeUndefined();
+      });
+    });
+
+    it('does not write the shared Unified Buy native buy-quote state', async () => {
+      await withController(async ({ controller, messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const before = JSON.parse(
+          JSON.stringify(controller.state.nativeProviders.transak.buyQuote),
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        // The native lookup must use the stateless `TransakService:getBuyQuote`,
+        // not the stateful `transakGetBuyQuote`, so Unified Buy's shared
+        // buy-quote resource is left untouched.
+        expect(controller.state.nativeProviders.transak.buyQuote).toStrictEqual(
+          before,
+        );
+      });
+    });
+
+    it('does not treat the aggregator Transak provider as native', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/transak'],
+        });
+
+        expect(getBuyQuote).not.toHaveBeenCalled();
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('puts the whole native total on the network line when it equals the aggregator network fee', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () =>
+            buildQuotesResponse('/providers/transak-native', {
+              networkFee: 0.2,
+            }),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.2 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.providerFee).toBe('0');
+        expect(quote?.quote.totalFees).toBe('0.2');
       });
     });
   });
@@ -1387,24 +1774,24 @@ describe('RampsController', () => {
       );
     });
 
-    it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
+    it("forwards the service's default redirectUrl on the widened path when the caller omits one", async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
 
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1416,32 +1803,108 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The caller omitted redirectUrl, so the widened path supplies the
-          // injected default and forwards it to the service.
-          expect(forwardedRedirectUrl).toBe(DEFAULT_REDIRECT);
+          // The caller omitted redirectUrl, so the widened path asks the
+          // service for the callback URL of its environment and forwards it.
+          expect(getDefaultRedirectCallbackUrlSpy).toHaveBeenCalledTimes(1);
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+          );
         },
       );
     });
 
-    it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
+    it('rejects the entire getQuotes call when the default-redirect service action is not delegated', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
-      const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
 
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
+          // Simulate a host that upgraded without adding the new action to
+          // its hand-written messenger delegation list.
+          rootMessenger.unregisterActionHandler(
+            'RampsService:getDefaultRedirectCallbackUrl',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          await expect(callScopedGetQuotes(messenger)).rejects.toThrow(
+            /A handler for RampsService:getDefaultRedirectCallbackUrl has not been (registered|delegated)/u,
+          );
+        },
+      );
+    });
+
+    it('forwards whichever callback URL the service reports, without rederiving it', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          spyOnDefaultRedirectCallbackUrl(
+            rootMessenger,
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // A production service reports the production host, and the
+          // controller passes it through untouched.
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+        },
+      );
+    });
+
+    it('prefers an explicit caller redirectUrl and never asks the service on the widened path', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+      const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1455,26 +1918,24 @@ describe('RampsController', () => {
             redirectUrl: EXPLICIT_REDIRECT,
           });
 
-          // An explicit caller redirectUrl always wins; the default is not
-          // applied.
+          // An explicit caller redirectUrl always wins, and the controller
+          // short-circuits before reaching the service.
           expect(forwardedRedirectUrl).toBe(EXPLICIT_REDIRECT);
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not inject the default redirectUrl when the flag is disabled', async () => {
+    it('does not inject the default redirectUrl or ask the service when the flag is disabled', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
-
       await withController(
         {
           options: {
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(NATIVE, 'native')]),
           },
         },
@@ -1484,6 +1945,8 @@ describe('RampsController', () => {
               [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
             },
           });
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1495,46 +1958,10 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The disabled flag never widens, so the default is not injected
-          // even when a `getDefaultRedirectUrl` callback is present.
+          // The disabled flag never widens, so nothing is injected and the
+          // service is not consulted.
           expect(forwardedRedirectUrl).toBeUndefined();
-        },
-      );
-    });
-
-    it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
-      const response: QuotesResponse = {
-        success: [appBrowserQuote(MOONPAY, 90)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
-        error: [],
-        customActions: [],
-      };
-
-      await withController(
-        {
-          options: {
-            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          registerFeatureFlagState(rootMessenger);
-          let forwardedRedirectUrl: string | undefined;
-          let redirectUrlWasSeen = false;
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async (params: { redirectUrl?: string }) => {
-              forwardedRedirectUrl = params.redirectUrl;
-              redirectUrlWasSeen = true;
-              return response;
-            },
-          );
-
-          await callScopedGetQuotes(messenger);
-
-          // With no injected callback, the constructor default returns
-          // undefined, so the widened path forwards undefined.
-          expect(redirectUrlWasSeen).toBe(true);
-          expect(forwardedRedirectUrl).toBeUndefined();
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1795,7 +2222,10 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async (_regionCode: string) => ({
+            providers: mockProviders,
+            sorted: [{ sortBy: '1', ids: mockProviders.map(({ id }) => id) }],
+          }),
         );
 
         expect(controller.state.providers.data).toStrictEqual([]);
@@ -1806,7 +2236,11 @@ describe('RampsController', () => {
         );
 
         expect(result.providers).toStrictEqual(mockProviders);
+        expect(result.sorted).toStrictEqual([
+          { sortBy: '1', ids: mockProviders.map(({ id }) => id) },
+        ]);
         expect(controller.state.providers.data).toStrictEqual(mockProviders);
+        expect(controller.state.providers).not.toHaveProperty('sorted');
       });
     });
 
@@ -1814,7 +2248,10 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async (_regionCode: string) => ({
+            providers: mockProviders,
+            sorted: [],
+          }),
         );
 
         await rootMessenger.call('RampsController:getProviders', 'us-ca');
@@ -1836,7 +2273,10 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async (_regionCode: string) => ({
+            providers: mockProviders,
+            sorted: [],
+          }),
         );
 
         await rootMessenger.call('RampsController:getProviders', 'us-ca');
@@ -1852,7 +2292,7 @@ describe('RampsController', () => {
           'RampsService:getProviders',
           async (_regionCode: string) => {
             callCount += 1;
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -1871,7 +2311,7 @@ describe('RampsController', () => {
           async (regionCode: string) => {
             callCount += 1;
             expect(regionCode).toBe('us-ca');
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -1889,7 +2329,7 @@ describe('RampsController', () => {
           'RampsService:getProviders',
           async (_regionCode: string) => {
             callCount += 1;
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -1915,7 +2355,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               receivedRegion = regionCode;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -1941,7 +2381,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               receivedRegion = regionCode;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -1966,7 +2406,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               expect(regionCode).toBe('us-ca');
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2012,7 +2452,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               expect(regionCode).toBe('fr');
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2050,7 +2490,7 @@ describe('RampsController', () => {
             },
           ) => {
             receivedOptions = options;
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -2094,7 +2534,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async () => {
               serviceCalled = true;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2125,7 +2565,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async () => {
               serviceCalled = true;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2150,6 +2590,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -2216,6 +2657,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -2258,6 +2700,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
@@ -2276,6 +2719,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -5057,6 +5501,300 @@ describe('RampsController', () => {
     });
   });
 
+  describe('setSelectedProviderForAsset', () => {
+    const ASSET_ID =
+      'eip155:143/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
+
+    const makeProvider = (id: string, assetIds: string[] = []): Provider => ({
+      id,
+      name: id,
+      environmentType: 'PRODUCTION' as const,
+      description: '',
+      hqAddress: '',
+      links: [],
+      logos: { light: '', dark: '', height: 0, width: 0 },
+      supportedCryptoCurrencies: Object.fromEntries(
+        assetIds.map((a) => [a.toLowerCase(), true]),
+      ),
+    });
+
+    it('switches to the first compatible provider when the selected one does not support the asset', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('does not switch when the selected provider already supports the asset', async () => {
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([compatible], compatible),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('does not switch when no provider supports the asset', async () => {
+      const a = makeProvider('/providers/coinbase');
+      const b = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([a, b], a),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(a);
+        },
+      );
+    });
+
+    it('returns false and does not switch when providers.data is empty', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('switches to a compatible provider when nothing is selected yet', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([incompatible, compatible], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('does not select the currently selected provider as its own replacement', async () => {
+      const provider = makeProvider('/providers/transak-native');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([provider], provider),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+        },
+      );
+    });
+
+    it('does not re-select the current provider when its data-list entry serves the asset but the selected copy does not', async () => {
+      // Simulates a stale-selected-copy scenario: providers.selected has empty
+      // assets while providers.data holds the fresh version of the same provider
+      // with the asset now included. The fresh entry is what decides
+      // compatibility, so there is no spurious self-switch.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([selectedFresh], selectedStale),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('does not switch away when the current provider data-list entry serves the asset and another provider serves it too', async () => {
+      // Same stale-selected-copy scenario, but with a second compatible
+      // provider available: the fresh entry for the current provider must win
+      // over the stale selected copy, so no switch happens.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+      const other = makeProvider('/providers/moonpay', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [selectedFresh, other],
+                selectedStale,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('matches the asset case-insensitively (API key lowercase, caller assetId checksummed)', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      // The providers API returns lowercase keys; the caller passes checksummed assetId.
+      const compatible: Provider = {
+        ...makeProvider('/providers/transak-native'),
+        supportedCryptoCurrencies: { [ASSET_ID.toLowerCase()]: true },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('forwards autoSelected option to setSelectedProvider', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.setSelectedProviderForAsset(ASSET_ID, {
+            autoSelected: false,
+          });
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('is callable via the RampsController:setSelectedProviderForAsset messenger action', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          const result = rootMessenger.call(
+            'RampsController:setSelectedProviderForAsset',
+            ASSET_ID,
+          );
+
+          expect(result).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+  });
+
   describe('setSelectedToken', () => {
     const mockToken: RampsToken = {
       assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -6641,6 +7379,426 @@ describe('RampsController', () => {
           expect(controller.state.paymentMethods.data).toStrictEqual(
             newPaymentMethods,
           );
+        },
+      );
+    });
+  });
+
+  describe('getPaymentMethodsForContext', () => {
+    const DEPOSIT_ASSET = 'eip155:1/erc20:0xmusd';
+    const BUY_ASSET = 'eip155:1/slip44:60';
+    const NATIVE = '/providers/transak-native';
+    const MOONPAY = '/providers/moonpay';
+    const REVOLUT = '/providers/revolut';
+
+    // A Buy-scoped method. TRAM-3838: it must never surface for a deposit
+    // asset, on any provider-resolution path.
+    const buyOnlyMethod: PaymentMethod = {
+      id: '/payments/revolut-pay',
+      paymentType: 'revolut-pay',
+      name: 'Revolut Pay',
+      score: 50,
+      icon: 'revolut',
+    };
+    const cardMethod: PaymentMethod = {
+      id: '/payments/debit-credit-card',
+      paymentType: 'debit-credit-card',
+      name: 'Card',
+      score: 90,
+      icon: 'card',
+    };
+    // Stands in for a pre-existing Buy catalog selection.
+    const buySelectedMethod: PaymentMethod = {
+      id: '/payments/buy-selected',
+      paymentType: 'buy-selected',
+      name: 'Buy Selected',
+      score: 1,
+      icon: 'buy',
+    };
+
+    const depositToken: RampsToken = {
+      assetId: 'eip155:1/erc20:0xMUSD',
+      chainId: 'eip155:1',
+      name: 'Deposit Token',
+      symbol: 'DEP',
+      decimals: 18,
+      iconUrl: 'https://example.com/deposit.png',
+      tokenSupported: true,
+    };
+    const tokenCatalog: TokensResponse = {
+      topTokens: [depositToken],
+      allTokens: [depositToken, { ...depositToken, assetId: BUY_ASSET }],
+    };
+
+    const buildProvider = (
+      id: string,
+      type: 'native' | 'aggregator',
+      assets: string[],
+    ): Provider =>
+      createMockProvider({
+        id,
+        name: id,
+        type,
+        supportedCryptoCurrencies: Object.fromEntries(
+          assets.map((assetId) => [assetId, true]),
+        ),
+      });
+
+    const native = buildProvider(NATIVE, 'native', [DEPOSIT_ASSET]);
+    const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+    const revolut = buildProvider(REVOLUT, 'aggregator', [DEPOSIT_ASSET]);
+    const moonpayBuyOnly = buildProvider(MOONPAY, 'aggregator', [BUY_ASSET]);
+    const revolutBuyOnly = buildProvider(REVOLUT, 'aggregator', [BUY_ASSET]);
+
+    type ContextOverrides = {
+      regionCode?: string | null;
+      countries?: boolean;
+      selectedToken?: RampsToken | null;
+      providers?: Provider[];
+      selectedProvider?: Provider | null;
+    };
+
+    // Region, selected token and selected provider all match the context the
+    // tests request, so a test names only the field it varies.
+    const withContext = async (
+      {
+        regionCode = 'us-ca',
+        countries = false,
+        selectedToken = depositToken,
+        providers = [],
+        selectedProvider = null,
+      }: ContextOverrides,
+      testFunction: WithControllerCallback<void>,
+    ): Promise<void> =>
+      withController(
+        {
+          options: {
+            state: {
+              ...(countries && {
+                countries: createResourceState(createMockCountries()),
+              }),
+              ...(regionCode !== null && {
+                userRegion: { ...createMockUserRegion('us-ca'), regionCode },
+              }),
+              tokens: createResourceState(tokenCatalog, selectedToken),
+              providers: createResourceState(providers, selectedProvider),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        testFunction,
+      );
+
+    // Answers immediately and records the provider id of every request.
+    const stubPaymentMethods = (
+      rootMessenger: RootMessenger,
+      byProvider: (providerId: string) => PaymentMethod[] = () => [cardMethod],
+    ): string[] => {
+      const requested: string[] = [];
+      rootMessenger.registerActionHandler(
+        'RampsService:getPaymentMethods',
+        async (params: { provider?: string }) => {
+          requested.push(params.provider ?? '');
+          return { payments: byProvider(params.provider ?? '') };
+        },
+      );
+      return requested;
+    };
+
+    // Holds every request open until the test settles it by key, so controller
+    // mutations can interleave with in-flight requests.
+    const deferPaymentMethods = (
+      rootMessenger: RootMessenger,
+      keyOf: (params: { region: string; provider?: string }) => string = (
+        params,
+      ) => params.provider ?? '',
+    ): ((key: string, payments: PaymentMethod[]) => void) => {
+      const resolvers = new Map<
+        string,
+        (value: { payments: PaymentMethod[] }) => void
+      >();
+      rootMessenger.registerActionHandler(
+        'RampsService:getPaymentMethods',
+        async (params: { region: string; provider?: string }) =>
+          new Promise<{ payments: PaymentMethod[] }>((resolve) => {
+            resolvers.set(keyOf(params), resolve);
+          }),
+      );
+      return (key, payments) => resolvers.get(key)?.({ payments });
+    };
+
+    const expectBuyCatalogIntact = (controller: RampsController): void => {
+      expect(controller.state.paymentMethods.data).toStrictEqual([
+        buySelectedMethod,
+      ]);
+      expect(controller.state.paymentMethods.selected).toStrictEqual(
+        buySelectedMethod,
+      );
+    };
+
+    const headlessOptions = {
+      assetId: DEPOSIT_ASSET,
+      region: 'us-ca',
+      autoSelectProvider: true,
+      restrictToKnownOrNativeProviders: true,
+    } as const;
+
+    const writeOptions = {
+      assetId: DEPOSIT_ASSET,
+      region: 'us-ca',
+      providers: [MOONPAY],
+      updateState: true,
+    };
+
+    it.each([
+      {
+        name: 'flag off resolves only the restricted/native provider',
+        flags: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false },
+        // The selected Buy provider does not serve the deposit asset, so the
+        // restricted resolver must fall through to native rather than use it.
+        providers: [native, moonpayBuyOnly],
+        selectedProvider: moonpayBuyOnly,
+        expected: [NATIVE],
+      },
+      {
+        name: 'flag on without an allowlist fans out to supporting providers',
+        flags: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true },
+        providers: [native, moonpay, revolutBuyOnly],
+        selectedProvider: revolutBuyOnly,
+        expected: [NATIVE, MOONPAY],
+      },
+      {
+        name: 'flag on with an allowlist keeps supporting intersect allowlist',
+        flags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '1',
+            providerIds: ['moonpay'],
+          },
+        },
+        providers: [native, moonpay, revolut],
+        selectedProvider: null,
+        expected: [MOONPAY],
+      },
+    ])(
+      'auto-selection: $name, with no Buy-only method leaking in',
+      async ({ flags, providers, selectedProvider, expected }) => {
+        await withContext(
+          { providers, selectedProvider },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RemoteFeatureFlagController:getState',
+              () => ({ remoteFeatureFlags: flags, cacheTimestamp: 0 }),
+            );
+            // Only a Buy-scoped provider would serve buyOnlyMethod.
+            const requested = stubPaymentMethods(rootMessenger, (providerId) =>
+              [MOONPAY, NATIVE].includes(providerId)
+                ? [cardMethod]
+                : [buyOnlyMethod],
+            );
+
+            const result =
+              await controller.getPaymentMethodsForContext(headlessOptions);
+
+            expect(requested.sort()).toStrictEqual([...expected].sort());
+            expect(result.providerIds.sort()).toStrictEqual(
+              [...expected].sort(),
+            );
+            // TRAM-3838: no Buy-only method, and the fan-out is deduped by
+            // canonical id rather than repeating the shared card per provider.
+            expect(result.methods).toStrictEqual([cardMethod]);
+            // Request-only by default: the Buy catalog is never touched.
+            expectBuyCatalogIntact(controller);
+          },
+        );
+      },
+    );
+
+    it.each([
+      {
+        name: 'the selected provider changes',
+        providers: [moonpay, revolut],
+        mutate: async (controller: RampsController): Promise<void> =>
+          controller.setSelectedProvider(revolut),
+      },
+      {
+        name: 'the selected token changes',
+        providers: [moonpay],
+        mutate: async (controller: RampsController): Promise<void> =>
+          controller.setSelectedToken(BUY_ASSET),
+      },
+      {
+        name: 'the region changes',
+        providers: [moonpay],
+        mutate: async (controller: RampsController): Promise<void> => {
+          await controller.setUserRegion('fr');
+          controller.setSelectedPaymentMethod(buySelectedMethod);
+        },
+      },
+    ])(
+      'an in-flight stateful request does not commit after $name',
+      async ({ providers, mutate }) => {
+        await withContext(
+          { countries: true, providers, selectedProvider: providers[0] },
+          async ({ controller, rootMessenger }) => {
+            const resolvePaymentMethods = deferPaymentMethods(rootMessenger);
+
+            const request =
+              controller.getPaymentMethodsForContext(writeOptions);
+            await Promise.resolve();
+            await mutate(controller);
+            resolvePaymentMethods(MOONPAY, [cardMethod]);
+            await request;
+
+            expect(controller.state.paymentMethods.data).not.toContainEqual(
+              cardMethod,
+            );
+            expect(controller.state.paymentMethods.selected).toStrictEqual(
+              buySelectedMethod,
+            );
+          },
+        );
+      },
+    );
+
+    it('does not let an older region overwrite repopulated matching state', async () => {
+      const frenchMethod: PaymentMethod = {
+        ...cardMethod,
+        id: '/payments/french-card',
+      };
+
+      await withContext(
+        { countries: true, providers: [moonpay], selectedProvider: moonpay },
+        async ({ controller, rootMessenger }) => {
+          const resolveForRegion = deferPaymentMethods(
+            rootMessenger,
+            ({ region }) => region,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => tokenCatalog,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [moonpay] }),
+          );
+
+          const usRequest =
+            controller.getPaymentMethodsForContext(writeOptions);
+          await Promise.resolve();
+
+          // Move the whole context to a new region and repopulate it.
+          await controller.setUserRegion('fr');
+          await controller.getTokens('fr', 'buy', { forceRefresh: true });
+          controller.setSelectedToken(depositToken.assetId);
+          await controller.getProviders('fr', { forceRefresh: true });
+          controller.setSelectedProvider(moonpay);
+
+          const frRequest = controller.getPaymentMethodsForContext({
+            ...writeOptions,
+            region: 'fr',
+          });
+          await Promise.resolve();
+          resolveForRegion('fr', [frenchMethod]);
+          await frRequest;
+          // The matching request commits; this is the only write assertion.
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            frenchMethod,
+          ]);
+
+          // The stale US request returns last and must not clobber FR.
+          resolveForRegion('us-ca', [cardMethod]);
+          await usRequest;
+
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            frenchMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            frenchMethod,
+          );
+        },
+      );
+    });
+
+    it('throws before fetching when updateState resolves more than one provider', async () => {
+      await withContext(
+        { providers: [moonpay, revolut], selectedProvider: moonpay },
+        async ({ controller, rootMessenger }) => {
+          const requested = stubPaymentMethods(rootMessenger);
+
+          await expect(
+            controller.getPaymentMethodsForContext({
+              ...writeOptions,
+              providers: [MOONPAY, REVOLUT],
+            }),
+          ).rejects.toThrow(
+            'getPaymentMethodsForContext cannot write paymentMethods state for 2 resolved providers.',
+          );
+          expect(requested).toStrictEqual([]);
+          expectBuyCatalogIntact(controller);
+        },
+      );
+    });
+
+    it('returns nothing when no provider resolves, and clears state on write', async () => {
+      await withContext({}, async ({ controller }) => {
+        const empty = { methods: [], selected: null, providerIds: [] };
+
+        expect(
+          await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+          }),
+        ).toStrictEqual(empty);
+        expectBuyCatalogIntact(controller);
+
+        expect(
+          await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            updateState: true,
+          }),
+        ).toStrictEqual(empty);
+        expect(controller.state.paymentMethods.data).toStrictEqual([]);
+        expect(controller.state.paymentMethods.selected).toBeNull();
+      });
+    });
+
+    // No current mobile caller reaches this path (Buy passes explicit
+    // `providers`), so this is the only cover for the documented UB2 fallback.
+    it('uses providers.selected when the resolution flags are omitted', async () => {
+      await withContext(
+        { providers: [moonpay, revolut], selectedProvider: moonpay },
+        async ({ controller, rootMessenger }) => {
+          const requested = stubPaymentMethods(rootMessenger);
+
+          const result = await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+          });
+
+          expect(requested).toStrictEqual([MOONPAY]);
+          expect(result.providerIds).toStrictEqual([MOONPAY]);
+          expectBuyCatalogIntact(controller);
+        },
+      );
+    });
+
+    it('exposes the method on the messenger', async () => {
+      await withContext(
+        { providers: [moonpay], selectedProvider: moonpay },
+        async ({ messenger, rootMessenger }) => {
+          stubPaymentMethods(rootMessenger);
+
+          const result = await messenger.call(
+            'RampsController:getPaymentMethodsForContext',
+            { assetId: DEPOSIT_ASSET, region: 'us-ca', providers: [MOONPAY] },
+          );
+
+          expect(result.methods).toStrictEqual([cardMethod]);
         },
       );
     });
@@ -8528,6 +9686,7 @@ describe('RampsController', () => {
         expect(stub?.provider?.id).toBe('paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+        expect(stub?.network).toStrictEqual({ chainId: '1', name: '' });
       });
     });
 
@@ -8537,11 +9696,16 @@ describe('RampsController', () => {
           orderId: 'plain-order-id',
           providerCode: 'transak',
           walletAddress: '0xdef',
+          chainId: 'eip155:1',
         });
 
         expect(controller.state.orders[0]?.providerOrderId).toBe(
           'plain-order-id',
         );
+        expect(controller.state.orders[0]?.network).toStrictEqual({
+          chainId: 'eip155:1',
+          name: '',
+        });
       });
     });
 
@@ -8551,6 +9715,20 @@ describe('RampsController', () => {
           orderId: '/providers/paypal/orders/',
           providerCode: 'paypal',
           walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
+      });
+    });
+
+    it('skips addOrder when chainId is empty or whitespace', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '   ',
         });
 
         expect(controller.state.orders).toHaveLength(0);
@@ -8569,6 +9747,748 @@ describe('RampsController', () => {
         rootMessenger.call('RampsController:setSelectedProvider', null);
 
         expect(listener).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('autoramps', () => {
+    it('adds and removes autoramp accounts', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        expect(controller.state.autoramps).toHaveLength(1);
+        expect(controller.state.autoramps[0]?.id).toBe('ar-1');
+        expect(controller.state.autoramps[0]?.status).toBe(
+          AutorampStatus.Authorized,
+        );
+
+        controller.removeAutoramp('ar-1');
+        expect(controller.state.autoramps).toHaveLength(0);
+      });
+    });
+
+    it('applies push snapshots and publishes notable transitions', async () => {
+      await withController(async ({ controller, messenger }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const events: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:autorampStatusChanged',
+          (payload) => {
+            events.push(payload);
+          },
+        );
+
+        const updated = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+          depositRailsSummary: { ready: true, currency: 'EUR' },
+        });
+
+        expect(updated.status).toBe(AutorampStatus.Approved);
+        expect(updated.depositRailsSummary).toStrictEqual({
+          ready: true,
+          currency: 'EUR',
+        });
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({
+          previousStatus: AutorampStatus.Authorized,
+          shouldNotify: true,
+        });
+      });
+    });
+
+    it('refreshes autoramps via NeoBankService', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const getAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+          depositRailsSummary: { ready: true },
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          getAutoramp,
+        );
+
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = await controller.refreshAutoramp('ar-1');
+        expect(getAutoramp).toHaveBeenCalledWith('ar-1');
+        expect(updated.status).toBe(AutorampStatus.Approved);
+
+        await controller.refreshAutoramps();
+        expect(getAutoramp).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('injects the Profile Sync customer id and applies the created autoramp', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => ({ id: 'cust-99' }),
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-99',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        const created = await controller.createAutoramp(
+          { customer_id: 'attacker-supplied', foo: 'bar' },
+          { idempotencyKey: 'idem-1' },
+        );
+
+        expect(createAutoramp).toHaveBeenCalledWith(
+          { foo: 'bar', customer_id: 'cust-99' },
+          { idempotencyKey: 'idem-1' },
+        );
+        expect(created.id).toBe('ar-new');
+        expect(
+          controller.state.autoramps.find((a) => a.id === 'ar-new')?.customerId,
+        ).toBe('cust-99');
+      });
+    });
+
+    it('prefers canonicalProfileId when resolving the external customer id', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-canonical' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-canonical',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('canonical-1');
+      });
+    });
+
+    it('throws when no mapped external customer is available', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => null,
+        );
+        const createAutoramp = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await expect(controller.createAutoramp({})).rejects.toThrow(
+          /no MoonPay customer is mapped to external id "profile-1"/u,
+        );
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when the wallet is not signed in to Profile Sync', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: '',
+              canonicalProfileId: '',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await expect(controller.createAutoramp({})).rejects.toThrow(
+          /wallet is not signed in to Profile Sync/u,
+        );
+        expect(getCustomerByExternalId).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('falls back to profileId when canonicalProfileId is empty', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: '',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-profile' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          async () => ({
+            id: 'ar-new',
+            customerId: 'cust-profile',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Created,
+          }),
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('profile-1');
+      });
+    });
+
+    it('skips failed refreshes when refreshing all autoramps', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          async (id: string) => {
+            if (id === 'ar-bad') {
+              throw new Error('network');
+            }
+            return {
+              id,
+              customerId: 'cust-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Approved,
+            };
+          },
+        );
+
+        controller.addAutoramp({
+          id: 'ar-bad',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+        controller.addAutoramp({
+          id: 'ar-good',
+          customerId: 'cust-1',
+          walletAddress: '0xdef',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = await controller.refreshAutoramps();
+        expect(updated).toHaveLength(1);
+        expect(updated[0]?.id).toBe('ar-good');
+        expect(
+          controller.state.autoramps.find((a) => a.id === 'ar-bad')?.status,
+        ).toBe(AutorampStatus.Authorized);
+      });
+    });
+
+    it('does not restore an autoramp removed while refresh is in flight', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let releaseFetch: ((value: unknown) => void) | undefined;
+        let markFetchStarted: (() => void) | undefined;
+        const fetchStarted = new Promise<void>((resolve) => {
+          markFetchStarted = resolve;
+        });
+        const remoteSnapshot = new Promise((resolve) => {
+          releaseFetch = resolve;
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          async () => {
+            markFetchStarted?.();
+            return await remoteSnapshot;
+          },
+        );
+
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const refreshPromise = controller.refreshAutoramps();
+        await fetchStarted;
+        controller.removeAutoramp('ar-1');
+        releaseFetch?.({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(await refreshPromise).toStrictEqual([]);
+        expect(controller.state.autoramps).toStrictEqual([]);
+      });
+    });
+
+    it('marks autoramp as notified', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+        controller.markAutorampAsNotified('ar-1');
+        expect(controller.state.autoramps[0]?.notifiedForStatus).toBe(
+          AutorampStatus.Approved,
+        );
+      });
+    });
+    it('updates an existing autoramp when the id is already known', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xdef',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(controller.state.autoramps).toHaveLength(1);
+        expect(updated.walletAddress).toBe('0xdef');
+        expect(updated.status).toBe(AutorampStatus.Approved);
+      });
+    });
+
+    it('ignores removal and notification for unknown autoramp ids', async () => {
+      await withController(({ controller }) => {
+        controller.removeAutoramp('missing');
+        controller.markAutorampAsNotified('missing');
+
+        expect(controller.state.autoramps).toStrictEqual([]);
+      });
+    });
+    it('creates an autoramp from a push that carries no wallet address', async () => {
+      await withController(({ controller }) => {
+        const created = controller.applyAutorampStatusFromPush({
+          id: 'ar-new',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(created.walletAddress).toBe('');
+        expect(controller.state.autoramps).toHaveLength(1);
+      });
+    });
+
+    it('keeps local identity fields when a remote push omits or blanks them', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const afterOmitted = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: '',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(afterOmitted.customerId).toBe('cust-1');
+        expect(afterOmitted.walletAddress).toBe('0xabc');
+
+        const afterBlank = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: '',
+          walletAddress: '',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(afterBlank.customerId).toBe('cust-1');
+        expect(afterBlank.walletAddress).toBe('0xabc');
+      });
+    });
+  });
+
+  describe('registerMoneyAccountWallet', () => {
+    const registration = {
+      id: 'wallet-1',
+      address: '0xabc',
+      blockchain: 'Monad' as const,
+      disabled: false,
+      isSelf: true,
+    };
+
+    type WalletRegistrationHandlers = {
+      getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
+      getWalletRegistrationStatus: jest.Mock;
+      registerSelfHostedWallet: jest.Mock;
+      signPersonalMessage: jest.Mock;
+    };
+
+    /**
+     * Registers default handlers for every messenger action the wallet
+     * registration flow calls, returning the mocks for per-test overrides.
+     *
+     * @param rootMessenger - The root messenger of the controller under test.
+     * @returns The registered handler mocks.
+     */
+    function registerWalletRegistrationHandlers(
+      rootMessenger: RootMessenger,
+    ): WalletRegistrationHandlers {
+      const handlers: WalletRegistrationHandlers = {
+        getSessionProfile: jest.fn().mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          metaMetricsId: 'mm-1',
+        }),
+        getCustomerByExternalId: jest
+          .fn()
+          .mockResolvedValue({ id: 'iron-customer-1' }),
+        getWalletRegistrationStatus: jest
+          .fn()
+          .mockResolvedValue({ type: 'absent' }),
+        registerSelfHostedWallet: jest.fn().mockResolvedValue({
+          type: 'registered',
+          registration,
+        }),
+        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
+      };
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile',
+        handlers.getSessionProfile,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId',
+        handlers.getCustomerByExternalId,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getWalletRegistrationStatus',
+        handlers.getWalletRegistrationStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:registerSelfHostedWallet',
+        handlers.registerSelfHostedWallet,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signPersonalMessage',
+        handlers.signPersonalMessage,
+      );
+      return handlers;
+    }
+
+    it('returns an existing active registration without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'active',
+          registration,
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns an existing disabled registration without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'disabled',
+          registration: { ...registration, disabled: true },
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registeredDisabled' });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('signs and submits an ownership proof for an absent registration', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registered' });
+
+        expect(handlers.signPersonalMessage).toHaveBeenCalledWith({
+          data: expect.stringContaining('as customer iron-customer-1.'),
+          from: '0xabc',
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address: '0xabc',
+            customerId: 'iron-customer-1',
+            signature: '0xsig',
+            idempotencyKey: expect.any(String),
+          }),
+        );
+      });
+    });
+
+    it('resolves the customer id via Profile Sync external-id lookup', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getSessionProfile.mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          canonicalProfileId: 'canonical-1',
+          metaMetricsId: 'mm-1',
+        });
+        handlers.getCustomerByExternalId.mockResolvedValue({
+          id: 'iron-customer-fallback',
+        });
+
+        await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+        expect(handlers.getCustomerByExternalId).toHaveBeenCalledWith(
+          'canonical-1',
+        );
+      });
+    });
+
+    it('reconciles an ambiguous conflict as already registered', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockResolvedValueOnce({ type: 'active', registration });
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+      });
+    });
+
+    it('rethrows a transient failure when reconciliation remains absent', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new WalletRegistrationError('transient', {
+          httpStatus: 502,
+        });
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(4);
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    it('rebuilds and re-signs after a UTC date rollover', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-08-12T23:59:59.999Z'));
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerWalletRegistrationHandlers(rootMessenger);
+          handlers.registerSelfHostedWallet
+            .mockImplementationOnce(async () => {
+              jest.setSystemTime(new Date('2026-08-13T00:00:00.000Z'));
+              throw new WalletRegistrationError('validation', {
+                httpStatus: 400,
+              });
+            })
+            .mockResolvedValueOnce({
+              type: 'registered',
+              registration,
+            });
+
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+          expect(handlers.signPersonalMessage).toHaveBeenCalledTimes(2);
+          expect(handlers.signPersonalMessage.mock.calls[0][0].data).toContain(
+            'signed on 12/08/2026',
+          );
+          expect(handlers.signPersonalMessage.mock.calls[1][0].data).toContain(
+            'signed on 13/08/2026',
+          );
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it.each([
+      new WalletRegistrationError('validation', { httpStatus: 400 }),
+      new WalletRegistrationError('rateLimited', { httpStatus: 429 }),
+      new WalletRegistrationError('unauthorized', { httpStatus: 401 }),
+      new Error('unexpected'),
+    ])('rethrows terminal registration failure %#', async (error) => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('returns lookupUnavailable when the initial status lookup fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new WalletRegistrationError('lookupUnavailable', {
+          httpStatus: 500,
+          body: 'boom',
+        });
+        handlers.getWalletRegistrationStatus.mockRejectedValue(error);
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'lookupUnavailable',
+          error,
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('wraps a non-typed initial lookup failure as lookupUnavailable', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockRejectedValue(
+          new Error('lookup failed'),
+        );
+
+        const result = await controller.registerMoneyAccountWallet({
+          address: '0xabc',
+        });
+
+        expect(result).toMatchObject({
+          type: 'lookupUnavailable',
+          error: expect.objectContaining({
+            name: 'WalletRegistrationError',
+            kind: 'lookupUnavailable',
+            body: 'lookup failed',
+          }),
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns lookupUnavailable when conflict reconciliation cannot list addresses', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const lookupError = new WalletRegistrationError('lookupUnavailable', {
+          httpStatus: 503,
+        });
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockRejectedValueOnce(lookupError);
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'lookupUnavailable',
+          error: lookupError,
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('rethrows a signing failure without submitting', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new Error('signing failed');
+        handlers.signPersonalMessage.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
       });
     });
   });
@@ -8610,9 +10530,13 @@ describe('RampsController', () => {
 
     it('adds a new order to state', async () => {
       await withController(({ controller, rootMessenger }) => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_100);
         rootMessenger.call('RampsController:addOrder', mockOrder);
         expect(controller.state.orders).toHaveLength(1);
-        expect(controller.state.orders[0]).toStrictEqual(mockOrder);
+        expect(controller.state.orders[0]).toStrictEqual({
+          ...mockOrder,
+          lastUpdatedAt: 1_700_000_000_100,
+        });
       });
     });
 
@@ -8723,6 +10647,60 @@ describe('RampsController', () => {
 
         rootMessenger.call('RampsController:removeOrder', 'nonexistent');
         expect(controller.state.orders).toHaveLength(1);
+      });
+    });
+
+    it('clears polling metadata when removing by internal order code', async () => {
+      await withController(async ({ rootMessenger }) => {
+        jest.useFakeTimers();
+
+        const legacyOrder = createMockOrder({
+          id: '/providers/transak/orders/internal-order-456',
+          providerOrderId: 'legacy-provider-id',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', legacyOrder);
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => {
+            callCount += 1;
+            throw new Error('fail');
+          },
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(callCount).toBe(1);
+
+        rootMessenger.call('RampsController:removeOrder', 'internal-order-456');
+        rootMessenger.call('RampsController:stopOrderPolling');
+
+        const replacementOrder = createMockOrder({
+          id: '/providers/transak/orders/internal-order-456',
+          providerOrderId: 'legacy-provider-id',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', replacementOrder);
+
+        callCount = 0;
+        rootMessenger.call('RampsController:startOrderPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(callCount).toBe(1);
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+        jest.useRealTimers();
       });
     });
   });
@@ -10132,6 +12110,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('fetches buy quote and updates state on success', async () => {
@@ -10168,6 +12148,8 @@ describe('RampsController', () => {
                 "notes": [],
                 "paymentMethod": "credit_debit_card",
                 "quoteId": "quote-1",
+                "requestedAssetId": "BTC",
+                "requestedChainId": "bitcoin",
                 "slippage": 0.5,
                 "totalFee": 1,
               },
@@ -10176,6 +12158,61 @@ describe('RampsController', () => {
               "selected": null,
             }
           `);
+        });
+      });
+
+      it('forwards fee-inclusive behavior when requested', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await controller.transakGetBuyQuote(
+            'USD',
+            'MUSD',
+            'monad',
+            'credit_debit_card',
+            '15',
+            false,
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'MUSD',
+            'monad',
+            'credit_debit_card',
+            '15',
+            false,
+          );
+        });
+      });
+
+      it('defaults Unified Buy native quotes to fee exclusion', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await controller.transakGetBuyQuote(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+            true,
+          );
         });
       });
 
@@ -10671,6 +12708,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('calls messenger with correct arguments and returns URL', async () => {
@@ -10735,6 +12774,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('calls messenger with correct arguments and returns the widget URL', async () => {
@@ -11187,6 +13228,31 @@ describe('RampsController', () => {
   });
 });
 
+describe('getInternalOrderCode', () => {
+  it('returns empty string when object has no /orders/ id and no providerOrderId', () => {
+    expect(getInternalOrderCode({ id: 'plain-id' })).toBe('');
+  });
+
+  it('trims providerOrderId when id has no /orders/ path', () => {
+    expect(
+      getInternalOrderCode({ id: 'plain-id', providerOrderId: '  abc  ' }),
+    ).toBe('abc');
+  });
+
+  it('falls back to providerOrderId when /orders/ segment is empty', () => {
+    expect(
+      getInternalOrderCode({
+        id: '/providers/transak/orders/',
+        providerOrderId: 'real-id',
+      }),
+    ).toBe('real-id');
+  });
+
+  it('returns empty string for a string id with an empty /orders/ segment', () => {
+    expect(getInternalOrderCode('/providers/transak/orders/')).toBe('');
+  });
+});
+
 /**
  * Creates a mock UserRegion object for testing.
  *
@@ -11422,7 +13488,39 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  // Stands in for the real service, which derives this from its environment.
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    () => STAGING_REDIRECT_CALLBACK_URL,
+  );
+  return rootMessenger;
+}
+
+/**
+ * Replaces the default `RampsService:getDefaultRedirectCallbackUrl` handler
+ * with a spy, so a test can assert whether the controller asked the service
+ * for the default redirect URL at all.
+ *
+ * @param rootMessenger - The root messenger to re-register the handler on.
+ * @param url - The URL the spy returns. Defaults to the staging callback URL.
+ * @returns The spy standing in for the service method.
+ */
+function spyOnDefaultRedirectCallbackUrl(
+  rootMessenger: RootMessenger,
+  url: string = STAGING_REDIRECT_CALLBACK_URL,
+): jest.Mock<string, []> {
+  const handler = jest.fn<string, []>(() => url);
+  rootMessenger.unregisterActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+  );
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    handler,
+  );
+  return handler;
 }
 
 /**
@@ -11441,7 +13539,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
     messenger,
     actions: [
       ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-      'RemoteFeatureFlagController:getState',
+      ...RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
     ],
   });
   return messenger;

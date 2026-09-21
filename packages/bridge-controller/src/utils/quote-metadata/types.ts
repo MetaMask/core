@@ -86,4 +86,28 @@ type QuoteMetadataV1 = {
   priceImpact: Omit<TokenAmountValues, 'amount'>; // abs(sentAmount - toTokenAmount);
 };
 
+/**
+ * The partial legacy quote metadata
+ *
+ * @deprecated Avoid introducing new usages and use the nested QuoteResponse metadata instead
+ */
 export type QuoteMetadata = DeepPartial<QuoteMetadataV1>;
+
+export const QuoteMetadataMigrationPhase = {
+  /**
+   * Phase 1: omit API V2 currency metadata; serve legacy calcQuoteMetadata
+   * into V2 nested shape
+   */
+  V1Data: '1',
+  /**
+   * Phase 1.5: prefer API V2 metadata (+ fiat from usd); fall back to legacy.
+   */
+  V2WithV1Fallback: '1.5',
+  /**
+   * Phase 2: API V2 metadata only; legacy metadata utils can be removed.
+   */
+  V2Only: '2',
+} as const;
+
+export type QuoteMetadataMigrationPhase =
+  (typeof QuoteMetadataMigrationPhase)[keyof typeof QuoteMetadataMigrationPhase];

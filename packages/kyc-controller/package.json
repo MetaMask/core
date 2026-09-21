@@ -1,0 +1,88 @@
+{
+  "name": "@metamask/kyc-controller",
+  "version": "0.4.0",
+  "description": "Shared KYC / identity verification controller used across MetaMask clients",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/kyc-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
+    "build:watch": "yarn build && chokidar 'src/**/*.ts' -c 'tsc --project tsconfig.build.json' --initial",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/kyc-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/kyc-controller",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
+    "mint:ukyc-token": "tsx scripts/mint-ukyc-test-token.ts",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/base-data-service": "^2.0.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/geolocation-controller": "^2.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/profile-sync-controller": "^32.1.1",
+    "@metamask/superstruct": "^3.4.1",
+    "@metamask/utils": "^12.0.0",
+    "@noble/ciphers": "^1.3.0",
+    "@noble/curves": "^1.9.2",
+    "@noble/hashes": "^1.8.0",
+    "@scure/base": "^1.2.6",
+    "@tanstack/query-core": "^5.62.16",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "chokidar-cli": "^3.0.0",
+    "deepmerge": "^4.2.2",
+    "jest": "^30.4.2",
+    "nock": "^13.3.1",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": "^22.14.0 || ^24"
+  }
+}

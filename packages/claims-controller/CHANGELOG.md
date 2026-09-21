@@ -9,9 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [0.6.2]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [0.6.1]
+
+### Changed
+
+- Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [0.6.0]
+
+### Added
+
+- Export `ClaimsControllerOptions` and `ClaimsServiceConfig` types ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService-method-action-types.ts` with generated method action types for `ClaimsService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService:invalidateQueries` action and `ClaimsService:cacheUpdated` events via `BaseDataService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `@metamask/base-data-service` `^0.1.3`, `@metamask/superstruct` `^3.1.0`, and `@tanstack/query-core` `^4.43.0` as dependencies ([#9588](https://github.com/MetaMask/core/pull/9588))
+
+### Changed
+
+- Migrate `ClaimsService` to `BaseDataService` with TanStack Query caching, circuit-breaker policy support, and response validation ([#9588](https://github.com/MetaMask/core/pull/9588))
+- `ClaimsServiceConfig.fetchFunction` is optional and defaults to `globalThis.fetch` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [0.5.4]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
-- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.3.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^29.0.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463), [#9779](https://github.com/MetaMask/core/pull/9779))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
@@ -145,7 +203,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.0...@metamask/claims-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.2...@metamask/claims-controller@1.0.0
+[0.6.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.1...@metamask/claims-controller@0.6.2
+[0.6.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.0...@metamask/claims-controller@0.6.1
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.4...@metamask/claims-controller@0.6.0
+[0.5.4]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.3...@metamask/claims-controller@0.5.4
 [0.5.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.2...@metamask/claims-controller@0.5.3
 [0.5.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.1...@metamask/claims-controller@0.5.2
 [0.5.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.0...@metamask/claims-controller@0.5.1

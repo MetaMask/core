@@ -9,11 +9,12 @@ import {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
+  DEFAULT_AUTH_TOKEN_TIMEOUT,
   calculateRetryDelay,
   shouldRetry,
   HttpError,
 } from './shared-types.js';
-import type { ApiPlatformClientOptions } from './shared-types.js';
+import type { ApiPlatformClientOptions, ApiUrls } from './shared-types.js';
 
 // Auth query keys - shared for token management across clients
 export const authQueryKeys = {
@@ -44,6 +45,11 @@ export class BaseApiClient {
 
   protected readonly getBearerToken?: () => Promise<string | undefined>;
 
+  protected readonly authTokenTimeout: number;
+
+  /** Resolved API base URLs (production defaults merged with any overrides). */
+  readonly apiUrls: ApiUrls;
+
   readonly #queryClientInstance: QueryClient;
 
   /**
@@ -73,6 +79,9 @@ export class BaseApiClient {
     this.clientProduct = options.clientProduct;
     this.clientVersion = options.clientVersion;
     this.getBearerToken = options.getBearerToken;
+    this.authTokenTimeout =
+      options.authTokenTimeout ?? DEFAULT_AUTH_TOKEN_TIMEOUT;
+    this.apiUrls = { ...API_URLS, ...options.apiUrls };
 
     this.#queryClientInstance =
       options.queryClient ??
@@ -88,6 +97,55 @@ export class BaseApiClient {
           },
         },
       });
+  }
+
+  /**
+   * Resolve the bearer token, giving up after `authTokenTimeout` so that a slow
+   * token provider does not delay the request. When the wait times out the
+   * request goes out unauthenticated (lower rate limit) while the in-flight
+   * `fetchQuery` keeps resolving `getBearerToken` for later requests.
+   *
+   * @returns The bearer token, or undefined if unavailable in time.
+   */
+  async #fetchBearerToken(): Promise<string | undefined> {
+    const { getBearerToken } = this;
+    if (!getBearerToken) {
+      return undefined;
+    }
+
+    // fetchQuery de-duplicates concurrent callers. staleTime is 0 so we do not
+    // cache the JWT here — AuthenticationController already owns token lifetime.
+    const tokenPromise = this.#queryClientInstance
+      .fetchQuery({
+        queryKey: authQueryKeys.bearerToken(),
+        queryFn: async () => {
+          const result = await getBearerToken();
+          // Throw if no token - prevents caching null/undefined
+          // so subsequent requests can retry (e.g., after user logs in)
+          if (!result) {
+            throw new Error('No bearer token available');
+          }
+          return result;
+        },
+        staleTime: 0,
+        retry: false, // Don't retry auth failures
+      })
+      .catch(() => undefined);
+
+    if (this.authTokenTimeout <= 0) {
+      return await tokenPromise;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<undefined>((resolve) => {
+      timeoutId = setTimeout(() => resolve(undefined), this.authTokenTimeout);
+    });
+
+    try {
+      return await Promise.race([tokenPromise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
@@ -128,32 +186,9 @@ export class BaseApiClient {
       headers['x-metamask-clientversion'] = this.clientVersion;
     }
 
-    // Get bearer token using fetchQuery for automatic deduplication
-    if (this.getBearerToken) {
-      const queryKey = authQueryKeys.bearerToken();
-      const { getBearerToken } = this;
-
-      try {
-        // fetchQuery handles caching and deduplicates concurrent requests
-        const token = await this.#queryClientInstance.fetchQuery({
-          queryKey,
-          queryFn: async () => {
-            const result = await getBearerToken();
-            // Throw if no token - prevents caching null/undefined
-            // so subsequent requests can retry (e.g., after user logs in)
-            if (!result) {
-              throw new Error('No bearer token available');
-            }
-            return result;
-          },
-          staleTime: STALE_TIMES.AUTH_TOKEN,
-          retry: false, // Don't retry auth failures
-        });
-
-        headers.Authorization = `Bearer ${token}`;
-      } catch {
-        // No token available - continue without auth header
-      }
+    const token = await this.#fetchBearerToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
 
     const response = await fetch(url.toString(), {
@@ -182,5 +217,5 @@ export class BaseApiClient {
   }
 }
 
-// Re-export constants for use by API clients
-export { API_URLS, STALE_TIMES, GC_TIMES, HttpError };
+// Re-export cache timings for use by API clients
+export { STALE_TIMES, GC_TIMES };
