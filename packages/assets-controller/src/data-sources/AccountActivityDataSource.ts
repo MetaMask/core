@@ -69,8 +69,8 @@ function processAccountActivityBalanceUpdates(
 
     // The websocket sends lower-case ERC-20 addresses, while state and the
     // rest of the pipeline key assets by their checksummed ID. Normalizing
-    // here keeps middleware comparisons (detection, custom-asset graduation,
-    // occurrence filtering) from treating an existing holding as brand new.
+    // here keeps middleware comparisons (detection, occurrence filtering)
+    // from treating an existing holding as brand new.
     const assetId = safeNormalizeAssetId(asset.type as Caip19AssetId);
 
     if (asset.decimals === undefined) {

@@ -12,6 +12,7 @@ import {
   BNB_ASSET_ID,
   BSC_CHAIN_ID,
   BSC_SPAM_ACCOUNT_ID,
+  CDOGE_ASSET_ID_CHECKSUM,
   CDOGE_ASSET_ID_LOWERCASE,
 } from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -21,11 +22,9 @@ import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
 import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
-import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
-  AccountId,
   AssetsControllerStateInternal,
   Caip19AssetId,
   DataRequest,
@@ -152,14 +151,6 @@ async function runPipeline(
     {
       accountsApiDataSource,
       stakedBalanceDataSource,
-      customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
-        getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
-        removeCustomAsset: (): void => {
-          throw new Error(
-            'Integration should not call graduation to remove assets!',
-          );
-        },
-      }),
       rpcFallbackMiddleware: new RpcFallbackMiddleware({ rpcDataSource }),
       detectionMiddleware: new DetectionMiddleware(),
       tokenDataSource,
@@ -238,4 +229,29 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
   });
+});
+
+describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+  afterEach(() => {
+    cleanAll();
+  });
+
+  // Graduation scenario: the user imported CDOGE by hand before the Accounts
+  // API indexed it. The API now reports a positive balance for it, while the
+  // Tokens API still carries only 1 occurrence — below the default floor of
+  // 3 for BNB Chain. The token must survive the fast lane: custom assets are
+  // exempt from occurrence filtering and must never be removed from
+  // `customAssets` automatically, or the user loses the token they imported.
+  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+    '$surface - keeps the imported token despite a positive API balance and low occurrences',
+    async ({ lookUp }) => {
+      const response = await runPipeline(
+        buildEmptyAssetsState({
+          customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+        }),
+      );
+
+      expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+    },
+  );
 });

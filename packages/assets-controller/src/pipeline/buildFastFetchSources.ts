@@ -15,7 +15,6 @@ import type { AssetsDataSource } from '../types.js';
 export type FastFetchSources = {
   accountsApiDataSource: BalanceSource;
   stakedBalanceDataSource: BalanceSource;
-  customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
   detectionMiddleware: AssetsDataSource;
   tokenDataSource: AssetsDataSource;
@@ -23,18 +22,16 @@ export type FastFetchSources = {
 };
 
 /**
- * Compose the fast fetch lane: balances in parallel → custom-asset graduation →
- * RPC fallback → detection → token metadata and prices in parallel.
+ * Compose the fast fetch lane: balances in parallel → RPC fallback →
+ * detection → token metadata and prices in parallel.
  *
  * Snap and RPC balance sources are deliberately absent — the controller runs
  * those in a background lane because of their latency.
  *
- * Ordering carries two invariants:
- * - Graduation runs BEFORE the RPC fallback so it only ever sees Accounts
- *   API / websocket balances. RPC intentionally carries custom assets and must
- *   never trigger graduation.
- * - Detection runs before token and price enrichment, which both read
- *   `response.detectedAssets`.
+ * Custom assets are deliberately never removed from `customAssets` here, even
+ * once upstream balance sources start reporting them: a token dropped from
+ * `customAssets` loses its exemption from occurrence / Blockaid spam filtering
+ * in `TokenDataSource` and can then be auto-filtered out of the wallet.
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
@@ -49,7 +46,6 @@ export function buildFastFetchSources(
   const {
     accountsApiDataSource,
     stakedBalanceDataSource,
-    customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
     detectionMiddleware,
     tokenDataSource,
@@ -65,7 +61,6 @@ export function buildFastFetchSources(
       accountsApiDataSource,
       stakedBalanceDataSource,
     ]),
-    customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
     detectionMiddleware,
     createParallelMiddleware([tokenDataSource, priceDataSource]),

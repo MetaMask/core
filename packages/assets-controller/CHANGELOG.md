@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
+### Removed
+
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` (and its fast-lane source role), which removed an EVM asset from `customAssets` as soon as the Accounts API / Account Activity websocket reported a balance for it. Custom assets are now never removed from `customAssets` automatically, even once upstream sources start reporting them, so they keep their exemption from occurrence / Blockaid spam filtering and can no longer be auto-filtered out of balances and metadata after "graduating" ([#10335](https://github.com/MetaMask/core/pull/10335))
+  - The `CustomAssetGraduationMiddleware` and `CustomAssetGraduationMiddlewareOptions` exports are removed. The `AssetsController:removeCustomAsset` action is unchanged and remains the way to remove a custom asset explicitly
+
 ### Fixed
 
 - Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))

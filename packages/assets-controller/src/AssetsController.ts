@@ -111,7 +111,6 @@ import {
   getDefaultAssetMetadata,
 } from './defaults.js';
 import { projectLogger, createModuleLogger } from './logger.js';
-import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
 import {
   createParallelBalanceMiddleware,
@@ -868,8 +867,6 @@ export class AssetsController extends BaseController<
 
   readonly #detectionMiddleware: DetectionMiddleware;
 
-  readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
-
   readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
 
   readonly #tokenDataSource: TokenDataSource;
@@ -1007,19 +1004,6 @@ export class AssetsController extends BaseController<
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
-    this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
-      {
-        getSelectedAccountId: (): AccountId | undefined => {
-          try {
-            return this.#getSelectedAccounts()[0]?.id;
-          } catch {
-            return undefined;
-          }
-        },
-        removeCustomAsset: (accountId, assetId): void =>
-          this.removeCustomAsset(accountId, assetId),
-      },
-    );
     this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
       rpcDataSource: this.#rpcDataSource,
     });
@@ -1547,8 +1531,6 @@ export class AssetsController extends BaseController<
         {
           accountsApiDataSource: this.#accountsApiDataSource,
           stakedBalanceDataSource: this.#stakedBalanceDataSource,
-          customAssetGraduationMiddleware:
-            this.#customAssetGraduationMiddleware,
           rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
           detectionMiddleware: this.#detectionMiddleware,
           tokenDataSource: this.#tokenDataSource,
@@ -3810,26 +3792,17 @@ export class AssetsController extends BaseController<
               ),
             };
 
-        // Graduate custom assets only when AccountsAPI / AccountActivity reports
-        // them. RPC already fetches custom assets on purpose, and Snap handles
-        // non-EVM chains the rule does not apply to, so skip the middleware for
-        // those.
-        const shouldGraduateCustomAssets =
-          sourceId === 'AccountsApiDataSource' ||
-          sourceId === 'AccountActivityDataSource';
-
         // Websocket updates can carry brand-new spam airdrops: enrich them
         // with Token API occurrences and drop below-floor tokens BEFORE
         // detection, so spam is never detected, enriched, priced or persisted.
+        // Custom assets are exempt — see the candidate scan in
+        // `TokenDataSource.occurrenceFilterMiddleware`.
         const shouldFilterOccurrences =
           sourceId === 'AccountActivityDataSource' &&
           this.#isBasicFunctionality();
 
         const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
         const enrichmentSources: AssetsDataSource[] = [
-          ...(shouldGraduateCustomAssets
-            ? [this.#customAssetGraduationMiddleware]
-            : []),
           ...(shouldFilterOccurrences
             ? [
                 {

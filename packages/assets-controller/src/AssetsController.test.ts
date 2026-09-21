@@ -763,11 +763,18 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('custom asset graduation', () => {
+  describe('custom asset retention', () => {
     const SOLANA_ASSET_ID =
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
 
-    it('graduates an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
+    // Custom assets must never be removed automatically, even once upstream
+    // balance sources start reporting them ("graduation"). A token dropped
+    // from `customAssets` loses its exemption from occurrence / Blockaid spam
+    // filtering and can then be auto-filtered out of the wallet — the user
+    // would lose the very token they imported. The BNB Chain spam integration
+    // suites prove the same invariant against the real pipeline.
+
+    it('keeps an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
@@ -785,11 +792,13 @@ describe('AssetsController', () => {
           'AccountsApiDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('graduates an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -804,11 +813,13 @@ describe('AssetsController', () => {
           'AccountActivityDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('does not graduate when RpcDataSource reports a balance for a custom asset', async () => {
+    it('keeps an EVM custom asset when RpcDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -829,7 +840,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('does not graduate a non-EVM (Solana) custom asset', async () => {
+    it('keeps a non-EVM (Solana) custom asset', async () => {
       await withController(
         {
           state: {
