@@ -13,7 +13,7 @@ permissions:
 jobs:
   repair:
     name: Repair constraints, lockfile and changelogs
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || startsWith(github.event.pull_request.head.ref, 'renovate/') }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
     runs-on: ubuntu-latest
     environment: dependabot
     permissions:
