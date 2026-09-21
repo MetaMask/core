@@ -10,7 +10,6 @@
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
-  "type": "module",
   "license": "(MIT OR Apache-2.0)",
   "repository": {
     "type": "git",
@@ -19,6 +18,7 @@
   "files": [
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
