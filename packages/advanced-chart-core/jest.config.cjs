@@ -6,7 +6,7 @@
 const merge = require('deepmerge');
 const path = require('path');
 
-const baseConfig = require('../../jest.config.packages');
+const baseConfig = require('../../jest.config.packages.cjs');
 
 const displayName = path.basename(__dirname);
 
