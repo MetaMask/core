@@ -3690,7 +3690,7 @@ describe('TransactionController', () => {
         ]);
       });
 
-      it('fails without broadcasting an empty raw transaction when a publish hook does not return a hash', async () => {
+      it('defers to the publish hook without broadcasting an empty raw transaction when local signing is skipped', async () => {
         const publishHook = jest.fn().mockResolvedValue({});
         const { controller, mockTransactionApprovalRequest } = setupController({
           options: {
@@ -3722,9 +3722,13 @@ describe('TransactionController', () => {
           },
         });
 
-        await expect(result).rejects.toThrow(
-          'Publish hook did not return a transaction hash',
-        );
+        await result;
+
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            status: TransactionStatus.submitted,
+          }),
+        ]);
         expect(publishHook).toHaveBeenCalledTimes(1);
         expect(rpcRequestMock).not.toHaveBeenCalledWith(
           expect.objectContaining({ method: 'eth_sendRawTransaction' }),

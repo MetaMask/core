@@ -4548,16 +4548,14 @@ export class TransactionController extends BaseController<
 
         ({ transactionHash } = await publishHook(transactionMeta, signedTx));
 
-        if (signedTx === '0x' && !transactionHash) {
-          throw new Error('Publish hook did not return a transaction hash');
+        if (signedTx !== '0x') {
+          // eslint-disable-next-line require-atomic-updates
+          transactionHash ??= await this.#publishTransaction({
+            ...transactionMeta,
+            networkClientId,
+            rawTx: signedTx,
+          });
         }
-
-        // eslint-disable-next-line require-atomic-updates
-        transactionHash ??= await this.#publishTransaction({
-          ...transactionMeta,
-          networkClientId,
-          rawTx: signedTx,
-        });
       },
     );
 
