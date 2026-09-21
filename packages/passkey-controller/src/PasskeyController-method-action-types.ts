@@ -28,6 +28,52 @@ export type PasskeyControllerGenerateRegistrationOptionsAction = {
 };
 
 /**
+ * Builds WebAuthn credential creation options for replacing a userHandle
+ * passkey with a PRF-capable passkey.
+ *
+ * The existing passkey record is retained while the replacement ceremony is
+ * in flight.
+ *
+ * @returns Public key credential creation options for `navigator.credentials.create()`.
+ */
+export type PasskeyControllerGeneratePasskeyReplacementRegistrationOptionsAction =
+  {
+    type: `PasskeyController:generatePasskeyReplacementRegistrationOptions`;
+    handler: PasskeyController['generatePasskeyReplacementRegistrationOptions'];
+  };
+
+/**
+ * Verifies and completes replacement of an enrolled userHandle passkey with
+ * a PRF-capable passkey.
+ *
+ * The existing passkey record remains active until the replacement
+ * registration and post-registration authentication have both been verified
+ * and the existing vault key has been wrapped with the new PRF-derived key.
+ *
+ * @param params - Replacement completion inputs.
+ * @param params.registrationResponse - Result of `navigator.credentials.create()`.
+ * @param params.authenticationResponse - Result of `navigator.credentials.get()`
+ * after {@link generatePostRegistrationAuthenticationOptions}.
+ * @param params.password - Wallet password when onboarding is complete.
+ * @returns Resolves when the replacement completes.
+ */
+export type PasskeyControllerCompletePasskeyReplacementAction = {
+  type: `PasskeyController:completePasskeyReplacement`;
+  handler: PasskeyController['completePasskeyReplacement'];
+};
+
+/**
+ * Cancels an in-flight passkey replacement ceremony.
+ *
+ * @param registrationChallenge - Challenge returned by
+ * {@link generatePasskeyReplacementRegistrationOptions}.
+ */
+export type PasskeyControllerCancelPasskeyReplacementAction = {
+  type: `PasskeyController:cancelPasskeyReplacement`;
+  handler: PasskeyController['cancelPasskeyReplacement'];
+};
+
+/**
  * Builds WebAuthn credential request options for the post-registration
  * authentication step (between `create` and {@link protectVaultKeyWithPasskey}).
  *
@@ -222,6 +268,9 @@ export type PasskeyControllerDestroyAction = {
 export type PasskeyControllerMethodActions =
   | PasskeyControllerIsPasskeyEnrolledAction
   | PasskeyControllerGenerateRegistrationOptionsAction
+  | PasskeyControllerGeneratePasskeyReplacementRegistrationOptionsAction
+  | PasskeyControllerCompletePasskeyReplacementAction
+  | PasskeyControllerCancelPasskeyReplacementAction
   | PasskeyControllerGeneratePostRegistrationAuthenticationOptionsAction
   | PasskeyControllerGenerateAuthenticationOptionsAction
   | PasskeyControllerProtectVaultKeyWithPasskeyAction

@@ -96,10 +96,7 @@ export class CeremonyManager {
   #deleteAuthenticationCeremoniesForRegistration(
     registrationChallenge: string,
   ): void {
-    for (const [
-      authenticationChallenge,
-      ceremony,
-    ] of this.#authenticationMap) {
+    for (const [authenticationChallenge, ceremony] of this.#authenticationMap) {
       if (ceremony.registrationChallenge === registrationChallenge) {
         this.#authenticationMap.delete(authenticationChallenge);
       }

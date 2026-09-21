@@ -19,6 +19,7 @@ import type {
   PasskeyControllerState,
   PasskeyCredentialInfo,
   PasskeyKeyDerivation,
+  PasskeyRegistrationCeremony,
   PasskeyRecord,
   PrfClientExtensionResults,
 } from './types.js';
@@ -85,6 +86,9 @@ export const passkeyControllerSelectors = {
 const MESSENGER_EXPOSED_METHODS = [
   'isPasskeyEnrolled',
   'generateRegistrationOptions',
+  'generatePasskeyReplacementRegistrationOptions',
+  'completePasskeyReplacement',
+  'cancelPasskeyReplacement',
   'generatePostRegistrationAuthenticationOptions',
   'generateAuthenticationOptions',
   'protectVaultKeyWithPasskey',
@@ -196,14 +200,63 @@ export class PasskeyController extends BaseController<
   generateRegistrationOptions(creationOptionsConfig?: {
     prfAvailable?: boolean;
   }): PasskeyRegistrationOptions {
-    if (this.isPasskeyEnrolled()) {
+    return this.#generateRegistrationOptions({
+      includePrf: creationOptionsConfig?.prfAvailable !== false,
+    });
+  }
+
+  /**
+   * Builds WebAuthn credential creation options for replacing a userHandle
+   * passkey with a PRF-capable passkey.
+   *
+   * The existing passkey record is retained while the replacement ceremony is
+   * in flight.
+   *
+   * @returns Public key credential creation options for `navigator.credentials.create()`.
+   */
+  generatePasskeyReplacementRegistrationOptions(): PasskeyRegistrationOptions {
+    const record = this.#requireEnrolled();
+    if (record.keyDerivation.method !== 'userHandle') {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.MigrationNotRequired,
+        { code: PasskeyControllerErrorCode.MigrationNotRequired },
+      );
+    }
+
+    const excludeCredential = {
+      id: record.credential.id,
+      type: 'public-key' as const,
+      ...(record.credential.transports
+        ? { transports: record.credential.transports }
+        : {}),
+    };
+
+    return this.#generateRegistrationOptions({
+      excludeCredentials: [excludeCredential],
+      includePrf: true,
+      isReplacement: true,
+      sourceCredentialId: record.credential.id,
+    });
+  }
+
+  #generateRegistrationOptions({
+    excludeCredentials,
+    includePrf,
+    isReplacement = false,
+    sourceCredentialId,
+  }: {
+    excludeCredentials?: PasskeyRegistrationOptions['excludeCredentials'];
+    includePrf: boolean;
+    isReplacement?: boolean;
+    sourceCredentialId?: string;
+  }): PasskeyRegistrationOptions {
+    if (!isReplacement && this.isPasskeyEnrolled()) {
       throw new PasskeyControllerError(
         PasskeyControllerErrorMessage.AlreadyEnrolled,
         { code: PasskeyControllerErrorCode.AlreadyEnrolled },
       );
     }
 
-    const includePrf = creationOptionsConfig?.prfAvailable !== false;
     const prfSalt = includePrf ? randomBytesToBase64URL(32) : undefined;
     const userHandle = randomBytesToBase64URL(64);
     const challenge = randomBytesToBase64URL(32);
@@ -237,6 +290,7 @@ export class PasskeyController extends BaseController<
       },
       hints: ['client-device', 'hybrid'],
       attestation: 'none',
+      ...(excludeCredentials ? { excludeCredentials } : {}),
       ...(Object.keys(extensions).length > 0 ? { extensions } : {}),
     };
 
@@ -245,9 +299,121 @@ export class PasskeyController extends BaseController<
       prfSalt,
       challenge,
       createdAt: Date.now(),
+      ...(isReplacement ? { isReplacement: true, sourceCredentialId } : {}),
     });
 
     return options;
+  }
+
+  /**
+   * Verifies and completes replacement of an enrolled userHandle passkey with
+   * a PRF-capable passkey.
+   *
+   * The existing passkey record remains active until the replacement
+   * registration and post-registration authentication have both been verified
+   * and the existing vault key has been wrapped with the new PRF-derived key.
+   *
+   * @param params - Replacement completion inputs.
+   * @param params.registrationResponse - Result of `navigator.credentials.create()`.
+   * @param params.authenticationResponse - Result of `navigator.credentials.get()`
+   *   after {@link generatePostRegistrationAuthenticationOptions}.
+   * @param params.password - Wallet password when onboarding is complete.
+   * @returns Resolves when the replacement completes.
+   */
+  async completePasskeyReplacement(params: {
+    registrationResponse: PasskeyRegistrationResponse;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    password?: string;
+  }): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#completePasskeyReplacement(params),
+    );
+  }
+
+  async #completePasskeyReplacement(params: {
+    registrationResponse: PasskeyRegistrationResponse;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    password?: string;
+  }): Promise<void> {
+    const sourceRecord = this.#requireEnrolled();
+    if (sourceRecord.keyDerivation.method !== 'userHandle') {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.MigrationNotRequired,
+        { code: PasskeyControllerErrorCode.MigrationNotRequired },
+      );
+    }
+
+    const { challenge: registrationChallenge, ceremony: registrationCeremony } =
+      this.#getRegistrationCeremony(params.registrationResponse);
+    if (!registrationCeremony?.isReplacement) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NoRegistrationCeremony,
+        { code: PasskeyControllerErrorCode.NoRegistrationCeremony },
+      );
+    }
+    if (
+      registrationCeremony.sourceCredentialId !== sourceRecord.credential.id
+    ) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.ReplacementSourceChanged,
+        { code: PasskeyControllerErrorCode.ReplacementSourceChanged },
+      );
+    }
+
+    try {
+      await this.#assertEnrollmentAllowed(params.password);
+      const vaultKey = await this.messenger.call(
+        'KeyringController:exportEncryptionKey',
+      );
+
+      const credential = await this.#verifyRegistrationResponse(
+        params.registrationResponse,
+        registrationCeremony,
+      );
+      if (credential.id === sourceRecord.credential.id) {
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+          { code: PasskeyControllerErrorCode.RegistrationVerificationFailed },
+        );
+      }
+
+      const { newCounter } = await this.#verifyAuthenticationResponse(
+        params.authenticationResponse,
+        credential,
+      );
+
+      const keyDerivation = this.#getKeyDerivation(
+        params.authenticationResponse,
+        registrationCeremony,
+        { requirePrf: true },
+      );
+      const replacementRecord = this.#createPasskeyRecord({
+        vaultKey,
+        authenticationResponse: params.authenticationResponse,
+        credential,
+        newCounter,
+        keyDerivation,
+      });
+
+      this.#savePasskeyRecord(replacementRecord, sourceRecord);
+    } finally {
+      this.#ceremonyManager.deleteRegistrationCeremony(registrationChallenge);
+    }
+  }
+
+  /**
+   * Cancels an in-flight passkey replacement ceremony.
+   *
+   * @param registrationChallenge - Challenge returned by
+   *   {@link generatePasskeyReplacementRegistrationOptions}.
+   */
+  cancelPasskeyReplacement(registrationChallenge: string): void {
+    const registrationCeremony = this.#ceremonyManager.getRegistrationCeremony(
+      registrationChallenge,
+    );
+    if (registrationCeremony?.isReplacement) {
+      this.#ceremonyManager.deleteRegistrationCeremony(registrationChallenge);
+    }
   }
 
   /**
@@ -389,14 +555,9 @@ export class PasskeyController extends BaseController<
       'KeyringController:exportEncryptionKey',
     );
 
-    const { registrationResponse, authenticationResponse } = params;
-
-    // get registration ceremony
-    const challenge = this.#getChallengeFromClientData(
-      registrationResponse.response.clientDataJSON,
-    );
-    const registrationCeremony =
-      this.#ceremonyManager.getRegistrationCeremony(challenge);
+    const { registrationResponse } = params;
+    const { challenge, ceremony: registrationCeremony } =
+      this.#getRegistrationCeremony(registrationResponse);
     if (!registrationCeremony) {
       log('No active passkey registration ceremony for challenge');
       throw new PasskeyControllerError(
@@ -406,93 +567,186 @@ export class PasskeyController extends BaseController<
     }
 
     try {
-      // verify registration response
-      const { verified, registrationInfo } = await verifyRegistrationResponse({
-        response: registrationResponse,
-        expectedChallenge: registrationCeremony.challenge,
-        expectedOrigin: this.#expectedOrigin,
-        expectedRPIDs: this.#expectedRPIDs,
-        requireUserVerification: true,
-      }).catch((error) => {
-        log('Error verifying passkey registration response', error);
-        throw new PasskeyControllerError(
-          PasskeyControllerErrorMessage.RegistrationVerificationFailed,
-          {
-            code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
-            cause: error instanceof Error ? error : new Error(String(error)),
-          },
-        );
-      });
-      if (!verified || !registrationInfo) {
-        log(
-          'Passkey registration verification returned unverified or missing registration info',
-        );
-        throw new PasskeyControllerError(
-          PasskeyControllerErrorMessage.RegistrationVerificationFailed,
-          { code: PasskeyControllerErrorCode.RegistrationVerificationFailed },
-        );
-      }
-
-      // verify authentication response
-      const credential = {
-        id: registrationInfo.credentialId,
-        publicKey: bytesToBase64URL(registrationInfo.publicKey),
-        counter: registrationInfo.counter,
-        transports: registrationInfo.transports,
-        aaguid: registrationInfo.aaguid,
-      };
+      const credential = await this.#verifyRegistrationResponse(
+        registrationResponse,
+        registrationCeremony,
+      );
       const { newCounter } = await this.#verifyAuthenticationResponse(
-        authenticationResponse,
+        params.authenticationResponse,
         credential,
       );
 
-      // determine key derivation method
-      const prfFirst = (
-        authenticationResponse.clientExtensionResults as PrfClientExtensionResults
-      )?.prf?.results?.first;
-      const authHasPrfOutput =
-        typeof prfFirst === 'string' && prfFirst.length > 0;
-      const keyDerivation: PasskeyKeyDerivation =
-        authHasPrfOutput && registrationCeremony.prfSalt
-          ? { method: 'prf', prfSalt: registrationCeremony.prfSalt }
-          : { method: 'userHandle' };
-
-      if (
-        keyDerivation.method === 'userHandle' &&
-        authenticationResponse.response.userHandle !==
-          registrationCeremony.userHandle
-      ) {
-        log(
-          'Post-registration assertion userHandle does not match registration ceremony',
-        );
-        throw new PasskeyControllerError(
-          PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
-          { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
-        );
-      }
-
-      // derive key and encrypt vault key
-      const encKey = deriveKeyFromAuthenticationResponse(
-        authenticationResponse,
-        { credential, keyDerivation },
+      const keyDerivation = this.#getKeyDerivation(
+        params.authenticationResponse,
+        registrationCeremony,
       );
-      const { ciphertext, iv } = encryptWithKey(vaultKey, encKey);
-
-      // persist passkey record
-      this.update((state) => {
-        state.passkeyRecord = {
-          credential: {
-            ...credential,
-            counter: Math.max(newCounter, credential.counter),
-          },
-          encryptedVaultKey: { ciphertext, iv },
-          keyDerivation,
-        };
+      const passkeyRecord = this.#createPasskeyRecord({
+        vaultKey,
+        authenticationResponse: params.authenticationResponse,
+        credential,
+        newCounter,
+        keyDerivation,
       });
+
+      this.#savePasskeyRecord(passkeyRecord);
     } finally {
       // delete registration ceremony
       this.#ceremonyManager.deleteRegistrationCeremony(challenge);
     }
+  }
+
+  #getRegistrationCeremony(registrationResponse: PasskeyRegistrationResponse): {
+    challenge: string;
+    ceremony: PasskeyRegistrationCeremony | undefined;
+  } {
+    const challenge = this.#getChallengeFromClientData(
+      registrationResponse.response.clientDataJSON,
+    );
+    return {
+      challenge,
+      ceremony: this.#ceremonyManager.getRegistrationCeremony(challenge),
+    };
+  }
+
+  async #verifyRegistrationResponse(
+    registrationResponse: PasskeyRegistrationResponse,
+    registrationCeremony: PasskeyRegistrationCeremony,
+  ): Promise<PasskeyCredentialInfo> {
+    const { verified, registrationInfo } = await verifyRegistrationResponse({
+      response: registrationResponse,
+      expectedChallenge: registrationCeremony.challenge,
+      expectedOrigin: this.#expectedOrigin,
+      expectedRPIDs: this.#expectedRPIDs,
+      requireUserVerification: true,
+    }).catch((error) => {
+      log('Error verifying passkey registration response', error);
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+        {
+          code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
+          cause: error instanceof Error ? error : new Error(String(error)),
+        },
+      );
+    });
+
+    if (!verified || !registrationInfo) {
+      log(
+        'Passkey registration verification returned unverified or missing registration info',
+      );
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+        { code: PasskeyControllerErrorCode.RegistrationVerificationFailed },
+      );
+    }
+
+    const credential = {
+      id: registrationInfo.credentialId,
+      publicKey: bytesToBase64URL(registrationInfo.publicKey),
+      counter: registrationInfo.counter,
+      transports: registrationInfo.transports,
+      aaguid: registrationInfo.aaguid,
+    };
+    if (
+      registrationResponse.id !== credential.id ||
+      registrationResponse.rawId !== credential.id
+    ) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+        { code: PasskeyControllerErrorCode.RegistrationVerificationFailed },
+      );
+    }
+
+    return credential;
+  }
+
+  #getKeyDerivation(
+    authenticationResponse: PasskeyAuthenticationResponse,
+    registrationCeremony: PasskeyRegistrationCeremony,
+    options?: { requirePrf?: boolean },
+  ): PasskeyKeyDerivation {
+    const prfFirst = (
+      authenticationResponse.clientExtensionResults as PrfClientExtensionResults
+    )?.prf?.results?.first;
+    const authHasPrfOutput =
+      typeof prfFirst === 'string' && prfFirst.length > 0;
+
+    if (options?.requirePrf) {
+      if (!authHasPrfOutput || !registrationCeremony.prfSalt) {
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.PrfRequired,
+          { code: PasskeyControllerErrorCode.PrfRequired },
+        );
+      }
+      return { method: 'prf', prfSalt: registrationCeremony.prfSalt };
+    }
+
+    if (authHasPrfOutput && registrationCeremony.prfSalt) {
+      return { method: 'prf', prfSalt: registrationCeremony.prfSalt };
+    }
+
+    if (
+      authenticationResponse.response.userHandle !==
+      registrationCeremony.userHandle
+    ) {
+      log(
+        'Post-registration assertion userHandle does not match registration ceremony',
+      );
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+        { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+      );
+    }
+
+    return { method: 'userHandle' };
+  }
+
+  #createPasskeyRecord({
+    vaultKey,
+    authenticationResponse,
+    credential,
+    newCounter,
+    keyDerivation,
+  }: {
+    vaultKey: string;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    credential: PasskeyCredentialInfo;
+    newCounter: number;
+    keyDerivation: PasskeyKeyDerivation;
+  }): PasskeyRecord {
+    const encKey = deriveKeyFromAuthenticationResponse(authenticationResponse, {
+      credential,
+      keyDerivation,
+    });
+    const { ciphertext, iv } = encryptWithKey(vaultKey, encKey);
+
+    return {
+      credential: {
+        ...credential,
+        counter: Math.max(newCounter, credential.counter),
+      },
+      encryptedVaultKey: { ciphertext, iv },
+      keyDerivation,
+    };
+  }
+
+  #savePasskeyRecord(
+    passkeyRecord: PasskeyRecord,
+    expectedSourceRecord?: PasskeyRecord,
+  ): void {
+    this.update((state) => {
+      if (
+        expectedSourceRecord &&
+        (state.passkeyRecord?.credential.id !==
+          expectedSourceRecord.credential.id ||
+          state.passkeyRecord?.keyDerivation.method !== 'userHandle')
+      ) {
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.ReplacementSourceChanged,
+          { code: PasskeyControllerErrorCode.ReplacementSourceChanged },
+        );
+      }
+      state.passkeyRecord = passkeyRecord;
+    });
   }
 
   /**
@@ -945,6 +1199,21 @@ export class PasskeyController extends BaseController<
     }
 
     try {
+      if (
+        authenticationResponse.id !== credential.id ||
+        authenticationResponse.rawId !== credential.id
+      ) {
+        log(
+          'Passkey authentication response credential ID does not match the expected credential',
+        );
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+          {
+            code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+          },
+        );
+      }
+
       // verify authentication response
       const result = await verifyAuthenticationResponse({
         response: authenticationResponse,

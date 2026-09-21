@@ -72,8 +72,7 @@ const TEST_RP_ID = 'example.com';
 const TEST_ORIGIN = 'https://example.com';
 const TEST_CREDENTIAL_ID = 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo';
 const TEST_PUBLIC_KEY = bytesToBase64URL(new Uint8Array(32).fill(0xaa));
-const TEST_REPLACEMENT_CREDENTIAL_ID =
-  'emV0YS1yZXBsYWNlbWVudC1jcmVkZW50aWFs';
+const TEST_REPLACEMENT_CREDENTIAL_ID = 'emV0YS1yZXBsYWNlbWVudC1jcmVkZW50aWFs';
 const TEST_REPLACEMENT_PUBLIC_KEY_BYTES = new Uint8Array(32).fill(0xbb);
 const TEST_REPLACEMENT_PUBLIC_KEY = bytesToBase64URL(
   TEST_REPLACEMENT_PUBLIC_KEY_BYTES,
@@ -209,10 +208,7 @@ function setupAuthenticationMocks(options?: {
   credentialId?: string;
   newCounter?: number;
 }): void {
-  const {
-    credentialId = TEST_CREDENTIAL_ID,
-    newCounter = 0,
-  } = options ?? {};
+  const { credentialId = TEST_CREDENTIAL_ID, newCounter = 0 } = options ?? {};
   mockVerifyAuthenticationResponse.mockResolvedValue({
     verified: true,
     authenticationInfo: {
@@ -321,6 +317,23 @@ async function prepareUserHandleMigration(
     userHandle,
     ...getReplacementCeremony(controller, options),
   };
+}
+
+async function expectUserHandlePasskeyUsable(
+  controller: PasskeyController,
+  userHandle: string,
+  vaultKey: string = DEFAULT_TEST_VAULT_KEY,
+): Promise<void> {
+  const authenticationOptions = controller.generateAuthenticationOptions();
+  expect(
+    await controller.retrieveVaultKeyWithPasskey(
+      minimalAuthenticationResponse(
+        userHandle,
+        undefined,
+        authenticationOptions.challenge,
+      ),
+    ),
+  ).toBe(vaultKey);
 }
 
 async function enrollWithPostRegistrationAuth(
@@ -1118,7 +1131,9 @@ describe('PasskeyController', () => {
       const options =
         controller.generatePasskeyReplacementRegistrationOptions();
 
-      expect((options.extensions as Record<string, unknown>)?.prf).toBeDefined();
+      expect(
+        (options.extensions as Record<string, unknown>)?.prf,
+      ).toBeDefined();
       expect(options.excludeCredentials).toStrictEqual([
         expect.objectContaining({ id: oldRecord.credential.id }),
       ]);
@@ -1198,8 +1213,7 @@ describe('PasskeyController', () => {
         migration.oldRecord,
       );
 
-      const authenticationOptions =
-        controller.generateAuthenticationOptions();
+      const authenticationOptions = controller.generateAuthenticationOptions();
       expect(authenticationOptions.allowCredentials?.[0]?.id).toBe(
         TEST_REPLACEMENT_CREDENTIAL_ID,
       );
@@ -1207,8 +1221,8 @@ describe('PasskeyController', () => {
         (authenticationOptions.extensions as Record<string, unknown>)?.prf,
       ).toBeDefined();
 
-      await expect(
-        controller.retrieveVaultKeyWithPasskey(
+      expect(
+        await controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse(
             undefined,
             {
@@ -1222,7 +1236,20 @@ describe('PasskeyController', () => {
             authenticationOptions.challenge,
           ),
         ),
-      ).resolves.toBe('migration-vault-key');
+      ).toBe('migration-vault-key');
+
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          migration.authenticationResponse,
+        ),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.NoAuthenticationCeremony,
+      });
+      expect(() =>
+        controller.generatePostRegistrationAuthenticationOptions({
+          registrationResponse: migration.registrationResponse,
+        }),
+      ).toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
 
     it('requires the wallet password after onboarding', async () => {
@@ -1232,7 +1259,8 @@ describe('PasskeyController', () => {
       const controller = createController({
         getIsOnboardingCompleted: () => onboardingComplete,
       });
-      const { record: oldRecord } = await enrollUserHandlePasskey(controller);
+      const { record: oldRecord, userHandle } =
+        await enrollUserHandlePasskey(controller);
       onboardingComplete = true;
       setupRegistrationMocks({
         credentialId: TEST_REPLACEMENT_CREDENTIAL_ID,
@@ -1252,6 +1280,7 @@ describe('PasskeyController', () => {
         code: PasskeyControllerErrorCode.EnrollmentPasswordRequired,
       });
       expect(controller.state.passkeyRecord).toStrictEqual(oldRecord);
+      await expectUserHandlePasskeyUsable(controller, userHandle);
     });
 
     it('preserves the old record when registration verification fails', async () => {
@@ -1271,9 +1300,8 @@ describe('PasskeyController', () => {
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
       });
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
       expect(() =>
         controller.generatePostRegistrationAuthenticationOptions({
           registrationResponse: migration.registrationResponse,
@@ -1298,9 +1326,8 @@ describe('PasskeyController', () => {
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
       });
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
     it('rejects a replacement without PRF output', async () => {
@@ -1319,9 +1346,8 @@ describe('PasskeyController', () => {
       ).rejects.toMatchObject({
         code: PRF_REQUIRED_CODE,
       });
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
     it('preserves the old record when exporting the vault key fails', async () => {
@@ -1343,8 +1369,11 @@ describe('PasskeyController', () => {
           authenticationResponse: migration.authenticationResponse,
         }),
       ).rejects.toThrow('export failed');
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(
+        controller,
+        migration.userHandle,
+        'old-vault-key',
       );
     });
 
@@ -1365,9 +1394,8 @@ describe('PasskeyController', () => {
           authenticationResponse: migration.authenticationResponse,
         }),
       ).rejects.toThrow('encrypt failed');
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
 
       encryptSpy.mockRestore();
     });
@@ -1382,21 +1410,21 @@ describe('PasskeyController', () => {
         migration.registrationOptions.challenge,
       );
 
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
       expect(() =>
         controller.generatePostRegistrationAuthenticationOptions({
           registrationResponse: migration.registrationResponse,
         }),
       ).toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
     it('rejects an invalid registration challenge without changing the old record', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const controller = createController();
-      const { record: oldRecord } = await enrollUserHandlePasskey(controller);
+      const { record: oldRecord, userHandle } =
+        await enrollUserHandlePasskey(controller);
       setupRegistrationMocks({
         credentialId: TEST_REPLACEMENT_CREDENTIAL_ID,
         publicKey: TEST_REPLACEMENT_PUBLIC_KEY_BYTES,
@@ -1424,6 +1452,7 @@ describe('PasskeyController', () => {
       });
       expect(registrationOptions.challenge).not.toBe(TEST_CHALLENGE);
       expect(controller.state.passkeyRecord).toStrictEqual(oldRecord);
+      await expectUserHandlePasskeyUsable(controller, userHandle);
     });
 
     it('preserves the old record when registration origin verification fails', async () => {
@@ -1443,9 +1472,8 @@ describe('PasskeyController', () => {
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
       });
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
     it('rejects an authentication response for the wrong credential ID', async () => {
@@ -1458,10 +1486,7 @@ describe('PasskeyController', () => {
         {
           id: TEST_CREDENTIAL_ID,
           rawId: TEST_CREDENTIAL_ID,
-          clientExtensionResults: prfResults(
-            TEST_REPLACEMENT_PRF_FIRST,
-            true,
-          ),
+          clientExtensionResults: prfResults(TEST_REPLACEMENT_PRF_FIRST, true),
         },
         migration.authenticationOptions.challenge,
       );
@@ -1474,9 +1499,31 @@ describe('PasskeyController', () => {
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
       });
-      expect(controller.state.passkeyRecord).toStrictEqual(
-        migration.oldRecord,
-      );
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
+    });
+
+    it('rejects a registration response with a mismatched credential ID', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const migration = await prepareUserHandleMigration(controller);
+      const mismatchedRegistrationResponse = {
+        ...migration.registrationResponse,
+        id: TEST_CREDENTIAL_ID,
+        rawId: TEST_CREDENTIAL_ID,
+      };
+
+      await expect(
+        controller.completePasskeyReplacement({
+          registrationResponse: mismatchedRegistrationResponse,
+          authenticationResponse: migration.authenticationResponse,
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
+      });
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
     it('preserves the old record when the replacement ceremony expires', async () => {
@@ -1500,6 +1547,7 @@ describe('PasskeyController', () => {
         expect(controller.state.passkeyRecord).toStrictEqual(
           migration.oldRecord,
         );
+        await expectUserHandlePasskeyUsable(controller, migration.userHandle);
       } finally {
         jest.useRealTimers();
       }
@@ -1569,9 +1617,7 @@ describe('PasskeyController', () => {
       };
       (
         controller as unknown as {
-          update: (
-            callback: (state: PasskeyControllerState) => void,
-          ) => void;
+          update: (callback: (state: PasskeyControllerState) => void) => void;
         }
       ).update((state) => {
         state.passkeyRecord = changedRecord;
