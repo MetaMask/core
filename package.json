@@ -41,6 +41,7 @@
     "lint:tsc:check": "tsx scripts/lint-tsc.ts",
     "lint:tsc:clean": "yarn lint:tsc:only-clean && yarn lint:tsc",
     "lint:tsc:only-clean": "rimraf -g 'packages/*/.tsc-lint-cache' '.tsc-lint-cache'",
+    "lint:tsc:ratchet": "tsx scripts/lint-tsc-ratchet.ts",
     "lint:tsc:suppress": "tsx scripts/lint-tsc.ts --update",
     "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",

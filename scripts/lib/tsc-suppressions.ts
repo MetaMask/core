@@ -51,6 +51,17 @@ export type StaleSuppression = {
 };
 
 /**
+ * A suppression that covers more errors than the baseline it is compared
+ * against, meaning that type errors have been added rather than fixed.
+ */
+export type AddedSuppression = {
+  filePath: string;
+  code: string;
+  count: number;
+  baseCount: number;
+};
+
+/**
  * The result of checking the type errors in the repo against the suppressions
  * file.
  */
@@ -236,6 +247,63 @@ export function compareErrorsToSuppressions({
     staleSuppressions,
     didPass: unsuppressedErrors.length === 0 && staleSuppressions.length === 0,
   };
+}
+
+/**
+ * Finds the suppressions that cover more errors than a baseline does.
+ *
+ * Suppressions are meant to be worked off, never added to: an error that is new
+ * should be fixed rather than recorded. Removing suppressions, or shrinking
+ * their counts, is always allowed.
+ *
+ * @param args - The arguments to this function.
+ * @param args.current - The suppressions as they now stand.
+ * @param args.base - The suppressions to measure them against.
+ * @returns Every suppression that grew or appeared, in file order.
+ */
+export function findAddedSuppressions({
+  current,
+  base,
+}: {
+  current: TscSuppressions;
+  base: TscSuppressions;
+}): AddedSuppression[] {
+  const added: AddedSuppression[] = [];
+
+  for (const [filePath, currentByCode] of Object.entries(current)) {
+    for (const [code, { count }] of Object.entries(currentByCode)) {
+      const baseCount = base[filePath]?.[code]?.count ?? 0;
+      if (count > baseCount) {
+        added.push({ filePath, code, count, baseCount });
+      }
+    }
+  }
+
+  return added;
+}
+
+/**
+ * Prints the suppressions that have been added, if any.
+ *
+ * @param added - The added suppressions to print.
+ */
+export function printAddedSuppressions(added: AddedSuppression[]): void {
+  if (added.length === 0) {
+    console.log(
+      '✅ No type errors have been added to the suppressions file. Good job!',
+    );
+    return;
+  }
+
+  console.log('❌ Detected type errors added to the suppressions file:\n');
+  for (const suppression of added) {
+    console.log(
+      `  ${suppression.filePath}: ${suppression.code} (${suppression.count} suppressed, was ${suppression.baseCount})`,
+    );
+  }
+  console.log(
+    '\nSuppressions may only be removed, never added. Fix these type errors rather than suppressing them.',
+  );
 }
 
 /**
