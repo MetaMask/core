@@ -272,6 +272,55 @@ describe('TradingService', () => {
       );
     });
 
+    it('prices a Scale ladder from the midpoint of its bounds', async () => {
+      // A Scale placement states no single price — its rungs span
+      // scaleMinPrice to scaleMaxPrice. Without pricing from those bounds a
+      // bounded waiver is withheld at submit after a preview quoted one.
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          orderType: 'scale',
+          scaleMinPrice: '40000',
+          scaleMaxPrice: '60000',
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // 0.02 BTC at the 50000 midpoint of the ladder.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        1000,
+      );
+    });
+
+    it('prefers a stated USD amount over the Scale ladder bounds', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          usdAmount: '2500',
+          orderType: 'scale',
+          scaleMinPrice: '40000',
+          scaleMaxPrice: '60000',
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        2500,
+      );
+    });
+
     it('still resolves a fee when the order cannot be priced', async () => {
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 

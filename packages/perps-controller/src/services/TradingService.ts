@@ -1214,9 +1214,7 @@ export class TradingService {
       // everything would resolve the fee against too small a notional and
       // over-grant the waiver.
       const selected =
-        params.closeAll !== true &&
-        params.symbols &&
-        params.symbols.length > 0
+        params.closeAll !== true && params.symbols && params.symbols.length > 0
           ? positions.filter((position) =>
               params.symbols?.includes(position.symbol),
             )
@@ -1321,6 +1319,10 @@ export class TradingService {
    * limit price of its own.
    * @param params.currentPrice - Live market price the order was quoted against.
    * @param params.priceAtCalculation - Price snapshot taken when size was derived.
+   * @param params.scaleMinPrice - Lowest rung of a Scale ladder, when the
+   * placement is one.
+   * @param params.scaleMaxPrice - Highest rung of a Scale ladder, when the
+   * placement is one.
    * @returns The order notional in USD, or undefined when it cannot be priced.
    */
   #resolveOrderNotionalUsd(params: {
@@ -1330,6 +1332,8 @@ export class TradingService {
     triggerPrice?: string;
     currentPrice?: number;
     priceAtCalculation?: number;
+    scaleMinPrice?: string;
+    scaleMaxPrice?: string;
   }): number | undefined {
     const usdAmount =
       params.usdAmount === undefined
@@ -1357,9 +1361,32 @@ export class TradingService {
       params.triggerPrice === undefined
         ? undefined
         : Number.parseFloat(params.triggerPrice);
+    // A Scale ladder states no single price: its rungs span `scaleMinPrice` to
+    // `scaleMaxPrice`, so the midpoint is what the whole ladder averages out
+    // at. Without this a bounded waiver is withheld from every Scale placement
+    // that carries no USD amount, after a preview that quoted one.
+    const scaleMinPrice =
+      params.scaleMinPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.scaleMinPrice);
+    const scaleMaxPrice =
+      params.scaleMaxPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.scaleMaxPrice);
+    const scaleMidPrice =
+      scaleMinPrice !== undefined &&
+      scaleMaxPrice !== undefined &&
+      Number.isFinite(scaleMinPrice) &&
+      Number.isFinite(scaleMaxPrice) &&
+      scaleMinPrice > 0 &&
+      scaleMaxPrice > 0
+        ? (scaleMinPrice + scaleMaxPrice) / 2
+        : undefined;
+
     const price = [
       limitPrice,
       triggerPrice,
+      scaleMidPrice,
       params.priceAtCalculation,
       params.currentPrice,
     ]
