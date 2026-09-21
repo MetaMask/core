@@ -9,7 +9,7 @@ import {
   connectSnap,
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests.js';
-import { validateLoginResponse } from '../utils/validate-login-response.js';
+import { isFreshLoginResponse } from '../utils/is-fresh-login-response.js';
 import {
   getMfaCredentials,
   mfaEnroll,
@@ -455,12 +455,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return res;
   }
 
-  // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
   async #getAuthSession(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse(entropySourceId);
-    if (!validateLoginResponse(auth)) {
+    if (!isFreshLoginResponse(auth)) {
       return null;
     }
 
@@ -469,14 +468,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       return null;
     }
 
-    const currentTime = Date.now();
-    const sessionAge = currentTime - auth.token.obtainedAt;
-    const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;
-
-    if (sessionAge < refreshThreshold) {
-      return auth;
-    }
-    return null;
+    return auth;
   }
 
   async #login(entropySourceId?: string): Promise<LoginResponse> {

@@ -9,6 +9,7 @@ export type {
   AuthenticationControllerPerformSignInAction,
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetCachedBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
   AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerGetUserProfileLineageAction,

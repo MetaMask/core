@@ -51,6 +51,23 @@ export type AuthenticationControllerGetBearerTokenAction = {
 };
 
 /**
+ * Returns the cached access token for the specified SRP, without logging in.
+ *
+ * Callers on hot paths use this instead of `getBearerToken` so that a request
+ * never triggers a login or waits on one. `undefined` means there is no token
+ * to present right now: the wallet is locked, the SRP has no session, or the
+ * cached token is close enough to expiry that `getBearerToken` would replace
+ * it. Refreshing is left to whichever caller next uses `getBearerToken`.
+ *
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The OIDC access token, or `undefined`.
+ */
+export type AuthenticationControllerGetCachedBearerTokenAction = {
+  type: `AuthenticationController:getCachedBearerToken`;
+  handler: AuthenticationController['getCachedBearerToken'];
+};
+
+/**
  * Returns the cached session profile, logging in if no session exists.
  *
  * The returned `canonicalProfileId` reflects the value from the most recent
@@ -142,6 +159,7 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerClearStateAction
   | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetCachedBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction
   | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction

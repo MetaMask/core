@@ -1709,6 +1709,64 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('getCachedBearerToken', () => {
+    it('returns the cached access token', () => {
+      const { messenger } = createMockAuthenticationMessenger();
+      const state = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      expect(controller.getCachedBearerToken()).toBe(
+        state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.token.accessToken,
+      );
+
+      for (const id of MOCK_ENTROPY_SOURCE_IDS) {
+        expect(controller.getCachedBearerToken(id)).toBe(
+          state.srpSessionData?.[id]?.token.accessToken,
+        );
+      }
+    });
+
+    it('returns undefined when there is no session', () => {
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      expect(controller.getCachedBearerToken()).toBeUndefined();
+    });
+
+    it('returns undefined when the wallet is locked', () => {
+      const { messenger, mockKeyringControllerGetState } =
+        createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState(),
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      expect(controller.getCachedBearerToken()).toBeUndefined();
+    });
+
+    it('returns undefined when the token is past 90% of its lifetime', () => {
+      const { messenger } = createMockAuthenticationMessenger();
+      const state = mockSignedInState({ expiresIn: 3600 });
+      jest.spyOn(Date, 'now').mockReturnValue(3600 * 1000 * 0.9);
+      const controller = new AuthenticationController({
+        messenger,
+        state,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      expect(controller.getCachedBearerToken()).toBeUndefined();
+    });
+  });
+
   describe('getBearerToken', () => {
     it('should throw error if not logged in', async () => {
       const metametrics = createMockAuthMetaMetrics();
