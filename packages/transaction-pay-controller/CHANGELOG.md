@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Gate the server pay strategy per transaction type so flows can be enabled individually
+- Gate the server pay strategy per transaction type so flows can be enabled individually ([#10312](https://github.com/MetaMask/core/pull/10312))
   - `ServerStrategy.supports` now additionally requires the transaction, or one of its nested transactions, to have a type listed in the new `payStrategies.server.enabledTransactionTypes` remote feature flag, which defaults to an empty list; enabling `payStrategies.server.enabled` alone no longer selects the strategy for any flow.
   - `ServerStrategy.supports` now also declines requests that use capabilities the strategy does not implement, regardless of the feature flag: non-atomic execution, maximum amounts, HyperLiquid activation fees, Polymarket deposit wallets, direct mUSD Money Account quotes, and transactions requiring exact-output pricing.
   - `PayStrategiesConfig['server']` gains a required `enabledTransactionTypes` property.
