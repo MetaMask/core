@@ -227,14 +227,14 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       return;
     }
 
-    const hash = hashKey(mutation.options.mutationKey);
-    const hasSubscription = subscriptions.has(hash);
-
     const service = parseQueryKey(mutation.options.mutationKey);
 
     if (!service) {
       return;
     }
+
+    const hash = hashKey(mutation.options.mutationKey);
+    const hasSubscription = subscriptions.has(hash);
 
     log(
       `[mutationCache subscription] Received event "${event.type}". Details:`,
