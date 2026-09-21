@@ -246,6 +246,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
   'KycController:getSessionStatusForVendor',
+  'KycController:refreshSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
   'RemoteFeatureFlagController:getState',
@@ -283,6 +284,11 @@ type KycControllerSessionStatus = {
 export type KycControllerGetSessionStatusForVendorAction = {
   type: 'KycController:getSessionStatusForVendor';
   handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+};
+
+export type KycControllerRefreshSessionStatusAction = {
+  type: 'KycController:refreshSessionStatus';
+  handler: () => KycControllerSessionStatus;
 };
 
 export type KycControllerHasCompletedVendorDisclaimersAction = {
@@ -874,6 +880,7 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
   | UserStorageController.UserStorageControllerGetStateAction
@@ -3837,10 +3844,29 @@ export class RampsController extends BaseController<
     // reflects backend truth (e.g. re-verification required after a new
     // document) rather than only device-local state. A `null` session means no
     // customer/session exists yet, so onboarding starts at the email step.
-    const session = await this.messenger.call(
-      'KycController:getSessionStatusForVendor',
-      'iron',
-    );
+    // Prefer the in-memory/persisted session status over the backend
+    // latest-status endpoint: after SumSub the backend endpoint lags (it still
+    // reports kycStatus 'new' right after an 'approved' applicant result), while
+    // the controller state reflects the journey/SDK outcome. Fall back to a
+    // backend fetch only when the controller has no session in state (e.g. a
+    // reinstall/cleared state resuming an existing customer, or a brand-new user
+    // with no session at all).
+    let session: KycControllerSessionStatus | null = null;
+    try {
+      session = this.messenger.call('KycController:refreshSessionStatus');
+    } catch {
+      try {
+        session = await this.messenger.call(
+          'KycController:getSessionStatusForVendor',
+          'iron',
+        );
+      } catch {
+        // No session exists for this customer yet: the backend returns 404
+        // ("KYC session not found"), which surfaces as a rejection here. Treat
+        // it as "start onboarding at the email step" rather than an error.
+        session = null;
+      }
+    }
     if (!session) {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
     }
@@ -3864,63 +3890,70 @@ export class RampsController extends BaseController<
     }
 
     // Status fields draw from the KYC vocabulary (new | pending | approved |
-    // rejected | retry). Right after the session is created and its consents
-    // are recorded — before the applicant runs SumSub — the backend already
-    // reports `finalStatus: 'pending'` while the applicant/vendor lifecycle is
-    // still `new`. So the "has the user actually submitted documents yet?"
-    // decision must read the vendor/applicant status, not `finalStatus` (which
-    // only distinguishes the terminal decision). `new`/`retry` on the vendor or
-    // applicant means SumSub still has to run (or re-run).
-    const { finalStatus, vendorStatus, kycStatus } = session;
-    const lifecycleStatuses = [finalStatus, vendorStatus, kycStatus];
+    // rejected | retry). `finalStatus` is the vendor's final decision, which
+    // stays `pending` until Iron finalizes. `kycStatus` is the SumSub applicant
+    // outcome (from the journey/SDK result): `new` before the applicant runs
+    // SumSub, moving to `approved`/`pending` once they submit while the vendor
+    // finalizes. So gate the SumSub screen on `kycStatus`, and only complete
+    // onboarding once `finalStatus` is the terminal `approved`.
+    const { finalStatus, kycStatus } = session;
 
-    if (lifecycleStatuses.includes('rejected')) {
+    if (finalStatus === 'rejected' || kycStatus === 'rejected') {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
     }
-    if (!lifecycleStatuses.includes('approved')) {
-      // Not a terminal decision yet: route to the SumSub launch screen until
-      // the applicant has submitted (vendor/applicant status leaves `new`);
-      // once submitted, show the "verification in progress" screen.
-      if (vendorStatus === 'pending' || kycStatus === 'pending') {
-        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    if (finalStatus !== 'approved') {
+      if (kycStatus === 'new' || kycStatus === 'retry') {
+        // Applicant still has to run (or re-run) SumSub document verification.
+        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
       }
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
+      // Submitted; vendor is finalizing → "verification in progress".
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
     }
     if (!walletAddress.trim()) {
       throw new Error('walletAddress is required after KYC acceptance.');
     }
 
-    const registration = await this.registerMoneyAccountWallet({
-      address: walletAddress,
-    });
-    if (registration.type === 'lookupUnavailable') {
-      throw registration.error;
-    }
+    // KYC is approved; the remaining work activates the Money account (register
+    // the wallet + ensure an autoramp). Those calls hit the neobank backend and
+    // can fail transiently (e.g. an address-list lookup timeout). If they do,
+    // keep the user on the "verification in progress" screen so a refresh
+    // retries the activation, rather than dropping them onto the recoverable-
+    // error screen — the KYC decision itself already succeeded.
+    try {
+      const registration = await this.registerMoneyAccountWallet({
+        address: walletAddress,
+      });
+      if (registration.type === 'lookupUnavailable') {
+        throw registration.error;
+      }
 
-    const remoteAutoramps = await this.messenger.call(
-      'NeoBankService:getAutoramps',
-    );
-    const remoteAutorampIds = new Set(
-      remoteAutoramps.map((autoramp) => autoramp.id),
-    );
-    for (const autoramp of remoteAutoramps) {
-      this.#applyAutorampRemoteSnapshot(autoramp);
-    }
-    this.update((state) => {
-      state.autoramps = state.autoramps.filter((autoramp) =>
-        remoteAutorampIds.has(autoramp.id),
+      const remoteAutoramps = await this.messenger.call(
+        'NeoBankService:getAutoramps',
       );
-    });
+      const remoteAutorampIds = new Set(
+        remoteAutoramps.map((autoramp) => autoramp.id),
+      );
+      for (const autoramp of remoteAutoramps) {
+        this.#applyAutorampRemoteSnapshot(autoramp);
+      }
+      this.update((state) => {
+        state.autoramps = state.autoramps.filter((autoramp) =>
+          remoteAutorampIds.has(autoramp.id),
+        );
+      });
 
-    const normalizedWalletAddress = walletAddress.toLowerCase();
-    const hasUsableAutoramp = this.state.autoramps.some(
-      (autoramp) =>
-        autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
-        autoramp.status !== AutorampStatus.Rejected &&
-        autoramp.status !== AutorampStatus.Cancelled,
-    );
-    if (!hasUsableAutoramp) {
-      await this.createAutoramp({});
+      const normalizedWalletAddress = walletAddress.toLowerCase();
+      const hasUsableAutoramp = this.state.autoramps.some(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+          autoramp.status !== AutorampStatus.Rejected &&
+          autoramp.status !== AutorampStatus.Cancelled,
+      );
+      if (!hasUsableAutoramp) {
+        await this.createAutoramp({});
+      }
+    } catch {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
     }
 
     return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
