@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Stop sending `crypto` on `RampsService.getPaymentMethods`. Payment methods are provider + region; the param was ignored by `/v2/regions/:region/payments` and split the CDN cache per token. `assetId` remains on the method for caller cache keys.
+
 ## [23.0.0]
 
 ### Added
