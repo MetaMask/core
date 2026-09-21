@@ -1421,6 +1421,36 @@ describe('PriceDataSource', () => {
       },
     );
 
+    it('reads partialSupport.spotPricesV3 and drops chains the v3 endpoint does not list', async () => {
+      const tronMainnet = 'tron:728126428/slip44:195' as Caip19AssetId;
+      const tronNile = 'tron:3448148188/slip44:195' as Caip19AssetId;
+      const tronShasta = 'tron:2494104990/slip44:195' as Caip19AssetId;
+      const { controller, apiClient } = setupController();
+
+      apiClient.prices.fetchPriceV2SupportedNetworks.mockResolvedValue({
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: ['eip155:137'],
+          spotPricesV3: ['tron:728126428'],
+        },
+      });
+
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [tronMainnet, tronNile, tronShasta],
+        }),
+      });
+
+      await controller.assetsMiddleware(context, jest.fn());
+
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+        [tronMainnet],
+        expect.anything(),
+      );
+
+      controller.destroy();
+    });
+
     it.each(testCases)(
       'request.detectedAssets price updates: $name',
       async ({ assets, expectAPI }) => {

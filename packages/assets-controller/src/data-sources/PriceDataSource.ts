@@ -37,6 +37,45 @@ const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
  */
 const FRESHNESS_TTL_POLL_RATIO = 0.9;
 
+/**
+ * `partialSupport` from Price API `/v2/supportedNetworks`.
+ *
+ * Production returns `{ spotPricesV2, spotPricesV3 }`. Some callers and the
+ * published type still use a flat chain-id array, so both are accepted.
+ */
+type PricePartialSupport =
+  | string[]
+  | {
+      spotPricesV2?: string[];
+      spotPricesV3?: string[];
+    };
+
+/**
+ * Chain IDs this data source may send to `/v3/spot-prices`.
+ *
+ * v3 calls must not include chains listed only under `spotPricesV2`: a batch
+ * whose every chain is unsupported is rejected with 400. A flat
+ * `partialSupport` array is treated as v3-eligible because it has no split.
+ *
+ * @param response - Supported-networks payload.
+ * @param response.fullSupport - Fully supported CAIP-2 chain IDs.
+ * @param response.partialSupport - Partial support, as a chain-id array or the
+ * live `{ spotPricesV2, spotPricesV3 }` object.
+ * @returns Unique CAIP-2 chain IDs safe to price on v3.
+ */
+function collectPriceSupportedChainIds(response: {
+  fullSupport?: string[];
+  partialSupport?: PricePartialSupport;
+}): string[] {
+  const fullSupport = response.fullSupport ?? [];
+  const { partialSupport } = response;
+  const partialIds = Array.isArray(partialSupport)
+    ? partialSupport
+    : (partialSupport?.spotPricesV3 ?? []);
+
+  return [...new Set([...fullSupport, ...partialIds])];
+}
+
 /** Maximum number of asset IDs per Price API request. */
 const PRICE_API_BATCH_SIZE = 50;
 
@@ -490,8 +529,14 @@ export class PriceDataSource {
         this.#fetchTimeoutMs,
       );
 
-      const allNetworks = [...response.fullSupport, ...response.partialSupport];
-      return new Set(allNetworks);
+      return new Set(
+        collectPriceSupportedChainIds(
+          response as {
+            fullSupport?: string[];
+            partialSupport?: PricePartialSupport;
+          },
+        ),
+      );
     } catch (error) {
       log('Failed to fetch price supported networks', { error });
       return new Set();
