@@ -6,7 +6,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
-import type { KycVendor } from '@metamask/kyc-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -269,6 +268,10 @@ export type KeyringControllerSignPersonalMessageAction = {
  * Minimal structural subset of the KYC controller's session status — only the
  * status fields the VBA stage machine reads.
  */
+/** Identity vendor accepted by the KYC controller. Declared locally so the
+ * ramps package does not depend on `@metamask/kyc-controller`. */
+type KycVendor = 'moonpay' | 'iron';
+
 type KycControllerSessionStatus = {
   finalStatus: string;
   kycStatus: string;
