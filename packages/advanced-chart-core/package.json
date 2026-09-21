@@ -18,7 +18,9 @@
   "files": [
     "dist/"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/index.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -58,6 +60,7 @@
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
