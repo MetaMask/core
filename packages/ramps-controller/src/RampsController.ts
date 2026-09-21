@@ -3877,7 +3877,9 @@ export class RampsController extends BaseController<
     }
 
     if (
-      !(await this.messenger.call('KycController:hasCompletedVendorDisclaimers'))
+      !(await this.messenger.call(
+        'KycController:hasCompletedVendorDisclaimers',
+      ))
     ) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.VendorTermsRequired,
