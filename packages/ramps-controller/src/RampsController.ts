@@ -268,8 +268,10 @@ export type KeyringControllerSignPersonalMessageAction = {
  * Minimal structural subset of the KYC controller's session status — only the
  * status fields the VBA stage machine reads.
  */
-/** Identity vendor accepted by the KYC controller. Declared locally so the
- * ramps package does not depend on `@metamask/kyc-controller`. */
+/**
+ * Identity vendor accepted by the KYC controller. Declared locally so the
+ * ramps package does not depend on `@metamask/kyc-controller`.
+ */
 type KycVendor = 'moonpay' | 'iron';
 
 type KycControllerSessionStatus = {
