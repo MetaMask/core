@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@0543b5929698c71e3ccc6ed24eac87825669b5de # v3.5.0
         with:
           is-high-risk-environment: true
           persist-credentials: false
@@ -29,7 +29,7 @@ jobs:
       - name: Build
         run: yarn build
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: publish-release-artifacts-${{ github.sha }}
           include-hidden-files: true
@@ -44,18 +44,18 @@ jobs:
     needs: build
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@0543b5929698c71e3ccc6ed24eac87825669b5de # v3.5.0
         with:
           is-high-risk-environment: true
           persist-credentials: false
           ref: ${{ github.sha }}
           skip-install: true
       - name: Restore build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Dry run publish to NPM
-        uses: MetaMask/action-npm-publish@v6
+        uses: MetaMask/action-npm-publish@18df42148c35aabb98e00f9fda127d421af141df # v6.5.0
         with:
           dry-run: true
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -71,18 +71,18 @@ jobs:
       id-token: write
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@0543b5929698c71e3ccc6ed24eac87825669b5de # v3.5.0
         with:
           is-high-risk-environment: true
           persist-credentials: false
           ref: ${{ github.sha }}
           skip-install: true
       - name: Restore build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Publish to NPM
-        uses: MetaMask/action-npm-publish@v6
+        uses: MetaMask/action-npm-publish@18df42148c35aabb98e00f9fda127d421af141df # v6.5.0
         with:
           dry-run: false
           npm-token: ${{ secrets.NPM_TOKEN }}
@@ -95,12 +95,12 @@ jobs:
     needs: publish-npm
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@0543b5929698c71e3ccc6ed24eac87825669b5de # v3.5.0
         with:
           is-high-risk-environment: true
           persist-credentials: false
           ref: ${{ github.sha }}
           skip-install: true
-      - uses: MetaMask/action-publish-release@v3
+      - uses: MetaMask/action-publish-release@f01f1be110d60fb07d86c880ce3d6bdb353524d3 # v3.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
