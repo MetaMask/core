@@ -3792,11 +3792,6 @@ export class AssetsController extends BaseController<
               ),
             };
 
-        // Websocket updates can carry brand-new spam airdrops: enrich them
-        // with Token API occurrences and drop below-floor tokens BEFORE
-        // detection, so spam is never detected, enriched, priced or persisted.
-        // Custom assets are exempt — see the candidate scan in
-        // `TokenDataSource.occurrenceFilterMiddleware`.
         const shouldFilterOccurrences =
           sourceId === 'AccountActivityDataSource' &&
           this.#isBasicFunctionality();

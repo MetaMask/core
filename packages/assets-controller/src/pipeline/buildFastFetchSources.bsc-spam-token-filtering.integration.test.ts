@@ -26,7 +26,9 @@ import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AssetsControllerStateInternal,
+  AssetsDataSource,
   Caip19AssetId,
+  Context,
   DataRequest,
   DataResponse,
 } from '../types.js';
@@ -77,6 +79,13 @@ const DETECTED_ASSETS: ResponseSurface = {
 
 async function runPipeline(
   state: AssetsControllerStateInternal,
+  {
+    rpcDataSource: rpcOverride,
+    omitBalanceAssetIds = [],
+  }: {
+    rpcDataSource?: AssetsDataSource;
+    omitBalanceAssetIds?: string[];
+  } = {},
 ): Promise<DataResponse> {
   const { assetsControllerMessenger } = createMockMessengers({
     registerCustomRootActions: (rootMessenger) => {
@@ -134,7 +143,7 @@ async function runPipeline(
     getSelectedCurrency: (): 'usd' => 'usd',
   });
 
-  mockBscSpamApis();
+  mockBscSpamApis({ omitBalanceAssetIds });
 
   await accountsApiDataSource.refreshActiveChains();
 
@@ -151,7 +160,9 @@ async function runPipeline(
     {
       accountsApiDataSource,
       stakedBalanceDataSource,
-      rpcFallbackMiddleware: new RpcFallbackMiddleware({ rpcDataSource }),
+      rpcFallbackMiddleware: new RpcFallbackMiddleware({
+        rpcDataSource: rpcOverride ?? rpcDataSource,
+      }),
       detectionMiddleware: new DetectionMiddleware(),
       tokenDataSource,
       priceDataSource,
@@ -236,12 +247,25 @@ describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom ass
     cleanAll();
   });
 
-  // Graduation scenario: the user imported CDOGE by hand before the Accounts
-  // API indexed it. The API now reports a positive balance for it, while the
-  // Tokens API still carries only 1 occurrence — below the default floor of
-  // 3 for BNB Chain. The token must survive the fast lane: custom assets are
-  // exempt from occurrence filtering and must never be removed from
-  // `customAssets` automatically, or the user loses the token they imported.
+  const createRecordingRpcSource = (
+    balances: Record<Caip19AssetId, { amount: string }>,
+  ): { source: AssetsDataSource; requests: DataRequest[] } => {
+    const requests: DataRequest[] = [];
+    const source: AssetsDataSource = {
+      getName: () => 'RpcDataSource',
+      assetsMiddleware: async (ctx): Promise<Context> => {
+        requests.push(ctx.request);
+        return {
+          ...ctx,
+          response: {
+            assetsBalance: { [BSC_SPAM_ACCOUNT_ID]: balances },
+          },
+        };
+      },
+    };
+    return { source, requests };
+  };
+
   it.each([BALANCES, METADATA, DETECTED_ASSETS])(
     '$surface - keeps the imported token despite a positive API balance and low occurrences',
     async ({ lookUp }) => {
@@ -254,4 +278,40 @@ describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom ass
       expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
     },
   );
+
+  it('does not re-read the custom asset on RPC when the Accounts API reports its balance', async () => {
+    const { source, requests } = createRecordingRpcSource({});
+
+    const response = await runPipeline(
+      buildEmptyAssetsState({
+        customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      }),
+      { rpcDataSource: source },
+    );
+
+    expect(requests).toHaveLength(0);
+    expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+  });
+
+  it('re-reads the custom asset on RPC when the Accounts API omits it', async () => {
+    const { source, requests } = createRecordingRpcSource({
+      [CDOGE_ASSET_ID_LOWERCASE]: { amount: '4321' },
+    });
+
+    const response = await runPipeline(
+      buildEmptyAssetsState({
+        customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      }),
+      {
+        rpcDataSource: source,
+        omitBalanceAssetIds: [CDOGE_ASSET_ID_LOWERCASE],
+      },
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.customAssets ?? []).toContain(CDOGE_ASSET_ID_CHECKSUM);
+    expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
+      amount: '4321',
+    });
+  });
 });

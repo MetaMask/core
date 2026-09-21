@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `CustomAssetGraduationMiddleware` (and its fast-lane source role), which removed an EVM asset from `customAssets` as soon as the Accounts API / Account Activity websocket reported a balance for it. Custom assets are now never removed from `customAssets` automatically, even once upstream sources start reporting them, so they keep their exemption from occurrence / Blockaid spam filtering and can no longer be auto-filtered out of balances and metadata after "graduating" ([#10335](https://github.com/MetaMask/core/pull/10335))
-  - The `CustomAssetGraduationMiddleware` and `CustomAssetGraduationMiddlewareOptions` exports are removed. The `AssetsController:removeCustomAsset` action is unchanged and remains the way to remove a custom asset explicitly
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` and its exports, so custom assets are never removed from `customAssets` automatically and keep their spam-filtering exemption instead of being auto-filtered out once upstream sources start reporting them ([#10335](https://github.com/MetaMask/core/pull/10335))
 
 ### Fixed
 
