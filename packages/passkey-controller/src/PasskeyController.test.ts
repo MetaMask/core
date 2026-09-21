@@ -1140,6 +1140,32 @@ describe('PasskeyController', () => {
       expect(controller.state.passkeyRecord).toStrictEqual(oldRecord);
     });
 
+    it('omits transports when the source credential has none', () => {
+      const record: PasskeyRecord = {
+        credential: {
+          id: TEST_CREDENTIAL_ID,
+          publicKey: TEST_PUBLIC_KEY,
+          counter: 0,
+          aaguid: '00000000-0000-0000-0000-000000000000',
+        },
+        encryptedVaultKey: {
+          ciphertext: 'YQ==',
+          iv: 'YWFhYWFhYWFhYQ==',
+        },
+        keyDerivation: { method: 'userHandle' },
+      };
+      const controller = createController({
+        state: { passkeyRecord: record },
+      });
+
+      const options =
+        controller.generatePasskeyReplacementRegistrationOptions();
+
+      expect(options.excludeCredentials).toStrictEqual([
+        { id: TEST_CREDENTIAL_ID, type: 'public-key' },
+      ]);
+    });
+
     it('throws when the enrolled passkey is already PRF-backed', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
@@ -1419,6 +1445,26 @@ describe('PasskeyController', () => {
       await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
+    it('does not cancel normal or missing registration ceremonies', () => {
+      const controller = createController();
+      const registrationOptions = controller.generateRegistrationOptions({
+        prfAvailable: false,
+      });
+      const registrationResponse = minimalRegistrationResponse(
+        undefined,
+        registrationOptions.challenge,
+      );
+
+      controller.cancelPasskeyReplacement(registrationOptions.challenge);
+      controller.cancelPasskeyReplacement('missing-challenge');
+
+      expect(() =>
+        controller.generatePostRegistrationAuthenticationOptions({
+          registrationResponse,
+        }),
+      ).not.toThrow();
+    });
+
     it('rejects an invalid registration challenge without changing the old record', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
@@ -1526,6 +1572,30 @@ describe('PasskeyController', () => {
       await expectUserHandlePasskeyUsable(controller, migration.userHandle);
     });
 
+    it('rejects a replacement that reuses the source credential ID', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const migration = await prepareUserHandleMigration(controller);
+      setupRegistrationMocks({ credentialId: TEST_CREDENTIAL_ID });
+      const reusedCredentialRegistrationResponse = {
+        ...migration.registrationResponse,
+        id: TEST_CREDENTIAL_ID,
+        rawId: TEST_CREDENTIAL_ID,
+      };
+
+      await expect(
+        controller.completePasskeyReplacement({
+          registrationResponse: reusedCredentialRegistrationResponse,
+          authenticationResponse: migration.authenticationResponse,
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
+      });
+      expect(controller.state.passkeyRecord).toStrictEqual(migration.oldRecord);
+      await expectUserHandlePasskeyUsable(controller, migration.userHandle);
+    });
+
     it('preserves the old record when the replacement ceremony expires', async () => {
       jest.useFakeTimers();
       try {
@@ -1621,6 +1691,45 @@ describe('PasskeyController', () => {
         }
       ).update((state) => {
         state.passkeyRecord = changedRecord;
+      });
+
+      await expect(
+        controller.completePasskeyReplacement({
+          registrationResponse: migration.registrationResponse,
+          authenticationResponse: migration.authenticationResponse,
+        }),
+      ).rejects.toMatchObject({
+        code: REPLACEMENT_SOURCE_CHANGED_CODE,
+      });
+      expect(controller.state.passkeyRecord).toStrictEqual(changedRecord);
+    });
+
+    it('rejects a source change that occurs before the final commit', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const migration = await prepareUserHandleMigration(controller);
+      const changedRecord: PasskeyRecord = {
+        ...migration.oldRecord,
+        credential: {
+          ...migration.oldRecord.credential,
+          id: 'Y2hhbmdlZC1zb3VyY2UtY3JlZA',
+        },
+      };
+      mockVerifyAuthenticationResponse.mockImplementationOnce(async () => {
+        (
+          controller as unknown as {
+            update: (callback: (state: PasskeyControllerState) => void) => void;
+          }
+        ).update((state) => {
+          state.passkeyRecord = changedRecord;
+        });
+        return {
+          verified: true,
+          authenticationInfo: {
+            newCounter: 0,
+          },
+        };
       });
 
       await expect(

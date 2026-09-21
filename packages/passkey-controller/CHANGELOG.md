@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a controller-owned migration flow for replacing legacy `userHandle`
-  passkeys with PRF-backed passkeys while retaining the old record until the
-  replacement is fully verified.
+- Add PRF migration methods for enrolled legacy `userHandle` passkeys
+  ([#10310](https://github.com/MetaMask/core/pull/10310))
+  - `generatePasskeyReplacementRegistrationOptions` stages a PRF-only
+    replacement registration while retaining the existing record.
+  - `completePasskeyReplacement` verifies the replacement registration and PRF
+    assertion, re-wraps the vault key, and atomically commits the new record.
+  - `cancelPasskeyReplacement` removes the targeted replacement ceremony and
+    its linked post-registration authentication ceremony.
 
 ### Changed
 

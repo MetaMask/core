@@ -88,8 +88,16 @@ describe('CeremonyManager', () => {
           challenge: `k${i}`,
           createdAt,
         });
+        if (i === 0) {
+          manager.saveAuthenticationCeremony('k0-auth', {
+            challenge: 'k0-auth',
+            registrationChallenge: 'k0',
+            createdAt,
+          });
+        }
       }
       expect(manager.getRegistrationCeremony('k0')).toBeUndefined();
+      expect(manager.getAuthenticationCeremony('k0-auth')).toBeUndefined();
       expect(manager.getRegistrationCeremony('k1')).toMatchObject({
         challenge: 'k1',
         createdAt: 11,
@@ -116,6 +124,25 @@ describe('CeremonyManager', () => {
       expect(manager.getRegistrationCeremony('newest')).toMatchObject({
         challenge: 'newest',
         createdAt: 5000,
+      });
+    });
+
+    it('evicts authentication ceremonies without registration cleanup', () => {
+      const manager = new CeremonyManager();
+      const cap = MAX_CONCURRENT_PASSKEY_CEREMONIES;
+      for (let i = 0; i <= cap; i += 1) {
+        const createdAt = 20 + i;
+        jest.setSystemTime(createdAt);
+        manager.saveAuthenticationCeremony(`auth-${i}`, {
+          challenge: `auth-${i}`,
+          createdAt,
+        });
+      }
+
+      expect(manager.getAuthenticationCeremony('auth-0')).toBeUndefined();
+      expect(manager.getAuthenticationCeremony('auth-1')).toMatchObject({
+        challenge: 'auth-1',
+        createdAt: 21,
       });
     });
 
