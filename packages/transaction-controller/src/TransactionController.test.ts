@@ -3764,7 +3764,7 @@ describe('TransactionController', () => {
         });
 
         await expect(result).rejects.toThrow(
-          'Cannot publish a transaction without local signing or a publish hook',
+          'Cannot publish a transaction when there is no local signing and no publish hook',
         );
         expect(rpcRequestMock).not.toHaveBeenCalledWith(
           expect.objectContaining({ method: 'eth_sendRawTransaction' }),

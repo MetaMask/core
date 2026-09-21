@@ -3223,7 +3223,7 @@ export class TransactionController extends BaseController<
 
       if (!shouldSign && !publishHookOverride && !this.#publishHookProvided) {
         throw new Error(
-          'Cannot publish a transaction without local signing or a publish hook',
+          'Cannot publish a transaction when there is no local signing and no publish hook',
         );
       }
 
