@@ -1,4 +1,4 @@
-name: Repair dependency update pull requests
+name: Repair dependency upgrade pull requests
 
 on:
   pull_request:
