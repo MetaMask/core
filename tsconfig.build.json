@@ -17,6 +17,9 @@
       "path": "./packages/address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/advanced-chart-core/tsconfig.build.json"
+    },
+    {
       "path": "./packages/ai-controllers/tsconfig.build.json"
     },
     {

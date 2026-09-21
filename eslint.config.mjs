@@ -288,6 +288,15 @@ const config = createConfig([
     },
   },
   {
+    // `@metamask/advanced-chart-core` is the TradingView Advanced Charts engine
+    // that runs inside a WebView/iframe, so it legitimately references browser
+    // globals (`window`, `document`, `requestAnimationFrame`).
+    files: ['packages/advanced-chart-core/src/**/*.ts'],
+    rules: {
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
     // The UKYC test-token minter is a dev-only Node CLI, so it may use Node
     // builtins and globals unlike the platform-agnostic package source.
     files: ['packages/kyc-controller/scripts/**/*.ts'],
