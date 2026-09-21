@@ -1102,9 +1102,7 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          requests: [
-            expect.objectContaining({ sourceTokenAmount: '5855729' }),
-          ],
+          requests: [expect.objectContaining({ sourceTokenAmount: '5855729' })],
         }),
       );
     });
