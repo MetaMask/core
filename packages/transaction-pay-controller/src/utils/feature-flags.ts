@@ -228,11 +228,6 @@ export type PayStrategiesConfig = {
   across: AcrossConfig;
   server: {
     enabled: boolean;
-    /**
-     * Parent transaction types the server strategy is allowed to handle.
-     * Lets flows be enabled one at a time while the strategy reaches parity
-     * with the relay strategy.
-     */
     enabledTransactionTypes: TransactionType[];
     baseUrl: string;
     pollingInterval: number;
