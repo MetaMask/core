@@ -405,6 +405,46 @@ describe('SocialService', () => {
       expect(result.stats).toStrictEqual({});
     });
 
+    it('accepts and returns optional rankingTag from social-api', async () => {
+      const withRankingTag = {
+        ...mockProfileResponse,
+        rankingTag: 'dolphin' as const,
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withRankingTag),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.rankingTag).toBe('dolphin');
+    });
+
+    it('accepts explicit null rankingTag', async () => {
+      const withNullRankingTag = {
+        ...mockProfileResponse,
+        rankingTag: null,
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withNullRankingTag),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.rankingTag).toBeNull();
+    });
+
     it('accepts and returns the optional 7-day per-chain breakdown', async () => {
       const withPerChain7d = {
         ...mockProfileResponse,

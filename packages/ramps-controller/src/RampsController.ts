@@ -13,6 +13,7 @@ import type {
 } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
 import type {
@@ -22,6 +23,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -33,6 +35,7 @@ import {
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
@@ -217,6 +220,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -240,6 +244,10 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
+  'KycController:getSessionStatusForVendor',
+  'KycController:refreshSessionStatus',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -254,6 +262,48 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA stage machine reads.
+ */
+/**
+ * Identity vendor accepted by the KYC controller. Declared locally so the
+ * ramps package does not depend on `@metamask/kyc-controller`.
+ */
+type KycVendor = 'moonpay' | 'iron';
+
+type KycControllerSessionStatus = {
+  finalStatus: string;
+  kycStatus: string;
+  vendorStatus: string;
+};
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not require a kyc-controller
+ * version that already exports them — the two changes land as separate PRs,
+ * with KYC merging first.
+ */
+export type KycControllerGetSessionStatusForVendorAction = {
+  type: 'KycController:getSessionStatusForVendor';
+  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+};
+
+export type KycControllerRefreshSessionStatusAction = {
+  type: 'KycController:refreshSessionStatus';
+  handler: () => KycControllerSessionStatus;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
 };
 
 /**
@@ -281,6 +331,19 @@ type LookupUnavailableResult = Extract<
   MoneyAccountWalletRegistrationResult,
   { type: 'lookupUnavailable' }
 >;
+
+/**
+ * The Mobile route for the current VBA onboarding step.
+ */
+export enum VbaOnboardingStage {
+  EmailOtpRequired = 'EmailOtpRequired',
+  VendorTermsRequired = 'VendorTermsRequired',
+  ProviderTermsRequired = 'ProviderTermsRequired',
+  KycRequired = 'KycRequired',
+  KycPending = 'KycPending',
+  KycRejected = 'KycRejected',
+  Completed = 'Completed',
+}
 
 /**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
@@ -550,6 +613,10 @@ export type RampsControllerState = {
    * token conflict instead of showing the "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
+  /**
+   * The current Mobile-routable VBA onboarding stage.
+   */
+  vbaOnboardingStage: VbaOnboardingStage | null;
 };
 
 /**
@@ -611,6 +678,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providerAutoSelected: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaOnboardingStage: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -678,6 +751,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     orders: [],
     autoramps: [],
     providerAutoSelected: false,
+    vbaOnboardingStage: null,
   };
 }
 
@@ -803,12 +877,17 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
+  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerRefreshSessionStatusAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -1017,10 +1096,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPaymentMethodsForContext',
   'setSelectedPaymentMethod',
   'getQuotes',
+  'getQuoteWithFees',
   'addOrder',
   'removeOrder',
   'addAutoramp',
   'createAutoramp',
+  'hydrateVbaOnboarding',
   'removeAutoramp',
   'registerMoneyAccountWallet',
   'markAutorampAsNotified',
@@ -1105,6 +1186,29 @@ function contextStillMatches(
   );
 }
 
+/**
+ * Provider codes that identify Transak's native (non-aggregator) integration,
+ * in the bare form produced by {@link normalizeHeadlessProviderId}.
+ */
+const NATIVE_TRANSAK_PROVIDER_CODES = [
+  'transak-native',
+  'transak-native-staging',
+];
+
+/**
+ * Coerces a quote fee value to a non-negative BigNumber, treating a missing or
+ * invalid value as zero.
+ *
+ * @param value - Raw fee value from a quote.
+ * @returns The fee as a non-negative BigNumber.
+ */
+function getSafeRampsFee(value: number | string | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
+}
+
 export class RampsController extends BaseController<
   typeof controllerName,
   RampsControllerState,
@@ -1152,6 +1256,8 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingStage> | null = null;
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -2633,6 +2739,172 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Fetches the best on-ramp quote for a request and, when the resolved
+   * provider is Transak Native, reconciles its fees to match what Transak
+   * Native actually charges.
+   *
+   * The aggregator `/quotes` estimate of Transak's fee does not match the
+   * native integration. When the resolved provider is Transak Native this
+   * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+   * it is safe at estimate time) and rewrites the returned quote's fee fields
+   * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+   * line and placing the remainder in the provider fee so the breakdown
+   * survives and `providerFee + networkFee` still equals the native total. A
+   * non-native provider, a failed lookup, or an unusable native fee returns the
+   * aggregator quote unchanged.
+   *
+   * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+   * provider check, asset-id parsing, and second native quote themselves.
+   *
+   * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+   * @param options.amount - Fiat amount for the quote.
+   * @param options.assetId - CAIP-19 asset id being bought.
+   * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+   * @param options.paymentMethods - Optional payment method ids.
+   * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+   * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+   * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+   * mirror the eventual checkout mode so the estimate equals the charge.
+   * Defaults to `true`.
+   * @param options.providers - See {@link getQuotes}.
+   * @param options.autoSelectProvider - See {@link getQuotes}.
+   * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+   * @param options.preferredProviderIds - See {@link getQuotes}.
+   * @param options.region - See {@link getQuotes}.
+   * @param options.redirectUrl - See {@link getQuotes}.
+   * @param options.action - See {@link getQuotes}.
+   * @param options.forceRefresh - See {@link getQuotes}.
+   * @param options.ttl - See {@link getQuotes}.
+   * @returns The best quote with native-reconciled fees, or `undefined` when
+   * no quote is available.
+   */
+  async getQuoteWithFees(options: {
+    amount: number;
+    assetId: string;
+    fiat?: string;
+    paymentMethods?: string[];
+    walletAddress: string;
+    isFeeExcludedFromFiat?: boolean;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    restrictToKnownOrNativeProviders?: boolean;
+    preferredProviderIds?: string[];
+    region?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<Quote | undefined> {
+    const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
+
+    const response = await this.getQuotes(quoteOptions);
+    const quote = response.success?.[0];
+
+    if (!quote) {
+      return undefined;
+    }
+
+    return this.#reconcileNativeTransakFee(quote, {
+      amount: options.amount,
+      assetId: options.assetId,
+      fiat: options.fiat,
+      // Use the resolved quote's own payment method, not the request list: the
+      // aggregator may price a method other than `paymentMethods[0]` (or the
+      // caller may omit the list), and the native lookup must match the quote
+      // being reconciled.
+      paymentMethod: quote.quote.paymentMethod,
+      isFeeExcludedFromFiat,
+    });
+  }
+
+  /**
+   * Rewrites a quote's fees to Transak Native's own total when the resolved
+   * provider is Transak Native, so an estimate matches the native charge.
+   * Returns the quote unchanged for a non-native provider, a failed native
+   * lookup, or an unusable native fee.
+   *
+   * @param quote - The resolved aggregator quote.
+   * @param context - Native lookup inputs.
+   * @param context.amount - Fiat amount for the native quote.
+   * @param context.assetId - CAIP-19 asset id being bought.
+   * @param context.fiat - Fiat currency for the native quote.
+   * @param context.paymentMethod - Payment method id for the native quote.
+   * @param context.isFeeExcludedFromFiat - Fee mode for the native quote.
+   * @returns The quote with reconciled fees, or the original quote.
+   */
+  async #reconcileNativeTransakFee(
+    quote: Quote,
+    {
+      amount,
+      assetId,
+      fiat,
+      paymentMethod,
+      isFeeExcludedFromFiat,
+    }: {
+      amount: number;
+      assetId: string;
+      fiat?: string;
+      paymentMethod?: string;
+      isFeeExcludedFromFiat: boolean;
+    },
+  ): Promise<Quote> {
+    // `normalizeHeadlessProviderId` strips the `/providers/` prefix and
+    // lowercases, so `/providers/transak-native` and `transak-native` both match
+    // the native codes below (and the aggregator `transak` does not).
+    const providerCode = normalizeHeadlessProviderId(quote.provider);
+
+    if (!NATIVE_TRANSAK_PROVIDER_CODES.includes(providerCode)) {
+      return quote;
+    }
+
+    const fiatCurrency = fiat ?? this.state.userRegion?.country?.currency;
+
+    if (!fiatCurrency || !paymentMethod) {
+      return quote;
+    }
+
+    try {
+      const network = assetId.split('/')[0];
+
+      const nativeQuote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        assetId,
+        network,
+        paymentMethod,
+        String(amount),
+        isFeeExcludedFromFiat,
+      );
+
+      const nativeTotalFee = new BigNumber(nativeQuote.totalFee ?? NaN);
+
+      if (!nativeTotalFee.isFinite() || nativeTotalFee.isLessThan(0)) {
+        return quote;
+      }
+
+      // Transak Native returns a single total fee, so keep the aggregator's
+      // network fee on the network line (clamped to the native total) and put
+      // the remainder in the provider fee. The breakdown survives and
+      // `providerFee + networkFee` still equals the native total.
+      const aggregatorNetworkFee = getSafeRampsFee(quote.quote.networkFee);
+      const networkFee = BigNumber.min(aggregatorNetworkFee, nativeTotalFee);
+      const providerFee = nativeTotalFee.minus(networkFee);
+
+      return {
+        ...quote,
+        quote: {
+          ...quote.quote,
+          providerFee: providerFee.toString(10),
+          networkFee: networkFee.toString(10),
+          totalFees: nativeTotalFee.toString(10),
+        },
+      };
+    } catch {
+      return quote;
+    }
+  }
+
+  /**
    * Selects the best quote from a widened multi-provider response.
    *
    * Every provider class is eligible (native, in-app WebView aggregator, and
@@ -3539,6 +3811,171 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Hydrates the Mobile-routable VBA onboarding stage from KYC state and
+   * completes wallet and autoramp setup after KYC acceptance.
+   *
+   * Overlapping calls share one run so polling cannot trigger duplicate wallet
+   * signatures or autoramp creation.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @returns The hydrated onboarding stage.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+  }: {
+    walletAddress: string;
+  }): Promise<VbaOnboardingStage> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding(walletAddress);
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding(
+    walletAddress: string,
+  ): Promise<VbaOnboardingStage> {
+    // Fetch the customer's latest session from the vendor account so each stage
+    // reflects backend truth (e.g. re-verification required after a new
+    // document) rather than only device-local state. A `null` session means no
+    // customer/session exists yet, so onboarding starts at the email step.
+    // Prefer the in-memory/persisted session status over the backend
+    // latest-status endpoint: after SumSub the backend endpoint lags (it still
+    // reports kycStatus 'new' right after an 'approved' applicant result), while
+    // the controller state reflects the journey/SDK outcome. Fall back to a
+    // backend fetch only when the controller has no session in state (e.g. a
+    // reinstall/cleared state resuming an existing customer, or a brand-new user
+    // with no session at all).
+    let session: KycControllerSessionStatus | null = null;
+    try {
+      session = this.messenger.call('KycController:refreshSessionStatus');
+    } catch {
+      try {
+        session = await this.messenger.call(
+          'KycController:getSessionStatusForVendor',
+          'iron',
+        );
+      } catch {
+        // No session exists for this customer yet: the backend returns 404
+        // ("KYC session not found"), which surfaces as a rejection here. Treat
+        // it as "start onboarding at the email step" rather than an error.
+        session = null;
+      }
+    }
+    if (!session) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+    }
+
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedVendorDisclaimers',
+      ))
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.VendorTermsRequired,
+      );
+    }
+
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      ))
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.ProviderTermsRequired,
+      );
+    }
+
+    // Status fields draw from the KYC vocabulary (new | pending | approved |
+    // rejected | retry). `finalStatus` is the vendor's final decision, which
+    // stays `pending` until Iron finalizes. `kycStatus` is the SumSub applicant
+    // outcome (from the journey/SDK result): `new` before the applicant runs
+    // SumSub, moving to `approved`/`pending` once they submit while the vendor
+    // finalizes. So gate the SumSub screen on `kycStatus`, and only complete
+    // onboarding once `finalStatus` is the terminal `approved`.
+    const { finalStatus, kycStatus } = session;
+
+    if (finalStatus === 'rejected' || kycStatus === 'rejected') {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
+    }
+    if (finalStatus !== 'approved') {
+      if (kycStatus === 'new' || kycStatus === 'retry') {
+        // Applicant still has to run (or re-run) SumSub document verification.
+        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
+      }
+      // Submitted; vendor is finalizing → "verification in progress".
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    // KYC is approved; the remaining work activates the Money account (register
+    // the wallet + ensure an autoramp). Those calls hit the neobank backend and
+    // can fail transiently (e.g. an address-list lookup timeout). If they do,
+    // keep the user on the "verification in progress" screen so a refresh
+    // retries the activation, rather than dropping them onto the recoverable-
+    // error screen — the KYC decision itself already succeeded.
+    try {
+      const registration = await this.registerMoneyAccountWallet({
+        address: walletAddress,
+      });
+      if (registration.type === 'lookupUnavailable') {
+        throw registration.error;
+      }
+
+      const remoteAutoramps = await this.messenger.call(
+        'NeoBankService:getAutoramps',
+      );
+      const remoteAutorampIds = new Set(
+        remoteAutoramps.map((autoramp) => autoramp.id),
+      );
+      for (const autoramp of remoteAutoramps) {
+        this.#applyAutorampRemoteSnapshot(autoramp);
+      }
+      this.update((state) => {
+        state.autoramps = state.autoramps.filter((autoramp) =>
+          remoteAutorampIds.has(autoramp.id),
+        );
+      });
+
+      const normalizedWalletAddress = walletAddress.toLowerCase();
+      const hasUsableAutoramp = this.state.autoramps.some(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+          autoramp.status !== AutorampStatus.Rejected &&
+          autoramp.status !== AutorampStatus.Cancelled,
+      );
+      if (!hasUsableAutoramp) {
+        await this.createAutoramp({});
+      }
+    } catch {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    }
+
+    return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+  }
+
+  #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
+    if (this.state.vbaOnboardingStage !== stage) {
+      this.update((state) => {
+        state.vbaOnboardingStage = stage;
+      });
+    }
+    return stage;
+  }
+
+  /**
    * Removes a local autoramp last-seen cursor by id.
    *
    * @param autorampId - MoonPay autoramp id.
@@ -4162,6 +4599,8 @@ export class RampsController extends BaseController<
    * @param network - The blockchain network identifier.
    * @param paymentMethod - The payment method identifier.
    * @param fiatAmount - The fiat amount as a string.
+   * @param isFeeExcludedFromFiat - Whether fees are added to the fiat amount.
+   * Defaults to true to preserve Unified Buy's native Transak behavior.
    * @returns The buy quote with pricing and fee details.
    */
   async transakGetBuyQuote(
@@ -4170,6 +4609,7 @@ export class RampsController extends BaseController<
     network: string,
     paymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
@@ -4184,6 +4624,7 @@ export class RampsController extends BaseController<
         network,
         paymentMethod,
         fiatAmount,
+        isFeeExcludedFromFiat,
       );
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;

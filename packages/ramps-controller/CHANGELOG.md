@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
+### Added
+
+- Add `NeoBankService:getAutoramps` to load all autoramp accounts for the authenticated customer from `GET /neobank/autoramps` ([#10278](https://github.com/MetaMask/core/pull/10278))
+- Add `RampsController:hydrateVbaOnboarding`, the persisted `vbaOnboardingStage` state, and the `VbaOnboardingStage` enum for Mobile routing ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - Resolve the current onboarding stage (email OTP, vendor terms, provider terms, SumSub, pending KYC, rejected KYC, or completed) from the customer's KYC session status.
+  - After KYC acceptance, register the Money Account wallet, load the customer's authoritative autoramps, and create one only when needed; keep the user on the pending stage if account activation is momentarily unavailable.
+  - Coalesce overlapping hydration calls to prevent duplicate wallet signatures or autoramp creation during polling.
+
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
+- **BREAKING:** `RampsControllerMessenger` now requires the `KycController:getSessionStatusForVendor`, `KycController:refreshSessionStatus`, `KycController:hasCompletedVendorDisclaimers`, and `KycController:hasCompletedSessionDisclaimers` actions to hydrate VBA onboarding ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - The action types are declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Stop sending `crypto` on `RampsService.getPaymentMethods`. Payment methods are provider + region; the param was ignored by `/v2/regions/:region/payments` and split the CDN cache per token. `assetId` remains on the method for caller cache keys. ([#10307](https://github.com/MetaMask/core/pull/10307))
+
+## [23.0.0]
+
+### Added
+
+- Add `RampsController:getQuoteWithFees`, which returns the best on-ramp quote with its fees reconciled to the resolved provider ([#10238](https://github.com/MetaMask/core/pull/10238))
+  - When the resolved provider is Transak Native, the returned quote's `providerFee`/`networkFee`/`totalFees` reflect the native buy quote's total fee: the aggregator `networkFee` stays on the network line and the remainder goes to the provider fee, so the breakdown survives and the total is unchanged. A non-native provider, a failed native lookup, or an unusable native fee returns the aggregator quote unchanged.
+  - The native lookup uses the stateless `TransakService:getBuyQuote`, so it does not write the shared native buy-quote state used by Unified Buy.
+
+### Changed
+
+- **BREAKING:** The publicly exported `TransakBuyQuote` type now requires `requestedAssetId` and `requestedChainId` ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add `bignumber.js` as a dependency, used by `getQuoteWithFees` for fee reconciliation ([#10238](https://github.com/MetaMask/core/pull/10238))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 
 ## [22.0.0]
 
@@ -28,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing: ([#9474](https://github.com/MetaMask/core/pull/9474))
   - `UserStorageController:getState`
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
@@ -601,7 +628,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...@metamask/ramps-controller@24.0.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...@metamask/ramps-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.3.0...@metamask/ramps-controller@21.0.0
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.2.0...@metamask/ramps-controller@20.3.0

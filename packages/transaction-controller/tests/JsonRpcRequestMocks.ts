@@ -45,7 +45,7 @@ export function buildEthBlockNumberRequestMock(
 
 /**
  * Builds mock eth_getCode request.
- * Used by readAddressAsContract and requiresFixedGas.
+ * Used by readAddressAsContract.
  *
  * @param address - The hex address.
  * @param blockNumber - The hex block number.
@@ -106,7 +106,7 @@ export function buildEthGetBlockByNumberRequestMock(
 export function buildEthEstimateGasRequestMock(
   from: Hex,
   to: Hex,
-  result: Hex = '0x1',
+  result: Hex = '0x5208',
 ): JsonRpcRequestMock {
   return {
     request: {
@@ -116,7 +116,7 @@ export function buildEthEstimateGasRequestMock(
           from,
           to,
           value: '0x0',
-          gas: '0x0',
+          type: '0x2',
         },
       ],
     },

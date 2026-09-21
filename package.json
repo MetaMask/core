@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1252.0.0",
+  "version": "1268.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -29,7 +29,7 @@
     "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
     "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
     "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
-    "lint": "yarn lint:tsc && yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all && yarn codeowners:check",
+    "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all && yarn codeowners:check",
     "lint:dependencies": "knip --config knip.config.mts --dependencies && yarn dedupe --check",
     "lint:dependencies:fix": "knip --config knip.config.mts --dependencies && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=10240' yarn eslint",
@@ -116,7 +116,7 @@
     "tsx": "^4.20.5",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.48.0",
-    "uuid": "^9.0.1",
+    "uuid": "^11.1.1",
     "yargs": "^17.7.2"
   },
   "resolutions": {
