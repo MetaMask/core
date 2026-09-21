@@ -10,6 +10,7 @@
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "type": "module",
   "license": "(MIT OR Apache-2.0)",
   "repository": {
     "type": "git",
@@ -18,9 +19,7 @@
   "files": [
     "dist/"
   ],
-  "sideEffects": [
-    "./dist/index.js"
-  ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -67,6 +66,6 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24"
   }
 }
