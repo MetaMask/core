@@ -10199,6 +10199,7 @@ describe('RampsController', () => {
       refreshSessionStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
+      clearState: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
@@ -10265,6 +10266,7 @@ describe('RampsController', () => {
         hasCompletedSessionDisclaimers: jest
           .fn()
           .mockResolvedValue(values.sessionDisclaimersCompleted),
+        clearState: jest.fn(),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
@@ -10283,6 +10285,10 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'KycController:hasCompletedSessionDisclaimers' as never,
         handlers.hasCompletedSessionDisclaimers as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:clearState' as never,
+        handlers.clearState as never,
       );
       rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
@@ -10399,6 +10405,48 @@ describe('RampsController', () => {
 
         expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
         expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+      });
+    });
+
+    it('discards a stale in-state session and restarts at email when a session-scoped call is rejected', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A persisted session from a previous identity: the backend rejects
+        // the session-scoped disclaimers call with an owner mismatch (502).
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: approvedSession,
+        });
+        handlers.hasCompletedSessionDisclaimers.mockRejectedValue(
+          new Error("Fetching '/sessions/session-1/disclaimers' failed (502)"),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.EmailOtpRequired);
+
+        expect(handlers.clearState).toHaveBeenCalledTimes(1);
+        expect(controller.state.vbaOnboardingStage).toBe(
+          VbaOnboardingStage.EmailOtpRequired,
+        );
+      });
+    });
+
+    it('propagates the error without clearing state when a freshly-fetched session is rejected', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // Session came from the backend fetch (scoped to the current user), so
+        // a rejection is a genuine backend error, not stale state.
+        const handlers = registerKycHandlers(rootMessenger, {
+          refreshThrows: true,
+          session: approvedSession,
+        });
+        handlers.hasCompletedSessionDisclaimers.mockRejectedValue(
+          new Error('idOS relay unavailable'),
+        );
+
+        await expect(
+          controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).rejects.toThrow('idOS relay unavailable');
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
       });
     });
 

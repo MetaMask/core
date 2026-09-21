@@ -248,6 +248,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:refreshSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
+  'KycController:clearState',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -304,6 +305,11 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
 export type KycControllerHasCompletedSessionDisclaimersAction = {
   type: 'KycController:hasCompletedSessionDisclaimers';
   handler: () => Promise<boolean>;
+};
+
+export type KycControllerClearStateAction = {
+  type: 'KycController:clearState';
+  handler: () => void;
 };
 
 /**
@@ -888,6 +894,7 @@ type AllowedActions =
   | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerClearStateAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -3857,8 +3864,15 @@ export class RampsController extends BaseController<
     // reinstall/cleared state resuming an existing customer, or a brand-new user
     // with no session at all).
     let session: KycControllerSessionStatus | null = null;
+    // Whether `session` came from persisted controller state (as opposed to a
+    // fresh backend fetch scoped to the current user). A persisted session can
+    // outlive the identity that created it — e.g. a new wallet created over an
+    // install that still holds a previous customer's session — in which case
+    // the backend rejects every session-scoped call with an owner mismatch.
+    let sessionFromCache = false;
     try {
       session = this.messenger.call('KycController:refreshSessionStatus');
+      sessionFromCache = true;
     } catch {
       try {
         session = await this.messenger.call(
@@ -3876,21 +3890,38 @@ export class RampsController extends BaseController<
       return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
     }
 
-    if (
-      !(await this.messenger.call(
+    // The disclaimer gates are session-scoped backend calls. A persisted
+    // (cached) session that belongs to a previous identity makes the backend
+    // reject them with an owner mismatch (surfaced as a 502; also 404 once the
+    // session is gone). Discard the stale session and restart onboarding at the
+    // email step rather than dead-ending the user on the recoverable-error
+    // screen — the email step recreates a session for the current identity. A
+    // failure on a freshly-fetched (current-user) session, by contrast, is a
+    // genuine backend error and is left to propagate.
+    let vendorDisclaimersCompleted: boolean;
+    let sessionDisclaimersCompleted: boolean;
+    try {
+      vendorDisclaimersCompleted = await this.messenger.call(
         'KycController:hasCompletedVendorDisclaimers',
-      ))
-    ) {
+      );
+      sessionDisclaimersCompleted = await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      );
+    } catch (error) {
+      if (sessionFromCache) {
+        this.messenger.call('KycController:clearState');
+        return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+      }
+      throw error;
+    }
+
+    if (!vendorDisclaimersCompleted) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.VendorTermsRequired,
       );
     }
 
-    if (
-      !(await this.messenger.call(
-        'KycController:hasCompletedSessionDisclaimers',
-      ))
-    ) {
+    if (!sessionDisclaimersCompleted) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.ProviderTermsRequired,
       );
