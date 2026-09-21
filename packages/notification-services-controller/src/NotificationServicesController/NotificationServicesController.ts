@@ -29,7 +29,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { assert } from '@metamask/utils';
-import { debounce } from 'lodash-es';
+import { debounce, isEqual } from 'lodash-es';
 import log from 'loglevel';
 
 import type {
@@ -634,10 +634,12 @@ export class NotificationServicesController extends BaseController<
         (account) => !currentAccountsSet.has(account),
       );
 
-      // Update accounts seen
-      this.update((state) => {
-        state.subscriptionAccountsSeen = [...currentAccountsSet];
-      });
+      // Only persist if the account set actually changed.
+      if (accountsAdded.length > 0 || accountsRemoved.length > 0) {
+        this.update((state) => {
+          state.subscriptionAccountsSeen = [...currentAccountsSet];
+        });
+      }
 
       return {
         accountsAdded,
@@ -1344,9 +1346,13 @@ export class NotificationServicesController extends BaseController<
       );
 
       // Update State
-      this.update((state) => {
-        state.metamaskNotificationsList = metamaskNotifications;
-      });
+      if (
+        !isEqual(this.state.metamaskNotificationsList, metamaskNotifications)
+      ) {
+        this.update((state) => {
+          state.metamaskNotificationsList = metamaskNotifications;
+        });
+      }
 
       this.messenger.publish(
         `${controllerName}:notificationsListUpdated`,
@@ -1521,11 +1527,14 @@ export class NotificationServicesController extends BaseController<
         ...featureAnnouncementNotificationIds,
         ...snapNotificationIds,
       ];
-      state.metamaskNotificationsReadList = [
-        ...new Set([...currentReadList, ...newReadIds]),
-      ];
+      const currentReadSet = new Set(currentReadList);
+      if (newReadIds.some((id) => !currentReadSet.has(id))) {
+        state.metamaskNotificationsReadList = [
+          ...new Set([...currentReadList, ...newReadIds]),
+        ];
+      }
 
-      state.metamaskNotificationsList = state.metamaskNotificationsList.map(
+      const nextNotificationsList = state.metamaskNotificationsList.map(
         (notification: INotification) => {
           if (
             newReadIds.includes(notification.id) ||
@@ -1543,6 +1552,9 @@ export class NotificationServicesController extends BaseController<
           return notification;
         },
       );
+      if (!isEqual(state.metamaskNotificationsList, nextNotificationsList)) {
+        state.metamaskNotificationsList = nextNotificationsList;
+      }
     });
 
     this.messenger.publish(
