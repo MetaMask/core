@@ -165,7 +165,7 @@ async function runPipeline(
       tokenDataSource,
       priceDataSource,
     },
-    { isBasicFunctionality: true },
+    { isBasicFunctionality: true, includeCustomAssetGraduation: true },
   );
 
   const { response } = await executeAssetsPipeline({

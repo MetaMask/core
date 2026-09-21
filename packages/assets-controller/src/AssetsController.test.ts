@@ -2016,6 +2016,67 @@ describe('AssetsController', () => {
         tokenMiddlewareGetter.mockRestore();
         priceMiddlewareGetter.mockRestore();
       });
+
+      it('does not call Accounts API v6 on force update when isBasicFunctionality is false', async () => {
+        const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+          balances: [],
+          unprocessedNetworks: [],
+          unprocessedIncludeAssetIds: [],
+        });
+        const tokenMiddlewareGetter = jest.spyOn(
+          TokenDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        ) as unknown as jest.SpyInstance;
+        const priceMiddlewareGetter = jest.spyOn(
+          PriceDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        ) as unknown as jest.SpyInstance;
+
+        const queryApiClient = {
+          ...createMockQueryApiClient(),
+          accounts: {
+            fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+              fullSupport: [1],
+              partialSupport: [],
+            }),
+            fetchV6MultiAccountBalances,
+            fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+              balances: [],
+              unprocessedNetworks: [],
+            }),
+          },
+        } as unknown as ApiPlatformClient;
+
+        await withController(
+          {
+            isBasicFunctionality: () => false,
+            queryApiClient,
+            remoteFeatureFlags: { assetsAccountsApiV6: true },
+          },
+          async ({ controller }) => {
+            tokenMiddlewareGetter.mockClear();
+            priceMiddlewareGetter.mockClear();
+            fetchV6MultiAccountBalances.mockClear();
+
+            await controller.getAssets([createMockInternalAccount()], {
+              chainIds: ['eip155:1'],
+              forceUpdate: true,
+            });
+            await flushPromises();
+          },
+        );
+
+        expect(fetchV6MultiAccountBalances).not.toHaveBeenCalled();
+        expect(tokenMiddlewareGetter).not.toHaveBeenCalled();
+        expect(priceMiddlewareGetter).not.toHaveBeenCalled();
+
+        tokenMiddlewareGetter.mockRestore();
+        priceMiddlewareGetter.mockRestore();
+      });
     });
 
     it('filters by chainIds option', async () => {

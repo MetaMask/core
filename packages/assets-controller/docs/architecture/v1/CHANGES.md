@@ -1,161 +1,143 @@
-# AssetsController 15.0.0 - architecture change and AccountsAPI v5/v6 paths
+# AssetsController 15.0.0 - Accounts API v5 and v6 side by side
 
-This branch keeps the previous balance behavior and the new Accounts API v6
-behavior side by side behind the `assetsAccountsApiV6` remote feature flag.
+## What this change is about
 
-- Flag off, missing, or unreadable: use the legacy **v5** path.
-- `assetsAccountsApiV6: true`: use the new **v6** path.
+The AssetsController collects token balances, metadata, and prices for every
+account and chain, and stores the result for the UI to render.
 
-The flag is read only in `AssetsController.#isBalanceV6Enabled()` and injected
-into `AccountsApiDataSource`, `RpcFallbackMiddleware`, and `RpcDataSource`.
+This release adds support for a new version of the Accounts API (**v6**) while
+keeping the current one (**v5**) fully intact. Which one runs is decided at
+runtime by the `assetsAccountsApiV6` remote feature flag:
 
-## Architectural change
+- flag off, missing, or unreadable: the legacy **v5** path (today's production
+  behavior)
+- `assetsAccountsApiV6: true`: the new **v6** path
 
-The controller now has two explicit orchestration paths instead of one mixed
-flow with many conditional branches:
+The flag is read in exactly one place, `AssetsController.#isBalanceV6Enabled()`,
+and passed down to `AccountsApiDataSource`, `RpcFallbackMiddleware`, and
+`RpcDataSource`.
 
-- **v5 path** preserves the old behavior so rollout-off matches existing
-  production semantics.
-- **v6 path** isolates the new behavior so rollout-on can be evaluated and the
-  old path can be deleted cleanly later.
+## Vocabulary used below
 
-This split exists in three main places:
+| Term                          | Meaning                                                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Pinned asset (custom asset)   | A token the user added manually (Manage Token flow). We always want to fetch it, even when the API does not return it on its own. |
+| Hidden asset                  | A token the user chose to hide, so it should not be fetched or shown.                                                             |
+| Data source                   | Where balances come from: the Accounts API, RPC nodes, a Snap, or staking.                                                        |
+| Middleware                    | A step that enriches or repairs data after it is fetched (token detection, prices, metadata, RPC fallback).                       |
+| Fast lane                     | The first, quick round of fetching. Its result is written to state right away so the UI can render.                               |
+| Background lane               | The slower sources that run afterwards; their results are merged in.                                                              |
+| Update mode `merge` vs `full` | `merge` keeps assets already in state that the response did not mention. `full` replaces the whole slice the source covers.       |
+| Basic functionality           | The user setting that turns off network calls to MetaMask services.                                                               |
 
-1. Force-update orchestration from `getAssets(..., { forceUpdate: true })`
-2. Balance subscription setup
-3. Balance update enrichment and merge
+## Why there are two paths
 
-## Path overview
+Rather than scattering flag checks through one shared flow, the controller now
+has two named flows:
 
-```mermaid
-flowchart TD
-  A[getAssets forceUpdate / subscribe / handleAssetsUpdate] --> F{assetsAccountsApiV6}
-  F -->|false| V5[v5 path]
-  F -->|true| V6[v6 path]
-```
+- the **v5 path** preserves the old behavior exactly, so turning the flag off
+  matches production
+- the **v6 path** isolates the new behavior, so it can be evaluated on its own
+  and the old path can later be deleted in one clean sweep
 
-## Force-update path
-
-Both paths share the same broad shape: run a fast lane, commit state, then run
-the slower background fetch.
-
-```mermaid
-flowchart TB
-  subgraph request ["Request shaping"]
-    R5["v5 request<br/>every pinned asset for requested accounts<br/>unscoped<br/>no excludeAssetIds"]
-    R6["v6 request<br/>pins scoped to requested chains<br/>optional customAssets override<br/>hidden assets as excludeAssetIds"]
-  end
-
-  subgraph v5fast ["v5 fast lane"]
-    direction TB
-    V5P["Accounts API v5 || Staked"]
-    V5G[CustomAssetGraduation]
-    V5F[RpcFallback]
-    V5D[Detection]
-    V5T["Token || Price"]
-    V5P --> V5G --> V5F --> V5D --> V5T
-    V5S["State update<br/>merge + replaceCoveredChainBalances"]
-    V5T --> V5S
-  end
-
-  subgraph v6fast ["v6 fast lane"]
-    direction TB
-    V6P["Accounts API v6 || Staked<br/>includeAssetIds / excludeAssetIds"]
-    V6F["RpcFallback<br/>errored chains + unprocessedIncludeAssetIds"]
-    V6D[Detection]
-    V6T["Token || Price"]
-    V6P --> V6F --> V6D --> V6T
-    V6S["State update<br/>Accounts API drives updateMode full"]
-    V6T --> V6S
-  end
-
-  subgraph bg ["Background lane"]
-    B1["Snap || RPC"]
-    B2[Detection]
-    B3["Token || Price"]
-    B4["State update<br/>merge"]
-    B1 --> B2 --> B3 --> B4
-  end
-
-  R5 --> v5fast --> bg
-  R6 --> v6fast --> bg
-```
-
-When basic functionality is off, both fast lanes reduce to `Staked -> Detection`
-and the background lane is RPC only.
-
-## Subscribe path
+The split shows up in three places: a forced refresh, setting up live updates,
+and handling an update once it arrives.
 
 ```mermaid
 flowchart LR
-  subgraph v5sub ["v5 subscribe"]
-    S5A[Chain handoff by source priority]
-    S5B["RPC customAssetsOnly supplement<br/>for pins on chains another source owns"]
-    S5A --> S5B
-  end
-
-  subgraph v6sub ["v6 subscribe"]
-    S6A[Chain handoff by source priority]
-    S6B["claimCustomAssets per source<br/>Accounts API claims EVM pins as includeAssetIds"]
-    S6C["RPC asset-scoped polls<br/>for unclaimed claimed pins"]
-    S6A --> S6B --> S6C
-  end
+  A["Refresh · Subscribe · Incoming update"] --> F{assetsAccountsApiV6}
+  F -->|false| V5["v5 path"]
+  F -->|true| V6["v6 path"]
 ```
 
-`AccountsApiDataSource.claimCustomAssets()` returns `[]` on v5.
+## 1. Forced refresh
 
-## Update enrichment path
+Triggered by `getAssets(..., { forceUpdate: true })`. Both paths have the same
+shape: build a request, run the fast lane, write state, then run the background
+lane and merge its results.
 
 ```mermaid
 flowchart TB
-  subgraph v5update ["v5 handleAssetsUpdate"]
-    U5G["CustomAssetGraduation<br/>for Accounts API / AccountActivity"]
-    U5D[Detection]
-    U5T["Token || Price"]
-    U5S["State update<br/>merge; honor replaceCoveredChainBalances"]
-    U5G --> U5D --> U5T --> U5S
+  subgraph v5fast ["v5 fast lane"]
+    direction TB
+    V5P["Accounts API v5 + Staked"] --> V5G[CustomAssetGraduation] --> V5F[RpcFallback] --> V5D[Detection] --> V5T["Token + Price"] --> V5S["State: merge, replaceCoveredChainBalances"]
   end
-
-  subgraph v6update ["v6 handleAssetsUpdate"]
-    U6F["RpcFallback when basic on<br/>errored chains + unprocessedCustomAssets"]
-    U6D[Detection]
-    U6T["Token || Price"]
-    U6S["State update<br/>full when Accounts API marks it full"]
-    U6F --> U6D --> U6T --> U6S
+  subgraph v6fast ["v6 fast lane"]
+    direction TB
+    V6P["Accounts API v6 + Staked<br/>includeAssetIds / excludeAssetIds"] --> V6F["RpcFallback<br/>errored chains + unprocessedIncludeAssetIds"] --> V6D[Detection] --> V6T["Token + Price"] --> V6S["State: full where the Accounts API has coverage"]
   end
+  subgraph bg ["Background lane (same for both)"]
+    direction TB
+    B1["Snap + RPC"] --> B2[Detection] --> B3["Token + Price"] --> B4["State: merge"]
+  end
+  v5fast --> bg
+  v6fast --> bg
 ```
 
-v5 does not run `RpcFallbackMiddleware` on this subscribe/update path. v6 does
-not run `CustomAssetGraduationMiddleware`.
+The requests differ as well:
 
-## Behavioral intent
+- **v5** asks for every pinned asset of the requested accounts, without scoping
+  them to chains, and does not mention hidden assets.
+- **v6** scopes pinned assets to the requested chains (or uses the explicit
+  `customAssets` override) and sends hidden assets as `excludeAssetIds`.
 
-| Concern                   | v5                                         | v6                                                |
-| ------------------------- | ------------------------------------------ | ------------------------------------------------- |
-| Accounts API endpoint     | `fetchV5MultiAccountBalances`              | `fetchV6MultiAccountBalances`                     |
-| Accounts API update mode  | `merge`                                    | `full`                                            |
-| Covered-chain merge       | Preserve old behavior                      | Replace covered chain slice                       |
-| Custom asset preservation | Keep custom + staked pins in v5 merge path | Keep `unprocessedCustomAssets` until RPC resolves |
-| Hidden assets             | Not sent to v5 endpoint                    | Sent as `excludeAssetIds`                         |
-| RPC token fetch           | Flat `request.customAssets` on the chain   | Only pins owned by that account                   |
+When basic functionality is off, both fast lanes shrink to
+`Staked -> Detection`. The background lane is RPC only in both paths.
 
-## Code map
+## 2. Setting up live updates (subscribe)
 
-| Concern                  | v5 implementation                         | v6 implementation                         |
+Both paths first hand each chain to the data source with the highest priority
+for it. They differ in how pinned assets on those chains are covered:
+
+- **v5** adds a separate RPC poll (`customAssetsOnly`) for pins that sit on a
+  chain another source already owns.
+- **v6** asks each source which pins it can take, via `claimCustomAssets()` -
+  the Accounts API claims EVM pins and sends them as `includeAssetIds`. RPC then
+  polls only the pins nobody claimed.
+
+On v5, `AccountsApiDataSource.claimCustomAssets()` simply returns `[]`.
+
+## 3. Handling an incoming update
+
+- **v5** (`#handleAssetsUpdateV5`): CustomAssetGraduation (for the Accounts API
+  and AccountActivity) -> Detection -> Token + Price -> state written with
+  `merge`, honoring `replaceCoveredChainBalances`.
+- **v6** (`#handleAssetsUpdateV6`): RpcFallback when basic functionality is on
+  (for errored chains and `unprocessedCustomAssets`) -> Detection -> Token +
+  Price -> state written as `full` when the Accounts API marks it so.
+
+In other words: v5 never runs `RpcFallbackMiddleware` here, and v6 never runs
+`CustomAssetGraduationMiddleware` at all.
+
+## Behavior differences at a glance
+
+| Concern                   | v5                                          | v6                                                     |
+| ------------------------- | ------------------------------------------- | ------------------------------------------------------ |
+| Accounts API endpoint     | `fetchV5MultiAccountBalances`               | `fetchV6MultiAccountBalances`                          |
+| Accounts API update mode  | `merge`                                     | `full`                                                 |
+| Covered-chain merge       | Preserve old behavior                       | Replace the covered chain slice                        |
+| Pinned asset preservation | Keep custom + staked pins in the merge path | Keep `unprocessedCustomAssets` until RPC resolves them |
+| Hidden assets             | Not sent to the endpoint                    | Sent as `excludeAssetIds`                              |
+| RPC token fetch           | Flat `request.customAssets` for the chain   | Only the pins owned by that account                    |
+
+## Where the code lives
+
+| Concern                  | v5                                        | v6                                        |
 | ------------------------ | ----------------------------------------- | ----------------------------------------- |
 | Force-update request     | `#buildForceUpdateRequestV5`              | `#buildForceUpdateRequestV6`              |
 | Force-update pipeline    | `#forceUpdateAssetsV5`, `#runFastFetchV5` | `#forceUpdateAssetsV6`, `#runFastFetchV6` |
+| Fast lane composition    | `buildFastFetchSources` (graduation on)   | `buildFastFetchSources` (graduation off)  |
 | Subscribe                | `#subscribeAssetsBalanceV5`               | `#subscribeAssetsBalanceV6`               |
-| Update enrichment        | `#handleAssetsUpdateV5`                   | `#handleAssetsUpdateV6`                   |
+| Update handling          | `#handleAssetsUpdateV5`                   | `#handleAssetsUpdateV6`                   |
 | Balance merge            | `mergeAccountBalancesV5`                  | `mergeAccountBalancesV6`                  |
 | Accounts API fetch       | `#fetchV5Balances`                        | `#fetchV6Balances`                        |
 | RPC fallback             | `#recoverV5`                              | `#recoverV6`                              |
 | RPC custom ERC-20 append | `#appendRequestCustomErc20sV5`            | `#appendRequestCustomErc20sV6`            |
 
-## Deletion plan after rollout
+## Deleting v5 after rollout
 
 Once v6 is accepted as the only behavior:
 
-1. Remove the v5 methods and `!this.#isBalanceV6Enabled()` branches.
-2. Keep the v6 methods as the only orchestration path.
-3. Remove transitional docs/tables that compare v5 and v6.
+1. Remove the v5 methods and every `!this.#isBalanceV6Enabled()` branch.
+2. Keep the v6 methods as the single orchestration path.
+3. Remove this document's v5/v6 comparison tables.

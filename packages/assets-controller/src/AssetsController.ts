@@ -1734,7 +1734,7 @@ export class AssetsController extends BaseController<
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
-      { isBasicFunctionality },
+      { isBasicFunctionality, includeCustomAssetGraduation: true },
     );
 
     const fastResponse = await this.#runFastFetchV5({
@@ -1768,20 +1768,21 @@ export class AssetsController extends BaseController<
     pipelineTrace?: TraceCallback;
   }): Promise<void> {
     const isBasicFunctionality = this.#isBasicFunctionality();
-    const fastSources = isBasicFunctionality
-      ? [
-          createParallelBalanceMiddleware([
-            this.#accountsApiDataSource,
-            this.#stakedBalanceDataSource,
-          ]),
-          this.#rpcFallbackMiddleware,
-          this.#detectionMiddleware,
-          createParallelMiddleware([
-            this.#tokenDataSource,
-            this.#priceDataSource,
-          ]),
-        ]
-      : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
+    const fastSources = buildFastFetchSources(
+      {
+        accountsApiDataSource: this.#accountsApiDataSource,
+        stakedBalanceDataSource: this.#stakedBalanceDataSource,
+        customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
+        rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+        detectionMiddleware: this.#detectionMiddleware,
+        tokenDataSource: this.#tokenDataSource,
+        priceDataSource: this.#priceDataSource,
+      },
+      {
+        isBasicFunctionality,
+        includeCustomAssetGraduation: false,
+      },
+    );
 
     const fastResponse = await this.#runFastFetchV6({
       accounts,

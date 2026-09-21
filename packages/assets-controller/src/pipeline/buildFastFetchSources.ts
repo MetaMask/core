@@ -40,11 +40,18 @@ export type FastFetchSources = {
  * @param options - Lane options.
  * @param options.isBasicFunctionality - When false, only the staking balance and
  * detection run; no network-backed source is used.
+ * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
+ * lane. The v6 lane never graduates custom assets: it sends the pins to the
+ * endpoint as `includeAssetIds` and keeps the ones it could not resolve as
+ * `unprocessedCustomAssets`.
  * @returns The composed source list, ready for `executeAssetsPipeline`.
  */
 export function buildFastFetchSources(
   sources: FastFetchSources,
-  options: { isBasicFunctionality: boolean },
+  options: {
+    isBasicFunctionality: boolean;
+    includeCustomAssetGraduation: boolean;
+  },
 ): AssetsDataSource[] {
   const {
     accountsApiDataSource,
@@ -65,7 +72,9 @@ export function buildFastFetchSources(
       accountsApiDataSource,
       stakedBalanceDataSource,
     ]),
-    customAssetGraduationMiddleware,
+    ...(options.includeCustomAssetGraduation
+      ? [customAssetGraduationMiddleware]
+      : []),
     rpcFallbackMiddleware,
     detectionMiddleware,
     createParallelMiddleware([tokenDataSource, priceDataSource]),
