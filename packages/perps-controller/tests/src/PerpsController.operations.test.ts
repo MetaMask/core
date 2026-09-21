@@ -1759,7 +1759,11 @@ describe('PerpsController', () => {
         symbol: 'BTC',
       });
 
-      expect(register).toHaveBeenCalledWith(expect.stringMatching(/^0x/u));
+      // The controller supplies the HyperLiquid network, so the registration
+      // names HyperLiquid's chain rather than the wallet's selected one.
+      expect(register).toHaveBeenCalledWith(expect.stringMatching(/^0x/u), {
+        isTestnet: controller.state.isTestnet,
+      });
 
       jest.restoreAllMocks();
     });

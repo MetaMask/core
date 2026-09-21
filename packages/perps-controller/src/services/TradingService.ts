@@ -1209,8 +1209,14 @@ export class TradingService {
         provider,
       });
       // `closeAll`, or an omitted/empty symbol list, means every position.
+      // `closeAll` is checked first because the provider gives it precedence
+      // over a symbol list: pricing a filtered subset while the batch closes
+      // everything would resolve the fee against too small a notional and
+      // over-grant the waiver.
       const selected =
-        params.symbols && params.symbols.length > 0
+        params.closeAll !== true &&
+        params.symbols &&
+        params.symbols.length > 0
           ? positions.filter((position) =>
               params.symbols?.includes(position.symbol),
             )
@@ -2368,12 +2374,23 @@ export class TradingService {
       });
 
       // Get fee discount from rewards. A TP/SL update carries no notional of
-      // its own, so it is priced from the position the triggers protect: the
-      // caller's snapshot or tracking data when supplied, and otherwise the
-      // position read back through the routed provider. Both caller fields are
-      // optional, and a bounded waiver is withheld without a notional, so
-      // relying on them alone silently drops the waiver on a valid update.
-      const tpslNotionalUsd =
+      // its own, so it is priced from what the triggers actually cover.
+      //
+      // A partial update states its own quantity in `takeProfitSize` /
+      // `stopLossSize`, and the provider submits exactly that
+      // (`resolveTpslSize`). Pricing such an update from the whole position
+      // would resolve the fee against far more notional than is submitted and
+      // blend away a waiver that should have been full. The two triggers go up
+      // under one builder context, so the larger size prices the action; an
+      // omitted size covers the whole position and therefore prices as such.
+      //
+      // Only when neither size is given does this fall back to the position the
+      // triggers protect: the caller's snapshot or tracking data when supplied,
+      // and otherwise the position read back through the routed provider. Both
+      // caller fields are optional, and a bounded waiver is withheld without a
+      // notional, so relying on them alone silently drops the waiver on a valid
+      // update.
+      const positionNotionalUsd = async (): Promise<number | undefined> =>
         this.#resolveOrderNotionalUsd({
           usdAmount: params.position?.positionValue,
           size: params.trackingData?.positionSize?.toString(),
@@ -2389,6 +2406,34 @@ export class TradingService {
             })
           )?.positionValue,
         });
+
+      const triggerSize = [params.takeProfitSize, params.stopLossSize]
+        .map((size) => (size === undefined ? NaN : Number.parseFloat(size)))
+        .filter((size) => Number.isFinite(size) && size > 0)
+        .reduce<number | undefined>(
+          (largest, size) =>
+            largest === undefined || size > largest ? size : largest,
+          undefined,
+        );
+
+      const partialNotionalUsd =
+        triggerSize === undefined
+          ? undefined
+          : this.#resolveOrderNotionalUsd({
+              size: triggerSize.toString(),
+              price: params.takeProfitPrice ?? params.stopLossPrice,
+              currentPrice:
+                params.trackingData?.entryPrice ??
+                (params.position?.entryPrice === undefined
+                  ? undefined
+                  : Number.parseFloat(params.position.entryPrice)),
+            });
+
+      // An unpriceable partial still falls back to the position rather than
+      // resolving to no notional: over-pricing withholds part of a waiver,
+      // while no notional withholds a bounded one entirely.
+      const tpslNotionalUsd =
+        partialNotionalUsd ?? (await positionNotionalUsd());
       const feeResolution =
         await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
 

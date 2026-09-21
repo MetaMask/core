@@ -1314,12 +1314,80 @@ describe('RewardsIntegrationService', () => {
       await service.registerTradingAddress(mockEvmAccount.address);
 
       expect(registerTradingAddress).toHaveBeenCalledTimes(1);
+      // HyperLiquid mainnet (`eip155:999`), not the wallet's selected network.
       expect(registerTradingAddress).toHaveBeenCalledWith(
-        expect.stringMatching(/^eip155:1:0x/u),
+        expect.stringMatching(/^eip155:999:0x/u),
       );
 
       // Account switch: the new address has to announce itself.
       service.resetRegisteredTradingAddresses();
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(registerTradingAddress).toHaveBeenCalledTimes(2);
+    });
+
+    it('registers against the HyperLiquid chain rather than the selected network', async () => {
+      // The address is announced so a fill decoded off the HyperLiquid fan-out
+      // can be matched to a profile, and that fill names eip155:999 /
+      // eip155:998. Registering under the wallet's selected network would
+      // produce an identifier no fill can ever match.
+      const registerTradingAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(null),
+        registerTradingAddress,
+      };
+
+      await service.registerTradingAddress(mockEvmAccount.address, {
+        isTestnet: true,
+      });
+
+      expect(registerTradingAddress).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:998:0x/u),
+      );
+
+      service.resetRegisteredTradingAddresses();
+      await service.registerTradingAddress(mockEvmAccount.address, {
+        isTestnet: false,
+      });
+
+      expect(registerTradingAddress).toHaveBeenLastCalledWith(
+        expect.stringMatching(/^eip155:999:0x/u),
+      );
+    });
+
+    it('does not cache a registration that an invalidation superseded', async () => {
+      // A registration issued for profile A must not mark itself complete after
+      // the profile changed: the new profile would then skip its own
+      // registration and leave its fills unattributable.
+      let releaseRegistration: () => void = () => undefined;
+      const registerTradingAddress = jest
+        .fn()
+        // Only the first call blocks; the re-registration below resolves at
+        // once so the assertion does not depend on releasing it too.
+        .mockImplementationOnce(
+          async () =>
+            await new Promise<void>((resolve) => {
+              releaseRegistration = resolve;
+            }),
+        )
+        .mockResolvedValue(undefined);
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(null),
+        registerTradingAddress,
+      };
+
+      const pending = service.registerTradingAddress(mockEvmAccount.address);
+
+      // Profile switch lands while the registration is still in flight.
+      service.invalidateSubscriptionBenefits();
+      releaseRegistration();
+      await pending;
+
+      expect(registerTradingAddress).toHaveBeenCalledTimes(1);
+
+      // The new profile must register the same address for itself.
       await service.registerTradingAddress(mockEvmAccount.address);
 
       expect(registerTradingAddress).toHaveBeenCalledTimes(2);

@@ -1293,7 +1293,9 @@ export class PerpsController extends BaseController<
       );
       if (switchedAccount) {
         this.#rewardsIntegrationService
-          .registerTradingAddress(switchedAccount.address)
+          .registerTradingAddress(switchedAccount.address, {
+            isTestnet: this.state.isTestnet,
+          })
           .catch(() => {
             /* never blocks an account switch */
           });
@@ -5817,7 +5819,9 @@ export class PerpsController extends BaseController<
     const selectedAccount = getSelectedEvmAccountFromMessenger(this.messenger);
     if (selectedAccount) {
       this.#rewardsIntegrationService
-        .registerTradingAddress(selectedAccount.address)
+        .registerTradingAddress(selectedAccount.address, {
+          isTestnet: this.state.isTestnet,
+        })
         .catch(() => {
           /* never blocks a fee preview */
         });

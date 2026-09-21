@@ -3,6 +3,8 @@ import type { SubscriptionBenefitsResponse } from '@metamask/subscription-contro
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
+  HYPERLIQUID_MAINNET_CHAIN_ID,
+  HYPERLIQUID_TESTNET_CHAIN_ID,
 } from '../constants/hyperLiquidConfig.js';
 import {
   PERPS_CONSTANTS,
@@ -598,9 +600,16 @@ export class RewardsIntegrationService {
    * — is what closes it.
    *
    * @param address - The EVM trading address to register.
+   * @param options - Registration options.
+   * @param options.isTestnet - Whether the caller is trading against the
+   * HyperLiquid testnet. Selects which HyperLiquid chain the CAIP-10 names;
+   * defaults to mainnet.
    * @returns A promise that resolves once the attempt settles.
    */
-  async registerTradingAddress(address: string): Promise<void> {
+  async registerTradingAddress(
+    address: string,
+    options?: { isTestnet?: boolean },
+  ): Promise<void> {
     const source = this.#deps.subscription;
     if (!source?.registerTradingAddress) {
       // Visible rather than silent: a client wired only to the messenger has no
@@ -614,14 +623,14 @@ export class RewardsIntegrationService {
     }
 
     try {
-      const networkState = this.#messenger.call('NetworkController:getState');
-      const chainId = this.#getChainIdForNetwork(
-        networkState.selectedNetworkClientId,
-      );
-
-      if (!chainId) {
-        return;
-      }
+      // HyperLiquid's own chain, not the wallet's selected network. The address
+      // is being announced so a fill decoded off the HyperLiquid fan-out can be
+      // matched back to a profile, and that fill names `eip155:999` /
+      // `eip155:998`. Registering under whatever network the wallet happened to
+      // have selected produces an identifier no fill will ever match.
+      const chainId = options?.isTestnet
+        ? HYPERLIQUID_TESTNET_CHAIN_ID
+        : HYPERLIQUID_MAINNET_CHAIN_ID;
 
       const caipAccountId = formatAccountToCaipAccountId(
         address,
@@ -639,7 +648,21 @@ export class RewardsIntegrationService {
         return;
       }
 
+      // Fence the completion against an invalidation that lands while this
+      // registration is in flight. `invalidateSubscriptionBenefits` clears the
+      // registered set because the profile behind it changed; writing back
+      // afterwards would re-add an address registered for the *previous*
+      // profile, and the new profile would then skip its own registration and
+      // leave its fills unattributable.
+      const epoch = this.#benefitsEpoch;
       await source.registerTradingAddress(caipAccountId);
+      if (epoch !== this.#benefitsEpoch) {
+        this.#deps.debugLogger.log(
+          'RewardsIntegrationService: Trading address registration superseded',
+          { caipAccountId },
+        );
+        return;
+      }
       this.#registeredTradingAddresses.add(caipAccountId);
 
       this.#deps.debugLogger.log(

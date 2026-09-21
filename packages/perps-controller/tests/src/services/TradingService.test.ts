@@ -2136,6 +2136,83 @@ describe('TradingService', () => {
       );
     });
 
+    it('prices a batch close from every position when closeAll overrides a symbol list', async () => {
+      // The provider gives `closeAll` precedence over `symbols`, so pricing the
+      // filtered subset would resolve the fee against $1,000 while the batch
+      // actually closes $10,000 — over-granting the waiver.
+      const batchProvider = {
+        ...mockProvider,
+        getWriteProviderId: jest.fn(() => 'hyperliquid'),
+        getPositions: jest.fn().mockResolvedValue([
+          {
+            symbol: 'BTC',
+            size: '0.02',
+            positionValue: '1000',
+            providerId: 'hyperliquid',
+          },
+          {
+            symbol: 'ETH',
+            size: '3',
+            positionValue: '9000',
+            providerId: 'hyperliquid',
+          },
+        ]),
+        closePositions: jest.fn().mockResolvedValue({
+          success: true,
+          successCount: 2,
+          failureCount: 0,
+          results: [],
+        }),
+      } as unknown as jest.Mocked<PerpsProvider>;
+
+      await tradingService.closePositions({
+        provider: batchProvider,
+        params: { closeAll: true, symbols: ['BTC'] },
+        context: mockContext,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        10000,
+      );
+    });
+
+    it('prices a batch close from the named symbols when closeAll is not set', async () => {
+      const batchProvider = {
+        ...mockProvider,
+        getWriteProviderId: jest.fn(() => 'hyperliquid'),
+        getPositions: jest.fn().mockResolvedValue([
+          {
+            symbol: 'BTC',
+            size: '0.02',
+            positionValue: '1000',
+            providerId: 'hyperliquid',
+          },
+          {
+            symbol: 'ETH',
+            size: '3',
+            positionValue: '9000',
+            providerId: 'hyperliquid',
+          },
+        ]),
+        closePositions: jest.fn().mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        }),
+      } as unknown as jest.Mocked<PerpsProvider>;
+
+      await tradingService.closePositions({
+        provider: batchProvider,
+        params: { symbols: ['BTC'] },
+        context: mockContext,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        1000,
+      );
+    });
+
     const mockPositions: Position[] = [
       {
         symbol: 'BTC',
@@ -2376,6 +2453,77 @@ describe('TradingService', () => {
       takeProfitCount: 0,
       stopLossCount: 0,
     };
+
+    it('prices a partial TP/SL update from the submitted trigger size', async () => {
+      // The provider submits exactly `takeProfitSize` (`resolveTpslSize`), so
+      // pricing this from the whole $25,000 position would resolve the fee
+      // against ten times what is submitted and blend away a waiver that
+      // should have been full.
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          takeProfitPrice: '55000',
+          takeProfitSize: '0.05',
+          position: mockPosition,
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.05 BTC at the 55000 trigger, not the position's 25000.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        2750,
+      );
+    });
+
+    it('prices a partial TP/SL update from the larger of the two trigger sizes', async () => {
+      // Both triggers go up under one builder context, so the action is priced
+      // by whichever covers more of the position.
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          takeProfitPrice: '55000',
+          stopLossPrice: '45000',
+          takeProfitSize: '0.05',
+          stopLossSize: '0.1',
+          position: mockPosition,
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.1 BTC at the 55000 take-profit trigger.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        5500,
+      );
+    });
+
+    it('prices a whole-position TP/SL update from the position notional', async () => {
+      // No trigger size means the triggers cover the whole position, so the
+      // position notional is still the right price.
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          takeProfitPrice: '55000',
+          position: mockPosition,
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        25000,
+      );
+    });
 
     it('updates TP/SL successfully without fee discount', async () => {
       const params: UpdatePositionTPSLParams = {
