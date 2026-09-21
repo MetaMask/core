@@ -10187,59 +10187,102 @@ describe('RampsController', () => {
   });
 
   describe('hydrateVbaOnboarding', () => {
+    type KycSession = {
+      id: string;
+      finalStatus: string;
+      kycStatus: string;
+      vendorStatus: string;
+    };
+
     type KycHandlers = {
-      isCustomerCreated: jest.Mock;
-      hasCompletedVendorTerms: jest.Mock;
-      hasCompletedProviderTerms: jest.Mock;
-      getKycStatus: jest.Mock;
+      getSessionStatusForVendor: jest.Mock;
+      refreshSessionStatus: jest.Mock;
+      hasCompletedVendorDisclaimers: jest.Mock;
+      hasCompletedSessionDisclaimers: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
     type KycValues = {
-      customerCreated: boolean;
-      vendorTermsCompleted: boolean;
-      providerTermsCompleted: boolean;
-      status: string;
+      /**
+       * Session status resolved by the KYC controller. `null` means no session
+       * exists yet (start onboarding at the email step).
+       */
+      session: KycSession | null;
+      /**
+       * When `true`, `KycController:refreshSessionStatus` throws (no session in
+       * controller state), so hydration falls back to the backend
+       * `getSessionStatusForVendor` fetch.
+       */
+      refreshThrows: boolean;
+      /**
+       * When `true`, the `getSessionStatusForVendor` fallback rejects with a
+       * 404-style error (treated as "no session").
+       */
+      getSessionRejects: boolean;
+      vendorDisclaimersCompleted: boolean;
+      sessionDisclaimersCompleted: boolean;
+    };
+
+    const approvedSession: KycSession = {
+      id: 'session-1',
+      finalStatus: 'approved',
+      kycStatus: 'approved',
+      vendorStatus: 'approved',
     };
 
     const registerKycHandlers = (
       rootMessenger: RootMessenger,
       overrides: Partial<KycValues> = {},
     ): KycHandlers => {
-      const values = {
-        customerCreated: true,
-        vendorTermsCompleted: true,
-        providerTermsCompleted: true,
-        status: 'ACCEPTED',
+      const values: KycValues = {
+        session: approvedSession,
+        refreshThrows: false,
+        getSessionRejects: false,
+        vendorDisclaimersCompleted: true,
+        sessionDisclaimersCompleted: true,
         ...overrides,
       };
-      const handlers = {
-        isCustomerCreated: jest.fn().mockReturnValue(values.customerCreated),
-        hasCompletedVendorTerms: jest
+
+      const refreshSessionStatus = jest.fn(() => {
+        if (values.refreshThrows) {
+          throw new Error('no session in state');
+        }
+        return values.session;
+      });
+      const getSessionStatusForVendor = jest.fn(async () => {
+        if (values.getSessionRejects) {
+          throw new Error('KYC session not found');
+        }
+        return values.session;
+      });
+
+      const handlers: KycHandlers = {
+        getSessionStatusForVendor,
+        refreshSessionStatus,
+        hasCompletedVendorDisclaimers: jest
           .fn()
-          .mockReturnValue(values.vendorTermsCompleted),
-        hasCompletedProviderTerms: jest
+          .mockResolvedValue(values.vendorDisclaimersCompleted),
+        hasCompletedSessionDisclaimers: jest
           .fn()
-          .mockReturnValue(values.providerTermsCompleted),
-        getKycStatus: jest.fn().mockReturnValue(values.status),
+          .mockResolvedValue(values.sessionDisclaimersCompleted),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
       rootMessenger.registerActionHandler(
-        'KycController:isCustomerCreated' as never,
-        handlers.isCustomerCreated as never,
+        'KycController:getSessionStatusForVendor' as never,
+        handlers.getSessionStatusForVendor as never,
       );
       rootMessenger.registerActionHandler(
-        'KycController:hasCompletedVendorTerms' as never,
-        handlers.hasCompletedVendorTerms as never,
+        'KycController:refreshSessionStatus' as never,
+        handlers.refreshSessionStatus as never,
       );
       rootMessenger.registerActionHandler(
-        'KycController:hasCompletedProviderTerms' as never,
-        handlers.hasCompletedProviderTerms as never,
+        'KycController:hasCompletedVendorDisclaimers' as never,
+        handlers.hasCompletedVendorDisclaimers as never,
       );
       rootMessenger.registerActionHandler(
-        'KycController:getKycStatus' as never,
-        handlers.getKycStatus as never,
+        'KycController:hasCompletedSessionDisclaimers' as never,
+        handlers.hasCompletedSessionDisclaimers as never,
       );
       rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
@@ -10249,52 +10292,69 @@ describe('RampsController', () => {
       return handlers;
     };
 
+    const pendingSession = (kycStatus: string): KycSession => ({
+      id: 'session-1',
+      finalStatus: 'pending',
+      kycStatus,
+      vendorStatus: 'pending',
+    });
+
     it.each([
       {
-        name: 'email OTP when the Iron customer does not exist',
-        overrides: { customerCreated: false },
+        name: 'email OTP when no session exists in state or on the backend',
+        overrides: { refreshThrows: true, session: null },
         expected: VbaOnboardingStage.EmailOtpRequired,
-        expectedCalls: [[['iron']], [], [], []],
       },
       {
-        name: 'vendor terms when Iron terms are incomplete',
-        overrides: { vendorTermsCompleted: false },
+        name: 'email OTP when the backend session lookup 404s',
+        overrides: { refreshThrows: true, getSessionRejects: true },
+        expected: VbaOnboardingStage.EmailOtpRequired,
+      },
+      {
+        name: 'vendor terms when Iron disclaimers are incomplete',
+        overrides: { vendorDisclaimersCompleted: false },
         expected: VbaOnboardingStage.VendorTermsRequired,
-        expectedCalls: [[['iron']], [['iron']], [], []],
       },
       {
-        name: 'provider terms when SumSub terms are incomplete',
-        overrides: { providerTermsCompleted: false },
+        name: 'provider terms when SumSub session disclaimers are incomplete',
+        overrides: { sessionDisclaimersCompleted: false },
         expected: VbaOnboardingStage.ProviderTermsRequired,
-        expectedCalls: [[['iron']], [['iron']], [['sumsub']], []],
       },
       {
         name: 'the SumSub widget when KYC has not started',
-        overrides: { status: 'NOT_STARTED' },
+        overrides: { session: pendingSession('new') },
         expected: VbaOnboardingStage.KycRequired,
-        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
       },
       {
-        name: 'the SumSub widget when KYC needs more information',
-        overrides: { status: 'NEED_INFO' },
+        name: 'the SumSub widget when KYC needs a retry',
+        overrides: { session: pendingSession('retry') },
         expected: VbaOnboardingStage.KycRequired,
-        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
       },
       {
-        name: 'pending KYC',
-        overrides: { status: 'PENDING' },
+        name: 'pending KYC while the vendor finalizes',
+        overrides: { session: pendingSession('pending') },
         expected: VbaOnboardingStage.KycPending,
-        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
       },
       {
-        name: 'rejected KYC',
-        overrides: { status: 'REJECTED' },
+        name: 'rejected KYC when the vendor finalizes as rejected',
+        overrides: { session: pendingSession('rejected') },
         expected: VbaOnboardingStage.KycRejected,
-        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
       },
-    ])('routes to $name', async ({ overrides, expected, expectedCalls }) => {
+      {
+        name: 'rejected KYC when the final status is rejected',
+        overrides: {
+          session: {
+            id: 'session-1',
+            finalStatus: 'rejected',
+            kycStatus: 'pending',
+            vendorStatus: 'rejected',
+          },
+        },
+        expected: VbaOnboardingStage.KycRejected,
+      },
+    ])('routes to $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
-        const handlers = registerKycHandlers(rootMessenger, overrides);
+        registerKycHandlers(rootMessenger, overrides);
         const registerWallet = jest.spyOn(
           controller,
           'registerMoneyAccountWallet',
@@ -10308,12 +10368,37 @@ describe('RampsController', () => {
         expect(controller.state.vbaOnboardingStage).toBe(expected);
         expect(registerWallet).not.toHaveBeenCalled();
         expect(createAutoramp).not.toHaveBeenCalled();
-        expect([
-          handlers.isCustomerCreated.mock.calls,
-          handlers.hasCompletedVendorTerms.mock.calls,
-          handlers.hasCompletedProviderTerms.mock.calls,
-          handlers.getKycStatus.mock.calls,
-        ]).toStrictEqual(expectedCalls);
+      });
+    });
+
+    it('falls back to the backend session fetch when no session is in state', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          refreshThrows: true,
+          session: null,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.EmailOtpRequired);
+
+        expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith('iron');
+      });
+    });
+
+    it('prefers the in-state session status over the backend fetch', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: pendingSession('new'),
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycRequired);
+
+        expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
       });
     });
 
@@ -10488,107 +10573,65 @@ describe('RampsController', () => {
       });
     });
 
-    it('retains the previous stage when automatic setup fails', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              vbaOnboardingStage: VbaOnboardingStage.KycPending,
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          registerKycHandlers(rootMessenger);
-          const error = new Error('signing rejected');
-          jest
-            .spyOn(controller, 'registerMoneyAccountWallet')
-            .mockRejectedValue(error);
-
-          await expect(
-            controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-          ).rejects.toBe(error);
-          expect(controller.state.vbaOnboardingStage).toBe(
-            VbaOnboardingStage.KycPending,
-          );
-        },
-      );
-    });
-
-    it('treats an unavailable wallet lookup as a setup failure', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              vbaOnboardingStage: VbaOnboardingStage.KycPending,
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          registerKycHandlers(rootMessenger);
-          const error = new WalletRegistrationError('lookupUnavailable', {});
-          jest
-            .spyOn(controller, 'registerMoneyAccountWallet')
-            .mockResolvedValue({
-              type: 'lookupUnavailable',
-              error,
-            });
-
-          await expect(
-            controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-          ).rejects.toBe(error);
-          expect(controller.state.vbaOnboardingStage).toBe(
-            VbaOnboardingStage.KycPending,
-          );
-        },
-      );
-    });
-
-    it('retains the previous stage when loading autoramps fails', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              vbaOnboardingStage: VbaOnboardingStage.KycPending,
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          const handlers = registerKycHandlers(rootMessenger);
-          const error = new Error('autoramp lookup failed');
-          handlers.getAutoramps.mockRejectedValue(error);
-          jest
-            .spyOn(controller, 'registerMoneyAccountWallet')
-            .mockResolvedValue({
-              type: 'alreadyRegistered',
-              registration: {
-                id: 'wallet-1',
-                address: '0xabc',
-                blockchain: 'Monad',
-                disabled: false,
-                isSelf: true,
-              },
-            });
-          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
-
-          await expect(
-            controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-          ).rejects.toBe(error);
-          expect(createAutoramp).not.toHaveBeenCalled();
-          expect(controller.state.vbaOnboardingStage).toBe(
-            VbaOnboardingStage.KycPending,
-          );
-        },
-      );
-    });
-
-    it('rejects an unsupported KYC status without changing the stage', async () => {
+    it('falls back to pending KYC when wallet registration fails on the approved path', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger, { status: 'UNKNOWN' });
+        registerKycHandlers(rootMessenger);
+        const error = new Error('signing rejected');
+        jest
+          .spyOn(controller, 'registerMoneyAccountWallet')
+          .mockRejectedValue(error);
 
-        await expect(
-          controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).rejects.toThrow('Unsupported KYC status: UNKNOWN');
-        expect(controller.state.vbaOnboardingStage).toBeNull();
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycPending);
+        expect(controller.state.vbaOnboardingStage).toBe(
+          VbaOnboardingStage.KycPending,
+        );
+      });
+    });
+
+    it('falls back to pending KYC when the wallet lookup is unavailable', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        const error = new WalletRegistrationError('lookupUnavailable', {});
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'lookupUnavailable',
+          error,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycPending);
+        expect(controller.state.vbaOnboardingStage).toBe(
+          VbaOnboardingStage.KycPending,
+        );
+      });
+    });
+
+    it('falls back to pending KYC when loading autoramps fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        const error = new Error('autoramp lookup failed');
+        handlers.getAutoramps.mockRejectedValue(error);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'alreadyRegistered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycPending);
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(controller.state.vbaOnboardingStage).toBe(
+          VbaOnboardingStage.KycPending,
+        );
       });
     });
 
