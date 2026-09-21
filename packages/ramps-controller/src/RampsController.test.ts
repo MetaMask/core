@@ -10820,8 +10820,8 @@ describe('RampsController', () => {
       });
     });
 
-    it('refreshDeposits applies snapshots without a running timer', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+    it('refreshDeposits stores a first-seen terminal deposit without publishing a transition', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
         addApprovedAutoramp(controller);
         rootMessenger.registerActionHandler(
           'NeoBankService:getAutorampTransactions',
@@ -10829,6 +10829,8 @@ describe('RampsController', () => {
             { id: 'dep-1', status: MoneyAccountDepositStatus.Completed },
           ],
         );
+        const listener = jest.fn();
+        messenger.subscribe('RampsController:depositStatusChanged', listener);
 
         await controller.refreshDeposits();
 
@@ -10836,6 +10838,7 @@ describe('RampsController', () => {
           id: 'dep-1',
           status: MoneyAccountDepositStatus.Completed,
         });
+        expect(listener).not.toHaveBeenCalled();
       });
     });
 

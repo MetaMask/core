@@ -10,9 +10,8 @@
  *
  * NOTE: The status values below mirror MoonPay Enterprise's
  * `AutorampTransactionStatus` as surfaced by the neobank-proxy (onramp-api PR
- * #1124, raw MoonPay). TRAM-3925 will introduce a mobile-safe DTO that may
- * rename these fields, so keep {@link normalizeDepositStatus} tolerant of
- * unknown values.
+ * #1248, raw MoonPay). TRAM-3925 will introduce a mobile-safe DTO that may
+ * rename these fields.
  */
 
 import type { Hex } from '@metamask/utils';
@@ -153,14 +152,13 @@ export function isTerminalDepositStatus(
 /**
  * Normalize a remote status string into {@link MoneyAccountDepositStatus}.
  *
- * Unknown values fall back to a non-terminal in-progress status
- * ({@link MoneyAccountDepositStatus.FundsReviewInProgress}) so an unrecognized
- * status keeps polling instead of being mistaken for a terminal outcome and
- * firing a bogus notification. Unknown-status handling is best-effort until the
- * mobile-safe DTO (TRAM-3925) pins the wire values.
+ * Unknown values throw instead of silently changing a terminal local deposit
+ * back to an in-progress status. The error includes the raw value so contract
+ * changes can be diagnosed.
  *
  * @param status - Remote status string.
  * @returns A known {@link MoneyAccountDepositStatus}.
+ * @throws If the remote status is not in the MoonPay/Iron status enum.
  */
 export function normalizeDepositStatus(
   status: MoneyAccountDepositStatus | string,
@@ -172,7 +170,7 @@ export function normalizeDepositStatus(
   ) {
     return status as MoneyAccountDepositStatus;
   }
-  return MoneyAccountDepositStatus.FundsReviewInProgress;
+  throw new Error(`Unknown Money Account deposit status '${status}'`);
 }
 
 /**
@@ -229,9 +227,9 @@ export function applyDepositRemoteStatus(
 ): ApplyDepositRemoteStatusResult {
   const remoteStatus = normalizeDepositStatus(remote.status);
 
-  // First observation: record the deposit for display but report no status
-  // transition (there is no prior local state to have changed from), so a
-  // deposit first seen already-terminal is stored without firing a notification.
+  // Initial sync establishes the local baseline. It is not a transition, so a
+  // deposit first seen already terminal is stored without firing an event. This
+  // avoids showing historical completion notifications when state is hydrated.
   if (!local) {
     const deposit = createMoneyAccountDeposit({
       id: remote.id,

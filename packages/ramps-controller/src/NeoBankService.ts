@@ -17,6 +17,7 @@ import type {
   AutorampRemoteSnapshot,
 } from './autoramp-types.js';
 import type { MoneyAccountDepositRemoteSnapshot } from './moneyAccountDeposit.js';
+import { normalizeDepositStatus } from './moneyAccountDeposit.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
 import { WalletRegistrationService } from './wallet-registration-service.js';
@@ -83,15 +84,11 @@ export type NeoBankAutorampResponse = {
  * receives fiat, pays out mUSD on Monad to the Money Account).
  *
  * Source of truth: the MoonPay/Iron Enterprise `AutorampTransaction`, which the
- * neobank-proxy (onramp-api PR #1124) forwards verbatim. Per Iron's OpenAPI
- * spec the payout hash is nested at `payout_crypto_transaction.transaction_hash`
- * and the list is a `PagedList` with an `items` array. Because that proxy PR is
- * unmerged and still in flux (its own fixtures use `data`/flat `transaction_hash`,
- * matching the webhook shape) and TRAM-3925 will add a mobile-safe DTO, the
- * mapper reads both the nested and flat hash and both the `items` and `data`
- * envelopes so it works whichever shape ships. Display fields (amount/currency/
- * recipient) are MoonPay structured objects, not simple top-level fields, so they
- * are intentionally not mapped yet; TRAM-3925 will pin the wire names.
+ * neobank-proxy (onramp-api PR #1248) forwards verbatim. The deployed response
+ * is an Iron `PagedList` with an `items` array, and the payout hash is nested at
+ * `payout_crypto_transaction.transaction_hash` when present. Display fields
+ * (amount/currency/recipient) are structured objects, not simple top-level
+ * fields, so they remain unmapped until TRAM-3925 defines a mobile-safe DTO.
  */
 /* eslint-disable @typescript-eslint/naming-convention -- snake_case proxy wire format */
 export type NeoBankTransactionResponse = {
@@ -103,31 +100,23 @@ export type NeoBankTransactionResponse = {
    * `AutorampTransaction` (present once the payout settles on-chain).
    */
   payout_crypto_transaction?: {
-    transaction_hash?: string;
-  };
-  /** Flat payout hash fallback (the webhook / proxy-fixture shape). */
-  transaction_hash?: string;
+    transaction_hash?: string | null;
+  } | null;
 };
 /* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Envelope returned by the neo-bank transactions endpoint.
  *
- * Primary shape is the Iron `PagedList` (`{ items, cursor, prev_cursor }`); the
- * proxy PR's transitional `{ data, next_cursor }` and a bare array are accepted
- * as fallbacks. Only the first page is read for now - cursor pagination is a
- * follow-up.
+ * Shape is the Iron `PagedList` (`{ items, cursor, prev_cursor }`). Only the
+ * first page is read for now; cursor pagination is a follow-up.
  */
 /* eslint-disable @typescript-eslint/naming-convention -- snake_case proxy wire format */
-export type NeoBankTransactionsResponse =
-  | NeoBankTransactionResponse[]
-  | {
-      items?: NeoBankTransactionResponse[];
-      cursor?: string | null;
-      prev_cursor?: string | null;
-      data?: NeoBankTransactionResponse[];
-      next_cursor?: string | null;
-    };
+export type NeoBankTransactionsResponse = {
+  items: NeoBankTransactionResponse[];
+  cursor?: string | null;
+  prev_cursor?: string | null;
+};
 /* eslint-enable @typescript-eslint/naming-convention */
 
 /**
@@ -206,7 +195,7 @@ export type NeoBankServiceMessenger = Messenger<
 /**
  * Builds a path under the neobank-proxy global prefix.
  *
- * Live neobank-proxy (#1124) mounts routes at `/neobank` on the on-ramp.api
+ * The neobank-proxy (#1248) mounts routes at `/neobank` on the on-ramp.api
  * host (ALB path routing, no rewrite). Prefer this over `/api/v2/...` so Core
  * matches the proxy that ships.
  *
@@ -271,6 +260,16 @@ export function mapNeoBankAutorampToRemoteSnapshot(
 }
 
 /**
+ * Returns a non-empty wire value, treating blank strings like missing fields.
+ *
+ * @param value - Optional string from the proxy response.
+ * @returns The original string when non-blank, otherwise `undefined`.
+ */
+function nonEmptyString(value: string | null | undefined): string | undefined {
+  return value?.trim() ? value : undefined;
+}
+
+/**
  * Maps a neo-bank proxy transaction response into a local deposit snapshot.
  *
  * @param response - Single transaction from the proxy transactions endpoint.
@@ -279,19 +278,17 @@ export function mapNeoBankAutorampToRemoteSnapshot(
 export function mapNeoBankTransactionToRemoteSnapshot(
   response: NeoBankTransactionResponse,
 ): MoneyAccountDepositRemoteSnapshot {
-  // Payout hash: nested on the Iron `AutorampTransaction`, flat on the webhook /
-  // proxy-fixture shape - read both. Display fields (moneyAccountAddress/amount/
-  // currency) are left unset: MoonPay carries them as structured source/
-  // destination objects, not simple top-level fields; they await the mobile-safe
-  // DTO (TRAM-3925).
-  const payoutTransactionHash =
-    response.payout_crypto_transaction?.transaction_hash ??
-    response.transaction_hash;
+  // Display fields (moneyAccountAddress/amount/currency) remain unset: MoonPay
+  // carries them as structured source/destination objects, and TRAM-3925 owns
+  // the mobile-safe DTO.
+  const payoutTransactionHash = nonEmptyString(
+    response.payout_crypto_transaction?.transaction_hash,
+  );
 
   return {
     id: response.id,
-    autorampId: response.autoramp_id,
-    status: response.status,
+    autorampId: nonEmptyString(response.autoramp_id),
+    status: normalizeDepositStatus(response.status),
     payoutTransactionHash: payoutTransactionHash as Hex | undefined,
   };
 }
@@ -491,19 +488,21 @@ export class NeoBankService {
   #mapTransactionsResponse(
     response: NeoBankTransactionsResponse,
   ): MoneyAccountDepositRemoteSnapshot[] {
-    // Primary shape is the Iron `PagedList` (`items` array); the proxy PR's
-    // transitional `data` array and a bare array are accepted as fallbacks.
-    // Single page only for now - cursor pagination is a follow-up.
-    const list = Array.isArray(response)
-      ? response
-      : (response?.items ?? response?.data);
+    // The deployed endpoint returns the Iron `PagedList` `items` array.
+    // Single page only for now; cursor pagination is a follow-up.
+    const list = response?.items;
     if (!Array.isArray(list)) {
       throw new Error(
         'Malformed response received from neo-bank transactions API',
       );
     }
     return list.map((item) => {
-      if (!item || typeof item !== 'object' || !item.id || !item.status) {
+      if (
+        !item ||
+        typeof item !== 'object' ||
+        !nonEmptyString(item.id) ||
+        !nonEmptyString(item.status)
+      ) {
         throw new Error(
           'Malformed response received from neo-bank transactions API',
         );
@@ -533,7 +532,8 @@ export class NeoBankService {
    * `GET /api/autoramp-transactions`, response is a MoonPay `PagedList`).
    *
    * Used by the deposit poller to detect status changes (e.g. a payout settling
-   * on Monad). Route + response shape track onramp-api PR #1124.
+   * on Monad). Route + response shape track onramp-api PR #1248 and the
+   * MoonPay/Iron Enterprise OpenAPI contract.
    *
    * @param autorampId - MoonPay / Ramp API autoramp id.
    * @returns Deposit snapshots for controller apply/refresh.

@@ -28,13 +28,10 @@ describe('moneyAccountDeposit', () => {
       ).toBe(MoneyAccountDepositStatus.PayoutInProgress);
     });
 
-    it('maps an unknown status to a non-terminal in-progress value', () => {
-      const normalized = normalizeDepositStatus('Nope');
-
-      expect(normalized).toBe(MoneyAccountDepositStatus.FundsReviewInProgress);
-      // Unknown statuses must never look terminal (that would fire a bogus
-      // notification and stop polling early).
-      expect(isTerminalDepositStatus(normalized)).toBe(false);
+    it('throws with the raw value for an unknown status', () => {
+      expect(() => normalizeDepositStatus('Nope')).toThrow(
+        "Unknown Money Account deposit status 'Nope'",
+      );
     });
   });
 
@@ -136,6 +133,21 @@ describe('moneyAccountDeposit', () => {
       expect(result.deposit.autorampId).toBe('ar-1');
     });
 
+    it('records a first-seen Completed deposit without reporting a transition', () => {
+      const result = applyDepositRemoteStatus(null, {
+        id: 'dep-1',
+        status: MoneyAccountDepositStatus.Completed,
+      });
+
+      expect(result).toMatchObject({
+        previousStatus: MoneyAccountDepositStatus.Completed,
+        statusChanged: false,
+        shouldNotify: false,
+        changed: true,
+      });
+      expect(result.deposit.status).toBe(MoneyAccountDepositStatus.Completed);
+    });
+
     it('detects Completed transition and requests notify once', () => {
       const remote: MoneyAccountDepositRemoteSnapshot = {
         id: 'dep-1',
@@ -204,6 +216,22 @@ describe('moneyAccountDeposit', () => {
 
       expect(result.statusChanged).toBe(true);
       expect(result.shouldNotify).toBe(false);
+    });
+
+    it('does not replace a terminal local status with an unknown remote status', () => {
+      const local = createMoneyAccountDeposit({
+        id: 'dep-1',
+        status: MoneyAccountDepositStatus.Completed,
+        updatedAt: 1,
+      });
+
+      expect(() =>
+        applyDepositRemoteStatus(local, {
+          id: 'dep-1',
+          status: 'NewPartnerStatus',
+        }),
+      ).toThrow("Unknown Money Account deposit status 'NewPartnerStatus'");
+      expect(local.status).toBe(MoneyAccountDepositStatus.Completed);
     });
 
     it('notifies for Failed', () => {
