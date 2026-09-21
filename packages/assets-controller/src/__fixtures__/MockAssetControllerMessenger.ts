@@ -103,6 +103,11 @@ export function createMockAssetsControllerMessenger(
       'PhishingController:bulkScanTokens',
       // AccountsApiDataSource
       'RemoteFeatureFlagController:getState',
+      // AuthenticatedUserStorageService (fire-and-forget user-assets sync)
+      'AuthenticatedUserStorageService:getUserAssets',
+      'AuthenticatedUserStorageService:setUserAssets',
+      'AuthenticatedUserStorageService:importTokens',
+      'AuthenticatedUserStorageService:hideTokens',
     ],
 
     events: [

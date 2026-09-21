@@ -6,6 +6,12 @@ import type {
   AccountTreeControllerUninitializedEvent,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AuthenticatedUserStorageServiceGetUserAssetsAction,
+  AuthenticatedUserStorageServiceHideTokensAction,
+  AuthenticatedUserStorageServiceImportTokensAction,
+  AuthenticatedUserStorageServiceSetUserAssetsAction,
+} from '@metamask/authenticated-user-storage';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -119,6 +125,7 @@ import {
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
+import { syncAusUserAssets } from './syncAusUserAssets.js';
 import {
   cleanSpamAssets,
   isUnlockCleanupEnabled,
@@ -351,7 +358,13 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  // AuthenticatedUserStorageService (fire-and-forget AUS user-assets sync
+  // via @syncAusUserAssets on add/remove/hide/unhide)
+  | AuthenticatedUserStorageServiceGetUserAssetsAction
+  | AuthenticatedUserStorageServiceSetUserAssetsAction
+  | AuthenticatedUserStorageServiceImportTokensAction
+  | AuthenticatedUserStorageServiceHideTokensAction;
 
 type AllowedEvents =
   // AssetsController — account tree lifecycle and group switches
@@ -1017,7 +1030,7 @@ export class AssetsController extends BaseController<
           }
         },
         removeCustomAsset: (accountId, assetId): void =>
-          this.removeCustomAsset(accountId, assetId),
+          this.#removeCustomAssetInternal(accountId, assetId),
       },
     );
     this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
@@ -1963,6 +1976,7 @@ export class AssetsController extends BaseController<
    * @param assetId - The CAIP-19 asset ID to add.
    * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
    */
+  @syncAusUserAssets
   async addCustomAsset(
     accountId: AccountId,
     assetId: Caip19AssetId,
@@ -2053,7 +2067,25 @@ export class AssetsController extends BaseController<
    * @param accountId - The account ID to remove the custom asset from.
    * @param assetId - The CAIP-19 asset ID to remove.
    */
+  @syncAusUserAssets
   removeCustomAsset(accountId: AccountId, assetId: Caip19AssetId): void {
+    this.#removeCustomAssetInternal(accountId, assetId);
+  }
+
+  /**
+   * Remove a custom asset without syncing the removal to AUS.
+   *
+   * Used by the graduation middleware, whose removals are automatic (a native
+   * data source detected the asset) rather than user intent, and so must not
+   * strip a still-visible, user-endorsed token from the AUS user-assets blob.
+   *
+   * @param accountId - The account ID to remove the custom asset from.
+   * @param assetId - The CAIP-19 asset ID to remove.
+   */
+  #removeCustomAssetInternal(
+    accountId: AccountId,
+    assetId: Caip19AssetId,
+  ): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 
     log('Removing custom asset', { accountId, assetId: normalizedAssetId });
@@ -2097,6 +2129,7 @@ export class AssetsController extends BaseController<
    *
    * @param assetId - The CAIP-19 asset ID to hide.
    */
+  @syncAusUserAssets
   hideAsset(assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 
@@ -2115,6 +2148,7 @@ export class AssetsController extends BaseController<
    *
    * @param assetId - The CAIP-19 asset ID to unhide.
    */
+  @syncAusUserAssets
   unhideAsset(assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 

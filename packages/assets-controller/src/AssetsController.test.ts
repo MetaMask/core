@@ -1,3 +1,4 @@
+import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
 import { clientControllerSelectors } from '@metamask/client-controller';
 /* eslint-disable jest/unbound-method */
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
@@ -100,6 +101,9 @@ const MOCK_ASSET_ID =
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+// DAI — a second checksummed address so filtered blob assertions are exact.
+const OTHER_ASSET_ID =
+  'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
@@ -140,6 +144,68 @@ function createMockInternalAccount(
     },
     ...overrides,
   } as InternalAccount;
+}
+
+type AusUserAssetsActionMocks = {
+  importTokens: jest.Mock;
+  hideTokens: jest.Mock;
+  getUserAssets: jest.Mock;
+  setUserAssets: jest.Mock;
+};
+
+/**
+ * Register mock handlers for the four AuthenticatedUserStorageService
+ * user-assets actions that the controller's fire-and-forget AUS sync calls.
+ *
+ * @param messenger - The root messenger to register the handlers on.
+ * @param options - Options controlling the mocks' behavior.
+ * @param options.blob - The user-assets blob `getUserAssets` serves.
+ * @param options.rejectWith - An error every AUS action rejects with.
+ * @returns The mock handlers, for call assertions.
+ */
+function registerAusUserAssetsActionMocks(
+  messenger: RootMessenger,
+  options: {
+    blob?: UserAssetsBlob | null;
+    rejectWith?: Error;
+  } = {},
+): AusUserAssetsActionMocks {
+  const { blob = null, rejectWith } = options;
+  const emptyBlob: UserAssetsBlob = {
+    version: 1,
+    importedAssets: [],
+    hiddenAssets: [],
+  };
+  const makeHandler = <ReturnValue>(
+    resolveValue: () => ReturnValue,
+  ): jest.Mock<Promise<ReturnValue>, []> =>
+    rejectWith
+      ? jest.fn(() => Promise.reject(rejectWith))
+      : jest.fn(async () => resolveValue());
+
+  const importTokens = makeHandler((): UserAssetsBlob => emptyBlob);
+  const hideTokens = makeHandler((): UserAssetsBlob => emptyBlob);
+  const getUserAssets = makeHandler((): UserAssetsBlob | null => blob);
+  const setUserAssets = makeHandler((): void => undefined);
+
+  messenger.registerActionHandler(
+    'AuthenticatedUserStorageService:importTokens',
+    importTokens,
+  );
+  messenger.registerActionHandler(
+    'AuthenticatedUserStorageService:hideTokens',
+    hideTokens,
+  );
+  messenger.registerActionHandler(
+    'AuthenticatedUserStorageService:getUserAssets',
+    getUserAssets,
+  );
+  messenger.registerActionHandler(
+    'AuthenticatedUserStorageService:setUserAssets',
+    setUserAssets,
+  );
+
+  return { importTokens, hideTokens, getUserAssets, setUserAssets };
 }
 
 type WithControllerOptions = {
@@ -723,6 +789,37 @@ describe('AssetsController', () => {
         },
       );
     });
+
+    it('mirrors the added custom asset to AUS user assets', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const { importTokens } = registerAusUserAssetsActionMocks(messenger);
+
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID_LOWERCASE);
+        await flushPromises();
+
+        // Single high-level import call, with the checksummed id.
+        expect(importTokens).toHaveBeenCalledTimes(1);
+        expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      });
+    });
+
+    it('still adds the custom asset locally when the AUS sync rejects', async () => {
+      await withController(async ({ controller, messenger }) => {
+        registerAusUserAssetsActionMocks(messenger, {
+          rejectWith: new Error('AUS unavailable'),
+        });
+
+        expect(
+          await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+        ).toBeUndefined();
+        await flushPromises();
+
+        // Fire-and-forget: the local state change stands despite the AUS failure.
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
+      });
+    });
   });
 
   describe('removeCustomAsset', () => {
@@ -760,6 +857,116 @@ describe('AssetsController', () => {
           '0x6B175474E89094C44Da98b954EedeAC495271d0F',
         );
       });
+    });
+
+    it('strips the removed custom asset from the AUS imported list', async () => {
+      await withController(
+        {
+          state: {
+            customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_ID] },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const { getUserAssets, setUserAssets } =
+            registerAusUserAssetsActionMocks(messenger, {
+              blob: {
+                version: 1,
+                importedAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
+                hiddenAssets: [OTHER_ASSET_ID],
+              },
+            });
+
+          controller.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+          await flushPromises();
+
+          // Strip-only read-modify-write: the imported list loses the id and
+          // every other entry (including the hidden list) is untouched.
+          expect(getUserAssets).toHaveBeenCalledTimes(1);
+          expect(setUserAssets).toHaveBeenCalledTimes(1);
+          expect(setUserAssets).toHaveBeenCalledWith({
+            version: 1,
+            importedAssets: [OTHER_ASSET_ID],
+            hiddenAssets: [OTHER_ASSET_ID],
+          });
+        },
+      );
+    });
+  });
+
+  describe('hideAsset', () => {
+    it('marks the asset hidden in assetPreferences', async () => {
+      await withController(async ({ controller }) => {
+        controller.hideAsset(MOCK_ASSET_ID);
+
+        expect(controller.state.assetPreferences[MOCK_ASSET_ID]).toStrictEqual({
+          hidden: true,
+        });
+      });
+    });
+
+    it('mirrors the hidden asset to AUS user assets', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const { hideTokens } = registerAusUserAssetsActionMocks(messenger);
+
+        controller.hideAsset(MOCK_ASSET_ID_LOWERCASE);
+        await flushPromises();
+
+        // Single high-level hide call, with the checksummed id.
+        expect(hideTokens).toHaveBeenCalledTimes(1);
+        expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      });
+    });
+  });
+
+  describe('unhideAsset', () => {
+    it('removes the hidden flag from assetPreferences', async () => {
+      await withController(
+        {
+          state: {
+            assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
+          },
+        },
+        async ({ controller }) => {
+          controller.unhideAsset(MOCK_ASSET_ID);
+
+          expect(
+            controller.state.assetPreferences[MOCK_ASSET_ID],
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('strips the unhidden asset from the AUS hidden list', async () => {
+      await withController(
+        {
+          state: {
+            assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const { getUserAssets, setUserAssets } =
+            registerAusUserAssetsActionMocks(messenger, {
+              blob: {
+                version: 1,
+                importedAssets: [OTHER_ASSET_ID],
+                hiddenAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
+              },
+            });
+
+          controller.unhideAsset(MOCK_ASSET_ID);
+          await flushPromises();
+
+          // Strip-only: the hidden list loses the id; the imported list is
+          // untouched (unhiding does not re-import the asset).
+          expect(getUserAssets).toHaveBeenCalledTimes(1);
+          expect(setUserAssets).toHaveBeenCalledTimes(1);
+          expect(setUserAssets).toHaveBeenCalledWith({
+            version: 1,
+            importedAssets: [OTHER_ASSET_ID],
+            hiddenAssets: [OTHER_ASSET_ID],
+          });
+        },
+      );
     });
   });
 
@@ -851,6 +1058,40 @@ describe('AssetsController', () => {
           expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
             SOLANA_ASSET_ID,
           );
+        },
+      );
+    });
+
+    it('does not sync to AUS when graduation removes a custom asset', async () => {
+      await withController(
+        {
+          state: {
+            customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_ID] },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const ausMocks = registerAusUserAssetsActionMocks(messenger);
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1000000' },
+                },
+              },
+            },
+            'AccountsApiDataSource',
+          );
+
+          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+          await flushPromises();
+
+          // Graduation is automatic detection, not user intent: it must not
+          // strip the still-visible token from the AUS user-assets blob.
+          expect(ausMocks.importTokens).not.toHaveBeenCalled();
+          expect(ausMocks.hideTokens).not.toHaveBeenCalled();
+          expect(ausMocks.getUserAssets).not.toHaveBeenCalled();
+          expect(ausMocks.setUserAssets).not.toHaveBeenCalled();
         },
       );
     });

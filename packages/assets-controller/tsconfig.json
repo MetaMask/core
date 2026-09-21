@@ -8,6 +8,9 @@
       "path": "../assets-controllers"
     },
     {
+      "path": "../authenticated-user-storage"
+    },
+    {
       "path": "../base-controller"
     },
     {
