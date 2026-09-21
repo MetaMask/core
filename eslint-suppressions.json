@@ -1412,11 +1412,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
   "packages/profile-sync-controller/src/controllers/authentication/mocks/mockResponses.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
