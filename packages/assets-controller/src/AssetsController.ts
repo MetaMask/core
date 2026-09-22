@@ -124,7 +124,6 @@ import {
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import { dropBalancesOutsideAccountScopes } from './migrations/dropBalancesOutsideAccountScopes.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
-import { syncAusUserAssets } from './syncAusUserAssets.js';
 import {
   cleanSpamAssets,
   isUnlockCleanupEnabled,
@@ -136,6 +135,7 @@ import {
   buildWsUpdateSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
+import { syncAusUserAssets } from './syncAusUserAssets.js';
 import { trackAssetsLoading } from './trackAssetsLoading.js';
 import type {
   AccountId,

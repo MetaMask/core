@@ -2,6 +2,7 @@ import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
 
 import { syncAusUserAssets } from './syncAusUserAssets.js';
 import type { AccountId, Caip19AssetId } from './types.js';
+import { normalizeAssetId } from './utils/index.js';
 
 const MOCK_ACCOUNT_ID = 'mock-account-id' as AccountId;
 const MOCK_ASSET_ID =
@@ -10,6 +11,7 @@ const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const OTHER_ASSET_ID =
   'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+const MALFORMED_ASSET_ID = 'not-a-caip19-asset-id' as Caip19AssetId;
 
 const GET_USER_ASSETS = 'AuthenticatedUserStorageService:getUserAssets';
 const SET_USER_ASSETS = 'AuthenticatedUserStorageService:setUserAssets';
@@ -62,54 +64,47 @@ function installAusMock(
 /**
  * A minimal stand-in for AssetsController carrying the four decorated
  * methods, so the decorator can be tested in isolation from controller
- * state machinery.
+ * state machinery. Like the real methods, each one validates its asset ID
+ * first (a malformed ID throws before anything is applied locally), then
+ * applies its local mutation synchronously, and only `addCustomAsset` has
+ * post-mutation work — modeled by `pending` — that settles after it returns
+ * control.
  */
 class AusSyncFixture {
   readonly messenger: AusFixtureMessenger = { call: jest.fn() };
 
-  /** Makes every decorated method fail locally when set. */
-  shouldThrow = false;
-
   /** When set, `addCustomAsset` resolves only when this promise does. */
   pending?: Promise<void>;
 
-  /** Records that a decorated method's local body ran. */
+  /** Records that a decorated method applied its local mutation. */
   localCalls: string[] = [];
 
   @syncAusUserAssets
   async addCustomAsset(
     _accountId: AccountId,
-    _assetId: Caip19AssetId,
+    assetId: Caip19AssetId,
   ): Promise<void> {
+    normalizeAssetId(assetId);
     this.localCalls.push('addCustomAsset');
-    if (this.shouldThrow) {
-      throw new Error('local failure');
-    }
     return this.pending;
   }
 
   @syncAusUserAssets
-  removeCustomAsset(_accountId: AccountId, _assetId: Caip19AssetId): void {
+  removeCustomAsset(_accountId: AccountId, assetId: Caip19AssetId): void {
+    normalizeAssetId(assetId);
     this.localCalls.push('removeCustomAsset');
-    if (this.shouldThrow) {
-      throw new Error('local failure');
-    }
   }
 
   @syncAusUserAssets
-  hideAsset(_assetId: Caip19AssetId): void {
+  hideAsset(assetId: Caip19AssetId): void {
+    normalizeAssetId(assetId);
     this.localCalls.push('hideAsset');
-    if (this.shouldThrow) {
-      throw new Error('local failure');
-    }
   }
 
   @syncAusUserAssets
-  unhideAsset(_assetId: Caip19AssetId): void {
+  unhideAsset(assetId: Caip19AssetId): void {
+    normalizeAssetId(assetId);
     this.localCalls.push('unhideAsset');
-    if (this.shouldThrow) {
-      throw new Error('local failure');
-    }
   }
 }
 
@@ -121,11 +116,7 @@ type FixtureInvocation = (
 describe('syncAusUserAssets', () => {
   describe('merge operations', () => {
     it.each<
-      [
-        methodName: string,
-        actionType: string,
-        invoke: FixtureInvocation,
-      ]
+      [methodName: string, actionType: string, invoke: FixtureInvocation]
     >([
       [
         'addCustomAsset',
@@ -250,11 +241,12 @@ describe('syncAusUserAssets', () => {
   });
 
   describe('timing', () => {
-    it('fires immediately when a sync method returns', () => {
+    it('queues the sync as soon as a sync method returns', async () => {
       const fixture = new AusSyncFixture();
       installAusMock(fixture.messenger);
 
       fixture.hideAsset(MOCK_ASSET_ID);
+      await flushPromises();
 
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(HIDE_TOKENS, [
@@ -262,7 +254,7 @@ describe('syncAusUserAssets', () => {
       ]);
     });
 
-    it('fires only when an async method resolves', async () => {
+    it('queues the sync when an async method is invoked, before its post-mutation work settles', async () => {
       const fixture = new AusSyncFixture();
       installAusMock(fixture.messenger);
       let resolvePending: () => void = () => undefined;
@@ -270,17 +262,70 @@ describe('syncAusUserAssets', () => {
         resolvePending = resolve;
       });
 
-      const pending = fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+      const pendingAdd = fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
       await flushPromises();
-      expect(fixture.messenger.call).not.toHaveBeenCalled();
 
-      resolvePending();
-      await pending;
-
+      // The local mutation is applied before the method returns control, so
+      // the mirror is queued at invocation time — a later failure in the
+      // post-mutation work can no longer skip it.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
         MOCK_ASSET_ID,
       ]);
+
+      resolvePending();
+      await pendingAdd;
+    });
+  });
+
+  describe('ordering', () => {
+    it('applies syncs in invocation order, so a remove is never overwritten by a still-pending add', async () => {
+      const fixture = new AusSyncFixture();
+      installAusMock(fixture.messenger, {
+        blob: {
+          version: 1,
+          importedAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
+          hiddenAssets: [],
+        },
+      });
+      let resolvePending: () => void = () => undefined;
+      fixture.pending = new Promise<void>((resolve) => {
+        resolvePending = resolve;
+      });
+
+      // The add's post-mutation work is still in flight when the remove
+      // lands.
+      const pendingAdd = fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+      fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+      await flushPromises();
+
+      // The import ran first and the strip ran after it, so the final blob
+      // reflects the removal — no delayed import writes the removed token
+      // back.
+      expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
+      expect(fixture.messenger.call).toHaveBeenNthCalledWith(1, IMPORT_TOKENS, [
+        MOCK_ASSET_ID,
+      ]);
+      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+        2,
+        GET_USER_ASSETS,
+      );
+      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+        3,
+        SET_USER_ASSETS,
+        {
+          version: 1,
+          importedAssets: [OTHER_ASSET_ID],
+          hiddenAssets: [],
+        },
+      );
+
+      resolvePending();
+      await pendingAdd;
+      await flushPromises();
+
+      // The add settling late queues no further AUS write.
+      expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -289,44 +334,68 @@ describe('syncAusUserAssets', () => {
       [
         'hideAsset',
         (fixture: AusSyncFixture): void =>
-          expect(() => fixture.hideAsset(MOCK_ASSET_ID)).toThrow('local failure'),
+          expect(() => fixture.hideAsset(MALFORMED_ASSET_ID)).toThrow(
+            'Invalid CAIP asset type.',
+          ),
       ],
       [
         'unhideAsset',
         (fixture: AusSyncFixture): void =>
-          expect(() => fixture.unhideAsset(MOCK_ASSET_ID)).toThrow(
-            'local failure',
+          expect(() => fixture.unhideAsset(MALFORMED_ASSET_ID)).toThrow(
+            'Invalid CAIP asset type.',
           ),
       ],
       [
         'removeCustomAsset',
         (fixture: AusSyncFixture): void =>
           expect(() =>
-            fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
-          ).toThrow('local failure'),
+            fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MALFORMED_ASSET_ID),
+          ).toThrow('Invalid CAIP asset type.'),
       ],
-    ])('does not fire the AUS sync when %s throws', (methodName, assertThrows) => {
+    ])(
+      'never writes to AUS when %s fails validation',
+      (methodName, assertThrows) => {
+        const fixture = new AusSyncFixture();
+        installAusMock(fixture.messenger);
+
+        assertThrows(fixture);
+
+        expect(fixture.messenger.call).not.toHaveBeenCalled();
+        expect(fixture.localCalls).not.toContain(methodName);
+      },
+    );
+
+    it('never writes to AUS when an async method fails validation', async () => {
       const fixture = new AusSyncFixture();
       installAusMock(fixture.messenger);
-      fixture.shouldThrow = true;
-
-      assertThrows(fixture);
-
-      expect(fixture.messenger.call).not.toHaveBeenCalled();
-      expect(fixture.localCalls).toContain(methodName);
-    });
-
-    it('does not fire the AUS sync when an async method rejects', async () => {
-      const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger);
-      fixture.shouldThrow = true;
 
       await expect(
-        fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
-      ).rejects.toThrow('local failure');
+        fixture.addCustomAsset(MOCK_ACCOUNT_ID, MALFORMED_ASSET_ID),
+      ).rejects.toThrow('Invalid CAIP asset type.');
+
       await flushPromises();
 
       expect(fixture.messenger.call).not.toHaveBeenCalled();
+      expect(fixture.localCalls).not.toContain('addCustomAsset');
+    });
+
+    it('still mirrors an async method whose post-mutation work later rejects', async () => {
+      const fixture = new AusSyncFixture();
+      installAusMock(fixture.messenger);
+      fixture.pending = Promise.reject(new Error('post-mutation fetch failed'));
+
+      await expect(
+        fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
+      ).rejects.toThrow('post-mutation fetch failed');
+      await flushPromises();
+
+      // The local mutation was applied before the failure, so the mirror
+      // still fires — local state and AUS stay in sync.
+      expect(fixture.localCalls).toContain('addCustomAsset');
+      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+      expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
+        MOCK_ASSET_ID,
+      ]);
     });
   });
 
