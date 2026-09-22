@@ -80,7 +80,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^32.2.0",
     "@metamask/utils": "^12.0.0",
-    "bignumber.js": "^9.1.2",
+    "bignumber.js": "^11.1.5",
     "firebase": "^11.2.0",
     "lodash-es": "^4.17.21",
     "loglevel": "^1.8.1",
