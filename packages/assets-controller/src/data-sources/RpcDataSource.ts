@@ -34,6 +34,7 @@ import type {
   Caip19AssetId,
   AssetBalance,
   AssetMetadata,
+  AssetsControllerStateInternal,
   DataRequest,
   DataResponse,
   Middleware,
@@ -117,6 +118,11 @@ export type RpcDataSourceConfig = {
 export type RpcDataSourceOptions = {
   /** The AssetsController messenger (shared by all data sources). */
   messenger: AssetsControllerMessenger;
+  /**
+   * Current AssetsController state. Used to include the account's visible
+   * `customAssets` on fetch, and to read metadata for converting balances.
+   */
+  getAssetsState: () => AssetsControllerStateInternal;
   /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
   onActiveChainsUpdated: (
     dataSourceName: string,
@@ -208,6 +214,8 @@ export class RpcDataSource extends AbstractDataSource<
 > {
   readonly #messenger: AssetsControllerMessenger;
 
+  readonly #getAssetsState: () => AssetsControllerStateInternal;
+
   readonly #onActiveChainsUpdated: (
     dataSourceName: string,
     chains: ChainId[],
@@ -252,6 +260,7 @@ export class RpcDataSource extends AbstractDataSource<
   constructor(options: RpcDataSourceOptions) {
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
+    this.#getAssetsState = options.getAssetsState;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#getNativeAssetForChain = options.getNativeAssetForChain;
     this.#getAssetType = options.getAssetType;
@@ -1040,14 +1049,12 @@ export class RpcDataSource extends AbstractDataSource<
           assetsToFetch.push({ assetId: nativeAssetId, address: ZERO_ADDRESS });
         }
 
-        if (request.customAssets) {
-          this.#appendRequestCustomErc20s(
-            assetsToFetch,
-            request.customAssets,
-            chainId,
-            this.#getExistingAssetsMetadata(),
-          );
-        }
+        this.#appendCustomErc20s(
+          assetsToFetch,
+          request.customAssets,
+          accountId,
+          chainId,
+        );
 
         try {
           const result = await this.#balanceFetcher.fetchBalancesForAssets(
@@ -1495,37 +1502,51 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * Include every `request.customAssets` ERC-20 on this chain. The selected
-   * group has at most one EVM account, so there is no per-account ownership
-   * filter.
+   * Append the ERC-20 pins this account-chain fetch must cover.
+   *
+   * Prefers `request.customAssets` when the caller scoped the fetch (e.g.
+   * `addCustomAsset`). Otherwise reads the
+   * account's visible pins from state: RPC is their sole balance fetcher, and
+   * `fetch` builds its own entry list rather than going through
+   * `BalanceFetcher`'s state read (which polling uses), so an unscoped request
+   * would otherwise leave them stale until the next poll.
    *
    * @param assetsToFetch - Native/custom entries for this account-chain fetch.
-   * @param customAssets - Flat pin list from the data request.
+   * @param requestCustomAssets - Flat pin list from the data request, if scoped.
+   * @param accountId - Account being fetched.
    * @param chainId - Chain being fetched.
-   * @param existingMetadata - Metadata already in AssetsController state.
    */
-  #appendRequestCustomErc20s(
+  #appendCustomErc20s(
     assetsToFetch: AssetFetchEntry[],
-    customAssets: Caip19AssetId[],
+    requestCustomAssets: Caip19AssetId[] | undefined,
+    accountId: string,
     chainId: ChainId,
-    existingMetadata: Record<Caip19AssetId, AssetMetadata>,
   ): void {
-    for (const assetId of customAssets) {
+    const {
+      assetsInfo = {},
+      customAssets = {},
+      assetPreferences = {},
+    } = this.#getAssetsState();
+    const candidates =
+      requestCustomAssets && requestCustomAssets.length > 0
+        ? requestCustomAssets
+        : (customAssets[accountId] ?? []).filter(
+            (assetId) => !assetPreferences[normalizeAssetId(assetId)]?.hidden,
+          );
+
+    for (const assetId of candidates) {
       try {
         const parsed = parseCaipAssetType(assetId);
         const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        const normalizedId = normalizeAssetId(assetId);
         if (
           assetChainId === chainId &&
           this.#getAssetType(assetId) === 'erc20'
         ) {
-          const tokenAddress = parsed.assetReference.toLowerCase() as Address;
-          const normalizedId = normalizeAssetId(assetId);
-          const decimals = existingMetadata[normalizedId]?.decimals;
-
           assetsToFetch.push({
             assetId,
-            address: tokenAddress,
-            decimals,
+            address: parsed.assetReference.toLowerCase() as Address,
+            decimals: assetsInfo[normalizedId]?.decimals,
           });
         }
       } catch {
@@ -1541,13 +1562,7 @@ export class RpcDataSource extends AbstractDataSource<
    * @returns Record of asset IDs to their metadata.
    */
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
-    try {
-      const state = this.#messenger.call('AssetsController:getState');
-      return state.assetsInfo ?? {};
-    } catch (error) {
-      log('Failed to get existing assets metadata', { error });
-      return {};
-    }
+    return this.#getAssetsState().assetsInfo ?? {};
   }
 
   /**

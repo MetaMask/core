@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove `'update'` from `AssetsUpdateMode`; use `'full'` (Accounts API v6 snapshot) or `'merge'` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Remove the `updateMode` option from `AssetsController.getAssets`; the data source now sets it on its response ([#9651](https://github.com/MetaMask/core/pull/9651))
-- **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
   - Pass `() => this.state` from `AssetsController`
 - When `assetsAccountsApiV6` is enabled, Accounts API v6 reads pins and hides from state and sends them as `includeAssetIds` / `excludeAssetIds`, then applies the response with `updateMode: 'full'` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - `hideAsset` and `unhideAsset` now re-evaluate subscriptions, so live polls start and stop excluding the asset immediately ([#9651](https://github.com/MetaMask/core/pull/9651))
@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `RpcDataSource.fetch` now falls back to the account's visible `customAssets` in state when a request carries no `customAssets` scope, matching `AccountsApiDataSource`, so a force refresh picks up pinned tokens on RPC-only chains and when basic functionality is off instead of leaving them until the next poll ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, instead of reading a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Keep default tracked assets (mUSD) at a zero balance when an Accounts API v6 `full` update omits them, so a force refresh no longer drops them from the token list ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))

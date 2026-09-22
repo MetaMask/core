@@ -1049,6 +1049,7 @@ export class AssetsController extends BaseController<
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
+      getAssetsState: (): AssetsControllerStateInternal => this.state,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
         this.#getNativeAssetMap()[chainId] ??

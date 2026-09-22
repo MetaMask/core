@@ -246,6 +246,19 @@ async function withController<ReturnValue>(
       return isNative ? 'native' : 'erc20';
     },
     ...options,
+    getAssetsState:
+      options.getAssetsState ??
+      ((): AssetsControllerState => {
+        try {
+          return (
+            (actionHandlerOverrides?.['AssetsController:getState']?.() as
+              | AssetsControllerState
+              | undefined) ?? getDefaultAssetsControllerState()
+          );
+        } catch {
+          return getDefaultAssetsControllerState();
+        }
+      }),
   });
 
   try {
@@ -296,6 +309,7 @@ describe('createRpcDataSource', () => {
     const { assetsControllerMessenger } = createMockMessengers();
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
+      getAssetsState: getDefaultAssetsControllerState,
       onActiveChainsUpdated: jest.fn(),
       getNativeAssetForChain: jest.fn(),
       getAssetType: jest.fn(),
@@ -811,7 +825,7 @@ describe('RpcDataSource', () => {
       );
     });
 
-    it('handles AssetsController:getState throw in metadata lookup', async () => {
+    it('handles AssetsController:getState throw without failing fetch metadata', async () => {
       await withController(
         {
           actionHandlerOverrides: {
@@ -911,6 +925,168 @@ describe('RpcDataSource', () => {
                 assetId: matchingAsset,
                 address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
               }),
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('fetches the account custom assets in state when the request carries none', async () => {
+      const pinnedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAsset] },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+              expect.objectContaining({
+                assetId: pinnedAsset,
+                address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              }),
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('fetches only the request custom assets when the request is scoped', async () => {
+      const requestedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const otherPinnedAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: {
+                [MOCK_ACCOUNT_ID]: [requestedAsset, otherPinnedAsset],
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          // A scoped fetch (e.g. addCustomAsset) must not widen into the
+          // account's other pins — the subscription poll covers those.
+          await controller.fetch(
+            createDataRequest({ customAssets: [requestedAsset] }),
+          );
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+              expect.objectContaining({ assetId: requestedAsset }),
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('skips hidden custom assets from state', async () => {
+      const hiddenAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { [MOCK_ACCOUNT_ID]: [hiddenAsset] },
+              assetPreferences: { [hiddenAsset]: { hidden: true } },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('does not fetch custom assets belonging to another account', async () => {
+      const otherAccountAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { 'other-account-id': [otherAccountAsset] },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
             ],
           );
         },
@@ -2095,6 +2271,7 @@ describe('RpcDataSource', () => {
       });
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,
+        getAssetsState: getDefaultAssetsControllerState,
         onActiveChainsUpdated: jest.fn(),
         getNativeAssetForChain: jest.fn(),
         getAssetType: jest.fn().mockReturnValue('erc20'),
