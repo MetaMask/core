@@ -59,7 +59,7 @@
     "prettier": "^3.3.3",
     "rimraf": "^6.1.3",
     "ts-jest": "^29.4.12",
-    "tsx": "^4.20.5",
+    "tsx": "^4.23.13",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "peerDependencies": {
