@@ -416,6 +416,9 @@ export class SubscriptionDelegationService {
           tokenSymbol: config.token.symbol,
           cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
           delegationHash: paymentDelegationHash,
+          // Reject if eligibility changed during approval, because the signed
+          // delegation start date was derived from the original trial state.
+          // This local guard is removed before the backend request.
           assertTrialEligibility: true,
         },
       );
