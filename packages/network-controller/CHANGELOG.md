@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
+- tests: repair uuid mock typings missed by the v11 bump ([#10269](https://github.com/MetaMask/core/pull/10269))
+- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
+- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
+- Move MockNetwork to `tests` in `network-controller` ([#10174](https://github.com/MetaMask/core/pull/10174))
+- Move FakeBlockTracker to eth-block-tracker (as MockPollingBlockTracker) ([#10121](https://github.com/MetaMask/core/pull/10121))
+- chore: align `@types/lodash` and `@types/jest-when` ranges ([#10169](https://github.com/MetaMask/core/pull/10169))
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
