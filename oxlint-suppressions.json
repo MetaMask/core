@@ -5771,17 +5771,6 @@
       "count": 2
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesPushController/utils/get-notification-message.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 4
-    },
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
     "no-import-assign": {
       "count": 3
@@ -6574,11 +6563,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 3
-    }
-  },
   "packages/profile-sync-controller/src/controllers/authentication/mocks/mockResponses.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -6939,11 +6923,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/sdk/utils/validate-login-response.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/shared/encryption/cache.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -7000,11 +6979,6 @@
   "packages/profile-sync-controller/src/shared/types/encryption.ts": {
     "id-length": {
       "count": 3
-    }
-  },
-  "packages/profile-sync-controller/src/shared/utils/entropy-source.test.ts": {
-    "unicorn/no-useless-undefined": {
-      "count": 1
     }
   },
   "packages/profile-sync-controller/src/shared/utils/event-queue.test.ts": {
