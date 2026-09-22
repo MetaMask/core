@@ -226,24 +226,52 @@ function getNativeBalanceChange(
   return getSimulationBalanceChange(
     previousBalance,
     newBalance,
-    isGasCostIncludedInStateDiff(stateDiff)
+    isGasCostDeductedFromSender(txParams, stateDiff)
       ? transactionResponse.gasCost
       : undefined,
   );
 }
 
 /**
- * Determine whether the state diff includes the native gas cost.
+ * Determine whether the simulated gas cost was deducted from the sender.
  *
- * Native balance changes across all accounts cannot have a positive sum. A
- * positive sum means the simulation credited the gas fee without debiting it
- * from the sender, so adding the gas cost back would produce an incorrect
- * balance change.
+ * The gas cost is reported whether or not the simulation charged it, so it can
+ * only be added back to the new balance when the sender actually paid it:
  *
- * @param stateDiff - Changes to native balances in the simulation.
- * @returns Whether the gas cost is included in the state diff.
+ * - The sender is only charged when the simulated transaction specifies a fee
+ * per gas.
+ * - Some chains credit the fee recipient without debiting the sender, which is
+ * detectable because it increases the total native balance.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param stateDiff - Native balances before and after the simulation.
+ * @returns Whether the gas cost was deducted from the sender.
  */
-function isGasCostIncludedInStateDiff(
+function isGasCostDeductedFromSender(
+  txParams: TransactionParams,
+  stateDiff: SimulationResponseTransaction['stateDiff'],
+): boolean {
+  const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
+    | Hex
+    | undefined;
+
+  if (!feePerGas || hexToBN(feePerGas).isZero()) {
+    return false;
+  }
+
+  return !isNativeBalanceCreated(stateDiff);
+}
+
+/**
+ * Determine whether a state diff increases the total native balance.
+ *
+ * Executing a transaction cannot create native balance, so a positive total
+ * means the simulation credited an account without debiting another.
+ *
+ * @param stateDiff - Native balances before and after the simulation.
+ * @returns Whether the total native balance increased.
+ */
+function isNativeBalanceCreated(
   stateDiff: SimulationResponseTransaction['stateDiff'],
 ): boolean {
   const previousState = stateDiff?.pre ?? {};
@@ -264,7 +292,7 @@ function isGasCostIncludedInStateDiff(
     return total.add(hexToBN(newBalance).sub(hexToBN(previousBalance)));
   }, new BN(0));
 
-  return !totalBalanceChange.gt(new BN(0));
+  return totalBalanceChange.gt(new BN(0));
 }
 
 /**

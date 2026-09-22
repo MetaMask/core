@@ -373,6 +373,75 @@ describe('Balance Change Utils', () => {
         });
       });
 
+      it('does not ignore gas cost when transaction has no fee per gas', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x10', '0xb', 7),
+        );
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gasPrice: undefined,
+            maxFeePerGas: undefined,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x5',
+              isDecrease: true,
+              newBalance: '0xb',
+              previousBalance: '0x10',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('ignores gas cost when transaction has gas price but no max fee per gas', async () => {
+        const response = createNativeBalanceResponse('0x10', '0xb', 3);
+        response.transactions[0].stateDiff = {
+          pre: {
+            [USER_ADDRESS_MOCK]: { balance: '0x10' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+          },
+          post: {
+            [USER_ADDRESS_MOCK]: { balance: '0xb' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x2' },
+          },
+        };
+        simulateTransactionsMock.mockResolvedValueOnce(response);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gasPrice: '0xbbb',
+            maxFeePerGas: undefined,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x2',
+              isDecrease: true,
+              newBalance: '0xe',
+              previousBalance: '0x10',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
       it('does not ignore gas cost when state diff omits the fee debit', async () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
