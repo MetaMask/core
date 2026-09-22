@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+
 ### Fixed
 
 - `hasCompletedSessionDisclaimers` now short-circuits to `true` when the session's `consentStatus` is already `given`, instead of re-fetching the session disclaimers ([#10337](https://github.com/MetaMask/core/pull/10337))

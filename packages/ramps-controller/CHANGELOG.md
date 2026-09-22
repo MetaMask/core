@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a foreign VBA onboarding session during hydration ([#10337](https://github.com/MetaMask/core/pull/10337))
   - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
 
 ### Fixed
 

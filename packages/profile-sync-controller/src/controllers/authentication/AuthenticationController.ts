@@ -4,7 +4,7 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import { selectHdKeyringEntropySourceIds } from '@metamask/keyring-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -23,6 +23,10 @@ import {
   BeginEnrollmentRequestStruct,
   CompleteEnrollmentRequestStruct,
   assertValidMfaRequest,
+  BeginStepUpRequestStruct,
+  CompleteStepUpRequestStruct,
+  GetElevatedTokenRequestStruct,
+  parseElevatedTokenClaims,
 } from '../../sdk/authentication-jwt-bearer/mfa/schemas.js';
 import type {
   LoginIdentifierType,
@@ -38,6 +42,11 @@ import type {
   CompleteEnrollmentRequest,
   EnrolledCredential,
   EnrollmentChallenge,
+  BeginStepUpRequest,
+  CompleteStepUpRequest,
+  ElevatedProfileToken,
+  GetElevatedTokenRequest,
+  StepUpChallenge,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
@@ -46,7 +55,10 @@ import {
   JwtBearerAuth,
   PairConflictError,
   getMfaErrorCode,
+  ElevatedTokenInvalidError,
 } from '../../sdk/index.js';
+import { decodeJwtPayload } from '../../sdk/utils/jwt.js';
+import { toErrorMessage } from '../../sdk/utils/to-error-message.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import { getPrimaryHdKeyringEntropySourceId } from '../../shared/utils/entropy-source.js';
 import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
@@ -68,6 +80,11 @@ export type AuthenticationControllerState = {
    * assignable to the controller state type.
    */
   enrolledCredentials?: EnrolledCredential[];
+  /**
+   * Epoch-ms hard expiry of the in-memory elevated session, or undefined when
+   * none is open. Lets UI show "verified" state without holding the token.
+   */
+  stepUpSessionExpiresAt?: number;
   /**
    * Client gate for profile pairing. Defaults to `true` (fresh install /
    * upgrade), set to `false` after a successful `performSignIn` pair, set
@@ -159,7 +176,20 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  stepUpSessionExpiresAt: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
+
+/**
+ * Lifetime of an elevated session. Deliberately shorter than the
+ * elevated token's own `exp` so a fresh ceremony is required per sensitive
+ * action window, per the MFA phase-1 specification.
+ */
+export const STEP_UP_SESSION_TTL_MS = 60_000;
 
 type ControllerConfig = {
   env: Env;
@@ -186,6 +216,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshEnrolledCredentials',
   'beginCredentialEnrollment',
   'completeCredentialEnrollment',
+  'beginStepUp',
+  'completeStepUp',
+  'getElevatedProfileToken',
+  'clearStepUpSession',
 ] as const;
 
 export type Actions =
@@ -262,6 +296,13 @@ export class AuthenticationController extends BaseController<
    */
   #authSessionEpoch = 0;
 
+  #stepUpSession: {
+    token: ElevatedProfileToken;
+    expiresAt: number;
+  } | null = null;
+
+  #stepUpTimer: ReturnType<typeof setTimeout> | undefined;
+
   /**
    * Sequence number of the most recently started credentials refresh. Only
    * that refresh may write the cache, so a slower, earlier request cannot
@@ -288,6 +329,7 @@ export class AuthenticationController extends BaseController<
       this.messenger.subscribe('KeyringController:lock', () => {
         this.#authSessionEpoch += 1;
         this.#isUnlocked = false;
+        this.clearStepUpSession();
       });
     },
   };
@@ -320,9 +362,10 @@ export class AuthenticationController extends BaseController<
       throw new Error('`metametrics` field is required');
     }
 
+    // `??` per key so an explicit `undefined` keeps the default rather than
+    // clobbering it.
     this.#config = {
-      ...this.#config,
-      ...config,
+      env: config?.env ?? this.#config.env,
       isSocialPairingEnabled:
         config?.isSocialPairingEnabled ?? this.#config.isSocialPairingEnabled,
     };
@@ -805,28 +848,51 @@ export class AuthenticationController extends BaseController<
     credentialType: string,
     fn: () => Promise<Result>,
   ): Promise<Result> {
-    const data: Record<string, string> = { outcome: 'pending' };
     return await this.#trace(
       {
         name,
         tags: { operation, credentialType },
-        data,
       },
-      async () => {
+      async (context) => {
         try {
           const result = await fn();
-          data.outcome = 'success';
+          this.#setTraceAttribute(context, 'outcome', 'success');
           return result;
         } catch (error) {
-          data.outcome = 'error';
+          this.#setTraceAttribute(context, 'outcome', 'error');
           const mfaCode = getMfaErrorCode(error);
           if (mfaCode) {
-            data.mfaErrorCode = mfaCode;
+            this.#setTraceAttribute(context, 'mfaErrorCode', mfaCode);
+            if (mfaCode === 'authentication_required' && this.#isUnlocked) {
+              this.#invalidateSrpSession(this.#getPrimaryEntropySourceId());
+              // An elevated session must not outlive a rejected base session.
+              this.clearStepUpSession();
+            }
           }
           throw error;
         }
       },
     );
+  }
+
+  /**
+   * `TraceContext` is opaque in `@metamask/controller-utils`; both clients
+   * hand back a Sentry span, so attributes are set via duck typing and a
+   * non-Sentry context is a silent no-op.
+   *
+   * @param context - Span handed to the trace callback, if any.
+   * @param key - Attribute name.
+   * @param value - Attribute value.
+   */
+  #setTraceAttribute(
+    context: TraceContext | undefined,
+    key: string,
+    value: string,
+  ): void {
+    const traceSpan = context as
+      | { setAttribute?: (attribute: string, data: string) => void }
+      | undefined;
+    traceSpan?.setAttribute?.(key, value);
   }
 
   /**
@@ -939,6 +1005,8 @@ export class AuthenticationController extends BaseController<
       }
       throw error;
     }
+    // The factor set changed: require a fresh ceremony against the new set.
+    this.clearStepUpSession();
 
     try {
       return await this.refreshEnrolledCredentials();
@@ -948,6 +1016,159 @@ export class AuthenticationController extends BaseController<
       if (type === 'email_otp') {
         this.#invalidateSrpSession(primaryEntropySourceId);
       }
+    }
+  }
+
+  /**
+   * Begins step-up verification with an enrolled credential.
+   *
+   * @param request - Credential type and trace reason.
+   * @returns A challenge for the client-owned ceremony.
+   */
+  public async beginStepUp(
+    request: BeginStepUpRequest,
+  ): Promise<StepUpChallenge> {
+    this.#assertIsUnlocked('beginStepUp');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, BeginStepUpRequestStruct);
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const challenge = await this.#runMfaRequest(
+      'MFA Step-Up Begin',
+      request.reason.operation,
+      request.type,
+      async () =>
+        await this.#auth.beginMfaVerification(
+          request.type,
+          primaryEntropySourceId,
+        ),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'beginStepUp');
+    return challenge;
+  }
+
+  /**
+   * Completes step-up verification and opens a short-lived elevated session.
+   *
+   * The AAL2 assertion returned by the MFA service is exchanged at Hydra for
+   * an elevated access token, whose claims are checked before the session
+   * opens. The token itself never enters controller state.
+   *
+   * @param request - Flow identifier, platform or email proof, and trace reason.
+   * @returns The elevated profile access token.
+   */
+  public async completeStepUp(
+    request: CompleteStepUpRequest,
+  ): Promise<ElevatedProfileToken> {
+    this.#assertIsUnlocked('completeStepUp');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, CompleteStepUpRequestStruct);
+    const { type } = request.proof;
+    const { operation } = request.reason;
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const assertion = await this.#runMfaRequest(
+      'MFA Step-Up Complete',
+      operation,
+      type,
+      async () =>
+        await this.#auth.completeMfaVerification(
+          request.flowId,
+          request.proof,
+          primaryEntropySourceId,
+        ),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'completeStepUp');
+    const accessToken = await this.#runMfaRequest(
+      'MFA Token Exchange',
+      operation,
+      type,
+      async () => await this.#auth.exchangeMfaAssertion(assertion.token),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'completeStepUp');
+
+    let decodedClaims: unknown;
+    try {
+      decodedClaims = decodeJwtPayload(accessToken.accessToken);
+    } catch (error) {
+      throw new ElevatedTokenInvalidError(toErrorMessage(error));
+    }
+    const claims = parseElevatedTokenClaims(decodedClaims);
+    if (claims.exp * 1000 <= Date.now()) {
+      throw new ElevatedTokenInvalidError('Elevated token is expired');
+    }
+
+    const token: ElevatedProfileToken = { ...accessToken, claims };
+    this.#openStepUpSession(token);
+    return token;
+  }
+
+  /**
+   * Returns the active elevated token when it meets the requested freshness.
+   *
+   * @param request - Optional maximum session age in milliseconds, measured
+   * from when the token was obtained. Zero always requires a new ceremony.
+   * @returns A live elevated token, or null when no reusable session exists.
+   */
+  public getElevatedProfileToken(
+    request: GetElevatedTokenRequest = {},
+  ): ElevatedProfileToken | null {
+    this.#assertIsUnlocked('getElevatedProfileToken');
+    assertValidMfaRequest(request, GetElevatedTokenRequestStruct);
+    const session = this.#stepUpSession;
+    if (!session) {
+      return null;
+    }
+    const now = Date.now();
+    if (now >= session.expiresAt) {
+      // The hard-expiry timer has not fired yet (e.g. a suspended tab).
+      this.clearStepUpSession();
+      return null;
+    }
+    // `>=` so a zero max age always forces a fresh ceremony. Not cleared: the
+    // max age is this caller's requirement; others may still use the session.
+    const maxAge = request.maxSessionAgeMs;
+    if (maxAge !== undefined && now - session.token.obtainedAt >= maxAge) {
+      return null;
+    }
+    return session.token;
+  }
+
+  /**
+   * Opens the elevated session. Its lifetime is the session TTL clamped to
+   * the token's own `exp`, so the session never outlives the token.
+   *
+   * @param token - The freshly exchanged elevated token.
+   */
+  #openStepUpSession(token: ElevatedProfileToken): void {
+    this.clearStepUpSession();
+    const expiresAt = Math.min(
+      token.obtainedAt + STEP_UP_SESSION_TTL_MS,
+      token.claims.exp * 1000,
+    );
+    this.#stepUpSession = { token, expiresAt };
+    this.update((state) => {
+      state.stepUpSessionExpiresAt = expiresAt;
+    });
+    this.#stepUpTimer = setTimeout(
+      () => this.clearStepUpSession(),
+      Math.max(0, expiresAt - Date.now()),
+    );
+    // Never keep a Node process alive for the expiry timer (tests, tooling).
+    (this.#stepUpTimer as { unref?: () => void }).unref?.();
+  }
+
+  /**
+   * Clears the in-memory elevated session and its expiration timer.
+   */
+  public clearStepUpSession(): void {
+    if (this.#stepUpTimer !== undefined) {
+      clearTimeout(this.#stepUpTimer);
+      this.#stepUpTimer = undefined;
+    }
+    this.#stepUpSession = null;
+    if (this.state.stepUpSessionExpiresAt !== undefined) {
+      this.update((state) => {
+        state.stepUpSessionExpiresAt = undefined;
+      });
     }
   }
 
@@ -971,6 +1192,7 @@ export class AuthenticationController extends BaseController<
 
   public performSignOut(): void {
     this.#authSessionEpoch += 1;
+    this.clearStepUpSession();
     this.#clearEnrolledCredentials();
     this.update((state) => {
       state.isSignedIn = false;
@@ -985,6 +1207,7 @@ export class AuthenticationController extends BaseController<
   public clearState(): void {
     this.#profilePairingRequestEpoch += 1;
     this.#authSessionEpoch += 1;
+    this.clearStepUpSession();
     this.#clearEnrolledCredentials();
     this.update(() => ({ ...defaultState }));
   }
