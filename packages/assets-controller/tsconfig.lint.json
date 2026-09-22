@@ -64,6 +64,9 @@
     },
     {
       "path": "../eth-json-rpc-provider/tsconfig.lint.json"
+    },
+    {
+      "path": "../authenticated-user-storage/tsconfig.lint.json"
     }
   ]
 }

@@ -125,7 +125,6 @@ import {
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
-import { syncAusUserAssets } from './syncAusUserAssets.js';
 import {
   cleanSpamAssets,
   isUnlockCleanupEnabled,
@@ -135,6 +134,7 @@ import {
   buildFastFetchSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
+import { syncAusUserAssets } from './syncAusUserAssets.js';
 import type {
   AccountId,
   AssetPreferences,

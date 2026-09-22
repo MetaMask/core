@@ -67,10 +67,10 @@ const AUS_SYNC_METHODS = {
 } as const satisfies Record<string, AusSyncConfig>;
 
 /**
- * Mirror a completed custom-token action to AUS user assets.
+ * Mirror a custom-token action to AUS user assets.
  *
  * @param caller - The controller whose messenger to call AUS actions on.
- * @param config - The AUS behavior configured for the completed method.
+ * @param config - The AUS behavior configured for the invoked method.
  * @param assetId - The CAIP-19 asset ID the method was invoked with.
  */
 async function syncUserAssetsToAus(
@@ -109,11 +109,19 @@ async function syncUserAssetsToAus(
 }
 
 /**
- * Fire the AUS sync, swallowing and debug-logging any failure so it can
- * never block or roll back the local state change that already succeeded.
+ * FIFO chain of AUS syncs, so they apply strictly in invocation order — the
+ * order the local mutations were applied — never the order the decorated
+ * methods' post-mutation work happens to settle.
+ */
+let ausSyncChain: Promise<void> = Promise.resolve();
+
+/**
+ * Queue an AUS sync on the chain, swallowing and debug-logging any failure so
+ * it can never block or roll back the local state change that already
+ * happened.
  *
  * @param caller - The controller whose messenger to call AUS actions on.
- * @param config - The AUS behavior configured for the completed method.
+ * @param config - The AUS behavior configured for the invoked method.
  * @param assetId - The CAIP-19 asset ID the method was invoked with.
  */
 function fireAusSync(
@@ -121,16 +129,22 @@ function fireAusSync(
   config: AusSyncConfig,
   assetId: Caip19AssetId,
 ): void {
-  syncUserAssetsToAus(caller, config, assetId).catch((error: unknown) => {
-    log('Failed to sync user assets to AUS', { assetId, error });
-  });
+  ausSyncChain = ausSyncChain
+    .then(() => syncUserAssetsToAus(caller, config, assetId))
+    .catch((error: unknown) => {
+      log('Failed to sync user assets to AUS', { assetId, error });
+    });
 }
 
 /**
  * Method decorator that mirrors custom-token state changes to AUS user
- * storage once the decorated method completes successfully. Fire-and-forget:
- * AUS failures are swallowed and debug-logged, and a failing method never
- * triggers a sync.
+ * storage. The sync is queued as soon as the decorated method has applied
+ * its local mutation — which every configured method does before it returns
+ * or first awaits — and queued syncs run in invocation order, so a later
+ * mutation can never overwrite the AUS write of an earlier one still in
+ * flight. Fire-and-forget: AUS failures are swallowed and debug-logged and
+ * never roll back local state, and a locally failing method never writes to
+ * AUS.
  *
  * @param target - The decorated custom-token method.
  * @param context - The decorator context.
@@ -138,11 +152,7 @@ function fireAusSync(
  * @throws If applied to a method that is not configured in
  * {@link AUS_SYNC_METHODS} (fails at class-definition time).
  */
-export function syncAusUserAssets<
-  This,
-  Args extends unknown[],
-  Return,
->(
+export function syncAusUserAssets<This, Args extends unknown[], Return>(
   target: (this: This, ...args: Args) => Return,
   context: ClassMethodDecoratorContext<
     This,
@@ -160,15 +170,12 @@ export function syncAusUserAssets<
   return function (this: This, ...args: Args): Return {
     const caller = this as unknown as AusSyncCaller;
     const result = target.call(this, ...args);
-    const fire = (): void => {
-      fireAusSync(caller, config, args[config.assetIdArgIndex] as Caip19AssetId);
-    };
-    if (result instanceof Promise) {
-      // Fire on resolve; a rejection propagates to the caller and skips the sync.
-      result.then(fire).catch(() => undefined);
-    } else {
-      fire();
-    }
+    // Every configured method applies its local mutation before it returns
+    // or first awaits, so queue the sync now rather than when post-mutation
+    // work settles — a later mutation then queues behind this sync instead
+    // of racing it, and a post-mutation failure cannot skip the mirror of a
+    // local change that already happened.
+    fireAusSync(caller, config, args[config.assetIdArgIndex] as Caip19AssetId);
     return result;
   };
 }

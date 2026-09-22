@@ -794,7 +794,10 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const { importTokens } = registerAusUserAssetsActionMocks(messenger);
 
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID_LOWERCASE);
+        await controller.addCustomAsset(
+          MOCK_ACCOUNT_ID,
+          MOCK_ASSET_ID_LOWERCASE,
+        );
         await flushPromises();
 
         // Single high-level import call, with the checksummed id.
@@ -1083,7 +1086,9 @@ describe('AssetsController', () => {
             'AccountsApiDataSource',
           );
 
-          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+          expect(
+            controller.state.customAssets[MOCK_ACCOUNT_ID],
+          ).toBeUndefined();
           await flushPromises();
 
           // Graduation is automatic detection, not user intent: it must not
