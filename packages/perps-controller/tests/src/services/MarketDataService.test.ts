@@ -1302,7 +1302,7 @@ describe('MarketDataService', () => {
     beforeEach(() => {
       mockDeps.terminalApi = {
         ...mockDeps.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
       };
       mockTerminalService = {
         fetchMarkets: jest.fn(),
