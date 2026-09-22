@@ -44,8 +44,17 @@ Options:
                            (required with --strategy root-messenger)
   --output <dir>           Output directory (default: <project-path>/.platform-api-docs)
   --project-label <label>  Short label identifying the project (e.g. "Core", "Extension")
+  --site-url <url>         Absolute URL the built site will be served from
+                           (e.g. https://metamask.github.io)
+  --site-base-url <path>   Path prefix the built site will be served under
+                           (e.g. /core/platform-api/)
   --help                   Show this help message
 ```
+
+`--site-url` and `--site-base-url` matter when the site is published somewhere
+other than the root of a domain, such as a GitHub Pages project site. Leave them
+unset and the site is built for `https://metamask.github.io/`, which makes its
+asset paths wrong under any other prefix.
 
 ## Strategies
 
