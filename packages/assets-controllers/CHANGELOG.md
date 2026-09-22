@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
-- fix(multichain-account-service): fix `:removeMultichainAccountWallet` + use `deleteAccounts` on providers ([#10263](https://github.com/MetaMask/core/pull/10263))
-- tests: repair uuid mock typings missed by the v11 bump ([#10269](https://github.com/MetaMask/core/pull/10269))
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-
 ### Changed
 
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))

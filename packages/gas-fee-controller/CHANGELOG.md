@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
-- chore: align `@types/lodash` and `@types/jest-when` ranges ([#10169](https://github.com/MetaMask/core/pull/10169))
-
 ### Changed
 
 - Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
