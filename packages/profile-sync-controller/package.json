@@ -90,7 +90,7 @@
     "loglevel": "^1.8.1"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^3.4.3",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-hd-keyring": "^15.0.0",

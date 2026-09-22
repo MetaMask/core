@@ -57,7 +57,7 @@
     "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^3.4.3",
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",

@@ -66,7 +66,7 @@
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
     "@jest/globals": "^30.4.1",
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^3.4.3",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/create-release-branch": "^4.2.2",
