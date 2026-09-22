@@ -1122,7 +1122,12 @@ describe('SubscriptionController', () => {
             hasFetchedSubscriptions: false,
           },
         },
-        async ({ controller, rootMessenger, mockService, mockPerformSignOut }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockService,
+          mockPerformSignOut,
+        }) => {
           mockService.getSubscriptions.mockResolvedValue(
             MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
           );
