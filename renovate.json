@@ -5,7 +5,20 @@
   "dependencyDashboardApproval": true,
   "minimumReleaseAge": "3 days",
   "postUpdateOptions": ["yarnDedupeHighest"],
+  "rangeStrategy": "bump",
+  "skipInstalls": false,
+  "statusCheckNames": {
+    "artifactError": null,
+    "configValidation": null,
+    "mergeConfidence": null,
+    "minimumReleaseAge": null
+  },
   "packageRules": [
+    {
+      "description": "Restores the default for peer ranges, which `rangeStrategy` above would otherwise override. Peer ranges are deliberately wide, so they get broadened rather than raised.",
+      "matchDepTypes": ["peerDependencies"],
+      "rangeStrategy": "widen"
+    },
     {
       "description": "Mirrors npmPreapprovedPackages in .yarnrc.yml, which exempts these from the install-time age gate.",
       "matchPackageNames": [
