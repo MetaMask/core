@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `RampsController:hydrateVbaOnboarding` now returns a `VbaOnboardingSnapshot` of KYC and activation facts instead of a linear `VbaOnboardingStage`. The persisted `vbaOnboardingStage` state field and `VbaOnboardingStage` enum are removed — hosts own funnel order and map the snapshot onto screens.
+  - `sessionExists`, disclaimer completion flags, `kycStatus`, `finalStatus`, and `activation` (`not_ready` / `in_progress` / `ready` / `retryable_failure`) are independent facts. Hosts decide screen order.
+  - After KYC approval, wallet registration and autoramp creation still run (coalesced). Activation failure sets `activation: 'retryable_failure'` rather than a fatal error.
+  - A persisted KYC session owned by a previous identity is discarded via `KycController:clearState` and returned as an empty snapshot (`sessionExists: false`).
+- **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a foreign VBA onboarding session during hydration.
+  - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
 
 ## [24.0.0]
