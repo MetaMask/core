@@ -73,7 +73,7 @@
     "lodash-es": "^4.17.21",
     "rimraf": "^5.0.10",
     "ts-jest": "^29.4.12",
-    "tsx": "^4.20.5",
+    "tsx": "^4.23.13",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
