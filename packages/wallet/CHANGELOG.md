@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [15.0.0]
+## [14.1.0]
 
 ### Changed
 
-- Bump `@metamask/passkey-controller` from `^4.0.0` to `^5.0.0`. ([#10351](https://github.com/MetaMask/core/pull/10351))
+- Bump `@metamask/passkey-controller` from `^4.0.0` to `^4.1.0`. ([#10351](https://github.com/MetaMask/core/pull/10351))
 
 ### Fixed
 
@@ -277,8 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...HEAD
-[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@15.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...@metamask/wallet@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.3...@metamask/wallet@13.0.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...@metamask/wallet@12.0.3
