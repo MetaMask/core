@@ -87,9 +87,10 @@ export type PasskeyRecord = {
 
 /**
  * In-memory state for one **in-flight** WebAuthn **registration** ceremony
- * (from `create()` options until `protectVaultKeyWithPasskey` completes). This is
- * not a user login session; it is keyed by challenge and distinct from the full
- * spec ceremony (which includes the authenticator round-trip).
+ * (from `create()` options until the enrollment or replacement completion
+ * method finishes). This is not a user login session; it is keyed by challenge
+ * and distinct from the full spec ceremony (which includes the authenticator
+ * round-trip).
  */
 export type PasskeyRegistrationCeremony = {
   userHandle: Base64URLString;
@@ -97,6 +98,14 @@ export type PasskeyRegistrationCeremony = {
   challenge: Base64URLString;
   /** When this ceremony was started (ms since epoch); used for TTL pruning. */
   createdAt: number;
+  /**
+   * Whether this ceremony is for replacing an existing passkey.
+   *
+   * Omitted or `false` for existing enrollment ceremonies.
+   */
+  isReplacement?: boolean;
+  /** Credential ID of the record being replaced. */
+  sourceCredentialId?: Base64URLString;
 };
 
 /**
@@ -105,6 +114,11 @@ export type PasskeyRegistrationCeremony = {
  */
 export type PasskeyAuthenticationCeremony = {
   challenge: Base64URLString;
+  /**
+   * Registration challenge when this authentication is the post-registration
+   * step of an enrollment or replacement ceremony.
+   */
+  registrationChallenge?: Base64URLString;
   /** When this ceremony was started (ms since epoch); used for TTL pruning. */
   createdAt: number;
 };

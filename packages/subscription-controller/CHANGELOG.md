@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The flag is persisted alongside `subscriptions`, is reset by `clearState`, and stays `false` when the fetch throws.
   - Flipping the flag does not trigger the access token refresh that a subscription data change performs, and later fetches returning unchanged data still emit no state change.
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+
 ## [9.1.0]
 
 ### Added
