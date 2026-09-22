@@ -865,8 +865,6 @@ export class AuthenticationController extends BaseController<
             this.#setTraceAttribute(context, 'mfaErrorCode', mfaCode);
             if (mfaCode === 'authentication_required' && this.#isUnlocked) {
               this.#invalidateSrpSession(this.#getPrimaryEntropySourceId());
-              // An elevated session must not outlive a rejected base session.
-              this.clearStepUpSession();
             }
           }
           throw error;
@@ -1284,6 +1282,12 @@ export class AuthenticationController extends BaseController<
     return canonical;
   }
 
+  /**
+   * Forces a re-login for the primary SRP on the next token request. The
+   * elevated session is bound to that base session, so it ends with it.
+   *
+   * @param entropySourceId - The primary SRP's entropy source.
+   */
   #invalidateSrpSession(entropySourceId: string): void {
     this.update((state) => {
       const entry = state.srpSessionData?.[entropySourceId];
@@ -1294,6 +1298,7 @@ export class AuthenticationController extends BaseController<
         entry.profile.canonicalProfileId = '';
       }
     });
+    this.clearStepUpSession();
   }
 
   public async getUserProfileLineage(
