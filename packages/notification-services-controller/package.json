@@ -90,7 +90,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.4.3",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",
     "@types/readable-stream": "^2.3.0",
