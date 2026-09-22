@@ -54,7 +54,7 @@
     "@metamask/base-data-service": "^2.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^32.1.1",
+    "@metamask/profile-sync-controller": "^32.2.0",
     "@metamask/superstruct": "^3.4.1"
   },
   "devDependencies": {
@@ -63,7 +63,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.5",
+    "rimraf": "^5.0.10",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",

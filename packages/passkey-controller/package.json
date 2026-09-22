@@ -1,6 +1,6 @@
 {
   "name": "@metamask/passkey-controller",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Controller and utilities for passkey-based wallet unlock",
   "keywords": [
     "Ethereum",
@@ -67,7 +67,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.5",
+    "rimraf": "^5.0.10",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",

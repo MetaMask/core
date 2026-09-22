@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "32.1.1",
+  "version": "32.2.0",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "Ethereum",
@@ -104,8 +104,8 @@
     "ethers": "^6.12.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "nock": "^13.3.1",
-    "rimraf": "^5.0.5",
+    "nock": "^13.5.6",
+    "rimraf": "^5.0.10",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",

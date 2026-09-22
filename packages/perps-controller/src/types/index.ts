@@ -764,6 +764,13 @@ export type MarketInfo = {
  */
 export type PerpsMarketData = {
   /**
+   * Stable backend market identifier supplied by the v3 Terminal snapshot
+   * (e.g. 'btc-hyperliquid-mainnet'). Used as the key for perp-alerts API
+   * calls. Only present when data originates from the v3 global-snapshot
+   * endpoint; omit checks against this field must guard with `?? undefined`.
+   */
+  id?: string;
+  /**
    * Token symbol (e.g., 'BTC', 'ETH')
    */
   symbol: string;
@@ -2667,7 +2674,7 @@ export type PerpsPlatformDependencies = {
     /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
     marketDataUrl?: string;
 
-    /** Full endpoint URL for the schema-v2 atomic global Perps snapshot. */
+    /** Full endpoint URL for the schema-v3 atomic global Perps snapshot. */
     globalSnapshotUrl?: string;
   };
 

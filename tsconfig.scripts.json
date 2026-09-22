@@ -15,7 +15,11 @@
     "lib": ["ES2022"],
     "noEmit": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
+      "@metamask/utils": ["./packages/utils/src/index.ts"]
+    }
   },
   "include": ["./scripts/**/*.ts", "./scripts/**/*.mts"],
   "exclude": ["**/node_modules"]
