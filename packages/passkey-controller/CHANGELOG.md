@@ -148,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.1.0...@metamask/passkey-controller@5.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@4.0.0...@metamask/passkey-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.1.0...@metamask/passkey-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.0.0...@metamask/passkey-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.1.0...@metamask/passkey-controller@3.0.0
