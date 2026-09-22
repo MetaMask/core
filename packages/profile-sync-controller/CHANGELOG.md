@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.2.0]
+
 ### Added
 
 - Add `beginStepUp`, `completeStepUp`, `getElevatedProfileToken` and `clearStepUpSession` to `AuthenticationController`, holding the elevated token in memory only behind a hard-expiring `stepUpSessionExpiresAt` state ([#10267](https://github.com/MetaMask/core/pull/10267))
@@ -978,7 +980,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...HEAD
+[32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...@metamask/profile-sync-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...@metamask/profile-sync-controller@32.0.0
