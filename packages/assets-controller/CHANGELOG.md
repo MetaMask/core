@@ -9,20 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add an optional `customAssets` option to `AssetsController.getAssets`, used only when `assetsAccountsApiV6` is enabled. It overrides which pinned assets are attached to the fetch (sent as `includeAssetIds` and to RPC). When the flag is off, `getAssets` still attaches every pin of the requested accounts, unscoped, matching the previous v5 request ([#9651](https://github.com/MetaMask/core/pull/9651))
-- Add a required `getAssetsState` getter to `AccountsApiDataSource`. `AssetsController` injects `() => this.state` so v6 include/exclude and token-detection filtering read controller state without copying it onto subscribe or fetch requests
+- Add optional `customAssets` to `AssetsController.getAssets`, to scope a fetch to specific asset IDs (Accounts API v6 only) ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Add optional `unprocessedCustomAssets` to `DataResponse`, listing pinned asset IDs a source could not resolve so `RpcFallbackMiddleware` can recover them ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Add optional `isBalanceV6Enabled` to `AccountsApiDataSourceOptions` and `RpcFallbackMiddlewareOptions`, so the `assetsAccountsApiV6` flag is read once by `AssetsController` and injected ([#9651](https://github.com/MetaMask/core/pull/9651))
 
 ### Changed
 
-- **BREAKING:** Remove `excludeAssetIds` from `DataRequest`. Accounts API v6 reads hidden assets from controller state (`assetPreferences`) when building the v6 `excludeAssetIds` query param. `request.customAssets` remains only as a scoped fetch override (`getAssets({ customAssets })`, `addCustomAsset`, RPC fallback), not a copy of every pin.
-- When `assetsAccountsApiV6` is enabled, a hide wins over a pin: Accounts API v6 sends hidden assets as `excludeAssetIds` and skips them in `includeAssetIds`. The v5 path is unchanged (`getAssets` force updates and the RPC custom-asset supplement still attach every pin, including hidden ones). `hideAsset` still leaves the pin in `customAssets` to record that the token was imported ([#9651](https://github.com/MetaMask/core/pull/9651))
-- When `assetsAccountsApiV6` is enabled, Accounts API fetch and middleware report `updateMode: 'full'` so assets on chains in the snapshot (including custom assets returned via `includeAssetIds`) are replaced; pins left in `unprocessedCustomAssets` after RPC fallback keep their prior balances. The v5 path keeps `updateMode: 'merge'` with `replaceCoveredChainBalances` so custom assets are preserved ([#9651](https://github.com/MetaMask/core/pull/9651))
-- When `assetsAccountsApiV6` is enabled, Accounts API does not filter unknown tokens via `tokenDetectionEnabled`. The v6 snapshot is applied in full; v5 still drops tokens not already in state when detection is off
+- **BREAKING:** Remove `'update'` from `AssetsUpdateMode`; use `'full'` (Accounts API v6 snapshot) or `'merge'` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Remove the `updateMode` option from `AssetsController.getAssets`; the data source now sets it on its response ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
+  - Pass `() => this.state` from `AssetsController`
+- When `assetsAccountsApiV6` is enabled, Accounts API v6 reads pins and hides from state and sends them as `includeAssetIds` / `excludeAssetIds`, then applies the response with `updateMode: 'full'` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- `hideAsset` and `unhideAsset` now re-evaluate subscriptions, so live polls start and stop excluding the asset immediately ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
 ### Fixed
 
-- Treat `assetsAccountsApiV6` as enabled when it is `true` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, instead of reading a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Keep default tracked assets (mUSD) at a zero balance when an Accounts API v6 `full` update omits them, so a force refresh no longer drops them from the token list ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
 - `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
 
