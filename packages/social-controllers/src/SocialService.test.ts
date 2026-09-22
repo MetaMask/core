@@ -1145,8 +1145,7 @@ describe('SocialService', () => {
         },
         commentCount: 1,
         replyCount: 3,
-        firstTradeAt: 1_699_999_000,
-        firstSellAt: null,
+        holdTimeMs: 28_800_000,
         entryPriceUsd: 2500,
       };
       mockFetch.mockResolvedValue({
@@ -1166,8 +1165,7 @@ describe('SocialService', () => {
       expect(result.items[0]?.actor.followerCount).toBe(12);
       expect(result.items[0]?.commentCount).toBe(1);
       expect(result.items[0]?.replyCount).toBe(3);
-      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
-      expect(result.items[0]?.firstSellAt).toBeNull();
+      expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
       expect(result.items[0]?.entryPriceUsd).toBe(2500);
     });
   });

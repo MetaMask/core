@@ -319,15 +319,12 @@ export type FeedItem = Position & {
   /** Replies across those comments. Absent on older social-api builds. */
   replyCount?: number;
   /**
-   * Unix seconds of the position's first fill. `null` while split-pending.
-   * Absent on older social-api builds.
+   * How long the position has been held, in milliseconds. A closed position
+   * is measured from its first fill to its last; an open one is measured to
+   * the time the response was built, so it keeps growing between requests.
+   * `null` when the first fill is unknown. Absent on older social-api builds.
    */
-  firstTradeAt?: number | null;
-  /**
-   * Unix seconds of the first sell in position metrics. `null` when unsold.
-   * Absent on older social-api builds.
-   */
-  firstSellAt?: number | null;
+  holdTimeMs?: number | null;
   /**
    * Average entry price in USD from remaining cost basis / remaining holding.
    * `null` when the position is flat. Absent on older social-api builds.
