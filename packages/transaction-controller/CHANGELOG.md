@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve the correct native balance change when a transaction simulation reports a gas cost but omits the corresponding sender fee debit ([#10343](https://github.com/MetaMask/core/pull/10343))
+
 ## [72.0.0]
 
 ### Changed
