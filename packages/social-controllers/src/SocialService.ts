@@ -24,6 +24,7 @@ import {
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
+  CommentEngagement,
   FeedResponse,
   FetchFeedOptions,
   FetchFollowersOptions,
@@ -38,6 +39,8 @@ import type {
   LeaderboardResponse,
   Position,
   PositionsResponse,
+  ReactToCommentOptions,
+  RemoveCommentReactionOptions,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
@@ -162,11 +165,36 @@ const PositionsResponseStruct = structType({
 // A feed item is a position plus the trader who made the trade (`actor`) and
 // the item's creation timestamp. Reuses PositionStruct so the trade/position
 // fields stay in lockstep with the positions endpoints.
+const CommentReactionProfileStruct = structType({
+  id: string(),
+  name: string(),
+});
+
+const CommentReactionStruct = structType({
+  emotion: string(),
+  count: number(),
+  profiles: array(CommentReactionProfileStruct),
+});
+
+const CommentEngagementStruct = structType({
+  reactions: array(CommentReactionStruct),
+  userReaction: nullable(string()),
+  replyCount: optional(number()),
+});
+
+const AuthorCommentStruct = structType({
+  uid: string(),
+  text: string(),
+  timestamp: number(),
+  engagement: CommentEngagementStruct,
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
     actor: ProfileSummaryStruct,
     timestamp: number(),
+    authorComment: optional(nullable(AuthorCommentStruct)),
   }),
 );
 
@@ -211,6 +239,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchFollowing',
   'fetchPositionById',
   'fetchFeed',
+  'reactToComment',
+  'removeCommentReaction',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -562,6 +592,88 @@ export class SocialService extends BaseDataService<
     });
 
     return feedResponse;
+  }
+
+  /**
+   * Adds or replaces the current user's reaction on a swap comment (Call).
+   *
+   * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
+   * user per comment: a later PUT replaces the previous emotion.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.emotion - Emoji or short code to store.
+   * @returns Refreshed per-emotion counts and the caller's `userReaction`.
+   */
+  async reactToComment(
+    options: ReactToCommentOptions,
+  ): Promise<CommentEngagement> {
+    const { commentId, emotion } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:reactToComment`, commentId, emotion],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/reaction`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emotion }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED,
+        );
+        const metrics = await response.json();
+        if (!is(metrics, CommentEngagementStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return metrics as CommentEngagement;
+      },
+    });
+  }
+
+  /**
+   * Removes the current user's reaction on a swap comment (Call).
+   *
+   * Calls `DELETE ${baseUrl}/swap-comment/${commentId}/reaction`. Idempotent
+   * when the caller has never reacted.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @returns Refreshed per-emotion counts and a null `userReaction`.
+   */
+  async removeCommentReaction(
+    options: RemoveCommentReactionOptions,
+  ): Promise<CommentEngagement> {
+    const { commentId } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:removeCommentReaction`, commentId],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/reaction`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED,
+        );
+        const metrics = await response.json();
+        if (!is(metrics, CommentEngagementStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
+          );
+        }
+        return metrics as CommentEngagement;
+      },
+    });
   }
 
   /**
