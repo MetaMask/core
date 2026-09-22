@@ -340,7 +340,7 @@ describe('BaseDataService', () => {
     );
   });
 
-  it('emits `:cacheUpdated` events when mutation cache is updated', async () => {
+  it('emits `:cacheUpdated` events when mutation cache is updated (filling in the global ID if missing)', async () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
@@ -353,6 +353,9 @@ describe('BaseDataService', () => {
       queries: [],
       mutations: [
         expect.objectContaining({
+          meta: {
+            globalId: expect.any(String),
+          },
           state: expect.objectContaining({
             status: 'success',
             data: {

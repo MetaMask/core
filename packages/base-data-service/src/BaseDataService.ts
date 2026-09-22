@@ -35,6 +35,7 @@ import {
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
 import { debounce, DebouncedFunc } from 'lodash-es';
+import { v4 as uuidV4 } from 'uuid';
 
 import {
   createServicePolicy,
@@ -455,11 +456,10 @@ export class BaseDataService<
    * @param options.mutationFn - The mutation function.
    * @param options.responseStruct - An optional struct for validating the response of the mutation function.
    * @param options.globalId - A string which uniquely identifies this mutation
-   * across different query clients — specifically, the one in this data service
-   * and the one that `createUIQueryClient` in `@metamask/react-data-query`
-   * holds (in fact usually you don't need to pass this — `createUIQueryClient`
-   * will do it automatically). This global ID will be stored in the new
-   * mutation `meta` data and included in `:cacheUpdated` payloads.
+   * between the query client in this data service
+   * and the one that `createUIQueryClient` in `@metamask/react-data-query` holds.
+   * This global ID will be stored in the `meta` data of the created mutation
+   * and included in `:cacheUpdated` payloads. Defaults to a UUID.
    * @returns The mutation results.
    */
   protected async executeMutation<
@@ -474,7 +474,7 @@ export class BaseDataService<
   >({
     mutationFn,
     responseStruct,
-    globalId,
+    globalId = uuidV4(),
     ...options
   }: OmitKeyof<
     MutationOptions<TData, TError, Record<never, never>, TOnMutateResult>,
@@ -493,9 +493,10 @@ export class BaseDataService<
       TOnMutateResult
     >(this.#queryClient, {
       ...options,
-      ...(globalId !== undefined && {
-        meta: { ...options.meta, globalId },
-      }),
+      meta: {
+        ...options.meta,
+        globalId,
+      },
       mutationFn: async (...args) => {
         // To guard against mutations being retried, we deliberately execute the
         // mutation function through the circuit breaker policy alone, rather
