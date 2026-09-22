@@ -85,6 +85,13 @@ export type SubscriptionControllerState = {
   customerId?: string;
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
+  /**
+   * Whether `subscriptions` reflects a completed fetch rather than the default
+   * empty state. An empty `subscriptions` array is otherwise ambiguous: it
+   * means both "not fetched yet" and "fetched, and the user has none", which
+   * makes clients render a non-subscriber UI before the answer is known.
+   */
+  hasFetchedSubscriptions: boolean;
   productEntitlements?: ProductEntitlements;
   pricing?: PricingResponse;
   benefits?: SubscriptionBenefitsState;
@@ -173,6 +180,7 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
   return {
     subscriptions: [],
     trialedProducts: [],
+    hasFetchedSubscriptions: false,
   };
 }
 
@@ -189,6 +197,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    hasFetchedSubscriptions: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
       usedInUi: true,
     },
     productEntitlements: {
@@ -347,6 +361,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       currentSubscriptionState,
       newSubscriptionState,
     );
+
+    // Flipped after the subscription state update so a client reacting to the
+    // flag never reads stale subscriptions, and kept out of
+    // `#updateSubscriptionStateIfChanged` so it cannot trigger the access
+    // token refresh that branch performs.
+    if (!this.state.hasFetchedSubscriptions) {
+      this.update((state) => {
+        state.hasFetchedSubscriptions = true;
+      });
+    }
 
     await this.#refreshBenefitsIfActive(refreshBenefits);
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `hasFetchedSubscriptions` to `SubscriptionControllerState`, which is `false` until `getSubscriptions` completes successfully and `true` from then on
+  - Lets clients tell "not fetched yet" apart from "fetched, and the user has no subscription", which `subscriptions: []` alone cannot express.
+  - The flag is persisted alongside `subscriptions`, is reset by `clearState`, and stays `false` when the fetch throws.
+  - Flipping the flag does not trigger the access token refresh that a subscription data change performs, and later fetches returning unchanged data still emit no state change.
+
 ## [9.1.0]
 
 ### Added

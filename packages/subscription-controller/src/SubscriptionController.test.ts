@@ -1099,6 +1099,80 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('marks subscriptions as fetched when the response has no subscriptions', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          expect(controller.state.hasFetchedSubscriptions).toBe(false);
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.hasFetchedSubscriptions).toBe(true);
+        },
+      );
+    });
+
+    it('does not sign out when marking subscriptions as fetched', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            hasFetchedSubscriptions: false,
+          },
+        },
+        async ({ controller, rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.hasFetchedSubscriptions).toBe(true);
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('leaves subscriptions unfetched when the request fails', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockRejectedValue(
+            new SubscriptionServiceError('Failed to fetch subscription'),
+          );
+
+          await expect(
+            rootMessenger.call('SubscriptionController:getSubscriptions'),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(controller.state.hasFetchedSubscriptions).toBe(false);
+        },
+      );
+    });
+
+    it('does not emit a state change on later fetches that return the same data', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          const stateChangeListener = jest.fn();
+          rootMessenger.subscribe(
+            'SubscriptionController:stateChange',
+            stateChangeListener,
+          );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(stateChangeListener).not.toHaveBeenCalled();
+          expect(controller.state.hasFetchedSubscriptions).toBe(true);
+        },
+      );
+    });
+
     it('should fetch and store subscription successfully', async () => {
       await withController(
         async ({ controller, rootMessenger, mockService }) => {
@@ -1392,6 +1466,7 @@ describe('SubscriptionController', () => {
             customerId: 'cus_1',
             subscriptions: [],
             trialedProducts: [],
+            hasFetchedSubscriptions: true,
             rewardAccountId: mockRewardAccountId,
           },
         },
@@ -4017,6 +4092,7 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "hasFetchedSubscriptions": false,
             "trialedProducts": [],
           }
         `);
@@ -4033,6 +4109,7 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "hasFetchedSubscriptions": false,
             "trialedProducts": [],
           }
         `);
@@ -4049,6 +4126,7 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "hasFetchedSubscriptions": false,
             "subscriptions": [],
             "trialedProducts": [],
           }
@@ -4085,6 +4163,7 @@ describe('SubscriptionController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "hasFetchedSubscriptions": false,
             "subscriptions": [],
             "trialedProducts": [],
           }
