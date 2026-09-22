@@ -53,6 +53,7 @@ function createDataRequest(
 type StateOverrides = {
   assetsBalance?: Record<string, Record<string, { amount: string }>>;
   customAssets?: Record<string, Caip19AssetId[]>;
+  assetPreferences?: Record<string, { hidden?: boolean }>;
 };
 
 function createContext(
@@ -67,6 +68,7 @@ function createContext(
       assetsInfo: {},
       assetsBalance: stateOverrides.assetsBalance ?? {},
       customAssets: stateOverrides.customAssets ?? {},
+      assetPreferences: stateOverrides.assetPreferences ?? {},
       assetsPrice: {},
     } as AssetsControllerStateInternal),
   };
@@ -290,6 +292,74 @@ describe('RpcFallbackMiddleware', () => {
     expect(finalCtx.response.errors).toStrictEqual({});
   });
 
+  it('merges API unprocessed pins with every tracked asset on the errored chain in one RPC call', async () => {
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [MOCK_ASSET_POLYGON]: { amount: '10' },
+          [MOCK_TOKEN_POLYGON]: { amount: '50' },
+        },
+      },
+    };
+    const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
+    const ctx = createContext(
+      createDataRequest(['eip155:1', 'eip155:137']),
+      {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1.2' } },
+        },
+        errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+        unprocessedCustomAssets: [MOCK_TOKEN_POLYGON],
+      },
+      {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_POLYGON]: { amount: '10' },
+            [MOCK_TOKEN_POLYGON]: { amount: '50' },
+          },
+        },
+        customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_TOKEN_POLYGON] },
+      },
+    );
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(rpcMw).toHaveBeenCalledTimes(1);
+    const [rpcCtx] = rpcMw.mock.calls[0];
+    expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:137']);
+    expect(new Set(rpcCtx.request.customAssets)).toStrictEqual(
+      new Set([MOCK_ASSET_POLYGON, MOCK_TOKEN_POLYGON]),
+    );
+  });
+
+  it('leaves a hidden asset out of the errored-chain retry', async () => {
+    const { source, middleware: rpcMw } = createMockRpcSource({});
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
+    const ctx = createContext(
+      createDataRequest(['eip155:137']),
+      { errors: { 'eip155:137': 'Fetch failed' } },
+      {
+        customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_TOKEN_POLYGON] },
+        assetPreferences: { [MOCK_TOKEN_POLYGON]: { hidden: true } },
+      },
+    );
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    const [rpcCtx] = rpcMw.mock.calls[0];
+    expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:137']);
+    expect(rpcCtx.request.customAssets).toBeUndefined();
+  });
+
   it('recovers unprocessedCustomAssets with an RPC call scoped to just those assets (via customAssets), not a whole-chain fetch', async () => {
     const rpcResponse: DataResponse = {
       assetsBalance: {
@@ -325,9 +395,7 @@ describe('RpcFallbackMiddleware', () => {
     expect(finalCtx.response.unprocessedCustomAssets).toBeUndefined();
   });
 
-  it('skips asset-scoped recovery for assets whose chain was already retried on the chain axis', async () => {
-    // The chain-axis fetch (native + custom assets) already covers the token, so
-    // there must be no second, asset-scoped RPC call for the same chain.
+  it('puts an API unprocessed pin on the same RPC request as the errored chain, without a second call', async () => {
     const rpcResponse: DataResponse = {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_TOKEN_POLYGON]: { amount: '3' } },
@@ -346,12 +414,10 @@ describe('RpcFallbackMiddleware', () => {
 
     await mw.assetsMiddleware(ctx, next);
 
-    // Only the chain-axis call — it uses the original request (no customAssets
-    // override to the unresolved subset).
     expect(rpcMw).toHaveBeenCalledTimes(1);
     const [rpcCtx] = rpcMw.mock.calls[0];
     expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:137']);
-    expect(rpcCtx.request.customAssets).toBeUndefined();
+    expect(rpcCtx.request.customAssets).toStrictEqual([MOCK_TOKEN_POLYGON]);
 
     const finalCtx = next.mock.calls[0][0];
     expect(finalCtx.response.errors).toStrictEqual({});
@@ -377,7 +443,7 @@ describe('RpcFallbackMiddleware', () => {
     ]);
   });
 
-  it('recovers both errored chains and unprocessed assets in separate RPC calls', async () => {
+  it('recovers an errored chain and an unprocessed pin on another chain in one RPC call', async () => {
     const rpcResponse: DataResponse = {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: {
@@ -399,14 +465,12 @@ describe('RpcFallbackMiddleware', () => {
 
     await mw.assetsMiddleware(ctx, next);
 
-    // One call for the errored chain (whole chain), one scoped call for the pin.
-    expect(rpcMw).toHaveBeenCalledTimes(2);
-    const chainCall = rpcMw.mock.calls[0][0];
-    expect(chainCall.request.chainIds).toStrictEqual(['eip155:56']);
-    expect(chainCall.request.customAssets).toBeUndefined();
-    const assetCall = rpcMw.mock.calls[1][0];
-    expect(assetCall.request.chainIds).toStrictEqual(['eip155:1']);
-    expect(assetCall.request.customAssets).toStrictEqual([MOCK_TOKEN_MAINNET]);
+    expect(rpcMw).toHaveBeenCalledTimes(1);
+    const [rpcCtx] = rpcMw.mock.calls[0];
+    expect(new Set(rpcCtx.request.chainIds)).toStrictEqual(
+      new Set(['eip155:56', 'eip155:1']),
+    );
+    expect(rpcCtx.request.customAssets).toStrictEqual([MOCK_TOKEN_MAINNET]);
 
     const finalCtx = next.mock.calls[0][0];
     expect(finalCtx.response.errors).toStrictEqual({});
