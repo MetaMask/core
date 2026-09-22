@@ -297,6 +297,26 @@ export const CANCEL_RATE = 1.1;
  */
 export const SPEED_UP_RATE = 1.1;
 
+// Default for the `getSimulationConfig` option.
+const DEFAULT_GET_SIMULATION_CONFIG: GetSimulationConfig = () =>
+  Promise.resolve({});
+
+// Default for the `isAutomaticGasFeeUpdateEnabled` option.
+const DEFAULT_IS_AUTOMATIC_GAS_FEE_UPDATE_ENABLED = (): boolean => false;
+
+// Default for the `isEIP7702GasFeeTokensEnabled` option.
+const DEFAULT_IS_EIP7702_GAS_FEE_TOKENS_ENABLED = (): Promise<boolean> =>
+  Promise.resolve(false);
+
+// Default for the `isTimeoutEnabled` option.
+const DEFAULT_IS_TIMEOUT_ENABLED = (): boolean => true;
+
+// Default for the `isSimulationEnabled` option.
+const DEFAULT_IS_SIMULATION_ENABLED = (): boolean => true;
+
+// Default for the `trace` option.
+const DEFAULT_TRACE = ((_request, fn) => fn?.()) as TraceCallback;
+
 /**
  * Represents the `TransactionController:getState` action.
  */
@@ -705,29 +725,9 @@ export class TransactionController extends BaseController<
   TransactionControllerState,
   TransactionControllerMessenger
 > {
-  readonly #beforeCheckPendingTransaction: (
-    transactionMeta: TransactionMeta,
-  ) => Promise<boolean>;
-
-  readonly #constructorOptions: TransactionConstructorOptions;
-
   readonly #gasFeeFlows: GasFeeFlow[];
 
-  readonly #getSimulationConfig: GetSimulationConfig;
-
   readonly #internalEvents = new EventEmitter();
-
-  readonly #isAutomaticGasFeeUpdateEnabled: (
-    transactionMeta: TransactionMeta,
-  ) => boolean;
-
-  readonly #isEIP7702GasFeeTokensEnabled: (
-    transactionMeta: TransactionMeta,
-  ) => Promise<boolean>;
-
-  readonly #isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
-
-  readonly #isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
 
   readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
@@ -735,17 +735,11 @@ export class TransactionController extends BaseController<
 
   readonly #multichainTrackingHelper: MultichainTrackingHelper;
 
-  readonly #publicKeyEIP7702?: Hex;
-
-  readonly #publishBatchHook?: PublishBatchHook;
+  readonly #options: Omit<TransactionControllerOptions, 'messenger' | 'state'>;
 
   readonly #skipSimulationTransactionIds: Set<string> = new Set();
 
   readonly #simulationRequestTokens: Map<string, symbol> = new Map();
-
-  readonly #testGasFeeFlows: boolean;
-
-  readonly #trace: TraceCallback;
 
   #dependencies?: TransactionStageDependencies;
 
@@ -755,23 +749,7 @@ export class TransactionController extends BaseController<
    * @param options - The controller options.
    */
   constructor(options: TransactionControllerOptions) {
-    const {
-      disableSwaps,
-      getPermittedAccounts,
-      getSavedGasFees,
-      getSimulationConfig,
-      hooks,
-      isAutomaticGasFeeUpdateEnabled,
-      isEIP7702GasFeeTokensEnabled,
-      isFirstTimeInteractionEnabled,
-      isSimulationEnabled,
-      isTimeoutEnabled,
-      messenger,
-      publicKeyEIP7702,
-      state,
-      testGasFeeFlows,
-      trace,
-    } = options;
+    const { hooks, messenger, state, ...remainingOptions } = options;
 
     super({
       name: controllerName,
@@ -785,38 +763,10 @@ export class TransactionController extends BaseController<
 
     this.messenger = messenger;
 
-    this.#beforeCheckPendingTransaction =
-      /* istanbul ignore next */
-      hooks?.beforeCheckPendingTransaction ??
-      ((): Promise<boolean> => Promise.resolve(true));
-    this.#getSimulationConfig =
-      getSimulationConfig ??
-      ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
-    this.#isAutomaticGasFeeUpdateEnabled =
-      isAutomaticGasFeeUpdateEnabled ??
-      ((_txMeta: TransactionMeta): boolean => false);
-    this.#isEIP7702GasFeeTokensEnabled =
-      isEIP7702GasFeeTokensEnabled ??
-      ((): Promise<boolean> => Promise.resolve(false));
-    this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
-    this.#isTimeoutEnabled = isTimeoutEnabled ?? ((): boolean => true);
-    this.#publicKeyEIP7702 = publicKeyEIP7702;
-    this.#publishBatchHook = hooks?.publishBatch;
-    this.#testGasFeeFlows = testGasFeeFlows === true;
-    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
-
-    this.#constructorOptions = {
-      disableSwaps,
-      getPermittedAccounts,
-      getSavedGasFees: getSavedGasFees?.bind(this),
-      hooks: {
-        afterAdd: hooks?.afterAdd,
-        beforePublish: hooks?.beforePublish,
-        beforeSign: hooks?.beforeSign?.bind(this),
-        publish: hooks?.publish,
-      },
-      isFirstTimeInteractionEnabled,
-      trace: this.#trace,
+    this.#options = {
+      ...remainingOptions,
+      getSavedGasFees: remainingOptions.getSavedGasFees?.bind(this),
+      hooks: { ...hooks, beforeSign: hooks?.beforeSign?.bind(this) },
     };
 
     const findNetworkClientIdByChainId = (chainId: Hex): string => {
@@ -971,13 +921,20 @@ export class TransactionController extends BaseController<
       request.networkClientId,
     );
 
+    const {
+      getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,
+      hooks,
+      isSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED,
+      publicKeyEIP7702,
+    } = this.#options;
+
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       estimateGas: this.estimateGas.bind(this),
       getGasFeeEstimates: (options) =>
         this.messenger.call('GasFeeController:fetchGasFeeEstimates', options),
       getInternalAccounts: this.#getInternalAccounts.bind(this),
-      getSimulationConfig: this.#getSimulationConfig.bind(this),
+      getSimulationConfig,
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           blockTracker,
@@ -985,16 +942,16 @@ export class TransactionController extends BaseController<
         }),
       getTransaction: (transactionId) =>
         this.#getTransactionOrThrow(transactionId),
-      isSimulationEnabled: this.#isSimulationEnabled,
+      isSimulationEnabled,
       messenger: this.messenger,
-      publishBatchHook: this.#publishBatchHook,
-      publicKeyEIP7702: this.#publicKeyEIP7702,
+      publishBatchHook: hooks?.publishBatch,
+      publicKeyEIP7702,
       publishTransaction: (transactionMeta: TransactionMeta) =>
         this.#publishTransaction(transactionMeta) as Promise<Hex>,
       request,
       signTransaction: (transactionMeta) =>
         signTransactionMeta(
-          this.#constructorOptions,
+          this.#getConstructorOptions(),
           this.#getDependencies(),
           transactionMeta,
         ),
@@ -1015,7 +972,7 @@ export class TransactionController extends BaseController<
     return isAtomicBatchSupported({
       ...request,
       messenger: this.messenger,
-      publicKeyEIP7702: this.#publicKeyEIP7702,
+      publicKeyEIP7702: this.#options.publicKeyEIP7702,
     });
   }
 
@@ -1034,7 +991,7 @@ export class TransactionController extends BaseController<
   ): Promise<Result> {
     return await addTransaction({
       addTransactionRequest: { options, txParams },
-      constructorOptions: this.#constructorOptions,
+      constructorOptions: this.#getConstructorOptions(),
       dependencies: this.#getDependencies(),
     });
   }
@@ -1249,10 +1206,15 @@ export class TransactionController extends BaseController<
     gas: string;
     simulationFails: TransactionMeta['simulationFails'];
   }> {
+    const {
+      getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,
+      isSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED,
+    } = this.#options;
+
     const { estimatedGas, simulationFails } = await estimateGas({
       ignoreDelegationSignatures,
-      isSimulationEnabled: this.#isSimulationEnabled(),
-      getSimulationConfig: this.#getSimulationConfig,
+      isSimulationEnabled: isSimulationEnabled(),
+      getSimulationConfig,
       messenger: this.messenger,
       networkClientId,
       txParams: transaction,
@@ -1279,9 +1241,12 @@ export class TransactionController extends BaseController<
     from: Hex;
     transactions: BatchTransactionParams[];
   }): Promise<EstimateGasBatchResult> {
+    const { getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG } =
+      this.#options;
+
     return estimateGasBatch({
       from,
-      getSimulationConfig: this.#getSimulationConfig,
+      getSimulationConfig,
       isAtomicBatchSupported: this.isAtomicBatchSupported.bind(this),
       messenger: this.messenger,
       networkClientId: getNetworkClientId({
@@ -1308,9 +1273,14 @@ export class TransactionController extends BaseController<
     gas: string;
     simulationFails: TransactionMeta['simulationFails'];
   }> {
+    const {
+      getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,
+      isSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED,
+    } = this.#options;
+
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
-      isSimulationEnabled: this.#isSimulationEnabled(),
-      getSimulationConfig: this.#getSimulationConfig,
+      isSimulationEnabled: isSimulationEnabled(),
+      getSimulationConfig,
       messenger: this.messenger,
       networkClientId,
       txParams: transaction,
@@ -1590,10 +1560,15 @@ export class TransactionController extends BaseController<
       'updateTransactionGasFees',
     );
 
+    const {
+      isAutomaticGasFeeUpdateEnabled:
+        getIsAutomaticGasFeeUpdateEnabled = DEFAULT_IS_AUTOMATIC_GAS_FEE_UPDATE_ENABLED,
+    } = this.#options;
+
     const clonedTransactionMeta = cloneDeep(transactionMeta);
     const isTransactionGasFeeEstimatesExists = transactionMeta.gasFeeEstimates;
     const isAutomaticGasFeeUpdateEnabled =
-      this.#isAutomaticGasFeeUpdateEnabled(transactionMeta);
+      getIsAutomaticGasFeeUpdateEnabled(transactionMeta);
     const userFeeLevel = userFeeLevelParam as GasFeeEstimateLevelType;
     const isOneOfFeeLevelSelected =
       Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
@@ -2526,12 +2501,16 @@ export class TransactionController extends BaseController<
     addTransactionToState(this.#getDependencies(), transactionMeta);
   }
 
-  /** Wire the resources required by the addTransaction lifecycle. */
+  /**
+   * Wire the resources required by the addTransaction lifecycle.
+   *
+   * @returns The dependencies shared by all lifecycle stages.
+   */
   #getDependencies(): TransactionStageDependencies {
     this.#dependencies ??= {
       addTransactionBatch: this.addTransactionBatch.bind(this),
       failTransaction: this.#failTransaction.bind(this),
-      fetchGasFeeTokens: async (transactionMeta) =>
+      fetchGasFeeTokens: async (transactionMeta): Promise<GasFeeToken[]> =>
         (await this.#getGasFeeTokens(transactionMeta)).gasFeeTokens,
       gasFeeFlows: this.#gasFeeFlows,
       getNonceLock: (address, networkClientId): Promise<NonceLock> =>
@@ -2552,6 +2531,15 @@ export class TransactionController extends BaseController<
     };
 
     return this.#dependencies;
+  }
+
+  /**
+   * Narrow the constructor options to those needed by the addTransaction lifecycle.
+   *
+   * @returns The constructor options with the tracer resolved.
+   */
+  #getConstructorOptions(): TransactionConstructorOptions {
+    return { ...this.#options, trace: this.#options.trace ?? DEFAULT_TRACE };
   }
 
   #onBootCleanup(): void {
@@ -2887,6 +2875,9 @@ export class TransactionController extends BaseController<
       networkClientId,
     });
 
+    const { hooks, isTimeoutEnabled = DEFAULT_IS_TIMEOUT_ENABLED } =
+      this.#options;
+
     const pendingTransactionTracker = new PendingTransactionTracker({
       blockTracker,
       getGlobalLock: (): Promise<() => void> =>
@@ -2896,9 +2887,9 @@ export class TransactionController extends BaseController<
       getTransactions: (): TransactionMeta[] => this.state.transactions,
       hooks: {
         beforeCheckPendingTransaction:
-          this.#beforeCheckPendingTransaction.bind(this),
+          hooks?.beforeCheckPendingTransaction?.bind(this),
       },
-      isTimeoutEnabled: this.#isTimeoutEnabled,
+      isTimeoutEnabled,
       messenger: this.messenger,
       networkClientId,
     });
@@ -2996,7 +2987,7 @@ export class TransactionController extends BaseController<
   }
 
   #getGasFeeFlows(): GasFeeFlow[] {
-    if (this.#testGasFeeFlows) {
+    if (this.#options.testGasFeeFlows) {
       return [new TestGasFeeFlow()];
     }
 
@@ -3027,6 +3018,9 @@ export class TransactionController extends BaseController<
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
+    const { isSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED } =
+      this.#options;
+
     let resimulateResponse: ResimulateResponse | undefined;
 
     this.update((state) => {
@@ -3054,7 +3048,7 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      if (!skipResimulateCheck && this.#isSimulationEnabled(transactionMeta)) {
+      if (!skipResimulateCheck && isSimulationEnabled(transactionMeta)) {
         resimulateResponse = shouldResimulate(
           originalTransactionMeta,
           transactionMeta,
@@ -3123,13 +3117,20 @@ export class TransactionController extends BaseController<
     const simulationRequestToken = Symbol(transactionId);
     this.#simulationRequestTokens.set(transactionId, simulationRequestToken);
 
+    const {
+      getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,
+      isSimulationEnabled:
+        getIsSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED,
+      trace = DEFAULT_TRACE,
+    } = this.#options;
+
     try {
-      const isSimulationEnabled = this.#isSimulationEnabled(transactionMeta);
+      const isSimulationEnabled = getIsSimulationEnabled(transactionMeta);
       const isBalanceChangesSkipped =
         this.#isBalanceChangesSkipped(transactionMeta);
 
       if (isSimulationEnabled && !isBalanceChangesSkipped) {
-        const balanceChangesResult = await this.#trace(
+        const balanceChangesResult = await trace(
           { name: 'Simulate', parentContext: traceContext },
           () =>
             getBalanceChanges({
@@ -3137,12 +3138,11 @@ export class TransactionController extends BaseController<
               chainId,
               messenger: this.messenger,
               networkClientId,
-              getSimulationConfig: (url, opts) => {
-                return this.#getSimulationConfig(url, {
+              getSimulationConfig: (url, opts) =>
+                getSimulationConfig(url, {
                   txMeta: transactionMeta,
                   ...opts,
-                });
-              },
+                }),
               nestedTransactions,
               txParams,
             }),
@@ -3242,12 +3242,17 @@ export class TransactionController extends BaseController<
     gasFeeEstimatesLoaded?: boolean;
     layer1GasFee?: Hex;
   }): void {
+    const {
+      isAutomaticGasFeeUpdateEnabled:
+        isTxParamsGasFeeUpdatesEnabled = DEFAULT_IS_AUTOMATIC_GAS_FEE_UPDATE_ENABLED,
+    } = this.#options;
+
     this.#updateTransactionInternal({ transactionId }, (txMeta) => {
       updateTransactionGasProperties({
         txMeta,
         gasFeeEstimates,
         gasFeeEstimatesLoaded,
-        isTxParamsGasFeeUpdatesEnabled: this.#isAutomaticGasFeeUpdateEnabled,
+        isTxParamsGasFeeUpdatesEnabled,
         layer1GasFee,
       });
     });
@@ -3340,10 +3345,15 @@ export class TransactionController extends BaseController<
       this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
         .configuration.type === NetworkClientType.Custom;
 
+    const {
+      getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,
+      isSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED,
+    } = this.#options;
+
     await updateGas({
       isCustomNetwork,
-      isSimulationEnabled: this.#isSimulationEnabled(transactionMeta),
-      getSimulationConfig: this.#getSimulationConfig,
+      isSimulationEnabled: isSimulationEnabled(transactionMeta),
+      getSimulationConfig,
       messenger: this.messenger,
       txMeta: transactionMeta,
     });
@@ -3433,12 +3443,18 @@ export class TransactionController extends BaseController<
   }> {
     const { chainId } = transaction;
 
+    const {
+      getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,
+      isEIP7702GasFeeTokensEnabled = DEFAULT_IS_EIP7702_GAS_FEE_TOKENS_ENABLED,
+      publicKeyEIP7702,
+    } = this.#options;
+
     return await getGasFeeTokens({
       chainId,
-      getSimulationConfig: this.#getSimulationConfig,
-      isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
+      getSimulationConfig,
+      isEIP7702GasFeeTokensEnabled,
       messenger: this.messenger,
-      publicKeyEIP7702: this.#publicKeyEIP7702,
+      publicKeyEIP7702,
       transactionMeta: transaction,
     });
   }
