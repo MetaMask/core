@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#10374](https://github.com/MetaMask/core/pull/10374))
   - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
   - `AuthenticationController.beginCredentialEnrollment` sends the elevated token while a step-up session is live, since enrolling additional credentials requires AAL2
   - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
