@@ -184,7 +184,7 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
 };
 
 /**
- * Default lifetime of an elevated session. Deliberately shorter than the
+ * Lifetime of an elevated session. Deliberately shorter than the
  * elevated token's own `exp` so a fresh ceremony is required per sensitive
  * action window, per the MFA phase-1 specification.
  */
@@ -198,11 +198,6 @@ type ControllerConfig = {
    * `() => false`.
    */
   isSocialPairingEnabled: () => boolean;
-  /**
-   * Lifetime of an elevated session opened by `completeStepUp`, clamped to the
-   * elevated token's `exp`. Defaults to `STEP_UP_SESSION_TTL_MS`.
-   */
-  stepUpSessionTtlMs: number;
 };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -290,7 +285,6 @@ export class AuthenticationController extends BaseController<
   readonly #config: ControllerConfig = {
     env: Env.PRD,
     isSocialPairingEnabled: () => false,
-    stepUpSessionTtlMs: STEP_UP_SESSION_TTL_MS,
   };
 
   #isUnlocked = false;
@@ -368,13 +362,11 @@ export class AuthenticationController extends BaseController<
     }
 
     // `??` per key so an explicit `undefined` keeps the default rather than
-    // clobbering it (a `NaN` TTL would open a session that never expires).
+    // clobbering it.
     this.#config = {
       env: config?.env ?? this.#config.env,
       isSocialPairingEnabled:
         config?.isSocialPairingEnabled ?? this.#config.isSocialPairingEnabled,
-      stepUpSessionTtlMs:
-        config?.stepUpSessionTtlMs ?? this.#config.stepUpSessionTtlMs,
     };
 
     this.#metametrics = metametrics;
@@ -1137,7 +1129,7 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Opens the elevated session. Its lifetime is the configured TTL clamped to
+   * Opens the elevated session. Its lifetime is the session TTL clamped to
    * the token's own `exp`, so the session never outlives the token.
    *
    * @param token - The freshly exchanged elevated token.
@@ -1145,7 +1137,7 @@ export class AuthenticationController extends BaseController<
   #openStepUpSession(token: ElevatedProfileToken): void {
     this.clearStepUpSession();
     const expiresAt = Math.min(
-      token.obtainedAt + this.#config.stepUpSessionTtlMs,
+      token.obtainedAt + STEP_UP_SESSION_TTL_MS,
       token.claims.exp * 1000,
     );
     this.#stepUpSession = { token, expiresAt };

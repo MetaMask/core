@@ -2325,7 +2325,6 @@ describe('AuthenticationController', () => {
 describe('MFA credential enrollment', () => {
   function createController(options?: {
     state?: AuthenticationControllerState;
-    stepUpSessionTtlMs?: number;
     trace?: TraceCallback;
   }): {
     controller: AuthenticationController;
@@ -2337,11 +2336,6 @@ describe('MFA credential enrollment', () => {
         messenger,
         metametrics: createMockAuthMetaMetrics(),
         state: options?.state ?? mockSignedInState(),
-        config: {
-          ...(options?.stepUpSessionTtlMs === undefined
-            ? {}
-            : { stepUpSessionTtlMs: options.stepUpSessionTtlMs }),
-        },
         trace: options?.trace,
       }),
       baseMessenger,
@@ -2867,10 +2861,7 @@ describe('MFA step-up verification', () => {
     },
   } as const;
 
-  function createController(options?: {
-    stepUpSessionTtlMs?: number;
-    trace?: TraceCallback;
-  }): {
+  function createController(options?: { trace?: TraceCallback }): {
     controller: AuthenticationController;
     baseMessenger: RootMessenger;
   } {
@@ -2880,11 +2871,6 @@ describe('MFA step-up verification', () => {
         messenger,
         metametrics: createMockAuthMetaMetrics(),
         state: mockSignedInState(),
-        config: {
-          ...(options?.stepUpSessionTtlMs === undefined
-            ? {}
-            : { stepUpSessionTtlMs: options.stepUpSessionTtlMs }),
-        },
         trace: options?.trace,
       }),
       baseMessenger,
@@ -3017,27 +3003,6 @@ describe('MFA step-up verification', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it('keeps the default TTL when the config key is passed as undefined', async () => {
-    mockSuccessfulCompletion();
-    const { messenger } = createMockAuthenticationMessenger();
-    const controller = new AuthenticationController({
-      messenger,
-      metametrics: createMockAuthMetaMetrics(),
-      state: mockSignedInState(),
-      config: { stepUpSessionTtlMs: undefined },
-    });
-
-    const token = await controller.completeStepUp({
-      flowId: 'flow-id',
-      proof: passkeyProof,
-      reason: { operation: 'money.signTransaction' },
-    });
-
-    expect(controller.state.stepUpSessionExpiresAt).toBe(
-      token.obtainedAt + STEP_UP_SESSION_TTL_MS,
-    );
-  });
-
   it('traces every verification network step with final outcomes', async () => {
     mockEndpointMfaVerify();
     mockSuccessfulCompletion();
@@ -3098,7 +3063,7 @@ describe('MFA step-up verification', () => {
     ).toThrow(/MFA\[invalid_request\]/u);
   });
 
-  it('hard-clears the session at the configured TTL', async () => {
+  it('hard-clears the session at the session TTL', async () => {
     const fetchSpy = jest
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
@@ -3116,13 +3081,11 @@ describe('MFA step-up verification', () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
     jest.setSystemTime(new Date('2026-09-16T10:00:00Z'));
     try {
-      const { controller } = createController({
-        stepUpSessionTtlMs: 1_000,
-      });
+      const { controller } = createController();
       await completeStepUp(controller);
 
       expect(controller.getElevatedProfileToken()).not.toBeNull();
-      jest.advanceTimersByTime(1_000);
+      jest.advanceTimersByTime(STEP_UP_SESSION_TTL_MS);
       expect(controller.getElevatedProfileToken()).toBeNull();
       expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
     } finally {
@@ -3162,9 +3125,7 @@ describe('MFA step-up verification', () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
     jest.setSystemTime(now);
     try {
-      const { controller } = createController({
-        stepUpSessionTtlMs: 60_000,
-      });
+      const { controller } = createController();
       await completeStepUp(controller);
 
       expect(controller.state.stepUpSessionExpiresAt).toBe(
@@ -3197,12 +3158,10 @@ describe('MFA step-up verification', () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
     jest.setSystemTime(now);
     try {
-      const { controller } = createController({
-        stepUpSessionTtlMs: 1_000,
-      });
+      const { controller } = createController();
       await completeStepUp(controller);
 
-      jest.setSystemTime(now.getTime() + 2_000);
+      jest.setSystemTime(now.getTime() + STEP_UP_SESSION_TTL_MS + 1_000);
       expect(controller.getElevatedProfileToken()).toBeNull();
       expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
     } finally {

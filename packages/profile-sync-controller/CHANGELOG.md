@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `beginStepUp`, `completeStepUp`, `getElevatedProfileToken` and `clearStepUpSession` to `AuthenticationController`, holding the elevated token in memory only behind a hard-expiring `stepUpSessionExpiresAt` state and a `stepUpSessionTtlMs` config ([#10267](https://github.com/MetaMask/core/pull/10267))
+- Add `beginStepUp`, `completeStepUp`, `getElevatedProfileToken` and `clearStepUpSession` to `AuthenticationController`, holding the elevated token in memory only behind a hard-expiring `stepUpSessionExpiresAt` state ([#10267](https://github.com/MetaMask/core/pull/10267))
 - Add `refreshEnrolledCredentials`, `beginCredentialEnrollment` and `completeCredentialEnrollment` to `AuthenticationController`, backed by a memory-only `enrolledCredentials` state and an optional `trace` callback ([#10266](https://github.com/MetaMask/core/pull/10266))
 - Add passkey and email OTP enrollment, verification, credential-list, and elevated-token exchange SDK methods ([#10265](https://github.com/MetaMask/core/pull/10265))
 - Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
