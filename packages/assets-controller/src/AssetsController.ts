@@ -4191,7 +4191,6 @@ export class AssetsController extends BaseController<
           ...(shouldRunRpcFallback ? [this.#rpcFallbackMiddleware] : []),
           this.#detectionMiddleware,
         ];
-        enrichmentSources.push(this.#detectionMiddleware);
         if (this.#isBasicFunctionality()) {
           enrichmentSources.push(
             createParallelMiddleware([
