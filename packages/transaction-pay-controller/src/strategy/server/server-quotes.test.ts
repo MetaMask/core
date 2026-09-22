@@ -467,6 +467,32 @@ describe('server-quotes', () => {
     });
   });
 
+  it('computes targetAmount fiat and usd from the target token fiat rate', async () => {
+    jest.mocked(getTokenFiatRate).mockReturnValue({
+      fiatRate: '2',
+      usdRate: '1.5',
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(getTokenFiatRate).toHaveBeenCalledWith(
+      messenger,
+      QUOTE_REQUEST_MOCK.targetTokenAddress,
+      QUOTE_REQUEST_MOCK.targetChainId,
+    );
+
+    // Output is `0.123`, so fiat is `0.123 * 2` and USD is `0.123 * 1.5`.
+    expect(result[0].targetAmount).toStrictEqual({
+      fiat: '0.246',
+      usd: '0.1845',
+    });
+  });
+
   it('filters zero target amount requests unless they are post-quote or max amount requests', async () => {
     await getServerQuotes({
       accountSupports7702: true,

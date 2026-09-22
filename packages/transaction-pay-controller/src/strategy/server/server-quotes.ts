@@ -370,6 +370,12 @@ async function normalizeQuote(
     ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(sourceFiatRate.usdRate)
     : new BigNumber(1);
 
+  const targetFiatRate = getTokenFiatRate(
+    messenger,
+    quoteRequest.targetTokenAddress,
+    quoteRequest.targetChainId,
+  );
+
   const metaMask = getFiatValueFromUsd(
     new BigNumber(quote.fees.metamask),
     usdToFiatRate,
@@ -429,8 +435,16 @@ async function normalizeQuote(
     },
     strategy: TransactionPayStrategy.Server,
     targetAmount: {
-      fiat: '0',
-      usd: '0',
+      fiat: targetFiatRate
+        ? new BigNumber(quote.output.formatted)
+            .multipliedBy(targetFiatRate.fiatRate)
+            .toString(10)
+        : '0',
+      usd: targetFiatRate
+        ? new BigNumber(quote.output.formatted)
+            .multipliedBy(targetFiatRate.usdRate)
+            .toString(10)
+        : '0',
     },
   };
 }
