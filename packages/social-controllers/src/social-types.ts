@@ -244,6 +244,44 @@ export type PositionsResponse = {
 // ---------------------------------------------------------------------------
 
 /**
+ * One emotion's aggregated count on a Call (swap comment), plus an optional
+ * facepile sample. `profiles` is always present on the wire and is often empty.
+ */
+export type CommentReaction = {
+  emotion: string;
+  count: number;
+  profiles: CommentReactionProfile[];
+};
+
+export type CommentReactionProfile = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Engagement on a Call. Counts live on `reactions`; do not read deprecated
+ * `likeCount` / `isLikedByUser` even if the social-api still emits them as 0/false.
+ */
+export type CommentEngagement = {
+  reactions: CommentReaction[];
+  /** Viewer's own emotion, when the hydrator was given their profile. */
+  userReaction: string | null;
+  /** Reply count on the comment. Present on feed `authorComment`, not on write responses. */
+  replyCount?: number;
+};
+
+/**
+ * Position thesis for the feed big card. `null` when that intent phase has no Call.
+ */
+export type AuthorComment = {
+  uid: string;
+  text: string;
+  /** Unix timestamp (seconds) when the comment was created. */
+  timestamp: number;
+  engagement: CommentEngagement;
+};
+
+/**
  * A single trader-activity feed item: a {@link Position} the trade belongs to,
  * plus the {@link ProfileSummary} of the trader who made it (`actor`) and the
  * item's creation `timestamp` (Unix seconds).
@@ -253,6 +291,21 @@ export type FeedItem = Position & {
   actor: ProfileSummary;
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
+  /**
+   * Latest author Call in the current intent phase. Absent on older social-api
+   * builds; `null` when that phase has no comment.
+   */
+  authorComment?: AuthorComment | null;
+};
+
+export type ReactToCommentOptions = {
+  commentId: string;
+  /** Emoji or short code (1–64 chars), e.g. `👍`. */
+  emotion: string;
+};
+
+export type RemoveCommentReactionOptions = {
+  commentId: string;
 };
 
 /**
