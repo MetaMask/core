@@ -2073,11 +2073,8 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Remove a custom asset without syncing the removal to AUS.
-   *
-   * Used by the graduation middleware, whose removals are automatic (a native
-   * data source detected the asset) rather than user intent, and so must not
-   * strip a still-visible, user-endorsed token from the AUS user-assets blob.
+   * Remove a custom asset without mirroring the removal to AUS (used by
+   * auto-graduation, which is not user intent).
    *
    * @param accountId - The account ID to remove the custom asset from.
    * @param assetId - The CAIP-19 asset ID to remove.
