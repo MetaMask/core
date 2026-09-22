@@ -1128,9 +1128,9 @@ describe('SocialService', () => {
       const result = await service.fetchFeed();
 
       expect(result.items[0]?.authorComment?.uid).toBe('comment-1');
-      expect(result.items[0]?.authorComment?.engagement.reactions).toStrictEqual(
-        [{ emotion: '🔥', count: 3, profiles: [] }],
-      );
+      expect(
+        result.items[0]?.authorComment?.engagement.reactions,
+      ).toStrictEqual([{ emotion: '🔥', count: 3, profiles: [] }]);
     });
   });
 
