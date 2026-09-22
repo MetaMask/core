@@ -1097,6 +1097,41 @@ describe('SocialService', () => {
         SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
       );
     });
+
+    it('accepts a feed item with authorComment engagement', async () => {
+      const withComment = {
+        ...mockFeedItem,
+        authorComment: {
+          uid: 'comment-1',
+          text: 'this is alpha',
+          timestamp: 1700000000,
+          engagement: {
+            likeCount: 0,
+            isLikedByUser: false,
+            reactions: [{ emotion: '🔥', count: 3, profiles: [] }],
+            userReaction: null,
+            replyCount: 0,
+          },
+        },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [withComment],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.authorComment?.uid).toBe('comment-1');
+      expect(result.items[0]?.authorComment?.engagement.reactions).toStrictEqual(
+        [{ emotion: '🔥', count: 3, profiles: [] }],
+      );
+    });
   });
 
   describe('fetchFollowing', () => {
@@ -1262,6 +1297,127 @@ describe('SocialService', () => {
 
       await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
         SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('reactToComment', () => {
+    const mockMetrics = {
+      likeCount: 0,
+      isLikedByUser: false,
+      reactions: [{ emotion: '🔥', count: 1, profiles: [] }],
+      userReaction: '🔥',
+    };
+
+    it('sends PUT with emotion to /swap-comment/:id/reaction', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockMetrics),
+      });
+
+      const service = createService();
+      const result = await service.reactToComment({
+        commentId: 'comment-1',
+        emotion: '🔥',
+      });
+
+      expect(result).toStrictEqual(mockMetrics);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/swap-comment/comment-1/reaction`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${MOCK_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ emotion: '🔥' }),
+        },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.reactToComment({ commentId: 'missing', emotion: '👍' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED}: 404`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ reactions: 'nope' }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.reactToComment({ commentId: 'comment-1', emotion: '👍' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('removeCommentReaction', () => {
+    const mockMetrics = {
+      reactions: [],
+      userReaction: null,
+    };
+
+    it('sends DELETE to /swap-comment/:id/reaction', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockMetrics),
+      });
+
+      const service = createService();
+      const result = await service.removeCommentReaction({
+        commentId: 'comment-1',
+      });
+
+      expect(result).toStrictEqual(mockMetrics);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/swap-comment/comment-1/reaction`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+        },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(
+        service.removeCommentReaction({ commentId: 'comment-1' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ userReaction: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.removeCommentReaction({ commentId: 'comment-1' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
       );
     });
   });
