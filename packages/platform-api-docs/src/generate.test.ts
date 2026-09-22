@@ -227,6 +227,60 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
     });
   });
 
+  it('keeps published declaration files when a scan directory contains node_modules', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // Scanning `.` makes the project root a scan directory, so its
+      // `node_modules` exclusion covers the published declaration files too.
+      // Each location has to be collected in its own call for them to survive,
+      // since exclusions apply to every pattern in the call they belong to.
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Local.ts'),
+        `
+export type LocalGetAction = {
+  type: 'Local:get';
+  handler: () => void;
+};
+
+export type LocalMessenger = Messenger<'Local', LocalGetAction, never>;
+`,
+      );
+
+      const distDir = path.join(
+        directoryPath,
+        'node_modules',
+        '@metamask',
+        'published-pkg',
+        'dist',
+      );
+      await fs.promises.mkdir(distDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(distDir, 'index.d.cts'),
+        `
+export type PublishedGetAction = {
+  type: 'Published:get';
+  handler: () => void;
+};
+
+export type PublishedMessenger = Messenger<'Published', PublishedGetAction, never>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
+        scanDirs: ['.'],
+      });
+
+      expect(result.namespaces).toBe(2);
+      expect(result.actions).toBe(2);
+    });
+  });
+
   it('follows symlinked @metamask packages when scanning node_modules/@metamask/*/dist', async () => {
     expect.assertions(1);
 

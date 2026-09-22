@@ -360,11 +360,20 @@ async function scanSources(
   sources: ScanSources,
 ): Promise<MessengerCapabilityPacket[]> {
   const project = createProject();
-  const patterns: string[] = [];
+  const sourceFiles = [];
 
+  // One call per location, not one call carrying every pattern. Exclusions
+  // apply to a whole call, so combining them lets the source-tree
+  // `node_modules` and `dist` exclusions match the published declaration files
+  // and drop them.
   for (const dir of sources.scanDirs) {
     const root = await toGlobPath(projectPath, dir);
-    patterns.push(`${root}/**/*.ts`, ...buildTsSourceExclusions(root));
+    sourceFiles.push(
+      ...addSourceFiles(project, [
+        `${root}/**/*.ts`,
+        ...buildTsSourceExclusions(root),
+      ]),
+    );
   }
 
   if (sources.packagesDir) {
@@ -372,18 +381,18 @@ async function scanSources(
     // Anchored at each package's `src`, not at `packages` itself, so a package
     // whose name collides with an exclusion (`test`, `dist`) isn't dropped.
     const contentRoot = `${root}/*/src`;
-    patterns.push(
-      `${contentRoot}/**/*.ts`,
-      ...buildTsSourceExclusions(contentRoot),
+    sourceFiles.push(
+      ...addSourceFiles(project, [
+        `${contentRoot}/**/*.ts`,
+        ...buildTsSourceExclusions(contentRoot),
+      ]),
     );
   }
 
   if (sources.nodeModulesDir) {
     const root = await toGlobPath(sources.nodeModulesDir);
-    patterns.push(`${root}/*/dist/**/*.d.cts`);
+    sourceFiles.push(...addSourceFiles(project, [`${root}/*/dist/**/*.d.cts`]));
   }
-
-  const sourceFiles = addSourceFiles(project, patterns);
 
   // Matched paths are fully resolved, so the root they are made relative to
   // has to be resolved the same way or every source link becomes a `../..`
