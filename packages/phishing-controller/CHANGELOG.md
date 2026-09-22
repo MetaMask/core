@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add request-source attribution to dapp-scanning URL scans, emitted as an `x-request-source` header ([#10260](https://github.com/MetaMask/core/pull/10260))
+- Add request-source attribution to dapp-scanning URL scans, emitted as an `x-request-source` header ([#10357](https://github.com/MetaMask/core/pull/10357))
   - Add an optional `platform` constructor option and an optional `flow` parameter to `scanUrl` and `bulkScanUrls`. The header value is composed as `<platform>-<flow>`.
   - Export the `RequestSourcePlatform` and `RequestSourceFlow` enums, the `RequestSource` type, the `REQUEST_SOURCE_HEADER` and `UNKNOWN_REQUEST_SOURCE` constants, and the `buildRequestSource` helper.
   - `RequestSourcePlatform` is `Extension` or `Mobile`. `RequestSourceFlow` is one of `dapp-connection`, `browser`, `rpc-trust-signals`, `confirmations`, `reveal-srp`, or `nft-detection`.
