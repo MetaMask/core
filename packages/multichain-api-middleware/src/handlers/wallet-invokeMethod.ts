@@ -159,7 +159,7 @@ async function handleWalletInvokeMethod(
       request: unwrappedRequest,
     });
   } catch (err) {
-    return end(err as Error);
+    return end(err);
   }
   return end();
 }

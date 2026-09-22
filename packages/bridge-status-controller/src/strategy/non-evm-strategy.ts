@@ -41,7 +41,7 @@ const handleTronApproval = async (
         );
         return txMeta.id;
       }
-      return undefined;
+      return;
     },
   );
 
@@ -50,7 +50,7 @@ const handleTronApproval = async (
     await handleApprovalDelay(quoteResponse.quote.srcChainId);
     return approvalTxId;
   }
-  return undefined;
+  return;
 };
 
 /**

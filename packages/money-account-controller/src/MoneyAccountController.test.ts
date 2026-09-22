@@ -152,15 +152,11 @@ function setup({
     AllMoneyAccountControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
 
-  rootMessenger.registerActionHandler(
-    'KeyringController:getState',
-    () =>
-      ({
-        keyrings,
-        isUnlocked,
-        vault: '',
-      }) as never,
-  );
+  rootMessenger.registerActionHandler('KeyringController:getState', () => ({
+    keyrings,
+    isUnlocked,
+    vault: '',
+  }));
 
   mocks.KeyringController.addNewKeyring.mockResolvedValue({
     id: 'mock-keyring-id',

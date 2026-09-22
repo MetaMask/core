@@ -226,7 +226,7 @@ export async function buildNativeAssetsFromApi(): Promise<
         const caipChainId = `eip155:${chain.chainId}` as ChainId;
         if (!nativeAssetsMap[caipChainId]) {
           nativeAssetsMap[caipChainId] =
-            `eip155:${chain.chainId}/slip44:${chain.slip44}` as Caip19AssetId;
+            `eip155:${chain.chainId}/slip44:${chain.slip44}`;
         }
       }
     }

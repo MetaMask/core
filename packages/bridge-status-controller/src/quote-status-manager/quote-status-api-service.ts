@@ -192,7 +192,7 @@ export class QuoteStatusApiService {
         for (const { path } of error.failures()) {
           const aggregatorId =
             (responseData as QuoteStatusGetResponse)?.submittedTx?.bridge ??
-            ('unknown' as string);
+            'unknown';
           const pathString = path?.join('.') || 'unknown';
           validationFailures.push([aggregatorId, pathString].join('|'));
         }

@@ -622,7 +622,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     } catch {
       throw new VaultConfigValidationError();
     }
-    return flagValue as unknown as VaultConfig;
+    return flagValue;
   }
 
   /**

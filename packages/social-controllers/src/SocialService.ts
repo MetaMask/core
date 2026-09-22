@@ -398,7 +398,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
           );
         }
-        return leaderboardData as LeaderboardResponse;
+        return leaderboardData;
       },
     });
 
@@ -435,7 +435,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
           );
         }
-        return traderProfileData as TraderProfileResponse;
+        return traderProfileData;
       },
     });
 
@@ -510,7 +510,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
           );
         }
-        return followersData as FollowersResponse;
+        return followersData;
       },
     });
 
@@ -547,7 +547,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
           );
         }
-        return positionData as Position;
+        return positionData;
       },
     });
 
@@ -612,7 +612,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
           );
         }
-        return feedData as FeedResponse;
+        return feedData;
       },
     });
 
@@ -682,7 +682,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
           );
         }
-        return feedData as FeedResponse;
+        return feedData;
       },
     });
 
@@ -726,7 +726,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
           );
         }
-        return metrics as CommentEngagement;
+        return metrics;
       },
     });
   }
@@ -766,7 +766,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
           );
         }
-        return metrics as CommentEngagement;
+        return metrics;
       },
     });
   }
@@ -797,7 +797,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
           );
         }
-        return followingData as FollowingResponse;
+        return followingData;
       },
     });
 
@@ -836,7 +836,7 @@ export class SocialService extends BaseDataService<
         if (!is(followData, FollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
         }
-        return followData as FollowResponse;
+        return followData;
       },
     });
 
@@ -879,7 +879,7 @@ export class SocialService extends BaseDataService<
         if (!is(unfollowData, UnfollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
         }
-        return unfollowData as UnfollowResponse;
+        return unfollowData;
       },
     });
 
@@ -1029,7 +1029,7 @@ export class SocialService extends BaseDataService<
         if (!is(positionsData, PositionsResponseStruct)) {
           throw new Error(invalidMessage);
         }
-        return positionsData as PositionsResponse;
+        return positionsData;
       },
     });
 

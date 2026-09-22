@@ -81,9 +81,7 @@ export class DetectionMiddleware {
 
           const stateAccountBalances = stateAssetsBalance[accountId] ?? {};
 
-          for (const assetId of Object.keys(
-            accountBalances as Record<string, unknown>,
-          )) {
+          for (const assetId of Object.keys(accountBalances)) {
             const caipAssetId = assetId as Caip19AssetId;
             // Skip if already tracked in state balances or already has metadata
             if (
@@ -166,9 +164,7 @@ export class DetectionMiddleware {
 
       if (response.assetsBalance) {
         for (const accountBalances of Object.values(response.assetsBalance)) {
-          for (const assetId of Object.keys(
-            accountBalances as Record<string, unknown>,
-          )) {
+          for (const assetId of Object.keys(accountBalances)) {
             maybeQueue(assetId as Caip19AssetId);
           }
         }

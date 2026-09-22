@@ -52,7 +52,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -268,8 +268,7 @@ describe('PriceDataSource', () => {
     // Generate 120 distinct mock asset IDs to exceed the 50-item batch limit.
     const assetIds = Array.from(
       { length: 120 },
-      (_, i) =>
-        `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
+      (_, i) => `eip155:1/erc20:0x${String(i).padStart(40, '0')}`,
     );
     const priceResponse = Object.fromEntries(
       assetIds.map((id) => [id, createMockPriceData(100)]),

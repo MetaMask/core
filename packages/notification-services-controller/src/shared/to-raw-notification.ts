@@ -33,5 +33,5 @@ export function toRawAPINotification(
   return {
     ...data,
     type: TRIGGER_TYPES.PLATFORM,
-  } as PlatformRawNotification;
+  };
 }

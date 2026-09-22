@@ -880,10 +880,8 @@ export class TransactionController extends BaseController<
           networkClientId,
         );
       }) as NetworkController['getNetworkClientById'],
-      getNetworkClientRegistry: (() =>
-        this.messenger.call(
-          'NetworkController:getNetworkClientRegistry',
-        )) as NetworkController['getNetworkClientRegistry'],
+      getNetworkClientRegistry: () =>
+        this.messenger.call('NetworkController:getNetworkClientRegistry'),
       removePendingTransactionTrackerListeners:
         this.#removePendingTransactionTrackerListeners.bind(this),
       createNonceTracker: this.#createNonceTracker.bind(this),
@@ -1258,7 +1256,7 @@ export class TransactionController extends BaseController<
             },
           );
 
-          return undefined;
+          return;
         })
         .catch(noop);
     }
@@ -1289,7 +1287,7 @@ export class TransactionController extends BaseController<
           },
         );
 
-        return undefined;
+        return;
       })
       .catch(noop);
 
@@ -3967,7 +3965,7 @@ export class TransactionController extends BaseController<
     try {
       return await this.#publishTransaction(transactionMeta);
     } catch (error: unknown) {
-      if (this.#isTransactionAlreadyConfirmedError(error as Error)) {
+      if (this.#isTransactionAlreadyConfirmedError(error)) {
         throw new Error('Previous transaction is already confirmed');
       }
       throw error;

@@ -204,8 +204,8 @@ describe('snaps-assets-migration', () => {
 
   describe('shouldSupportChain', () => {
     it('always surfaces non-migration namespaces regardless of flags', () => {
-      expect(shouldSupportChain('eip155:1' as ChainId, undefined)).toBe(true);
-      expect(shouldSupportChain('eip155:1' as ChainId, {})).toBe(true);
+      expect(shouldSupportChain('eip155:1', undefined)).toBe(true);
+      expect(shouldSupportChain('eip155:1', {})).toBe(true);
     });
 
     it('surfaces a migration chain once its stage is active', () => {

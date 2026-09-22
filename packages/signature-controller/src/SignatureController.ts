@@ -521,8 +521,7 @@ export class SignatureController extends BaseController<
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.rawSig = signature;
-      draftMetadata.status =
-        SignatureRequestStatus.Signed as SignatureRequestStatus;
+      draftMetadata.status = SignatureRequestStatus.Signed;
     });
   }
 
@@ -950,7 +949,7 @@ export class SignatureController extends BaseController<
 
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
-      callback(state as unknown as SignatureControllerState);
+      callback(state);
 
       const unapprovedRequests = Object.values(state.signatureRequests).filter(
         (request) => request.status === SignatureRequestStatus.Unapproved,
@@ -967,10 +966,10 @@ export class SignatureController extends BaseController<
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.unapprovedPersonalMsgs = personalSignMessages as any;
+      state.unapprovedPersonalMsgs = personalSignMessages;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.unapprovedTypedMessages = typedSignMessages as any;
+      state.unapprovedTypedMessages = typedSignMessages;
 
       state.unapprovedPersonalMsgCount =
         Object.values(personalSignMessages).length;

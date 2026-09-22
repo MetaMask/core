@@ -140,7 +140,7 @@ export async function filterWorkspacesWithTsconfig({
       if (await fileExists(filePath)) {
         return workspace;
       }
-      return undefined;
+      return;
     }),
   );
 

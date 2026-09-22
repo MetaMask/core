@@ -172,7 +172,7 @@ async function extractFromTar(
             path: absolutePath,
             binary: entry.path as Binary,
           });
-          return undefined;
+          return;
         },
       },
       binaries,

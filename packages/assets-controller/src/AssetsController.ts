@@ -618,7 +618,7 @@ function mergeAccountBalances(
   for (const customId of customAssetIds) {
     if (!Object.prototype.hasOwnProperty.call(next, customId)) {
       const prev = previousBalances[customId];
-      next[customId] = prev ?? ({ amount: '0' } as AssetBalance);
+      next[customId] = prev ?? { amount: '0' };
     }
   }
 
@@ -1317,10 +1317,12 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         result.applyPatch(
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
           state as Pick<
             AssetsControllerState,
             'assetsInfo' | 'assetsBalance' | 'assetsPrice'
           >,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
           {
             spamAssetIds: result.spamAssetIds,
           },
@@ -1474,7 +1476,7 @@ export class AssetsController extends BaseController<
   }> {
     return executeAssetsPipeline({
       ...params,
-      getAssetsState: () => this.state as AssetsControllerStateInternal,
+      getAssetsState: () => this.state,
       captureException: this.#captureException,
     });
   }
@@ -1703,7 +1705,7 @@ export class AssetsController extends BaseController<
   }
 
   getAssetMetadata(assetId: Caip19AssetId): AssetMetadata | undefined {
-    return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
+    return this.state.assetsInfo[assetId];
   }
 
   /**
@@ -3480,7 +3482,7 @@ export class AssetsController extends BaseController<
         }
       } else if (namespace === 'eip155' && isStrictHexString(reference)) {
         // Normalize hex to decimal for EIP155
-        result.push(`eip155:${parseInt(reference, 16)}` as ChainId);
+        result.push(`eip155:${parseInt(reference, 16)}`);
       } else {
         result.push(scope);
       }
@@ -3609,7 +3611,7 @@ export class AssetsController extends BaseController<
   #handleNetworkAdded(hexChainId: Hex): void {
     let caipChainId: ChainId;
     try {
-      caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+      caipChainId = `eip155:${parseInt(hexChainId, 16)}`;
     } catch {
       return;
     }
@@ -3655,7 +3657,7 @@ export class AssetsController extends BaseController<
       if (!hexChainId) {
         return undefined;
       }
-      return `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+      return `eip155:${parseInt(hexChainId, 16)}`;
     } catch {
       return undefined;
     }
@@ -3737,7 +3739,7 @@ export class AssetsController extends BaseController<
 
     let caipChainId: ChainId;
     try {
-      caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+      caipChainId = `eip155:${parseInt(hexChainId, 16)}`;
     } catch {
       return;
     }

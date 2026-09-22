@@ -553,7 +553,7 @@ function buildErc20AssetId(
 function readPath(root: unknown, path: string[]): unknown {
   return path.reduce<unknown>((cursor, key) => {
     if (!isObject(cursor) || !hasProperty(cursor, key)) {
-      return undefined;
+      return;
     }
     return cursor[key];
   }, root);

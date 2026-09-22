@@ -1240,13 +1240,13 @@ function getOriginalTxGasParams(
 
   return {
     chainId: Number(transaction.chainId),
-    data: (txParams.data as Hex) ?? ('0x' as Hex),
+    data: (txParams.data as Hex) ?? '0x',
     from: txParams.from as Hex,
     gas: gas ? String(gas) : undefined,
     maxFeePerGas: '0',
     maxPriorityFeePerGas: '0',
     to,
-    value: (txParams.value as string) ?? '0',
+    value: txParams.value ?? '0',
   };
 }
 

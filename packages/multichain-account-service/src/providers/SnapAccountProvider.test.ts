@@ -250,7 +250,7 @@ const setup = ({
         accounts.map(asKeyringAccount).find((a) => a.address === address),
       ),
   };
-  const metadata = { id: 'mock-keyring-id', name: '' } as KeyringMetadata;
+  const metadata = { id: 'mock-keyring-id', name: '' };
 
   mocks.KeyringController.withKeyringV2.mockImplementation(
     async (selector, operation) => {
