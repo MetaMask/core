@@ -42,7 +42,7 @@ import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
-  isAtomicMaxPromotionEnabled,
+  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -69,9 +69,8 @@ import {
 } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import {
-  getRelayMaxGasStationQuote,
+  getRelayMaxQuote,
   isSubsidizedAtomicMaxQuote,
-  maybePromoteSubsidizedMaxMoneyAccountQuote,
   throwAtomicPromotionFailed,
 } from './relay-max.js';
 import { validateRelayQuotes } from './relay-validation.js';
@@ -193,34 +192,7 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  const isAtomicPromotionEligible = isAtomicMaxPromotionEnabled(
-    fullRequest.messenger,
-    fullRequest.transaction,
-  );
-  // The required target amount may predate Max. An atomic hint does not
-  // establish the output obtainable from the source budget; discover it first.
-  const discoveryRequest =
-    request.atomic !== false &&
-    request.isPostQuote !== true &&
-    (isAtomicPromotionEligible ||
-      hasTransactionType(fullRequest.transaction, [
-        TransactionType.moneyAccountDeposit,
-      ]))
-      ? { ...request, atomic: false }
-      : request;
-
-  const discoveryQuote = await getRelayMaxGasStationQuote(
-    discoveryRequest,
-    fullRequest,
-    getSingleQuote,
-  );
-
-  return maybePromoteSubsidizedMaxMoneyAccountQuote({
-    discoveryQuote,
-    fullRequest,
-    getSingleQuote,
-    request: discoveryRequest,
-  });
+  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
 }
 
 /**
@@ -577,7 +549,7 @@ async function processTransactions(
   if (
     isMaxAmount &&
     (request.isPostQuote === true ||
-      !isAtomicMaxPromotionEnabled(messenger, transaction))
+      !isAtomicMaxEnabled(messenger, transaction))
   ) {
     throw new Error('Max amount quotes do not support included transactions');
   }

@@ -11,7 +11,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { prefixError } from '../../utils/error-prefix.js';
-import { isAtomicMaxPromotionEnabled } from '../../utils/feature-flags.js';
+import { isAtomicMaxEnabled } from '../../utils/feature-flags.js';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
@@ -58,6 +58,93 @@ type MaxAmountQuoteContext = {
   messenger: TransactionPayControllerMessenger;
   request: QuoteRequest;
 };
+
+/**
+ * Fetch a max quote using the client's atomic hint for subsidized routes.
+ *
+ * @param request - Max quote request.
+ * @param fullRequest - Full quote context.
+ * @param getSingleQuote - Fetcher for a single Relay quote.
+ * @returns An atomic subsidized quote or a non-atomic max quote.
+ */
+export async function getRelayMaxQuote(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+  getSingleQuote: GetSingleQuoteFn,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const { messenger, transaction } = fullRequest;
+  const { atomic, isPostQuote } = request;
+
+  if (isPostQuote || !isAtomicMaxEnabled(messenger, transaction)) {
+    return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
+  }
+
+  if (atomic !== false) {
+    const sourceToken = getTokenInfo(
+      messenger,
+      request.sourceTokenAddress,
+      request.sourceChainId,
+    );
+    const targetToken = getTokenInfo(
+      messenger,
+      request.targetTokenAddress,
+      request.targetChainId,
+    );
+
+    if (!sourceToken || !targetToken) {
+      throw new Error('Token decimals not found for atomic max quote');
+    }
+
+    // Fixed-spread subsidized routes exchange stablecoins 1:1 without fees.
+    // Use the source budget, not the required amount from before Max.
+    const targetAmount = new BigNumber(request.sourceTokenAmount)
+      .shiftedBy(targetToken.decimals - sourceToken.decimals)
+      .toFixed(0, BigNumber.ROUND_DOWN);
+    const quote = await getAtomicMaxQuote({
+      amount: targetAmount,
+      fullRequest,
+      getSingleQuote,
+      request,
+    });
+
+    if (isSubsidizedRelayQuote(quote.original)) {
+      return quote;
+    }
+
+    return getRelayMaxGasStationQuote(
+      { ...request, atomic: false },
+      fullRequest,
+      getSingleQuote,
+    );
+  }
+
+  const quote = await getRelayMaxGasStationQuote(
+    request,
+    fullRequest,
+    getSingleQuote,
+  );
+
+  if (!isSubsidizedRelayQuote(quote.original)) {
+    return quote;
+  }
+
+  try {
+    const promotedQuote = await getAtomicMaxQuote({
+      amount: quote.original.details.currencyOut.amount,
+      fullRequest,
+      getSingleQuote,
+      request,
+    });
+
+    if (!isSubsidizedRelayQuote(promotedQuote.original)) {
+      throw new Error('Promoted quote lost subsidy');
+    }
+
+    return promotedQuote;
+  } catch (error) {
+    return throwAtomicPromotionFailed(error);
+  }
+}
 
 /**
  * Returns a Relay max-amount quote using a two-phase gas-station fallback.
@@ -474,56 +561,32 @@ function markQuoteAsMaxGasStation(
   };
 }
 
-export async function maybePromoteSubsidizedMaxMoneyAccountQuote({
-  discoveryQuote,
+async function getAtomicMaxQuote({
+  amount,
   fullRequest,
   getSingleQuote,
   request,
 }: {
-  discoveryQuote: TransactionPayQuote<RelayQuote>;
+  amount: string;
   fullRequest: PayStrategyGetQuotesRequest;
   getSingleQuote: GetSingleQuoteFn;
   request: QuoteRequest;
 }): Promise<TransactionPayQuote<RelayQuote>> {
-  if (
-    !shouldAttemptAtomicPromotion(
-      request,
-      fullRequest.transaction,
-      discoveryQuote,
-      fullRequest.messenger,
-    )
-  ) {
-    return discoveryQuote;
-  }
+  const targetAmount = validatePositiveIntegerString(amount);
+  const atomicTransaction = await applyAmountDataUpdates({
+    amount: targetAmount,
+    messenger: fullRequest.messenger,
+    transaction: cloneTransactionForPromotion(fullRequest.transaction),
+  });
 
-  try {
-    const targetAmount = validatePositiveIntegerString(
-      discoveryQuote.original.details.currencyOut.amount,
-    );
-
-    const promotionTransaction = await applyAmountDataUpdates({
-      amount: targetAmount,
-      messenger: fullRequest.messenger,
-      transaction: cloneTransactionForPromotion(fullRequest.transaction),
-    });
-
-    const promotedQuote = await getSingleQuote(
-      {
-        ...request,
-        atomic: true,
-        targetAmountMinimum: targetAmount,
-      },
-      { ...fullRequest, transaction: promotionTransaction },
-    );
-
-    if (!isSubsidizedRelayQuote(promotedQuote.original)) {
-      throw new Error('Promoted quote lost subsidy');
-    }
-
-    return promotedQuote;
-  } catch (error) {
-    return throwAtomicPromotionFailed(error);
-  }
+  return getSingleQuote(
+    {
+      ...request,
+      atomic: true,
+      targetAmountMinimum: targetAmount,
+    },
+    { ...fullRequest, transaction: atomicTransaction },
+  );
 }
 
 export function throwAtomicPromotionFailed(error: unknown): never {
@@ -542,21 +605,6 @@ export function isSubsidizedAtomicMaxQuote(
     quote.request.isMaxAmount === true &&
     quote.request.atomic === true &&
     isSubsidizedRelayQuote(quote.original)
-  );
-}
-
-function shouldAttemptAtomicPromotion(
-  request: QuoteRequest,
-  transaction: TransactionMeta,
-  discoveryQuote: TransactionPayQuote<RelayQuote>,
-  messenger: TransactionPayControllerMessenger,
-): boolean {
-  return (
-    isAtomicMaxPromotionEnabled(messenger, transaction) &&
-    request.isMaxAmount === true &&
-    request.isPostQuote !== true &&
-    request.atomic !== true &&
-    isSubsidizedRelayQuote(discoveryQuote.original)
   );
 }
 

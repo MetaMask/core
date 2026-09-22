@@ -195,7 +195,7 @@ export type RelayValidationEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
-export type AtomicMaxPromotionEnabledConfig = {
+export type AtomicMaxEnabledConfig = {
   default?: boolean;
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
@@ -204,7 +204,7 @@ type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
-      atomicMaxPromotionEnabled?: AtomicMaxPromotionEnabledConfig;
+      atomicMaxEnabled?: AtomicMaxEnabledConfig;
       gaslessEnabled?: boolean;
       validationEnabled?: RelayValidationEnabledConfig;
     };
@@ -696,24 +696,24 @@ export function isRelayValidationEnabled(
 }
 
 /**
- * Whether atomic max promotion is enabled for a given transaction.
+ * Whether atomic max quotes are enabled for a given transaction.
  *
- * Gates promotion of subsidized max deposits to atomic exact-output quotes.
+ * Gates subsidized max deposits using atomic exact-output quotes.
  *
- * Configured via the `payStrategies.relay.atomicMaxPromotionEnabled` flag, an
+ * Configured via the `payStrategies.relay.atomicMaxEnabled` flag, an
  * object `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
  * a matching `transactionTypes[type]` entry overrides `default` when the
  * transaction, or any nested transaction, has that type.
  *
- * When the flag is absent, only direct Money Account deposits are eligible,
- * preserving the pre-flag promotion scope.
+ * When the flag or its default is absent, atomic max is disabled unless a
+ * matching transaction type override enables it.
  *
  * @param messenger - Controller messenger.
  * @param transaction - Transaction being quoted. Its top-level and nested
  * types are matched against the `transactionTypes` overrides.
- * @returns True if atomic max promotion may be attempted.
+ * @returns True if atomic max quotes are enabled.
  */
-export function isAtomicMaxPromotionEnabled(
+export function isAtomicMaxEnabled(
   messenger: TransactionPayControllerMessenger,
   transaction?: TransactionMeta,
 ): boolean {
@@ -723,10 +723,9 @@ export function isAtomicMaxPromotionEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const promotionEnabled =
-    featureFlags.payStrategies?.relay?.atomicMaxPromotionEnabled;
+  const atomicMaxEnabled = featureFlags.payStrategies?.relay?.atomicMaxEnabled;
 
-  const transactionTypes = promotionEnabled?.transactionTypes ?? {};
+  const transactionTypes = atomicMaxEnabled?.transactionTypes ?? {};
 
   // A per-type override wins over the global `default` toggle. An override
   // matches when the transaction, or any nested transaction, has that type.
@@ -736,11 +735,7 @@ export function isAtomicMaxPromotionEnabled(
     }
   }
 
-  // Absent flag preserves the original scope: direct Money Account deposits.
-  return (
-    promotionEnabled?.default ??
-    hasTransactionType(transaction, [TransactionType.moneyAccountDeposit])
-  );
+  return atomicMaxEnabled?.default ?? false;
 }
 
 /**

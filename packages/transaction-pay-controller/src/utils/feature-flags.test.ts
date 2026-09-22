@@ -37,7 +37,7 @@ import {
   isEIP7702Chain,
   getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
-  isAtomicMaxPromotionEnabled,
+  isAtomicMaxEnabled,
   isRelayValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
@@ -769,18 +769,18 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('isAtomicMaxPromotionEnabled', () => {
-    it('returns true for a Money Account deposit when no flag is set', () => {
+  describe('isAtomicMaxEnabled', () => {
+    it('returns false for a Money Account deposit when no flag is set', () => {
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
-      ).toBe(true);
+      ).toBe(false);
     });
 
     it('returns false for a non-Money Account deposit when no flag is set', () => {
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.perpsDeposit,
         } as TransactionMeta),
       ).toBe(false);
@@ -792,13 +792,13 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay_extended: {
             payStrategies: {
-              relay: { atomicMaxPromotionEnabled: { default: false } },
+              relay: { atomicMaxEnabled: { default: false } },
             },
           },
         },
       });
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(false);
@@ -810,13 +810,13 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay_extended: {
             payStrategies: {
-              relay: { atomicMaxPromotionEnabled: { default: true } },
+              relay: { atomicMaxEnabled: { default: true } },
             },
           },
         },
       });
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.perpsDeposit,
         } as TransactionMeta),
       ).toBe(true);
@@ -829,7 +829,7 @@ describe('Feature Flags Utils', () => {
           confirmations_pay_extended: {
             payStrategies: {
               relay: {
-                atomicMaxPromotionEnabled: {
+                atomicMaxEnabled: {
                   default: false,
                   transactionTypes: {
                     [TransactionType.perpsDeposit]: true,
@@ -841,7 +841,7 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.perpsDeposit,
         } as TransactionMeta),
       ).toBe(true);
@@ -854,7 +854,7 @@ describe('Feature Flags Utils', () => {
           confirmations_pay_extended: {
             payStrategies: {
               relay: {
-                atomicMaxPromotionEnabled: {
+                atomicMaxEnabled: {
                   default: true,
                   transactionTypes: {
                     [TransactionType.moneyAccountDeposit]: false,
@@ -866,7 +866,7 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(false);
@@ -879,7 +879,7 @@ describe('Feature Flags Utils', () => {
           confirmations_pay_extended: {
             payStrategies: {
               relay: {
-                atomicMaxPromotionEnabled: {
+                atomicMaxEnabled: {
                   default: true,
                   transactionTypes: {
                     [TransactionType.perpsDeposit]: false,
@@ -891,7 +891,7 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(
-        isAtomicMaxPromotionEnabled(messenger, {
+        isAtomicMaxEnabled(messenger, {
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(true);
