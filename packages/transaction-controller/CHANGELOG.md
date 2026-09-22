@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `isGasFeeSponsored` and `isExternalSign` remain in the public types as deprecated compatibility properties but no longer control the transaction lifecycle; `isGasFeeSponsored` remains available as migration metadata.
   - Add `TransactionMeta.isGasFeeSponsoredAvailable` and refresh it during approval preparation when simulation is enabled so sponsorship hooks receive current availability without overriding simulation preferences.
 - Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `bignumber.js` from `^9.1.2` to `^11.1.5` ([#10380](https://github.com/MetaMask/core/pull/10380))
 
 ## [70.1.0]
 
