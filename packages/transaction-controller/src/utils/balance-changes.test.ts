@@ -452,7 +452,6 @@ describe('Balance Change Utils', () => {
                 pre: {
                   [USER_ADDRESS_MOCK]: { balance: '0x10' },
                   [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
-                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x0' },
                 },
                 post: {
                   [USER_ADDRESS_MOCK]: { balance: '0xb' },
@@ -464,7 +463,13 @@ describe('Balance Change Utils', () => {
           ],
         } as unknown as SimulationResponse);
 
-        const result = await getBalanceChanges(REQUEST_MOCK);
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            value: '0x5',
+          },
+        });
 
         expect(result).toStrictEqual({
           simulationData: {
@@ -479,6 +484,29 @@ describe('Balance Change Utils', () => {
           },
           gasUsed: undefined,
           simulationRevert: undefined,
+        });
+      });
+
+      it('looks up the sender balance using a case-insensitive address', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x10', '0xb'),
+        );
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            from: USER_ADDRESS_MOCK.toUpperCase() as Hex,
+            maxFeePerGas: undefined,
+            gasPrice: undefined,
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x5',
+          isDecrease: true,
+          newBalance: '0xb',
+          previousBalance: '0x10',
         });
       });
     });

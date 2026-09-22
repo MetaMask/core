@@ -214,7 +214,7 @@ function getNativeBalanceChange(
   }
 
   const { txParams } = request;
-  const userAddress = txParams.from as Hex;
+  const userAddress = txParams.from.toLowerCase() as Hex;
   const { stateDiff } = transactionResponse;
   const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
   const newBalance = stateDiff?.post?.[userAddress]?.balance;
@@ -226,7 +226,12 @@ function getNativeBalanceChange(
   return getSimulationBalanceChange(
     previousBalance,
     newBalance,
-    isGasCostDeductedFromSender(txParams, stateDiff)
+    isGasCostDeductedFromSender(
+      txParams,
+      previousBalance,
+      newBalance,
+      stateDiff,
+    )
       ? transactionResponse.gasCost
       : undefined,
   );
@@ -240,15 +245,20 @@ function getNativeBalanceChange(
  *
  * - The sender is only charged when the simulated transaction specifies a fee
  * per gas.
+ * - If the sender lost exactly the transaction value, gas was not charged.
  * - Some chains credit the fee recipient without debiting the sender, which is
  * detectable because it increases the total native balance.
  *
  * @param txParams - Parameters of the simulated transaction.
+ * @param previousBalance - Sender native balance before the simulation.
+ * @param newBalance - Sender native balance after the simulation.
  * @param stateDiff - Native balances before and after the simulation.
  * @returns Whether the gas cost was deducted from the sender.
  */
 function isGasCostDeductedFromSender(
   txParams: TransactionParams,
+  previousBalance: Hex,
+  newBalance: Hex,
   stateDiff: SimulationResponseTransaction['stateDiff'],
 ): boolean {
   const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
@@ -256,6 +266,14 @@ function isGasCostDeductedFromSender(
     | undefined;
 
   if (!feePerGas || hexToBN(feePerGas).isZero()) {
+    return false;
+  }
+
+  const extraLoss = hexToBN(previousBalance)
+    .sub(hexToBN(newBalance))
+    .sub(hexToBN(txParams.value ?? '0x0'));
+
+  if (extraLoss.isZero()) {
     return false;
   }
 
@@ -282,12 +300,8 @@ function isNativeBalanceCreated(
   ]);
 
   const totalBalanceChange = [...addresses].reduce((total, address) => {
-    const previousBalance = previousState[address as Hex]?.balance;
-    const newBalance = newState[address as Hex]?.balance;
-
-    if (!previousBalance || !newBalance) {
-      return total;
-    }
+    const previousBalance = previousState[address as Hex]?.balance ?? '0x0';
+    const newBalance = newState[address as Hex]?.balance ?? '0x0';
 
     return total.add(hexToBN(newBalance).sub(hexToBN(previousBalance)));
   }, new BN(0));
