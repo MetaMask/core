@@ -298,6 +298,33 @@ describe('TradingService', () => {
       );
     });
 
+    it('prices a skewed Scale ladder from its weighted rung prices', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          orderType: 'scale',
+          scaleMinPrice: '40000',
+          scaleMaxPrice: '60000',
+          scaleNumOrders: 3,
+          scaleSkew: 2,
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // The provider's sizes are weighted 1 : 1.5 : 2 across 40000, 50000,
+      // and 60000. The resulting weighted average is 51111.11 USD.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(1);
+      expect(
+        mockRewardsIntegrationService.resolveFee.mock.calls[0][0],
+      ).toBeCloseTo((40000 + 50000 * 1.5 + 60000 * 2) * (0.02 / 4.5), 10);
+    });
+
     it('prefers a stated USD amount over the Scale ladder bounds', async () => {
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 
@@ -2547,9 +2574,33 @@ describe('TradingService', () => {
         context: { ...mockContext, getPositions: mockGetPositions },
       });
 
-      // 0.1 BTC at the 55000 take-profit trigger.
+      // 0.1 BTC at the 45000 stop-loss trigger.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
-        5500,
+        4500,
+      );
+    });
+
+    it('prices a mixed TP/SL update from the full-size trigger', async () => {
+      // An omitted trigger size covers the whole position. The provider submits
+      // that trigger alongside the explicit partial trigger, so the fee must be
+      // resolved against the larger full-position notional.
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          takeProfitPrice: '55000',
+          stopLossPrice: '45000',
+          takeProfitSize: '0.05',
+          position: mockPosition,
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        25000,
       );
     });
 

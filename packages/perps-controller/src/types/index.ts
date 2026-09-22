@@ -2726,9 +2726,8 @@ export type PerpsPlatformDependencies = {
      * Register the current HyperLiquid trading address (CAIP-10) against the
      * subscription profile, so a later fill can be attributed to it.
      *
-     * Optional: `SubscriptionController` exposes no address-registration action
-     * yet, so a client that cannot perform this simply omits it and the
-     * controller skips registration.
+     * Optional compatibility fallback for clients that do not register the
+     * structural `SubscriptionController:registerAddress` action.
      */
     registerTradingAddress?(caipAccountId: string): Promise<void>;
   };

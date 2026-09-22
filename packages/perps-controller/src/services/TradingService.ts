@@ -34,7 +34,10 @@ import type {
   PerpsFeeResolution,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
-import { isLimitExecutionOrderType } from '../utils/orderTypes.js';
+import {
+  isLimitExecutionOrderType,
+  SCALE_ORDER_COUNT,
+} from '../utils/orderTypes.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
 
@@ -1323,6 +1326,10 @@ export class TradingService {
    * placement is one.
    * @param params.scaleMaxPrice - Highest rung of a Scale ladder, when the
    * placement is one.
+   * @param params.scaleNumOrders - Number of rungs in a Scale ladder, when
+   * the placement supplies it.
+   * @param params.scaleSkew - Optional linear size weighting across a Scale
+   * ladder. A value above 1 puts more size on the highest-price rungs.
    * @returns The order notional in USD, or undefined when it cannot be priced.
    */
   #resolveOrderNotionalUsd(params: {
@@ -1334,6 +1341,8 @@ export class TradingService {
     priceAtCalculation?: number;
     scaleMinPrice?: string;
     scaleMaxPrice?: string;
+    scaleNumOrders?: number;
+    scaleSkew?: number;
   }): number | undefined {
     const usdAmount =
       params.usdAmount === undefined
@@ -1361,10 +1370,13 @@ export class TradingService {
       params.triggerPrice === undefined
         ? undefined
         : Number.parseFloat(params.triggerPrice);
-    // A Scale ladder states no single price: its rungs span `scaleMinPrice` to
-    // `scaleMaxPrice`, so the midpoint is what the whole ladder averages out
-    // at. Without this a bounded waiver is withheld from every Scale placement
-    // that carries no USD amount, after a preview that quoted one.
+    // A Scale ladder states no single price. For an even ladder the midpoint
+    // is its average price, but a skew weights the rung sizes, so the midpoint
+    // is no longer the ladder's notional price. Use the same linear weights as
+    // `splitScaleSizes` when the caller supplies the rung count. The provider
+    // rounds each rung onto its venue size grid later; this is the equivalent
+    // weighted calculation before that bounded rounding, without making the
+    // service depend on provider-specific market metadata.
     const scaleMinPrice =
       params.scaleMinPrice === undefined
         ? undefined
@@ -1373,20 +1385,44 @@ export class TradingService {
       params.scaleMaxPrice === undefined
         ? undefined
         : Number.parseFloat(params.scaleMaxPrice);
-    const scaleMidPrice =
+    const scaleWeightedPrice =
       scaleMinPrice !== undefined &&
       scaleMaxPrice !== undefined &&
       Number.isFinite(scaleMinPrice) &&
       Number.isFinite(scaleMaxPrice) &&
       scaleMinPrice > 0 &&
       scaleMaxPrice > 0
-        ? (scaleMinPrice + scaleMaxPrice) / 2
+        ? ((): number => {
+            const count = params.scaleNumOrders;
+            const skew = params.scaleSkew;
+            if (
+              count === undefined ||
+              !Number.isInteger(count) ||
+              count < SCALE_ORDER_COUNT.min ||
+              count > SCALE_ORDER_COUNT.max ||
+              (skew !== undefined && (!Number.isFinite(skew) || skew <= 0))
+            ) {
+              return (scaleMinPrice + scaleMaxPrice) / 2;
+            }
+
+            let weightedPrice = 0;
+            let weightSum = 0;
+            for (let index = 0; index < count; index++) {
+              const weight = 1 + (((skew ?? 1) - 1) * index) / (count - 1);
+              const price =
+                scaleMinPrice +
+                ((scaleMaxPrice - scaleMinPrice) * index) / (count - 1);
+              weightedPrice += price * weight;
+              weightSum += weight;
+            }
+            return weightedPrice / weightSum;
+          })()
         : undefined;
 
     const price = [
       limitPrice,
       triggerPrice,
-      scaleMidPrice,
+      scaleWeightedPrice,
       params.priceAtCalculation,
       params.currentPrice,
     ]
@@ -2433,34 +2469,55 @@ export class TradingService {
             })
           )?.positionValue,
         });
+      let positionNotionalUsdPromise: Promise<number | undefined> | undefined;
+      const getPositionNotionalUsd = (): Promise<number | undefined> =>
+        (positionNotionalUsdPromise ??= positionNotionalUsd());
 
-      const triggerSize = [params.takeProfitSize, params.stopLossSize]
-        .map((size) => (size === undefined ? NaN : Number.parseFloat(size)))
-        .filter((size) => Number.isFinite(size) && size > 0)
-        .reduce<number | undefined>(
-          (largest, size) =>
-            largest === undefined || size > largest ? size : largest,
-          undefined,
-        );
+      // Each trigger has its own price and submitted size. An omitted size is
+      // resolved by the provider as the full position, so mixed partial/full
+      // updates must include the position notional when selecting the largest
+      // trigger for the shared builder context.
+      const triggerNotionalsUsd = await Promise.all(
+        [
+          {
+            price: params.takeProfitPrice,
+            size: params.takeProfitSize,
+          },
+          {
+            price: params.stopLossPrice,
+            size: params.stopLossSize,
+          },
+        ]
+          .filter(
+            (trigger): trigger is { price: string; size: string | undefined } =>
+              trigger.price !== undefined,
+          )
+          .map(async ({ price, size }) =>
+            size === undefined
+              ? getPositionNotionalUsd()
+              : this.#resolveOrderNotionalUsd({
+                  size,
+                  price,
+                  currentPrice:
+                    params.trackingData?.entryPrice ??
+                    (params.position?.entryPrice === undefined
+                      ? undefined
+                      : Number.parseFloat(params.position.entryPrice)),
+                }),
+          ),
+      );
 
-      const partialNotionalUsd =
-        triggerSize === undefined
-          ? undefined
-          : this.#resolveOrderNotionalUsd({
-              size: triggerSize.toString(),
-              price: params.takeProfitPrice ?? params.stopLossPrice,
-              currentPrice:
-                params.trackingData?.entryPrice ??
-                (params.position?.entryPrice === undefined
-                  ? undefined
-                  : Number.parseFloat(params.position.entryPrice)),
-            });
-
-      // An unpriceable partial still falls back to the position rather than
+      // An unpriceable trigger still falls back to the position rather than
       // resolving to no notional: over-pricing withholds part of a waiver,
       // while no notional withholds a bounded one entirely.
+      const pricedTriggerNotionalsUsd = triggerNotionalsUsd.filter(
+        (notional): notional is number =>
+          notional !== undefined && Number.isFinite(notional) && notional > 0,
+      );
       const tpslNotionalUsd =
-        partialNotionalUsd ?? (await positionNotionalUsd());
+        pricedTriggerNotionalsUsd.length > 0
+          ? Math.max(...pricedTriggerNotionalsUsd)
+          : await getPositionNotionalUsd();
       const feeResolution =
         await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
 

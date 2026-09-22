@@ -31,6 +31,16 @@ import type { SubscriptionControllerGetBenefitsAction } from '@metamask/subscrip
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
 
 /**
+ * Optional action exposed by clients that own subscription address
+ * registration. It is structural because older SubscriptionController
+ * versions do not expose it yet; callers fall back to the injected hook.
+ */
+export type SubscriptionControllerRegisterAddressAction = {
+  type: `SubscriptionController:registerAddress`;
+  handler: (caipAccountId: string) => Promise<void>;
+};
+
+/**
  * Actions from other controllers that PerpsController is allowed to call.
  *
  * `SubscriptionController:getBenefits` is the real action this monorepo's
@@ -41,6 +51,7 @@ import type { TransactionControllerAddTransactionAction } from '@metamask/transa
  */
 export type PerpsControllerAllowedActions =
   | SubscriptionControllerGetBenefitsAction
+  | SubscriptionControllerRegisterAddressAction
   | GeolocationControllerGetGeolocationAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction

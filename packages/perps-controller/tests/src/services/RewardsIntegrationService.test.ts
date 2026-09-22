@@ -1356,6 +1356,21 @@ describe('RewardsIntegrationService', () => {
       );
     });
 
+    it('registers through SubscriptionController for messenger-only clients', async () => {
+      const registerAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults({
+        'SubscriptionController:registerAddress': registerAddress,
+      });
+
+      await service.registerTradingAddress(mockEvmAccount.address, {
+        isTestnet: true,
+      });
+
+      expect(registerAddress).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:998:0x/u),
+      );
+    });
+
     it('does not cache a registration that an invalidation superseded', async () => {
       // A registration issued for profile A must not mark itself complete after
       // the profile changed: the new profile would then skip its own

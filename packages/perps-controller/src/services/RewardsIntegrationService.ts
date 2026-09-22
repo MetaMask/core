@@ -586,18 +586,9 @@ export class RewardsIntegrationService {
    * never throws: it is observability plumbing, and a failure here must not
    * block a fee preview.
    *
-   * `SubscriptionController` exposes no address-registration action today, so
-   * this runs entirely through the injected `subscription` dependency when a
-   * client supplies one. Wiring it to a messenger action is left until that
-   * action exists rather than calling a name nothing answers.
-   *
-   * **A messenger-only client therefore registers nothing.** Benefits hydration
-   * works over `SubscriptionController:getBenefits`, but a client that adopts
-   * only the messenger and injects no `registerTradingAddress` hook gets no
-   * address registration at all, and its fills cannot be attributed to a
-   * profile. That is a wiring gap rather than a failure, so it is logged rather
-   * than raised; supplying the hook — or a registration action, once one exists
-   * — is what closes it.
+   * New clients may route this through the structural
+   * `SubscriptionController:registerAddress` action. Older clients continue to
+   * use the injected `subscription` hook as a compatibility fallback.
    *
    * @param address - The EVM trading address to register.
    * @param options - Registration options.
@@ -610,18 +601,6 @@ export class RewardsIntegrationService {
     address: string,
     options?: { isTestnet?: boolean },
   ): Promise<void> {
-    const source = this.#deps.subscription;
-    if (!source?.registerTradingAddress) {
-      // Visible rather than silent: a client wired only to the messenger has no
-      // way to register, and a missing registration is otherwise indetectable
-      // until fills arrive unattributed.
-      this.#deps.debugLogger.log(
-        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
-        { address },
-      );
-      return;
-    }
-
     try {
       // HyperLiquid's own chain, not the wallet's selected network. The address
       // is being announced so a fill decoded off the HyperLiquid fan-out can be
@@ -648,14 +627,51 @@ export class RewardsIntegrationService {
         return;
       }
 
+      // Capture the identity before invoking either integration. If profile
+      // invalidation happens while the handler is pending, its completion must
+      // not repopulate the registration cache for the old profile.
+      const epoch = this.#benefitsEpoch;
+
+      // New clients can route registration through SubscriptionController.
+      // Older clients do not expose this action and continue using the
+      // injected hook below.
+      let registration: Promise<void> | undefined;
+      try {
+        const result = this.#messenger.call(
+          'SubscriptionController:registerAddress',
+          caipAccountId,
+        );
+        if (result !== undefined) {
+          registration = Promise.resolve(result);
+        }
+      } catch (error) {
+        if (!isUnregisteredActionError(error) && !this.#deps.subscription) {
+          throw error;
+        }
+      }
+
+      if (!registration) {
+        const source = this.#deps.subscription;
+        if (!source?.registerTradingAddress) {
+          // Visible rather than silent: a client wired only to benefits has no
+          // way to register, and a missing registration is otherwise
+          // indetectable until fills arrive unattributed.
+          this.#deps.debugLogger.log(
+            'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+            { address },
+          );
+          return;
+        }
+        registration = source.registerTradingAddress(caipAccountId);
+      }
+
       // Fence the completion against an invalidation that lands while this
       // registration is in flight. `invalidateSubscriptionBenefits` clears the
       // registered set because the profile behind it changed; writing back
       // afterwards would re-add an address registered for the *previous*
       // profile, and the new profile would then skip its own registration and
       // leave its fills unattributable.
-      const epoch = this.#benefitsEpoch;
-      await source.registerTradingAddress(caipAccountId);
+      await registration;
       if (epoch !== this.#benefitsEpoch) {
         this.#deps.debugLogger.log(
           'RewardsIntegrationService: Trading address registration superseded',
