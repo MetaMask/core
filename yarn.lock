@@ -3220,41 +3220,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@emnapi/core@npm:1.11.0":
-  version: 1.11.0
-  resolution: "@emnapi/core@npm:1.11.0"
+"@emnapi/core@npm:1.11.2, @emnapi/core@npm:^1.4.3":
+  version: 1.11.2
+  resolution: "@emnapi/core@npm:1.11.2"
   dependencies:
     "@emnapi/wasi-threads": "npm:1.2.2"
     tslib: "npm:^2.4.0"
-  checksum: 10/7c6f7fe38dd16f98d0081d58e23a6184fccffaba6bef113fa4f689478b673c988cb8dd1a93d0d66dfc7bb487d67837827ac0bd1a578fffe4c7db2ba07ae39c78
+  checksum: 10/b3e9693f79ca1d8bb90cb8a950150c7738f54eca0ae1849d3d5103a87ce4e388c2669fb253cc123d3449ad2ae12583435455dbdc0270b1e9efb0cfd502c952b4
   languageName: node
   linkType: hard
 
-"@emnapi/core@npm:1.11.1, @emnapi/core@npm:^1.4.3":
-  version: 1.11.1
-  resolution: "@emnapi/core@npm:1.11.1"
-  dependencies:
-    "@emnapi/wasi-threads": "npm:1.2.2"
-    tslib: "npm:^2.4.0"
-  checksum: 10/9aba37e0c11a75ef8372fd0a9c6e5396f4e8c1ebdd6fee737414787610a9dc1cd9bf188f525153561ca9363896e1135dd240f1ce28f3470dba3ad7e683e6db1a
-  languageName: node
-  linkType: hard
-
-"@emnapi/runtime@npm:1.11.0":
-  version: 1.11.0
-  resolution: "@emnapi/runtime@npm:1.11.0"
+"@emnapi/runtime@npm:1.11.2, @emnapi/runtime@npm:^1.4.3":
+  version: 1.11.2
+  resolution: "@emnapi/runtime@npm:1.11.2"
   dependencies:
     tslib: "npm:^2.4.0"
-  checksum: 10/c0f064646456d836c72cbc71baa9fe128be011ffb3e2ccbffa624cfe77d6b66aab3aa6635fbbab34a187a16d4833ef14016fcef2b189753aaa8f987843e0fc26
-  languageName: node
-  linkType: hard
-
-"@emnapi/runtime@npm:1.11.1, @emnapi/runtime@npm:^1.4.3":
-  version: 1.11.1
-  resolution: "@emnapi/runtime@npm:1.11.1"
-  dependencies:
-    tslib: "npm:^2.4.0"
-  checksum: 10/8f7c622a49314df4d07952110e108e83b0fe129a8ddb9ef1e0ae372d754616169d5b0dd47a0d354a0fea2612abe42cedb582d15916936d1320c6c468acc804cc
+  checksum: 10/280a219d3bf302615dabaaa248223b0e5fe9c49bacf0987dd958ca37ab425b62cf05287053cb188e711681418aaa5e447eaed6b62a0848c0a1303b2707864600
   languageName: node
   linkType: hard
 
@@ -3299,184 +3280,184 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@esbuild/aix-ppc64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/aix-ppc64@npm:0.25.9"
+"@esbuild/aix-ppc64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/aix-ppc64@npm:0.28.2"
   conditions: os=aix & cpu=ppc64
   languageName: node
   linkType: hard
 
-"@esbuild/android-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/android-arm64@npm:0.25.9"
+"@esbuild/android-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/android-arm64@npm:0.28.2"
   conditions: os=android & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/android-arm@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/android-arm@npm:0.25.9"
+"@esbuild/android-arm@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/android-arm@npm:0.28.2"
   conditions: os=android & cpu=arm
   languageName: node
   linkType: hard
 
-"@esbuild/android-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/android-x64@npm:0.25.9"
+"@esbuild/android-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/android-x64@npm:0.28.2"
   conditions: os=android & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/darwin-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/darwin-arm64@npm:0.25.9"
+"@esbuild/darwin-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/darwin-arm64@npm:0.28.2"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/darwin-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/darwin-x64@npm:0.25.9"
+"@esbuild/darwin-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/darwin-x64@npm:0.28.2"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/freebsd-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/freebsd-arm64@npm:0.25.9"
+"@esbuild/freebsd-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/freebsd-arm64@npm:0.28.2"
   conditions: os=freebsd & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/freebsd-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/freebsd-x64@npm:0.25.9"
+"@esbuild/freebsd-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/freebsd-x64@npm:0.28.2"
   conditions: os=freebsd & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/linux-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-arm64@npm:0.25.9"
+"@esbuild/linux-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-arm64@npm:0.28.2"
   conditions: os=linux & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/linux-arm@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-arm@npm:0.25.9"
+"@esbuild/linux-arm@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-arm@npm:0.28.2"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@esbuild/linux-ia32@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-ia32@npm:0.25.9"
+"@esbuild/linux-ia32@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-ia32@npm:0.28.2"
   conditions: os=linux & cpu=ia32
   languageName: node
   linkType: hard
 
-"@esbuild/linux-loong64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-loong64@npm:0.25.9"
+"@esbuild/linux-loong64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-loong64@npm:0.28.2"
   conditions: os=linux & cpu=loong64
   languageName: node
   linkType: hard
 
-"@esbuild/linux-mips64el@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-mips64el@npm:0.25.9"
+"@esbuild/linux-mips64el@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-mips64el@npm:0.28.2"
   conditions: os=linux & cpu=mips64el
   languageName: node
   linkType: hard
 
-"@esbuild/linux-ppc64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-ppc64@npm:0.25.9"
+"@esbuild/linux-ppc64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-ppc64@npm:0.28.2"
   conditions: os=linux & cpu=ppc64
   languageName: node
   linkType: hard
 
-"@esbuild/linux-riscv64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-riscv64@npm:0.25.9"
+"@esbuild/linux-riscv64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-riscv64@npm:0.28.2"
   conditions: os=linux & cpu=riscv64
   languageName: node
   linkType: hard
 
-"@esbuild/linux-s390x@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-s390x@npm:0.25.9"
+"@esbuild/linux-s390x@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-s390x@npm:0.28.2"
   conditions: os=linux & cpu=s390x
   languageName: node
   linkType: hard
 
-"@esbuild/linux-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/linux-x64@npm:0.25.9"
+"@esbuild/linux-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/linux-x64@npm:0.28.2"
   conditions: os=linux & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/netbsd-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/netbsd-arm64@npm:0.25.9"
+"@esbuild/netbsd-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/netbsd-arm64@npm:0.28.2"
   conditions: os=netbsd & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/netbsd-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/netbsd-x64@npm:0.25.9"
+"@esbuild/netbsd-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/netbsd-x64@npm:0.28.2"
   conditions: os=netbsd & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/openbsd-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/openbsd-arm64@npm:0.25.9"
+"@esbuild/openbsd-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/openbsd-arm64@npm:0.28.2"
   conditions: os=openbsd & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/openbsd-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/openbsd-x64@npm:0.25.9"
+"@esbuild/openbsd-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/openbsd-x64@npm:0.28.2"
   conditions: os=openbsd & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/openharmony-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/openharmony-arm64@npm:0.25.9"
+"@esbuild/openharmony-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/openharmony-arm64@npm:0.28.2"
   conditions: os=openharmony & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/sunos-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/sunos-x64@npm:0.25.9"
+"@esbuild/sunos-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/sunos-x64@npm:0.28.2"
   conditions: os=sunos & cpu=x64
   languageName: node
   linkType: hard
 
-"@esbuild/win32-arm64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/win32-arm64@npm:0.25.9"
+"@esbuild/win32-arm64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/win32-arm64@npm:0.28.2"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@esbuild/win32-ia32@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/win32-ia32@npm:0.25.9"
+"@esbuild/win32-ia32@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/win32-ia32@npm:0.28.2"
   conditions: os=win32 & cpu=ia32
   languageName: node
   linkType: hard
 
-"@esbuild/win32-x64@npm:0.25.9":
-  version: 0.25.9
-  resolution: "@esbuild/win32-x64@npm:0.25.9"
+"@esbuild/win32-x64@npm:0.28.2":
+  version: 0.28.2
+  resolution: "@esbuild/win32-x64@npm:0.28.2"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
@@ -5596,9 +5577,9 @@ __metadata:
     fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5636,9 +5617,9 @@ __metadata:
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5674,9 +5655,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5695,9 +5676,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5718,9 +5699,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5742,9 +5723,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5762,9 +5743,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5789,9 +5770,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5812,9 +5793,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.8"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5877,9 +5858,9 @@ __metadata:
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
     p-limit: "npm:^3.1.0"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -5951,10 +5932,10 @@ __metadata:
     multiformats: "npm:^9.9.0"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     single-call-balance-checker-abi: "npm:^1.0.0"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6015,9 +5996,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6059,9 +6040,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6098,9 +6079,9 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6117,9 +6098,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6166,9 +6147,9 @@ __metadata:
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6203,9 +6184,9 @@ __metadata:
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6233,9 +6214,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6258,9 +6239,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6283,9 +6264,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6310,9 +6291,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6331,9 +6312,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6358,9 +6339,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     eth-chainlist: "npm:^0.0.795"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6382,9 +6363,9 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6404,9 +6385,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6433,9 +6414,9 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6454,9 +6435,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6539,9 +6520,9 @@ __metadata:
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6570,9 +6551,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6625,16 +6606,16 @@ __metadata:
     isomorphic-fetch: "npm:^3.0.0"
     jest: "npm:^30.4.2"
     jest-silent-reporter: "npm:^0.6.0"
-    knip: "npm:^6.23.0"
+    knip: "npm:^6.37.0"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.5.6"
     oxfmt: "npm:^0.44.0"
     prettier: "npm:^3.3.3"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     semver: "npm:^7.6.3"
     simple-git-hooks: "npm:^2.8.0"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     typescript-eslint: "npm:^8.48.0"
     uuid: "npm:^11.1.1"
@@ -6683,9 +6664,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6705,9 +6686,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6752,9 +6733,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6779,9 +6760,9 @@ __metadata:
     jest: "npm:^30.4.2"
     klona: "npm:^2.0.6"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6802,9 +6783,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6827,9 +6808,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6914,9 +6895,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     json-rpc-random-id: "npm:^1.0.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6987,10 +6968,10 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     klona: "npm:^2.0.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     safe-stable-stringify: "npm:^2.4.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7028,9 +7009,9 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     nanoid: "npm:^3.3.8"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7244,10 +7225,10 @@ __metadata:
     jest: "npm:^30.4.2"
     minipass: "npm:^7.1.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     tar: "npm:^7.4.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7283,9 +7264,9 @@ __metadata:
     jest: "npm:^30.4.2"
     jest-when: "npm:^3.7.0"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7318,9 +7299,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7339,9 +7320,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7358,9 +7339,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7402,9 +7383,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     klona: "npm:^2.0.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7437,9 +7418,9 @@ __metadata:
     extension-port-stream: "npm:^3.0.0"
     jest: "npm:^30.4.2"
     readable-stream: "npm:^3.6.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7502,9 +7483,9 @@ __metadata:
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7624,9 +7605,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     tweetnacl: "npm:^1.0.3"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7644,9 +7625,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7666,9 +7647,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7691,9 +7672,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     jsonschema: "npm:^1.4.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7716,9 +7697,9 @@ __metadata:
     jest: "npm:^30.4.2"
     oxfmt: "npm:^0.44.0"
     prettier: "npm:^3.3.3"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     yargs: "npm:^17.7.2"
   peerDependencies:
@@ -7759,10 +7740,10 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tstyche: "npm:^7.2.5"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7794,9 +7775,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7824,9 +7805,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7851,9 +7832,9 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7881,9 +7862,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7904,9 +7885,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7945,9 +7926,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7984,9 +7965,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     jsonschema: "npm:^1.4.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8017,9 +7998,9 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8048,9 +8029,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8072,9 +8053,9 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8099,9 +8080,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8149,9 +8130,9 @@ __metadata:
     nock: "npm:^13.5.6"
     node-fetch: "npm:^2.7.0"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8180,9 +8161,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8230,10 +8211,10 @@ __metadata:
     lodash-es: "npm:^4.17.21"
     loglevel: "npm:^1.8.1"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     semver: "npm:^7.6.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8270,9 +8251,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8297,9 +8278,9 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8364,9 +8345,9 @@ __metadata:
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.8"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8389,9 +8370,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.8"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8425,9 +8406,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8457,9 +8438,9 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     punycode: "npm:^2.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8492,10 +8473,10 @@ __metadata:
     prism-react-renderer: "npm:^2.4.1"
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     ts-morph: "npm:^28.0.0"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     yargs: "npm:^17.7.2"
   bin:
@@ -8516,9 +8497,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     fast-json-stable-stringify: "npm:^2.1.0"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8547,9 +8528,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8581,9 +8562,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8625,9 +8606,9 @@ __metadata:
     jest-environment-jsdom: "npm:^30.4.1"
     loglevel: "npm:^1.8.1"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8676,9 +8657,9 @@ __metadata:
     fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8698,9 +8679,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8721,9 +8702,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8754,9 +8735,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8799,9 +8780,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8843,9 +8824,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8872,9 +8853,9 @@ __metadata:
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8897,9 +8878,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8929,9 +8910,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8961,9 +8942,9 @@ __metadata:
     jest: "npm:^30.4.2"
     jsonschema: "npm:^1.4.1"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9016,9 +8997,9 @@ __metadata:
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9046,9 +9027,9 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9187,9 +9168,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9206,9 +9187,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9233,9 +9214,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9263,9 +9244,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9302,9 +9283,9 @@ __metadata:
     fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^30.4.2"
     jest-environment-node: "npm:^30.4.1"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9389,9 +9370,9 @@ __metadata:
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9432,9 +9413,9 @@ __metadata:
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9467,9 +9448,9 @@ __metadata:
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9520,12 +9501,12 @@ __metadata:
     jest-when: "npm:^3.7.0"
     lodash: "npm:^4.17.21"
     pony-cause: "npm:^2.1.10"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     semver: "npm:^7.6.3"
     stdio-mock: "npm:^1.2.0"
     ts-jest: "npm:^29.4.12"
     tstyche: "npm:^7.2.5"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9580,9 +9561,9 @@ __metadata:
     jest: "npm:^30.4.2"
     jest-environment-node: "npm:^30.4.1"
     nock: "npm:^13.5.6"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
     mm: ./bin/run.mjs
@@ -9618,7 +9599,7 @@ __metadata:
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -9654,9 +9635,9 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    rimraf: "npm:^5.0.10"
+    rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.20.5"
+    tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -9674,15 +9655,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@napi-rs/wasm-runtime@npm:^1.1.5":
-  version: 1.1.6
-  resolution: "@napi-rs/wasm-runtime@npm:1.1.6"
+"@napi-rs/wasm-runtime@npm:^1.1.6":
+  version: 1.2.4
+  resolution: "@napi-rs/wasm-runtime@npm:1.2.4"
   dependencies:
     "@tybys/wasm-util": "npm:^0.10.3"
   peerDependencies:
-    "@emnapi/core": ^1.7.1
-    "@emnapi/runtime": ^1.7.1
-  checksum: 10/3e43425df17547d9d58ab69cce8e6cef38a062eccec4d2def5fc9e10e81cd19ae228b3ab9be4b149b57078d33913687511312d2414089877759b7db1f43625ba
+    "@emnapi/core": ^1.7.1 || ^2.0.0-alpha.4
+    "@emnapi/runtime": ^1.7.1 || ^2.0.0-alpha.4
+  checksum: 10/5cda52f943c67eba1875d95dc7ea0dbe2c1581edb25660d3b0d780d7d87600bdaf92b4f4395e3cde82a9ccfb540da55567452e6e6d61fb13b7f51da7a3ad9151
   languageName: node
   linkType: hard
 
@@ -10365,290 +10346,279 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-android-arm-eabi@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-android-arm-eabi@npm:0.137.0"
+"@oxc-parser/binding-android-arm-eabi@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-android-arm-eabi@npm:0.150.0"
   conditions: os=android & cpu=arm
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-android-arm64@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-android-arm64@npm:0.137.0"
+"@oxc-parser/binding-android-arm64@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-android-arm64@npm:0.150.0"
   conditions: os=android & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-darwin-arm64@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-darwin-arm64@npm:0.137.0"
+"@oxc-parser/binding-darwin-arm64@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-darwin-arm64@npm:0.150.0"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-darwin-x64@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-darwin-x64@npm:0.137.0"
+"@oxc-parser/binding-darwin-x64@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-darwin-x64@npm:0.150.0"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-freebsd-x64@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-freebsd-x64@npm:0.137.0"
+"@oxc-parser/binding-freebsd-x64@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-freebsd-x64@npm:0.150.0"
   conditions: os=freebsd & cpu=x64
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-arm-gnueabihf@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-arm-gnueabihf@npm:0.137.0"
+"@oxc-parser/binding-linux-arm-gnueabihf@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-arm-gnueabihf@npm:0.150.0"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-arm-musleabihf@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-arm-musleabihf@npm:0.137.0"
+"@oxc-parser/binding-linux-arm-musleabihf@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-arm-musleabihf@npm:0.150.0"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-arm64-gnu@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-arm64-gnu@npm:0.137.0"
+"@oxc-parser/binding-linux-arm64-gnu@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-arm64-gnu@npm:0.150.0"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-arm64-musl@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-arm64-musl@npm:0.137.0"
+"@oxc-parser/binding-linux-arm64-musl@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-arm64-musl@npm:0.150.0"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-ppc64-gnu@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-ppc64-gnu@npm:0.137.0"
+"@oxc-parser/binding-linux-ppc64-gnu@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-ppc64-gnu@npm:0.150.0"
   conditions: os=linux & cpu=ppc64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-riscv64-gnu@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-riscv64-gnu@npm:0.137.0"
+"@oxc-parser/binding-linux-riscv64-gnu@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-riscv64-gnu@npm:0.150.0"
   conditions: os=linux & cpu=riscv64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-riscv64-musl@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-riscv64-musl@npm:0.137.0"
+"@oxc-parser/binding-linux-riscv64-musl@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-riscv64-musl@npm:0.150.0"
   conditions: os=linux & cpu=riscv64 & libc=musl
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-s390x-gnu@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-s390x-gnu@npm:0.137.0"
+"@oxc-parser/binding-linux-s390x-gnu@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-s390x-gnu@npm:0.150.0"
   conditions: os=linux & cpu=s390x & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-x64-gnu@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-x64-gnu@npm:0.137.0"
+"@oxc-parser/binding-linux-x64-gnu@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-x64-gnu@npm:0.150.0"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-linux-x64-musl@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-linux-x64-musl@npm:0.137.0"
+"@oxc-parser/binding-linux-x64-musl@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-linux-x64-musl@npm:0.150.0"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-openharmony-arm64@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-openharmony-arm64@npm:0.137.0"
+"@oxc-parser/binding-openharmony-arm64@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-openharmony-arm64@npm:0.150.0"
   conditions: os=openharmony & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-wasm32-wasi@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-wasm32-wasi@npm:0.137.0"
-  dependencies:
-    "@emnapi/core": "npm:1.11.1"
-    "@emnapi/runtime": "npm:1.11.1"
-    "@napi-rs/wasm-runtime": "npm:^1.1.5"
-  conditions: cpu=wasm32
-  languageName: node
-  linkType: hard
-
-"@oxc-parser/binding-win32-arm64-msvc@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-win32-arm64-msvc@npm:0.137.0"
+"@oxc-parser/binding-win32-arm64-msvc@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-win32-arm64-msvc@npm:0.150.0"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-win32-ia32-msvc@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-win32-ia32-msvc@npm:0.137.0"
+"@oxc-parser/binding-win32-ia32-msvc@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-win32-ia32-msvc@npm:0.150.0"
   conditions: os=win32 & cpu=ia32
   languageName: node
   linkType: hard
 
-"@oxc-parser/binding-win32-x64-msvc@npm:0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-parser/binding-win32-x64-msvc@npm:0.137.0"
+"@oxc-parser/binding-win32-x64-msvc@npm:0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-parser/binding-win32-x64-msvc@npm:0.150.0"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@oxc-project/types@npm:^0.137.0":
-  version: 0.137.0
-  resolution: "@oxc-project/types@npm:0.137.0"
-  checksum: 10/50a961188b0fec059a709445290dff201f010c7dee69a15b35251d43ecd7c1f2801b165c6f744a2a8a37a81924d56dc8f35f05d8308bdb704ee6bf0a0275ad36
+"@oxc-project/types@npm:^0.150.0":
+  version: 0.150.0
+  resolution: "@oxc-project/types@npm:0.150.0"
+  checksum: 10/f1419d895ca84ea05f63a32f1ce879ae523dfa9cb4b0249a189b717b54de505285eacbff925826bded90c9662662f9757e9d6e58ba1a1068d33801bec69627c0
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-android-arm-eabi@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-android-arm-eabi@npm:11.21.3"
+"@oxc-resolver/binding-android-arm-eabi@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-android-arm-eabi@npm:11.24.2"
   conditions: os=android & cpu=arm
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-android-arm64@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-android-arm64@npm:11.21.3"
+"@oxc-resolver/binding-android-arm64@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-android-arm64@npm:11.24.2"
   conditions: os=android & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-darwin-arm64@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-darwin-arm64@npm:11.21.3"
+"@oxc-resolver/binding-darwin-arm64@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-darwin-arm64@npm:11.24.2"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-darwin-x64@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-darwin-x64@npm:11.21.3"
+"@oxc-resolver/binding-darwin-x64@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-darwin-x64@npm:11.24.2"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-freebsd-x64@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-freebsd-x64@npm:11.21.3"
+"@oxc-resolver/binding-freebsd-x64@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-freebsd-x64@npm:11.24.2"
   conditions: os=freebsd & cpu=x64
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-arm-gnueabihf@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-arm-gnueabihf@npm:11.21.3"
+"@oxc-resolver/binding-linux-arm-gnueabihf@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-arm-gnueabihf@npm:11.24.2"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-arm-musleabihf@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-arm-musleabihf@npm:11.21.3"
+"@oxc-resolver/binding-linux-arm-musleabihf@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-arm-musleabihf@npm:11.24.2"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-arm64-gnu@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-arm64-gnu@npm:11.21.3"
+"@oxc-resolver/binding-linux-arm64-gnu@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-arm64-gnu@npm:11.24.2"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-arm64-musl@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-arm64-musl@npm:11.21.3"
+"@oxc-resolver/binding-linux-arm64-musl@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-arm64-musl@npm:11.24.2"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-ppc64-gnu@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-ppc64-gnu@npm:11.21.3"
+"@oxc-resolver/binding-linux-ppc64-gnu@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-ppc64-gnu@npm:11.24.2"
   conditions: os=linux & cpu=ppc64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-riscv64-gnu@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-riscv64-gnu@npm:11.21.3"
+"@oxc-resolver/binding-linux-riscv64-gnu@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-riscv64-gnu@npm:11.24.2"
   conditions: os=linux & cpu=riscv64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-riscv64-musl@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-riscv64-musl@npm:11.21.3"
+"@oxc-resolver/binding-linux-riscv64-musl@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-riscv64-musl@npm:11.24.2"
   conditions: os=linux & cpu=riscv64 & libc=musl
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-s390x-gnu@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-s390x-gnu@npm:11.21.3"
+"@oxc-resolver/binding-linux-s390x-gnu@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-s390x-gnu@npm:11.24.2"
   conditions: os=linux & cpu=s390x & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-x64-gnu@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-x64-gnu@npm:11.21.3"
+"@oxc-resolver/binding-linux-x64-gnu@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-x64-gnu@npm:11.24.2"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-linux-x64-musl@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-linux-x64-musl@npm:11.21.3"
+"@oxc-resolver/binding-linux-x64-musl@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-linux-x64-musl@npm:11.24.2"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-openharmony-arm64@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-openharmony-arm64@npm:11.21.3"
+"@oxc-resolver/binding-openharmony-arm64@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-openharmony-arm64@npm:11.24.2"
   conditions: os=openharmony & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-wasm32-wasi@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-wasm32-wasi@npm:11.21.3"
+"@oxc-resolver/binding-wasm32-wasi@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-wasm32-wasi@npm:11.24.2"
   dependencies:
-    "@emnapi/core": "npm:1.11.0"
-    "@emnapi/runtime": "npm:1.11.0"
-    "@napi-rs/wasm-runtime": "npm:^1.1.5"
+    "@emnapi/core": "npm:1.11.2"
+    "@emnapi/runtime": "npm:1.11.2"
+    "@napi-rs/wasm-runtime": "npm:^1.1.6"
   conditions: cpu=wasm32
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-win32-arm64-msvc@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-win32-arm64-msvc@npm:11.21.3"
+"@oxc-resolver/binding-win32-arm64-msvc@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-win32-arm64-msvc@npm:11.24.2"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@oxc-resolver/binding-win32-x64-msvc@npm:11.21.3":
-  version: 11.21.3
-  resolution: "@oxc-resolver/binding-win32-x64-msvc@npm:11.21.3"
+"@oxc-resolver/binding-win32-x64-msvc@npm:11.24.2":
+  version: 11.24.2
+  resolution: "@oxc-resolver/binding-win32-x64-msvc@npm:11.24.2"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
@@ -16886,36 +16856,36 @@ __metadata:
   languageName: node
   linkType: hard
 
-"esbuild@npm:~0.25.0":
-  version: 0.25.9
-  resolution: "esbuild@npm:0.25.9"
+"esbuild@npm:~0.28.0":
+  version: 0.28.2
+  resolution: "esbuild@npm:0.28.2"
   dependencies:
-    "@esbuild/aix-ppc64": "npm:0.25.9"
-    "@esbuild/android-arm": "npm:0.25.9"
-    "@esbuild/android-arm64": "npm:0.25.9"
-    "@esbuild/android-x64": "npm:0.25.9"
-    "@esbuild/darwin-arm64": "npm:0.25.9"
-    "@esbuild/darwin-x64": "npm:0.25.9"
-    "@esbuild/freebsd-arm64": "npm:0.25.9"
-    "@esbuild/freebsd-x64": "npm:0.25.9"
-    "@esbuild/linux-arm": "npm:0.25.9"
-    "@esbuild/linux-arm64": "npm:0.25.9"
-    "@esbuild/linux-ia32": "npm:0.25.9"
-    "@esbuild/linux-loong64": "npm:0.25.9"
-    "@esbuild/linux-mips64el": "npm:0.25.9"
-    "@esbuild/linux-ppc64": "npm:0.25.9"
-    "@esbuild/linux-riscv64": "npm:0.25.9"
-    "@esbuild/linux-s390x": "npm:0.25.9"
-    "@esbuild/linux-x64": "npm:0.25.9"
-    "@esbuild/netbsd-arm64": "npm:0.25.9"
-    "@esbuild/netbsd-x64": "npm:0.25.9"
-    "@esbuild/openbsd-arm64": "npm:0.25.9"
-    "@esbuild/openbsd-x64": "npm:0.25.9"
-    "@esbuild/openharmony-arm64": "npm:0.25.9"
-    "@esbuild/sunos-x64": "npm:0.25.9"
-    "@esbuild/win32-arm64": "npm:0.25.9"
-    "@esbuild/win32-ia32": "npm:0.25.9"
-    "@esbuild/win32-x64": "npm:0.25.9"
+    "@esbuild/aix-ppc64": "npm:0.28.2"
+    "@esbuild/android-arm": "npm:0.28.2"
+    "@esbuild/android-arm64": "npm:0.28.2"
+    "@esbuild/android-x64": "npm:0.28.2"
+    "@esbuild/darwin-arm64": "npm:0.28.2"
+    "@esbuild/darwin-x64": "npm:0.28.2"
+    "@esbuild/freebsd-arm64": "npm:0.28.2"
+    "@esbuild/freebsd-x64": "npm:0.28.2"
+    "@esbuild/linux-arm": "npm:0.28.2"
+    "@esbuild/linux-arm64": "npm:0.28.2"
+    "@esbuild/linux-ia32": "npm:0.28.2"
+    "@esbuild/linux-loong64": "npm:0.28.2"
+    "@esbuild/linux-mips64el": "npm:0.28.2"
+    "@esbuild/linux-ppc64": "npm:0.28.2"
+    "@esbuild/linux-riscv64": "npm:0.28.2"
+    "@esbuild/linux-s390x": "npm:0.28.2"
+    "@esbuild/linux-x64": "npm:0.28.2"
+    "@esbuild/netbsd-arm64": "npm:0.28.2"
+    "@esbuild/netbsd-x64": "npm:0.28.2"
+    "@esbuild/openbsd-arm64": "npm:0.28.2"
+    "@esbuild/openbsd-x64": "npm:0.28.2"
+    "@esbuild/openharmony-arm64": "npm:0.28.2"
+    "@esbuild/sunos-x64": "npm:0.28.2"
+    "@esbuild/win32-arm64": "npm:0.28.2"
+    "@esbuild/win32-ia32": "npm:0.28.2"
+    "@esbuild/win32-x64": "npm:0.28.2"
   dependenciesMeta:
     "@esbuild/aix-ppc64":
       optional: true
@@ -16971,7 +16941,7 @@ __metadata:
       optional: true
   bin:
     esbuild: bin/esbuild
-  checksum: 10/fc174ae7f646ad413adb641c7e46f16be575e462ed209866b55d5954d382e5da839e3f3f89a8e42e2b71d48895cc636ba43523011249fe5ff9c63d8d39d3a364
+  checksum: 10/c21a050b308c6f4b99e1a6ed458661d49b83b424b05c5e0851072f7b01fc2999910754454f6833599175d6c94102d99e400849dd67cfcbeef4f0aec7dfa504a6
   languageName: node
   linkType: hard
 
@@ -18189,14 +18159,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"formatly@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "formatly@npm:0.3.0"
+"formatly@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "formatly@npm:0.7.0"
   dependencies:
     fd-package-json: "npm:^2.0.0"
+    package-manager-detector: "npm:^1.8.0"
   bin:
     formatly: bin/index.mjs
-  checksum: 10/0e5a9cbb826d93171b00c283e20e6a564a16e7bc3839e695790347a1f23e3536a88d613f5cabd07403d60b7bdffe179987c88b1fc2900a9be49eea01ffbe4244
+  checksum: 10/ceb4183c1ea114cbb6535106bcc4532f66eb2428bc3a035f09c88eda020aee555c64a40b4312bac6a2b647e500b9032f35a8dece54162f0e5b272f2f20700af1
   languageName: node
   linkType: hard
 
@@ -18397,12 +18368,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"get-tsconfig@npm:4.14.0, get-tsconfig@npm:^4.7.3, get-tsconfig@npm:^4.7.5, get-tsconfig@npm:^4.8.1":
-  version: 4.14.0
-  resolution: "get-tsconfig@npm:4.14.0"
+"get-tsconfig@npm:4.14.3, get-tsconfig@npm:^4.7.3, get-tsconfig@npm:^4.7.5, get-tsconfig@npm:^4.8.1":
+  version: 4.14.3
+  resolution: "get-tsconfig@npm:4.14.3"
   dependencies:
     resolve-pkg-maps: "npm:^1.0.0"
-  checksum: 10/f5626971905ca386c9ddeb302504e8a2301b9c05641803267223ebd50b7c81aaf9324d29cf9f4e4ff3f245632c3392aa83719dc6cb3e98b4e4a1702a27c5cc5d
+  checksum: 10/ac18243ffd5c2e7c0cbecc11d053599c73a4c534a626988fe545b686695bf2fa789ba47bc2af87e30d85c657dbcadc26b4e3e328096894fde6a9229615c67253
   languageName: node
   linkType: hard
 
@@ -18473,7 +18444,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:^10.2.2, glob@npm:^10.3.10, glob@npm:^10.3.7, glob@npm:^10.5.0":
+"glob@npm:^10.2.2, glob@npm:^10.3.10, glob@npm:^10.5.0":
   version: 10.5.0
   resolution: "glob@npm:10.5.0"
   dependencies:
@@ -18489,7 +18460,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:^13.0.0":
+"glob@npm:^13.0.0, glob@npm:^13.0.3":
   version: 13.0.6
   resolution: "glob@npm:13.0.6"
   dependencies:
@@ -20849,27 +20820,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"knip@npm:^6.23.0":
-  version: 6.23.0
-  resolution: "knip@npm:6.23.0"
+"knip@npm:^6.37.0":
+  version: 6.37.0
+  resolution: "knip@npm:6.37.0"
   dependencies:
     fdir: "npm:^6.5.0"
-    formatly: "npm:^0.3.0"
-    get-tsconfig: "npm:4.14.0"
+    formatly: "npm:^0.7.0"
+    get-tsconfig: "npm:4.14.3"
     jiti: "npm:^2.7.0"
-    oxc-parser: "npm:^0.137.0"
-    oxc-resolver: "npm:11.21.3"
-    picomatch: "npm:^4.0.4"
-    smol-toml: "npm:^1.6.1"
+    oxc-parser: "npm:^0.150.0"
+    oxc-resolver: "npm:11.24.2"
+    picomatch: "npm:^4.0.7"
+    smol-toml: "npm:^1.8.0"
     strip-json-comments: "npm:5.0.3"
     tinyglobby: "npm:^0.2.17"
-    unbash: "npm:^4.0.1"
-    yaml: "npm:^2.9.0"
-    zod: "npm:^4.1.11"
+    unbash: "npm:^4.0.11"
+    yaml: "npm:^2.9.1"
+    zod: "npm:^4.4.3"
   bin:
     knip: bin/knip.js
     knip-bun: bin/knip-bun.js
-  checksum: 10/ba57fdac1db20ee21d248a1fdeda7e9e7cf96ee7a3c7274cb6ff27bf964df037e6fd467cf101118051a72e820bc9af23be7dd9bcf9ccd682d97ce0fe379332ed
+  checksum: 10/14135bf24972ac137b1afd1476b1f40907152d5441c269a2d6a721d3bca53d18944bda67a47f76256d947b1f200564e73974bbb34cca9a1d3e4860ccf25150b5
   languageName: node
   linkType: hard
 
@@ -22977,31 +22948,30 @@ __metadata:
   languageName: node
   linkType: hard
 
-"oxc-parser@npm:^0.137.0":
-  version: 0.137.0
-  resolution: "oxc-parser@npm:0.137.0"
+"oxc-parser@npm:^0.150.0":
+  version: 0.150.0
+  resolution: "oxc-parser@npm:0.150.0"
   dependencies:
-    "@oxc-parser/binding-android-arm-eabi": "npm:0.137.0"
-    "@oxc-parser/binding-android-arm64": "npm:0.137.0"
-    "@oxc-parser/binding-darwin-arm64": "npm:0.137.0"
-    "@oxc-parser/binding-darwin-x64": "npm:0.137.0"
-    "@oxc-parser/binding-freebsd-x64": "npm:0.137.0"
-    "@oxc-parser/binding-linux-arm-gnueabihf": "npm:0.137.0"
-    "@oxc-parser/binding-linux-arm-musleabihf": "npm:0.137.0"
-    "@oxc-parser/binding-linux-arm64-gnu": "npm:0.137.0"
-    "@oxc-parser/binding-linux-arm64-musl": "npm:0.137.0"
-    "@oxc-parser/binding-linux-ppc64-gnu": "npm:0.137.0"
-    "@oxc-parser/binding-linux-riscv64-gnu": "npm:0.137.0"
-    "@oxc-parser/binding-linux-riscv64-musl": "npm:0.137.0"
-    "@oxc-parser/binding-linux-s390x-gnu": "npm:0.137.0"
-    "@oxc-parser/binding-linux-x64-gnu": "npm:0.137.0"
-    "@oxc-parser/binding-linux-x64-musl": "npm:0.137.0"
-    "@oxc-parser/binding-openharmony-arm64": "npm:0.137.0"
-    "@oxc-parser/binding-wasm32-wasi": "npm:0.137.0"
-    "@oxc-parser/binding-win32-arm64-msvc": "npm:0.137.0"
-    "@oxc-parser/binding-win32-ia32-msvc": "npm:0.137.0"
-    "@oxc-parser/binding-win32-x64-msvc": "npm:0.137.0"
-    "@oxc-project/types": "npm:^0.137.0"
+    "@oxc-parser/binding-android-arm-eabi": "npm:0.150.0"
+    "@oxc-parser/binding-android-arm64": "npm:0.150.0"
+    "@oxc-parser/binding-darwin-arm64": "npm:0.150.0"
+    "@oxc-parser/binding-darwin-x64": "npm:0.150.0"
+    "@oxc-parser/binding-freebsd-x64": "npm:0.150.0"
+    "@oxc-parser/binding-linux-arm-gnueabihf": "npm:0.150.0"
+    "@oxc-parser/binding-linux-arm-musleabihf": "npm:0.150.0"
+    "@oxc-parser/binding-linux-arm64-gnu": "npm:0.150.0"
+    "@oxc-parser/binding-linux-arm64-musl": "npm:0.150.0"
+    "@oxc-parser/binding-linux-ppc64-gnu": "npm:0.150.0"
+    "@oxc-parser/binding-linux-riscv64-gnu": "npm:0.150.0"
+    "@oxc-parser/binding-linux-riscv64-musl": "npm:0.150.0"
+    "@oxc-parser/binding-linux-s390x-gnu": "npm:0.150.0"
+    "@oxc-parser/binding-linux-x64-gnu": "npm:0.150.0"
+    "@oxc-parser/binding-linux-x64-musl": "npm:0.150.0"
+    "@oxc-parser/binding-openharmony-arm64": "npm:0.150.0"
+    "@oxc-parser/binding-win32-arm64-msvc": "npm:0.150.0"
+    "@oxc-parser/binding-win32-ia32-msvc": "npm:0.150.0"
+    "@oxc-parser/binding-win32-x64-msvc": "npm:0.150.0"
+    "@oxc-project/types": "npm:^0.150.0"
   dependenciesMeta:
     "@oxc-parser/binding-android-arm-eabi":
       optional: true
@@ -23035,41 +23005,39 @@ __metadata:
       optional: true
     "@oxc-parser/binding-openharmony-arm64":
       optional: true
-    "@oxc-parser/binding-wasm32-wasi":
-      optional: true
     "@oxc-parser/binding-win32-arm64-msvc":
       optional: true
     "@oxc-parser/binding-win32-ia32-msvc":
       optional: true
     "@oxc-parser/binding-win32-x64-msvc":
       optional: true
-  checksum: 10/a8dd34e0ce1343cf1465429d2c53dab91235c6082e556a6c01740de0098fe6209bfcfc84408b815533733a7fe127d7652b973bacfa7843992da82fbfa843fb60
+  checksum: 10/2bd13ba2ebab236c61c8b8e0a5d62b9d4f3fea5289c8b3f30ae85d7dcccfe996bf0fdaeefaebdf47697ba5ea00a5087eea81735a026420d00a7def5f6fe0856f
   languageName: node
   linkType: hard
 
-"oxc-resolver@npm:11.21.3":
-  version: 11.21.3
-  resolution: "oxc-resolver@npm:11.21.3"
+"oxc-resolver@npm:11.24.2":
+  version: 11.24.2
+  resolution: "oxc-resolver@npm:11.24.2"
   dependencies:
-    "@oxc-resolver/binding-android-arm-eabi": "npm:11.21.3"
-    "@oxc-resolver/binding-android-arm64": "npm:11.21.3"
-    "@oxc-resolver/binding-darwin-arm64": "npm:11.21.3"
-    "@oxc-resolver/binding-darwin-x64": "npm:11.21.3"
-    "@oxc-resolver/binding-freebsd-x64": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-arm-gnueabihf": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-arm-musleabihf": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-arm64-gnu": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-arm64-musl": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-ppc64-gnu": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-riscv64-gnu": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-riscv64-musl": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-s390x-gnu": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-x64-gnu": "npm:11.21.3"
-    "@oxc-resolver/binding-linux-x64-musl": "npm:11.21.3"
-    "@oxc-resolver/binding-openharmony-arm64": "npm:11.21.3"
-    "@oxc-resolver/binding-wasm32-wasi": "npm:11.21.3"
-    "@oxc-resolver/binding-win32-arm64-msvc": "npm:11.21.3"
-    "@oxc-resolver/binding-win32-x64-msvc": "npm:11.21.3"
+    "@oxc-resolver/binding-android-arm-eabi": "npm:11.24.2"
+    "@oxc-resolver/binding-android-arm64": "npm:11.24.2"
+    "@oxc-resolver/binding-darwin-arm64": "npm:11.24.2"
+    "@oxc-resolver/binding-darwin-x64": "npm:11.24.2"
+    "@oxc-resolver/binding-freebsd-x64": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-arm-gnueabihf": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-arm-musleabihf": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-arm64-gnu": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-arm64-musl": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-ppc64-gnu": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-riscv64-gnu": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-riscv64-musl": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-s390x-gnu": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-x64-gnu": "npm:11.24.2"
+    "@oxc-resolver/binding-linux-x64-musl": "npm:11.24.2"
+    "@oxc-resolver/binding-openharmony-arm64": "npm:11.24.2"
+    "@oxc-resolver/binding-wasm32-wasi": "npm:11.24.2"
+    "@oxc-resolver/binding-win32-arm64-msvc": "npm:11.24.2"
+    "@oxc-resolver/binding-win32-x64-msvc": "npm:11.24.2"
   dependenciesMeta:
     "@oxc-resolver/binding-android-arm-eabi":
       optional: true
@@ -23109,7 +23077,7 @@ __metadata:
       optional: true
     "@oxc-resolver/binding-win32-x64-msvc":
       optional: true
-  checksum: 10/e890dcca9bcb130c393493dffd763e9ed4b1bf8d32b5990cd094a7a5402bdb6dbd04e64893166e4531369552c37ae811a24206d663d6cf8fd65baf13437903ea
+  checksum: 10/42e10840125f4b942a7cbcad757f1d882eb737cd6c96c13128eade6613c56a24727075e069b3dff145b3cd36e21fe5e4a1de19b5da09466864fa63d35aae71f3
   languageName: node
   linkType: hard
 
@@ -23326,10 +23294,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"package-json-from-dist@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "package-json-from-dist@npm:1.0.0"
-  checksum: 10/ac706ec856a5a03f5261e4e48fa974f24feb044d51f84f8332e2af0af04fbdbdd5bbbfb9cbbe354190409bc8307c83a9e38c6672c3c8855f709afb0006a009ea
+"package-json-from-dist@npm:^1.0.0, package-json-from-dist@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "package-json-from-dist@npm:1.0.1"
+  checksum: 10/58ee9538f2f762988433da00e26acc788036914d57c71c246bf0be1b60cdbd77dd60b6a3e1a30465f0b248aeb80079e0b34cb6050b1dfa18c06953bb1cbc7602
   languageName: node
   linkType: hard
 
@@ -23342,6 +23310,13 @@ __metadata:
     registry-url: "npm:^6.0.0"
     semver: "npm:^7.3.7"
   checksum: 10/d97ce9539e1ed4aacaf7c2cb754f16afc10937fa250bd09b4d61181d2e36a30cf8a4cff2f8f831f0826b0ac01a355f26204c7e57ca0e450da6ccec3e34fc889a
+  languageName: node
+  linkType: hard
+
+"package-manager-detector@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "package-manager-detector@npm:1.8.0"
+  checksum: 10/5d79b8bf3d0d3da312ec08749c74a3b7e4d4139c259fe3561538772c65ece8ff733e002c67a4324b5c505d2ac625c121b94cf3d5135e1b4e43fed5bced148763
   languageName: node
   linkType: hard
 
@@ -23625,10 +23600,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"picomatch@npm:^4.0.3, picomatch@npm:^4.0.4":
-  version: 4.0.5
-  resolution: "picomatch@npm:4.0.5"
-  checksum: 10/8bad770af9dcdb7f94ad1a893adcbe08a97d75a18872f8fed37161d3124217471c402b3929f051532f795f4ff2e53dcebb1644df4c1a5f3a9c476fef3b9f8c51
+"picomatch@npm:^4.0.3, picomatch@npm:^4.0.4, picomatch@npm:^4.0.7":
+  version: 4.0.7
+  resolution: "picomatch@npm:4.0.7"
+  checksum: 10/66e1df34bc39c72fa3756be4069f7887ea3e35e94bba1c3f6167763007698cb04b8a0a365161d186fda6e9571a2d3efb606b2966eb6a7dea6252911224dc2f48
   languageName: node
   linkType: hard
 
@@ -25617,14 +25592,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rimraf@npm:^5.0.10":
-  version: 5.0.10
-  resolution: "rimraf@npm:5.0.10"
+"rimraf@npm:^6.1.3":
+  version: 6.1.3
+  resolution: "rimraf@npm:6.1.3"
   dependencies:
-    glob: "npm:^10.3.7"
+    glob: "npm:^13.0.3"
+    package-json-from-dist: "npm:^1.0.1"
   bin:
     rimraf: dist/esm/bin.mjs
-  checksum: 10/f3b8ce81eecbde4628b07bdf9e2fa8b684e0caea4999acb1e3b0402c695cd41f28cd075609a808e61ce2672f528ca079f675ab1d8e8d5f86d56643a03e0b8d2e
+  checksum: 10/dd98ec2ad7cd2cccae1c7110754d472eac8edb2bab8a8b057dce04edfe1433dab246a889b3fd85a66c78ca81caa1429caa0e736c7647f6832b04fd5d4dfb8ab8
   languageName: node
   linkType: hard
 
@@ -26246,10 +26222,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"smol-toml@npm:^1.6.1":
-  version: 1.6.1
-  resolution: "smol-toml@npm:1.6.1"
-  checksum: 10/9a0d86cc7f8abef429c915b373b9a1f369fe57a87efbbec46b967fb41dc28af753a2fa62c9c4848907c3b47c282be15c8854aa4e2942ef1fa86ff95a76d13856
+"smol-toml@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "smol-toml@npm:1.8.0"
+  checksum: 10/eb8aeeebd1c3e5de6069922c9a44bb40b9b3c534e685ccd0aa299b4d7307f1ec49471da57812bdbf1d21a0c09f1dd47eb0e814d0d34c892142187ccce2487ea9
   languageName: node
   linkType: hard
 
@@ -27199,19 +27175,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tsx@npm:^4.20.5":
-  version: 4.20.5
-  resolution: "tsx@npm:4.20.5"
+"tsx@npm:^4.23.13":
+  version: 4.23.13
+  resolution: "tsx@npm:4.23.13"
   dependencies:
-    esbuild: "npm:~0.25.0"
+    esbuild: "npm:~0.28.0"
     fsevents: "npm:~2.3.3"
-    get-tsconfig: "npm:^4.7.5"
   dependenciesMeta:
     fsevents:
       optional: true
   bin:
     tsx: dist/cli.mjs
-  checksum: 10/161420678027c43d07b60b7b6b512cc67ff86ae3cca0641a19b0d3e742c5e262bca57034c4bff6d9346f9269e9ada24b6030e1d2bc890df5e1a9754865d3c08a
+  checksum: 10/064c7de2b3ad923fee8feeffc5698738a75f10d98d8a024c6c8efac5351a7825e84aa7a933778145c4f769405f8a95f8f49289a7bff698ba79fd92ff67e26289
   languageName: node
   linkType: hard
 
@@ -27439,10 +27414,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unbash@npm:^4.0.1":
-  version: 4.0.1
-  resolution: "unbash@npm:4.0.1"
-  checksum: 10/1ad36bf3f1aeeb8ff72dfb6ddaa2262ee97576153bc40e8b62abfcad9a69445393b1916be5444402fa23b6759dd75d6ca52652a103a3be2dde98debff555d741
+"unbash@npm:^4.0.11":
+  version: 4.0.11
+  resolution: "unbash@npm:4.0.11"
+  checksum: 10/f44bd9febbef85976623ade7c264bdf6c5b0f420f277d4ecf27a8290de49baade349254f4ef3cbbcf47c3ee3e01d64788d963b277b16ccc18aab50626fcd8a33
   languageName: node
   linkType: hard
 
@@ -28930,12 +28905,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yaml@npm:^2.2.2, yaml@npm:^2.3.4, yaml@npm:^2.9.0":
-  version: 2.9.0
-  resolution: "yaml@npm:2.9.0"
+"yaml@npm:^2.2.2, yaml@npm:^2.3.4, yaml@npm:^2.9.1":
+  version: 2.9.1
+  resolution: "yaml@npm:2.9.1"
   bin:
     yaml: bin.mjs
-  checksum: 10/9a95e8e08651c3d292ab6a5befeb5f57b76801caa097c75bb45c9a70ce19c1b11f57e87a6ef84a579ea070ed2c2c8ac541c88c0ae684d544d5f42c7e77d11b7b
+  checksum: 10/123c5e56a26f4962d3d5954971b2071a533d17041e00ae9ff6a5e634aed2503639bbdeea143b1610eac29613aad95a3a1d10f5fbda87b92203c039ce63934295
   languageName: node
   linkType: hard
 
@@ -29019,10 +28994,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^4.1.11":
-  version: 4.4.3
-  resolution: "zod@npm:4.4.3"
-  checksum: 10/804b9a42aa8f35f2b3c5a8dff906291cb749115f83ee2afe3576d70b5b5c53c965365c7f4967690647a9c54af9838ff232a85ff9577a0a36c44b68bc6cdefe36
+"zod@npm:^4.4.3":
+  version: 4.6.5
+  resolution: "zod@npm:4.6.5"
+  checksum: 10/db004952e4dc6eab38b70f0cdef9251a65da84f5d08c5a0ef85e2590cfa9c477544ce734161ff5c05f89a15f0967137607a7feb16716195e04965f030db47213
   languageName: node
   linkType: hard
 
