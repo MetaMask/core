@@ -78,7 +78,7 @@
     "jest-environment-node": "^30.4.1",
     "nock": "^13.5.6",
     "rimraf": "^5.0.10",
-    "ts-jest": "^29.4.11",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
