@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.3.0]
+
+### Fixed
+
+- Use Lighter's reported executed amount for order filled sizes so canceled orders do not appear fully filled. ([#10308](https://github.com/MetaMask/core/pull/10308))
+
+## [17.2.0]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
@@ -930,7 +938,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...HEAD
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...@metamask/perps-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...@metamask/perps-controller@17.0.0
 [16.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...@metamask/perps-controller@16.2.0

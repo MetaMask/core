@@ -10,17 +10,19 @@ import { assetIdsMatch } from './assets.js';
  *
  * @param value - The value to convert to token amount
  * @param decimals - The number of decimals to convert to
+ * @param base - The base of the number system to use
  * @returns The token amount in string format
  */
 export const calcNormalizedTokenAmount = (
-  value: string | BigNumber | undefined,
+  value: string | BigNumber | undefined | null,
   decimals: number | undefined,
+  base: number = 10,
 ) => {
-  if (value === undefined || decimals === undefined) {
+  if (value === undefined || decimals === undefined || value === null) {
     return undefined;
   }
-  const divisor = new BigNumber(10).pow(decimals ?? 0);
-  return new BigNumber(value).div(divisor);
+  const divisor = new BigNumber(base).pow(decimals ?? 0);
+  return new BigNumber(value, base).div(divisor).toFixed();
 };
 
 /**
@@ -28,17 +30,19 @@ export const calcNormalizedTokenAmount = (
  *
  * @param value - The amount to convert to token value
  * @param decimals - The number of decimals to convert to
+ * @param base - The base of the number system to use
  * @returns The token value in string format
  */
 export const calcAtomicTokenAmount = (
-  value: string | BigNumber | undefined,
+  value: string | BigNumber | undefined | null,
   decimals: number | undefined,
+  base: number = 10,
 ) => {
-  if (value === undefined || decimals === undefined) {
+  if (value === undefined || decimals === undefined || value === null) {
     return undefined;
   }
-  const divisor = new BigNumber(10).pow(decimals);
-  return new BigNumber(value).times(divisor).toFixed();
+  const divisor = new BigNumber(base).pow(decimals);
+  return new BigNumber(value, base).times(divisor).toFixed();
 };
 
 /**
@@ -53,6 +57,82 @@ export const formatEtaInMinutes = (
     return `< 1`;
   }
   return (estimatedProcessingTimeInSeconds / 60).toFixed();
+};
+
+/**
+ * Keys that require the asset to be the same for all fees
+ */
+const AMOUNT_KEYS = [
+  'amount' as const,
+  'normalizedAmount' as const,
+  'minAmount' as const,
+  'minAmountNormalized' as const,
+];
+
+/**
+ * Keys that can be aggregated across all fees
+ */
+const FIAT_OR_USD_KEYS = [
+  'valueInCurrency' as const,
+  'usd' as const,
+  'minAmountValueInCurrency' as const,
+  'minAmountUsd' as const,
+];
+
+const KEYS = [...AMOUNT_KEYS, ...FIAT_OR_USD_KEYS];
+
+/**
+ * Groups amounts by matching assetId and sums amount and fiat keys within each group.
+ *
+ * @param maybeFees - The list of fees to aggregate
+ * @returns One dest object per unique asset, or undefined if no fees are provided
+ */
+export const sumAmountsByAssetId = (
+  ...maybeFees: (
+    | (DeepPartial<QuoteResponse['quote']['dest']> | undefined | null)[]
+    | undefined
+  )[]
+): DeepPartial<QuoteResponse['quote']['dest']>[] => {
+  const fees = maybeFees
+    .flat()
+    .flat()
+    .filter(
+      (value): value is Partial<QuoteResponse['quote']['dest']> =>
+        value !== undefined && value !== null,
+    );
+
+  if (fees.length === 0) {
+    return [];
+  }
+
+  return fees.reduce<DeepPartial<QuoteResponse['quote']['dest']>[]>(
+    (acc, fee) => {
+      const feeIndex = acc.findIndex(({ asset }) =>
+        assetIdsMatch(asset?.assetId, fee.asset?.assetId),
+      );
+
+      if (feeIndex === -1) {
+        return [...acc, { ...fee }];
+      }
+
+      const aggregatedFees = { ...acc[feeIndex] };
+      KEYS.forEach((key) => {
+        const value = fee[key];
+        if (value) {
+          aggregatedFees[key] = new BigNumber(aggregatedFees[key] ?? 0)
+            .plus(value)
+            .toFixed();
+        }
+      });
+
+      return [
+        ...acc.slice(0, feeIndex),
+        aggregatedFees,
+        ...acc.slice(feeIndex + 1),
+      ];
+    },
+    [],
+  );
 };
 
 /**
@@ -88,26 +168,6 @@ export const sumAmounts = (
       acc && assetIdsMatch(fee.asset?.assetId, fees[0]?.asset?.assetId),
     true,
   );
-
-  /**
-   * Keys that require the asset to be the same for all fees
-   */
-  const AMOUNT_KEYS = [
-    'amount' as const,
-    'normalizedAmount' as const,
-    'minAmount' as const,
-    'minAmountNormalized' as const,
-  ];
-
-  /**
-   * Keys that can be aggregated across all fees
-   */
-  const FIAT_OR_USD_KEYS = [
-    'valueInCurrency' as const,
-    'usd' as const,
-    'minAmountValueInCurrency' as const,
-    'minAmountUsd' as const,
-  ];
 
   return fees.reduce((acc, fee) => {
     const newAcc = { ...acc };

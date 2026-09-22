@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 - Support subsidized max Relay deposits using atomic `EXACT_OUTPUT` quotes with transaction calls embedded, gated by `payStrategies.relay.atomicMaxEnabled` (disabled by default, with per-transaction-type overrides). ([#10224](https://github.com/MetaMask/core/pull/10224))
   - Honor the client's `atomic` hint: atomic max quotes use the source-token budget adjusted to destination decimals for 1:1 subsidized stablecoin routes, without a discovery quote or reusing the original deposit amount. Unsubsidized responses are re-quoted non-atomically.
   - Non-atomic hints start with `EXACT_INPUT` and upgrade to atomic execution when subsidized.
   - Atomic promotion errors retain the `Atomic promotion failed` prefix through standard quote error handling and strategy fallback.
+
+## [29.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `@metamask/ramps-controller` from `^23.0.0` to `^24.0.0` ([#10326](https://github.com/MetaMask/core/pull/10326))
 
 ## [29.0.0]
 
@@ -1571,7 +1577,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.1...HEAD
+[29.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.0...@metamask/transaction-pay-controller@29.0.1
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...@metamask/transaction-pay-controller@29.0.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
