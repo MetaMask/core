@@ -223,18 +223,16 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  return getSimulationBalanceChange(
+  const gasCost = isGasCostDeductedFromSender(
+    txParams,
     previousBalance,
     newBalance,
-    isGasCostDeductedFromSender(
-      txParams,
-      previousBalance,
-      newBalance,
-      stateDiff,
-    )
-      ? transactionResponse.gasCost
-      : undefined,
-  );
+    stateDiff,
+  )
+    ? transactionResponse.gasCost
+    : undefined;
+
+  return getSimulationBalanceChange(previousBalance, newBalance, gasCost);
 }
 
 /**
