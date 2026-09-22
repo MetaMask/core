@@ -90,7 +90,7 @@
     "async-mutex": "^0.5.0",
     "bitcoin-address-validation": "^2.2.3",
     "bn.js": "^5.2.5",
-    "immer": "^9.0.6",
+    "immer": "^9.0.21",
     "lodash-es": "^4.17.21",
     "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
