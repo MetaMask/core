@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(utils): resolve jsdoc lint suppressions ([#10246](https://github.com/MetaMask/core/pull/10246))
-- chore: run `lint:fix` ([#10285](https://github.com/MetaMask/core/pull/10285))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
-
 ### Changed
 
 - This package was migrated from `MetaMask/utils` to the `MetaMask/core` monorepo ([#10175](https://github.com/MetaMask/core/pull/10175))
