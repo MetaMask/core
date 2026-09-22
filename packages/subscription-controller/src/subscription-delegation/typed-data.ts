@@ -139,19 +139,6 @@ export function computeBundleFingerprint({
   });
 }
 
-export function computeSubscriptionIdempotencyKey(value: {
-  payerAddress: Hex;
-  product: string;
-  recurringInterval: string;
-  chainId: Hex;
-  pricingVersion: string;
-  unitAmount: number;
-  unitDecimals: number;
-  paymentTypedDataHash: Hex;
-}): string {
-  return hashCanonical(value);
-}
-
 function hashCanonical(value: unknown): Hex {
   const bytes = keccak256(stringToBytes(canonicalize(value)));
   return bytesToHex(bytes);

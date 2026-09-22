@@ -307,10 +307,6 @@ type StartCryptoSubscriptionRequestBase = {
    */
   tokenSymbol: string;
   /**
-   * Stable key used to reconcile an uncertain subscription creation response.
-   */
-  subscriptionIdempotencyKey?: string;
-  /**
    * Reject if authoritative trial eligibility changed since authorization.
    */
   assertTrialEligibility?: boolean;

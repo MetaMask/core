@@ -92,7 +92,6 @@ export type PreparedSubscriptionDelegationBundle = {
   account: Hex;
   chainId: Hex;
   permissions: PreparedSubscriptionPermission[];
-  subscriptionIdempotencyKey: string;
 };
 
 export type SubscriptionFundingRequest = {
@@ -135,7 +134,6 @@ export type CommitAuthorizationBundleRequest = {
 
 export type CommitAuthorizationBundleResult = {
   paymentDelegationHash: Hex;
-  subscriptionIdempotencyKey: string;
 };
 
 export type StartSubscriptionWithDelegationResult =

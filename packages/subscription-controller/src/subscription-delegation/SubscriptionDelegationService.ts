@@ -80,7 +80,6 @@ import {
 import {
   buildDelegationTypedData,
   computeBundleFingerprint,
-  computeSubscriptionIdempotencyKey,
   decodeSubscriptionAuthority,
   hashTypedData,
 } from './typed-data.js';
@@ -355,16 +354,6 @@ export class SubscriptionDelegationService {
     const bundle: PreparedSubscriptionDelegationBundle = {
       ...bundleWithoutFingerprint,
       bundleFingerprint: computeBundleFingerprint(bundleWithoutFingerprint),
-      subscriptionIdempotencyKey: computeSubscriptionIdempotencyKey({
-        payerAddress: request.payerAddress,
-        product: request.product,
-        recurringInterval: request.recurringInterval,
-        chainId: request.chainId,
-        pricingVersion: SUBSCRIPTION_DELEGATION_POLICY_VERSION,
-        unitAmount: config.price.unitAmount,
-        unitDecimals: config.price.unitDecimals,
-        paymentTypedDataHash: paymentPermission.typedDataHash,
-      }),
     };
     const targetAmount =
       calculatePeriodAmount({
@@ -427,7 +416,6 @@ export class SubscriptionDelegationService {
           tokenSymbol: config.token.symbol,
           cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
           delegationHash: paymentDelegationHash,
-          subscriptionIdempotencyKey: bundle.subscriptionIdempotencyKey,
           assertTrialEligibility: true,
         },
       );

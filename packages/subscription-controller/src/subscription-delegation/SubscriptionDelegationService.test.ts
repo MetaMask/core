@@ -1039,6 +1039,9 @@ describe('SubscriptionDelegationService', () => {
         }),
         true,
       );
+      expect(
+        mocks.addApprovalRequest.mock.calls[0][0].requestData.bundle,
+      ).not.toHaveProperty('subscriptionIdempotencyKey');
       expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith();
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith({
@@ -1051,7 +1054,6 @@ describe('SubscriptionDelegationService', () => {
         tokenSymbol: 'pvmUSD',
         cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
         delegationHash: expect.stringMatching(/^0x[0-9a-f]{64}$/u),
-        subscriptionIdempotencyKey: expect.stringMatching(/^0x[0-9a-f]{64}$/u),
         assertTrialEligibility: true,
       });
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
