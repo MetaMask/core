@@ -46,6 +46,9 @@
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.lint.json"
     }
   ]
 }
