@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Price server pay strategy quotes on the same basis as the relay strategy ([#10342](https://github.com/MetaMask/core/pull/10342))
+  - The server strategy now defaults to exact-input pricing on the source amount, and uses exact-output pricing only when the request bundles calls or the transaction is a deposit-and-order type, instead of defaulting to expected-output pricing on the target amount.
+  - Money Account post-quote deposits are now priced as an exact output on the deposit amount taken from `transactionData`.
+  - `ServerStrategy.supports` no longer declines `perpsDepositAndOrder` and `predictDepositAndOrder`, which the server strategy can now price correctly.
 - Gate the server pay strategy per transaction type so flows can be enabled individually ([#10312](https://github.com/MetaMask/core/pull/10312))
   - `ServerStrategy.supports` now also requires a transaction type listed in the new `payStrategies.server.enabledTransactionTypes` remote feature flag, which defaults to empty.
   - `ServerStrategy.supports` now declines flows using capabilities the strategy does not implement yet, regardless of the flag.
