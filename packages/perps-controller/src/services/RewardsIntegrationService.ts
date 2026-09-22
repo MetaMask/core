@@ -230,11 +230,12 @@ export class RewardsIntegrationService {
         Math.round((1 - bips / DEFAULT_FEE_BIPS) * BASIS_POINTS_DIVISOR),
       );
 
-    // A strictly cheaper raw blend must also be cheaper once quantized. A tie
-    // on the raw number is exempt: matching an already-free rate still consumes
-    // the allowance, so subscription is the honest source there.
+    // Subscription must be strictly cheaper on the wire to claim the order. A
+    // tie buys the user nothing — the same rate is already available from the
+    // source that won — while claiming it marks the cloid and spends the
+    // remaining allowance, so a tie is left to the other source. That holds at
+    // any rate, including a rewards discount that already reaches 0 bips.
     const waiverSurvivesQuantization =
-      waiver.feeBips === feeBips ||
       toTenthsBps(waiver.feeBips) < toTenthsBps(feeBips);
 
     if (

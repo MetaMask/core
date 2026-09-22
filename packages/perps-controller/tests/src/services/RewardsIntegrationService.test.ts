@@ -883,6 +883,49 @@ describe('RewardsIntegrationService', () => {
       expect(resolution.subscription.eligible).toBe(true);
     });
 
+    it('leaves a blend that only ties a rewards discount to rewards', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 500 })),
+      );
+      // A blend of 10 * (1 - 500/1000) = 5 bips against a 50% VIP/season
+      // discount worth the same 5 bips. Claiming the tie would mark the cloid
+      // and spend the allowance for a rate rewards already gives away.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(5000);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBeCloseTo(5, 10);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+      expect(resolution.subscriptionCoveredNotionalUsd).toBeUndefined();
+      expect(resolution.subscription.eligible).toBe(true);
+    });
+
+    it('leaves a full waiver tying an already-free rewards rate to rewards', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 5000 })),
+      );
+      // Rewards already charges nothing, so the waiver cannot make the order
+      // cheaper — it can only consume the remaining allowance.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(10000);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(0);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+    });
+
     it('lets a partial subscription blend win when it undercuts rewards', async () => {
       wireSubscription(
         jest
