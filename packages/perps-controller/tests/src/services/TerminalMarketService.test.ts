@@ -874,6 +874,7 @@ describe('TerminalMarketService', () => {
       ['invalid open interest', [createSnapshotMarket({ openInterest: '-1' })]],
       ['empty non-null name', [createSnapshotMarket({ name: '' })]],
       ['empty id', [createSnapshotMarket({ id: '' })]],
+      ['wrong network', [createSnapshotMarket({ network: 'testnet' })]],
     ])('rejects %s', async (_name, markets) => {
       const needsXyz = _name === 'missing requested DEX';
       jest.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -926,6 +927,7 @@ describe('TerminalMarketService', () => {
               network: 'testnet',
               fingerprint:
                 'sha256:0077720707e8b99ea78df074cdaa58522d331b47f7dcd9bd7cff6f706ffd44db',
+              markets: [createSnapshotMarket({ network: 'testnet' })],
             }),
           ),
         );

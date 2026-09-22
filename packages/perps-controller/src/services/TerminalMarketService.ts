@@ -485,6 +485,9 @@ export class TerminalMarketService {
     if (market.id.length === 0) {
       throw invalid('id');
     }
+    if (market.network !== identity.network) {
+      throw invalid('network');
+    }
     if (!identity.enabledDexes.includes(market.dex)) {
       throw invalid('dex');
     }
