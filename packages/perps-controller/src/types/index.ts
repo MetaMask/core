@@ -1178,6 +1178,26 @@ export type PriceUpdate = {
 
 export type OrderFill = {
   orderId: string; // Order ID that was filled
+  /**
+   * Unique execution identifier from the venue, when the venue exposes one.
+   *
+   * `orderId` identifies an *order*, not an execution: one order can produce
+   * many partial fills that legitimately share it, along with timestamp, size
+   * and price. Only this field distinguishes two such executions, so clients
+   * deduplicating fills across transports (REST history vs. live websocket)
+   * must key on it when present.
+   *
+   * Optional because not every venue exposes an execution id. When it is
+   * absent, a client has no exact identity available and must fall back to
+   * matching on fill content, which cannot be exact.
+   *
+   * Unique within a provider, not across providers: under aggregation two
+   * venues can mint the same id independently, so pair it with `providerId`
+   * when fills from several providers share one list.
+   *
+   * Sources: HyperLiquid `tid`, Lighter `tradeId`.
+   */
+  fillId?: string;
   symbol: string; // Asset symbol
   side: string; // Normalized order side ('buy' or 'sell')
   size: string; // Fill size

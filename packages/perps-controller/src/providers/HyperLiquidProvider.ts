@@ -11462,6 +11462,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (!['Buy', 'Sell'].includes(fill.dir)) {
           acc.push({
             orderId: fill.oid?.toString() || '',
+            // HyperLiquid's unique execution id. Two partial fills of one
+            // order share oid, time, sz and px, so this is the only field
+            // that tells them apart downstream. Omitted rather than
+            // stringified when a non-conforming payload lacks it, so a
+            // client can tell "no id available" from a real id.
+            ...(fill.tid === undefined || fill.tid === null
+              ? {}
+              : { fillId: fill.tid.toString() }),
             symbol: fill.coin,
             side: fill.side === 'A' ? 'sell' : 'buy',
             startPosition: fill.startPosition,

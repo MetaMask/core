@@ -1289,6 +1289,139 @@ describe('HyperLiquidSubscriptionService', () => {
 
       unsubscribe();
     });
+
+    describe('execution identifier', () => {
+      /**
+       * Two partial executions of ONE order that agree on oid, time, sz and
+       * px. HyperLiquid does not guarantee those four identify a single
+       * execution, so only tid separates them; a client deduplicating on the
+       * four-field tuple drops a real trade.
+       */
+      const collidingFills = [
+        {
+          oid: BigInt(777),
+          coin: 'BTC',
+          side: 'B',
+          sz: '0.5',
+          px: '50000',
+          fee: '1.25',
+          feeToken: 'USDC',
+          time: 1699999999999,
+          closedPnl: '0',
+          dir: 'Open Long',
+          startPosition: '0',
+          tid: 111111111111111,
+        },
+        {
+          oid: BigInt(777),
+          coin: 'BTC',
+          side: 'B',
+          sz: '0.5',
+          px: '50000',
+          fee: '1.25',
+          feeToken: 'USDC',
+          time: 1699999999999,
+          closedPnl: '0',
+          dir: 'Open Long',
+          startPosition: '0',
+          tid: 222222222222222,
+        },
+      ];
+
+      const emitFills = (fills: unknown[]) => {
+        mockSubscriptionClient.userFills.mockImplementation(
+          (_params: any, callback: any) => {
+            setTimeout(() => {
+              callback({ fills, isSnapshot: true });
+            }, 0);
+            return Promise.resolve({
+              unsubscribe: jest.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+      };
+
+      it('maps tid to fillId for each streamed fill', async () => {
+        emitFills(collidingFills);
+        const mockCallback = jest.fn();
+
+        const unsubscribe = service.subscribeToOrderFills({
+          callback: mockCallback,
+        });
+        await jest.runAllTimersAsync();
+
+        const [emitted] = mockCallback.mock.calls[0];
+        expect(emitted).toHaveLength(2);
+        expect(emitted[0].fillId).toBe('111111111111111');
+        expect(emitted[1].fillId).toBe('222222222222222');
+
+        unsubscribe();
+      });
+
+      it('gives distinct fillIds to two executions sharing orderId, timestamp, size and price', async () => {
+        emitFills(collidingFills);
+        const mockCallback = jest.fn();
+
+        const unsubscribe = service.subscribeToOrderFills({
+          callback: mockCallback,
+        });
+        await jest.runAllTimersAsync();
+
+        const [emitted] = mockCallback.mock.calls[0];
+        const contentKey = (fill: any) =>
+          `${fill.orderId}-${fill.timestamp}-${fill.size}-${fill.price}`;
+        expect(contentKey(emitted[0])).toBe(contentKey(emitted[1]));
+        expect(emitted[0].fillId).not.toBe(emitted[1].fillId);
+        expect(new Map(emitted.map((f: any) => [f.fillId, f])).size).toBe(2);
+
+        unsubscribe();
+      });
+
+      it('omits fillId when the streamed payload carries no tid', async () => {
+        const { tid, ...withoutTid } = collidingFills[0];
+        emitFills([withoutTid]);
+        const mockCallback = jest.fn();
+
+        const unsubscribe = service.subscribeToOrderFills({
+          callback: mockCallback,
+        });
+        await jest.runAllTimersAsync();
+
+        const [emitted] = mockCallback.mock.calls[0];
+        expect(emitted).toHaveLength(1);
+        expect(emitted[0].fillId).toBeUndefined();
+        expect(Object.hasOwn(emitted[0], 'fillId')).toBe(false);
+
+        unsubscribe();
+      });
+
+      it('leaves the rest of the streamed fill content unchanged', async () => {
+        emitFills([collidingFills[0]]);
+        const mockCallback = jest.fn();
+
+        const unsubscribe = service.subscribeToOrderFills({
+          callback: mockCallback,
+        });
+        await jest.runAllTimersAsync();
+
+        const [emitted] = mockCallback.mock.calls[0];
+        expect(emitted[0]).toMatchObject({
+          orderId: '777',
+          symbol: 'BTC',
+          side: 'B',
+          size: '0.5',
+          price: '50000',
+          fee: '1.25',
+          feeToken: 'USDC',
+          timestamp: 1699999999999,
+          pnl: '0',
+          direction: 'Open Long',
+          startPosition: '0',
+        });
+
+        unsubscribe();
+      });
+    });
   });
 
   describe('Shared WebData3 Subscription', () => {

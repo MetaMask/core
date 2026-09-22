@@ -2946,6 +2946,12 @@ export class HyperLiquidSubscriptionService {
           const oid = fill.oid.toString();
           return {
             orderId: oid,
+            // Same execution id the REST path maps, so a client merging
+            // history with this stream recognises one execution reported
+            // twice, and keeps two executions that merely look alike.
+            ...(fill.tid === undefined || fill.tid === null
+              ? {}
+              : { fillId: fill.tid.toString() }),
             symbol: fill.coin,
             side: fill.side,
             size: fill.sz,
