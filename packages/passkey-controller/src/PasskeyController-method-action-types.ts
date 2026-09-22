@@ -54,7 +54,8 @@ export type PasskeyControllerGeneratePasskeyReplacementRegistrationOptionsAction
  * @param params.registrationResponse - Result of `navigator.credentials.create()`.
  * @param params.authenticationResponse - Result of `navigator.credentials.get()`
  * after {@link generatePostRegistrationAuthenticationOptions}.
- * @param params.password - Wallet password when onboarding is complete.
+ * @param params.password - Wallet password when onboarding is complete and
+ * the keyring is locked.
  * @returns Resolves when the replacement completes.
  */
 export type PasskeyControllerCompletePasskeyReplacementAction = {

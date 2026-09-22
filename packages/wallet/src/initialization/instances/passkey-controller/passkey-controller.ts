@@ -33,6 +33,7 @@ export const passkeyController: InitializationConfiguration<
       messenger: passkeyControllerMessenger,
       actions: [
         'KeyringController:verifyPassword',
+        'KeyringController:isUnlocked',
         'KeyringController:exportEncryptionKey',
         'KeyringController:submitEncryptionKey',
         'KeyringController:changePassword',

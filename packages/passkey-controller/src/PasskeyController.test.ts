@@ -1278,11 +1278,19 @@ describe('PasskeyController', () => {
       ).toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
 
-    it('requires the wallet password after onboarding', async () => {
+    it('requires the wallet password when the keyring is locked after onboarding', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       let onboardingComplete = false;
+      const isUnlocked = jest.fn().mockReturnValue(false);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        isUnlocked,
+        exportEncryptionKey: jest
+          .fn()
+          .mockResolvedValue(DEFAULT_TEST_VAULT_KEY),
+      });
       const controller = createController({
+        messenger,
         getIsOnboardingCompleted: () => onboardingComplete,
       });
       const { record: oldRecord, userHandle } =
@@ -1313,6 +1321,42 @@ describe('PasskeyController', () => {
         authenticationResponse: migration.authenticationResponse,
         password: 'secret',
       });
+      expect(controller.state.passkeyRecord?.credential.id).toBe(
+        TEST_REPLACEMENT_CREDENTIAL_ID,
+      );
+    });
+
+    it('does not require the wallet password when the keyring is unlocked after onboarding', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      let onboardingComplete = false;
+      const verifyPassword = jest.fn();
+      const isUnlocked = jest.fn().mockReturnValue(true);
+      const { messenger } = createMockPasskeyControllerMessenger({
+        isUnlocked,
+        verifyPassword,
+      });
+      const controller = createController({
+        messenger,
+        getIsOnboardingCompleted: () => onboardingComplete,
+      });
+      await enrollUserHandlePasskey(controller);
+      onboardingComplete = true;
+      setupRegistrationMocks({
+        credentialId: TEST_REPLACEMENT_CREDENTIAL_ID,
+        publicKey: TEST_REPLACEMENT_PUBLIC_KEY_BYTES,
+      });
+      setupAuthenticationMocks({
+        credentialId: TEST_REPLACEMENT_CREDENTIAL_ID,
+      });
+      const migration = getReplacementCeremony(controller);
+
+      await controller.completePasskeyReplacement({
+        registrationResponse: migration.registrationResponse,
+        authenticationResponse: migration.authenticationResponse,
+      });
+
+      expect(verifyPassword).not.toHaveBeenCalled();
       expect(controller.state.passkeyRecord?.credential.id).toBe(
         TEST_REPLACEMENT_CREDENTIAL_ID,
       );
