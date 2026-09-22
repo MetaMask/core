@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^4.0.0` to `^5.0.0`. ()
+
+### Fixed
+
+- Fixed missing `SubscriptionService:getBenefits` actions in `SubscriptionController` initialization.
+
 ## [14.0.0]
 
 ### Added
