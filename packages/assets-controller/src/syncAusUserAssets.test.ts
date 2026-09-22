@@ -241,12 +241,11 @@ describe('syncAusUserAssets', () => {
   });
 
   describe('timing', () => {
-    it('queues the sync as soon as a sync method returns', async () => {
+    it('fires immediately when a sync method returns', () => {
       const fixture = new AusSyncFixture();
       installAusMock(fixture.messenger);
 
       fixture.hideAsset(MOCK_ASSET_ID);
-      await flushPromises();
 
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(HIDE_TOKENS, [
@@ -254,7 +253,7 @@ describe('syncAusUserAssets', () => {
       ]);
     });
 
-    it('queues the sync when an async method is invoked, before its post-mutation work settles', async () => {
+    it('fires when an async method is invoked, before its post-mutation work settles', async () => {
       const fixture = new AusSyncFixture();
       installAusMock(fixture.messenger);
       let resolvePending: () => void = () => undefined;
@@ -263,11 +262,10 @@ describe('syncAusUserAssets', () => {
       });
 
       const pendingAdd = fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await flushPromises();
 
       // The local mutation is applied before the method returns control, so
-      // the mirror is queued at invocation time — a later failure in the
-      // post-mutation work can no longer skip it.
+      // the mirror fires without waiting for the method to settle — a later
+      // failure in the post-mutation work can no longer skip it.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
         MOCK_ASSET_ID,
@@ -276,10 +274,8 @@ describe('syncAusUserAssets', () => {
       resolvePending();
       await pendingAdd;
     });
-  });
 
-  describe('ordering', () => {
-    it('applies syncs in invocation order, so a remove is never overwritten by a still-pending add', async () => {
+    it('does not write back over a later remove when a pending add settles', async () => {
       const fixture = new AusSyncFixture();
       installAusMock(fixture.messenger, {
         blob: {
@@ -299,9 +295,8 @@ describe('syncAusUserAssets', () => {
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
       await flushPromises();
 
-      // The import ran first and the strip ran after it, so the final blob
-      // reflects the removal — no delayed import writes the removed token
-      // back.
+      // The import fired at add time and the strip applied after it; the
+      // final blob reflects the removal.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
       expect(fixture.messenger.call).toHaveBeenNthCalledWith(1, IMPORT_TOKENS, [
         MOCK_ASSET_ID,
@@ -324,7 +319,7 @@ describe('syncAusUserAssets', () => {
       await pendingAdd;
       await flushPromises();
 
-      // The add settling late queues no further AUS write.
+      // The add settling late fires no further AUS write.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
     });
   });

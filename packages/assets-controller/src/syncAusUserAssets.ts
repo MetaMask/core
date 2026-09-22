@@ -32,10 +32,7 @@ type StripConfig = {
 
 type AusSyncConfig = MergeConfig | StripConfig;
 
-/**
- * The controller surface the AUS sync needs. `messenger` is spelled out here
- * because it is protected on the controller and so cannot be picked.
- */
+/** The controller surface the AUS sync needs (`messenger` is protected). */
 type AusSyncCaller = {
   messenger: Pick<AssetsControllerMessenger, 'call'>;
 };
@@ -109,16 +106,8 @@ async function syncUserAssetsToAus(
 }
 
 /**
- * FIFO chain of AUS syncs, so they apply strictly in invocation order — the
- * order the local mutations were applied — never the order the decorated
- * methods' post-mutation work happens to settle.
- */
-let ausSyncChain: Promise<void> = Promise.resolve();
-
-/**
- * Queue an AUS sync on the chain, swallowing and debug-logging any failure so
- * it can never block or roll back the local state change that already
- * happened.
+ * Fire the AUS sync, swallowing and debug-logging any failure so it can
+ * never block or roll back the local state change that already happened.
  *
  * @param caller - The controller whose messenger to call AUS actions on.
  * @param config - The AUS behavior configured for the invoked method.
@@ -129,22 +118,14 @@ function fireAusSync(
   config: AusSyncConfig,
   assetId: Caip19AssetId,
 ): void {
-  ausSyncChain = ausSyncChain
-    .then(() => syncUserAssetsToAus(caller, config, assetId))
-    .catch((error: unknown) => {
-      log('Failed to sync user assets to AUS', { assetId, error });
-    });
+  syncUserAssetsToAus(caller, config, assetId).catch((error: unknown) => {
+    log('Failed to sync user assets to AUS', { assetId, error });
+  });
 }
 
 /**
- * Method decorator that mirrors custom-token state changes to AUS user
- * storage. The sync is queued as soon as the decorated method has applied
- * its local mutation — which every configured method does before it returns
- * or first awaits — and queued syncs run in invocation order, so a later
- * mutation can never overwrite the AUS write of an earlier one still in
- * flight. Fire-and-forget: AUS failures are swallowed and debug-logged and
- * never roll back local state, and a locally failing method never writes to
- * AUS.
+ * Method decorator that mirrors a custom-token state change to AUS user
+ * storage as the decorated method returns, fire-and-forget.
  *
  * @param target - The decorated custom-token method.
  * @param context - The decorator context.
@@ -170,11 +151,8 @@ export function syncAusUserAssets<This, Args extends unknown[], Return>(
   return function (this: This, ...args: Args): Return {
     const caller = this as unknown as AusSyncCaller;
     const result = target.call(this, ...args);
-    // Every configured method applies its local mutation before it returns
-    // or first awaits, so queue the sync now rather than when post-mutation
-    // work settles — a later mutation then queues behind this sync instead
-    // of racing it, and a post-mutation failure cannot skip the mirror of a
-    // local change that already happened.
+    // The local mutation is applied by the time the method returns, so fire
+    // the mirror now rather than when post-mutation work settles.
     fireAusSync(caller, config, args[config.assetIdArgIndex] as Caip19AssetId);
     return result;
   };
