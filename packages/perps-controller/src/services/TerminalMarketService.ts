@@ -46,6 +46,7 @@ const DEX_PATTERN = /^(?:main|[a-z0-9][a-z0-9-]*)$/u;
 const GlobalSnapshotMarketStruct = object({
   id: string(),
   symbol: string(),
+  network: string(),
   provider: string(),
   dex: string(),
   name: nullable(string()),

@@ -11,6 +11,7 @@ const createSnapshotMarket = (
 ): Record<string, unknown> => ({
   id: 'btc-hyperliquid-mainnet',
   symbol: 'BTC',
+  network: 'mainnet',
   provider: 'hyperliquid',
   dex: 'main',
   name: 'Bitcoin',
