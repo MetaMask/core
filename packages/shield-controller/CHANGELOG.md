@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.2.0` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `cockatiel` from `^3.1.2` to `^4.0.0` ([#10381](https://github.com/MetaMask/core/pull/10381))
 
 ## [7.0.1]
 

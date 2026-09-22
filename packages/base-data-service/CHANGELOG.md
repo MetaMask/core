@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `cockatiel` from `^3.1.2` to `^4.0.0` ([#10381](https://github.com/MetaMask/core/pull/10381))
 
 ## [2.0.0]
 

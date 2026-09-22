@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `cockatiel` from `^3.1.2` to `^4.0.0` ([#10381](https://github.com/MetaMask/core/pull/10381))
 
 ## [11.0.0]
 
