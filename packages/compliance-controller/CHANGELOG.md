@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
+
 ### Removed
 
 - Remove the unused `@metamask/utils` dependency ([#10185](https://github.com/MetaMask/core/pull/10185))

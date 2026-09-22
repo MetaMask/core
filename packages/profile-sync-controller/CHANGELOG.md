@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: add KeyringController entropy ID selectors ([#10284](https://github.com/MetaMask/core/pull/10284))
+- chore: use utility `PublicInterface` type ([#10281](https://github.com/MetaMask/core/pull/10281))
+- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
+
 ### Added
 
 - Add `refreshEnrolledCredentials`, `beginCredentialEnrollment` and `completeCredentialEnrollment` to `AuthenticationController`, backed by a memory-only `enrolledCredentials` state and an optional `trace` callback ([#10266](https://github.com/MetaMask/core/pull/10266))
