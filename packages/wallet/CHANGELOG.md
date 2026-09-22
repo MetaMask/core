@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for PRF passkey migration. ([#10310](https://github.com/MetaMask/core/pull/10310))
+  - Delegate `KeyringController:isUnlocked` to `PasskeyController` so migration can skip the wallet-password step-up when the keyring is already unlocked.
+- Add subscription benefits to the default wallet initialization. ([#10310](https://github.com/MetaMask/core/pull/10310))
+  - Delegate `SubscriptionService:getBenefits` to `SubscriptionController`.
+
 ## [14.0.0]
 
 ### Added
