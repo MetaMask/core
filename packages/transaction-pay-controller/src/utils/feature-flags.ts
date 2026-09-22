@@ -1,8 +1,8 @@
-import { hasTransactionType } from '@metamask/transaction-controller';
-import type {
-  TransactionMeta,
+import {
+  hasTransactionType,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -195,10 +195,16 @@ export type RelayValidationEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
+export type AtomicMaxEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
+      atomicMaxEnabled?: AtomicMaxEnabledConfig;
       gaslessEnabled?: boolean;
       validationEnabled?: RelayValidationEnabledConfig;
     };
@@ -687,6 +693,49 @@ export function isRelayValidationEnabled(
 
   // `?? false`: `default` is optional, so an omitted config disables validation.
   return validationEnabled?.default ?? false;
+}
+
+/**
+ * Whether atomic max quotes are enabled for a given transaction.
+ *
+ * Gates subsidized max deposits using atomic exact-output quotes.
+ *
+ * Configured via the `payStrategies.relay.atomicMaxEnabled` flag, an
+ * object `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any nested transaction, has that type.
+ *
+ * When the flag or its default is absent, atomic max is disabled unless a
+ * matching transaction type override enables it.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being quoted. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if atomic max quotes are enabled.
+ */
+export function isAtomicMaxEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const atomicMaxEnabled = featureFlags.payStrategies?.relay?.atomicMaxEnabled;
+
+  const transactionTypes = atomicMaxEnabled?.transactionTypes ?? {};
+
+  // A per-type override wins over the global `default` toggle. An override
+  // matches when the transaction, or any nested transaction, has that type.
+  for (const [type, enabled] of Object.entries(transactionTypes)) {
+    if (hasTransactionType(transaction, [type as TransactionType])) {
+      return enabled;
+    }
+  }
+
+  return atomicMaxEnabled?.default ?? false;
 }
 
 /**
