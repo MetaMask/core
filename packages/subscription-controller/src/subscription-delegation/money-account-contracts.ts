@@ -30,17 +30,17 @@ export type DelegationsReadinessResult =
       reasons: MoneyAccountAuthorizationReason[];
     };
 
-export type EnsureDelegationsReadinessResult = {
-  status: 'ready';
-  activeDelegationHashes: Partial<Record<VaultPermissionId, Hex>>;
-};
-
-export type MoneyAccountControllerGetDelegationsReadinessAction = {
-  type: 'MoneyAccountController:getDelegationsReadiness';
-  handler: () => Promise<DelegationsReadinessResult>;
-};
-
+/**
+ * Idempotent readiness check for the Money Account vault delegations.
+ *
+ * `MoneyAccountController` creates the vault delegations early in the account
+ * lifecycle and keeps retrying to fill any gaps on its own. In the common case
+ * the delegations already exist and this action simply reports them; if any
+ * are missing it attempts to create them before reporting. The result is the
+ * current readiness either way, so callers use the same action both to build
+ * the approval bundle and as a post-approval safety check.
+ */
 export type MoneyAccountControllerEnsureDelegationsReadinessAction = {
   type: 'MoneyAccountController:ensureDelegationsReadiness';
-  handler: () => Promise<EnsureDelegationsReadinessResult>;
+  handler: () => Promise<DelegationsReadinessResult>;
 };

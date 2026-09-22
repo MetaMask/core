@@ -180,9 +180,7 @@ export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from
 export type { SubscriptionDelegationServiceStartSubscriptionWithDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type {
   DelegationsReadinessResult,
-  EnsureDelegationsReadinessResult,
   MoneyAccountControllerEnsureDelegationsReadinessAction,
-  MoneyAccountControllerGetDelegationsReadinessAction,
   MoneyAccountDelegationScope,
   VaultPermissionId,
 } from './subscription-delegation/money-account-contracts.js';

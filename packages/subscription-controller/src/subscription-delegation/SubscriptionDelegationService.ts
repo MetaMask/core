@@ -51,10 +51,7 @@ import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
 } from './fingerprint.js';
-import type {
-  MoneyAccountControllerEnsureDelegationsReadinessAction,
-  MoneyAccountControllerGetDelegationsReadinessAction,
-} from './money-account-contracts.js';
+import type { MoneyAccountControllerEnsureDelegationsReadinessAction } from './money-account-contracts.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import {
   buildDelegationTypedData,
@@ -144,7 +141,6 @@ type AllowedActions =
   | ChompApiServiceGetIntentsByAddressAction
   | DelegationControllerSignDelegationAction
   | ApprovalControllerAddRequestAction
-  | MoneyAccountControllerGetDelegationsReadinessAction
   | MoneyAccountControllerEnsureDelegationsReadinessAction
   | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | RemoteFeatureFlagControllerGetStateAction
@@ -327,7 +323,7 @@ export class SubscriptionDelegationService {
       !trialedProducts.includes(request.product);
 
     const readiness = await this.#messenger.call(
-      'MoneyAccountController:getDelegationsReadiness',
+      'MoneyAccountController:ensureDelegationsReadiness',
     );
     if (readiness.status === 'money-account-authorization-required') {
       throw new MoneyAccountAuthorizationRequiredError(readiness.reasons);
@@ -384,8 +380,8 @@ export class SubscriptionDelegationService {
 
     try {
       this.#validateApprovalResult(approval, bundle);
-      await this.#messenger.call(
-        'MoneyAccountController:ensureDelegationsReadiness',
+      await this.#assertVaultPermissionsActive(
+        bundle.permissions.filter(({ owner }) => owner === 'money-account'),
       );
 
       const paymentDelegation = await this.#signPaymentPermissionIfRequired(
@@ -394,9 +390,6 @@ export class SubscriptionDelegationService {
       );
       const paymentDelegationHash = await this.#commitPaymentPermission({
         request,
-        approvedVaultPermissions: bundle.permissions.filter(
-          ({ owner }) => owner === 'money-account',
-        ),
         paymentPermission,
         paymentDelegation,
         config,
@@ -565,21 +558,18 @@ export class SubscriptionDelegationService {
     return { ...permission.delegation, signature };
   }
 
-  async #commitPaymentPermission({
-    request,
-    approvedVaultPermissions,
-    paymentPermission,
-    paymentDelegation,
-    config,
-  }: {
-    request: StartSubscriptionWithDelegationRequest;
-    approvedVaultPermissions: PreparedSubscriptionPermission[];
-    paymentPermission: PreparedSubscriptionPermission;
-    paymentDelegation?: SignedSubscriptionDelegation;
-    config: ResolvedSubscriptionDelegationConfig;
-  }): Promise<Hex> {
+  /**
+   * Post-approval safety check: re-runs the idempotent readiness action and
+   * requires every approved vault permission to be active and unchanged.
+   *
+   * @param approvedVaultPermissions - Money Account permissions from the
+   * approved bundle.
+   */
+  async #assertVaultPermissionsActive(
+    approvedVaultPermissions: PreparedSubscriptionPermission[],
+  ): Promise<void> {
     const readiness = await this.#messenger.call(
-      'MoneyAccountController:getDelegationsReadiness',
+      'MoneyAccountController:ensureDelegationsReadiness',
     );
     if (readiness.status !== 'ready') {
       throw new Error(
@@ -605,7 +595,19 @@ export class SubscriptionDelegationService {
         SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
       );
     }
+  }
 
+  async #commitPaymentPermission({
+    request,
+    paymentPermission,
+    paymentDelegation,
+    config,
+  }: {
+    request: StartSubscriptionWithDelegationRequest;
+    paymentPermission: PreparedSubscriptionPermission;
+    paymentDelegation?: SignedSubscriptionDelegation;
+    config: ResolvedSubscriptionDelegationConfig;
+  }): Promise<Hex> {
     if (paymentPermission.disposition === 'reused') {
       const delegationHash = paymentPermission.existingDelegationHash as Hex;
       const storedDelegation = (
