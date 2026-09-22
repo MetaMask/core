@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/passkey-controller` from `^4.0.0` to `^5.0.0`. ()
+- Bump `@metamask/passkey-controller` from `^4.0.0` to `^5.0.0`. ([#10351](https://github.com/MetaMask/core/pull/10351))
 
 ### Fixed
 
-- Fixed missing `SubscriptionService:getBenefits` actions in `SubscriptionController` initialization.
+- Fixed missing `SubscriptionService:getBenefits` actions in `SubscriptionController` initialization. ([#10351](https://github.com/MetaMask/core/pull/10351))
 
 ## [14.0.0]
 
