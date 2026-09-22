@@ -2436,88 +2436,52 @@ export class TradingService {
         ...this.#buildAttributionProperties(params.trackingData),
       });
 
-      // Get fee discount from rewards. A TP/SL update carries no notional of
-      // its own, so it is priced from what the triggers actually cover.
-      //
-      // A partial update states its own quantity in `takeProfitSize` /
-      // `stopLossSize`, and the provider submits exactly that
-      // (`resolveTpslSize`). Pricing such an update from the whole position
-      // would resolve the fee against far more notional than is submitted and
-      // blend away a waiver that should have been full. The two triggers go up
-      // under one builder context, so the larger size prices the action; an
-      // omitted size covers the whole position and therefore prices as such.
-      //
-      // Only when neither size is given does this fall back to the position the
-      // triggers protect: the caller's snapshot or tracking data when supplied,
-      // and otherwise the position read back through the routed provider. Both
-      // caller fields are optional, and a bounded waiver is withheld without a
-      // notional, so relying on them alone silently drops the waiver on a valid
-      // update.
-      const positionNotionalUsd = async (): Promise<number | undefined> =>
-        this.#resolveOrderNotionalUsd({
-          usdAmount: params.position?.positionValue,
-          size: params.trackingData?.positionSize?.toString(),
-          currentPrice: params.trackingData?.entryPrice,
-        }) ??
-        this.#resolveOrderNotionalUsd({
-          usdAmount: (
-            await this.#loadPositionData({
+      // The batch shares one builder fee. Price each included trigger at its
+      // own level and size, then use the largest notional. An omitted size
+      // covers the absolute position size, including for short positions.
+      let positionPromise: Promise<Position | undefined> | undefined;
+      const getPosition = (): Promise<Position | undefined> =>
+        (positionPromise ??= params.position
+          ? Promise.resolve(params.position)
+          : this.#loadPositionData({
               symbol: params.symbol,
               context,
               provider,
               providerId: params.providerId,
-            })
-          )?.positionValue,
-        });
-      let positionNotionalUsdPromise: Promise<number | undefined> | undefined;
-      const getPositionNotionalUsd = (): Promise<number | undefined> =>
-        (positionNotionalUsdPromise ??= positionNotionalUsd());
+            }));
 
-      // Each trigger has its own price and submitted size. An omitted size is
-      // resolved by the provider as the full position, so mixed partial/full
-      // updates must include the position notional when selecting the largest
-      // trigger for the shared builder context.
       const triggerNotionalsUsd = await Promise.all(
         [
-          {
-            price: params.takeProfitPrice,
-            size: params.takeProfitSize,
-          },
-          {
-            price: params.stopLossPrice,
-            size: params.stopLossSize,
-          },
+          { price: params.takeProfitPrice, size: params.takeProfitSize },
+          { price: params.stopLossPrice, size: params.stopLossSize },
         ]
           .filter(
             (trigger): trigger is { price: string; size: string | undefined } =>
               trigger.price !== undefined,
           )
-          .map(async ({ price, size }) =>
-            size === undefined
-              ? getPositionNotionalUsd()
-              : this.#resolveOrderNotionalUsd({
-                  size,
-                  price,
-                  currentPrice:
-                    params.trackingData?.entryPrice ??
-                    (params.position?.entryPrice === undefined
-                      ? undefined
-                      : Number.parseFloat(params.position.entryPrice)),
-                }),
-          ),
+          .map(async ({ price, size }) => {
+            const triggerSize = size ?? (await getPosition())?.size;
+            return this.#resolveOrderNotionalUsd({
+              size:
+                triggerSize === undefined
+                  ? undefined
+                  : Math.abs(Number.parseFloat(triggerSize)).toString(),
+              price,
+            });
+          }),
       );
 
-      // An unpriceable trigger still falls back to the position rather than
-      // resolving to no notional: over-pricing withholds part of a waiver,
-      // while no notional withholds a bounded one entirely.
+      // A known sibling cannot stand in for a trigger whose size is unknown.
+      // Passing undefined withholds a bounded waiver for the entire batch.
       const pricedTriggerNotionalsUsd = triggerNotionalsUsd.filter(
         (notional): notional is number =>
           notional !== undefined && Number.isFinite(notional) && notional > 0,
       );
       const tpslNotionalUsd =
-        pricedTriggerNotionalsUsd.length > 0
+        pricedTriggerNotionalsUsd.length > 0 &&
+        pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
           ? Math.max(...pricedTriggerNotionalsUsd)
-          : await getPositionNotionalUsd();
+          : undefined;
       const feeResolution =
         await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
 

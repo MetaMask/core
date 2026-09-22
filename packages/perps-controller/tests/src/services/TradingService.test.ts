@@ -2600,13 +2600,12 @@ describe('TradingService', () => {
       });
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
-        25000,
+        22500,
       );
     });
 
-    it('prices a whole-position TP/SL update from the position notional', async () => {
-      // No trigger size means the triggers cover the whole position, so the
-      // position notional is still the right price.
+    it('prices a whole-position TP/SL update from its trigger price', async () => {
+      // The whole position is valued at the trigger price, not the mark price.
       mockGetPositions.mockResolvedValue([mockPosition]);
       mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
 
@@ -2621,7 +2620,51 @@ describe('TradingService', () => {
       });
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
-        25000,
+        27500,
+      );
+    });
+
+    it.each(['0.5', '-0.5'])(
+      'prices an omitted TP size from absolute position size %s',
+      async (size) => {
+        mockGetPositions.mockResolvedValue([{ ...mockPosition, size }]);
+        mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+        await tradingService.updatePositionTPSL({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            takeProfitPrice: '60000',
+            stopLossPrice: '45000',
+            stopLossSize: '0.05',
+          },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          30000,
+        );
+        expect(mockGetPositions).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('withholds a bounded waiver when an omitted trigger size cannot be priced', async () => {
+      mockGetPositions.mockResolvedValue([]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          stopLossPrice: '45000',
+          stopLossSize: '0.05',
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        undefined,
       );
     });
 
