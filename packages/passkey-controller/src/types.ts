@@ -7,7 +7,6 @@ import type {
   KeyringControllerExportAccountAction,
   KeyringControllerExportEncryptionKeyAction,
   KeyringControllerExportSeedPhraseAction,
-  KeyringControllerIsUnlockedAction,
   KeyringControllerSubmitEncryptionKeyAction,
   KeyringControllerVerifyPasswordAction,
 } from '@metamask/keyring-controller';
@@ -155,7 +154,6 @@ export type PasskeyControllerGetStateAction = ControllerGetStateAction<
  */
 export type PasskeyControllerAllowedActions =
   | KeyringControllerVerifyPasswordAction
-  | KeyringControllerIsUnlockedAction
   | KeyringControllerExportEncryptionKeyAction
   | KeyringControllerSubmitEncryptionKeyAction
   | KeyringControllerChangePasswordAction

@@ -317,14 +317,11 @@ export class PasskeyController extends BaseController<
    * @param params.registrationResponse - Result of `navigator.credentials.create()`.
    * @param params.authenticationResponse - Result of `navigator.credentials.get()`
    *   after {@link generatePostRegistrationAuthenticationOptions}.
-   * @param params.password - Wallet password when onboarding is complete and
-   *   the keyring is locked.
    * @returns Resolves when the replacement completes.
    */
   async completePasskeyReplacement(params: {
     registrationResponse: PasskeyRegistrationResponse;
     authenticationResponse: PasskeyAuthenticationResponse;
-    password?: string;
   }): Promise<void> {
     return this.#withOperationLock(() =>
       this.#completePasskeyReplacement(params),
@@ -334,7 +331,6 @@ export class PasskeyController extends BaseController<
   async #completePasskeyReplacement(params: {
     registrationResponse: PasskeyRegistrationResponse;
     authenticationResponse: PasskeyAuthenticationResponse;
-    password?: string;
   }): Promise<void> {
     const sourceRecord = this.#requireEnrolled();
     if (sourceRecord.keyDerivation.method !== 'userHandle') {
@@ -361,12 +357,8 @@ export class PasskeyController extends BaseController<
       );
     }
 
-    const isKeyringUnlocked = this.messenger.call(
-      'KeyringController:isUnlocked',
-    );
-    if (!isKeyringUnlocked) {
-      await this.#assertEnrollmentAllowed(params.password);
-    }
+    // Migration should only run when keyring is unlocked.
+    // this will throw an error if the keyring is locked.
     const vaultKey = await this.messenger.call(
       'KeyringController:exportEncryptionKey',
     );
