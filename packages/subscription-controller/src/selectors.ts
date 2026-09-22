@@ -158,7 +158,7 @@ export function selectIsRenewalNeeded(
 }
 
 /**
- * Returns whether the delegation has exhausted its cumulative allowance.
+ * Returns whether the delegation has exhausted its allowance.
  *
  * @param state - The subscription controller state.
  * @param productType - The product whose delegation state is queried.
