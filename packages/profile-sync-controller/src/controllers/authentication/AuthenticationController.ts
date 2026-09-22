@@ -946,6 +946,9 @@ export class AuthenticationController extends BaseController<
     const sessionEpoch = this.#authSessionEpoch;
     assertValidMfaRequest(request, BeginEnrollmentRequestStruct);
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    // Enrolling beyond the first credential requires AAL2: send the elevated
+    // token while a session is live and let the server decide.
+    const accessToken = this.getElevatedProfileToken()?.accessToken;
     const challenge = await this.#runMfaRequest(
       'MFA Enroll Begin',
       request.reason.operation,
@@ -954,6 +957,7 @@ export class AuthenticationController extends BaseController<
         await this.#auth.beginMfaEnrollment(request.type, {
           email: request.email,
           entropySourceId: primaryEntropySourceId,
+          accessToken,
         }),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
