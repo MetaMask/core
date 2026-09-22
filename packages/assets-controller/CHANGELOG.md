@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `PriceDataSource` reads Price API `/v2/supportedNetworks` `partialSupport` as `{ spotPricesV2, spotPricesV3 }` and only sends `spotPricesV3` chains to `/v3/spot-prices`. Spreading the object threw, the filter failed open, and a batch of unsupported chains (such as Tron Nile and Shasta) was rejected with 400
 - Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
 - `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
 
