@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "@metamask/account-api": "^2.1.0",
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@metamask/eth-hd-keyring": "^15.0.0",
     "@metamask/providers": "^22.1.0",
     "@types/jest": "^30.0.0",

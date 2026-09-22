@@ -80,7 +80,7 @@
   "devDependencies": {
     "@metamask/account-tree-controller": "^10.0.1",
     "@metamask/authenticated-user-storage": "^4.0.0",
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/keyring-controller": "^28.0.0",
     "@metamask/keyring-internal-api": "^12.0.0",

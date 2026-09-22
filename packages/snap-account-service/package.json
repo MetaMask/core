@@ -63,7 +63,7 @@
     "lodash-es": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@metamask/keyring-utils": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",

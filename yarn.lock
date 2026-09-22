@@ -5576,7 +5576,7 @@ __metadata:
   dependencies:
     "@metamask/account-api": "npm:^2.1.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
@@ -5614,7 +5614,7 @@ __metadata:
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
     "@ethereumjs/util": "npm:^9.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-snap-keyring": "npm:^24.0.0"
@@ -5665,7 +5665,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/address-book-controller@workspace:packages/address-book-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -5687,7 +5687,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/ai-controllers@workspace:packages/ai-controllers"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -5708,7 +5708,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/analytics-controller@workspace:packages/analytics-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/geolocation-controller": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -5732,7 +5732,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/analytics-data-regulation-controller@workspace:packages/analytics-data-regulation-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -5755,7 +5755,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/announcement-controller@workspace:packages/announcement-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -5782,7 +5782,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/app-metadata-controller@workspace:packages/app-metadata-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -5802,7 +5802,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/approval-controller@workspace:packages/approval-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
@@ -5844,7 +5844,7 @@ __metadata:
     "@metamask/account-tree-controller": "npm:^10.0.1"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/assets-controllers": "npm:^112.0.2"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/client-controller": "npm:^2.0.0"
     "@metamask/config-registry-controller": "npm:^4.0.0"
@@ -5902,7 +5902,7 @@ __metadata:
     "@metamask/account-tree-controller": "npm:^10.0.1"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -6004,7 +6004,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -6024,9 +6024,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^6.1.0, @metamask/auto-changelog@npm:^6.1.1":
-  version: 6.1.1
-  resolution: "@metamask/auto-changelog@npm:6.1.1"
+"@metamask/auto-changelog@npm:^6.1.1, @metamask/auto-changelog@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "@metamask/auto-changelog@npm:6.2.1"
   dependencies:
     "@octokit/rest": "npm:^20.0.0"
     diff: "npm:^5.0.0"
@@ -6043,7 +6043,7 @@ __metadata:
       optional: true
   bin:
     auto-changelog: dist/cli.mjs
-  checksum: 10/cae26d9435b86899af583fb3c7e3d35b6330fb19ae376bf8382ffee48db53a2b46f10032ece53477d8f7818ebb8721304e4f39f21273e71e25fd28d72f3e246f
+  checksum: 10/88f5bc63ef5003b3e4f88ebf018229ce5e701283cadee1dcbd37f869541a1102ba6a8a96fd54993863e3578c8b79f0c6e0242e4afd08c58d5db529bc75dbaf2c
   languageName: node
   linkType: hard
 
@@ -6051,7 +6051,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -6083,7 +6083,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/base-data-service@workspace:packages/base-data-service"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -6111,7 +6111,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/bitcoin-regtest-up@workspace:packages/bitcoin-regtest-up"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/local-node-utils": "npm:^2.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6140,7 +6140,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/assets-controller": "npm:^16.1.0"
     "@metamask/assets-controllers": "npm:^112.0.2"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
@@ -6181,7 +6181,7 @@ __metadata:
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/bridge-controller": "npm:^81.3.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -6226,7 +6226,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/build-utils@workspace:packages/build-utils"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/eslint": "npm:^8.44.7"
     "@types/jest": "npm:^30.0.0"
@@ -6247,7 +6247,7 @@ __metadata:
   resolution: "@metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission"
   dependencies:
     "@metamask/api-specs": "npm:^0.15.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/permission-controller": "npm:^14.0.0"
@@ -6271,7 +6271,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/chomp-api-service@workspace:packages/chomp-api-service"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -6296,7 +6296,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/claims-controller@workspace:packages/claims-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -6323,7 +6323,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/client-controller@workspace:packages/client-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -6345,7 +6345,7 @@ __metadata:
   resolution: "@metamask/client-utils@workspace:packages/client-utils"
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^11.0.0"
@@ -6371,7 +6371,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/compliance-controller@workspace:packages/compliance-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -6395,7 +6395,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/composable-controller@workspace:packages/composable-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -6418,7 +6418,7 @@ __metadata:
   resolution: "@metamask/config-registry-controller@workspace:packages/config-registry-controller"
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
@@ -6446,7 +6446,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/connectivity-controller@workspace:packages/connectivity-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -6519,7 +6519,7 @@ __metadata:
   dependencies:
     "@babel/runtime": "npm:^7.23.9"
     "@ethersproject/abi": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-unit": "npm:^0.3.0"
@@ -6555,7 +6555,7 @@ __metadata:
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
     "@metamask/account-tree-controller": "npm:^10.0.1"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -6589,7 +6589,7 @@ __metadata:
     "@jest/globals": "npm:^30.4.1"
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/create-release-branch": "npm:^4.2.2"
     "@metamask/eslint-config": "npm:^15.0.0"
     "@metamask/eslint-config-jest": "npm:^15.0.0"
@@ -6677,7 +6677,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/cryptography@workspace:packages/cryptography"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6696,7 +6696,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/delegation-controller@workspace:packages/delegation-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -6739,7 +6739,7 @@ __metadata:
     "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/account-tree-controller": "npm:^10.0.1"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
@@ -6765,7 +6765,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eip-5792-middleware@workspace:packages/eip-5792-middleware"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/keyring-controller": "npm:^28.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/preferences-controller": "npm:^24.0.0"
@@ -6793,7 +6793,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eip-7702-internal-rpc-middleware@workspace:packages/eip-7702-internal-rpc-middleware"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -6815,7 +6815,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eip1193-permission-middleware@workspace:packages/eip1193-permission-middleware"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/chain-agnostic-permission": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
@@ -6903,7 +6903,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eth-block-tracker@workspace:packages/eth-block-tracker"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/safe-event-emitter": "npm:^3.1.3"
@@ -6971,7 +6971,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-middleware@workspace:packages/eth-json-rpc-middleware"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/eth-block-tracker": "npm:^16.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/eth-sig-util": "npm:^9.0.0"
@@ -7014,7 +7014,7 @@ __metadata:
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-query": "npm:^0.7.1"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
@@ -7234,7 +7234,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/foundryup@workspace:packages/foundryup"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@types/unzipper": "npm:^0.10.10"
     "@types/yargs": "npm:^17.0.32"
@@ -7265,7 +7265,7 @@ __metadata:
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
   dependencies:
     "@babel/runtime": "npm:^7.23.9"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
@@ -7303,7 +7303,7 @@ __metadata:
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/7715-permission-types": "npm:^1.0.0"
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
@@ -7331,7 +7331,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/geolocation-controller@workspace:packages/geolocation-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -7352,7 +7352,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/java-tron-up@workspace:packages/java-tron-up"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/local-node-utils": "npm:^2.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7390,7 +7390,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/safe-event-emitter": "npm:^3.1.3"
@@ -7426,7 +7426,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/safe-event-emitter": "npm:^3.1.3"
     "@metamask/utils": "npm:^12.0.0"
@@ -7481,7 +7481,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -7604,7 +7604,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/kyc-controller@workspace:packages/kyc-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -7638,7 +7638,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/local-node-utils@workspace:packages/local-node-utils"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -7658,7 +7658,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/logging-controller@workspace:packages/logging-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -7680,7 +7680,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-sig-util": "npm:^9.0.0"
@@ -7706,7 +7706,7 @@ __metadata:
   resolution: "@metamask/messenger-cli@workspace:packages/messenger-cli"
   dependencies:
     "@jest/globals": "npm:^30.4.1"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/yargs": "npm:^17.0.32"
@@ -7753,7 +7753,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -7782,7 +7782,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -7809,7 +7809,7 @@ __metadata:
   dependencies:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -7838,7 +7838,7 @@ __metadata:
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/eth-money-keyring": "npm:^4.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
@@ -7865,7 +7865,7 @@ __metadata:
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
   dependencies:
     "@metamask/authenticated-user-storage": "npm:^4.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/chomp-api-service": "npm:^5.0.0"
     "@metamask/delegation-controller": "npm:^4.0.0"
@@ -7897,7 +7897,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/abstract-provider": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/transaction-controller": "npm:^70.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -7920,7 +7920,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/account-api": "npm:^2.1.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
@@ -7965,7 +7965,7 @@ __metadata:
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/api-specs": "npm:^0.15.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/chain-agnostic-permission": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
@@ -7998,7 +7998,7 @@ __metadata:
   resolution: "@metamask/multichain-network-controller@workspace:packages/multichain-network-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
@@ -8031,7 +8031,7 @@ __metadata:
   resolution: "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
@@ -8062,7 +8062,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/name-controller@workspace:packages/name-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8085,7 +8085,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/network-connection-banner-controller@workspace:packages/network-connection-banner-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/client-controller": "npm:^2.0.0"
     "@metamask/connectivity-controller": "npm:^1.0.0"
@@ -8114,7 +8114,7 @@ __metadata:
   dependencies:
     "@json-rpc-specification/meta-schema": "npm:^1.0.6"
     "@metamask/analytics-controller": "npm:^3.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/config-registry-controller": "npm:^4.0.0"
     "@metamask/connectivity-controller": "npm:^1.0.0"
@@ -8164,7 +8164,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/config-registry-controller": "npm:^4.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8209,7 +8209,7 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/authenticated-user-storage": "npm:^4.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
@@ -8265,7 +8265,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/package-template@workspace:packages/package-template"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -8284,7 +8284,7 @@ __metadata:
   resolution: "@metamask/passkey-controller@workspace:packages/passkey-controller"
   dependencies:
     "@levischuck/tiny-cbor": "npm:^0.3.3"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8349,7 +8349,7 @@ __metadata:
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
     "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
@@ -8377,7 +8377,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/permission-log-controller@workspace:packages/permission-log-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8405,7 +8405,7 @@ __metadata:
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-tree-controller": "npm:^10.0.1"
     "@metamask/authenticated-user-storage": "npm:^4.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/geolocation-controller": "npm:^2.0.0"
@@ -8441,7 +8441,7 @@ __metadata:
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
     "@metamask/address-book-controller": "npm:^8.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-sig-util": "npm:^9.0.0"
@@ -8477,7 +8477,7 @@ __metadata:
     "@docusaurus/types": "npm:^3.10.1"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
     "@mdx-js/react": "npm:^3.1.1"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^22.13.14"
@@ -8507,7 +8507,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -8540,7 +8540,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -8561,7 +8561,7 @@ __metadata:
   resolution: "@metamask/profile-metrics-controller@workspace:packages/profile-metrics-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
@@ -8598,7 +8598,7 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/address-book-controller": "npm:^8.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
@@ -8663,7 +8663,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8689,7 +8689,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
@@ -8711,7 +8711,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/react-data-query@workspace:packages/react-data-query"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -8744,7 +8744,7 @@ __metadata:
   resolution: "@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller"
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8785,7 +8785,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/sample-controllers@workspace:packages/sample-controllers"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8825,7 +8825,7 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/auth-network-utils": "npm:^0.3.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
@@ -8856,7 +8856,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8885,7 +8885,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/sentinel-api-service@workspace:packages/sentinel-api-service"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8913,7 +8913,7 @@ __metadata:
     "@babel/runtime": "npm:^7.23.9"
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8945,7 +8945,7 @@ __metadata:
   dependencies:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-sig-util": "npm:^9.0.0"
@@ -8995,7 +8995,7 @@ __metadata:
     "@ethersproject/bytes": "npm:^5.7.0"
     "@ethersproject/keccak256": "npm:^5.8.0"
     "@ethersproject/transactions": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
@@ -9030,7 +9030,7 @@ __metadata:
   resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
   dependencies:
     "@metamask/account-api": "npm:^2.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/eth-snap-keyring": "npm:^24.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
@@ -9176,7 +9176,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/social-controllers@workspace:packages/social-controllers"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -9200,7 +9200,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/solana-test-validator-up@workspace:packages/solana-test-validator-up"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/local-node-utils": "npm:^2.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9228,7 +9228,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/stellar-quickstart-up@workspace:packages/stellar-quickstart-up"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -9256,7 +9256,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/storage-service@workspace:packages/storage-service"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -9277,7 +9277,7 @@ __metadata:
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
     "@metamask/authenticated-user-storage": "npm:^4.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/chomp-api-service": "npm:^5.0.0"
@@ -9357,7 +9357,7 @@ __metadata:
     "@ethersproject/wallet": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/connectivity-controller": "npm:^1.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -9411,7 +9411,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/assets-controller": "npm:^16.1.0"
     "@metamask/assets-controllers": "npm:^112.0.2"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/gas-fee-controller": "npm:^27.0.0"
@@ -9446,7 +9446,7 @@ __metadata:
   resolution: "@metamask/user-operation-controller@workspace:packages/user-operation-controller"
   dependencies:
     "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-block-tracker": "npm:^16.0.0"
@@ -9504,7 +9504,7 @@ __metadata:
   resolution: "@metamask/utils@workspace:packages/utils"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@noble/hashes": "npm:^1.8.0"
@@ -9558,7 +9558,7 @@ __metadata:
     "@inquirer/confirm": "npm:^6.0.11"
     "@inquirer/password": "npm:^5.1.1"
     "@metamask/analytics-controller": "npm:^3.1.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/config-registry-controller": "npm:^4.0.0"
     "@metamask/foundryup": "npm:^2.0.0"
@@ -9600,7 +9600,7 @@ __metadata:
     "@docusaurus/types": "npm:^3.10.1"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
     "@mdx-js/react": "npm:^3.1.1"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -9630,7 +9630,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/address-book-controller": "npm:^8.0.0"
     "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/claims-controller": "npm:^1.0.1"

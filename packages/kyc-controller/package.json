@@ -68,7 +68,7 @@
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "chokidar-cli": "^3.0.0",
