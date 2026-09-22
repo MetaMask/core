@@ -342,9 +342,18 @@ describe('Balance Change Utils', () => {
       });
 
       it('ignoring gas cost', async () => {
-        simulateTransactionsMock.mockResolvedValueOnce(
-          createNativeBalanceResponse('0x3', '0x8', 2),
-        );
+        const response = createNativeBalanceResponse('0x3', '0x8', 2);
+        response.transactions[0].stateDiff = {
+          pre: {
+            [USER_ADDRESS_MOCK]: { balance: '0x3' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x7' },
+          },
+          post: {
+            [USER_ADDRESS_MOCK]: { balance: '0x8' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+          },
+        };
+        simulateTransactionsMock.mockResolvedValueOnce(response);
 
         const result = await getBalanceChanges(REQUEST_MOCK);
 
@@ -356,6 +365,46 @@ describe('Balance Change Utils', () => {
               isDecrease: false,
               newBalance: '0xa',
               previousBalance: '0x3',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('does not ignore gas cost when state diff omits the fee debit', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 7,
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0x10' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xb' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x5' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x7' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x5',
+              isDecrease: true,
+              newBalance: '0xb',
+              previousBalance: '0x10',
             },
             tokenBalanceChanges: [],
           },

@@ -226,8 +226,45 @@ function getNativeBalanceChange(
   return getSimulationBalanceChange(
     previousBalance,
     newBalance,
-    transactionResponse.gasCost,
+    isGasCostIncludedInStateDiff(stateDiff)
+      ? transactionResponse.gasCost
+      : undefined,
   );
+}
+
+/**
+ * Determine whether the state diff includes the native gas cost.
+ *
+ * Native balance changes across all accounts cannot have a positive sum. A
+ * positive sum means the simulation credited the gas fee without debiting it
+ * from the sender, so adding the gas cost back would produce an incorrect
+ * balance change.
+ *
+ * @param stateDiff - Changes to native balances in the simulation.
+ * @returns Whether the gas cost is included in the state diff.
+ */
+function isGasCostIncludedInStateDiff(
+  stateDiff: SimulationResponseTransaction['stateDiff'],
+): boolean {
+  const previousState = stateDiff?.pre ?? {};
+  const newState = stateDiff?.post ?? {};
+  const addresses = new Set([
+    ...Object.keys(previousState),
+    ...Object.keys(newState),
+  ]);
+
+  const totalBalanceChange = [...addresses].reduce((total, address) => {
+    const previousBalance = previousState[address as Hex]?.balance;
+    const newBalance = newState[address as Hex]?.balance;
+
+    if (!previousBalance || !newBalance) {
+      return total;
+    }
+
+    return total.add(hexToBN(newBalance).sub(hexToBN(previousBalance)));
+  }, new BN(0));
+
+  return !totalBalanceChange.gt(new BN(0));
 }
 
 /**
