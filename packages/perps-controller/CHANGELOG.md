@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `id` field to `PerpsMarketData` type, populated from the v3 Terminal snapshot endpoint ([#10356](https://github.com/MetaMask/core/pull/10356))
+
+### Changed
+
+- Bump `GLOBAL_SNAPSHOT_SCHEMA_VERSION` from `2` to `3` to consume the v3 `/perpetuals` Terminal endpoint, which adds a stable `id` per market ([#10356](https://github.com/MetaMask/core/pull/10356))
+
 ## [17.3.0]
 
 ### Fixed
