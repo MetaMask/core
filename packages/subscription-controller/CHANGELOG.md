@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `bignumber.js` from `^9.1.2` to `^11.1.5` ([#10380](https://github.com/MetaMask/core/pull/10380))
 
 ## [9.1.0]
 

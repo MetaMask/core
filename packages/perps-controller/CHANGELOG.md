@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `bignumber.js` from `^9.1.2` to `^11.1.5` ([#10380](https://github.com/MetaMask/core/pull/10380))
+
 ## [17.4.0]
 
 ### Added
