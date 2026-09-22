@@ -60,7 +60,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.13.14",
     "@types/npm-which": "^3",

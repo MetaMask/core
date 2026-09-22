@@ -76,7 +76,7 @@
     "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@metamask/eth-json-rpc-provider": "^7.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@types/jest": "^30.0.0",

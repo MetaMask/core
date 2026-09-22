@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@metamask/eth-json-rpc-provider": "^7.0.0",
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",

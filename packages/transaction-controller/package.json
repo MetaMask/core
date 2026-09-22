@@ -81,7 +81,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/auto-changelog": "^6.2.1",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/eth-block-tracker": "^16.0.0",
     "@metamask/eth-json-rpc-provider": "^7.0.0",
