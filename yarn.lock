@@ -5942,14 +5942,14 @@ __metadata:
     "@metamask/transaction-controller": "npm:^70.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.62.16"
-    "@types/bn.js": "npm:^5.1.5"
+    "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@types/node": "npm:^22.13.14"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     bitcoin-address-validation: "npm:^2.2.3"
-    bn.js: "npm:^5.2.1"
+    bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
@@ -6532,12 +6532,12 @@ __metadata:
     "@metamask/ethjs-unit": "npm:^0.3.0"
     "@metamask/utils": "npm:^12.0.0"
     "@signinwithethereum/siwe-parser": "npm:^4.2.1"
-    "@types/bn.js": "npm:^5.1.5"
+    "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
-    bn.js: "npm:^5.2.1"
+    bn.js: "npm:^5.2.5"
     cockatiel: "npm:^3.1.2"
     deepmerge: "npm:^4.2.2"
     eth-ens-namehash: "npm:^2.0.8"
@@ -7326,11 +7326,11 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/bn.js": "npm:^5.1.5"
+    "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
     "@types/jest-when": "npm:^3.5.3"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bn.js: "npm:^5.2.1"
+    bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     jest-when: "npm:^3.7.0"
@@ -9425,13 +9425,13 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/bn.js": "npm:^5.1.5"
+    "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^22.13.14"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     bignumber.js: "npm:^9.1.2"
-    bn.js: "npm:^5.2.1"
+    bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
     eth-method-registry: "npm:^4.0.0"
     ethereum-cryptography: "npm:^2.1.2"
@@ -9479,7 +9479,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
-    bn.js: "npm:^5.2.1"
+    bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
@@ -9514,7 +9514,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bn.js: "npm:^5.2.1"
+    bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
@@ -11783,12 +11783,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/bn.js@npm:*, @types/bn.js@npm:^5.1.0, @types/bn.js@npm:^5.1.5":
-  version: 5.1.6
-  resolution: "@types/bn.js@npm:5.1.6"
+"@types/bn.js@npm:*, @types/bn.js@npm:^5.1.0, @types/bn.js@npm:^5.1.5, @types/bn.js@npm:^5.2.0":
+  version: 5.2.0
+  resolution: "@types/bn.js@npm:5.2.0"
   dependencies:
     "@types/node": "npm:*"
-  checksum: 10/db565b5a2af59b09459d74441153bf23a0e80f1fb2d070330786054e7ce1a7285dc40afcd8f289426c61a83166bdd70814f70e2d439744686aac5d3ea75daf13
+  checksum: 10/06c93841f74e4a5e5b81b74427d56303b223c9af36389b4cd3c562bda93f43c425c7e241aee1b0b881dde57238dc2e07f21d30d412b206a7dae4435af4c054e8
   languageName: node
   linkType: hard
 
@@ -14679,10 +14679,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bn.js@npm:^5.1.2, bn.js@npm:^5.2.0, bn.js@npm:^5.2.1, bn.js@npm:^5.2.2":
-  version: 5.2.2
-  resolution: "bn.js@npm:5.2.2"
-  checksum: 10/51ebb2df83b33e5d8581165206e260d5e9c873752954616e5bf3758952b84d7399a9c6d00852815a0aeefb1150a7f34451b62d4287342d457fa432eee869e83e
+"bn.js@npm:^5.1.2, bn.js@npm:^5.2.0, bn.js@npm:^5.2.1, bn.js@npm:^5.2.2, bn.js@npm:^5.2.5":
+  version: 5.2.5
+  resolution: "bn.js@npm:5.2.5"
+  checksum: 10/10b1ac91e76fd828c1187cf65a9f1a0374e7afb9acd167e19c2d7c4108f6216841007c1e3aef145fa95cc7b3d07f705236a707184af1537667362b3a842d01ac
   languageName: node
   linkType: hard
 
