@@ -5845,6 +5845,7 @@ __metadata:
     "@metamask/account-tree-controller": "npm:^10.0.1"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/assets-controllers": "npm:^112.0.2"
+    "@metamask/authenticated-user-storage": "npm:^4.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/client-controller": "npm:^2.0.0"

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sync custom-token changes to Authenticated User Storage: adding or hiding a custom asset now mirrors it to the user's AUS user-assets blob (fire-and-forget; failures are swallowed and never roll back local state), and removing or unhiding strips the asset from the corresponding AUS list ([#10336](https://github.com/MetaMask/core/pull/10336))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
