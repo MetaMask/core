@@ -10187,11 +10187,17 @@ describe('RampsController', () => {
   });
 
   describe('hydrateVbaOnboarding', () => {
+    // A session's externalUserId is the canonical profile id that created it;
+    // hydration only reuses a persisted session when it matches the signed-in
+    // profile returned by AuthenticationController:getSessionProfile.
+    const CANONICAL_PROFILE_ID = 'canonical-1';
+
     type KycSession = {
       id: string;
       finalStatus: string;
       kycStatus: string;
       vendorStatus: string;
+      externalUserId: string;
     };
 
     type KycHandlers = {
@@ -10200,6 +10206,7 @@ describe('RampsController', () => {
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
       clearState: jest.Mock;
+      getSessionProfile: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
@@ -10222,6 +10229,8 @@ describe('RampsController', () => {
       getSessionRejects: boolean;
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
+      /** Canonical id of the currently signed-in profile. */
+      profileCanonicalId: string | null;
     };
 
     const approvedSession: KycSession = {
@@ -10229,6 +10238,7 @@ describe('RampsController', () => {
       finalStatus: 'approved',
       kycStatus: 'approved',
       vendorStatus: 'approved',
+      externalUserId: CANONICAL_PROFILE_ID,
     };
 
     const registerKycHandlers = (
@@ -10241,6 +10251,7 @@ describe('RampsController', () => {
         getSessionRejects: false,
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
+        profileCanonicalId: CANONICAL_PROFILE_ID,
         ...overrides,
       };
 
@@ -10267,9 +10278,16 @@ describe('RampsController', () => {
           .fn()
           .mockResolvedValue(values.sessionDisclaimersCompleted),
         clearState: jest.fn(),
+        getSessionProfile: jest
+          .fn()
+          .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile' as never,
+        handlers.getSessionProfile as never,
+      );
       rootMessenger.registerActionHandler(
         'KycController:getSessionStatusForVendor' as never,
         handlers.getSessionStatusForVendor as never,
@@ -10303,6 +10321,7 @@ describe('RampsController', () => {
       finalStatus: 'pending',
       kycStatus,
       vendorStatus: 'pending',
+      externalUserId: CANONICAL_PROFILE_ID,
     });
 
     it.each([
@@ -10354,6 +10373,7 @@ describe('RampsController', () => {
             finalStatus: 'rejected',
             kycStatus: 'pending',
             vendorStatus: 'rejected',
+            externalUserId: CANONICAL_PROFILE_ID,
           },
         },
         expected: VbaOnboardingStage.KycRejected,
@@ -10408,43 +10428,77 @@ describe('RampsController', () => {
       });
     });
 
-    it('discards a stale in-state session and restarts at email when a session-scoped call is rejected', async () => {
+    it('discards a persisted session owned by a different profile and restarts at email', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        // A persisted session from a previous identity: the backend rejects
-        // the session-scoped disclaimers call with an owner mismatch (502).
+        // A persisted session created by a previous identity: its externalUserId
+        // no longer matches the signed-in profile.
         const handlers = registerKycHandlers(rootMessenger, {
-          session: approvedSession,
+          session: { ...approvedSession, externalUserId: 'previous-identity' },
+          profileCanonicalId: CANONICAL_PROFILE_ID,
         });
-        handlers.hasCompletedSessionDisclaimers.mockRejectedValue(
-          new Error("Fetching '/sessions/session-1/disclaimers' failed (502)"),
-        );
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toBe(VbaOnboardingStage.EmailOtpRequired);
 
         expect(handlers.clearState).toHaveBeenCalledTimes(1);
+        // The stale session is discarded before any session-scoped call runs.
+        expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
         expect(controller.state.vbaOnboardingStage).toBe(
           VbaOnboardingStage.EmailOtpRequired,
         );
       });
     });
 
-    it('propagates the error without clearing state when a freshly-fetched session is rejected', async () => {
+    it('does not ownership-check a freshly-fetched session (already scoped to the user)', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        // Session came from the backend fetch (scoped to the current user), so
-        // a rejection is a genuine backend error, not stale state.
+        // No in-state session; the backend fetch returns a session whose
+        // externalUserId differs from the resolved profile. It must not be
+        // discarded, since the fetch is already scoped to the current user.
         const handlers = registerKycHandlers(rootMessenger, {
           refreshThrows: true,
-          session: approvedSession,
+          session: {
+            ...pendingSession('new'),
+            externalUserId: 'previous-identity',
+          },
         });
-        handlers.hasCompletedSessionDisclaimers.mockRejectedValue(
-          new Error('idOS relay unavailable'),
-        );
 
-        await expect(
-          controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).rejects.toThrow('idOS relay unavailable');
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycRequired);
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps a persisted session owned by the current profile', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: pendingSession('new'),
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycRequired);
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('keeps a persisted session when the current profile id cannot be resolved', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A transient profile-read failure must not discard a valid session.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: pendingSession('new'),
+          profileCanonicalId: null,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.KycRequired);
 
         expect(handlers.clearState).not.toHaveBeenCalled();
       });

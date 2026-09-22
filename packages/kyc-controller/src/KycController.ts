@@ -719,8 +719,15 @@ export class KycController extends BaseController<
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    // TODO: validate if this shorcut check is sufficient
-    // return this.state.sessionStatus.consentStatus === 'given';
+
+    // Once consents are recorded, the session reflects `consentStatus: 'given'`
+    // and idOS returns 409 ("already consented") on a re-fetch of the session
+    // disclaimers — which the API surfaces as a 502. Trust the session status
+    // here rather than re-fetching, so a completed session is reported complete
+    // instead of failing hydration after the consents are in.
+    if (this.state.sessionStatus.consentStatus === 'given') {
+      return true;
+    }
 
     const disclaimers = await this.messenger.call(
       'KycService:fetchSessionDisclaimersBySessionId',

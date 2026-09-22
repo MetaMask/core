@@ -279,6 +279,8 @@ type KycControllerSessionStatus = {
   finalStatus: string;
   kycStatus: string;
   vendorStatus: string;
+  /** Canonical id of the profile that owns the session (set at creation). */
+  externalUserId: string;
 };
 
 /**
@@ -3865,10 +3867,9 @@ export class RampsController extends BaseController<
     // with no session at all).
     let session: KycControllerSessionStatus | null = null;
     // Whether `session` came from persisted controller state (as opposed to a
-    // fresh backend fetch scoped to the current user). A persisted session can
-    // outlive the identity that created it — e.g. a new wallet created over an
-    // install that still holds a previous customer's session — in which case
-    // the backend rejects every session-scoped call with an owner mismatch.
+    // fresh backend fetch, which is always scoped to the current user). Only a
+    // persisted session can belong to a previous identity, so only that path
+    // needs the ownership check below.
     let sessionFromCache = false;
     try {
       session = this.messenger.call('KycController:refreshSessionStatus');
@@ -3890,38 +3891,36 @@ export class RampsController extends BaseController<
       return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
     }
 
-    // The disclaimer gates are session-scoped backend calls. A persisted
-    // (cached) session that belongs to a previous identity makes the backend
-    // reject them with an owner mismatch (surfaced as a 502; also 404 once the
-    // session is gone). Discard the stale session and restart onboarding at the
-    // email step rather than dead-ending the user on the recoverable-error
-    // screen — the email step recreates a session for the current identity. A
-    // failure on a freshly-fetched (current-user) session, by contrast, is a
-    // genuine backend error and is left to propagate.
-    let vendorDisclaimersCompleted: boolean;
-    let sessionDisclaimersCompleted: boolean;
-    try {
-      vendorDisclaimersCompleted = await this.messenger.call(
-        'KycController:hasCompletedVendorDisclaimers',
-      );
-      sessionDisclaimersCompleted = await this.messenger.call(
-        'KycController:hasCompletedSessionDisclaimers',
-      );
-    } catch (error) {
-      if (sessionFromCache) {
-        this.messenger.call('KycController:clearState');
-        return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
-      }
-      throw error;
+    // A persisted session can outlive the identity that created it — e.g. a new
+    // wallet created over an install that still holds a previous customer's
+    // session. Reusing it makes the backend reject every session-scoped call
+    // (owner mismatch), dead-ending the user. Verify ownership up front against
+    // the signed-in profile and, on a mismatch, discard the stale session and
+    // restart at email rather than reacting to opaque backend errors (which the
+    // API also returns for transient failures and already-completed consents).
+    if (
+      sessionFromCache &&
+      !(await this.#isVbaSessionOwnedByCurrentProfile(session))
+    ) {
+      this.messenger.call('KycController:clearState');
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
     }
 
-    if (!vendorDisclaimersCompleted) {
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedVendorDisclaimers',
+      ))
+    ) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.VendorTermsRequired,
       );
     }
 
-    if (!sessionDisclaimersCompleted) {
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      ))
+    ) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.ProviderTermsRequired,
       );
@@ -3995,6 +3994,34 @@ export class RampsController extends BaseController<
     }
 
     return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+  }
+
+  /**
+   * Whether a persisted KYC session belongs to the currently signed-in profile.
+   * A session's `externalUserId` is the canonical profile id captured when the
+   * session was created, so it must match the current profile for the session
+   * to be reused. When the current identity cannot be resolved, err on the side
+   * of keeping the session (return `true`) so a transient profile-read failure
+   * never discards a valid session.
+   *
+   * @param session - The persisted KYC session status to check.
+   * @returns Whether the session is owned by the current profile.
+   */
+  async #isVbaSessionOwnedByCurrentProfile(
+    session: KycControllerSessionStatus,
+  ): Promise<boolean> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonicalId =
+      typeof profile?.canonicalProfileId === 'string' &&
+      profile.canonicalProfileId.length > 0
+        ? profile.canonicalProfileId
+        : profile?.profileId;
+    if (typeof canonicalId !== 'string' || canonicalId.length === 0) {
+      return true;
+    }
+    return session.externalUserId === canonicalId;
   }
 
   #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
