@@ -3061,6 +3061,9 @@ describe('MFA step-up verification', () => {
     expect(() =>
       controller.getElevatedProfileToken({ maxSessionAgeMs: -1 }),
     ).toThrow(/MFA\[invalid_request\]/u);
+    // An invalid request is rejected before the session is touched.
+    expect(controller.getElevatedProfileToken()).not.toBeNull();
+    expect(controller.state.stepUpSessionExpiresAt).toBeDefined();
   });
 
   it('hard-clears the session at the session TTL', async () => {
