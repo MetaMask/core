@@ -86,7 +86,7 @@
     "jest-environment-jsdom": "^30.4.1",
     "lodash-es": "^4.17.21",
     "nock": "^13.3.1",
-    "rimraf": "^5.0.5",
+    "rimraf": "^5.0.10",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
