@@ -4,11 +4,16 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type {
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
 import type {
@@ -18,6 +23,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -29,11 +35,19 @@ import {
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
+import {
+  areOrdersEqual,
+  deleteOrderInUserStorage,
+  syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
+  updateOrderInUserStorage,
+} from './order-syncing/index.js';
+import type { SyncRampsOrder } from './order-syncing/types.js';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
@@ -206,6 +220,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -222,12 +237,21 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
  * `AuthenticationController:getSessionProfile` resolves the vendor customer
  * identity from Profile Sync, and `KeyringController:signPersonalMessage` signs
  * the EIP-191 ownership proof for Money Account self-hosted wallet
- * registration; both are only exercised by the autoramp paths.
+ * registration; both are only exercised by the autoramp paths. User Storage
+ * and authentication actions support cross-client order syncing.
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
+  'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
+  'KycController:getSessionStatusForVendor',
+  'KycController:refreshSessionStatus',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
   'RemoteFeatureFlagController:getState',
+  'UserStorageController:getState',
+  'UserStorageController:performGetStorageAllFeatureEntries',
+  'UserStorageController:performBatchSetStorage',
 ] as const;
 
 /**
@@ -238,6 +262,48 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA stage machine reads.
+ */
+/**
+ * Identity vendor accepted by the KYC controller. Declared locally so the
+ * ramps package does not depend on `@metamask/kyc-controller`.
+ */
+type KycVendor = 'moonpay' | 'iron';
+
+type KycControllerSessionStatus = {
+  finalStatus: string;
+  kycStatus: string;
+  vendorStatus: string;
+};
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not require a kyc-controller
+ * version that already exports them — the two changes land as separate PRs,
+ * with KYC merging first.
+ */
+export type KycControllerGetSessionStatusForVendorAction = {
+  type: 'KycController:getSessionStatusForVendor';
+  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+};
+
+export type KycControllerRefreshSessionStatusAction = {
+  type: 'KycController:refreshSessionStatus';
+  handler: () => KycControllerSessionStatus;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
 };
 
 /**
@@ -265,6 +331,19 @@ type LookupUnavailableResult = Extract<
   MoneyAccountWalletRegistrationResult,
   { type: 'lookupUnavailable' }
 >;
+
+/**
+ * The Mobile route for the current VBA onboarding step.
+ */
+export enum VbaOnboardingStage {
+  EmailOtpRequired = 'EmailOtpRequired',
+  VendorTermsRequired = 'VendorTermsRequired',
+  ProviderTermsRequired = 'ProviderTermsRequired',
+  KycRequired = 'KycRequired',
+  KycPending = 'KycPending',
+  KycRejected = 'KycRejected',
+  Completed = 'Completed',
+}
 
 /**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
@@ -520,7 +599,7 @@ export type RampsControllerState = {
    * The controller is the authority for V2 orders — it polls, updates,
    * and persists them.
    */
-  orders: RampsOrder[];
+  orders: SyncRampsOrder[];
   /**
    * Last-seen MoonPay autoramp accounts (standing routes). MoonPay is the
    * source of truth; this cache is used to detect status transitions for
@@ -534,6 +613,10 @@ export type RampsControllerState = {
    * token conflict instead of showing the "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
+  /**
+   * The current Mobile-routable VBA onboarding stage.
+   */
+  vbaOnboardingStage: VbaOnboardingStage | null;
 };
 
 /**
@@ -595,6 +678,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providerAutoSelected: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaOnboardingStage: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -662,6 +751,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     orders: [],
     autoramps: [],
     providerAutoSelected: false,
+    vbaOnboardingStage: null,
   };
 }
 
@@ -787,12 +877,21 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
-  | KeyringControllerSignPersonalMessageAction;
+  | KeyringControllerSignPersonalMessageAction
+  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerRefreshSessionStatusAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
+  | UserStorageController.UserStorageControllerGetStateAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
+  | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -862,6 +961,18 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
+  /**
+   * Optional callback for order-sync failures (full sync parse/fetch/merge and
+   * incremental remote push/delete). Context never includes full order JSON.
+   */
+  onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+  /**
+   * Optional performance tracing callback used by order sync operations.
+   */
+  trace?: TraceCallback;
 };
 
 // === HELPER FUNCTIONS ===
@@ -940,17 +1051,21 @@ export function getInternalOrderCode(
   orderOrId: Pick<RampsOrder, 'id' | 'providerOrderId'> | string,
 ): string {
   if (typeof orderOrId === 'string') {
-    return orderOrId.includes('/orders/')
-      ? orderOrId.split('/orders/')[1]
-      : orderOrId;
+    if (orderOrId.includes('/orders/')) {
+      return orderOrId.split('/orders/')[1]?.trim() || '';
+    }
+    return orderOrId.trim();
   }
 
   const { id, providerOrderId } = orderOrId;
   if (id?.includes('/orders/')) {
-    return id.split('/orders/')[1];
+    const code = id.split('/orders/')[1]?.trim();
+    if (code) {
+      return code;
+    }
   }
 
-  return providerOrderId;
+  return providerOrderId?.trim() ?? '';
 }
 
 // === ORDER POLLING CONSTANTS ===
@@ -981,10 +1096,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPaymentMethodsForContext',
   'setSelectedPaymentMethod',
   'getQuotes',
+  'getQuoteWithFees',
   'addOrder',
   'removeOrder',
   'addAutoramp',
   'createAutoramp',
+  'hydrateVbaOnboarding',
   'removeAutoramp',
   'registerMoneyAccountWallet',
   'markAutorampAsNotified',
@@ -1024,6 +1141,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'syncOrdersWithUserStorage',
 ] as const;
 
 /**
@@ -1068,6 +1186,29 @@ function contextStillMatches(
   );
 }
 
+/**
+ * Provider codes that identify Transak's native (non-aggregator) integration,
+ * in the bare form produced by {@link normalizeHeadlessProviderId}.
+ */
+const NATIVE_TRANSAK_PROVIDER_CODES = [
+  'transak-native',
+  'transak-native-staging',
+];
+
+/**
+ * Coerces a quote fee value to a non-negative BigNumber, treating a missing or
+ * invalid value as zero.
+ *
+ * @param value - Raw fee value from a quote.
+ * @returns The fee as a non-negative BigNumber.
+ */
+function getSafeRampsFee(value: number | string | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
+}
+
 export class RampsController extends BaseController<
   typeof controllerName,
   RampsControllerState,
@@ -1082,6 +1223,13 @@ export class RampsController extends BaseController<
    * Maximum number of entries in the request cache.
    */
   readonly #requestCacheMaxSize: number;
+
+  readonly #onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+
+  readonly #trace?: TraceCallback;
 
   /**
    * Map of pending requests for deduplication.
@@ -1108,6 +1256,87 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingStage> | null = null;
+
+  /**
+   * Semaphore that prevents sync feedback loops while applying remote order changes.
+   */
+  #isOrderSyncingInProgress = false;
+
+  /**
+   * Whether the full sync is applying its own local state changes.
+   */
+  #isApplyingOrderSyncChanges = false;
+
+  /**
+   * Orders deleted locally while a full sync held the semaphore.
+   */
+  readonly #pendingRemoteDeletes: Map<string, RampsOrder> = new Map();
+
+  /**
+   * Coalesces overlapping `syncOrdersWithUserStorage` calls into a follow-up run.
+   */
+  #orderSyncQueued = false;
+
+  #orderSyncPromise: Promise<void> | null = null;
+
+  /**
+   * Whether a full order sync is currently applying remote changes.
+   *
+   * @returns Whether order sync is in progress.
+   */
+  get isOrderSyncingInProgress(): boolean {
+    return this.#isOrderSyncingInProgress;
+  }
+
+  /**
+   * Sets the order-syncing-in-progress semaphore.
+   * Used by the order-syncing module; hosts should not call this.
+   *
+   * @param value - Whether sync is in progress.
+   * @internal
+   */
+  setIsOrderSyncingInProgress(value: boolean): void {
+    this.#isOrderSyncingInProgress = value;
+  }
+
+  /**
+   * Distinguishes full sync's own state changes from external mutations.
+   *
+   * @param value - Whether sync changes are being applied.
+   * @internal
+   */
+  setIsApplyingOrderSyncChanges(value: boolean): void {
+    this.#isApplyingOrderSyncChanges = value;
+  }
+
+  /**
+   * Returns orders deleted while a full sync was in progress.
+   * Used by the order-syncing module.
+   *
+   * @returns Pending deletes for remote tombstone upload.
+   * @internal
+   */
+  getPendingRemoteDeletes(): RampsOrder[] {
+    return [...this.#pendingRemoteDeletes.values()];
+  }
+
+  /**
+   * Clears deletes whose tombstones were successfully persisted. A delete
+   * replaced while a write was in flight remains pending.
+   *
+   * @param orders - Deletes included in a successful remote write.
+   * @internal
+   */
+  acknowledgePendingRemoteDeletes(orders: RampsOrder[]): void {
+    for (const order of orders) {
+      const key = getInternalOrderCode(order);
+      if (key && this.#pendingRemoteDeletes.get(key) === order) {
+        this.#pendingRemoteDeletes.delete(key);
+      }
+    }
+  }
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -1149,12 +1378,16 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
+   * @param args.trace - Optional performance tracing callback for order sync.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    onOrderSyncErroneousSituation,
+    trace,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -1170,6 +1403,8 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
+    this.#trace = trace;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -2504,6 +2739,172 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Fetches the best on-ramp quote for a request and, when the resolved
+   * provider is Transak Native, reconciles its fees to match what Transak
+   * Native actually charges.
+   *
+   * The aggregator `/quotes` estimate of Transak's fee does not match the
+   * native integration. When the resolved provider is Transak Native this
+   * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+   * it is safe at estimate time) and rewrites the returned quote's fee fields
+   * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+   * line and placing the remainder in the provider fee so the breakdown
+   * survives and `providerFee + networkFee` still equals the native total. A
+   * non-native provider, a failed lookup, or an unusable native fee returns the
+   * aggregator quote unchanged.
+   *
+   * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+   * provider check, asset-id parsing, and second native quote themselves.
+   *
+   * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+   * @param options.amount - Fiat amount for the quote.
+   * @param options.assetId - CAIP-19 asset id being bought.
+   * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+   * @param options.paymentMethods - Optional payment method ids.
+   * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+   * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+   * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+   * mirror the eventual checkout mode so the estimate equals the charge.
+   * Defaults to `true`.
+   * @param options.providers - See {@link getQuotes}.
+   * @param options.autoSelectProvider - See {@link getQuotes}.
+   * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+   * @param options.preferredProviderIds - See {@link getQuotes}.
+   * @param options.region - See {@link getQuotes}.
+   * @param options.redirectUrl - See {@link getQuotes}.
+   * @param options.action - See {@link getQuotes}.
+   * @param options.forceRefresh - See {@link getQuotes}.
+   * @param options.ttl - See {@link getQuotes}.
+   * @returns The best quote with native-reconciled fees, or `undefined` when
+   * no quote is available.
+   */
+  async getQuoteWithFees(options: {
+    amount: number;
+    assetId: string;
+    fiat?: string;
+    paymentMethods?: string[];
+    walletAddress: string;
+    isFeeExcludedFromFiat?: boolean;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    restrictToKnownOrNativeProviders?: boolean;
+    preferredProviderIds?: string[];
+    region?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<Quote | undefined> {
+    const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
+
+    const response = await this.getQuotes(quoteOptions);
+    const quote = response.success?.[0];
+
+    if (!quote) {
+      return undefined;
+    }
+
+    return this.#reconcileNativeTransakFee(quote, {
+      amount: options.amount,
+      assetId: options.assetId,
+      fiat: options.fiat,
+      // Use the resolved quote's own payment method, not the request list: the
+      // aggregator may price a method other than `paymentMethods[0]` (or the
+      // caller may omit the list), and the native lookup must match the quote
+      // being reconciled.
+      paymentMethod: quote.quote.paymentMethod,
+      isFeeExcludedFromFiat,
+    });
+  }
+
+  /**
+   * Rewrites a quote's fees to Transak Native's own total when the resolved
+   * provider is Transak Native, so an estimate matches the native charge.
+   * Returns the quote unchanged for a non-native provider, a failed native
+   * lookup, or an unusable native fee.
+   *
+   * @param quote - The resolved aggregator quote.
+   * @param context - Native lookup inputs.
+   * @param context.amount - Fiat amount for the native quote.
+   * @param context.assetId - CAIP-19 asset id being bought.
+   * @param context.fiat - Fiat currency for the native quote.
+   * @param context.paymentMethod - Payment method id for the native quote.
+   * @param context.isFeeExcludedFromFiat - Fee mode for the native quote.
+   * @returns The quote with reconciled fees, or the original quote.
+   */
+  async #reconcileNativeTransakFee(
+    quote: Quote,
+    {
+      amount,
+      assetId,
+      fiat,
+      paymentMethod,
+      isFeeExcludedFromFiat,
+    }: {
+      amount: number;
+      assetId: string;
+      fiat?: string;
+      paymentMethod?: string;
+      isFeeExcludedFromFiat: boolean;
+    },
+  ): Promise<Quote> {
+    // `normalizeHeadlessProviderId` strips the `/providers/` prefix and
+    // lowercases, so `/providers/transak-native` and `transak-native` both match
+    // the native codes below (and the aggregator `transak` does not).
+    const providerCode = normalizeHeadlessProviderId(quote.provider);
+
+    if (!NATIVE_TRANSAK_PROVIDER_CODES.includes(providerCode)) {
+      return quote;
+    }
+
+    const fiatCurrency = fiat ?? this.state.userRegion?.country?.currency;
+
+    if (!fiatCurrency || !paymentMethod) {
+      return quote;
+    }
+
+    try {
+      const network = assetId.split('/')[0];
+
+      const nativeQuote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        assetId,
+        network,
+        paymentMethod,
+        String(amount),
+        isFeeExcludedFromFiat,
+      );
+
+      const nativeTotalFee = new BigNumber(nativeQuote.totalFee ?? NaN);
+
+      if (!nativeTotalFee.isFinite() || nativeTotalFee.isLessThan(0)) {
+        return quote;
+      }
+
+      // Transak Native returns a single total fee, so keep the aggregator's
+      // network fee on the network line (clamped to the native total) and put
+      // the remainder in the provider fee. The breakdown survives and
+      // `providerFee + networkFee` still equals the native total.
+      const aggregatorNetworkFee = getSafeRampsFee(quote.quote.networkFee);
+      const networkFee = BigNumber.min(aggregatorNetworkFee, nativeTotalFee);
+      const providerFee = nativeTotalFee.minus(networkFee);
+
+      return {
+        ...quote,
+        quote: {
+          ...quote.quote,
+          providerFee: providerFee.toString(10),
+          networkFee: networkFee.toString(10),
+          totalFees: nativeTotalFee.toString(10),
+        },
+      };
+    } catch {
+      return quote;
+    }
+  }
+
+  /**
    * Selects the best quote from a widened multi-provider response.
    *
    * Every provider class is eligible (native, in-app WebView aggregator, and
@@ -2871,29 +3272,110 @@ export class RampsController extends BaseController<
    * If an order with the same internal order code already exists, the incoming
    * fields are merged on top of the existing order so that fields not present
    * in the update (e.g. paymentDetails from the Transak API) are preserved.
+   * Unchanged syncable payloads (including unchanged poll results) are ignored
+   * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
    *
    * @param order - The RampsOrder to add or update.
    */
   addOrder(order: RampsOrder): void {
     const internalOrderCode = getInternalOrderCode(order);
-    const healedOrder = {
+    if (!internalOrderCode) {
+      this.#onOrderSyncErroneousSituation?.(
+        'Unable to derive internal order code for addOrder',
+        {},
+      );
+      return;
+    }
+
+    const existing = this.state.orders.find(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === internalOrderCode,
+    );
+    if (
+      existing &&
+      !this.#isApplyingOrderSyncChanges &&
+      areOrdersEqual(existing, order)
+    ) {
+      // Syncable payload unchanged; check if paymentDetails differ.
+      // paymentDetails is local-only (never synced remotely), so if it's the
+      // only change we merge it without bumping lastUpdatedAt or writing remotely.
+      if (
+        order.paymentDetails &&
+        JSON.stringify(existing.paymentDetails) !==
+          JSON.stringify(order.paymentDetails)
+      ) {
+        this.update((state) => {
+          const idx = state.orders.findIndex(
+            (stateOrder) =>
+              getInternalOrderCode(stateOrder) === internalOrderCode,
+          );
+          if (idx !== -1) {
+            state.orders[idx] = {
+              ...state.orders[idx],
+              paymentDetails: order.paymentDetails,
+            };
+          }
+        });
+      }
+      return;
+    }
+
+    const incomingLastUpdatedAt = order.lastUpdatedAt;
+    // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
+    // over stale remote copies when an incremental push was skipped/failed.
+    // This includes external edits mid-sync (e.g. polling via `getOrder`),
+    // which the queued follow-up sync must not lose under LWW.
+    // Only when sync applies its own imported orders do we preserve the remote
+    // `lu` / `createdAt` (never invent "now" for missing `lu`, or stale remotes
+    // win later LWW comparisons).
+    const healedOrder: SyncRampsOrder = {
       ...order,
       providerOrderId: internalOrderCode,
+      lastUpdatedAt: this.#isApplyingOrderSyncChanges
+        ? (incomingLastUpdatedAt ?? order.createdAt ?? 0)
+        : Date.now(),
     };
+
+    if (!this.#isApplyingOrderSyncChanges) {
+      this.#pendingRemoteDeletes.delete(internalOrderCode);
+    }
 
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => getInternalOrderCode(existing) === internalOrderCode,
+        (stateOrder) => getInternalOrderCode(stateOrder) === internalOrderCode,
       );
       if (idx === -1) {
-        state.orders.push(healedOrder as Draft<RampsOrder>);
+        state.orders.push(healedOrder);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
           ...healedOrder,
-        } as Draft<RampsOrder>;
+        };
       }
     });
+
+    if (this.#isOrderSyncingInProgress && !this.#isApplyingOrderSyncChanges) {
+      // Incremental push is suppressed during full sync; queue another full
+      // sync pass so mutations during the upload await are not dropped.
+      this.#orderSyncQueued = true;
+    } else if (!this.#isOrderSyncingInProgress) {
+      updateOrderInUserStorage(
+        healedOrder,
+        {
+          getRampsControllerInstance: () => this,
+          getMessenger: () => this.messenger,
+        },
+        {
+          onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+        },
+      ).catch((error) => {
+        console.error('Error updating ramps order in remote storage:', error);
+        this.#onOrderSyncErroneousSituation?.(
+          'Error updating ramps order in remote storage',
+          { error },
+        );
+      });
+    }
   }
 
   /**
@@ -2902,13 +3384,129 @@ export class RampsController extends BaseController<
    * @param providerOrderId - The provider order ID to remove.
    */
   removeOrder(providerOrderId: string): void {
+    const orderToRemove = this.state.orders.find(
+      (order) =>
+        order.providerOrderId === providerOrderId ||
+        getInternalOrderCode(order) === providerOrderId,
+    );
+
     this.update((state) => {
       state.orders = state.orders.filter(
-        (order) => order.providerOrderId !== providerOrderId,
+        (order) =>
+          order.providerOrderId !== providerOrderId &&
+          getInternalOrderCode(order) !== providerOrderId,
       );
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+
+    if (orderToRemove) {
+      if (orderToRemove.providerOrderId) {
+        this.#orderPollingMeta.delete(orderToRemove.providerOrderId);
+      }
+
+      const internalOrderCode = getInternalOrderCode(orderToRemove);
+      this.#orderPollingMeta.delete(internalOrderCode);
+    }
+
+    if (orderToRemove) {
+      const deleteKey = getInternalOrderCode(orderToRemove);
+      const isLocalDeletion = !this.#isApplyingOrderSyncChanges;
+
+      if (isLocalDeletion && deleteKey) {
+        // Retain the delete until a full sync confirms its tombstone was
+        // persisted. This prevents a failed incremental write from allowing
+        // the still-active remote copy to be imported again.
+        this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+      }
+
+      if (this.#isOrderSyncingInProgress) {
+        if (isLocalDeletion) {
+          // Incremental remote deletes are gated off during full sync; queue a
+          // tombstone write and another full sync pass so deletes during the
+          // upload await are not dropped.
+          this.#orderSyncQueued = true;
+        }
+      } else if (isLocalDeletion) {
+        deleteOrderInUserStorage(
+          orderToRemove,
+          {
+            getRampsControllerInstance: () => this,
+            getMessenger: () => this.messenger,
+          },
+          {
+            onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+          },
+        ).catch((error) => {
+          console.error(
+            'Error deleting ramps order from remote storage:',
+            error,
+          );
+          this.#onOrderSyncErroneousSituation?.(
+            'Error deleting ramps order from remote storage',
+            { error },
+          );
+        });
+      }
+    }
+  }
+
+  /**
+   * Bidirectionally syncs V2 ramps orders with User Storage.
+   * Hosts should call this on unlock / when ramps syncing is enabled.
+   *
+   * Overlapping calls are coalesced into the in-flight worker. After the worker
+   * settles, this method loops when `#orderSyncQueued` is still set so a
+   * request that arrived between the worker's last loop check and promise
+   * resolution is not dropped.
+   */
+  async syncOrdersWithUserStorage(): Promise<void> {
+    this.#orderSyncQueued = true;
+    let syncError: Error | undefined;
+
+    while (this.#orderSyncQueued || this.#orderSyncPromise) {
+      if (this.#orderSyncPromise) {
+        try {
+          await this.#orderSyncPromise;
+        } catch (error) {
+          syncError ??=
+            error instanceof Error ? error : new Error(String(error));
+        }
+        continue;
+      }
+
+      this.#orderSyncPromise = (async (): Promise<void> => {
+        while (this.#orderSyncQueued) {
+          this.#orderSyncQueued = false;
+          await syncOrdersWithUserStorageInternal(
+            {
+              onOrderSyncErroneousSituation:
+                this.#onOrderSyncErroneousSituation,
+            },
+            {
+              getRampsControllerInstance: () => this,
+              getMessenger: () => this.messenger,
+              trace: this.#trace,
+            },
+          );
+        }
+        // Yield so a caller can set `#orderSyncQueued` after the inner while
+        // check and still be observed by the outer loop.
+        await Promise.resolve();
+      })();
+
+      try {
+        await this.#orderSyncPromise;
+      } catch (error) {
+        syncError ??= error instanceof Error ? error : new Error(String(error));
+      } finally {
+        this.#orderSyncPromise = null;
+      }
+    }
+
+    if (syncError) {
+      throw syncError;
+    }
   }
 
   /**
@@ -3210,6 +3808,171 @@ export class RampsController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Hydrates the Mobile-routable VBA onboarding stage from KYC state and
+   * completes wallet and autoramp setup after KYC acceptance.
+   *
+   * Overlapping calls share one run so polling cannot trigger duplicate wallet
+   * signatures or autoramp creation.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @returns The hydrated onboarding stage.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+  }: {
+    walletAddress: string;
+  }): Promise<VbaOnboardingStage> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding(walletAddress);
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding(
+    walletAddress: string,
+  ): Promise<VbaOnboardingStage> {
+    // Fetch the customer's latest session from the vendor account so each stage
+    // reflects backend truth (e.g. re-verification required after a new
+    // document) rather than only device-local state. A `null` session means no
+    // customer/session exists yet, so onboarding starts at the email step.
+    // Prefer the in-memory/persisted session status over the backend
+    // latest-status endpoint: after SumSub the backend endpoint lags (it still
+    // reports kycStatus 'new' right after an 'approved' applicant result), while
+    // the controller state reflects the journey/SDK outcome. Fall back to a
+    // backend fetch only when the controller has no session in state (e.g. a
+    // reinstall/cleared state resuming an existing customer, or a brand-new user
+    // with no session at all).
+    let session: KycControllerSessionStatus | null = null;
+    try {
+      session = this.messenger.call('KycController:refreshSessionStatus');
+    } catch {
+      try {
+        session = await this.messenger.call(
+          'KycController:getSessionStatusForVendor',
+          'iron',
+        );
+      } catch {
+        // No session exists for this customer yet: the backend returns 404
+        // ("KYC session not found"), which surfaces as a rejection here. Treat
+        // it as "start onboarding at the email step" rather than an error.
+        session = null;
+      }
+    }
+    if (!session) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+    }
+
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedVendorDisclaimers',
+      ))
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.VendorTermsRequired,
+      );
+    }
+
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      ))
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.ProviderTermsRequired,
+      );
+    }
+
+    // Status fields draw from the KYC vocabulary (new | pending | approved |
+    // rejected | retry). `finalStatus` is the vendor's final decision, which
+    // stays `pending` until Iron finalizes. `kycStatus` is the SumSub applicant
+    // outcome (from the journey/SDK result): `new` before the applicant runs
+    // SumSub, moving to `approved`/`pending` once they submit while the vendor
+    // finalizes. So gate the SumSub screen on `kycStatus`, and only complete
+    // onboarding once `finalStatus` is the terminal `approved`.
+    const { finalStatus, kycStatus } = session;
+
+    if (finalStatus === 'rejected' || kycStatus === 'rejected') {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
+    }
+    if (finalStatus !== 'approved') {
+      if (kycStatus === 'new' || kycStatus === 'retry') {
+        // Applicant still has to run (or re-run) SumSub document verification.
+        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
+      }
+      // Submitted; vendor is finalizing → "verification in progress".
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    // KYC is approved; the remaining work activates the Money account (register
+    // the wallet + ensure an autoramp). Those calls hit the neobank backend and
+    // can fail transiently (e.g. an address-list lookup timeout). If they do,
+    // keep the user on the "verification in progress" screen so a refresh
+    // retries the activation, rather than dropping them onto the recoverable-
+    // error screen — the KYC decision itself already succeeded.
+    try {
+      const registration = await this.registerMoneyAccountWallet({
+        address: walletAddress,
+      });
+      if (registration.type === 'lookupUnavailable') {
+        throw registration.error;
+      }
+
+      const remoteAutoramps = await this.messenger.call(
+        'NeoBankService:getAutoramps',
+      );
+      const remoteAutorampIds = new Set(
+        remoteAutoramps.map((autoramp) => autoramp.id),
+      );
+      for (const autoramp of remoteAutoramps) {
+        this.#applyAutorampRemoteSnapshot(autoramp);
+      }
+      this.update((state) => {
+        state.autoramps = state.autoramps.filter((autoramp) =>
+          remoteAutorampIds.has(autoramp.id),
+        );
+      });
+
+      const normalizedWalletAddress = walletAddress.toLowerCase();
+      const hasUsableAutoramp = this.state.autoramps.some(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+          autoramp.status !== AutorampStatus.Rejected &&
+          autoramp.status !== AutorampStatus.Cancelled,
+      );
+      if (!hasUsableAutoramp) {
+        await this.createAutoramp({});
+      }
+    } catch {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    }
+
+    return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+  }
+
+  #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
+    if (this.state.vbaOnboardingStage !== stage) {
+      this.update((state) => {
+        state.vbaOnboardingStage = stage;
+      });
+    }
+    return stage;
   }
 
   /**
@@ -3583,6 +4346,9 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const hadOrderAtRequestStart = this.state.orders.some(
+      (existingOrder) => getInternalOrderCode(existingOrder) === orderCode,
+    );
     const order = await this.messenger.call(
       'RampsService:getOrder',
       providerCode,
@@ -3601,20 +4367,16 @@ export class RampsController extends BaseController<
       providerOrderId: internalOrderCode,
     };
 
-    this.update((state) => {
-      const idx = state.orders.findIndex(
-        (existing: RampsOrder) =>
-          getInternalOrderCode(existing) === internalOrderCode,
-      );
-      if (idx === -1) {
-        state.orders.push(healedOrder as Draft<RampsOrder>);
-      } else {
-        state.orders[idx] = {
-          ...state.orders[idx],
-          ...healedOrder,
-        } as Draft<RampsOrder>;
-      }
-    });
+    const orderStillExists = this.state.orders.some(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === internalOrderCode,
+    );
+
+    // A polling request can finish after removeOrder. Do not let that stale
+    // response recreate the local order and overwrite its remote tombstone.
+    if (!hadOrderAtRequestStart || orderStillExists) {
+      this.addOrder(healedOrder);
+    }
 
     return healedOrder;
   }
@@ -3837,6 +4599,8 @@ export class RampsController extends BaseController<
    * @param network - The blockchain network identifier.
    * @param paymentMethod - The payment method identifier.
    * @param fiatAmount - The fiat amount as a string.
+   * @param isFeeExcludedFromFiat - Whether fees are added to the fiat amount.
+   * Defaults to true to preserve Unified Buy's native Transak behavior.
    * @returns The buy quote with pricing and fee details.
    */
   async transakGetBuyQuote(
@@ -3845,6 +4609,7 @@ export class RampsController extends BaseController<
     network: string,
     paymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
@@ -3859,6 +4624,7 @@ export class RampsController extends BaseController<
         network,
         paymentMethod,
         fiatAmount,
+        isFeeExcludedFromFiat,
       );
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;

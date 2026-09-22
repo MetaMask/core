@@ -92,6 +92,7 @@ export enum MarketCategory {
   Etf = 'etf',
   Commodity = 'commodity',
   Forex = 'forex',
+  Memecoin = 'memecoin',
 }
 
 export type MarketType = `${MarketCategory}`;
@@ -118,6 +119,7 @@ export type TerminalAssetMetadata = {
 export type MarketTypeFilter =
   | 'all'
   | 'crypto'
+  | 'memecoin'
   | 'stock'
   | 'pre-ipo'
   | 'index'
@@ -127,13 +129,19 @@ export type MarketTypeFilter =
   | 'new';
 
 /**
- * Ordered list of the 7 data-model market categories for UI pills.
+ * Ordered list of data-model market categories for UI pills.
  * Does not include the 'all' or 'new' sentinel values — those are applied
  * via dedicated UI controls, not the category pills.
+ *
+ * Note: 'memecoin' is a derived category (marketType === 'crypto' &&
+ * tags.includes('memecoin')). It overlaps with 'crypto' by design —
+ * memecoins appear under both pills.
+ *
  * Kept in sync with {@link MarketTypeFilter} via `satisfies`.
  */
 export const MARKET_CATEGORIES = [
   'crypto',
+  'memecoin',
   'stock',
   'pre-ipo',
   'index',
@@ -755,6 +763,13 @@ export type MarketInfo = {
  * Protocol-agnostic interface for market information with formatted values
  */
 export type PerpsMarketData = {
+  /**
+   * Stable backend market identifier supplied by the v3 Terminal snapshot
+   * (e.g. 'btc-hyperliquid-mainnet'). Used as the key for perp-alerts API
+   * calls. Only present when data originates from the v3 global-snapshot
+   * endpoint; omit checks against this field must guard with `?? undefined`.
+   */
+  id?: string;
   /**
    * Token symbol (e.g., 'BTC', 'ETH')
    */
@@ -2609,7 +2624,7 @@ export type PerpsPlatformDependencies = {
     /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
     marketDataUrl?: string;
 
-    /** Full endpoint URL for the schema-v2 atomic global Perps snapshot. */
+    /** Full endpoint URL for the schema-v3 atomic global Perps snapshot. */
     globalSnapshotUrl?: string;
   };
 

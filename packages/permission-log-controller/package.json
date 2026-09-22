@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-log-controller",
-  "version": "5.1.0",
+  "version": "6.0.0",
   "description": "Controller with middleware for logging requests and responses to restricted and permissions-related methods",
   "keywords": [
     "Ethereum",
@@ -50,10 +50,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/json-rpc-engine": "^10.5.0",
-    "@metamask/messenger": "^2.0.0",
-    "@metamask/utils": "^11.12.0"
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/json-rpc-engine": "^11.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/utils": "^12.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
@@ -64,8 +64,8 @@
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "nanoid": "^3.3.8",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

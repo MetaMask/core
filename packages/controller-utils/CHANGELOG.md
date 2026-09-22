@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@types/bn.js` from `^5.1.5` to `^5.2.0` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+
+## [13.0.0]
+
 ### Added
 
 - Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
@@ -732,7 +740,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.3.0...@metamask/controller-utils@13.0.0
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.2.0...@metamask/controller-utils@12.3.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.1...@metamask/controller-utils@12.2.0
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.0...@metamask/controller-utils@12.1.1

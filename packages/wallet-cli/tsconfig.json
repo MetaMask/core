@@ -24,6 +24,9 @@
     },
     {
       "path": "../foundryup"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./bin", "./src", "./tests"]

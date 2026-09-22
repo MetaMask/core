@@ -524,7 +524,7 @@ describe('lighterAdapter', () => {
       );
     });
 
-    it('rejects missing account pnl instead of manufacturing zero', () => {
+    it('rejects missing account pnl for an existing position', () => {
       expect(() =>
         adaptFillFromLighterTrade(
           { ...REAL_TRADE, askAccountPnl: undefined },
@@ -533,6 +533,49 @@ describe('lighterAdapter', () => {
         ),
       ).toThrow('Invalid Lighter venue data');
     });
+
+    it.each([
+      [true, false, 'Open Short'],
+      [true, true, 'Open Short'],
+      [false, false, 'Open Long'],
+      [false, true, 'Open Long'],
+    ])(
+      'accepts omitted opening pnl for ask=%s maker=%s',
+      (isAsk, isMaker, direction) => {
+        // Testnet trade 20887 omits both PnL fields; the account starts flat.
+        const trade = {
+          ...REAL_TRADE,
+          askAccountPnl: undefined,
+          bidAccountPnl: undefined,
+          isMakerAsk: isAsk === isMaker,
+          makerPositionSizeBefore: isMaker ? '0.00000' : '1',
+          takerPositionSizeBefore: isMaker ? '1' : '0.00000',
+        };
+
+        const fill = adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7);
+
+        expect(fill).toMatchObject({ pnl: '0', direction, startPosition: '0' });
+      },
+    );
+
+    it.each(['', 'invalid', '1e999', null])(
+      'rejects supplied malformed opening pnl %s',
+      (pnl) => {
+        const trade = {
+          ...REAL_TRADE,
+          askAccountPnl: pnl,
+          takerPositionSizeBefore: '0',
+        };
+
+        expect(() =>
+          adaptFillFromLighterTrade(
+            trade as unknown as Parameters<typeof adaptFillFromLighterTrade>[0],
+            'SOL',
+            28,
+          ),
+        ).toThrow('Invalid Lighter venue data');
+      },
+    );
 
     it('accepts omitted counterparty pnl while requiring the selected account pnl', () => {
       expect(
@@ -627,6 +670,19 @@ describe('lighterAdapter', () => {
       timestamp: 1700000000000,
     };
 
+    it.each([
+      [1789088736, 1789088736000],
+      [1789088736000, 1789088736000],
+      [0, 0],
+    ])(
+      'normalizes order timestamp %s to milliseconds',
+      (timestamp, expected) => {
+        const adapted = adaptOrderFromLighter({ ...order, timestamp }, 'BTC');
+
+        expect(adapted.timestamp).toBe(expected);
+      },
+    );
+
     it('maps an open limit buy order', () => {
       const adapted = adaptOrderFromLighter(order, 'BTC');
       expect(adapted).toMatchObject({
@@ -641,6 +697,35 @@ describe('lighterAdapter', () => {
         providerId: 'lighter',
       });
       expect(parseFloat(adapted.filledSize)).toBeCloseTo(0.2, 10);
+    });
+
+    it.each(['0', '0.2'])(
+      'preserves reported filled size %s when cancellation clears the remaining size',
+      (filledBaseAmount) => {
+        const canceledOrder = {
+          ...order,
+          status: 'canceled',
+          remainingBaseAmount: '0',
+          filledBaseAmount,
+        };
+
+        const adapted = adaptOrderFromLighter(canceledOrder, 'BTC');
+
+        expect(adapted).toMatchObject({
+          status: 'canceled',
+          originalSize: '0.5',
+          remainingSize: '0',
+          filledSize: filledBaseAmount,
+        });
+      },
+    );
+
+    it('prefers the reported filled size for open orders', () => {
+      const openOrder = { ...order, filledBaseAmount: '0.1' };
+
+      const adapted = adaptOrderFromLighter(openOrder, 'BTC');
+
+      expect(adapted.filledSize).toBe('0.1');
     });
 
     it('maps ask orders to sell side', () => {

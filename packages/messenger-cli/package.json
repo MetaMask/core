@@ -1,6 +1,6 @@
 {
   "name": "@metamask/messenger-cli",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "CLI tools for the MetaMask messenger system",
   "keywords": [
     "Ethereum",
@@ -43,7 +43,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
@@ -53,12 +53,12 @@
     "@types/yargs": "^17.0.32",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
-    "execa": "^5.0.0",
+    "execa": "^5.1.1",
     "jest": "^30.4.2",
     "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },

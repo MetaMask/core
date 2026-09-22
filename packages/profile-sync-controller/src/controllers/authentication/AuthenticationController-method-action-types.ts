@@ -20,9 +20,104 @@ export type AuthenticationControllerRequestProfilePairingAction = {
   handler: AuthenticationController['requestProfilePairing'];
 };
 
+/**
+ * Refreshes credentials enrolled on the canonical profile.
+ *
+ * @returns The current supported credentials.
+ */
+export type AuthenticationControllerRefreshEnrolledCredentialsAction = {
+  type: `AuthenticationController:refreshEnrolledCredentials`;
+  handler: AuthenticationController['refreshEnrolledCredentials'];
+};
+
+/**
+ * Begins enrollment of a passkey or email OTP credential.
+ *
+ * @param request - Credential, optional email address, and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginCredentialEnrollmentAction = {
+  type: `AuthenticationController:beginCredentialEnrollment`;
+  handler: AuthenticationController['beginCredentialEnrollment'];
+};
+
+/**
+ * Completes credential enrollment and refreshes the credential cache.
+ *
+ * A cache-refresh failure does not undo successful enrollment. Email
+ * enrollment invalidates the primary SRP session *after* refresh so the
+ * credentials call can reuse the still-valid access token; the next token
+ * fetch then includes the newly verified email claim. That invalidation
+ * happens even if the session ends mid-request: the enrollment succeeded
+ * on the server, so a token cached across a lock must not be reused
+ * without the new claim.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The refreshed credentials, or the existing cache if refresh fails.
+ */
+export type AuthenticationControllerCompleteCredentialEnrollmentAction = {
+  type: `AuthenticationController:completeCredentialEnrollment`;
+  handler: AuthenticationController['completeCredentialEnrollment'];
+};
+
+/**
+ * Begins step-up verification with an enrolled credential.
+ *
+ * @param request - Credential type and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginStepUpAction = {
+  type: `AuthenticationController:beginStepUp`;
+  handler: AuthenticationController['beginStepUp'];
+};
+
+/**
+ * Completes step-up verification and opens a short-lived elevated session.
+ *
+ * The AAL2 assertion returned by the MFA service is exchanged at Hydra for
+ * an elevated access token, whose claims are checked before the session
+ * opens. The token itself never enters controller state.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The elevated profile access token.
+ */
+export type AuthenticationControllerCompleteStepUpAction = {
+  type: `AuthenticationController:completeStepUp`;
+  handler: AuthenticationController['completeStepUp'];
+};
+
+/**
+ * Returns the active elevated token when it meets the requested freshness.
+ *
+ * @param request - Optional maximum session age in milliseconds, measured
+ * from when the token was obtained. Zero always requires a new ceremony.
+ * @returns A live elevated token, or null when no reusable session exists.
+ */
+export type AuthenticationControllerGetElevatedProfileTokenAction = {
+  type: `AuthenticationController:getElevatedProfileToken`;
+  handler: AuthenticationController['getElevatedProfileToken'];
+};
+
+/**
+ * Clears the in-memory elevated session and its expiration timer.
+ */
+export type AuthenticationControllerClearStepUpSessionAction = {
+  type: `AuthenticationController:clearStepUpSession`;
+  handler: AuthenticationController['clearStepUpSession'];
+};
+
 export type AuthenticationControllerPerformSignOutAction = {
   type: `AuthenticationController:performSignOut`;
   handler: AuthenticationController['performSignOut'];
+};
+
+/**
+ * Resets the controller to `defaultState`. Clients call this on wallet reset
+ * so the next wallet starts unsigned with both pairing gates re-armed.
+ */
+export type AuthenticationControllerClearStateAction = {
+  type: `AuthenticationController:clearState`;
+  handler: AuthenticationController['clearState'];
 };
 
 /**
@@ -101,6 +196,24 @@ export type AuthenticationControllerGetCustomerServiceTokenAction = {
   handler: AuthenticationController['getCustomerServiceToken'];
 };
 
+/**
+ * Mints a partner identity token for the specified SRP, logging in if needed.
+ *
+ * Calls `POST /api/v2/oidc/token` with the Hydra login bearer and returns
+ * the minted `access_token`. Email on live tokens is under JWT `ext`.
+ * HTTP 422 throws `EmailRequiredError` when this profile has no
+ * verified email.
+ *
+ * @param claims - Claim names to embed. Only `email` is supported.
+ * @param audience - Partner audience (`kyc` or `iron`).
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The partner identity access token.
+ */
+export type AuthenticationControllerGetPartnerIdentityTokenAction = {
+  type: `AuthenticationController:getPartnerIdentityToken`;
+  handler: AuthenticationController['getPartnerIdentityToken'];
+};
+
 export type AuthenticationControllerIsSignedInAction = {
   type: `AuthenticationController:isSignedIn`;
   handler: AuthenticationController['isSignedIn'];
@@ -112,10 +225,19 @@ export type AuthenticationControllerIsSignedInAction = {
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
   | AuthenticationControllerRequestProfilePairingAction
+  | AuthenticationControllerRefreshEnrolledCredentialsAction
+  | AuthenticationControllerBeginCredentialEnrollmentAction
+  | AuthenticationControllerCompleteCredentialEnrollmentAction
+  | AuthenticationControllerBeginStepUpAction
+  | AuthenticationControllerCompleteStepUpAction
+  | AuthenticationControllerGetElevatedProfileTokenAction
+  | AuthenticationControllerClearStepUpSessionAction
   | AuthenticationControllerPerformSignOutAction
+  | AuthenticationControllerClearStateAction
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction
   | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction
   | AuthenticationControllerGetCustomerServiceTokenAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
   | AuthenticationControllerIsSignedInAction;

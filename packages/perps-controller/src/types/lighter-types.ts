@@ -669,9 +669,9 @@ export type LighterRestTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl for the ask-side account, signed USDC. */
+  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens from flat. */
   askAccountPnl?: string;
-  /** Realized pnl for the bid-side account, signed USDC. */
+  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens from flat. */
   bidAccountPnl?: string;
   /**
    * Taker/maker fees, present when nonzero. The official model types them
@@ -783,6 +783,8 @@ export type LighterApiOrder = {
   ownerAccountIndex: number;
   initialBaseAmount: string;
   remainingBaseAmount: string;
+  /** Executed base amount; zero remaining does not imply a fill on cancellation. */
+  filledBaseAmount?: string;
   price: string;
   isAsk: boolean;
   type: string;
@@ -790,6 +792,7 @@ export type LighterApiOrder = {
   reduceOnly: number | boolean;
   status: string;
   orderExpiry: number;
+  /** Unix seconds from order endpoints, unlike millisecond trade timestamps. */
   timestamp: number;
   /**
    * Trigger level for stop-loss/take-profit orders. Note `price` on a

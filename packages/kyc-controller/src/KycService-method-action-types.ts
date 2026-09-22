@@ -32,26 +32,14 @@ export type KycServiceFetchVendorDisclaimersAction = {
 };
 
 /**
- * Creates a vendor session via the UKYC backend.
+ * Creates a MoonPay vendor session via the UKYC backend.
  *
  * @param params - The session parameters.
  * @returns The created session token.
  */
-export type KycServiceCreateSessionAction = {
-  type: `KycService:createSession`;
-  handler: KycService['createSession'];
-};
-
-/**
- * Checks whether KYC is required for the given vendor, country, and
- * capabilities.
- *
- * @param params - The check parameters.
- * @returns Whether KYC is required.
- */
-export type KycServiceCheckKycRequiredAction = {
-  type: `KycService:checkKycRequired`;
-  handler: KycService['checkKycRequired'];
+export type KycServiceCreateMoonpaySessionAction = {
+  type: `KycService:createMoonpaySession`;
+  handler: KycService['createMoonpaySession'];
 };
 
 /**
@@ -91,38 +79,38 @@ export type KycServiceSubmitVendorDisclaimersAction = {
  * Fetches the global idOS + KYC-provider disclaimer catalog
  * (`GET /disclaimers?country=`). Carries no consent state — per-document
  * `consented` flags and `credentialReusabilityConsentGiven` are
- * session-scoped via {@link fetchSessionDisclaimers}. Vendor T&Cs continue to
+ * session-scoped via {@link fetchSessionDisclaimersBySessionId}. Vendor T&Cs continue to
  * come from {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The catalog documents.
  */
-export type KycServiceFetchDisclaimersCatalogAction = {
-  type: `KycService:fetchDisclaimersCatalog`;
-  handler: KycService['fetchDisclaimersCatalog'];
+export type KycServiceFetchSessionDisclaimersByCountryAction = {
+  type: `KycService:fetchSessionDisclaimersByCountry`;
+  handler: KycService['fetchSessionDisclaimersByCountry'];
 };
 
 /**
  * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
  * (`GET /sessions/{sessionId}/disclaimers`), including per-session
  * `consented` flags and `credentialReusabilityConsentGiven`. For the
- * pre-session global catalog use {@link fetchDisclaimersCatalog}. Vendor
- * T&Cs continue to come from {@link fetchVendorDisclaimers}.
+ * pre-session global catalog use {@link fetchSessionDisclaimersByCountry}.
+ * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.
  * @param params.sessionId - The UKYC session id.
  * @returns The catalog, including which documents are already consented.
  */
-export type KycServiceFetchSessionDisclaimersAction = {
-  type: `KycService:fetchSessionDisclaimers`;
-  handler: KycService['fetchSessionDisclaimers'];
+export type KycServiceFetchSessionDisclaimersBySessionIdAction = {
+  type: `KycService:fetchSessionDisclaimersBySessionId`;
+  handler: KycService['fetchSessionDisclaimersBySessionId'];
 };
 
 /**
  * Records idOS + KYC-provider consents for a UKYC session
  * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
- * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+ * match the current catalog from {@link fetchSessionDisclaimersBySessionId}. A 409
  * means those document versions were already recorded for the session.
  *
  * @param params - The consent parameters.
@@ -131,17 +119,6 @@ export type KycServiceFetchSessionDisclaimersAction = {
 export type KycServiceSubmitSessionDisclaimersAction = {
   type: `KycService:submitSessionDisclaimers`;
   handler: KycService['submitSessionDisclaimers'];
-};
-
-/**
- * Fetches the user-keyed simplified KYC status used by Money toast / banner
- * surfaces (`GET /kyc/status`).
- *
- * @returns The simplified status payload.
- */
-export type KycServiceFetchKycStatusAction = {
-  type: `KycService:fetchKycStatus`;
-  handler: KycService['fetchKycStatus'];
 };
 
 /**
@@ -232,22 +209,33 @@ export type KycServiceGetSessionStatusAction = {
 };
 
 /**
+ * Fetches the latest UKYC session status for an identity vendor
+ * (`GET /sessions/latest/status/{vendor}`).
+ *
+ * @param vendor - Identity vendor whose latest session should be queried.
+ * @returns The session status, or `null` when no latest session exists.
+ */
+export type KycServiceGetSessionStatusForVendorAction = {
+  type: `KycService:getSessionStatusForVendor`;
+  handler: KycService['getSessionStatusForVendor'];
+};
+
+/**
  * Union of all KycService action types.
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
   | KycServiceFetchVendorDisclaimersAction
-  | KycServiceCreateSessionAction
-  | KycServiceCheckKycRequiredAction
+  | KycServiceCreateMoonpaySessionAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
-  | KycServiceFetchDisclaimersCatalogAction
-  | KycServiceFetchSessionDisclaimersAction
+  | KycServiceFetchSessionDisclaimersByCountryAction
+  | KycServiceFetchSessionDisclaimersBySessionIdAction
   | KycServiceSubmitSessionDisclaimersAction
-  | KycServiceFetchKycStatusAction
   | KycServiceFetchIdosEnclaveJwksAction
   | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
-  | KycServiceGetSessionStatusAction;
+  | KycServiceGetSessionStatusAction
+  | KycServiceGetSessionStatusForVendorAction;

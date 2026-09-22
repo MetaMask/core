@@ -290,6 +290,61 @@ describe('LighterClientService', () => {
     });
   });
 
+  describe('order filled amounts', () => {
+    const order = {
+      order_index: 12345,
+      client_order_index: 999,
+      market_index: 1,
+      owner_account_index: 28,
+      initial_base_amount: '0.5',
+      remaining_base_amount: '0',
+      price: '90000',
+      is_ask: false,
+      type: 'limit',
+      time_in_force: 'good-till-time',
+      reduce_only: 0,
+      status: 'canceled',
+      order_expiry: 0,
+      timestamp: 1700000000,
+    };
+
+    it.each(['0', '0.2', undefined])(
+      'accepts reported filled amount %s',
+      async (filledBaseAmount) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            orders: [{ ...order, filled_base_amount: filledBaseAmount }],
+          }),
+        );
+
+        const result = await buildService().getInactiveOrders(28, 'auth-token');
+
+        expect(result.orders).toHaveLength(1);
+        expect(result.orders[0]).toMatchObject({
+          remainingBaseAmount: '0',
+          filledBaseAmount,
+        });
+      },
+    );
+
+    it.each(['-0.1', 'NaN', '0.1invalid', '', 0, null])(
+      'rejects malformed reported filled amount %s',
+      async (filledBaseAmount) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            orders: [{ ...order, filled_base_amount: filledBaseAmount }],
+          }),
+        );
+
+        await expect(
+          buildService().getInactiveOrders(28, 'auth-token'),
+        ).rejects.toThrow('Invalid Lighter venue data');
+      },
+    );
+  });
+
   describe('getTrades', () => {
     it('encodes cursor, from, and market filters', async () => {
       fetchMock.mockResolvedValue(

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-api-data-service",
-  "version": "0.4.1",
+  "version": "1.0.0",
   "description": "Data service for fetching Money account positions, interest, cash-flow history, and vault rate history from the Money Account API",
   "keywords": [
     "Ethereum",
@@ -50,11 +50,11 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-data-service": "^1.0.0",
-    "@metamask/controller-utils": "^12.3.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/base-data-service": "^2.0.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/messenger": "^3.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.62.16"
   },
   "devDependencies": {
@@ -63,9 +63,9 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
-    "nock": "^13.3.1",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "nock": "^13.5.6",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

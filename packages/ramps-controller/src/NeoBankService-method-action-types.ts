@@ -19,6 +19,16 @@ export type NeoBankServiceGetAutorampAction = {
 };
 
 /**
+ * Fetches all autoramp accounts belonging to the authenticated customer.
+ *
+ * @returns Remote snapshots for all customer autoramps.
+ */
+export type NeoBankServiceGetAutorampsAction = {
+  type: `NeoBankService:getAutoramps`;
+  handler: NeoBankService['getAutoramps'];
+};
+
+/**
  * Registers a Pix address via neobank-proxy `POST /neobank/addresses/pix`.
  * Body is forwarded as opaque JSON (MoonPay address schema).
  *
@@ -136,6 +146,7 @@ export type NeoBankServiceRegisterSelfHostedWalletAction = {
  */
 export type NeoBankServiceMethodActions =
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceRegisterPixAddressAction
   | NeoBankServiceGetAutorampQuoteAction
   | NeoBankServiceCreateAutorampAction

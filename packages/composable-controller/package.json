@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "12.0.1",
+  "version": "13.0.0",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "Ethereum",
@@ -48,19 +48,19 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/messenger": "^2.0.0"
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/messenger": "^3.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/json-rpc-engine": "^10.5.0",
+    "@metamask/json-rpc-engine": "^11.0.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

@@ -48,10 +48,13 @@ export const calcToAmount = (
   destAsset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedDestAmount = calcNormalizedTokenAmount(
+  const maybeNormalizedDestAmount = calcNormalizedTokenAmount(
     destTokenAmount,
     destAsset.decimals,
   );
+  const normalizedDestAmount = maybeNormalizedDestAmount
+    ? new BigNumber(maybeNormalizedDestAmount)
+    : undefined;
   return {
     amount: normalizedDestAmount?.toFixed(),
     valueInCurrency:
@@ -84,10 +87,14 @@ export const calcSentAmount = (
             (acc, { amount }) => acc.plus(amount),
             new BigNumber(srcTokenAmount),
           );
-  const normalizedSentAmount = calcNormalizedTokenAmount(
+  const maybeNormalizedSentAmount = calcNormalizedTokenAmount(
     sentAmount,
     srcAsset.decimals,
   );
+  const normalizedSentAmount = maybeNormalizedSentAmount
+    ? new BigNumber(maybeNormalizedSentAmount)
+    : undefined;
+
   return {
     amount: normalizedSentAmount?.toFixed(),
     valueInCurrency:
@@ -102,7 +109,13 @@ export const calcBatchFees = (
   asset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const normalizedAmount = calcNormalizedTokenAmount(amount, asset.decimals);
+  const maybeNormalizedAmount = calcNormalizedTokenAmount(
+    amount,
+    asset.decimals,
+  );
+  const normalizedAmount = maybeNormalizedAmount
+    ? new BigNumber(maybeNormalizedAmount)
+    : undefined;
 
   return {
     amount: normalizedAmount?.toFixed(),
@@ -125,8 +138,11 @@ export const calcRelayerFee = (
   const relayerFeeAmount = trade.value
     ? new BigNumber(convertHexToDecimal(trade.value))
     : undefined;
-  let relayerFeeInNative = relayerFeeAmount
-    ? calcNormalizedTokenAmount(relayerFeeAmount, 18)
+  const maybeNormalizedRelayerFee = relayerFeeAmount
+    ? calcNormalizedTokenAmount(relayerFeeAmount.toFixed(), 18)
+    : undefined;
+  let relayerFeeInNative = maybeNormalizedRelayerFee
+    ? new BigNumber(maybeNormalizedRelayerFee)
     : undefined;
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
@@ -278,10 +294,14 @@ export const calcIncludedTxFees = (
   )
     ? srcTokenExchangeRate
     : destTokenExchangeRate;
-  const normalizedTxFeeAmount = calcNormalizedTokenAmount(
+  const maybeNormalizedTxFeeAmount = calcNormalizedTokenAmount(
     txFee?.amount,
     txFee?.asset.decimals,
   );
+
+  const normalizedTxFeeAmount = maybeNormalizedTxFeeAmount
+    ? new BigNumber(maybeNormalizedTxFeeAmount)
+    : undefined;
 
   return {
     amount: normalizedTxFeeAmount?.toFixed(),

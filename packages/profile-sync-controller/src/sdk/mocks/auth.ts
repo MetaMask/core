@@ -1,5 +1,12 @@
 import { Env, Platform } from '../../shared/env.js';
 import {
+  MFA_CREDENTIALS_URL,
+  MFA_ENROLL_COMPLETE_URL,
+  MFA_ENROLL_URL,
+  MFA_VERIFY_COMPLETE_URL,
+  MFA_VERIFY_URL,
+} from '../authentication-jwt-bearer/mfa/services.js';
+import {
   NONCE_URL,
   SIWE_LOGIN_URL,
   SRP_LOGIN_URL,
@@ -9,6 +16,7 @@ import {
   PAIR_SOCIAL_IDENTIFIER_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
+  PARTNER_IDENTITY_TOKEN_URL,
 } from '../authentication-jwt-bearer/services.js';
 
 export const MOCK_NONCE_URL = NONCE_URL(Env.PRD);
@@ -24,6 +32,113 @@ export const MOCK_PROFILE_LINEAGE_URL = PROFILE_LINEAGE_URL(Env.PRD);
 export const MOCK_CUSTOMER_SERVICE_TOKEN_URL = CUSTOMER_SERVICE_TOKEN_URL(
   Env.PRD,
 );
+export const MOCK_PARTNER_IDENTITY_TOKEN_URL = PARTNER_IDENTITY_TOKEN_URL(
+  Env.PRD,
+);
+export const MOCK_MFA_ENROLL_URL = MFA_ENROLL_URL(Env.PRD);
+export const MOCK_MFA_ENROLL_COMPLETE_URL = MFA_ENROLL_COMPLETE_URL(Env.PRD);
+export const MOCK_MFA_VERIFY_URL = MFA_VERIFY_URL(Env.PRD);
+export const MOCK_MFA_VERIFY_COMPLETE_URL = MFA_VERIFY_COMPLETE_URL(Env.PRD);
+export const MOCK_MFA_CREDENTIALS_URL = MFA_CREDENTIALS_URL(Env.PRD);
+
+const MOCK_PASSKEY_CREATE_DATA = {
+  publicKey: {
+    rp: {
+      name: 'MetaMask',
+      id: 'authentication.api.cx.metamask.io',
+    },
+    user: {
+      name: 'MetaMask 3f9a1c2b',
+      id: 'cHJvZmlsZS1pZA',
+      displayName: 'MetaMask 3f9a1c2b',
+    },
+    challenge: 'Y3JlYXRlLWNoYWxsZW5nZQ',
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+    excludeCredentials: [],
+    attestation: 'none',
+  },
+};
+
+const MOCK_PASSKEY_REQUEST_DATA = {
+  publicKey: {
+    rpId: 'authentication.api.cx.metamask.io',
+    challenge: 'dmVyaWZ5LWNoYWxsZW5nZQ',
+    allowCredentials: [{ type: 'public-key', id: 'Y3JlZGVudGlhbC1pZA' }],
+    userVerification: 'required',
+  },
+};
+
+export const MOCK_MFA_ENROLL_PASSKEY_RESPONSE = {
+  flow_id: 'enroll-passkey-flow-id',
+  expires_at: '2099-09-07T14:30:00Z',
+  passkey_create_data: JSON.stringify(MOCK_PASSKEY_CREATE_DATA),
+};
+
+export const MOCK_MFA_ENROLL_EMAIL_RESPONSE = {
+  flow_id: 'enroll-email-flow-id',
+  expires_at: '2099-09-07T14:30:00Z',
+};
+
+export const MOCK_MFA_ENROLL_COMPLETE_RESPONSE = {
+  status: 'enrolled',
+};
+
+export const MOCK_MFA_VERIFY_PASSKEY_RESPONSE = {
+  flow_id: 'verify-passkey-flow-id',
+  expires_at: '2099-09-07T14:30:00Z',
+  passkey_request_data: JSON.stringify(MOCK_PASSKEY_REQUEST_DATA),
+};
+
+export const MOCK_MFA_VERIFY_EMAIL_RESPONSE = {
+  flow_id: 'verify-email-flow-id',
+  expires_at: '2099-09-07T14:30:00Z',
+};
+
+export const MOCK_MFA_ASSERTION_JWT =
+  'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJmODgyMjdiZC1iNjE1LTQxYTMtYjBiZS00NjdkZDc4MWE0YWQiLCJhYWwiOjIsImFtciI6InBhc3NrZXkiLCJleHAiOjQxMDI0NDQ4MDB9.signature';
+
+export const MOCK_MFA_VERIFY_COMPLETE_RESPONSE = {
+  token: MOCK_MFA_ASSERTION_JWT,
+  expires_in: 900,
+  profile: {
+    profile_id: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
+    identifier_id:
+      'da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb',
+    identifier_type: 'SRP',
+  },
+  profile_aliases: [],
+};
+
+export const MOCK_MFA_CREDENTIALS_RESPONSE = {
+  credentials: [
+    {
+      credential_type: 'passkey',
+      status: 'active',
+      enrolled_at: '2026-09-15T10:00:00Z',
+      passkey: {
+        display_name: 'MetaMask 3f9a1c2b',
+        added_at: '2026-09-15T10:00:00Z',
+      },
+    },
+    {
+      credential_type: 'email_otp',
+      status: 'pending',
+      enrolled_at: '2026-09-15T10:05:00Z',
+      email: {
+        address: 'user@example.com',
+        verified: false,
+      },
+    },
+  ],
+};
+
+export const MOCK_ELEVATED_ACCESS_JWT =
+  'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJmODgyMjdiZC1iNjE1LTQxYTMtYjBiZS00NjdkZDc4MWE0YWQiLCJhYWwiOjIsImFtciI6WyJwYXNza2V5Il0sImV4cCI6NDEwMjQ0NDgwMH0.signature';
+
+export const MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE = {
+  access_token: MOCK_ELEVATED_ACCESS_JWT,
+  expires_in: 900,
+};
 
 export const MOCK_JWT =
   'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImIwNzE2N2U2LWJjNWUtNDgyZC1hNjRhLWU1MjQ0MjY2MGU3NyJ9.eyJzdWIiOiI1MzE0ODc5YWM2NDU1OGI3OTQ5ZmI4NWIzMjg2ZjZjNjUwODAzYmFiMTY0Y2QyOWNmMmM3YzdmMjMzMWMwZTRlIiwiaWF0IjoxNzA2MTEzMDYyLCJleHAiOjE3NjkxODUwNjMsImlzcyI6ImF1dGgubWV0YW1hc2suaW8iLCJhdWQiOiJwb3J0Zm9saW8ubWV0YW1hc2suaW8ifQ.E5UL6oABNweS8t5a6IBTqTf7NLOJbrhJSmEcsr7kwLp4bGvcENJzACwnsHDkA6PlzfDV09ZhAGU_F3hlS0j-erbY0k0AFR-GAtyS7E9N02D8RgUDz5oDR65CKmzM8JilgFA8UvruJ6OJGogroaOSOqzRES_s8MjHpP47RJ9lXrUesajsbOudXbuksXWg5QmWip6LLvjwr8UUzcJzNQilyIhiEpo4WdzWM4R3VtTwr4rHnWEvtYnYCov1jmI2w3YQ48y0M-3Y9IOO0ov_vlITRrOnR7Y7fRUGLUFmU5msD8mNWRywjQFLHfJJ1yNP5aJ8TkuCK3sC6kcUH335IVvukQ';
@@ -70,6 +185,13 @@ export const MOCK_OIDC_TOKEN_RESPONSE = {
 };
 
 export const MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE = {
+  access_token: MOCK_ACCESS_JWT,
+  refresh_token: 'ory_rt_mock_refresh_token',
+  expires_in: 3600,
+  token_type: 'bearer',
+};
+
+export const MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE = {
   access_token: MOCK_ACCESS_JWT,
   refresh_token: 'ory_rt_mock_refresh_token',
   expires_in: 3600,

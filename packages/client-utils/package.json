@@ -1,6 +1,6 @@
 {
   "name": "@metamask/client-utils",
-  "version": "2.1.1",
+  "version": "3.0.2",
   "description": "Shared functions and utilities used across MetaMask clients (extension and mobile)",
   "keywords": [
     "Ethereum",
@@ -51,12 +51,12 @@
   },
   "dependencies": {
     "@metamask/contract-metadata": "^2.4.0",
-    "@metamask/controller-utils": "^12.3.0",
-    "@metamask/core-backend": "^9.1.1",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/core-backend": "^11.0.0",
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^69.8.1",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/transaction-controller": "^70.1.0",
+    "@metamask/utils": "^12.0.0",
     "eth-chainlist": "^0.0.795"
   },
   "devDependencies": {
@@ -66,8 +66,8 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

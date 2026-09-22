@@ -9,12 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+
+### Fixed
+
+- Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
+- `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
+
+## [16.1.0]
+
+### Added
+
+- Add optional `metadata` on fungible `assetsBalance` entries from the Accounts API and Account Activity websocket ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Register the Solana, Stellar and Tron native assets (SOL, XLM, TRX) so accounts holding no assets on those networks now surface a zero-balance native entry, matching the existing EVM behavior ([#10194](https://github.com/MetaMask/core/pull/10194))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.2` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- `AccountsApiDataSource` now treats Accounts API `/v2/supportedNetworks` `partialSupport` as active chains in addition to `fullSupport`, still gated by the Snaps assets migration feature flags ([#10144](https://github.com/MetaMask/core/pull/10144))
+- `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+
+## [16.0.0]
+
+### Changed
+
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
   - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/assets-controllers` from `^111.2.0` to `^111.3.0` ([#10152](https://github.com/MetaMask/core/pull/10152))
+- Bump `@metamask/assets-controllers` from `^111.2.0` to `^112.0.0` ([#10152](https://github.com/MetaMask/core/pull/10152), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/account-tree-controller` from `^9.0.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/client-controller` from `^1.0.1` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/config-registry-controller` from `^3.1.0` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/core-backend` from `^9.1.1` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-enablement-controller` from `^6.0.5` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/phishing-controller` from `^17.4.1` to `^18.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/preferences-controller` from `^23.1.0` to `^24.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [15.1.0]
 
@@ -1019,7 +1065,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...HEAD
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...@metamask/assets-controller@16.1.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...@metamask/assets-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...@metamask/assets-controller@15.0.0
 [14.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.2...@metamask/assets-controller@14.0.3

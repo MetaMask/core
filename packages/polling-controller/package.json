@@ -1,6 +1,6 @@
 {
   "name": "@metamask/polling-controller",
-  "version": "16.0.9",
+  "version": "17.0.0",
   "description": "Polling Controller is the base for controllers that polling by networkClientId",
   "keywords": [
     "Ethereum",
@@ -48,21 +48,20 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/utils": "^11.12.0",
-    "@types/uuid": "^8.3.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/utils": "^12.0.0",
     "fast-json-stable-stringify": "^2.1.0",
-    "uuid": "^8.3.2"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/messenger": "^3.0.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

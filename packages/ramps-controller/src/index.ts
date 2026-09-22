@@ -32,10 +32,12 @@ export type {
   RampsControllerGetPaymentMethodsForContextAction,
   RampsControllerSetSelectedPaymentMethodAction,
   RampsControllerGetQuotesAction,
+  RampsControllerGetQuoteWithFeesAction,
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,
   RampsControllerCreateAutorampAction,
+  RampsControllerHydrateVbaOnboardingAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerRegisterMoneyAccountWalletAction,
   RampsControllerMarkAutorampAsNotifiedAction,
@@ -74,9 +76,11 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types.js';
 export {
   RampsController,
+  VbaOnboardingStage,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -195,6 +199,30 @@ export {
   normalizeToTypedError,
 } from './errorNormalization.js';
 export type {
+  UserStorageRampsOrderEntry,
+  SyncRampsOrder,
+  OrderSyncingController,
+  OrderSyncingOptions,
+  SyncOrdersWithUserStorageConfig,
+} from './order-syncing/index.js';
+export {
+  USER_STORAGE_RAMPS_ORDERS_FEATURE,
+  USER_STORAGE_VERSION,
+  USER_STORAGE_VERSION_KEY,
+  createOrderStorageKey,
+  isSyncableOrder,
+  mapRampsOrderToUserStorageEntry,
+  mapUserStorageEntryToRampsOrder,
+  stripPaymentDetailsForRemoteStorage,
+  stripSyncMetadata,
+  stripDeletedAt,
+  areOrdersEqual,
+  canPerformOrderSyncing,
+  syncOrdersWithUserStorage,
+  updateOrderInUserStorage,
+  deleteOrderInUserStorage,
+} from './order-syncing/index.js';
+export type {
   TransakServiceActions,
   TransakServiceEvents,
   TransakServiceMessenger,
@@ -275,6 +303,7 @@ export type {
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,

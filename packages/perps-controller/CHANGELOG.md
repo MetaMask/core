@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.4.0]
+
+### Added
+
+- Add optional `id` field to `PerpsMarketData` type, populated from the v3 Terminal snapshot endpoint ([#10356](https://github.com/MetaMask/core/pull/10356))
+
+### Changed
+
+- Bump `GLOBAL_SNAPSHOT_SCHEMA_VERSION` from `2` to `3` to consume the v3 `/perpetuals` Terminal endpoint, which adds a stable `id` per market ([#10356](https://github.com/MetaMask/core/pull/10356))
+
+## [17.3.0]
+
+### Fixed
+
+- Use Lighter's reported executed amount for order filled sizes so canceled orders do not appear fully filled. ([#10308](https://github.com/MetaMask/core/pull/10308))
+
+## [17.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+### Fixed
+
+- Normalize Lighter order timestamps from seconds to milliseconds for client date displays. ([#10187](https://github.com/MetaMask/core/pull/10187))
+- Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values. ([#10187](https://github.com/MetaMask/core/pull/10187))
+
+## [17.1.0]
+
+### Added
+
+- Add `MarketCategory.Memecoin` (`'memecoin'`) as a new UI-only filter category and expose it via `MARKET_CATEGORIES` and `MarketTypeFilter`. ([#10168](https://github.com/MetaMask/core/pull/10168))
+  - Derived in `matchesCategory` from a non-HIP-3 crypto market carrying the `'memecoin'` tag.
+  - Overlaps with the `'crypto'` filter by design — memecoin markets appear under both pills.
+
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [17.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [16.2.0]
 
@@ -902,7 +948,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...HEAD
+[17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...@metamask/perps-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...@metamask/perps-controller@17.0.0
 [16.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...@metamask/perps-controller@16.2.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...@metamask/perps-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...@metamask/perps-controller@16.0.0

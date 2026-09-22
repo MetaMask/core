@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-provider",
-  "version": "6.0.1",
+  "version": "7.0.0",
   "description": "Create an Ethereum provider using a JSON-RPC engine or middleware",
   "keywords": [
     "Ethereum",
@@ -48,10 +48,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/json-rpc-engine": "^10.5.0",
+    "@metamask/json-rpc-engine": "^11.0.0",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.12.0",
-    "@types/lodash": "^4.14.191",
+    "@metamask/utils": "^12.0.0",
+    "@types/lodash": "^4.17.20",
     "lodash-es": "^4.17.21",
     "nanoid": "^3.3.8"
   },
@@ -59,14 +59,14 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/ethjs-query": "^0.5.3",
+    "@metamask/ethjs-query": "^0.7.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
-    "ethers": "^6.12.0",
+    "ethers": "^6.17.0",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.4.11",
+    "rimraf": "^5.0.10",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typescript": "npm:@typescript/typescript6@^6.0.2"

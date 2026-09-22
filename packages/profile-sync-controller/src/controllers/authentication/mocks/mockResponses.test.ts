@@ -1,9 +1,16 @@
 import {
   getMockAuthAccessTokenResponse,
   getMockCustomerServiceTokenResponse,
+  getMockPartnerIdentityTokenResponse,
   getE2EIdentifierFromJwt,
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
+  getMockMfaCredentialsResponse,
+  getMockMfaEnrollCompleteResponse,
+  getMockMfaEnrollResponse,
+  getMockMfaVerifyCompleteResponse,
+  getMockMfaVerifyResponse,
 } from './mockResponses.js';
 
 describe('getE2EIdentifierFromJwt()', () => {
@@ -78,6 +85,24 @@ describe('getMockAuthAccessTokenResponse()', () => {
   });
 });
 
+describe('MFA mock responses', () => {
+  it('provides endpoint-compatible response descriptors', () => {
+    expect([
+      getMockMfaEnrollResponse(),
+      getMockMfaEnrollCompleteResponse(),
+      getMockMfaVerifyResponse(),
+      getMockMfaVerifyCompleteResponse(),
+      getMockMfaCredentialsResponse(),
+    ]).toStrictEqual([
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'GET' }),
+    ]);
+  });
+});
+
 describe('getMockCustomerServiceTokenResponse()', () => {
   it('returns a POST mock for the customer service token endpoint', () => {
     const mock = getMockCustomerServiceTokenResponse();
@@ -85,5 +110,15 @@ describe('getMockCustomerServiceTokenResponse()', () => {
     expect(mock.requestMethod).toBe('POST');
     expect(mock.url).toContain('/customer-service/token');
     expect(mock.response).toStrictEqual(MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE);
+  });
+});
+
+describe('getMockPartnerIdentityTokenResponse()', () => {
+  it('returns a POST mock for the partner identity token endpoint', () => {
+    const mock = getMockPartnerIdentityTokenResponse();
+
+    expect(mock.requestMethod).toBe('POST');
+    expect(mock.url).toContain('/oidc/token');
+    expect(mock.response).toStrictEqual(MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE);
   });
 });
