@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `authorComment` on `FeedItem` (uid, text, timestamp, `engagement.reactions` / `userReaction`) so clients can render Call-backed feed reactions ([#10345](https://github.com/MetaMask/core/pull/10345))
 - Add `reactToComment` and `removeCommentReaction` methods on `SocialService` (and the matching messenger actions). Call `PUT` / `DELETE /swap-comment/:id/reaction` and return per-emotion counts plus `userReaction`. Deprecated `likeCount` / `isLikedByUser` on the social-api wire are ignored ([#10345](https://github.com/MetaMask/core/pull/10345))
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+
 ## [3.0.2]
 
 ### Added
