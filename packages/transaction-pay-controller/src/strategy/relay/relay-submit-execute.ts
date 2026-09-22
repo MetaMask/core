@@ -22,6 +22,10 @@ import type { RelayExecuteRequest, RelayQuote } from './types.js';
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
 
+export function isSubsidizedRelayQuote(quote: RelayQuote): boolean {
+  return Number(quote.fees?.subsidized?.amountUsd ?? '0') > 0;
+}
+
 export async function submitViaRelayExecute(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
@@ -73,10 +77,6 @@ async function submitViaRelayExecuteInternal(
   replaceFirstStepRequestId(quote.original, result.requestId);
 
   return FALLBACK_HASH;
-}
-
-function isSubsidizedRelayQuote(quote: RelayQuote): boolean {
-  return Number(quote.fees?.subsidized?.amountUsd ?? '0') > 0;
 }
 
 function stripRelayExecuteMarker(requestId: string): string {

@@ -791,6 +791,11 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction to top-up Money Account balance to the required threshold.
+   */
+  membershipSubscription = 'membershipSubscription',
+
+  /**
    * A transaction that deposits funds into a money account.
    */
   moneyAccountDeposit = 'moneyAccountDeposit',

@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed missing `SubscriptionService:getBenefits` actions in `SubscriptionController` initialization. ([#10351](https://github.com/MetaMask/core/pull/10351))
+- Fixed subscription getBenefits delegation in the `SubscriptionController` init. ([#10355](https://github.com/MetaMask/core/pull/10355))
 
 ## [14.0.0]
 
