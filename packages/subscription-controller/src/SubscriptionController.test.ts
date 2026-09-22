@@ -2886,8 +2886,7 @@ describe('SubscriptionController', () => {
                 recurringInterval: RECURRING_INTERVALS.month,
                 billingCycles: 3,
                 chainId: '0x1',
-                payerAddress:
-                  '0x0000000000000000000000000000000000000001',
+                payerAddress: '0x0000000000000000000000000000000000000001',
                 tokenSymbol: 'USDC',
                 rawTransaction: '0xdeadbeef',
               },

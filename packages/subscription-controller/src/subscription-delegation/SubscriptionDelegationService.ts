@@ -1,11 +1,11 @@
 import type {
-  AuthenticatedUserStorageServiceCreateDelegationAction,
-  AuthenticatedUserStorageServiceListDelegationsAction,
-} from '@metamask/authenticated-user-storage';
-import type {
   AddResult,
   ApprovalControllerAddRequestAction,
 } from '@metamask/approval-controller';
+import type {
+  AuthenticatedUserStorageServiceCreateDelegationAction,
+  AuthenticatedUserStorageServiceListDelegationsAction,
+} from '@metamask/authenticated-user-storage';
 import type {
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
@@ -26,12 +26,12 @@ import { add0x, hexToNumber, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
-import type { SubscriptionControllerGetStateAction } from '../SubscriptionController.js';
 import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
 } from '../SubscriptionController-method-action-types.js';
+import type { SubscriptionControllerGetStateAction } from '../SubscriptionController.js';
 import { CRYPTO_AUTH_METHODS, PAYMENT_TYPES, PRODUCT_TYPES } from '../types.js';
 import type {
   ProductPrice,
@@ -51,11 +51,17 @@ import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
 } from './fingerprint.js';
-import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import type {
   MoneyAccountControllerEnsureDelegationsReadinessAction,
   MoneyAccountControllerGetDelegationsReadinessAction,
 } from './money-account-contracts.js';
+import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
+import {
+  buildDelegationTypedData,
+  computeBundleFingerprint,
+  decodeSubscriptionAuthority,
+  hashTypedData,
+} from './typed-data.js';
 import type {
   MoneyAccountAuthorizationReason,
   MoneyAccountBalanceCheckRequest,
@@ -77,12 +83,6 @@ import {
   SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
   SUBSCRIPTION_DELEGATION_POLICY_VERSION,
 } from './types.js';
-import {
-  buildDelegationTypedData,
-  computeBundleFingerprint,
-  decodeSubscriptionAuthority,
-  hashTypedData,
-} from './typed-data.js';
 
 /**
  * The name of the {@link SubscriptionDelegationService}, used to namespace the
@@ -108,10 +108,7 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
 
-  if (
-    !contracts?.ValueLteEnforcer ||
-    !contracts.ERC20PeriodTransferEnforcer
-  ) {
+  if (!contracts?.ValueLteEnforcer || !contracts.ERC20PeriodTransferEnforcer) {
     throw new Error(
       `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: ${chainId}`,
     );
@@ -767,16 +764,11 @@ export class SubscriptionDelegationService {
 
     const skipChomp = Boolean(request.skipChompInteractions);
 
-    const {
-      chainId,
-      delegateAddress,
-      enforcers,
-      price,
-      token,
-    } = await this.#resolveConfiguration(
-      request.product,
-      request.recurringInterval,
-    );
+    const { chainId, delegateAddress, enforcers, price, token } =
+      await this.#resolveConfiguration(
+        request.product,
+        request.recurringInterval,
+      );
 
     if (request.checkBalance) {
       const { hasSufficientBalance } = await this.#compareMoneyAccountBalance(

@@ -1,8 +1,8 @@
-import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
 import {
   decodeERC20TokenPeriodTransferTerms,
   decodeValueLteTerms,
 } from '@metamask/delegation-core';
+import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
 import {
   bytesToHex,
   getChecksumAddress,

@@ -4,13 +4,13 @@ import {
   createValueLteTerms,
 } from '@metamask/delegation-core';
 
-import type { PreparedSubscriptionPermission } from './types.js';
 import {
   buildDelegationTypedData,
   computeBundleFingerprint,
   decodeSubscriptionAuthority,
   hashTypedData,
 } from './typed-data.js';
+import type { PreparedSubscriptionPermission } from './types.js';
 
 const DELEGATOR = '0x1111111111111111111111111111111111111111' as const;
 const DELEGATE = '0x2222222222222222222222222222222222222222' as const;
@@ -153,5 +153,4 @@ describe('subscription delegation typed data', () => {
       ),
     ).toThrow('Subscription delegation permits native value');
   });
-
 });
