@@ -42,6 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
-- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+- Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
 
 [Unreleased]: https://github.com/MetaMask/core/
