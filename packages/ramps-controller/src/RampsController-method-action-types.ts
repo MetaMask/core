@@ -438,7 +438,7 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
  *
  * @param params - VBA onboarding parameters.
  * @param params.walletAddress - Monad Money Account wallet address.
- * @returns Independent KYC and activation facts for the current customer.
+ * @returns Independent KYC and autoramp facts for the current customer.
  */
 export type RampsControllerHydrateVbaOnboardingAction = {
   type: `RampsController:hydrateVbaOnboarding`;

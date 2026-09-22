@@ -10310,11 +10310,11 @@ describe('RampsController', () => {
       return handlers;
     };
 
-    const pendingSession = (kycStatus: string): KycSession => ({
+    const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
-      finalStatus: 'pending',
-      kycStatus,
-      vendorStatus: 'pending',
+      finalStatus,
+      kycStatus: 'approved',
+      vendorStatus: finalStatus,
       externalUserId: CANONICAL_PROFILE_ID,
     });
 
@@ -10323,8 +10323,7 @@ describe('RampsController', () => {
       vendorDisclaimersComplete: false,
       sessionDisclaimersComplete: false,
       kycStatus: 'none',
-      finalStatus: 'none',
-      activation: 'not_ready',
+      autorampStatus: 'not_ready',
     });
 
     const factsSnapshot = (
@@ -10333,9 +10332,8 @@ describe('RampsController', () => {
       sessionExists: true,
       vendorDisclaimersComplete: true,
       sessionDisclaimersComplete: true,
-      kycStatus: 'new',
-      finalStatus: 'pending',
-      activation: 'not_ready',
+      kycStatus: 'pending',
+      autorampStatus: 'not_ready',
       ...overrides,
     });
 
@@ -10353,7 +10351,7 @@ describe('RampsController', () => {
       {
         name: 'incomplete vendor disclaimers without collapsing other facts',
         overrides: {
-          session: pendingSession('new'),
+          session: sessionWithStatus('pending'),
           vendorDisclaimersCompleted: false,
         },
         expected: factsSnapshot({ vendorDisclaimersComplete: false }),
@@ -10361,46 +10359,30 @@ describe('RampsController', () => {
       {
         name: 'incomplete session disclaimers without collapsing other facts',
         overrides: {
-          session: pendingSession('new'),
+          session: sessionWithStatus('pending'),
           sessionDisclaimersCompleted: false,
         },
         expected: factsSnapshot({ sessionDisclaimersComplete: false }),
       },
       {
         name: 'kycStatus new when KYC has not started',
-        overrides: { session: pendingSession('new') },
+        overrides: { session: sessionWithStatus('new') },
         expected: factsSnapshot({ kycStatus: 'new' }),
       },
       {
         name: 'kycStatus retry when KYC needs a retry',
-        overrides: { session: pendingSession('retry') },
+        overrides: { session: sessionWithStatus('retry') },
         expected: factsSnapshot({ kycStatus: 'retry' }),
       },
       {
         name: 'kycStatus pending while the vendor finalizes',
-        overrides: { session: pendingSession('pending') },
+        overrides: { session: sessionWithStatus('pending') },
         expected: factsSnapshot({ kycStatus: 'pending' }),
       },
       {
-        name: 'kycStatus rejected when the applicant is rejected',
-        overrides: { session: pendingSession('rejected') },
+        name: 'kycStatus rejected when KYC is rejected',
+        overrides: { session: sessionWithStatus('rejected') },
         expected: factsSnapshot({ kycStatus: 'rejected' }),
-      },
-      {
-        name: 'finalStatus rejected when the vendor finalizes as rejected',
-        overrides: {
-          session: {
-            id: 'session-1',
-            finalStatus: 'rejected',
-            kycStatus: 'pending',
-            vendorStatus: 'rejected',
-            externalUserId: CANONICAL_PROFILE_ID,
-          },
-        },
-        expected: factsSnapshot({
-          kycStatus: 'pending',
-          finalStatus: 'rejected',
-        }),
       },
     ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
@@ -10439,7 +10421,7 @@ describe('RampsController', () => {
     it('prefers the in-state session status over the backend fetch', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {
-          session: pendingSession('new'),
+          session: sessionWithStatus('new'),
         });
 
         expect(
@@ -10478,7 +10460,7 @@ describe('RampsController', () => {
         const handlers = registerKycHandlers(rootMessenger, {
           refreshThrows: true,
           session: {
-            ...pendingSession('new'),
+            ...sessionWithStatus('new'),
             externalUserId: 'previous-identity',
           },
         });
@@ -10495,7 +10477,7 @@ describe('RampsController', () => {
     it('keeps a persisted session owned by the current profile', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {
-          session: pendingSession('new'),
+          session: sessionWithStatus('new'),
           profileCanonicalId: CANONICAL_PROFILE_ID,
         });
 
@@ -10512,7 +10494,7 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         // A transient profile-read failure must not discard a valid session.
         const handlers = registerKycHandlers(rootMessenger, {
-          session: pendingSession('new'),
+          session: sessionWithStatus('new'),
           profileCanonicalId: null,
         });
 
@@ -10553,8 +10535,7 @@ describe('RampsController', () => {
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'ready',
+            autorampStatus: 'ready',
           }),
         );
 
@@ -10592,8 +10573,7 @@ describe('RampsController', () => {
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'ready',
+            autorampStatus: 'ready',
           }),
         );
 
@@ -10699,20 +10679,18 @@ describe('RampsController', () => {
         expect(await Promise.all([first, second])).toStrictEqual([
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'ready',
+            autorampStatus: 'ready',
           }),
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'ready',
+            autorampStatus: 'ready',
           }),
         ]);
         expect(registerWallet).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('marks activation retryable when wallet registration fails on the approved path', async () => {
+    it('marks the autoramp retryable when wallet registration fails on the approved path', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         const error = new Error('signing rejected');
@@ -10725,14 +10703,13 @@ describe('RampsController', () => {
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'retryable_failure',
+            autorampStatus: 'retryable_failure',
           }),
         );
       });
     });
 
-    it('marks activation retryable when the wallet lookup is unavailable', async () => {
+    it('marks the autoramp retryable when the wallet lookup is unavailable', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         const error = new WalletRegistrationError('lookupUnavailable', {});
@@ -10746,14 +10723,13 @@ describe('RampsController', () => {
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'retryable_failure',
+            autorampStatus: 'retryable_failure',
           }),
         );
       });
     });
 
-    it('marks activation retryable when loading autoramps fails', async () => {
+    it('marks the autoramp retryable when loading autoramps fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
         const error = new Error('autoramp lookup failed');
@@ -10775,8 +10751,7 @@ describe('RampsController', () => {
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            finalStatus: 'approved',
-            activation: 'retryable_failure',
+            autorampStatus: 'retryable_failure',
           }),
         );
         expect(createAutoramp).not.toHaveBeenCalled();

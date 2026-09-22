@@ -356,20 +356,19 @@ export const VBA_KYC_STATUSES = [
 export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
 
 /**
- * Money-account activation progress after Iron has approved KYC.
+ * Autoramp setup progress after KYC has been approved.
  * `'in_progress'` is reserved for hosts that observe an in-flight hydrate;
  * {@link RampsController.hydrateVbaOnboarding} itself returns `'ready'` or
  * `'retryable_failure'` once the coalesced run settles.
  */
-export const VBA_ONBOARDING_ACTIVATION_STATES = [
+export const VBA_AUTORAMP_STATUSES = [
   'not_ready',
   'in_progress',
   'ready',
   'retryable_failure',
 ] as const;
 
-export type VbaOnboardingActivation =
-  (typeof VBA_ONBOARDING_ACTIVATION_STATES)[number];
+export type VbaAutorampStatus = (typeof VBA_AUTORAMP_STATUSES)[number];
 
 /**
  * Backend facts for VBA onboarding. Hosts own funnel order and map this
@@ -379,11 +378,9 @@ export type VbaOnboardingSnapshot = {
   sessionExists: boolean;
   vendorDisclaimersComplete: boolean;
   sessionDisclaimersComplete: boolean;
-  /** SumSub applicant status. */
+  /** Overall KYC session outcome used to decide whether autoramp setup can run. */
   kycStatus: VbaKycStatus;
-  /** Iron vendor final decision. */
-  finalStatus: VbaKycStatus;
-  activation: VbaOnboardingActivation;
+  autorampStatus: VbaAutorampStatus;
 };
 
 const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
@@ -391,8 +388,7 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
   vendorDisclaimersComplete: false,
   sessionDisclaimersComplete: false,
   kycStatus: 'none',
-  finalStatus: 'none',
-  activation: 'not_ready',
+  autorampStatus: 'not_ready',
 };
 
 const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
@@ -3876,7 +3872,7 @@ export class RampsController extends BaseController<
    *
    * @param params - VBA onboarding parameters.
    * @param params.walletAddress - Monad Money Account wallet address.
-   * @returns Independent KYC and activation facts for the current customer.
+   * @returns Independent KYC and autoramp facts for the current customer.
    */
   async hydrateVbaOnboarding({
     walletAddress,
@@ -3903,8 +3899,7 @@ export class RampsController extends BaseController<
     walletAddress: string,
   ): Promise<VbaOnboardingSnapshot> {
     // Prefer the in-memory/persisted session status over the backend
-    // latest-status endpoint: after SumSub the backend endpoint lags (it still
-    // reports kycStatus 'new' right after an 'approved' applicant result), while
+    // latest-status endpoint: after SumSub the backend endpoint can lag, while
     // the controller state reflects the journey/SDK outcome. Fall back to a
     // backend fetch only when the controller has no session in state (e.g. a
     // reinstall/cleared state resuming an existing customer, or a brand-new user
@@ -3958,12 +3953,11 @@ export class RampsController extends BaseController<
       sessionExists: true,
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
-      kycStatus: toVbaKycStatus(session.kycStatus),
-      finalStatus: toVbaKycStatus(session.finalStatus),
-      activation: 'not_ready',
+      kycStatus: toVbaKycStatus(session.finalStatus),
+      autorampStatus: 'not_ready',
     };
 
-    if (snapshot.finalStatus !== 'approved') {
+    if (snapshot.kycStatus !== 'approved') {
       return snapshot;
     }
     if (!walletAddress.trim()) {
@@ -4009,10 +4003,10 @@ export class RampsController extends BaseController<
         await this.createAutoramp({});
       }
     } catch {
-      return { ...snapshot, activation: 'retryable_failure' };
+      return { ...snapshot, autorampStatus: 'retryable_failure' };
     }
 
-    return { ...snapshot, activation: 'ready' };
+    return { ...snapshot, autorampStatus: 'ready' };
   }
 
   /**

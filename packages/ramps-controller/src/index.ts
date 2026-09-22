@@ -15,8 +15,8 @@ export type {
   NativeProvidersState,
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
+  VbaAutorampStatus,
   VbaKycStatus,
-  VbaOnboardingActivation,
   VbaOnboardingSnapshot,
 } from './RampsController.js';
 export type {
@@ -83,8 +83,8 @@ export type {
 } from './RampsController-method-action-types.js';
 export {
   RampsController,
+  VBA_AUTORAMP_STATUSES,
   VBA_KYC_STATUSES,
-  VBA_ONBOARDING_ACTIVATION_STATES,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
