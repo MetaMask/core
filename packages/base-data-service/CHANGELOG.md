@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The payload for `:cacheUpdated` and `:cacheUpdated:${hash}` events now includes an `objectType` property, which is either "query" or "mutation" ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
 
 ## [2.0.0]
