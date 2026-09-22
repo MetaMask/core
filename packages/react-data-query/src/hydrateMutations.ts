@@ -26,14 +26,13 @@ export function readGlobalId(
  * Load dehydrated mutations into the given query client.
  *
  * TanStack Query's `hydrate` function works well for queries: it ensures that
- * incoming queries remain deduplicated as it hydrates them (using the query key
- * hash as a filter). But mutations don't need to be deduplicated, and so
- * `hydrate` follows a different process, opting to load incoming mutations as
- * new entries each time it is called.
+ * incoming queries are deduplicated (using the computed query key hash). But
+ * mutations don't need to be deduplicated, and so `hydrate` follows a different
+ * process, opting to register incoming mutations as new entries.
  *
- * This does not well for what we want to achieve, which is to be able to
- * synchronize queries and mutations between a data service query client service
- * and a UI query client. To accomplish this, we assume that mutations which
+ * This does not work well for what we want to achieve, which is to be able to
+ * synchronize queries and mutations between a data service query client and a
+ * UI query client. To accomplish this, we assume that mutations which
  * originated on the UI side have been tagged with a custom UUID (stored as
  * `globalId` in its `meta`). This allows us to keep mutations with the same
  * UUID on both sides and thus sychronize them effectively.
@@ -100,7 +99,6 @@ function deriveMutationAction(
     case 'success':
       return { type: 'success', data: state.data };
     case 'error':
-      // A mutation in the `error` state always carries a non-null `error`.
       return { type: 'error', error: state.error };
     case 'pending':
       return {
@@ -109,8 +107,8 @@ function deriveMutationAction(
         context: state.context,
         isPaused: state.isPaused,
       };
-    // The `idle` status carries no data, error, or variables, so a neutral
-    // `continue` action refreshes subscribers without implying a result.
+    // The `idle` status (the default) has no data, error, or variables, and
+    // thus no result.
     default:
       return { type: 'continue' };
   }
