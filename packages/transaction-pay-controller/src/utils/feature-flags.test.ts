@@ -37,6 +37,7 @@ import {
   isEIP7702Chain,
   getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
+  isAtomicMaxEnabled,
   isRelayValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
@@ -763,6 +764,135 @@ describe('Feature Flags Utils', () => {
         isRelayValidationEnabled(messenger, {
           type: TransactionType.simpleSend,
           nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+  });
+
+  describe('isAtomicMaxEnabled', () => {
+    it('returns false for a Money Account deposit when no flag is set', () => {
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false for a non-Money Account deposit when no flag is set', () => {
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false when default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { atomicMaxEnabled: { default: false } },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { atomicMaxEnabled: { default: true } },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns true when per-type override is true and default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when per-type override is false and default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.moneyAccountDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns default value for a type with no per-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(true);
     });

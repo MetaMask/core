@@ -29,4 +29,40 @@ export type CodeownersSection = {
    * The rules that belong to this section.
    */
   rules: CodeownersRule[];
+
+  /**
+   * Nested sections rendered below this section's rules.
+   */
+  subsections?: CodeownersSection[];
+};
+
+/**
+ * Metadata about a package used to generate its CODEOWNERS rules.
+ */
+export type PackageInfo = {
+  /**
+   * The GitHub teams that own the package's top-level directory.
+   */
+  teams: string[];
+
+  /**
+   * The package directory's path under the wallet initialization instances.
+   */
+  initializationPath?: string;
+};
+
+/**
+ * The declarative configuration used to generate CODEOWNERS.
+ */
+export type CodeownersConfig = {
+  /**
+   * Package ownership metadata keyed by package directory name.
+   */
+  packages: Record<string, PackageInfo>;
+
+  /**
+   * Rules that are emitted last so that they take precedence over generated
+   * package rules.
+   */
+  overrides: CodeownersRule[];
 };

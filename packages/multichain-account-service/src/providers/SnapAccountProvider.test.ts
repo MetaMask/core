@@ -1011,4 +1011,58 @@ describe('SnapAccountProvider', () => {
       );
     });
   });
+
+  describe('deleteAccounts', () => {
+    it('deletes in the given order via deleteAccount', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        accounts.find((account) => account.id === id),
+      );
+      provider.init(accounts.map((account) => account.id));
+
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({ ok: true });
+
+      expect(keyring.deleteAccount.mock.calls.flat()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1.id,
+        MOCK_HD_ACCOUNT_2.id,
+      ]);
+    });
+
+    it('continues after a per-account failure and returns ok: false', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        accounts.find((account) => account.id === id),
+      );
+      provider.init(accounts.map((account) => account.id));
+      keyring.deleteAccount
+        .mockRejectedValueOnce(new Error('snap is unavailable'))
+        .mockResolvedValueOnce(undefined);
+
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({
+        ok: false,
+        failures: [
+          {
+            id: MOCK_HD_ACCOUNT_1.id,
+            error: expect.objectContaining({ message: 'snap is unavailable' }),
+          },
+        ],
+      });
+
+      expect(keyring.deleteAccount).toHaveBeenCalledTimes(2);
+      expect(keyring.deleteAccount).toHaveBeenNthCalledWith(
+        1,
+        MOCK_HD_ACCOUNT_1.id,
+      );
+      expect(keyring.deleteAccount).toHaveBeenNthCalledWith(
+        2,
+        MOCK_HD_ACCOUNT_2.id,
+      );
+    });
+  });
 });

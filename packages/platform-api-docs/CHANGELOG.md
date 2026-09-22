@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `execa` from `^5.0.0` to `^5.1.1` ([#10330](https://github.com/MetaMask/core/pull/10330))
+
+## [0.2.1]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ### Fixed
@@ -34,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the platform-api-docs package ([#8012](https://github.com/MetaMask/core/pull/8012), [#9913](https://github.com/MetaMask/core/pull/9913))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@0.2.1...HEAD
+[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@0.2.0...@metamask/platform-api-docs@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@0.1.0...@metamask/platform-api-docs@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/platform-api-docs@0.1.0

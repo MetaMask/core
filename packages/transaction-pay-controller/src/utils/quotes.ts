@@ -124,6 +124,14 @@ export async function updateQuotes(
       return false;
     }
 
+    // Refreshing the balance above re-derives max source amounts, so read the
+    // latest values instead of the snapshot taken before the refresh. Using
+    // the snapshot quotes a max amount against a stale balance, which requests
+    // a zero source amount when the token was selected before its balance
+    // loaded.
+    const latestSourceAmounts =
+      getSourceAmounts(messenger, transactionId) ?? sourceAmounts;
+
     const requests = buildQuoteRequests({
       atomic,
       from,
@@ -134,7 +142,7 @@ export async function updateQuotes(
       paymentOverride,
       paymentToken,
       refundTo,
-      sourceAmounts,
+      sourceAmounts: latestSourceAmounts,
       tokens,
       transactionId,
     });
@@ -372,6 +380,22 @@ function clearControllerIfCurrent(
   if (inFlightQuoteRequests.get(transactionId) === controller) {
     inFlightQuoteRequests.delete(transactionId);
   }
+}
+
+/**
+ * Read the current source amounts for a transaction from controller state.
+ *
+ * @param messenger - Messenger instance.
+ * @param transactionId - ID of the transaction.
+ * @returns The source amounts, or `undefined` if the transaction has none.
+ */
+function getSourceAmounts(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): TransactionPaySourceAmount[] | undefined {
+  return messenger.call('TransactionPayController:getState').transactionData[
+    transactionId
+  ]?.sourceAmounts;
 }
 
 /**

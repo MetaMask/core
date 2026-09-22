@@ -39,12 +39,18 @@ export type {
   SocialServiceFollowAction,
   SocialServiceOptInToLeaderboardAction,
   SocialServiceOptOutOfLeaderboardAction,
+  SocialServiceReactToCommentAction,
   SocialServiceRefreshNotificationPreferencesCacheAction,
+  SocialServiceRemoveCommentReactionAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
-export { TradeStruct } from './social-types.js';
+export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 export type {
+  AuthorComment,
+  CommentEngagement,
+  CommentReaction,
+  CommentReactionProfile,
   FeedItem,
   FeedPagination,
   FeedResponse,
@@ -65,12 +71,15 @@ export type {
   Position,
   PositionsResponse,
   ProfileSummary,
+  ReactToCommentOptions,
+  RemoveCommentReactionOptions,
   SocialControllerState,
   SocialHandles,
   Trade,
   TradeAction,
   TraderProfile,
   TraderProfileResponse,
+  TraderRankingTag,
   TraderStats,
   UnfollowOptions,
   UnfollowResponse,
