@@ -51,6 +51,7 @@ export type {
   CommentEngagement,
   CommentReaction,
   CommentReactionProfile,
+  FeedActorSummary,
   FeedItem,
   FeedPagination,
   FeedResponse,
