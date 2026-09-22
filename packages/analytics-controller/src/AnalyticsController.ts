@@ -2338,9 +2338,7 @@ export class AnalyticsController extends BaseController<
    * @param marketingCampaignCookieId - The marketing campaign cookie ID, or
    * `null` to clear it.
    */
-  setMarketingCampaignCookieId(
-    marketingCampaignCookieId: string | null,
-  ): void {
+  setMarketingCampaignCookieId(marketingCampaignCookieId: string | null): void {
     this.update((state) => {
       state.marketingCampaignCookieId = marketingCampaignCookieId;
     });
