@@ -68,6 +68,7 @@ const MOCK_BASE_VERSION = '13.10.0';
  * @param options.clientVersion - The client version string
  * @param options.prevClientVersion - The previous client version string
  * @param options.defaultFeatureFlags - Client-side default feature flags
+ * @param options.overrideFeatureFlags - Client-side feature flag overrides
  * @returns The controller and the root messenger
  */
 function createController(
@@ -81,6 +82,7 @@ function createController(
     clientVersion: string;
     prevClientVersion: string;
     defaultFeatureFlags: FeatureFlags;
+    overrideFeatureFlags: FeatureFlags;
   }> = {},
 ): { controller: RemoteFeatureFlagController; messenger: RootMessenger } {
   const { rootMessenger, controllerMessenger } = buildMessenger();
@@ -100,6 +102,7 @@ function createController(
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
     prevClientVersion: options.prevClientVersion,
     defaultFeatureFlags: options.defaultFeatureFlags,
+    overrideFeatureFlags: options.overrideFeatureFlags,
   });
   return { controller, messenger: rootMessenger };
 }
@@ -139,6 +142,26 @@ describe('RemoteFeatureFlagController', () => {
       const { controller } = createController({ state: customState });
 
       expect(controller.state).toStrictEqual(customState);
+    });
+
+    it('applies client overrides before initialization', () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: {
+            remoteFlag: 'remoteValue',
+          },
+          localOverrides: {
+            remoteFlag: 'localOverride',
+          },
+        },
+        overrideFeatureFlags: {
+          remoteFlag: 'clientOverride',
+        },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'clientOverride',
+      });
     });
 
     it('merges undefined localOverrides into remoteFeatureFlags on init', () => {
@@ -2253,6 +2276,53 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state.remoteFeatureFlags).toStrictEqual({
         remoteFlag: 'fromServer',
+      });
+    });
+  });
+
+  describe('overrideFeatureFlags', () => {
+    it('takes precedence over local overrides, remote flags, and defaults', async () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: {
+            sharedFlag: 'remoteValue',
+          },
+          localOverrides: {
+            sharedFlag: 'localOverride',
+          },
+        },
+        defaultFeatureFlags: {
+          sharedFlag: 'defaultValue',
+        },
+        overrideFeatureFlags: {
+          sharedFlag: 'clientOverride',
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'clientOverride',
+      });
+    });
+
+    it('continues to take precedence after remote flags are updated', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { sharedFlag: 'remoteValue' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        overrideFeatureFlags: {
+          sharedFlag: 'clientOverride',
+        },
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'clientOverride',
       });
     });
   });

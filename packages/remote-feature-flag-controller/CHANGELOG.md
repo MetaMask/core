@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `overrideFeatureFlags` constructor option for client-side feature flags that take precedence over defaults, processed remote flags, and persisted local overrides.
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))

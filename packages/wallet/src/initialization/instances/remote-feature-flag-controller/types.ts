@@ -57,4 +57,9 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    * under processed remote flags and local overrides. Not persisted.
    */
   defaultFeatureFlags?: RemoteFeatureFlagControllerOptions['defaultFeatureFlags'];
+  /**
+   * Client-side feature flags that take precedence over defaults, processed
+   * remote flags, and persisted local overrides. Not persisted.
+   */
+  overrideFeatureFlags?: RemoteFeatureFlagControllerOptions['overrideFeatureFlags'];
 };

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `instanceOptions.remoteFeatureFlagController.overrideFeatureFlags` to pass high-precedence client-side feature flag overrides through to `RemoteFeatureFlagController`.
+
 ## [14.0.1]
 
 ### Changed

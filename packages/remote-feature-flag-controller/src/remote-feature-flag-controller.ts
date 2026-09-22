@@ -188,6 +188,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #defaultFeatureFlags: FeatureFlags;
 
+  readonly #overrideFeatureFlags: FeatureFlags;
+
   #processedRemoteFeatureFlags: FeatureFlags;
 
   /**
@@ -205,6 +207,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    * @param options.defaultFeatureFlags - Client-side default feature flags used as the lowest-precedence layer under processed remote flags and local overrides. Not persisted.
+   * @param options.overrideFeatureFlags - Client-side feature flags used as the highest-precedence layer over defaults, processed remote flags, and local overrides. Not persisted.
    */
   constructor({
     messenger,
@@ -218,6 +221,7 @@ export class RemoteFeatureFlagController extends BaseController<
     clientVersion,
     prevClientVersion,
     defaultFeatureFlags = {},
+    overrideFeatureFlags = {},
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -230,6 +234,7 @@ export class RemoteFeatureFlagController extends BaseController<
     clientVersion: string;
     prevClientVersion?: string;
     defaultFeatureFlags?: FeatureFlags;
+    overrideFeatureFlags?: FeatureFlags;
   }) {
     if (!isValidSemVerVersion(clientVersion)) {
       throw new Error(
@@ -252,6 +257,10 @@ export class RemoteFeatureFlagController extends BaseController<
       messenger,
       state: {
         ...initialState,
+        remoteFeatureFlags: {
+          ...initialState.remoteFeatureFlags,
+          ...overrideFeatureFlags,
+        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
@@ -259,6 +268,7 @@ export class RemoteFeatureFlagController extends BaseController<
     });
 
     this.#defaultFeatureFlags = defaultFeatureFlags;
+    this.#overrideFeatureFlags = overrideFeatureFlags;
     // Last session's effective flags stand in for the remote layer until
     // `init` re-derives it from the persisted raw flags, or a fetch replaces
     // it. Overrides are layered on top rather than subtracted out, so a remote
@@ -280,7 +290,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   /**
    * Computes effective feature flags with precedence:
-   * defaults < processed remote < local overrides.
+   * defaults < processed remote < local overrides < client overrides.
    *
    * @param options - The layers to merge. Each defaults to the current layer.
    * @param options.processedRemoteFeatureFlags - The processed remote feature
@@ -300,6 +310,7 @@ export class RemoteFeatureFlagController extends BaseController<
       ...this.#defaultFeatureFlags,
       ...processedRemoteFeatureFlags,
       ...localOverrides,
+      ...this.#overrideFeatureFlags,
     };
   }
 
