@@ -430,6 +430,11 @@
       "count": 1
     }
   },
+  "packages/cryptography/src/sha.test.ts": {
+    "TS2345": {
+      "count": 3
+    }
+  },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
     "TS2322": {
       "count": 34
@@ -474,6 +479,11 @@
   "packages/keyring-controller/src/KeyringController.test.ts": {
     "TS2307": {
       "count": 1
+    }
+  },
+  "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
+    "TS2741": {
+      "count": 3
     }
   },
   "packages/money-account-api-data-service/src/money-account-api-data-service.test.ts": {
@@ -587,6 +597,14 @@
       "count": 3
     }
   },
+  "packages/passkey-controller/tests/mocks/passkey-controller-messenger.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/tests/e2e/lighter.e2e.ts": {
     "TS2322": {
       "count": 3
@@ -610,17 +628,15 @@
       "count": 10
     }
   },
-  "packages/perps-controller/tests/src/PerpsController.configuration.test.ts": {
-    "TS2589": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/tests/src/PerpsController.lifecycle.test.ts": {
     "TS2339": {
       "count": 1
     },
     "TS2345": {
       "count": 4
+    },
+    "TS2589": {
+      "count": 1
     }
   },
   "packages/perps-controller/tests/src/PerpsController.operations.test.ts": {
@@ -814,6 +830,11 @@
       "count": 1
     }
   },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/mfa/services.test.ts": {
+    "TS18046": {
+      "count": 2
+    }
+  },
   "packages/profile-sync-controller/src/shared/utils/message-signing.test.ts": {
     "TS2339": {
       "count": 1
@@ -966,10 +987,16 @@
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "TS2322": {
-      "count": 6
+      "count": 8
     },
-    "TS2345": {
-      "count": 2
+    "TS2339": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    },
+    "TS7031": {
+      "count": 1
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
@@ -1076,15 +1103,7 @@
       "count": 2
     },
     "TS2741": {
-      "count": 146
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.test.ts": {
-    "TS2322": {
-      "count": 12
-    },
-    "TS2345": {
-      "count": 14
+      "count": 168
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
