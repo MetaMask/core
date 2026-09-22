@@ -483,7 +483,7 @@ describe('Quotes Utils', () => {
       expect(secondStrategy.getQuotes).toHaveBeenCalled();
     });
 
-    it('short-circuits and does not try next strategy when QuoteError has terminal prefixed atomic promotion failure', async () => {
+    it('tries the next strategy after a prefixed atomic promotion failure', async () => {
       const terminalError = new QuoteError({
         message: 'Atomic promotion failed: test probe',
         reason: 'no-quotes',
@@ -521,7 +521,7 @@ describe('Quotes Utils', () => {
       await run();
 
       expect(firstStrategy.getQuotes).toHaveBeenCalledTimes(1);
-      expect(secondStrategy.getQuotes).not.toHaveBeenCalled();
+      expect(secondStrategy.getQuotes).toHaveBeenCalledTimes(1);
 
       const transactionDataMock = {} as Record<string, unknown>;
       updateTransactionDataMock.mock.calls.map((call) =>
@@ -529,11 +529,7 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock).toMatchObject({
-        quotes: [],
-        quoteError: {
-          message: 'Atomic promotion failed: test probe',
-          reason: 'no-quotes',
-        },
+        quotes: [QUOTE_MOCK],
         isLoading: false,
       });
     });
@@ -588,7 +584,7 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('terminal prefixed atomic promotion failure wins over an earlier ordinary no-quotes error', async () => {
+    it('continues strategy fallback after ordinary and prefixed no-quotes errors', async () => {
       const firstStrategy = {
         supports: jest.fn().mockReturnValue(true),
         getQuotes: jest.fn().mockRejectedValue(
@@ -643,7 +639,7 @@ describe('Quotes Utils', () => {
 
       expect(firstStrategy.getQuotes).toHaveBeenCalledTimes(1);
       expect(secondStrategy.getQuotes).toHaveBeenCalledTimes(1);
-      expect(thirdStrategy.getQuotes).not.toHaveBeenCalled();
+      expect(thirdStrategy.getQuotes).toHaveBeenCalledTimes(1);
 
       const transactionDataMock = {} as Record<string, unknown>;
       updateTransactionDataMock.mock.calls.map((call) =>
@@ -651,11 +647,7 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock).toMatchObject({
-        quotes: [],
-        quoteError: {
-          message: 'Atomic promotion failed: test probe',
-          reason: 'no-quotes',
-        },
+        quotes: [QUOTE_MOCK],
       });
     });
 
@@ -1571,10 +1563,10 @@ describe('Quotes Utils', () => {
         expect(resultB).toBe(true);
       });
 
-      it('publishes fail-closed state (empty quotes, terminal error, isLoading false) and skips subsequent strategies when atomic promotion fails on a refresh with a prior executable quote in state', async () => {
+      it('clears stale quotes and preserves the prefixed error when all strategies fail on refresh', async () => {
         // Seed a prior executable quote in state so this call is a refresh, not
         // an initial fetch — proving the block cannot leave the previous quote
-        // selected once a terminal prefixed promotion failure surfaces.
+        // selected once all strategies fail.
         const priorQuote = {
           ...QUOTE_MOCK,
           strategy: TransactionPayStrategy.Relay,
@@ -1594,7 +1586,7 @@ describe('Quotes Utils', () => {
 
         const fallbackStrategy = {
           supports: jest.fn().mockReturnValue(true),
-          getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+          getQuotes: jest.fn().mockRejectedValue(new Error('Fallback failed')),
           getBatchTransactions: getBatchTransactionsMock,
           execute: jest.fn(),
         };
@@ -1625,10 +1617,8 @@ describe('Quotes Utils', () => {
 
         expect(result).toBe(true);
 
-        // The terminal error must abort remaining strategies — the fallback
-        // must never be tried.
         expect(promotionStrategy.getQuotes).toHaveBeenCalledTimes(1);
-        expect(fallbackStrategy.getQuotes).not.toHaveBeenCalled();
+        expect(fallbackStrategy.getQuotes).toHaveBeenCalledTimes(1);
         expect(promotionStrategy.getBatchTransactions).not.toHaveBeenCalled();
         expect(fallbackStrategy.getBatchTransactions).not.toHaveBeenCalled();
 
