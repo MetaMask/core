@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- tests: repair uuid mock typings missed by the v11 bump ([#10269](https://github.com/MetaMask/core/pull/10269))
-
 ## [70.1.0]
 
 ### Changed
