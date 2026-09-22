@@ -3300,6 +3300,24 @@ describe('MFA step-up verification', () => {
     expect(third.controller.getElevatedProfileToken()).toBeNull();
   });
 
+  it('clears the elevated session when authentication is rejected', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeStepUp(controller);
+    expect(controller.getElevatedProfileToken()).not.toBeNull();
+
+    mockEndpointMfaCredentials({
+      status: 401,
+      body: { message: 'Access token expired' },
+    });
+    await expect(controller.refreshEnrolledCredentials()).rejects.toMatchObject(
+      { mfaCode: 'authentication_required' },
+    );
+
+    expect(controller.getElevatedProfileToken()).toBeNull();
+    expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+  });
+
   it('clears an elevated session after successful enrollment', async () => {
     mockSuccessfulCompletion();
     mockEndpointMfaEnrollComplete();

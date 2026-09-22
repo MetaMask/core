@@ -58,6 +58,7 @@ import {
   ElevatedTokenInvalidError,
 } from '../../sdk/index.js';
 import { decodeJwtPayload } from '../../sdk/utils/jwt.js';
+import { toErrorMessage } from '../../sdk/utils/to-error-message.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import { getPrimaryHdKeyringEntropySourceId } from '../../shared/utils/entropy-source.js';
 import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
@@ -864,6 +865,8 @@ export class AuthenticationController extends BaseController<
             this.#setTraceAttribute(context, 'mfaErrorCode', mfaCode);
             if (mfaCode === 'authentication_required' && this.#isUnlocked) {
               this.#invalidateSrpSession(this.#getPrimaryEntropySourceId());
+              // An elevated session must not outlive a rejected base session.
+              this.clearStepUpSession();
             }
           }
           throw error;
@@ -1002,6 +1005,7 @@ export class AuthenticationController extends BaseController<
       }
       throw error;
     }
+    // The factor set changed: require a fresh ceremony against the new set.
     this.clearStepUpSession();
 
     try {
@@ -1085,8 +1089,7 @@ export class AuthenticationController extends BaseController<
     try {
       decodedClaims = decodeJwtPayload(accessToken.accessToken);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new ElevatedTokenInvalidError(message);
+      throw new ElevatedTokenInvalidError(toErrorMessage(error));
     }
     const claims = parseElevatedTokenClaims(decodedClaims);
     if (claims.exp * 1000 <= Date.now()) {
@@ -1120,7 +1123,8 @@ export class AuthenticationController extends BaseController<
       this.clearStepUpSession();
       return null;
     }
-    // `>=` so a zero max age always forces a fresh ceremony.
+    // `>=` so a zero max age always forces a fresh ceremony. Not cleared: the
+    // max age is this caller's requirement; others may still use the session.
     const maxAge = request.maxSessionAgeMs;
     if (maxAge !== undefined && now - session.token.obtainedAt >= maxAge) {
       return null;
