@@ -18,6 +18,7 @@ import {
   CANCELLATION_REASONS,
   controllerName,
   SubscriptionControllerErrorMessage,
+  SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
 import { SubscriptionServiceError } from './errors.js';
 import {
@@ -2857,6 +2858,46 @@ describe('SubscriptionController', () => {
               isTrialRequested: true,
             }),
           );
+        },
+      );
+    });
+
+    it('rejects changed trial eligibility when the caller requires an exact match', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCrypto',
+              {
+                products: [PRODUCT_TYPES.SHIELD],
+                isTrialRequested: false,
+                assertTrialEligibility: true,
+                recurringInterval: RECURRING_INTERVALS.month,
+                billingCycles: 3,
+                chainId: '0x1',
+                payerAddress:
+                  '0x0000000000000000000000000000000000000001',
+                tokenSymbol: 'USDC',
+                rawTransaction: '0xdeadbeef',
+              },
+            ),
+          ).rejects.toThrow(
+            SubscriptionDelegationServiceErrorMessage.TrialEligibilityChanged,
+          );
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
         },
       );
     });

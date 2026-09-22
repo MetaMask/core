@@ -102,6 +102,17 @@ export enum SubscriptionDelegationServiceErrorMessage {
   ChompRejectedDelegation = 'CHOMP rejected the subscription delegation',
   ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',
   ChompDelegationHashMismatch = 'CHOMP verify response delegation hash does not match the locally computed hash',
+  ChainMismatch = 'Subscription delegation chain does not match the Money Account chain',
+  MoneyAccountAuthorizationRequired = 'Money Account authorization is required',
+  MissingMusdTokenAddress = 'Money Account mUSD token address is missing',
+  ApprovalResultMissing = 'Subscription delegation approval result is missing',
+  ApprovalFingerprintMismatch = 'Subscription delegation approval fingerprint does not match',
+  InvalidFundingTransactionHash = 'Subscription funding transaction hash is invalid',
+  TypedDataHashMismatch = 'Subscription delegation typed-data hash does not match',
+  MoneyAccountPermissionsNotActive = 'Money Account delegation permissions are not active',
+  ReusableDelegationInvalid = 'Reusable subscription delegation is missing or invalid',
+  TrialEligibilityChanged = 'Subscription trial eligibility changed after authorization',
+  ChompIntentNotActive = 'CHOMP subscription intent is not active',
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes

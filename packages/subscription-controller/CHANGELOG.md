@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SubscriptionDelegationService:startSubscriptionWithDelegation` to orchestrate one immutable approval for Money Account vault readiness, MM Pay funding, recurring-payment delegation signing, CHOMP registration, and subscription creation
+  - Add exported approval, funding, prepared-bundle, and temporary Money Account readiness contracts.
+  - Bind recurring permissions to the token, amount, period, start, and zero native value, and verify reusable delegation hashes with CHOMP.
+  - Forward a stable subscription idempotency key and derive trial timing from authoritative subscription state.
+  - Preserve the existing `prepareDelegation` and `checkMoneyAccountBalance` actions for compatibility.
+
 ## [9.1.0]
 
 ### Added

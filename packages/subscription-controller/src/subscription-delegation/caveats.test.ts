@@ -22,10 +22,9 @@ const ENFORCERS = {
 };
 
 describe('buildSubscriptionCaveats', () => {
-  it('builds ValueLte(0) and ERC20TokenPeriodTransfer caveats', () => {
+  it('binds zero value, token amount, and transfer period', () => {
     const caveats = buildSubscriptionCaveats({
       enforcers: ENFORCERS,
-      delegateAddress: DELEGATE,
       tokenAddress: TOKEN_ADDRESS,
       periodAmount: 10n * 10n ** 18n,
       periodDuration: 28 * 86_400,

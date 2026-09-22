@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
+      "path": "../approval-controller"
+    },
+    {
       "path": "../authenticated-user-storage"
     },
     {

@@ -111,7 +111,6 @@ export function makeMatchesSubscriptionDelegation(
       if (expected.isTrialDeferred !== isStoredDeferred) {
         return false;
       }
-
       return (
         equalsIgnoreCase(periodTerms.tokenAddress, expected.tokenAddress) &&
         periodTerms.periodAmount === expected.periodAmount &&
