@@ -39,6 +39,7 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token.js';
+import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import type {
@@ -47,7 +48,6 @@ import type {
   ServerQuoteResult,
   ServerTransactionStep,
 } from './types.js';
-import { ServerTradeType } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-quotes');
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
@@ -60,6 +60,19 @@ const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
 type FulfilledServerQuoteResult = ServerQuoteResult & {
   quote: NonNullable<ServerQuoteResult['quote']>;
 };
+
+/**
+ * A quote request whose pricing is not yet decided.
+ *
+ * The pricing basis depends on whether calls end up bundled into the request,
+ * so it is derived once the calls are known. A step that bundles calls may pin
+ * `amount` itself, in which case that amount wins.
+ */
+type ServerQuoteRequestDraft = Omit<
+  ServerQuoteRequest,
+  'amount' | 'tradeType'
+> &
+  Partial<Pick<ServerQuoteRequest, 'amount'>>;
 
 type SourceNetworkCost = Pick<
   TransactionPayFees['sourceNetwork'],
@@ -128,7 +141,7 @@ async function getQuotesForRequest(
           result,
           quoteRequest,
           messenger,
-          body.tradeType === ServerTradeType.ExactInput,
+          body.tradeType === TradeType.ExactInput,
         ),
       ),
     );
@@ -165,10 +178,6 @@ async function buildServerQuoteRequest(
     targetTokenAddress,
   } = normalizedRequest;
 
-  const useExactInput =
-    (isMaxAmount ?? false) ||
-    (isPostQuote ?? false) ||
-    Boolean(normalizedRequest.isHyperliquidSource);
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
@@ -186,13 +195,9 @@ async function buildServerQuoteRequest(
     accountSupports7702 &&
     isEIP7702Chain(messenger, sourceChainId);
 
-  const body: ServerQuoteRequest = {
+  const body: ServerQuoteRequestDraft = {
     source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
     target: { chainId: Number(targetChainId), token: targetTokenAddress },
-    amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
-    tradeType: useExactInput
-      ? ServerTradeType.ExactInput
-      : ServerTradeType.ExpectedOutput,
     sender: from,
     recipient,
     slippage: Math.round(
@@ -243,7 +248,20 @@ async function buildServerQuoteRequest(
     }
   }
 
-  return body;
+  const pricing = getQuotePricing({
+    hasCalls: Boolean(body.calls?.length),
+    sourceTokenAmount,
+    targetAmountMinimum,
+    transaction,
+  });
+
+  return {
+    ...body,
+    // A step that bundled its own calls has already pinned the amount those
+    // calls consume, so it wins over the derived amount.
+    amount: body.amount ?? pricing.amount,
+    tradeType: pricing.tradeType,
+  };
 }
 
 function normalizeAuthorizationList(
@@ -262,7 +280,7 @@ function normalizeAuthorizationList(
 async function processMoneyAccountPostQuote(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  body: ServerQuoteRequest,
+  body: ServerQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { transactionData: transactionDataList } = messenger.call(
@@ -288,13 +306,15 @@ async function processMoneyAccountPostQuote(
   }
 
   const fundingRecipient = recipient ?? request.from;
+  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
-  body.tradeType = ServerTradeType.ExactInput;
-  body.amount = request.sourceTokenAmount;
+  // The bundled calls transfer exactly this amount, so pin it rather than
+  // letting the amount be derived from the request.
+  body.amount = rawAmount;
 
   body.calls = [
     {
-      data: buildTransferData(fundingRecipient, request.sourceTokenAmount),
+      data: buildTransferData(fundingRecipient, rawAmount),
       to: request.targetTokenAddress,
       value: '0x0',
     },

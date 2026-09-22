@@ -27,9 +27,10 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token.js';
+import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { ServerProviderName, ServerTradeType } from './types.js';
+import { ServerProviderName } from './types.js';
 
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
@@ -177,7 +178,7 @@ describe('server-quotes', () => {
       .mockResolvedValue(undefined as never);
   });
 
-  it('maps standard transactions to EXPECTED_OUTPUT quote requests', async () => {
+  it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {
     await getServerQuotes({
       accountSupports7702: true,
       messenger,
@@ -190,8 +191,8 @@ describe('server-quotes', () => {
       {
         source: { chainId: 1, token: SOURCE_TOKEN_ADDRESS_MOCK },
         target: { chainId: 2, token: TARGET_TOKEN_ADDRESS_MOCK },
-        amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        tradeType: ServerTradeType.ExpectedOutput,
+        amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+        tradeType: TradeType.ExactInput,
         sender: FROM_MOCK,
         recipient: FROM_MOCK,
         slippage: 50,
@@ -214,7 +215,7 @@ describe('server-quotes', () => {
       messenger,
       expect.objectContaining({
         amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
-        tradeType: ServerTradeType.ExactInput,
+        tradeType: TradeType.ExactInput,
       }),
       undefined,
     );
@@ -413,7 +414,7 @@ describe('server-quotes', () => {
           },
           targetNetwork: { fiat: '0', usd: '0' },
         },
-        isInputBased: false,
+        isInputBased: true,
         original: {
           client: {
             gasLimits: [],
@@ -755,6 +756,10 @@ describe('server-quotes', () => {
   });
 
   describe('processMoneyAccountPostQuote', () => {
+    const DEPOSIT_AMOUNT_RAW_MOCK = '1500000';
+    // transfer(TOKEN_TRANSFER_RECIPIENT_MOCK, DEPOSIT_AMOUNT_RAW_MOCK)
+    const MONEY_ACCOUNT_TRANSFER_DATA_MOCK =
+      '0xa9059cbb0000000000000000000000005678901234567890123456789012345678901234000000000000000000000000000000000000000000000000000000000016e360' as Hex;
     const OVERRIDE_CALL_MOCK = {
       data: '0xoverride' as Hex,
       to: '0xcccc000000000000000000000000000000000000' as Hex,
@@ -765,7 +770,9 @@ describe('server-quotes', () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
           [TRANSACTION_META_MOCK.id]: {
-            tokens: [{ amountHuman: '1.5' }],
+            tokens: [
+              { amountHuman: '1.5', amountRaw: DEPOSIT_AMOUNT_RAW_MOCK },
+            ],
           },
         },
       } as never);
@@ -797,6 +804,60 @@ describe('server-quotes', () => {
           calls: expect.arrayContaining([
             expect.objectContaining({ to: OVERRIDE_CALL_MOCK.to }),
           ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('prices the quote as exact output on the deposit amount', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          amount: DEPOSIT_AMOUNT_RAW_MOCK,
+          tradeType: TradeType.ExactOutput,
+        }),
+        undefined,
+      );
+    });
+
+    it('transfers the deposit amount rather than the source token amount', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: [
+            {
+              data: MONEY_ACCOUNT_TRANSFER_DATA_MOCK,
+              to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              value: '0x0',
+            },
+            OVERRIDE_CALL_MOCK,
+          ],
         }),
         undefined,
       );
