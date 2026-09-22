@@ -104,7 +104,7 @@
     "isomorphic-fetch": "^3.0.0",
     "jest": "^30.4.2",
     "jest-silent-reporter": "^0.6.0",
-    "knip": "^6.23.0",
+    "knip": "^6.37.0",
     "lodash": "^4.17.21",
     "nock": "^13.5.6",
     "oxfmt": "^0.44.0",
