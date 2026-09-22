@@ -1,4 +1,8 @@
 import type {
+  AddResult,
+  ApprovalControllerAddRequestAction,
+} from '@metamask/approval-controller';
+import type {
   AuthenticatedUserStorageServiceCreateDelegationAction,
   AuthenticatedUserStorageServiceListDelegationsAction,
 } from '@metamask/authenticated-user-storage';
@@ -7,6 +11,7 @@ import type {
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { hashDelegation } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -17,11 +22,16 @@ import {
   MUSD_DECIMALS,
 } from '@metamask/money-account-utils';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import { add0x, hexToNumber } from '@metamask/utils';
+import { add0x, hexToNumber, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
-import type { SubscriptionControllerGetPricingAction } from '../SubscriptionController-method-action-types.js';
+import type {
+  SubscriptionControllerGetPricingAction,
+  SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerStartSubscriptionWithCryptoAction,
+} from '../SubscriptionController-method-action-types.js';
+import type { SubscriptionControllerGetStateAction } from '../SubscriptionController.js';
 import { CRYPTO_AUTH_METHODS, PAYMENT_TYPES, PRODUCT_TYPES } from '../types.js';
 import type {
   ProductPrice,
@@ -41,15 +51,35 @@ import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
 } from './fingerprint.js';
+import type { MoneyAccountControllerEnsureDelegationsReadinessAction } from './money-account-contracts.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
+import {
+  buildDelegationTypedData,
+  computeBundleFingerprint,
+  decodeSubscriptionAuthority,
+  hashTypedData,
+} from './typed-data.js';
 import type {
+  MoneyAccountAuthorizationReason,
   MoneyAccountBalanceCheckRequest,
   MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
+  PreparedSubscriptionDelegationBundle,
+  PreparedSubscriptionPermission,
   PreparedSubscriptionDelegation,
+  SignedSubscriptionDelegation,
+  StartSubscriptionWithDelegationRequest,
+  StartSubscriptionWithDelegationResult,
+  SubscriptionDelegationApprovalResult,
   SubscriptionDelegationEnforcers,
+  SubscriptionPermissionId,
+  UnsignedSubscriptionDelegation,
 } from './types.js';
-import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
+import {
+  CASH_SUBSCRIPTION_DELEGATION_TYPE,
+  SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
+  SUBSCRIPTION_DELEGATION_POLICY_VERSION,
+} from './types.js';
 
 /**
  * The name of the {@link SubscriptionDelegationService}, used to namespace the
@@ -60,9 +90,16 @@ export const serviceName = 'SubscriptionDelegationService';
 const MESSENGER_EXPOSED_METHODS = [
   'prepareDelegation',
   'checkMoneyAccountBalance',
+  'startSubscriptionWithDelegation',
 ] as const;
 
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
+const MONEY_ACCOUNT_PERMISSION_ORDER: readonly SubscriptionPermissionId[] = [
+  'cash-deposit',
+  'cash-withdrawal',
+  'cash-deposit-premium',
+  'cash-withdrawal-premium',
+];
 
 function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
@@ -78,6 +115,13 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
     valueLte: contracts.ValueLteEnforcer,
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
   };
+}
+
+function removeDelegationSignature(
+  delegation: SignedSubscriptionDelegation,
+): UnsignedSubscriptionDelegation {
+  const { signature: _signature, ...unsignedDelegation } = delegation;
+  return unsignedDelegation;
 }
 
 /**
@@ -96,9 +140,14 @@ type AllowedActions =
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
   | DelegationControllerSignDelegationAction
+  | ApprovalControllerAddRequestAction
+  | MoneyAccountControllerEnsureDelegationsReadinessAction
   | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | RemoteFeatureFlagControllerGetStateAction
-  | SubscriptionControllerGetPricingAction;
+  | SubscriptionControllerGetStateAction
+  | SubscriptionControllerGetPricingAction
+  | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerStartSubscriptionWithCryptoAction;
 
 /**
  * Events that {@link SubscriptionDelegationService} exposes to other consumers.
@@ -136,10 +185,24 @@ type SubscriptionIntentParams = {
 type ResolvedSubscriptionDelegationConfig = {
   chainId: Hex;
   delegateAddress: Hex;
+  delegationManager: Hex;
   enforcers: SubscriptionDelegationEnforcers;
+  musdAddress?: Hex;
   price: ProductPrice;
   token: TokenPaymentInfo;
 };
+
+export class MoneyAccountAuthorizationRequiredError extends Error {
+  readonly reasons: MoneyAccountAuthorizationReason[];
+
+  constructor(reasons: MoneyAccountAuthorizationReason[]) {
+    super(
+      SubscriptionDelegationServiceErrorMessage.MoneyAccountAuthorizationRequired,
+    );
+    this.name = 'MoneyAccountAuthorizationRequiredError';
+    this.reasons = reasons;
+  }
+}
 
 /**
  * Stateless orchestrator for cash-subscription delegation setup.
@@ -218,6 +281,459 @@ export class SubscriptionDelegationService {
       balance: totalBalance,
       requiredBalance: requiredBalance.toString(),
     };
+  }
+
+  /**
+   * Runs the complete Money Account subscription checkout authorization flow.
+   *
+   * The custom approval is the sole consent and funding boundary. No
+   * delegation signing, persistence, or intent mutation occurs before it
+   * returns a matching bundle fingerprint and transaction hash.
+   *
+   * @param request - Product selection and Money Account identity.
+   * @returns The result from `SubscriptionController:startSubscriptionWithCrypto`.
+   */
+  async startSubscriptionWithDelegation(
+    request: StartSubscriptionWithDelegationRequest,
+  ): Promise<StartSubscriptionWithDelegationResult> {
+    if (request.product !== PRODUCT_TYPES.MONEY_ACCOUNT_PLUS) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.UnsupportedProduct,
+      );
+    }
+
+    const config = await this.#resolveConfiguration(
+      request.product,
+      request.recurringInterval,
+    );
+    if (!equalsIgnoreCase(request.chainId, config.chainId)) {
+      throw new Error(SubscriptionDelegationServiceErrorMessage.ChainMismatch);
+    }
+    if (!config.musdAddress) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.MissingMusdTokenAddress,
+      );
+    }
+    await this.#messenger.call('SubscriptionController:getSubscriptions');
+    const { trialedProducts } = this.#messenger.call(
+      'SubscriptionController:getState',
+    );
+    const isTrialRequested =
+      config.price.trialPeriodDays > 0 &&
+      !trialedProducts.includes(request.product);
+
+    const readiness = await this.#messenger.call(
+      'MoneyAccountController:ensureDelegationsReadiness',
+    );
+    if (readiness.status === 'money-account-authorization-required') {
+      throw new MoneyAccountAuthorizationRequiredError(readiness.reasons);
+    }
+
+    const paymentPermission = await this.#preparePaymentPermission(
+      request,
+      config,
+      isTrialRequested,
+    );
+    const permissions = [
+      ...this.#sortPermissions(readiness.permissions),
+      paymentPermission,
+    ];
+    const bundleWithoutFingerprint = {
+      policyVersion: SUBSCRIPTION_DELEGATION_POLICY_VERSION,
+      account: request.payerAddress,
+      chainId: request.chainId,
+      permissions,
+    };
+    const bundle: PreparedSubscriptionDelegationBundle = {
+      ...bundleWithoutFingerprint,
+      bundleFingerprint: computeBundleFingerprint(bundleWithoutFingerprint),
+    };
+    const targetAmount =
+      calculatePeriodAmount({
+        unitAmount: config.price.unitAmount,
+        unitDecimals: config.price.unitDecimals,
+        tokenDecimals: MUSD_DECIMALS,
+      }) * BigInt(config.price.minBillingCyclesForBalance);
+
+    const approval = (await this.#messenger.call(
+      'ApprovalController:addRequest',
+      {
+        origin: ORIGIN_METAMASK,
+        type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
+        expectsResult: true,
+        requestData: {
+          bundle,
+          funding: {
+            useCase: 'subscription',
+            destinationAccount: request.payerAddress,
+            chainId: request.chainId,
+            targetToken: {
+              symbol: 'mUSD',
+              address: config.musdAddress,
+            },
+            targetAmount: targetAmount.toString(),
+          },
+        },
+      },
+      true,
+    )) as AddResult;
+
+    try {
+      this.#validateApprovalResult(approval, bundle);
+      await this.#assertVaultPermissionsActive(
+        bundle.permissions.filter(({ owner }) => owner === 'money-account'),
+      );
+
+      const paymentDelegation = await this.#signPaymentPermissionIfRequired(
+        paymentPermission,
+        config,
+      );
+      const paymentDelegationHash = await this.#commitPaymentPermission({
+        request,
+        paymentPermission,
+        paymentDelegation,
+        config,
+      });
+      const result = await this.#messenger.call(
+        'SubscriptionController:startSubscriptionWithCrypto',
+        {
+          products: [request.product],
+          isTrialRequested,
+          recurringInterval: request.recurringInterval,
+          billingCycles: config.price.minBillingCycles,
+          chainId: request.chainId,
+          payerAddress: request.payerAddress,
+          tokenSymbol: config.token.symbol,
+          cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+          delegationHash: paymentDelegationHash,
+          // Reject if eligibility changed during approval, because the signed
+          // delegation start date was derived from the original trial state.
+          // This local guard is removed before the backend request.
+          assertTrialEligibility: true,
+        },
+      );
+      approval.resultCallbacks?.success();
+      return result;
+    } catch (error) {
+      approval.resultCallbacks?.error(error as Error);
+      throw error;
+    }
+  }
+
+  async #preparePaymentPermission(
+    request: StartSubscriptionWithDelegationRequest,
+    config: ResolvedSubscriptionDelegationConfig,
+    isTrialRequested: boolean,
+  ): Promise<PreparedSubscriptionPermission> {
+    const periodAmount = calculatePeriodAmount({
+      unitAmount: config.price.unitAmount,
+      unitDecimals: config.price.unitDecimals,
+      tokenDecimals: config.token.decimals,
+    });
+    const periodDuration = getPeriodDuration(request.recurringInterval);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const startDate = getDelegationStartDate({
+      nowSeconds,
+      trialPeriodDays: isTrialRequested
+        ? config.price.trialPeriodDays
+        : undefined,
+    });
+    const matches = makeMatchesSubscriptionDelegation({
+      delegatorAddress: request.payerAddress,
+      delegateAddress: config.delegateAddress,
+      chainId: request.chainId,
+      tokenAddress: config.token.address,
+      periodAmount,
+      periodDuration,
+      nowSeconds,
+      isTrialDeferred: startDate > nowSeconds,
+      enforcers: config.enforcers,
+    });
+    const reusable = (
+      await this.#messenger.call(
+        'AuthenticatedUserStorageService:listDelegations',
+      )
+    ).find(matches);
+    const delegation = reusable
+      ? removeDelegationSignature(reusable.signedDelegation)
+      : buildUnsignedSubscriptionDelegation({
+          delegateAddress: config.delegateAddress,
+          delegatorAddress: request.payerAddress,
+          enforcers: config.enforcers,
+          tokenAddress: config.token.address,
+          periodAmount,
+          periodDuration,
+          startDate,
+        });
+    const typedData = buildDelegationTypedData({
+      delegation,
+      chainId: request.chainId,
+      delegationManager: config.delegationManager,
+    });
+
+    return {
+      id: CASH_SUBSCRIPTION_DELEGATION_TYPE,
+      owner: 'subscription',
+      disposition: reusable ? 'reused' : 'new',
+      delegation,
+      typedData,
+      typedDataHash: hashTypedData(typedData),
+      decodedAuthority: decodeSubscriptionAuthority(
+        delegation,
+        config.enforcers,
+      ),
+      ...(reusable
+        ? { existingDelegationHash: reusable.metadata.delegationHash }
+        : {}),
+    };
+  }
+
+  #sortPermissions(
+    permissions: PreparedSubscriptionPermission[],
+  ): PreparedSubscriptionPermission[] {
+    return [...permissions].sort(
+      (left, right) =>
+        MONEY_ACCOUNT_PERMISSION_ORDER.indexOf(left.id) -
+        MONEY_ACCOUNT_PERMISSION_ORDER.indexOf(right.id),
+    );
+  }
+
+  #validateApprovalResult(
+    approval: AddResult,
+    bundle: PreparedSubscriptionDelegationBundle,
+  ): SubscriptionDelegationApprovalResult {
+    if (!approval?.value || typeof approval.value !== 'object') {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.ApprovalResultMissing,
+      );
+    }
+    const value = approval.value as Record<string, unknown>;
+    if (
+      typeof value.bundleFingerprint !== 'string' ||
+      !equalsIgnoreCase(value.bundleFingerprint, bundle.bundleFingerprint)
+    ) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.ApprovalFingerprintMismatch,
+      );
+    }
+    if (
+      typeof value.fundingTransactionHash !== 'string' ||
+      !isStrictHexString(value.fundingTransactionHash) ||
+      value.fundingTransactionHash.length !== 66
+    ) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
+      );
+    }
+    return {
+      bundleFingerprint: value.bundleFingerprint as Hex,
+      fundingTransactionHash: value.fundingTransactionHash,
+    };
+  }
+
+  async #signPaymentPermissionIfRequired(
+    permission: PreparedSubscriptionPermission,
+    config: ResolvedSubscriptionDelegationConfig,
+  ): Promise<SignedSubscriptionDelegation | undefined> {
+    if (permission.disposition === 'reused') {
+      return undefined;
+    }
+    const typedData = buildDelegationTypedData({
+      delegation: permission.delegation,
+      chainId: config.chainId,
+      delegationManager: config.delegationManager,
+    });
+    if (!equalsIgnoreCase(hashTypedData(typedData), permission.typedDataHash)) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.TypedDataHashMismatch,
+      );
+    }
+    const signature = (await this.#messenger.call(
+      'DelegationController:signDelegation',
+      {
+        delegation: permission.delegation,
+        chainId: config.chainId,
+      },
+    )) as Hex;
+    return { ...permission.delegation, signature };
+  }
+
+  /**
+   * Post-approval safety check: re-runs the idempotent readiness action and
+   * requires every approved vault permission to be active and unchanged.
+   *
+   * @param approvedVaultPermissions - Money Account permissions from the
+   * approved bundle.
+   */
+  async #assertVaultPermissionsActive(
+    approvedVaultPermissions: PreparedSubscriptionPermission[],
+  ): Promise<void> {
+    const readiness = await this.#messenger.call(
+      'MoneyAccountController:ensureDelegationsReadiness',
+    );
+    if (readiness.status !== 'ready') {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
+      );
+    }
+
+    const currentVaultPermissions = readiness.permissions.filter(
+      ({ owner }) => owner === 'money-account',
+    );
+    const vaultPermissionsMatch =
+      currentVaultPermissions.length === approvedVaultPermissions.length &&
+      approvedVaultPermissions.every((approved) =>
+        currentVaultPermissions.some(
+          (current) =>
+            current.id === approved.id &&
+            current.disposition === 'reused' &&
+            equalsIgnoreCase(current.typedDataHash, approved.typedDataHash),
+        ),
+      );
+    if (!vaultPermissionsMatch) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
+      );
+    }
+  }
+
+  async #commitPaymentPermission({
+    request,
+    paymentPermission,
+    paymentDelegation,
+    config,
+  }: {
+    request: StartSubscriptionWithDelegationRequest;
+    paymentPermission: PreparedSubscriptionPermission;
+    paymentDelegation?: SignedSubscriptionDelegation;
+    config: ResolvedSubscriptionDelegationConfig;
+  }): Promise<Hex> {
+    if (paymentPermission.disposition === 'reused') {
+      const delegationHash = paymentPermission.existingDelegationHash as Hex;
+      const storedDelegation = (
+        await this.#messenger.call(
+          'AuthenticatedUserStorageService:listDelegations',
+        )
+      ).find(({ metadata }) =>
+        equalsIgnoreCase(metadata.delegationHash, delegationHash),
+      );
+      if (!storedDelegation) {
+        throw new Error(
+          SubscriptionDelegationServiceErrorMessage.ReusableDelegationInvalid,
+        );
+      }
+      await this.#verifySignedPaymentDelegation(
+        storedDelegation.signedDelegation,
+        delegationHash,
+        request.chainId,
+      );
+      await this.#ensureIntent({
+        account: request.payerAddress,
+        chainId: request.chainId,
+        delegationHash,
+        allowance: add0x(
+          BigInt(paymentPermission.decodedAuthority.periodAmount).toString(16),
+        ),
+        tokenSymbol: config.token.symbol,
+        tokenAddress: config.token.address,
+      });
+      await this.#assertIntentActive(request.payerAddress, delegationHash);
+      return delegationHash;
+    }
+
+    const signedDelegation = paymentDelegation as SignedSubscriptionDelegation;
+    const delegationHash = hashDelegation({
+      ...signedDelegation,
+      salt: BigInt(signedDelegation.salt),
+    });
+    await this.#verifySignedPaymentDelegation(
+      signedDelegation,
+      delegationHash,
+      request.chainId,
+    );
+
+    const allowance = add0x(
+      BigInt(paymentPermission.decodedAuthority.periodAmount).toString(16),
+    );
+    await this.#messenger.call(
+      'AuthenticatedUserStorageService:createDelegation',
+      {
+        signedDelegation,
+        metadata: {
+          delegationHash,
+          chainIdHex: request.chainId,
+          allowance,
+          tokenSymbol: config.token.symbol,
+          tokenAddress: config.token.address,
+          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
+        },
+      },
+    );
+    await this.#createIntent({
+      account: request.payerAddress,
+      chainId: request.chainId,
+      delegationHash,
+      allowance,
+      tokenSymbol: config.token.symbol,
+      tokenAddress: config.token.address,
+    });
+    await this.#assertIntentActive(request.payerAddress, delegationHash);
+    return delegationHash;
+  }
+
+  async #assertIntentActive(account: Hex, delegationHash: Hex): Promise<void> {
+    const intents = await this.#messenger.call(
+      'ChompApiService:getIntentsByAddress',
+      account,
+    );
+    const intent = intents.find((candidate) =>
+      equalsIgnoreCase(candidate.delegationHash, delegationHash),
+    );
+    if (intent?.status !== 'active') {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.ChompIntentNotActive,
+      );
+    }
+  }
+
+  async #verifySignedPaymentDelegation(
+    signedDelegation: SignedSubscriptionDelegation,
+    expectedDelegationHash: Hex,
+    chainId: Hex,
+  ): Promise<void> {
+    const localHash = hashDelegation({
+      ...signedDelegation,
+      salt: BigInt(signedDelegation.salt),
+    });
+    if (!equalsIgnoreCase(localHash, expectedDelegationHash)) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.ReusableDelegationInvalid,
+      );
+    }
+
+    const verifyResult = await this.#messenger.call(
+      'ChompApiService:verifyDelegation',
+      { signedDelegation, chainId },
+    );
+    if (!verifyResult.valid) {
+      throw new Error(
+        `${SubscriptionDelegationServiceErrorMessage.ChompRejectedDelegation}: ${
+          verifyResult.errors?.join(', ') ?? 'unknown error'
+        }`,
+      );
+    }
+    if (!verifyResult.delegationHash) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.ChompMissingDelegationHash,
+      );
+    }
+    if (
+      !equalsIgnoreCase(verifyResult.delegationHash, expectedDelegationHash)
+    ) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.ChompDelegationHashMismatch,
+      );
+    }
   }
 
   /**
@@ -443,7 +959,11 @@ export class SubscriptionDelegationService {
     return {
       chainId,
       delegateAddress: chain.delegateAddress,
+      delegationManager:
+        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)]
+          .DelegationManager,
       enforcers,
+      musdAddress: vaultConfig.underlyingToken,
       price,
       token,
     };

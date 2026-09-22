@@ -18,6 +18,22 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
 };
 
 /**
+ * Runs the complete Money Account subscription checkout authorization flow.
+ *
+ * The custom approval is the sole consent and funding boundary. No
+ * delegation signing, persistence, or intent mutation occurs before it
+ * returns a matching bundle fingerprint and transaction hash.
+ *
+ * @param request - Product selection and Money Account identity.
+ * @returns The result from `SubscriptionController:startSubscriptionWithCrypto`.
+ */
+export type SubscriptionDelegationServiceStartSubscriptionWithDelegationAction =
+  {
+    type: `SubscriptionDelegationService:startSubscriptionWithDelegation`;
+    handler: SubscriptionDelegationService['startSubscriptionWithDelegation'];
+  };
+
+/**
  * Prepares a cash-subscription delegation and returns its hash.
  *
  * Reuses a stored AUS delegation that matches the semantic fingerprint when
@@ -46,4 +62,5 @@ export type SubscriptionDelegationServicePrepareDelegationAction = {
  */
 export type SubscriptionDelegationServiceMethodActions =
   | SubscriptionDelegationServiceCheckMoneyAccountBalanceAction
+  | SubscriptionDelegationServiceStartSubscriptionWithDelegationAction
   | SubscriptionDelegationServicePrepareDelegationAction;

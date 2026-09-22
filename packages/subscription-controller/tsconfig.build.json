@@ -6,6 +6,9 @@
   },
   "references": [
     {
+      "path": "../approval-controller/tsconfig.build.json"
+    },
+    {
       "path": "../authenticated-user-storage/tsconfig.build.json"
     },
     {

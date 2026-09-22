@@ -16,7 +16,6 @@ export type UnsignedSubscriptionDelegation = Omit<
 
 export type BuildSubscriptionCaveatsParams = {
   enforcers: SubscriptionDelegationEnforcers;
-  delegateAddress: Hex;
   tokenAddress: Hex;
   periodAmount: bigint;
   periodDuration: number;
@@ -25,7 +24,7 @@ export type BuildSubscriptionCaveatsParams = {
 
 /**
  * Builds the caveat list for a cash-subscription delegation:
- * `ValueLte(0)` then `ERC20TokenPeriodTransfer(...)`.
+ * zero native value and periodic token transfer limits.
  *
  * @param params - Enforcer addresses, parties, and period terms.
  * @param params.enforcers - Delegation Framework enforcer addresses.
@@ -63,6 +62,7 @@ export function buildSubscriptionCaveats({
 
 export type BuildUnsignedSubscriptionDelegationParams =
   BuildSubscriptionCaveatsParams & {
+    delegateAddress: Hex;
     delegatorAddress: Hex;
     /**
      * Optional salt for tests. When omitted, a random 32-byte salt is generated.

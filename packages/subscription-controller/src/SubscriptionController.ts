@@ -16,6 +16,7 @@ import {
   controllerName,
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
+  SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
 import { createModuleLogger, projectLogger } from './logger.js';
 import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
@@ -602,14 +603,27 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // get the latest subscriptions state before computing trial eligibility
     await this.#getSubscriptions({ refreshBenefits: false });
     this.#assertIsUserNotSubscribed({ products: request.products });
+    const isTrialRequested = this.#getIsTrialRequested(
+      request.products,
+      request.recurringInterval,
+    );
+    if (
+      request.assertTrialEligibility &&
+      request.isTrialRequested !== isTrialRequested
+    ) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.TrialEligibilityChanged,
+      );
+    }
+    const {
+      assertTrialEligibility: _assertTrialEligibility,
+      ...subscriptionRequest
+    } = request;
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCrypto',
       {
-        ...request,
-        isTrialRequested: this.#getIsTrialRequested(
-          request.products,
-          request.recurringInterval,
-        ),
+        ...subscriptionRequest,
+        isTrialRequested,
       },
     );
 

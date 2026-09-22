@@ -1,7 +1,11 @@
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { PRODUCT_TYPES } from '../types.js';
-import type { RecurringInterval } from '../types.js';
+import type {
+  ProductType,
+  RecurringInterval,
+  StartCryptoSubscriptionResponse,
+} from '../types.js';
 
 /**
  * Storage / CHOMP metadata type for cash-subscription delegations.
@@ -12,6 +16,128 @@ import type { RecurringInterval } from '../types.js';
  * accepts `'cash-subscription'`.
  */
 export const CASH_SUBSCRIPTION_DELEGATION_TYPE = 'cash-subscription' as const;
+
+export const SUBSCRIPTION_DELEGATION_APPROVAL_TYPE =
+  'subscription_delegation' as const;
+
+export const SUBSCRIPTION_DELEGATION_POLICY_VERSION = '1' as const;
+
+export type ChompIntentType =
+  | 'cash-deposit'
+  | 'cash-withdrawal'
+  | typeof CASH_SUBSCRIPTION_DELEGATION_TYPE
+  | 'cash-deposit-premium'
+  | 'cash-withdrawal-premium';
+
+export type SubscriptionPermissionId = ChompIntentType;
+
+export type MoneyAccountAuthorizationReason =
+  | 'controller-not-ready'
+  | 'address-not-associated'
+  | 'eip7702-not-active'
+  | 'monitoring-list-missing'
+  | 'configuration-changed';
+
+export type UnsignedSubscriptionDelegation = {
+  delegate: Hex;
+  delegator: Hex;
+  authority: Hex;
+  caveats: {
+    enforcer: Hex;
+    terms: Hex;
+    args: Hex;
+  }[];
+  salt: Hex;
+};
+
+export type SignedSubscriptionDelegation = UnsignedSubscriptionDelegation & {
+  signature: Hex;
+};
+
+export type SubscriptionDelegationTypedData = {
+  types: Record<string, { name: string; type: string }[]>;
+  primaryType: string;
+  domain: {
+    chainId: number;
+    name: string;
+    version: string;
+    verifyingContract: Hex;
+  };
+  message: Json;
+};
+
+export type DecodedPermission = {
+  tokenAddress: Hex;
+  delegateAddress: Hex;
+  periodAmount: string;
+  periodDuration: number;
+  startDate: number;
+  maxNativeValue: '0';
+};
+
+export type PreparedSubscriptionPermission = {
+  id: SubscriptionPermissionId;
+  owner: 'money-account' | 'subscription';
+  disposition: 'new' | 'reused';
+  delegation: UnsignedSubscriptionDelegation;
+  typedData: SubscriptionDelegationTypedData;
+  typedDataHash: Hex;
+  decodedAuthority: DecodedPermission;
+  existingDelegationHash?: Hex;
+};
+
+export type PreparedSubscriptionDelegationBundle = {
+  bundleFingerprint: Hex;
+  policyVersion: string;
+  account: Hex;
+  chainId: Hex;
+  permissions: PreparedSubscriptionPermission[];
+};
+
+export type SubscriptionFundingRequest = {
+  useCase: 'subscription';
+  destinationAccount: Hex;
+  chainId: Hex;
+  targetToken: {
+    symbol: 'mUSD';
+    address: Hex;
+  };
+  targetAmount: string;
+};
+
+export type SubscriptionDelegationApprovalResult = {
+  bundleFingerprint: Hex;
+  fundingTransactionHash: Hex;
+};
+
+export type StartSubscriptionWithDelegationRequest = {
+  product: ProductType;
+  recurringInterval: RecurringInterval;
+  chainId: Hex;
+  payerAddress: Hex;
+};
+
+export type PrepareAuthorizationBundleResult =
+  | {
+      status: 'prepared';
+      bundle: PreparedSubscriptionDelegationBundle;
+    }
+  | {
+      status: 'money-account-authorization-required';
+      reasons: MoneyAccountAuthorizationReason[];
+    };
+
+export type CommitAuthorizationBundleRequest = {
+  bundle: PreparedSubscriptionDelegationBundle;
+  signedPaymentDelegation: SignedSubscriptionDelegation;
+};
+
+export type CommitAuthorizationBundleResult = {
+  paymentDelegationHash: Hex;
+};
+
+export type StartSubscriptionWithDelegationResult =
+  StartCryptoSubscriptionResponse;
 
 /**
  * Request to prepare a cash-subscription delegation.
