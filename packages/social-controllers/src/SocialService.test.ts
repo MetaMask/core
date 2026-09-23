@@ -304,6 +304,7 @@ describe('SocialService', () => {
         winRate30d: 0.75,
         roiPercent30d: 2.5,
         tradeCount30d: 42,
+        volumeUsd30d: 150000,
         pnl7d: 10000,
         winRate7d: 0.7,
         roiPercent7d: 1.2,
@@ -318,6 +319,11 @@ describe('SocialService', () => {
       socialHandles: mockSocialHandles,
       followerCount: 100,
       followingCount: 50,
+      copytradedAllTime: {
+        count: 12,
+        volumeUSD: 9800,
+        distinctActors: 4,
+      },
     };
 
     it('fetches trader profile from correct endpoint', async () => {
@@ -472,6 +478,26 @@ describe('SocialService', () => {
       expect(result.perChainBreakdown).toStrictEqual(
         withPerChain7d.perChainBreakdown,
       );
+    });
+
+    it('accepts and returns volumeUsd30d and copytradedAllTime', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.stats.volumeUsd30d).toBe(150000);
+      expect(result.copytradedAllTime).toStrictEqual({
+        count: 12,
+        volumeUSD: 9800,
+        distinctActors: 4,
+      });
     });
 
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
