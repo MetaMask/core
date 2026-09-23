@@ -2419,15 +2419,14 @@ export class AssetsController extends BaseController<
    * @returns `true` when the v6 remote flag is on.
    */
   #isBalanceV6Enabled(): boolean {
-    return true;
-    // try {
-    //   const { remoteFeatureFlags } = this.messenger.call(
-    //     'RemoteFeatureFlagController:getState',
-    //   );
-    //   return remoteFeatureFlags?.assetsAccountsApiV6 === true;
-    // } catch {
-    //   return false;
-    // }
+    try {
+      const { remoteFeatureFlags } = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      return remoteFeatureFlags?.assetsAccountsApiV6 === true;
+    } catch {
+      return false;
+    }
   }
 
   // ============================================================================

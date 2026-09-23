@@ -705,6 +705,105 @@ describe('RpcDataSource', () => {
       );
     });
 
+    it('treats unresolved decimals as a chain failure on the v6 path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+        getBalance: jest
+          .fn()
+          .mockResolvedValue({ toString: () => '1000000000000000000' }),
+        call: jest.fn().mockResolvedValue('0x'),
+      }));
+
+      await withController(
+        { options: { isBalanceV6Enabled: (): boolean => true } },
+        async ({ controller }) => {
+          jest
+            .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+            .mockResolvedValue(
+              createBalanceFetchResult({
+                balances: [
+                  {
+                    assetId: nativeAssetId,
+                    accountId: MOCK_ACCOUNT_ID,
+                    chainId: MOCK_CHAIN_ID_HEX,
+                    balance: '1000000000000000000',
+                    formattedBalance: '1',
+                    decimals: 18,
+                    timestamp: Date.now(),
+                  },
+                  {
+                    assetId: erc20AssetId,
+                    accountId: MOCK_ACCOUNT_ID,
+                    chainId: MOCK_CHAIN_ID_HEX,
+                    balance: '1000000',
+                    formattedBalance: '1',
+                    timestamp: Date.now(),
+                  },
+                ],
+              }),
+            );
+          const response = await controller.fetch(createDataRequest());
+          expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe(
+            'RPC fetch failed',
+          );
+          expect(response.assetsBalance).toBeUndefined();
+        },
+      );
+    });
+
+    it('overlays tokens that resolve and skips unresolved decimals on the v5 path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      const normalizedErc20Id = normalizeAssetId(erc20AssetId);
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+        getBalance: jest
+          .fn()
+          .mockResolvedValue({ toString: () => '1000000000000000000' }),
+        call: jest.fn().mockResolvedValue('0x'),
+      }));
+
+      await withController(async ({ controller }) => {
+        jest
+          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+          .mockResolvedValue(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  accountId: MOCK_ACCOUNT_ID,
+                  chainId: MOCK_CHAIN_ID_HEX,
+                  balance: '1000000000000000000',
+                  formattedBalance: '1',
+                  decimals: 18,
+                  timestamp: Date.now(),
+                },
+                {
+                  assetId: erc20AssetId,
+                  accountId: MOCK_ACCOUNT_ID,
+                  chainId: MOCK_CHAIN_ID_HEX,
+                  balance: '1000000',
+                  formattedBalance: '1',
+                  timestamp: Date.now(),
+                },
+              ],
+            }),
+          );
+        const response = await controller.fetch(createDataRequest());
+        expect(response.errors).toBeUndefined();
+        expect(
+          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+        ).toStrictEqual({ amount: '1' });
+        expect(
+          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedErc20Id],
+        ).toBeUndefined();
+      });
+    });
+
     it('initializes assetsBalance[accountId] with no native in catch when first fetch for account throws on native skip chain', async () => {
       await withController(async ({ controller }) => {
         jest

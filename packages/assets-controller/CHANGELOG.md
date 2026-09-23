@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- On the Accounts API v6 RPC poll path, skip staking vault share tokens so a `full` snapshot cannot overwrite the converted staked amount with a raw `balanceOf`
 - `addCustomAsset` on the Accounts API v6 path now force-fetches the token's chain with all visible pins, instead of scoping `customAssets` to the new token, so a `full` snapshot no longer drops other pinned balances until the next poll
 - Accounts API v6 RPC fallback retries failed chains in full (native, existing balances, pins, and default tracked assets from state) instead of scoping `request.customAssets` to individual tokens
 - Accounts API v6 `includeAssetIds` is built from natives, visible pins, and default tracked assets for the requested chains (not detected ERC-20 balances or a scoped `request.customAssets` list), so `updateMode: 'full'` can replace the chain slice

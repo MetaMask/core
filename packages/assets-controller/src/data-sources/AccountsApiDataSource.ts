@@ -449,11 +449,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const { unprocessedNetworks, assetsBalance } = await this.#fetchV5Balances(
-        accountIds,
-        this.#buildFetchOptions(request),
-        request,
-      );
+      const { unprocessedNetworks, assetsBalance } =
+        await this.#fetchV5Balances(
+          accountIds,
+          this.#buildFetchOptions(request),
+          request,
+        );
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (unprocessedNetworks.length > 0) {
@@ -606,7 +607,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   #buildFetchOptions(
     request: DataRequest,
-  ): { staleTime: number; gcTime: number; bypassServerCache?: boolean } | undefined {
+  ):
+    | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
+    | undefined {
     if (!request.forceUpdate && !request.bypassServerCache) {
       return undefined;
     }

@@ -441,6 +441,66 @@ describe('BalanceFetcher', () => {
       );
     });
 
+    it('on the v6 path does not poll staking vault share tokens from assetsBalance', async () => {
+      const stakingAssetId =
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as CaipAssetType;
+      const stakingAddress =
+        '0x4fef9d741011476750a243ac70b9789a63dd47df' as Address;
+      const mockState: AssetsBalanceState = {
+        assetsBalance: {
+          [TEST_ACCOUNT_ID]: {
+            [NATIVE_ETH_ASSET_ID]: { amount: '1' },
+            [stakingAssetId]: { amount: '2' },
+            [TOKEN_1_ASSET_ID]: { amount: '500' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+            isBalanceV6Enabled: (): boolean => true,
+            getAssetVisibility: () => ({
+              visibleAssetIds: [NATIVE_ETH_ASSET_ID],
+              hiddenAssetIds: [],
+            }),
+          },
+        },
+        async ({ controller, mockMulticallClient }) => {
+          controller.setOnBalanceUpdate(jest.fn());
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              ZERO_ADDRESS,
+              TEST_ACCOUNT,
+              true,
+              '1000000000000000000',
+            ),
+            createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '500'),
+          ]);
+
+          await controller._executePoll({
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          });
+
+          const [, batchedRequests] =
+            mockMulticallClient.batchBalanceOf.mock.calls[0];
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          )
+            .map((req) => req.tokenAddress.toLowerCase())
+            .sort();
+          expect(requestedTokens).toStrictEqual(
+            [ZERO_ADDRESS.toLowerCase(), TEST_TOKEN_1.toLowerCase()].sort(),
+          );
+          expect(requestedTokens).not.toContain(stakingAddress);
+        },
+      );
+    });
+
     it('in customAssetsOnly mode skips state.assetsBalance and only fetches state.customAssets', async () => {
       // The supplemental subscription path: another data source covers the
       // chain for regular balances, but RPC must still poll the user's

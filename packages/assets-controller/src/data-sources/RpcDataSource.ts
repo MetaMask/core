@@ -1257,8 +1257,9 @@ export class RpcDataSource extends AbstractDataSource<
             this.#getAssetsToFetchV6(accountId, chainId),
           );
 
-          // A failed `balanceOf` means we do not have the full list, so drop
-          // this chain instead of applying a partial result.
+          // A failed `balanceOf` or unresolved decimals means we do not have
+          // the full list, so drop this chain instead of applying a partial
+          // `full` snapshot (which would omit that token from state).
           if (result.failedAddresses.length > 0) {
             if (!failedChains.includes(chainId)) {
               failedChains.push(chainId);
@@ -1266,13 +1267,19 @@ export class RpcDataSource extends AbstractDataSource<
             continue;
           }
 
-          await this.#ingestFetchedBalances(
+          const ingested = await this.#ingestFetchedBalances(
             result,
             accountId,
             chainId,
             assetsBalance,
             assetsInfo,
+            { failOnUnresolvedDecimals: true },
           );
+          if (!ingested) {
+            if (!failedChains.includes(chainId)) {
+              failedChains.push(chainId);
+            }
+          }
         } catch (error) {
           this.#recordFetchChainFailure({
             address,
@@ -1316,13 +1323,33 @@ export class RpcDataSource extends AbstractDataSource<
     return chainsToFetch;
   }
 
+  /**
+   * Convert fetched raw balances into human-readable amounts.
+   *
+   * v5 overlays tokens that resolve and skips the rest (`merge`). v6 must not
+   * publish a partial `full` snapshot: when `failOnUnresolvedDecimals` is set,
+   * unresolved decimals abort ingest so the caller can fail the chain.
+   *
+   * @param result - The balance fetch result.
+   * @param accountId - The account the balances belong to.
+   * @param chainId - The CAIP-2 chain ID.
+   * @param assetsBalance - Accumulator for converted balances.
+   * @param assetsInfo - Accumulator for metadata collected from this fetch.
+   * @param options - Ingest options.
+   * @param options.failOnUnresolvedDecimals - When true, stop ingesting and
+   * return false if any token's decimals cannot be resolved.
+   * @returns `false` when ingest was aborted for unresolved decimals; otherwise `true`.
+   */
   async #ingestFetchedBalances(
     result: BalanceFetchResult,
     accountId: string,
     chainId: ChainId,
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>,
     assetsInfo: Record<Caip19AssetId, AssetMetadata>,
-  ): Promise<void> {
+    {
+      failOnUnresolvedDecimals = false,
+    }: { failOnUnresolvedDecimals?: boolean } = {},
+  ): Promise<boolean> {
     assetsBalance[accountId] ??= {};
 
     const normalizedBalances = result.balances.map((balance) => ({
@@ -1355,6 +1382,14 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       if (decimals === undefined) {
+        if (failOnUnresolvedDecimals) {
+          log('Skipping incomplete v6 fetch snapshot', {
+            accountId,
+            chainId,
+            assetId: balance.assetId,
+          });
+          return false;
+        }
         continue;
       }
 
@@ -1362,6 +1397,8 @@ export class RpcDataSource extends AbstractDataSource<
         amount: this.#convertToHumanReadable(balance.balance, decimals),
       };
     }
+
+    return true;
   }
 
   #recordFetchChainFailure({
@@ -1392,8 +1429,7 @@ export class RpcDataSource extends AbstractDataSource<
     if (!shouldSkipNative) {
       assetsBalance[accountId][nativeAssetId] = { amount: '0' };
     }
-    const existingNativeMeta =
-      this.#getExistingAssetsMetadata()[nativeAssetId];
+    const existingNativeMeta = this.#getExistingAssetsMetadata()[nativeAssetId];
     if (!this.#hasValidDecimals(existingNativeMeta)) {
       const chainStatus = this.#chainStatuses[chainId];
       if (chainStatus) {

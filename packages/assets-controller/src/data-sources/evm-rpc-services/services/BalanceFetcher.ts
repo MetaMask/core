@@ -17,7 +17,10 @@ import type {
   CaipAssetType,
   ChainId,
 } from '../types/index.js';
-import { reduceInBatchesSerially } from '../utils/index.js';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from '../utils/index.js';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 
@@ -224,7 +227,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
   /**
    * v6 replacement for {@link BalanceFetcher.getAssetsToFetch}: the shared
    * visible set (native, pins, default tracked) plus anything already tracked
-   * with a balance entry, minus assets the user hid.
+   * with a balance entry, minus hidden assets and staking vault share tokens.
+   * Share-token `balanceOf` is not the converted staked amount; publishing it
+   * as `updateMode: 'full'` would overwrite the value from StakedBalanceFetcher.
    *
    * @param chainId - Hex chain ID (e.g. "0x1").
    * @param accountId - Account UUID.
@@ -255,7 +260,8 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
       if (
         assetsToFetch.has(normalizedAssetId) ||
-        hidden.has(normalizedAssetId)
+        hidden.has(normalizedAssetId) ||
+        isStakingContractAssetId(assetId)
       ) {
         continue;
       }

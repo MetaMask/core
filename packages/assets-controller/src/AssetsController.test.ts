@@ -3517,7 +3517,6 @@ describe('AssetsController', () => {
       });
     });
 
-
     it('preserves existing staked balances when replaceCoveredChainBalances omits them', async () => {
       const stakingAssetId =
         'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
@@ -3558,7 +3557,6 @@ describe('AssetsController', () => {
         ).toStrictEqual({ amount: '1.5' });
       });
     });
-
 
     it('preserves existing staked balances when a full update omits them', async () => {
       const stakingAssetId =
@@ -4618,7 +4616,6 @@ describe('AssetsController', () => {
         },
       );
     });
-
 
     it('invokes first-init fetch trace only once per session until lock', async () => {
       const traceMock = jest
