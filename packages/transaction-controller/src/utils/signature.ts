@@ -72,11 +72,7 @@ export function clearSignatureCache(): void {
  * @param publicKey - The public key to check.
  * @returns True if the signature is correct, false otherwise.
  */
-function verifySignature(
-  data: Hex[],
-  signature: Hex,
-  publicKey: Hex,
-): boolean {
+function verifySignature(data: Hex[], signature: Hex, publicKey: Hex): boolean {
   try {
     const joinedHex = add0x(data.map(remove0x).join(''));
     const dataBytes = hexToBytes(joinedHex);
