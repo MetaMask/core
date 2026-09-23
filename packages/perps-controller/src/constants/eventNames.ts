@@ -183,6 +183,7 @@ export const PERPS_EVENT_PROPERTY = {
   MAX_SLIPPAGE_PCT: 'max_slippage_pct',
   MAX_SLIPPAGE_SOURCE: 'max_slippage_source',
   ESTIMATED_SLIPPAGE_PCT: 'estimated_slippage_pct',
+  PRICE_DELTA_BPS: 'price_delta_bps',
 
   // Account setup / abstraction mode (PERPS_ACCOUNT_SETUP)
   ABSTRACTION_MODE: 'abstraction_mode',

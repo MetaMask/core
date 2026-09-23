@@ -8,6 +8,8 @@ import {
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { PerpsControllerError } from '../errors.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -153,6 +155,56 @@ export class TradingService {
   }
 
   /**
+   * Build normalized slippage and failure properties without removing the
+   * existing raw error message used by current analytics dashboards.
+   *
+   * @param trackingData - Optional caller-provided slippage context.
+   * @param result - Provider result, when available.
+   * @param error - Thrown provider error, when available.
+   * @returns Slippage and normalized failure properties.
+   */
+  #buildSlippageProperties(
+    trackingData?: TrackingData,
+    result?: OrderResult | null,
+    error?: Error,
+  ): PerpsAnalyticsProperties {
+    const properties: PerpsAnalyticsProperties = {};
+
+    if (trackingData?.maxSlippageBps !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.MAX_SLIPPAGE_PCT] =
+        trackingData.maxSlippageBps / 100;
+    }
+    if (trackingData?.maxSlippageSource !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.MAX_SLIPPAGE_SOURCE] =
+        trackingData.maxSlippageSource;
+    }
+    if (trackingData?.estimatedSlippageBps !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.ESTIMATED_SLIPPAGE_PCT] =
+        trackingData.estimatedSlippageBps / 100;
+    }
+
+    const errorCode =
+      result?.errorCode ??
+      (error instanceof PerpsControllerError ? error.errorCode : undefined);
+    const errorDetails =
+      result?.errorDetails ??
+      (error instanceof PerpsControllerError ? error.errorDetails : undefined);
+
+    if (errorCode !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.FAILURE_REASON] = errorCode;
+    }
+    if (
+      errorDetails?.code === PERPS_ERROR_CODES.PRICE_MOVED &&
+      Number.isFinite(errorDetails.priceDeltaBps)
+    ) {
+      properties[PERPS_EVENT_PROPERTY.PRICE_DELTA_BPS] =
+        errorDetails.priceDeltaBps;
+    }
+
+    return properties;
+  }
+
+  /**
    * Build properties that identify the submitted order intent.
    *
    * @param params - Order parameters containing placement type and reduce-only intent.
@@ -222,6 +274,7 @@ export class TradingService {
         ? PERPS_EVENT_VALUE.DIRECTION.LONG
         : PERPS_EVENT_VALUE.DIRECTION.SHORT,
       ...this.#buildTradeIntentProperties(params),
+      ...this.#buildSlippageProperties(params.trackingData, result, error),
       [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(String(params.leverage ?? 1)),
       [PERPS_EVENT_PROPERTY.ORDER_SIZE]: trackedOrderSize,
       [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
@@ -637,6 +690,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(
           String(params.leverage ?? 1),
         ),
+        ...this.#buildSlippageProperties(params.trackingData),
         ...this.#buildAttributionProperties(params.trackingData),
       });
 
@@ -902,7 +956,7 @@ export class TradingService {
     },
     result: OrderResult | null,
     status: string,
-    error?: string,
+    error?: Error | string,
   ): Record<string, unknown> {
     // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place.
     // Computed from the live position rather than the configured leverage so it's
@@ -922,6 +976,7 @@ export class TradingService {
       [PERPS_EVENT_PROPERTY.DIRECTION]: metrics.direction,
       [PERPS_EVENT_PROPERTY.ORDER_TYPE]: metrics.orderType,
       [PERPS_EVENT_PROPERTY.ORDER_SIZE]: metrics.requestedSize,
+      [PERPS_EVENT_PROPERTY.CLOSE_TYPE]: metrics.closeType,
       [PERPS_EVENT_PROPERTY.OPEN_POSITION_SIZE]: Math.abs(
         parseFloat(position.size),
       ),
@@ -974,6 +1029,11 @@ export class TradingService {
       ...(params.trackingData?.vipDiscount !== undefined && {
         [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
       }),
+      ...this.#buildSlippageProperties(
+        params.trackingData,
+        result,
+        error instanceof Error ? error : undefined,
+      ),
       // Effective leverage on close events
       ...(effectiveLeverage !== undefined && {
         [PERPS_EVENT_PROPERTY.LEVERAGE]: effectiveLeverage,
@@ -995,7 +1055,6 @@ export class TradingService {
     if (status === PERPS_EVENT_VALUE.STATUS.EXECUTED) {
       return {
         ...baseProperties,
-        [PERPS_EVENT_PROPERTY.CLOSE_TYPE]: metrics.closeType,
         ...(orderValue !== undefined && {
           [PERPS_EVENT_PROPERTY.ORDER_VALUE]: orderValue,
         }),
@@ -1005,7 +1064,10 @@ export class TradingService {
     // Add error for failures
     return {
       ...baseProperties,
-      ...(error && { [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: error }),
+      ...(error && {
+        [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
+          error instanceof Error ? error.message : error,
+      }),
       ...(orderValue !== undefined && {
         [PERPS_EVENT_PROPERTY.ORDER_VALUE]: orderValue,
       }),
@@ -1062,6 +1124,7 @@ export class TradingService {
           ...(errorMessage && {
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
           }),
+          ...this.#buildSlippageProperties(params.trackingData, result, error),
           ...this.#buildAttributionProperties(params.trackingData),
           ...bulkActionProps,
         },
@@ -1127,7 +1190,7 @@ export class TradingService {
       metrics,
       result,
       status,
-      errorMessage,
+      error ?? errorMessage,
     );
 
     this.#deps.metrics.trackPerpsEvent(
@@ -2051,6 +2114,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
         [PERPS_EVENT_PROPERTY.ORDER_TYPE]:
           params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
+        ...this.#buildSlippageProperties(params.trackingData),
         ...this.#buildAttributionProperties(params.trackingData),
         ...(bulkActionId && {
           [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,

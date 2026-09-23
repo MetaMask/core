@@ -63,6 +63,7 @@ import {
 } from '../services/LighterClientService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
+import { PerpsControllerError, createPriceMovedError } from '../errors.js';
 import type {
   AccountState,
   AssetRoute,
@@ -5174,8 +5175,18 @@ export class LighterProvider implements PerpsProvider {
           params.symbol,
           slippageFraction,
           params.priceAtCalculation,
+          market.supportedSizeDecimals,
+          params.reduceOnly === true && params.isFullClose === true,
         );
         if (resolved.error !== null) {
+          if (resolved.error instanceof PerpsControllerError) {
+            return {
+              success: false,
+              error: resolved.error.message,
+              errorCode: resolved.error.errorCode,
+              errorDetails: resolved.error.errorDetails,
+            };
+          }
           return { success: false, error: resolved.error };
         }
         referencePrice = resolved.referencePrice;
@@ -5498,9 +5509,11 @@ export class LighterProvider implements PerpsProvider {
     symbol: string,
     slippageFraction: number,
     priceAtCalculation?: number,
+    szDecimals = 2,
+    isFullClose = false,
   ): Promise<
     | { referencePrice: number; error: null }
-    | { referencePrice: null; error: string }
+    | { referencePrice: null; error: string | PerpsControllerError }
   > => {
     // Numeric intent validates fail-closed BEFORE any drift math. A
     // non-finite/non-positive snapshot makes the drift comparison NaN
@@ -5543,12 +5556,18 @@ export class LighterProvider implements PerpsProvider {
     if (
       priceAtCalculation !== undefined &&
       priceAtCalculation > 0 &&
+      !isFullClose &&
       Math.abs(freshPrice - priceAtCalculation) / priceAtCalculation >
         slippageFraction
     ) {
       return {
         referencePrice: null,
-        error: `Price moved beyond the ${(slippageFraction * 100).toFixed(2)}% slippage tolerance since sizing`,
+        error: createPriceMovedError({
+          expectedPrice: priceAtCalculation,
+          currentPrice: freshPrice,
+          maxSlippageBps: slippageFraction * 10_000,
+          szDecimals,
+        }),
       };
     }
     return { referencePrice: freshPrice, error: null };
@@ -6978,12 +6997,14 @@ export class LighterProvider implements PerpsProvider {
       // fresh-price lookup can throw on REST failure.
       let resolved:
         | { referencePrice: number; error: null }
-        | { referencePrice: null; error: string };
+        | { referencePrice: null; error: string | PerpsControllerError };
       try {
         resolved = await this.#resolveMarketReferencePrice(
           params.symbol,
           slippageFraction,
           params.priceAtCalculation,
+          market.supportedSizeDecimals,
+          params.size === undefined && params.usdAmount === undefined,
         );
       } catch (error) {
         return {
@@ -6992,7 +7013,13 @@ export class LighterProvider implements PerpsProvider {
         };
       }
       if (resolved.error !== null) {
-        return { isValid: false, error: resolved.error };
+        return {
+          isValid: false,
+          error:
+            resolved.error instanceof Error
+              ? resolved.error.message
+              : resolved.error,
+        };
       }
       referencePrice = resolved.referencePrice;
       executionPrice = deriveLighterExecutionPrice(
@@ -7171,12 +7198,14 @@ export class LighterProvider implements PerpsProvider {
       // Same validator contract as validateOrder: REST failures resolve.
       let resolved:
         | { referencePrice: number; error: null }
-        | { referencePrice: null; error: string };
+        | { referencePrice: null; error: string | PerpsControllerError };
       try {
         resolved = await this.#resolveMarketReferencePrice(
           params.symbol,
           slippageFraction,
           params.priceAtCalculation,
+          market.supportedSizeDecimals,
+          params.size === undefined && params.usdAmount === undefined,
         );
       } catch (error) {
         return {
@@ -7186,7 +7215,13 @@ export class LighterProvider implements PerpsProvider {
         };
       }
       if (resolved.error !== null) {
-        return { isValid: false, error: resolved.error };
+        return {
+          isValid: false,
+          error:
+            resolved.error instanceof Error
+              ? resolved.error.message
+              : resolved.error,
+        };
       }
       referencePrice = resolved.referencePrice;
       // Closing is the opposite side: a SHORT closes with a BUY, whose

@@ -693,6 +693,12 @@ export {
 // Error codes (explicit named exports)
 export { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 export type { PerpsErrorCode } from './perpsErrorCodes.js';
+export { PerpsControllerError, createPriceMovedError } from './errors.js';
+export type {
+  PerpsErrorDetails,
+  PerpsErrorResultFields,
+  PriceMovedErrorDetails,
+} from './errors.js';
 
 // Selectors (explicit named exports)
 export {
