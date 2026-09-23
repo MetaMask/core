@@ -62,6 +62,7 @@ import {
   adaptPositionFromSDK,
   adaptOrderFromSDK,
   adaptAccountStateFromSDK,
+  buildHyperLiquidFillId,
   parseAssetName,
 } from '../utils/hyperLiquidAdapter.js';
 import { processBboData } from '../utils/hyperLiquidOrderBookProcessor.js';
@@ -2944,14 +2945,13 @@ export class HyperLiquidSubscriptionService {
         }
         const orderFills: OrderFill[] = data.fills.map((fill) => {
           const oid = fill.oid.toString();
+          // Same execution id the REST path builds, so a client merging
+          // history with this stream recognises one execution reported
+          // twice, and keeps two executions that merely look alike.
+          const fillId = buildHyperLiquidFillId(fill);
           return {
             orderId: oid,
-            // Same execution id the REST path maps, so a client merging
-            // history with this stream recognises one execution reported
-            // twice, and keeps two executions that merely look alike.
-            ...(fill.tid === undefined || fill.tid === null
-              ? {}
-              : { fillId: fill.tid.toString() }),
+            ...(fillId === undefined ? {} : { fillId }),
             symbol: fill.coin,
             side: fill.side,
             size: fill.sz,

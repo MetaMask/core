@@ -1412,7 +1412,7 @@ describe('HyperLiquidProvider', () => {
       },
     ];
 
-    it('maps tid to fillId for each fill', async () => {
+    it('builds fillId from coin, time and tid for each fill', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
           userFills: jest.fn().mockResolvedValue(collidingRawFills),
@@ -1422,8 +1422,8 @@ describe('HyperLiquidProvider', () => {
       const fills = await provider.getOrderFills();
 
       expect(fills).toHaveLength(2);
-      expect(fills[0].fillId).toBe('111111111111111');
-      expect(fills[1].fillId).toBe('222222222222222');
+      expect(fills[0].fillId).toBe('BTC:1699999999999:111111111111111');
+      expect(fills[1].fillId).toBe('BTC:1699999999999:222222222222222');
     });
 
     it('gives distinct fillIds to two executions sharing orderId, timestamp, size and price', async () => {
