@@ -11,6 +11,7 @@ import type {
   MoneyAccountEntitlements,
   ShieldEntitlements,
   StartCryptoSubscriptionRequest,
+  UpdatePaymentMethodCryptoRequest,
 } from './types.js';
 
 const SHARED_CRYPTO_REQUEST = {
@@ -26,6 +27,12 @@ const SHARED_CRYPTO_REQUEST = {
 function assertStartCryptoSubscriptionRequest(
   request: StartCryptoSubscriptionRequest,
 ): StartCryptoSubscriptionRequest {
+  return request;
+}
+
+function assertUpdatePaymentMethodCryptoRequest(
+  request: UpdatePaymentMethodCryptoRequest,
+): UpdatePaymentMethodCryptoRequest {
   return request;
 }
 
@@ -142,6 +149,55 @@ describe('StartCryptoSubscriptionRequest', () => {
     };
     // @ts-expect-error ERC-20 method with only delegationHash
     assertStartCryptoSubscriptionRequest(erc20WithDelegationHash);
+
+    expect(true).toBe(true);
+  });
+});
+
+describe('UpdatePaymentMethodCryptoRequest', () => {
+  const sharedRequest = {
+    subscriptionId: 'sub_123',
+    chainId: '0x1' as Hex,
+    payerAddress: '0x0000000000000000000000000000000000000001' as Hex,
+    tokenSymbol: 'pvmUSD',
+    recurringInterval: RECURRING_INTERVALS.month,
+    billingCycles: 12,
+  };
+
+  it('accepts the existing ERC-20 approval request', () => {
+    const request = assertUpdatePaymentMethodCryptoRequest({
+      ...sharedRequest,
+      rawTransaction: '0xdeadbeef',
+    });
+
+    expect(request.rawTransaction).toBe('0xdeadbeef');
+  });
+
+  it('accepts a delegation rotation request', () => {
+    const request = assertUpdatePaymentMethodCryptoRequest({
+      ...sharedRequest,
+      cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+      delegationHash: '0xabcdef1234567890',
+    });
+
+    expect(request.cryptoAuthMethod).toBe(CRYPTO_AUTH_METHODS.DELEGATION);
+    expect(request.delegationHash).toBe('0xabcdef1234567890');
+  });
+
+  it('rejects mutually exclusive or incomplete crypto update fields', () => {
+    // @ts-expect-error Delegation updates cannot include an ERC-20 transaction.
+    assertUpdatePaymentMethodCryptoRequest({
+      ...sharedRequest,
+      cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+      delegationHash: '0xabcdef1234567890' as Hex,
+      rawTransaction: '0xdeadbeef' as Hex,
+    });
+
+    // @ts-expect-error Delegation updates require a delegation hash.
+    assertUpdatePaymentMethodCryptoRequest({
+      ...sharedRequest,
+      cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+    });
 
     expect(true).toBe(true);
   });
