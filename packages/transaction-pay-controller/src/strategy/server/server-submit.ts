@@ -23,6 +23,8 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
+import type { GasPayment } from '../../utils/gas-payment.js';
+import { GasPaymentMode, resolveGasPayment } from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
@@ -204,7 +206,13 @@ async function submitTransactionSteps(
     messenger,
   );
 
-  if (quote.original.gasless) {
+  const gasPayment = resolveGasPayment({
+    isDelegated: quote.original.gasless,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress: quote.request.sourceTokenAddress,
+  });
+
+  if (gasPayment.mode === GasPaymentMode.Delegation) {
     await submitViaServerExecute(
       quote,
       stepTransactions,
@@ -217,6 +225,7 @@ async function submitTransactionSteps(
       stepTransactions,
       messenger,
       transaction,
+      gasPayment,
     );
   }
 }
@@ -670,14 +679,13 @@ async function submitViaTransactionController(
   stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  gasPayment: GasPayment,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from, sourceChainId } = quote.request;
   const { gasLimits, is7702 } = quote.original.client;
+  const { gasFeeToken } = gasPayment;
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
 
   log('Submitting via TransactionController', {
     from,

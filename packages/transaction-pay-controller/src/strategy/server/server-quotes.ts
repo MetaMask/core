@@ -27,18 +27,11 @@ import {
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags.js';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from '../../utils/gas-station.js';
+import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import {
-  getNativeToken,
-  getTokenBalance,
-  getTokenFiatRate,
-} from '../../utils/token.js';
+import { getTokenFiatRate } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
@@ -520,42 +513,16 @@ async function calculateSourceNetworkCost({
     messenger,
   });
 
-  const nativeBalance = getTokenBalance(
-    messenger,
-    from,
-    sourceChainId,
-    getNativeToken(sourceChainId),
-  );
-
   const fees = { maxFeePerGas, maxPriorityFeePerGas };
 
-  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
-    return { estimate, gasLimits, is7702, max, ...fees };
-  }
-
-  const eligibility = getGasStationEligibility(messenger, sourceChainId);
-
-  if (eligibility.isDisabledChain || !eligibility.chainSupportsGasStation) {
-    log('Skipping gas station for source network', {
-      isDisabledChain: eligibility.isDisabledChain,
-      sourceChainId,
-      supportsGasStation: eligibility.chainSupportsGasStation,
-    });
-    return { estimate, gasLimits, is7702, max, ...fees };
-  }
-
-  log('Checking gas fee tokens due to insufficient native balance', {
-    max: max.raw,
-    nativeBalance,
-  });
-
-  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+  const gasStationCost = await resolveGasStationCost({
     firstStepData: {
       data: firstStep.data,
       to: firstStep.to,
       value: firstStep.value,
     },
     messenger,
+    nativeGasCostRaw: max.raw,
     request: {
       from,
       sourceChainId,
@@ -565,18 +532,20 @@ async function calculateSourceNetworkCost({
     totalItemCount: steps.length,
   });
 
-  if (!gasFeeTokenCost) {
+  if (!gasStationCost.amount) {
     return { estimate, gasLimits, is7702, max, ...fees };
   }
 
-  log('Using gas fee token for source network', { gasFeeTokenCost });
+  log('Using gas fee token for source network', {
+    gasFeeTokenCost: gasStationCost.amount,
+  });
 
   return {
-    estimate: gasFeeTokenCost,
+    estimate: gasStationCost.amount,
     gasLimits,
     is7702,
     isSourceGasFeeToken: true,
-    max: gasFeeTokenCost,
+    max: gasStationCost.amount,
     ...fees,
   };
 }

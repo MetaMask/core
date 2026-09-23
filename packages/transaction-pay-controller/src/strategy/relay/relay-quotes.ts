@@ -43,15 +43,15 @@ import {
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
 import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from '../../utils/gas-station.js';
+  GasPaymentMode,
+  resolveGasPayment,
+  resolveGasStationCost,
+} from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
-  getTokenBalance,
   getTokenFiatRate,
   normalizeTokenAddress,
   TokenAddressTarget,
@@ -941,12 +941,16 @@ async function calculateSourceNetworkCost(
     };
   }
 
-  if (
-    accountSupports7702 &&
-    transaction.isGasFeeSponsored &&
-    request.sourceChainId === transaction.chainId &&
-    request.targetChainId === transaction.chainId
-  ) {
+  const gasPayment = resolveGasPayment({
+    sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702,
+      request,
+      transaction,
+    },
+  });
+
+  if (gasPayment.mode === GasPaymentMode.Sponsored) {
     log('Zeroing source network fees for sponsored same-chain Relay route');
 
     // Gas limit is zero as sponsored transactions go through the EIP-7702
@@ -1033,52 +1037,7 @@ async function calculateSourceNetworkCost(
     isMax: true,
   });
 
-  const nativeBalance = getTokenBalance(
-    messenger,
-    from,
-    sourceChainId,
-    getNativeToken(sourceChainId),
-  );
-
   const result = { estimate, max, gasLimits, is7702 };
-
-  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
-    return result;
-  }
-
-  if (accountSupports7702 === false) {
-    log('Skipping gas station as account does not support EIP-7702', {
-      from,
-    });
-
-    return result;
-  }
-
-  const gasStationEligibility = getGasStationEligibility(
-    messenger,
-    sourceChainId,
-  );
-
-  if (gasStationEligibility.isDisabledChain) {
-    log('Skipping gas station as disabled chain', {
-      sourceChainId,
-    });
-
-    return result;
-  }
-
-  if (!gasStationEligibility.chainSupportsGasStation) {
-    log('Skipping gas station as chain does not support EIP-7702', {
-      sourceChainId,
-    });
-
-    return result;
-  }
-
-  log('Checking gas fee tokens as insufficient native balance', {
-    nativeBalance,
-    max: max.raw,
-  });
 
   // Gas-fee-token lookup must use the Safe proxy for ALL Predict withdraws,
   // not only deposit-style routes. The user's source token (pUSD) lives in
@@ -1087,74 +1046,44 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  if (isPredictWithdrawFlow && request.refundTo) {
-    log('Using proxy address for predict withdraw gas station simulation', {
-      proxyAddress: request.refundTo,
-      sourceTokenAddress,
-      totalGasEstimate,
-    });
+  const proxyFeeTokenAccount = isPredictWithdrawFlow
+    ? request.refundTo
+    : undefined;
 
-    const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
-      firstStepData: {
-        data,
-        to,
-        value,
-      },
-      messenger,
-      request: {
-        from: request.refundTo,
-        sourceChainId,
-        sourceTokenAddress,
-      },
-      totalGasEstimate,
-      totalItemCount: relayParams.length + 1,
-    });
-
-    if (gasFeeTokenCost) {
-      log('Using predict withdraw gas fee token for source network', {
-        gasFeeTokenCost,
-      });
-
-      return {
-        isGasFeeToken: true,
-        estimate: gasFeeTokenCost,
-        max: gasFeeTokenCost,
-        gasLimits,
-        is7702,
-      };
-    }
-
-    return result;
-  }
-
-  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+  const gasStationCost = await resolveGasStationCost({
+    accountSupports7702,
+    feeTokenAccount: proxyFeeTokenAccount,
     firstStepData: {
       data,
       to,
       value,
     },
     messenger,
+    nativeGasCostRaw: max.raw,
     request: {
       from,
       sourceChainId,
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: Math.max(relayParams.length, gasLimits.length),
+    totalItemCount: proxyFeeTokenAccount
+      ? relayParams.length + 1
+      : Math.max(relayParams.length, gasLimits.length),
   });
 
-  if (!gasFeeTokenCost) {
+  if (!gasStationCost.amount) {
     return result;
   }
 
   log('Using gas fee token for source network', {
-    gasFeeTokenCost,
+    gasFeeTokenCost: gasStationCost.amount,
+    proxyFeeTokenAccount,
   });
 
   return {
     isGasFeeToken: true,
-    estimate: gasFeeTokenCost,
-    max: gasFeeTokenCost,
+    estimate: gasStationCost.amount,
+    max: gasStationCost.amount,
     gasLimits,
     is7702,
   };

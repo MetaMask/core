@@ -16,10 +16,7 @@ import {
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags.js';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from '../../utils/gas-station.js';
+import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import {
@@ -39,7 +36,7 @@ jest.mock('../../utils/feature-flags', () => ({
   isEIP7702Chain: jest.fn(),
 }));
 jest.mock('./server-api');
-jest.mock('../../utils/gas-station');
+jest.mock('../../utils/gas-payment');
 jest.mock('../../utils/gas');
 jest.mock('../../utils/quote-gas');
 jest.mock('../../utils/token');
@@ -169,11 +166,7 @@ describe('server-quotes', () => {
       totalGasEstimate: '0x5208',
       totalGasLimit: '0x7530',
     } as never);
-    jest.mocked(getGasStationEligibility).mockReturnValue({
-      chainSupportsGasStation: false,
-      isDisabledChain: false,
-    } as never);
-    jest.mocked(getGasStationCostInSourceTokenRaw).mockResolvedValue(undefined);
+    jest.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: false });
   });
 
   it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {
@@ -549,10 +542,9 @@ describe('server-quotes', () => {
     beforeEach(() => {
       jest.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK);
       jest.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
-      jest.mocked(getGasStationEligibility).mockReturnValue({
-        chainSupportsGasStation: true,
-        isDisabledChain: false,
-      } as never);
+      jest
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ isAvailable: true });
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_RESULT_MOCK],
       });
@@ -574,10 +566,9 @@ describe('server-quotes', () => {
 
     it('returns estimate and max when gas station is not supported', async () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest.mocked(getGasStationEligibility).mockReturnValue({
-        chainSupportsGasStation: false,
-        isDisabledChain: false,
-      } as never);
+      jest
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ isAvailable: false });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -592,8 +583,8 @@ describe('server-quotes', () => {
     it('returns estimate and max when gas station cost is unavailable', async () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
       jest
-        .mocked(getGasStationCostInSourceTokenRaw)
-        .mockResolvedValue(undefined);
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ amount: undefined, isAvailable: true });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -616,8 +607,8 @@ describe('server-quotes', () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
 
       jest
-        .mocked(getGasStationCostInSourceTokenRaw)
-        .mockResolvedValue(GAS_FEE_TOKEN_COST);
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ amount: GAS_FEE_TOKEN_COST, isAvailable: true });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
