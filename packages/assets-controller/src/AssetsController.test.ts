@@ -712,45 +712,53 @@ describe('AssetsController', () => {
       });
     });
 
-    it('fetches only the newly added asset instead of every pinned asset', async () => {
+    it('force-fetches the asset chain with every pinned token as includeAssetIds', async () => {
       // Use a valid checksummed address (DAI token address)
       const secondAssetId =
         'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
-        capturedCustomAssets.push(ctx.request.customAssets);
-        return next(ctx);
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
       });
-      const middlewareGetter = jest
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'get',
-        )
-        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
 
       await withController(
         {
+          queryApiClient,
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+          await flushPromises();
 
-          capturedCustomAssets.length = 0;
+          await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+          fetchV6MultiAccountBalances.mockClear();
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, secondAssetId);
         },
       );
 
-      // The fetch triggered by adding the second pin must not re-request the
-      // first pin — the subscription refresh covers it on the next poll.
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual([secondAssetId]);
+      // The v6 snapshot is applied as `updateMode: 'full'`, so every pin on
+      // the chain must be requested — otherwise other custom tokens drop.
+      expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+      for (const [, params] of fetchV6MultiAccountBalances.mock.calls) {
+        expect(params?.includeAssetIds ?? []).toStrictEqual(
+          expect.arrayContaining([MOCK_ASSET_ID, secondAssetId]),
+        );
       }
-
-      middlewareGetter.mockRestore();
     });
 
     it('does not overwrite an existing balance when re-adding a custom asset', async () => {
@@ -1623,128 +1631,6 @@ describe('AssetsController', () => {
         expect(params?.includeAssetIds ?? []).toContain(mainnetToken);
         expect(params?.includeAssetIds ?? []).not.toContain(polygonToken);
       }
-    });
-
-    it('uses the customAssets option instead of state-pinned assets when provided', async () => {
-      const pinnedToken =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const requestedToken =
-        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
-
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
-        capturedCustomAssets.push(ctx.request.customAssets);
-        return next(ctx);
-      });
-      const middlewareGetter = jest
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'get',
-        )
-        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
-
-      await withController(
-        {
-          remoteFeatureFlags: { assetsAccountsApiV6: true },
-        },
-        async ({ controller }) => {
-          await controller.addCustomAsset(MOCK_ACCOUNT_ID, pinnedToken);
-          await controller.addCustomAsset(MOCK_ACCOUNT_ID, requestedToken);
-
-          capturedCustomAssets.length = 0;
-          await controller.getAssets([createMockInternalAccount()], {
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            customAssets: [requestedToken],
-          });
-        },
-      );
-
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual([requestedToken]);
-      }
-
-      middlewareGetter.mockRestore();
-    });
-
-    it('scopes the customAssets option to the requested chains and drops invalid IDs', async () => {
-      const polygonToken =
-        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
-
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
-        capturedCustomAssets.push(ctx.request.customAssets);
-        return next(ctx);
-      });
-      const middlewareGetter = jest
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'get',
-        )
-        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
-
-      await withController(
-        {
-          remoteFeatureFlags: { assetsAccountsApiV6: true },
-        },
-        async ({ controller }) => {
-          await controller.getAssets([createMockInternalAccount()], {
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            customAssets: [polygonToken, 'not-a-caip-id' as Caip19AssetId],
-          });
-        },
-      );
-
-      // The off-chain pin and the unparseable ID are both dropped, leaving no
-      // custom assets on the request.
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toBeUndefined();
-      }
-
-      middlewareGetter.mockRestore();
-    });
-
-    it('normalizes asset IDs passed via the customAssets option', async () => {
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
-        capturedCustomAssets.push(ctx.request.customAssets);
-        return next(ctx);
-      });
-      const middlewareGetter = jest
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'get',
-        )
-        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
-
-      await withController(
-        {
-          remoteFeatureFlags: { assetsAccountsApiV6: true },
-        },
-        async ({ controller }) => {
-          await controller.getAssets([createMockInternalAccount()], {
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            customAssets: [MOCK_ASSET_ID_LOWERCASE],
-          });
-        },
-      );
-
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual([MOCK_ASSET_ID]);
-      }
-
-      middlewareGetter.mockRestore();
     });
 
     it('forwards user-hidden assets to the Accounts API v6 endpoint as excludeAssetIds', async () => {

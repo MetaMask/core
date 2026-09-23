@@ -996,8 +996,7 @@ describe('RpcDataSource', () => {
           },
         },
         async ({ controller }) => {
-          // A scoped fetch (e.g. addCustomAsset) must not widen into the
-          // account's other pins — the subscription poll covers those.
+          // A scoped fetch must not widen into the account's other pins.
           await controller.fetch(
             createDataRequest({ customAssets: [requestedAsset] }),
           );

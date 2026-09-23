@@ -172,7 +172,7 @@ In other words: v5 never runs `RpcFallbackMiddleware` here, and v6 never runs
 
 | Concern               | v5                                         | v6                                                                    |
 | --------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
-| Force-update request  | `#buildForceUpdateRequestV5`               | `#buildForceUpdateRequestV6`                                          |
+| Force-update request  | `#buildForceUpdateRequestV5`               | `#buildDataRequest` (pins read from state)                            |
 | Force-update pipeline | `#forceUpdateAssetsV5`, `#runFastFetchV5`  | `#forceUpdateAssetsV6`, `#runFastFetchV6`                             |
 | Fast lane composition | `buildFastFetchSources` (graduation on)    | `buildFastFetchSources` (graduation off)                              |
 | Subscribe             | `#subscribeAssetsBalance` + RPC supplement | `#subscribeAssetsBalance`; Accounts API v6 include/exclude from state |

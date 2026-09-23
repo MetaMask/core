@@ -558,8 +558,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * endpoint as `includeAssetIds`; malformed IDs are skipped and hidden
    * assets are left out (a hide wins).
    *
-   * Prefers `request.customAssets` when the caller scoped the fetch (e.g.
-   * `addCustomAsset`). Otherwise reads visible pins from controller state.
+   * Prefers `request.customAssets` when the caller scoped the fetch.
+   * Otherwise reads visible pins from controller state.
    *
    * @param request - The data request (optional `customAssets` scope).
    * @param chainsToFetch - Chains being requested this fetch.

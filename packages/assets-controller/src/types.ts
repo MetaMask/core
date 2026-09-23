@@ -344,8 +344,8 @@ export type DataRequest = {
   dataTypes: DataType[];
   /**
    * Optional scoped CAIP-19 asset IDs for this fetch (not the full pin list).
-   * Used by `getAssets({ customAssets })`, `addCustomAsset`, and RPC fallback
-   * recovery. When omitted, v6 sources read pins from controller state.
+   * Used by RPC fallback recovery and the v5 force-update pin list. When
+   * omitted, v6 sources read pins from controller state.
    */
   customAssets?: Caip19AssetId[];
   /**

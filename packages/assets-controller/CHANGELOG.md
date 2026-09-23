@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `customAssets` to `AssetsController.getAssets`, to scope a fetch to specific asset IDs (Accounts API v6 only) ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Add optional `unprocessedCustomAssets` to `DataResponse`, listing pinned asset IDs a source could not resolve so `RpcFallbackMiddleware` can recover them ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Add optional `isBalanceV6Enabled` to `AccountsApiDataSourceOptions` and `RpcFallbackMiddlewareOptions`, so the `assetsAccountsApiV6` flag is read once by `AssetsController` and injected ([#9651](https://github.com/MetaMask/core/pull/9651))
 
@@ -25,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `addCustomAsset` on the Accounts API v6 path now force-fetches the token's chain with all visible pins, instead of scoping `customAssets` to the new token, so a `full` snapshot no longer drops other pinned balances until the next poll
 - `RpcDataSource.fetch` now falls back to the account's visible `customAssets` in state when a request carries no `customAssets` scope, matching `AccountsApiDataSource`, so a force refresh picks up pinned tokens on RPC-only chains and when basic functionality is off instead of leaving them until the next poll ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, instead of reading a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Keep default tracked assets (mUSD) at a zero balance when an Accounts API v6 `full` update omits them, so a force refresh no longer drops them from the token list ([#9651](https://github.com/MetaMask/core/pull/9651))

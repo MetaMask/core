@@ -1577,12 +1577,6 @@ export class AssetsController extends BaseController<
       bypassServerCache?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
-      /**
-       * v6 only: pinned assets to attach instead of every pin in state.
-       * Ignored when `assetsAccountsApiV6` is off. Entries outside the
-       * requested chains are dropped.
-       */
-      customAssets?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1609,10 +1603,7 @@ export class AssetsController extends BaseController<
         await this.#forceUpdateAssetsV6({
           accounts,
           chainIds,
-          request: this.#buildForceUpdateRequestV6(accounts, chainIds, {
-            ...requestOptions,
-            customAssetsOverride: options?.customAssets,
-          }),
+          request: this.#buildDataRequest(accounts, chainIds, requestOptions),
           pipelineTrace,
         });
       } else {
@@ -1665,60 +1656,6 @@ export class AssetsController extends BaseController<
 
     return this.#buildDataRequest(accounts, chainIds, {
       ...requestOptions,
-      customAssets: customAssets.length > 0 ? customAssets : undefined,
-    });
-  }
-
-  /**
-   * v6 force-update request. Pins and hides are read from state by the
-   * Accounts API unless `customAssetsOverride` scopes this fetch.
-   *
-   * @param accounts - Accounts in this fetch.
-   * @param chainIds - Chains in this fetch.
-   * @param requestOptions - Shared force-update request fields and optional pin scope.
-   * @param requestOptions.assetTypes - Asset types to fetch.
-   * @param requestOptions.dataTypes - Data types to fetch.
-   * @param requestOptions.forceUpdate - Always `true` to bypass caches.
-   * @param requestOptions.bypassServerCache - Also bypass server-side HTTP caches.
-   * @param requestOptions.assetsForPriceUpdate - Assets to refresh prices for.
-   * @param requestOptions.customAssetsOverride - When set, fetch only these pins.
-   * @returns The v6 data request.
-   */
-  #buildForceUpdateRequestV6(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-    requestOptions: {
-      assetTypes: AssetType[];
-      dataTypes: DataType[];
-      forceUpdate: true;
-      bypassServerCache?: boolean;
-      assetsForPriceUpdate?: Caip19AssetId[];
-      customAssetsOverride?: Caip19AssetId[];
-    },
-  ): DataRequest {
-    const requestedChains = new Set<string>(chainIds);
-    const customAssetsSet = new Set<Caip19AssetId>();
-    for (const assetId of requestOptions.customAssetsOverride ?? []) {
-      try {
-        const normalizedAssetId = normalizeAssetId(assetId);
-        if (
-          requestedChains.has(parseCaipAssetType(normalizedAssetId).chainId) &&
-          !this.state.assetPreferences[normalizedAssetId]?.hidden
-        ) {
-          customAssetsSet.add(normalizedAssetId);
-        }
-      } catch {
-        // Skip unparseable asset IDs
-      }
-    }
-    const customAssets = [...customAssetsSet];
-
-    return this.#buildDataRequest(accounts, chainIds, {
-      assetTypes: requestOptions.assetTypes,
-      dataTypes: requestOptions.dataTypes,
-      forceUpdate: requestOptions.forceUpdate,
-      bypassServerCache: requestOptions.bypassServerCache,
-      assetsForPriceUpdate: requestOptions.assetsForPriceUpdate,
       customAssets: customAssets.length > 0 ? customAssets : undefined,
     });
   }
@@ -2295,7 +2232,8 @@ export class AssetsController extends BaseController<
   /**
    * Add a custom asset for an account.
    * Custom assets are included in subscription and fetch operations.
-   * Adding a custom asset also unhides it if it was previously hidden.
+   * Adding a custom asset also unhides it if it was previously hidden,
+   * and force-fetches that asset's chain (including every visible pin).
    *
    * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
    * flow), the token metadata is persisted immediately into `assetsInfo` so the
@@ -2374,22 +2312,16 @@ export class AssetsController extends BaseController<
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
-      if (this.#isBalanceV6Enabled()) {
-        await this.getAssets([account], {
-          chainIds: [chainId],
-          dataTypes: ['balance', 'metadata', 'price'],
-          assetTypes: ['fungible'],
-          forceUpdate: true,
-          customAssets: [normalizedAssetId],
-        });
-      } else {
-        await this.getAssets([account], {
-          chainIds: [chainId],
-          dataTypes: ['balance', 'metadata', 'price'],
-          assetTypes: ['fungible'],
-          forceUpdate: true,
-        });
-      }
+      // Same force-update on both paths: the token's chain, every pin from
+      // state. v5 already did this (merge + all pins on the request). v6
+      // must too, because it applies `updateMode: 'full'` and reads pins
+      // as `includeAssetIds` — a single-token override would wipe others.
+      await this.getAssets([account], {
+        chainIds: [chainId],
+        dataTypes: ['balance', 'metadata', 'price'],
+        assetTypes: ['fungible'],
+        forceUpdate: true,
+      });
     }
 
     // Re-evaluate subscriptions so polls pick up the new pin.

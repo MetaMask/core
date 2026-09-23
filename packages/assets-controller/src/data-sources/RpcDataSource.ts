@@ -1504,8 +1504,8 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Append the ERC-20 pins this account-chain fetch must cover.
    *
-   * Prefers `request.customAssets` when the caller scoped the fetch (e.g.
-   * `addCustomAsset`). Otherwise reads the
+   * Prefers `request.customAssets` when the caller scoped the fetch.
+   * Otherwise reads the
    * account's visible pins from state: RPC is their sole balance fetcher, and
    * `fetch` builds its own entry list rather than going through
    * `BalanceFetcher`'s state read (which polling uses), so an unscoped request
