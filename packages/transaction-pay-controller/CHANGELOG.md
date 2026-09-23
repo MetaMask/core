@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Atomic promotion errors retain the `Atomic promotion failed` prefix through standard quote error handling and strategy fallback.
 - Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
 - Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
 
 ## [29.0.2]
 
