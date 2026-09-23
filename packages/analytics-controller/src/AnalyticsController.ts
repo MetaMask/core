@@ -170,6 +170,15 @@ export type AnalyticsControllerState = {
    * This is only used when the event fragments feature is enabled.
    */
   eventFragments?: AnalyticsEventFragments;
+
+  /**
+   * Marketing campaign cookie ID set when the user arrives via a marketing
+   * campaign. Cleared automatically when the user calls
+   * {@link AnalyticsController.optOutOfMarketing} or
+   * {@link AnalyticsController.resetMarketingConsentDecision}. Optional for backward
+   * compatibility with persisted state that predates this field.
+   */
+  marketingCampaignCookieId?: string | null;
 };
 
 /**
@@ -267,6 +276,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
     consentDecisionMade: false,
     optedInToMarketing: false,
     marketingConsentDecisionMade: false,
+    marketingCampaignCookieId: null,
   };
 }
 
@@ -331,6 +341,12 @@ const analyticsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: false,
   },
+  marketingCampaignCookieId: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<AnalyticsControllerState>;
 
 // === MESSENGER ===
@@ -345,6 +361,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToMarketing',
   'optOutOfMarketing',
   'resetMarketingConsentDecision',
+  'setMarketingCampaignCookieId',
   'createEventFragment',
   'upsertEventFragment',
   'updateEventFragment',
@@ -2289,6 +2306,7 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedInToMarketing = false;
       state.marketingConsentDecisionMade = true;
+      state.marketingCampaignCookieId = null;
     });
 
     this.#pruneAllForConsent();
@@ -2303,8 +2321,26 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedInToMarketing = false;
       state.marketingConsentDecisionMade = false;
+      state.marketingCampaignCookieId = null;
     });
 
     this.#pruneAllForConsent();
+  }
+
+  /**
+   * Set the marketing campaign cookie ID.
+   *
+   * Stores the ID of the marketing campaign cookie (e.g. a Google Analytics
+   * client ID) that was active when the user arrived. Pass `null` to clear it.
+   * The value is automatically cleared by {@link optOutOfMarketing} and
+   * {@link resetMarketingConsentDecision}.
+   *
+   * @param marketingCampaignCookieId - The marketing campaign cookie ID, or
+   * `null` to clear it.
+   */
+  setMarketingCampaignCookieId(marketingCampaignCookieId: string | null): void {
+    this.update((state) => {
+      state.marketingCampaignCookieId = marketingCampaignCookieId;
+    });
   }
 }
