@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export the subscription fee-waiver helpers from the `utils` barrel, including `hasFeeReductionAppliedFlag` and `isSubscriptionProgramCloid` for decoding a marked client order ID, and add an exact `./utils` subpath export so the barrel is importable as `@metamask/perps-controller/utils`. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `chargesMetamaskBuilderFee` field to `FeeCalculationResult`, which reports whether a placement can carry a MetaMask builder fee at all. A `metamaskFeeRate` of `0` is otherwise ambiguous between a venue or order type that has no builder field and a fully waived fee. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `registerTradingAddress` hook to the injected `subscription` dependency, for registering the current HyperLiquid trading address (CAIP-10) against the subscription profile. The injected hook remains a fallback for clients that do not provide `SubscriptionController:registerAddress`. ([#10294](https://github.com/MetaMask/core/pull/10294))
-- Add optional `id` field to `PerpsMarketData` type, populated from the v3 Terminal snapshot endpoint ([#10356](https://github.com/MetaMask/core/pull/10356))
 
 ### Changed
 
@@ -30,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The subscription program marker is the registered id `0x0100`, zero-extended into the 4-byte marker field.
 - Register the current HyperLiquid trading address with the subscription profile during `calculateFees`, and re-register it after the selected account changes. ([#10294](https://github.com/MetaMask/core/pull/10294))
   - The CAIP-10 identifier names HyperLiquid's own chain (`eip155:999`, or `eip155:998` on testnet), not the wallet's currently selected network, so it matches the chain a fill decoded off the HyperLiquid fan-out reports.
-- Bump `GLOBAL_SNAPSHOT_SCHEMA_VERSION` from `2` to `3` to consume the v3 `/perpetuals` Terminal endpoint, which adds a stable `id` per market ([#10356](https://github.com/MetaMask/core/pull/10356))
 
 ### Deprecated
 
@@ -68,6 +66,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Price a position close from the loaded position when the close parameters do not carry a notional. A full close commonly passes only a symbol, which previously resolved as an unbounded waiver rather than blending against the position's value; a partial close is now priced from the position's value per unit. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Resolve the subscription fee waiver against the order notional on the submit path, not just in previews. Order placement, order edits, position closes, batch closes, take-profit/stop-loss updates, and position flips previously resolved the waiver with no notional, so a bounded allowance always resolved as a full waiver — an order was quoted a blended rate and then charged nothing, over-consuming the allowance and marking its client order ID as fully waived. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Register the newly selected trading address immediately on an account switch. Clearing the session's registrations alone only re-registered on the next fee preview, so an order submitted straight after a switch went unattributed. ([#10294](https://github.com/MetaMask/core/pull/10294))
+
+## [17.4.0]
+
+### Added
+
+- Add optional `id` field to `PerpsMarketData` type, populated from the v3 Terminal snapshot endpoint ([#10356](https://github.com/MetaMask/core/pull/10356))
+
+### Changed
+
+- Bump `GLOBAL_SNAPSHOT_SCHEMA_VERSION` from `2` to `3` to consume the v3 `/perpetuals` Terminal endpoint, which adds a stable `id` per market ([#10356](https://github.com/MetaMask/core/pull/10356))
 
 ## [17.3.0]
 
@@ -1000,7 +1008,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...HEAD
+[17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...@metamask/perps-controller@17.1.0
