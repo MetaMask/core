@@ -2280,5 +2280,147 @@ describe('Relay Submit Utils', () => {
         });
       });
     });
+
+    describe('promoted subsidized max Money Account routing', () => {
+      const PROMOTED_TARGET_RAW_MOCK = '99000000';
+      const PROMOTED_EMBEDDED_DATA_MOCK = '0xembedded' as Hex;
+      const PROMOTED_EMBEDDED_TO_MOCK =
+        '0xteller00000000000000000000000000000001' as Hex;
+      const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
+      const TARGET_HASH_MOCK =
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
+      const NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK = '535000';
+      const NON_ATOMIC_MINIMUM_AMOUNT_MOCK = '530000';
+      const VAULT_HASH_MOCK =
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
+      const NON_ATOMIC_TARGET_CHAIN_ID_MOCK = '0x2797' as Hex;
+      const NON_ATOMIC_TARGET_TOKEN_ADDRESS_MOCK =
+        '0xtoken000000000000000000000000000000001' as Hex;
+
+      /**
+       * Configure `request.quotes[0]` as an atomic promoted subsidized max
+       * Money Account quote, matching the T4 promotion output: request carries
+       * `atomic: true`, `isMaxAmount: true`, subsidy `amountUsd: 1`, and the
+       * embedded second-leg call for `99000000` is inlined into the Relay
+       * steps.
+       */
+      const configureAtomicPromotedMaQuote = (): void => {
+        const quote = request.quotes[0];
+        quote.request.atomic = true;
+        quote.request.isMaxAmount = true;
+        quote.original.metamask.isExecute = true;
+        quote.original.details.currencyOut.amount = PROMOTED_TARGET_RAW_MOCK;
+        quote.original.fees = {
+          ...(quote.original.fees ?? {}),
+          subsidized: { amountUsd: '1' },
+        } as RelayQuote['fees'];
+        // The atomic promotion embeds the final MA-vault call directly in the
+        // Relay quote steps, so submission must forward *these* calls (not
+        // the stale parent calldata) to the Relay execute helper.
+        quote.original.steps[0].items[0].data = {
+          ...quote.original.steps[0].items[0].data,
+          data: PROMOTED_EMBEDDED_DATA_MOCK,
+          to: PROMOTED_EMBEDDED_TO_MOCK,
+          value: '0',
+        };
+      };
+
+      /**
+       * Configure `request.quotes[0]` as a non-subsidized non-atomic max
+       * Money Account quote — the pre-existing behaviour where the vault
+       * helper is invoked once after Relay settlement.
+       */
+      const configureNonAtomicMaxMaQuote = (): void => {
+        const quote = request.quotes[0];
+        quote.request.atomic = false;
+        quote.request.isMaxAmount = true;
+        quote.request.recipient = RECIPIENT_MOCK;
+        quote.request.targetChainId = NON_ATOMIC_TARGET_CHAIN_ID_MOCK;
+        quote.request.targetTokenAddress = NON_ATOMIC_TARGET_TOKEN_ADDRESS_MOCK;
+        quote.original.details.currencyOut = {
+          ...quote.original.details.currencyOut,
+          currency: {
+            ...quote.original.details.currencyOut.currency,
+            decimals: 6,
+          },
+          minimumAmount: NON_ATOMIC_MINIMUM_AMOUNT_MOCK,
+        };
+      };
+
+      it('atomic success: submits Relay execution once with the promoted embedded calls and skips the vault helper', async () => {
+        configureAtomicPromotedMaQuote();
+        submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
+
+        await submitRelayQuotes(request);
+
+        // Vault helper is NOT called separately - the vault calls are already
+        // embedded in the promoted Relay quote's steps and submitted atomically.
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+
+        // Relay execute is invoked exactly once with the promoted quote's
+        // embedded calldata, not any stale parent calldata.
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+        const [executedQuote, , , executedAllParams] =
+          submitViaRelayExecuteMock.mock.calls[0];
+        expect(executedQuote.request.atomic).toBe(true);
+        expect(executedQuote.request.isMaxAmount).toBe(true);
+        expect(executedAllParams).toStrictEqual([
+          expect.objectContaining({
+            data: PROMOTED_EMBEDDED_DATA_MOCK,
+            to: PROMOTED_EMBEDDED_TO_MOCK,
+            from: FROM_MOCK,
+          }),
+        ]);
+      });
+
+      it('non-atomic success: still invokes the vault helper exactly once with the settled amount', async () => {
+        configureNonAtomicMaxMaQuote();
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
+        });
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [TARGET_HASH_MOCK],
+          }),
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(1);
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceAmountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
+            moneyAccountAddress: RECIPIENT_MOCK,
+          }),
+        );
+      });
+
+      it('non-atomic failure: does not invoke the vault helper when Relay reports a failed status', async () => {
+        configureNonAtomicMaxMaQuote();
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
+        });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'failure',
+            inTxHashes: [SOURCE_HASH_MOCK],
+          }),
+        } as Response);
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Relay: Request failed with status: failure',
+        );
+
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+      });
+    });
   });
 });

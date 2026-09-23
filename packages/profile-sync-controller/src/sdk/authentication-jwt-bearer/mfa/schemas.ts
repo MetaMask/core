@@ -177,6 +177,7 @@ export const MfaCredentialsResponseStruct = type({
 export const MfaErrorResponseStruct = type({
   code: optional(string()),
   message: string(),
+  retry_after_seconds: optional(integer()),
 });
 
 export const TokenReasonStruct = object({

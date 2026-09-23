@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `membershipSubscription` transaction type ([#10340](https://github.com/MetaMask/core/pull/10340))
+
+### Changed
+
+- **BREAKING:** Move sponsorship and signing decisions to optional approval-time `isSponsored` and `shouldSign` hooks ([#10109](https://github.com/MetaMask/core/pull/10109))
+  - The hooks default to non-sponsored and local signing when omitted. Sponsored transactions skip the `shouldSign` hook and local signing, while transactions that skip local signing retain an existing nonce and require a publish hook.
+  - `isGasFeeSponsored` and `isExternalSign` remain in the public types as deprecated compatibility properties but no longer control the transaction lifecycle; `isGasFeeSponsored` remains available as migration metadata.
+  - Add `TransactionMeta.isGasFeeSponsoredAvailable` and refresh it during approval preparation when simulation is enabled so sponsorship hooks receive current availability without overriding simulation preferences.
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+
 ## [70.1.0]
 
 ### Changed

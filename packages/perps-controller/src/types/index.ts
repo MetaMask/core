@@ -764,6 +764,13 @@ export type MarketInfo = {
  */
 export type PerpsMarketData = {
   /**
+   * Stable backend market identifier supplied by the v3 Terminal snapshot
+   * (e.g. 'btc-hyperliquid-mainnet'). Used as the key for perp-alerts API
+   * calls. Only present when data originates from the v3 global-snapshot
+   * endpoint; omit checks against this field must guard with `?? undefined`.
+   */
+  id?: string;
+  /**
    * Token symbol (e.g., 'BTC', 'ETH')
    */
   symbol: string;
@@ -1687,6 +1694,17 @@ export type FeeCalculationResult = {
   metamaskFeeRate?: number; // MetaMask fee rate (e.g., 0.001 for 0.1%), undefined when unavailable
   metamaskFeeAmount?: number; // MetaMask fee amount in USD
 
+  /**
+   * Whether this placement can carry a MetaMask builder fee at all.
+   *
+   * A `metamaskFeeRate` of zero is ambiguous on its own: it is what a venue or
+   * order type that has no builder field reports (`false` here), and also what
+   * a fully waived discount leaves behind (`true` here). Only the provider
+   * knows which, so it says so rather than leaving callers to guess from the
+   * number. Absent when the provider does not report a policy.
+   */
+  chargesMetamaskBuilderFee?: boolean;
+
   // Optional detailed breakdown for transparency
   breakdown?: {
     baseFeeRate: number;
@@ -1698,8 +1716,13 @@ export type FeeCalculationResult = {
   /**
    * Read-only subscription fee-waiver preview, sourced from the same cached
    * benefits snapshot the fee resolver uses. Present only when the controller
-   * has a subscription source wired; the quoted rates above are not adjusted
-   * from it, so surfacing this never mutates the cap or the cache.
+   * has a subscription source wired.
+   *
+   * Surfacing this never mutates the cap or the cache. The rates above *are*
+   * adjusted from the unified fee resolution — including this waiver when it
+   * wins — so they reflect what the order will be charged rather than the
+   * undiscounted builder fee. Pass `FeeCalculationParams.amount` to get the
+   * rate an order of that size actually pays.
    */
   subscription?: PerpsSubscriptionFeeWaiverStatus;
 };
@@ -1803,6 +1826,21 @@ export type PerpsFeeResolution = {
 
   /** Subscription gate outcome, always populated for observability. */
   subscription: PerpsSubscriptionFeeWaiverStatus;
+
+  /**
+   * How much of the order the subscription allowance covered, when the
+   * subscription source won.
+   *
+   * `full` waives the whole MetaMask builder fee; `partial` charges the fee on
+   * the share the allowance did not cover. Absent when another source won.
+   */
+  subscriptionWaiverKind?: 'full' | 'partial';
+
+  /**
+   * Order notional (USD) the subscription allowance covered, when the backend
+   * bounded the allowance and the caller supplied an order notional.
+   */
+  subscriptionCoveredNotionalUsd?: number;
 };
 
 export type UpdatePositionTPSLParams = {
@@ -2080,10 +2118,29 @@ export type PerpsProvider = {
   getBlockExplorerUrl(address?: string): string;
 
   // Fee discount context (optional - for MetaMask reward discounts)
+  /**
+   * Which provider a write with this route actually reaches.
+   *
+   * Implemented only by an aggregating provider, whose `protocolId` names the
+   * aggregate rather than the route and whose reads span every active provider.
+   * A single provider needs no answer: every write reaches itself.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId?(providerId?: PerpsProviderType): PerpsProviderType;
+
   setUserFeeDiscount?(discountBips: number | undefined): void;
   // Full fee resolution context, including attribution source.
   setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
-  /** Approve the dedicated subscription builder outside order submission. */
+  /**
+   * Approve the dedicated subscription builder outside order submission.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder. Nothing on the order path reads this
+   * approval any more; it is retained only so the previous design can be
+   * restored cheaply if cloid marking does not hold up in shadow mode.
+   */
   approveSubscriptionBuilderFee?(): Promise<boolean>;
 
   // HIP-3 (Builder-deployed DEXs) operations - optional for backward compatibility
@@ -2617,7 +2674,7 @@ export type PerpsPlatformDependencies = {
     /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
     marketDataUrl?: string;
 
-    /** Full endpoint URL for the schema-v2 atomic global Perps snapshot. */
+    /** Full endpoint URL for the schema-v3 atomic global Perps snapshot. */
     globalSnapshotUrl?: string;
   };
 
@@ -2671,6 +2728,15 @@ export type PerpsPlatformDependencies = {
      * snapshot and never grants the waiver from a failed read.
      */
     getPerpsBenefits(): Promise<PerpsSubscriptionBenefits | null>;
+
+    /**
+     * Register the current HyperLiquid trading address (CAIP-10) against the
+     * subscription profile, so a later fill can be attributed to it.
+     *
+     * Optional compatibility fallback for clients that do not register the
+     * structural `SubscriptionController:registerAddress` action.
+     */
+    registerTradingAddress?(caipAccountId: string): Promise<void>;
   };
 };
 

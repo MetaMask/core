@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^4.0.0` to `^4.1.0`. ([#10351](https://github.com/MetaMask/core/pull/10351))
+
+### Fixed
+
+- Fixed subscription getBenefits delegation in the `SubscriptionController` init. ([#10355](https://github.com/MetaMask/core/pull/10355))
+
 ## [14.0.0]
 
 ### Added
@@ -267,7 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...@metamask/wallet@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.3...@metamask/wallet@13.0.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...@metamask/wallet@12.0.3

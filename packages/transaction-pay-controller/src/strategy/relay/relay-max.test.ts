@@ -20,7 +20,7 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token.js';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import { getRelayMaxGasStationQuote } from './relay-max.js';
 import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/token');
@@ -153,7 +153,7 @@ function makeFullRequest(
   };
 }
 
-describe('relay-max-gas-station', () => {
+describe('relay-max', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);

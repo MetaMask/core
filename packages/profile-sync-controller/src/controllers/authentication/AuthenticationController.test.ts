@@ -3321,6 +3321,77 @@ describe('MFA step-up verification', () => {
     expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
   });
 
+  it('sends the elevated token when beginning enrollment while a session is live', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeStepUp(controller);
+    const elevated = controller.getElevatedProfileToken()?.accessToken;
+    expect(elevated).toBeDefined();
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      expect(
+        new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
+          'Authorization',
+        ),
+      ).toBe(`Bearer ${elevated}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('sends the base token on enrollment calls without a live session', async () => {
+    const { controller } = createController();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      expect(
+        new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
+          'Authorization',
+        ),
+      ).toBe(`Bearer ${base}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('surfaces aal2_required from enrollment', async () => {
+    mockEndpointMfaEnroll({
+      status: 403,
+      body: { code: 'aal2_required', message: 'Elevated session required' },
+    });
+    const { controller } = createController();
+
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'aal2_required', status: 403 });
+  });
+
   it('clears an elevated session after successful enrollment', async () => {
     mockSuccessfulCompletion();
     mockEndpointMfaEnrollComplete();
