@@ -915,7 +915,6 @@ describe('TradingService', () => {
           maxSlippageBps: 300,
           expectedPrice: 50_000,
           currentPrice: 51_680,
-          szDecimals: 3,
         },
       };
 
