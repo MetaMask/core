@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export the subscription fee-waiver helpers from the `utils` barrel, including `hasFeeReductionAppliedFlag` and `isSubscriptionProgramCloid` for decoding a marked client order ID, and add an exact `./utils` subpath export so the barrel is importable as `@metamask/perps-controller/utils`. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `chargesMetamaskBuilderFee` field to `FeeCalculationResult`, which reports whether a placement can carry a MetaMask builder fee at all. A `metamaskFeeRate` of `0` is otherwise ambiguous between a venue or order type that has no builder field and a fully waived fee. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `registerTradingAddress` hook to the injected `subscription` dependency, for registering the current HyperLiquid trading address (CAIP-10) against the subscription profile. The injected hook remains a fallback for clients that do not provide `SubscriptionController:registerAddress`. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Add optional `fillId` field to the `OrderFill` type, carrying the venue's unique execution identifier (HyperLiquid `tid`, Lighter `tradeId`) so clients can tell apart two executions of one order that share `orderId`, `timestamp`, `size` and `price` ([#10384](https://github.com/MetaMask/core/pull/10384))
 
 ### Changed
 
@@ -72,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `id` field to `PerpsMarketData` type, populated from the v3 Terminal snapshot endpoint ([#10356](https://github.com/MetaMask/core/pull/10356))
-- Add optional `fillId` field to the `OrderFill` type, carrying the venue's unique execution identifier (HyperLiquid `tid`, Lighter `tradeId`) so clients can tell apart two executions of one order that share `orderId`, `timestamp`, `size` and `price`
 
 ### Changed
 
