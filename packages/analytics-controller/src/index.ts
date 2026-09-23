@@ -68,6 +68,7 @@ export type {
   AnalyticsControllerOptInToMarketingAction,
   AnalyticsControllerOptOutOfMarketingAction,
   AnalyticsControllerResetMarketingConsentDecisionAction,
+  AnalyticsControllerSetMarketingCampaignCookieIdAction,
   AnalyticsControllerCreateEventFragmentAction,
   AnalyticsControllerUpsertEventFragmentAction,
   AnalyticsControllerUpdateEventFragmentAction,

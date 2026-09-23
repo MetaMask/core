@@ -304,6 +304,7 @@ describe('SocialService', () => {
         winRate30d: 0.75,
         roiPercent30d: 2.5,
         tradeCount30d: 42,
+        volumeUsd30d: 150000,
         pnl7d: 10000,
         winRate7d: 0.7,
         roiPercent7d: 1.2,
@@ -318,6 +319,11 @@ describe('SocialService', () => {
       socialHandles: mockSocialHandles,
       followerCount: 100,
       followingCount: 50,
+      copytradedAllTime: {
+        count: 12,
+        volumeUSD: 9800,
+        distinctActors: 4,
+      },
     };
 
     it('fetches trader profile from correct endpoint', async () => {
@@ -472,6 +478,26 @@ describe('SocialService', () => {
       expect(result.perChainBreakdown).toStrictEqual(
         withPerChain7d.perChainBreakdown,
       );
+    });
+
+    it('accepts and returns volumeUsd30d and copytradedAllTime', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.stats.volumeUsd30d).toBe(150000);
+      expect(result.copytradedAllTime).toStrictEqual({
+        count: 12,
+        volumeUSD: 9800,
+        distinctActors: 4,
+      });
     });
 
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
@@ -1131,6 +1157,70 @@ describe('SocialService', () => {
       expect(
         result.items[0]?.authorComment?.engagement.reactions,
       ).toStrictEqual([{ emotion: '🔥', count: 3, profiles: [] }]);
+    });
+
+    it('accepts feed-card stats and still accepts items that omit them', async () => {
+      const withStats = {
+        ...mockFeedItem,
+        actor: {
+          ...mockProfileSummary,
+          winRate30d: 0.61,
+          pnl30d: 1200,
+          tradeCount30d: 40,
+          followerCount: 12,
+        },
+        commentCount: 1,
+        replyCount: 3,
+        firstTradeAt: 1_699_999_000,
+        holdTimeMs: 28_800_000,
+        entryPriceUsd: 2500,
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [withStats],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.actor.winRate30d).toBe(0.61);
+      expect(result.items[0]?.actor.followerCount).toBe(12);
+      expect(result.items[0]?.commentCount).toBe(1);
+      expect(result.items[0]?.replyCount).toBe(3);
+      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
+      expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
+      expect(result.items[0]?.entryPriceUsd).toBe(2500);
+    });
+
+    // An open position has no final hold; the anchor is what the client
+    // counts from, so it has to survive validation on its own.
+    it('accepts an open position that sends only the hold anchor', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                ...mockFeedItem,
+                firstTradeAt: 1_699_999_000,
+                holdTimeMs: null,
+              },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
+      expect(result.items[0]?.holdTimeMs).toBeNull();
     });
   });
 

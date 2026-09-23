@@ -23,6 +23,7 @@ import type {
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
+  ProfileIdentifier,
   OidcTokenAudience,
   OidcTokenClaims,
   UserProfileLineage,
@@ -114,7 +115,11 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
   async beginMfaEnrollment(
     type: MfaCredentialType,
-    options?: { email?: string; entropySourceId?: string },
+    options?: {
+      email?: string;
+      entropySourceId?: string;
+      accessToken?: string;
+    },
   ): Promise<EnrollmentChallenge> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.beginMfaEnrollment(type, options);
@@ -173,9 +178,9 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   async pairSocialIdentifier(
     params: PairSocialIdentifierParams,
     authAccessToken: string,
-  ): Promise<void> {
+  ): Promise<ProfileIdentifier[] | undefined> {
     this.#assertSRP(this.#type, this.#sdk);
-    await this.#sdk.pairSocialIdentifier(params, authAccessToken);
+    return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
   }
 
   async signMessage(
