@@ -29,6 +29,7 @@ import {
   SERVER_POLLING_INTERVAL,
   SERVER_URL_BASE,
 } from '../strategy/server/constants.js';
+import { DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES } from '../strategy/server/server-support.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
@@ -210,6 +211,7 @@ type FeatureFlagsExtendedRaw = {
     };
     server?: {
       enabled?: boolean;
+      enabledTransactionTypes?: string[];
       baseUrl?: string;
       pollingInterval?: number;
       pollingTimeout?: number;
@@ -226,6 +228,7 @@ export type PayStrategiesConfig = {
   across: AcrossConfig;
   server: {
     enabled: boolean;
+    enabledTransactionTypes: TransactionType[];
     baseUrl: string;
     pollingInterval: number;
     pollingTimeout?: number;
@@ -237,6 +240,28 @@ export type PayStrategiesConfig = {
 
 function normalizeHex(value: string | undefined): Hex | undefined {
   return value?.toLowerCase() as Hex | undefined;
+}
+
+/**
+ * Convert raw remote-flag transaction type strings into known transaction
+ * types, discarding any value the client does not recognise.
+ *
+ * @param values - Raw transaction type strings from the remote feature flag.
+ * @returns Recognised transaction types, or the default allowlist when the
+ * flag is absent.
+ */
+function normalizeTransactionTypes(
+  values: string[] | undefined,
+): TransactionType[] {
+  if (!Array.isArray(values)) {
+    return DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES;
+  }
+
+  const knownTypes = Object.values(TransactionType) as string[];
+
+  return uniq(values.filter((value) => knownTypes.includes(value))).map(
+    (value) => value as TransactionType,
+  );
 }
 
 function normalizeStrategy(
@@ -618,6 +643,9 @@ export function getPayStrategiesConfig(
 
   const server = {
     enabled: serverRaw.enabled ?? false,
+    enabledTransactionTypes: normalizeTransactionTypes(
+      serverRaw.enabledTransactionTypes,
+    ),
     baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
     pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
     pollingTimeout: serverRaw.pollingTimeout,

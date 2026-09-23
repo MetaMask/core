@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Gate the server pay strategy per transaction type so flows can be enabled individually ([#10312](https://github.com/MetaMask/core/pull/10312))
+  - `ServerStrategy.supports` now also requires a transaction type listed in the new `payStrategies.server.enabledTransactionTypes` remote feature flag, which defaults to empty.
+  - `ServerStrategy.supports` now declines flows using capabilities the strategy does not implement yet, regardless of the flag.
 - Support subsidized max Relay deposits using atomic `EXACT_OUTPUT` quotes with transaction calls embedded, gated by `payStrategies.relay.atomicMaxEnabled` (disabled by default, with per-transaction-type overrides). ([#10224](https://github.com/MetaMask/core/pull/10224))
   - Honor the client's `atomic` hint: atomic max quotes use the source-token budget adjusted to destination decimals for 1:1 subsidized stablecoin routes, without a discovery quote or reusing the original deposit amount. Unsubsidized responses are re-quoted non-atomically.
   - Non-atomic hints start with `EXACT_INPUT` and upgrade to atomic execution when subsidized.
