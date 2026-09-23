@@ -228,7 +228,7 @@ Environment prerequisites (Node LTS + Yarn 4 via Corepack + `yarn install`) are 
 
 Standard lint/test/build commands are documented above and in `docs/processes/`. Non-obvious caveats for this environment:
 
-- `yarn build` (whole monorepo, via `ts-bridge`) takes ~100s. `yarn lint:eslint` takes ~3–4 minutes.
+- `yarn build` (whole monorepo, via `tsc --build`) takes ~100s. `yarn lint:eslint` takes ~3–4 minutes.
 - `yarn lint:eslint` runs `build:only-clean` first, which **deletes all `packages/*/dist`**. Run `yarn build` again afterward if you need the built artifacts (tests don't need `dist`; they run TS/Babel directly).
 - The full `yarn lint` does much more than ESLint (constraints, `knip` dependency checks, changelog/teams/tsconfig/codeowners checks); prefer `yarn lint:eslint` for a quick code-quality pass.
 - Per-package tests are fast: `yarn workspace <package-name> run test`. `yarn test` across all packages is heavy.
