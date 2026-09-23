@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.1.0]
+
 ### Changed
 
 - Gate the server pay strategy per transaction type so flows can be enabled individually ([#10312](https://github.com/MetaMask/core/pull/10312))
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Atomic promotion errors retain the `Atomic promotion failed` prefix through standard quote error handling and strategy fallback.
 - Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
 - Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
 
 ## [29.0.2]
 
@@ -1589,7 +1592,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.0...HEAD
+[29.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.2...@metamask/transaction-pay-controller@29.1.0
 [29.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.1...@metamask/transaction-pay-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.0...@metamask/transaction-pay-controller@29.0.1
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...@metamask/transaction-pay-controller@29.0.0
