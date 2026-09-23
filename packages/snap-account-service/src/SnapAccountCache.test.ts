@@ -38,19 +38,14 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SnapAccountServiceMessenger {
-  const messenger = new Messenger({
+  return rootMessenger.buildChild({
     namespace: 'SnapAccountService',
-    parent: rootMessenger,
-  });
-  rootMessenger.delegate({
-    messenger,
     actions: ['AccountsController:getState'],
     events: [
       'AccountsController:accountsAdded',
       'AccountsController:accountsRemoved',
     ],
   });
-  return messenger;
 }
 
 /**
