@@ -9671,6 +9671,133 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getFallbackBuyWidgetData', () => {
+    const fallback = {
+      url: 'https://on-ramp.uat-api.cx.metamask.io/providers/coinbase/buy-widget?checkout=hosted',
+      browser: 'IN_APP_OS_BROWSER' as const,
+    };
+
+    it('fetches the hosted widget for the fallback url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn(async () => ({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+          browser: 'IN_APP_OS_BROWSER' as const,
+          orderId: '/providers/coinbase/orders/abc',
+        }));
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          fallback,
+        );
+
+        expect(getBuyWidgetUrl).toHaveBeenCalledWith(fallback.url);
+        expect(buyWidget).toStrictEqual({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+          browser: 'IN_APP_OS_BROWSER',
+          orderId: '/providers/coinbase/orders/abc',
+        });
+      });
+    });
+
+    it('sets redirectUrl on the fallback url, replacing an existing one', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn(async (_buyUrl: string) => ({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+        }));
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          { ...fallback, url: `${fallback.url}&redirectUrl=https%3A%2F%2Fold` },
+          { redirectUrl: 'metamask://on-ramp/providers/coinbase' },
+        );
+
+        const requested = new URL(getBuyWidgetUrl.mock.calls[0][0]);
+        expect(requested.searchParams.get('checkout')).toBe('hosted');
+        expect(requested.searchParams.getAll('redirectUrl')).toStrictEqual([
+          'metamask://on-ramp/providers/coinbase',
+        ]);
+      });
+    });
+
+    it('returns null without calling the service when the fallback has no url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          { ...fallback, url: '' },
+        );
+
+        expect(buyWidget).toBeNull();
+        expect(getBuyWidgetUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws without calling the service when the fallback url is malformed', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        await expect(
+          rootMessenger.call('RampsController:getFallbackBuyWidgetData', {
+            ...fallback,
+            url: 'not a url',
+          }),
+        ).rejects.toThrow('Invalid URL');
+        expect(getBuyWidgetUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns null when the service returns an empty url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({ url: '', browser: 'IN_APP_OS_BROWSER' as const }),
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          fallback,
+        );
+
+        expect(buyWidget).toBeNull();
+      });
+    });
+
+    it('propagates errors from the service', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:getFallbackBuyWidgetData',
+            fallback,
+          ),
+        ).rejects.toThrow('Network error');
+      });
+    });
+  });
+
   describe('addPrecreatedOrder', () => {
     it('adds a stub order with Precreated status for polling', async () => {
       await withController(({ controller, rootMessenger }) => {

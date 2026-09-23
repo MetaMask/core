@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fallback` to `BuyWidget` and the `BuyWidgetFallback` type for the hosted-flow entry the quotes API attaches when an embedded checkout may turn the user away ([#10391](https://github.com/MetaMask/core/pull/10391))
+- Add `getBuyWidgetFallback` to read a quote's buy-widget fallback ([#10391](https://github.com/MetaMask/core/pull/10391))
+- Add `RampsController:getFallbackBuyWidgetData` to resolve a buy-widget fallback into the hosted widget, optionally setting its `redirectUrl` ([#10391](https://github.com/MetaMask/core/pull/10391))
+
 ## [25.0.0]
 
 ### Changed
