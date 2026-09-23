@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#10374](https://github.com/MetaMask/core/pull/10374))
+  - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
+  - `AuthenticationController.beginCredentialEnrollment` sends the elevated token while a step-up session is live, since enrolling additional credentials requires AAL2
+  - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
+- Add `pairedIdentifierIds` to `UserProfile` in `srpSessionData`, set from the login response and, on the primary SRP session, from the SRP and social pairing responses, so clients can tell whether a profile has been socially paired ([#10394](https://github.com/MetaMask/core/pull/10394))
+
+### Changed
+
+- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+
+## [32.2.0]
+
+### Added
+
+- Add `beginStepUp`, `completeStepUp`, `getElevatedProfileToken` and `clearStepUpSession` to `AuthenticationController`, holding the elevated token in memory only behind a hard-expiring `stepUpSessionExpiresAt` state ([#10267](https://github.com/MetaMask/core/pull/10267))
+- Add `refreshEnrolledCredentials`, `beginCredentialEnrollment` and `completeCredentialEnrollment` to `AuthenticationController`, backed by a memory-only `enrolledCredentials` state and an optional `trace` callback ([#10266](https://github.com/MetaMask/core/pull/10266))
+- Add passkey and email OTP enrollment, verification, credential-list, and elevated-token exchange SDK methods ([#10265](https://github.com/MetaMask/core/pull/10265))
+- Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
+- Add `rampsOrders` to `USER_STORAGE_FEATURE_NAMES` ([#10227](https://github.com/MetaMask/core/pull/10227))
+
+## [32.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+### Fixed
+
+- Point leftover `sdk`, `auth`, and `user-storage` subpath `package.json` files at the ESM build ([#10218](https://github.com/MetaMask/core/pull/10218))
+
+## [32.1.0]
+
+### Added
+
+- Add `AuthenticationController.getPartnerIdentityToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email. ([#10164](https://github.com/MetaMask/core/pull/10164))
+
+## [32.0.0]
+
+### Added
+
+- Add `AuthenticationController.clearState()` to reset the controller to `defaultState` (unsigned, both pairing gates re-armed). Clients call this on wallet reset ([#10165](https://github.com/MetaMask/core/pull/10165))
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
+
+### Changed
+
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Prefer `isRampsSyncingEnabled ?? true` in selectors so wallets upgraded before this field existed keep ramps syncing on by default
+
 ## [31.0.0]
 
 ### Changed
@@ -941,7 +992,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...HEAD
+[32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
+[32.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...@metamask/profile-sync-controller@32.1.1
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...@metamask/profile-sync-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@30.0.0...@metamask/profile-sync-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...@metamask/profile-sync-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0

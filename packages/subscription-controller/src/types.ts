@@ -1,6 +1,8 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
+import type { CANCELLATION_REASONS } from './constants.js';
+
 /**
  * Error response from the Subscription API.
  */
@@ -119,6 +121,16 @@ export const SUBSCRIPTION_STATUSES = {
 export type SubscriptionStatus =
   (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
 
+export const INVOICE_PAYMENT_STATUSES = {
+  PROCESSING: 'PROCESSING',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export type InvoicePaymentStatus =
+  (typeof INVOICE_PAYMENT_STATUSES)[keyof typeof INVOICE_PAYMENT_STATUSES];
+
 export const CANCEL_TYPES = {
   ALLOWED_IMMEDIATE: 'allowed_immediate',
   ALLOWED_AT_PERIOD_END: 'allowed_at_period_end',
@@ -127,6 +139,9 @@ export const CANCEL_TYPES = {
 } as const;
 
 export type CancelType = (typeof CANCEL_TYPES)[keyof typeof CANCEL_TYPES];
+
+export type CancellationReasonCode =
+  (typeof CANCELLATION_REASONS)[keyof typeof CANCELLATION_REASONS];
 
 export const CRYPTO_PAYMENT_METHOD_ERRORS = {
   APPROVAL_TRANSACTION_TOO_OLD: 'approval_transaction_too_old',
@@ -139,6 +154,25 @@ export const CRYPTO_PAYMENT_METHOD_ERRORS = {
 
 export type CryptoPaymentMethodError =
   (typeof CRYPTO_PAYMENT_METHOD_ERRORS)[keyof typeof CRYPTO_PAYMENT_METHOD_ERRORS];
+
+/**
+ * Errors returned by the Subscription API after crypto payment execution.
+ *
+ * These are distinct from {@link CRYPTO_PAYMENT_METHOD_ERRORS}, which describe
+ * approval/payment-method failures.
+ */
+export const CRYPTO_PAYMENT_ERRORS = {
+  INSUFFICIENT_BALANCE: 'insufficient_balance',
+  INSUFFICIENT_ALLOWANCE: 'insufficient_allowance',
+  EXCEEDS_DELEGATION_ALLOWANCE: 'exceeds_delegation_allowance',
+  DELEGATION_NOT_FOUND: 'delegation_not_found',
+  DELEGATION_REVOKED: 'delegation_revoked',
+  RECIPIENT_NOT_ALLOWLISTED: 'recipient_not_allowlisted',
+  INTERNAL_SERVER_ERROR: 'internal_server_error',
+} as const;
+
+export type CryptoPaymentError =
+  (typeof CRYPTO_PAYMENT_ERRORS)[keyof typeof CRYPTO_PAYMENT_ERRORS];
 
 export const MODAL_TYPE = {
   A: 'A',
@@ -161,8 +195,8 @@ export type Product = {
 export type Subscription = {
   id: string;
   products: Product[];
-  currentPeriodStart: string; // ISO 8601
-  currentPeriodEnd: string; // ISO 8601
+  currentPeriodStart?: string; // ISO 8601
+  currentPeriodEnd?: string; // ISO 8601
   /** is subscription scheduled for cancellation */
   cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
@@ -176,12 +210,21 @@ export type Subscription = {
   /** The date the subscription was canceled. */
   canceledAt?: string; // ISO 8601
   /** The cancellation type indicating what cancellation options are available for this subscription. */
-  cancelType: CancelType;
+  cancelType?: CancelType;
   /** The date the subscription was marked as inactive (paused/past_due/canceled). */
   inactiveAt?: string; // ISO 8601
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
-  isEligibleForSupport: boolean;
+  isEligibleForSupport?: boolean;
   billingCycles?: number;
+  /** The most recent invoice associated with the subscription. */
+  lastInvoice?: SubscriptionInvoice;
+};
+
+export type SubscriptionInvoice = {
+  id: string;
+  status: InvoicePaymentStatus;
+  errorCode?: CryptoPaymentError;
+  updatedAt: string; // ISO 8601
 };
 
 export type SubscriptionCardPaymentMethod = {
@@ -375,6 +418,10 @@ export type CancelSubscriptionRequest = {
   subscriptionId: string;
   /** Whether to cancel at the end of the current period */
   cancelAtPeriodEnd?: boolean;
+  /** Stable reason code for the cancellation. */
+  cancellationReason?: CancellationReasonCode;
+  /** Optional free-text feedback for the cancellation. */
+  cancellationFeedback?: string;
 };
 
 export type AuthUtils = {
@@ -709,19 +756,50 @@ export type UpdatePaymentMethodCardResponse = {
   redirectUrl: string;
 };
 
-export type UpdatePaymentMethodCryptoRequest = {
+type UpdatePaymentMethodCryptoRequestBase = {
   subscriptionId: string;
   chainId: Hex;
   payerAddress: Hex;
   tokenSymbol: string;
-  /**
-   * The raw transaction to pay for the subscription
-   * Can be empty if retry after topping up balance
-   */
-  rawTransaction?: Hex;
   recurringInterval: RecurringInterval;
   billingCycles: number;
 };
+
+/**
+ * ERC-20 approval crypto payment-method update request.
+ *
+ * `rawTransaction` may be omitted when retrying after a balance top-up.
+ */
+export type UpdateErc20PaymentMethodCryptoRequest =
+  UpdatePaymentMethodCryptoRequestBase & {
+    cryptoAuthMethod?: typeof CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
+    /**
+     * The raw transaction to pay for the subscription.
+     */
+    rawTransaction?: Hex;
+    delegationHash?: never;
+  };
+
+/**
+ * Delegation crypto payment-method update request used to rotate an active
+ * subscription to a replacement delegation.
+ */
+export type UpdateDelegationPaymentMethodCryptoRequest =
+  UpdatePaymentMethodCryptoRequestBase & {
+    cryptoAuthMethod: typeof CRYPTO_AUTH_METHODS.DELEGATION;
+    delegationHash: Hex;
+    rawTransaction?: never;
+  };
+
+/**
+ * Request to update a subscription's crypto payment method.
+ *
+ * Provide `rawTransaction` for the existing ERC-20 approval path, or provide
+ * `cryptoAuthMethod: 'delegation'` and `delegationHash` to rotate a delegation.
+ */
+export type UpdatePaymentMethodCryptoRequest =
+  | UpdateErc20PaymentMethodCryptoRequest
+  | UpdateDelegationPaymentMethodCryptoRequest;
 
 export type BillingPortalResponse = {
   url: string;

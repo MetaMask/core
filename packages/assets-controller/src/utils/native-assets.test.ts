@@ -1,9 +1,10 @@
-import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 
 import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  getDefaultNativeAssetBalance,
+  NATIVE_ASSETS,
 } from './native-assets.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
@@ -15,13 +16,37 @@ jest.mock('@metamask/controller-utils', () => ({
 const fetchWithErrorHandlingMock = jest.mocked(fetchWithErrorHandling);
 
 describe('buildNativeAssetsFromConstant', () => {
-  it('includes a normalized entry for every value in SPOT_PRICES_SUPPORT_INFO', () => {
+  it('includes a normalized entry for every NATIVE_ASSETS chain', () => {
     const result = buildNativeAssetsFromConstant();
-    const supportInfoValues = Object.values(SPOT_PRICES_SUPPORT_INFO);
 
-    for (const assetId of supportInfoValues) {
-      expect(Object.values(result)).toContain(normalizeAssetId(assetId));
+    for (const [chainId, assetId] of Object.entries(NATIVE_ASSETS)) {
+      expect(result[chainId]).toBe(normalizeAssetId(assetId));
     }
+  });
+});
+
+describe('getDefaultNativeAssetBalance', () => {
+  it('seeds Stellar natives with zero spendable and reserve metadata', () => {
+    expect(
+      getDefaultNativeAssetBalance('stellar:pubnet/slip44:148'),
+    ).toStrictEqual({
+      amount: '0',
+      metadata: {
+        minimumReserveBalance: '0',
+        spendableBalance: '0',
+      },
+    });
+  });
+
+  it('seeds non-Stellar natives as a plain zero amount', () => {
+    expect(
+      getDefaultNativeAssetBalance(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      ),
+    ).toStrictEqual({ amount: '0' });
+    expect(getDefaultNativeAssetBalance('eip155:1/slip44:60')).toStrictEqual({
+      amount: '0',
+    });
   });
 });
 

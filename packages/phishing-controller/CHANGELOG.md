@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^71.0.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386))
+
+## [18.1.0]
+
+### Added
+
+- Add `extractSignatureAddresses` utility, plus `ExtractedSignatureAddresses` and `ExtractSignatureAddressesOptions` types, to collect the `address`-typed values from an EIP-712 typed-data message for real-time address scanning ([#10170](https://github.com/MetaMask/core/pull/10170))
+  - Walks the `types` schema from `primaryType`, matching fields by declared type (`address`/`address[]`, including nested structs and arrays) rather than by field name, so custom and unknown message shapes are covered without per-protocol handling.
+  - Normalizes non-canonical `address` encodings (variable-length hex and decimal strings) into canonical lower-case 20-byte hex by taking the leading 20 bytes of the signer-compatible big-endian encoding, and de-duplicates case-insensitively.
+  - Excludes the zero address, a caller-provided `exclude` list (e.g. the signer), and caller-provided top-level `excludeFields`.
+  - Bounds work with a distinct-address cap (default 10, caller-overridable via `maxAddresses`, hard ceiling 50), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked. Exports `DEFAULT_MAX_SIGNATURE_ADDRESSES` and `MAX_SIGNATURE_ADDRESSES_CEILING`.
+  - Returns the field name each address was found under so callers can attribute alerts.
+
 ## [18.0.0]
 
 ### Changed
@@ -668,7 +683,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...@metamask/phishing-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...@metamask/phishing-controller@18.0.0
 [17.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...@metamask/phishing-controller@17.4.1
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...@metamask/phishing-controller@17.4.0

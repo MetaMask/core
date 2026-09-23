@@ -336,10 +336,10 @@ const config = createConfig([
       'packages/message-manager/src/AbstractMessageManager.ts',
       'packages/message-manager/src/DecryptMessageManager.ts',
       'packages/message-manager/src/EncryptionPublicKeyManager.ts',
+      'packages/network-controller/tests/mock-network.ts',
       'packages/permission-log-controller/src/PermissionLogController.ts',
       'packages/phishing-controller/src/PhishingController.ts',
       'packages/rate-limit-controller/src/RateLimitController.ts',
-      'tests/mock-network.ts',
     ],
     rules: {
       // TODO: Re-enable this rule

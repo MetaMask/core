@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `INVOICE_PAYMENT_STATUSES` / `InvoicePaymentStatus` for typed invoice
+  payment status values. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `CRYPTO_PAYMENT_ERRORS` / `CryptoPaymentError` and optional `Subscription.lastInvoice` (`SubscriptionInvoice`) for Subscription API crypto payment-execution failures. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `selectIsPaymentFailed`, `selectPaymentFailureReason`, `selectIsRenewalNeeded`, and `selectIsDelegationExhausted` selectors keyed by subscription product. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `UpdateDelegationPaymentMethodCryptoRequest` so `updatePaymentMethod` can rotate an active crypto subscription with `cryptoAuthMethod` and `delegationHash`. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add optional `forceNew` to `SubscriptionDelegationService:prepareDelegation` to create a replacement delegation instead of reusing a matching stored one. ([#10305](https://github.com/MetaMask/core/pull/10305))
+
+### Changed
+
+- **BREAKING:** Make `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` optional so paused or failed crypto subscriptions can validate. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Refresh the access token when Money Account Plus subscription snapshots change, including payment-failure state while status remains active. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Prefer the latest period `startDate` when `prepareDelegation` reuses a matching stored cash-subscription delegation, so a `forceNew` replacement is chosen over an older equivalent record. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
+
+## [9.1.0]
+
+### Added
+
+- Add `SubscriptionDelegationService` for Money Account Plus cash-subscription delegation setup. ([#10130](https://github.com/MetaMask/core/pull/10130))
+  - New messenger action `SubscriptionDelegationService:prepareDelegation` orchestrates periodic caveat construction, signing, CHOMP verification, Authenticated User Storage persistence, and CHOMP intent registration.
+  - Returns a verified `delegationHash` with `disposition: 'created' | 'reused'` for `SubscriptionController.startSubscriptionWithCrypto`; the controller does not depend on this service.
+  - `prepareDelegation` accepts the product, recurring interval, payer address, trial selection, optional balance-check flag, and optional `skipChompInteractions` flag; it resolves plan, token, and delegate data through `SubscriptionController:getPricing`.
+  - When `skipChompInteractions` is true, CHOMP verify and intent registration are skipped; the returned hash is computed locally and AUS persistence still occurs.
+  - Resolves the chain from `moneyAccountVaultConfig` and Delegation Framework v1.3.0 enforcers from `@metamask/delegation-deployments`.
+  - Uses pricing `delegateAddress` as both the delegation `delegate` and the RedeemerEnforcer redeemer.
+  - Offsets the period-transfer `startDate` by pricing `trialPeriodDays` only when the trial is selected.
+  - New messenger action `SubscriptionDelegationService:checkMoneyAccountBalance` compares Money Account convertible mUSD balance against pricing `unitAmount × minBillingCyclesForBalance`; `prepareDelegation` can gate on it via `checkBalance`.
+  - Exports `CASH_SUBSCRIPTION_DELEGATION_TYPE` (`'cash-subscription'`) for AUS metadata (and for CHOMP intent metadata once chomp-api-service supports that type).
+  - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
+- Add stable cancellation reason codes and optional free-text feedback to the subscription cancellation request ([#10189](https://github.com/MetaMask/core/pull/10189))
+
+### Changed
+
+- Refresh subscriptions, product entitlements, and benefits after a successful subscription cancellation ([#10189](https://github.com/MetaMask/core/pull/10189))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
 ## [9.0.0]
 
 ### Changed
@@ -483,7 +530,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.1...@metamask/subscription-controller@9.1.0
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.0...@metamask/subscription-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.1.0...@metamask/subscription-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.0.1...@metamask/subscription-controller@8.1.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.0.0...@metamask/subscription-controller@8.0.1

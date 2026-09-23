@@ -5,6 +5,7 @@ import {
   PairConflictError,
   PairError,
   RateLimitedError,
+  EmailRequiredError,
 } from '../errors.js';
 import {
   getNonce,
@@ -15,6 +16,7 @@ import {
   pairSocialIdentifier,
   getUserProfileLineage,
   getCustomerServiceToken,
+  getPartnerIdentityToken,
   NONCE_URL,
   OIDC_TOKEN_URL,
   SRP_LOGIN_URL,
@@ -24,6 +26,7 @@ import {
   PAIR_SOCIAL_IDENTIFIER_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
+  PARTNER_IDENTITY_TOKEN_URL,
 } from './services.js';
 import { AuthType } from './types.js';
 
@@ -149,6 +152,12 @@ describe('services', () => {
     it('should build correct CUSTOMER_SERVICE_TOKEN_URL', () => {
       expect(CUSTOMER_SERVICE_TOKEN_URL(Env.DEV)).toBe(
         'https://authentication.dev-api.cx.metamask.io/api/v2/customer-service/token',
+      );
+    });
+
+    it('should build correct PARTNER_IDENTITY_TOKEN_URL', () => {
+      expect(PARTNER_IDENTITY_TOKEN_URL(Env.DEV)).toBe(
+        'https://authentication.dev-api.cx.metamask.io/api/v2/oidc/token',
       );
     });
   });
@@ -375,6 +384,7 @@ describe('services', () => {
           metaMetricsId: 'mm-1',
           profileId: 'profile-1',
           canonicalProfileId: 'profile-1',
+          pairedIdentifierIds: undefined,
         },
         profileAliases: [],
       });
@@ -388,6 +398,33 @@ describe('services', () => {
           }),
         }),
       );
+    });
+
+    it('should map paired_identifier_ids onto the profile', async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse({
+          ...mockAuthResponse,
+          profile: {
+            ...mockAuthResponse.profile,
+            paired_identifier_ids: [
+              { id: 'id-google', type: 'GOOGLE' },
+              { id: 'id-1', type: 'SRP' },
+            ],
+          },
+        }),
+      );
+
+      const result = await authenticate(
+        'raw-message',
+        'signature',
+        AuthType.SRP,
+        Env.DEV,
+      );
+
+      expect(result.profile.pairedIdentifierIds).toStrictEqual([
+        { id: 'id-google', type: 'GOOGLE' },
+        { id: 'id-1', type: 'SRP' },
+      ]);
     });
 
     it('should send X-MetaMask-Profile-Pairing header for SRP', async () => {
@@ -928,6 +965,31 @@ describe('services', () => {
       });
     });
 
+    it('should map paired_identifier_ids onto the profile', async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse({
+          ...mockPairApiResponse,
+          profile: {
+            ...mockPairApiResponse.profile,
+            paired_identifier_ids: [
+              { id: 'h1', type: 'SRP' },
+              { id: 'id-canonical', type: 'SRP' },
+            ],
+          },
+        }),
+      );
+
+      const result = await pairProfiles(
+        ['token-1', 'token-2'],
+        'auth-access-token',
+        Env.DEV,
+      );
+
+      expect(result.profile.pairedIdentifierIds).toStrictEqual([
+        { id: 'h1', type: 'SRP' },
+        { id: 'id-canonical', type: 'SRP' },
+      ]);
+    });
     it('should throw PairError on network failure', async () => {
       mockFetch.mockRejectedValue(new Error('Connection refused'));
 
@@ -1073,23 +1135,28 @@ describe('services', () => {
       );
     });
 
-    it('should resolve without reading the response body on 2xx', async () => {
-      const mockResponse = createMockResponse(mockSocialPairResponse);
-      const jsonSpy = jest.spyOn(mockResponse, 'json');
-      mockFetch.mockResolvedValue(mockResponse);
+    it('should return the paired identifiers from the response', async () => {
+      const pairedIdentifierIds = [
+        { id: 'id-social', type: 'GOOGLE' },
+        { id: 'id-srp', type: 'SRP' },
+      ];
+      mockFetch.mockResolvedValue(
+        createMockResponse({
+          ...mockSocialPairResponse,
+          profile: {
+            ...mockSocialPairResponse.profile,
+            paired_identifier_ids: pairedIdentifierIds,
+          },
+        }),
+      );
 
       expect(
         await pairSocialIdentifier(
-          {
-            identifierType: 'GOOGLE',
-            socialJwt: 'social-jwt',
-            email: 'user@example.com',
-          },
+          { identifierType: 'APPLE', socialJwt: 'social-jwt' },
           'primary-srp-token',
           Env.DEV,
         ),
-      ).toBeUndefined();
-      expect(jsonSpy).not.toHaveBeenCalled();
+      ).toStrictEqual(pairedIdentifierIds);
     });
 
     it('should throw PairError on network failure', async () => {
@@ -1341,6 +1408,91 @@ describe('services', () => {
       await expect(
         getCustomerServiceToken(Env.DEV, 'access-token'),
       ).rejects.toThrow(RateLimitedError);
+    });
+  });
+
+  describe('getPartnerIdentityToken', () => {
+    it('should return the access_token on success', async () => {
+      const mockResponse = createMockResponse({
+        access_token: 'partner-access-token',
+        refresh_token: 'ory_rt_unused',
+        expires_in: 3600,
+        token_type: 'bearer',
+      });
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await getPartnerIdentityToken(
+        Env.DEV,
+        'access-token',
+        ['email'],
+        'kyc',
+      );
+
+      expect(result).toBe('partner-access-token');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer access-token',
+          },
+          body: JSON.stringify({
+            claims: ['email'],
+            audience: 'kyc',
+          }),
+        }),
+      );
+    });
+
+    it('should throw SignInError when access_token is missing', async () => {
+      const mockResponse = createMockResponse({});
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(SignInError);
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(
+        'Failed to get partner identity token: missing access_token',
+      );
+    });
+
+    it('should throw SignInError on 400 unknown audience', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'unknown audience', error: 'bad_request' },
+        { ok: false, status: 400 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(SignInError);
+    });
+
+    it('should throw SignInError on 401', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Unauthorized', error: 'invalid_token' },
+        { ok: false, status: 401 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(SignInError);
+    });
+
+    it('should throw EmailRequiredError on 422', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'email_required', error: 'email_required' },
+        { ok: false, status: 422 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(EmailRequiredError);
     });
   });
 

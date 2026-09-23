@@ -110,7 +110,6 @@ import {
   buildDefaultAssetsInfo,
   getDefaultAssetMetadata,
 } from './defaults.js';
-import { AssetsDataSourceError } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
@@ -125,6 +124,10 @@ import {
   isUnlockCleanupEnabled,
   tempHealAssetsInfoMetadata,
 } from './migrations/healAssetsInfoMetadata.js';
+import {
+  buildFastFetchSources,
+  executeAssetsPipeline,
+} from './pipeline/index.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -137,15 +140,12 @@ import type {
   FungibleAssetMetadata,
   AssetPrice,
   AssetBalance,
+  FungibleAssetBalance,
   AccountWithSupportedChains,
   AssetType,
   DataType,
   DataRequest,
   DataResponse,
-  FetchContext,
-  FetchNextFunction,
-  NextFunction,
-  Middleware,
   SubscriptionResponse,
   Asset,
 } from './types.js';
@@ -158,6 +158,7 @@ import {
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  getDefaultNativeAssetBalance,
 } from './utils/index.js';
 import type {
   BridgeExchangeRatesFormat,
@@ -226,8 +227,6 @@ const TRACE_FULL_FETCH = 'AssetsFullFetch';
 /** Parent span that nests per-source timings; dashboard charts {@link TRACE_FULL_FETCH}. */
 const TRACE_FETCH_PIPELINE = 'AssetsFetchPipeline';
 const TRACE_BACKGROUND_FETCH = 'AssetsBackgroundFetch';
-const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
-const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
 const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
 /** Parent span that nests update enrichment; dashboard charts {@link TRACE_UPDATE_PIPELINE}. */
 const TRACE_UPDATE_PARENT = 'AssetsUpdateEnrichment';
@@ -1453,6 +1452,9 @@ export class AssetsController extends BaseController<
    * Execute middlewares with request/response context.
    * Returns response and exclusive duration per source (sum ≈ wall time).
    *
+   * Thin wrapper over {@link executeAssetsPipeline} that supplies the
+   * controller-owned state accessor and exception reporter.
+   *
    * @param params - Middleware execution options.
    * @param params.sources - Data sources or middlewares with getName() and assetsMiddleware.
    * @param params.request - The data request.
@@ -1472,132 +1474,11 @@ export class AssetsController extends BaseController<
     response: DataResponse;
     durationByDataSource: Record<string, number>;
   }> {
-    const {
-      sources,
-      request,
-      initialResponse = {},
-      parentContext,
-      trace,
-    } = params;
-    const names = sources.map((source) => source.getName());
-    const middlewares = sources.map((source) => source.assetsMiddleware);
-    const inclusive: number[] = [];
-    const wrapped = middlewares.map(
-      (middleware, i) =>
-        (async (
-          ctx: FetchContext,
-          next: FetchNextFunction,
-        ): Promise<{
-          request: DataRequest;
-          response: DataResponse;
-          getAssetsState: () => AssetsControllerStateInternal;
-        }> => {
-          const start = performance.now();
-          try {
-            return await middleware(ctx, next);
-          } finally {
-            inclusive[i] = performance.now() - start;
-          }
-        }) as Middleware,
-    );
-
-    const middlewareErrors: string[] = [];
-    const chain = wrapped.reduceRight<NextFunction>(
-      (next, middleware, index) =>
-        async (
-          ctx,
-        ): Promise<{
-          request: DataRequest;
-          response: DataResponse;
-          getAssetsState: () => AssetsControllerStateInternal;
-        }> => {
-          try {
-            return await middleware(ctx, next);
-          } catch (error) {
-            const sourceName = names[index] ?? `middleware_${index}`;
-            middlewareErrors.push(sourceName);
-            console.error('[AssetsController] Middleware failed:', error);
-            return next(ctx);
-          }
-        },
-      async (ctx) => ctx,
-    );
-
-    const result = await chain({
-      request,
-      response: initialResponse,
+    return executeAssetsPipeline({
+      ...params,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
+      captureException: this.#captureException,
     });
-
-    const durationByDataSource: Record<string, number> = {};
-    for (let i = 0; i < inclusive.length; i++) {
-      const nextInc = i + 1 < inclusive.length ? (inclusive[i + 1] ?? 0) : 0;
-      const exclusive = Math.max(0, (inclusive[i] ?? 0) - nextInc);
-      const name = names[i];
-      if (name !== undefined) {
-        durationByDataSource[name] = exclusive;
-      }
-    }
-    if (result.durationByDataSource) {
-      for (const [key, ms] of Object.entries(result.durationByDataSource)) {
-        durationByDataSource[key] = ms;
-      }
-    }
-
-    // Emit per-source timing as subspans under the parent fetch/update span
-    // (no-op when `trace` is omitted — unlock/first-init only).
-    for (const [sourceName, durationMs] of Object.entries(
-      durationByDataSource,
-    )) {
-      emitTrace({
-        name: TRACE_DATA_SOURCE_TIMING,
-        trace,
-        data: {
-          source: sourceName,
-          duration_ms: durationMs,
-          chain_count: request.chainIds.length,
-          account_count: request.accountsWithSupportedChains.length,
-        },
-        tags: {
-          controller: 'AssetsController',
-          // String tag so Spans widgets can group by `source`.
-          source: sourceName,
-        },
-        parentContext,
-      });
-    }
-
-    // Failed middlewares: Issues (optional) + perf/Dashboard spans
-    if (middlewareErrors.length > 0) {
-      const failedSources = middlewareErrors.join(',');
-      const assetsError = new AssetsDataSourceError({
-        failedSources,
-        errorCount: middlewareErrors.length,
-        chainCount: request.chainIds.length,
-      });
-      try {
-        this.#captureException?.(assetsError);
-      } catch {
-        // Never let telemetry throw.
-      }
-      emitTrace({
-        name: TRACE_DATA_SOURCE_ERROR,
-        trace,
-        data: {
-          failed_sources: failedSources,
-          error_count: middlewareErrors.length,
-          chain_count: request.chainIds.length,
-        },
-        tags: {
-          controller: 'AssetsController',
-          severity: 'error',
-          error_type: assetsError.name,
-        },
-        parentContext,
-      });
-    }
-
-    return { response: result.response, durationByDataSource };
   }
 
   // ============================================================================
@@ -1662,24 +1543,19 @@ export class AssetsController extends BaseController<
       // Fast/slow pipelines use merge so partial API snapshots cannot wipe
       // tokens missing from the response (e.g. USDC when only native balance
       // is returned). Balances present in the response are still refreshed.
-      const fastSources = this.#isBasicFunctionality()
-        ? [
-            createParallelBalanceMiddleware([
-              this.#accountsApiDataSource,
-              this.#stakedBalanceDataSource,
-            ]),
-            // Graduation must run BEFORE the RPC fallback so it only sees
-            // AccountsApi/Websocket balances. RPC intentionally carries
-            // custom assets and must never trigger graduation.
+      const fastSources = buildFastFetchSources(
+        {
+          accountsApiDataSource: this.#accountsApiDataSource,
+          stakedBalanceDataSource: this.#stakedBalanceDataSource,
+          customAssetGraduationMiddleware:
             this.#customAssetGraduationMiddleware,
-            this.#rpcFallbackMiddleware,
-            this.#detectionMiddleware,
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          ]
-        : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
+          rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+          detectionMiddleware: this.#detectionMiddleware,
+          tokenDataSource: this.#tokenDataSource,
+          priceDataSource: this.#priceDataSource,
+        },
+        { isBasicFunctionality: this.#isBasicFunctionality() },
+      );
 
       const { response } = await withTrace({
         name: TRACE_FETCH_PIPELINE,
@@ -2592,7 +2468,8 @@ export class AssetsController extends BaseController<
               nativeAssetId,
             )
           ) {
-            balances[accountId][nativeAssetId] = { amount: '0' };
+            balances[accountId][nativeAssetId] =
+              getDefaultNativeAssetBalance(nativeAssetId);
           }
         }
       }
@@ -2708,12 +2585,6 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsInfo,
           )) {
-            if (
-              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
-            ) {
-              changedMetadata.push(key);
-            }
-
             const existing = metadata[key] as FungibleAssetMetadata | undefined;
             const incoming = value as FungibleAssetMetadata;
 
@@ -2722,17 +2593,26 @@ export class AssetsController extends BaseController<
             // the API). Preserve richer metadata already in state (e.g. from
             // pendingMetadata set by addCustomAsset) so that the correct
             // decimals/symbol/name/image are not overwritten with empty values.
-            if (existing && !incoming.symbol && !incoming.name) {
-              metadata[key] = {
-                ...existing,
-                ...incoming,
-                symbol: existing.symbol,
-                name: existing.name,
-                decimals: existing.decimals ?? incoming.decimals,
-                image: existing.image ?? incoming.image,
-              };
-            } else {
-              metadata[key] = value;
+            const nextValue =
+              existing && !incoming.symbol && !incoming.name
+                ? {
+                    ...existing,
+                    ...incoming,
+                    symbol: existing.symbol,
+                    name: existing.name,
+                    decimals: existing.decimals ?? incoming.decimals,
+                    image: existing.image ?? incoming.image,
+                  }
+                : value;
+
+            if (
+              !isEqual(
+                previousState.assetsInfo[key as Caip19AssetId],
+                nextValue,
+              )
+            ) {
+              metadata[key] = nextValue;
+              changedMetadata.push(key);
             }
           }
         }
@@ -2792,14 +2672,15 @@ export class AssetsController extends BaseController<
               if (
                 !Object.prototype.hasOwnProperty.call(effective, nativeAssetId)
               ) {
-                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
+                effective[nativeAssetId] =
+                  getDefaultNativeAssetBalance(nativeAssetId);
               }
             }
 
             for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
-              ] as { amount: string } | undefined;
+              ] as AssetBalance | undefined;
               // Coerce amounts (e.g. "1e-18" from a data source stringifying
               // a JS Number) into a plain decimal so downstream BigInt()
               // consumers don't crash. Decimals are read from the freshest
@@ -2814,7 +2695,13 @@ export class AssetsController extends BaseController<
                 (balance as { amount: unknown }).amount,
                 assetDecimals,
               );
-              effective[assetId] = { ...balance, amount: newAmount };
+              const newMetadata =
+                (balance as FungibleAssetBalance).metadata ??
+                (previousBalance as FungibleAssetBalance | undefined)?.metadata;
+              effective[assetId] = {
+                amount: newAmount,
+                ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
+              };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =
                 oldAmount === undefined &&
@@ -2829,7 +2716,10 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-            balances[accountId] = effective;
+
+            if (!isEqual(previousBalances, effective)) {
+              balances[accountId] = effective;
+            }
           }
         }
 
@@ -2837,7 +2727,9 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            prices[key] = value;
+            if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
+              prices[key] = value;
+            }
           }
         }
       });

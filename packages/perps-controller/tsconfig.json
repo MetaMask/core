@@ -36,7 +36,13 @@
       "path": "../remote-feature-flag-controller"
     },
     {
+      "path": "../subscription-controller"
+    },
+    {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

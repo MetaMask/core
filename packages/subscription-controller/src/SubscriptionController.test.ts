@@ -15,6 +15,7 @@ import type { Hex } from '@metamask/utils';
 import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
+  CANCELLATION_REASONS,
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants.js';
@@ -49,6 +50,7 @@ import type {
 } from './types.js';
 import {
   CANCEL_TYPES,
+  CRYPTO_AUTH_METHODS,
   MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -1098,6 +1100,145 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it.each([
+      {
+        name: 'created',
+        currentSubscriptions: [],
+        nextSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+      },
+      {
+        name: 'payment failed while status remains active',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_payment_failed',
+              status: 'FAILED',
+              errorCode: 'internal_server_error',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          },
+        ],
+      },
+      {
+        name: 'renewal needed',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_renewal_needed',
+              status: 'FAILED',
+              errorCode: 'delegation_not_found',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          },
+        ],
+      },
+      {
+        name: 'delegation exhausted',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_exhausted',
+              status: 'FAILED',
+              errorCode: 'exceeds_delegation_allowance',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          },
+        ],
+      },
+      {
+        name: 'cancelled',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          },
+        ],
+      },
+      {
+        name: 'expired',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.incompleteExpired,
+          },
+        ],
+      },
+    ])(
+      'refreshes the access token when a Money Account subscription is $name',
+      async ({ currentSubscriptions, nextSubscriptions }) => {
+        await withController(
+          {
+            state: {
+              subscriptions: currentSubscriptions,
+            },
+          },
+          async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+            mockService.getSubscriptions.mockResolvedValue({
+              subscriptions: nextSubscriptions,
+              trialedProducts: [],
+            });
+
+            await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+            expect(mockPerformSignOut).toHaveBeenCalledTimes(1);
+          },
+        );
+      },
+    );
+
+    it('does not refresh the access token when the Money Account subscription is unchanged', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+          },
+        },
+        async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('preserves Shield refresh behavior when Shield subscription state changes', async () => {
+      const cancelledShieldSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.canceled,
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [cancelledShieldSubscription],
+            trialedProducts: [],
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
     it('should fetch and store subscription successfully', async () => {
       await withController(
         async ({ controller, rootMessenger, mockService }) => {
@@ -1744,26 +1885,45 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue({
+          const cancellationRequest = {
+            subscriptionId: MOCK_SUBSCRIPTION.id,
+            cancellationReason: CANCELLATION_REASONS.OTHER,
+            cancellationFeedback: 'Not good for me',
+          };
+          const cancelledSubscription = {
             ...MOCK_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [cancelledSubscription, mockSubscription2],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
           });
           expect(
             await rootMessenger.call(
               'SubscriptionController:cancelSubscription',
-              {
-                subscriptionId: MOCK_SUBSCRIPTION.id,
-              },
+              cancellationRequest,
             ),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.canceled },
+            cancelledSubscription,
             mockSubscription2,
           ]);
+          expect(controller.state.productEntitlements).toStrictEqual(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: MOCK_SUBSCRIPTION.id,
+            ...cancellationRequest,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(JSON.stringify(controller.state)).not.toContain(
+            cancellationRequest.cancellationFeedback,
+          );
         },
       );
     });
@@ -1832,6 +1992,7 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).not.toHaveBeenCalled();
         },
       );
     });
@@ -1845,9 +2006,18 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue({
+          const cancelledSubscription = {
             ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [cancelledSubscription],
+            trialedProducts: [],
+            productEntitlements: {},
           });
 
           await rootMessenger.call(
@@ -1865,6 +2035,7 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).not.toHaveBeenCalled();
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -1878,9 +2049,21 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue({
+          const cancelledSubscription = {
             ...MOCK_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [
+              cancelledSubscription,
+              MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            ],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
           });
           mockService.getBenefits.mockRejectedValue(
             new SubscriptionServiceError('Failed to get benefits'),
@@ -1901,6 +2084,43 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should preserve the cancelled subscription when the subscription refresh fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          const cancelledSubscription = {
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockRejectedValue(
+            new SubscriptionServiceError('Failed to refresh subscriptions'),
+          );
+
+          expect(
+            await rootMessenger.call(
+              'SubscriptionController:cancelSubscription',
+              {
+                subscriptionId: MOCK_SUBSCRIPTION.id,
+              },
+            ),
+          ).toBeUndefined();
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            cancelledSubscription,
+          ]);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -4106,6 +4326,48 @@ describe('SubscriptionController', () => {
             req,
           );
 
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+        },
+      );
+    });
+
+    it('should update crypto payment method with a delegation hash and refresh state', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.updatePaymentMethodCrypto.mockResolvedValue(undefined);
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          const opts: UpdatePaymentMethodOpts = {
+            paymentType: PAYMENT_TYPES.byCrypto,
+            subscriptionId: 'sub_123456789',
+            chainId: '0x1',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'pvmUSD',
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+            delegationHash: '0xabcdef1234567890',
+          };
+
+          await rootMessenger.call(
+            'SubscriptionController:updatePaymentMethod',
+            opts,
+          );
+
+          expect(mockService.updatePaymentMethodCrypto).toHaveBeenCalledWith({
+            subscriptionId: 'sub_123456789',
+            chainId: '0x1',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'pvmUSD',
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+            delegationHash: '0xabcdef1234567890',
+          });
           expect(controller.state.subscriptions).toStrictEqual([
             MOCK_SUBSCRIPTION,
           ]);

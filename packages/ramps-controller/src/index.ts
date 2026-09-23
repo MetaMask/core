@@ -15,6 +15,9 @@ export type {
   NativeProvidersState,
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
+  VbaAutorampStatus,
+  VbaKycStatus,
+  VbaOnboardingSnapshot,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -32,10 +35,12 @@ export type {
   RampsControllerGetPaymentMethodsForContextAction,
   RampsControllerSetSelectedPaymentMethodAction,
   RampsControllerGetQuotesAction,
+  RampsControllerGetQuoteWithFeesAction,
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,
   RampsControllerCreateAutorampAction,
+  RampsControllerHydrateVbaOnboardingAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerRegisterMoneyAccountWalletAction,
   RampsControllerMarkAutorampAsNotifiedAction,
@@ -45,6 +50,7 @@ export type {
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
+  RampsControllerGetFallbackBuyWidgetDataAction,
   RampsControllerAddPrecreatedOrderAction,
   RampsControllerGetOrderAction,
   RampsControllerGetOrderFromCallbackAction,
@@ -74,9 +80,12 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types.js';
 export {
   RampsController,
+  VBA_AUTORAMP_STATUSES,
+  VBA_KYC_STATUSES,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -113,6 +122,7 @@ export type {
   RampsToken,
   TokensResponse,
   BuyWidget,
+  BuyWidgetFallback,
   RampsOrder,
   RampsOrderNetwork,
   RampsOrderCryptoCurrency,
@@ -183,6 +193,7 @@ export {
   isExternalBrowserQuote,
   isCustomActionQuote,
   isInAppOnlyQuote,
+  getBuyWidgetFallback,
 } from './quoteClassification.js';
 export {
   TERMINAL_ORDER_STATUSES,
@@ -194,6 +205,30 @@ export {
   extractExplicitTypedError,
   normalizeToTypedError,
 } from './errorNormalization.js';
+export type {
+  UserStorageRampsOrderEntry,
+  SyncRampsOrder,
+  OrderSyncingController,
+  OrderSyncingOptions,
+  SyncOrdersWithUserStorageConfig,
+} from './order-syncing/index.js';
+export {
+  USER_STORAGE_RAMPS_ORDERS_FEATURE,
+  USER_STORAGE_VERSION,
+  USER_STORAGE_VERSION_KEY,
+  createOrderStorageKey,
+  isSyncableOrder,
+  mapRampsOrderToUserStorageEntry,
+  mapUserStorageEntryToRampsOrder,
+  stripPaymentDetailsForRemoteStorage,
+  stripSyncMetadata,
+  stripDeletedAt,
+  areOrdersEqual,
+  canPerformOrderSyncing,
+  syncOrdersWithUserStorage,
+  updateOrderInUserStorage,
+  deleteOrderInUserStorage,
+} from './order-syncing/index.js';
 export type {
   TransakServiceActions,
   TransakServiceEvents,
@@ -275,6 +310,7 @@ export type {
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,

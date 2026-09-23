@@ -63,16 +63,17 @@ function createMockAccount(
 }
 
 function createMockApiClient(
-  supportedChains: number[] = [1, 137],
+  supportedChains: (number | string)[] = [1, 137],
   balances: V5BalanceItem[] = [],
   unprocessedNetworks: string[] = [],
   v6Balances: V6BalanceItem[] = [],
+  partialSupport: (number | string)[] = [],
 ): MockApiClient {
   return {
     accounts: {
       fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedChains,
-        partialSupport: [],
+        partialSupport,
       }),
       fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
         balances,
@@ -92,17 +93,31 @@ function createMockV6BalanceItem(
   assetId: string,
   balance: string,
   object: 'token' | 'defi' = 'token',
-  type: 'native' | 'erc20' = 'erc20',
+  type: string = 'erc20',
+  metadata?: V6BalanceItem['metadata'],
 ): V6BalanceItem {
-  return { accountId, object, type, assetId, balance } as V6BalanceItem;
+  return {
+    accountId,
+    object,
+    type,
+    assetId,
+    balance,
+    ...(metadata ? { metadata } : {}),
+  } as V6BalanceItem;
 }
 
 function createMockBalanceItem(
   accountId: string,
   assetId: string,
   balance: string,
+  metadata?: V5BalanceItem['metadata'],
 ): V5BalanceItem {
-  return { accountId, assetId, balance } as V5BalanceItem;
+  return {
+    accountId,
+    assetId,
+    balance,
+    ...(metadata ? { metadata } : {}),
+  } as V5BalanceItem;
 }
 
 function createDataRequest(
@@ -141,7 +156,8 @@ type SetupResult = {
 
 async function setupController(
   options: {
-    supportedChains?: number[];
+    supportedChains?: (number | string)[];
+    partialSupport?: (number | string)[];
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
     fetchTimeoutMs?: number;
@@ -151,6 +167,7 @@ async function setupController(
 ): Promise<SetupResult> {
   const {
     supportedChains = [1, 137],
+    partialSupport = [],
     balances = [],
     unprocessedNetworks = [],
     fetchTimeoutMs,
@@ -196,6 +213,7 @@ async function setupController(
     balances,
     unprocessedNetworks,
     v6Balances,
+    partialSupport,
   );
 
   const controller = new AccountsApiDataSource({
@@ -279,7 +297,7 @@ describe('AccountsApiDataSource', () => {
     activeChainsUpdateHandler.mockClear();
     apiClient.accounts.fetchV2SupportedNetworks.mockClear();
     apiClient.accounts.fetchV2SupportedNetworks.mockResolvedValue({
-      fullSupport: [1, 137],
+      fullSupport: ['eip155:1', 'eip155:137'],
       partialSupport: [],
     });
 
@@ -478,6 +496,45 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('treats v2 CAIP-2 fullSupport and partialSupport arrays as active chains', async () => {
+    const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const SOLANA_DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+    const TRON_MAINNET = 'tron:728126428';
+    const STELLAR_PUBNET = 'stellar:pubnet';
+    const { controller } = await setupController({
+      supportedChains: ['eip155:1', 'eip155:137', 'eip155:59144'],
+      partialSupport: [
+        TRON_MAINNET,
+        SOLANA_MAINNET,
+        SOLANA_DEVNET,
+        STELLAR_PUBNET,
+      ],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.tron]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      },
+    });
+
+    expect(await controller.getActiveChains()).toStrictEqual([
+      CHAIN_MAINNET,
+      CHAIN_POLYGON,
+      'eip155:59144',
+      TRON_MAINNET,
+      SOLANA_MAINNET,
+      SOLANA_DEVNET,
+      STELLAR_PUBNET,
+    ]);
+
+    controller.destroy();
+  });
+
   it.each([
     { input: 1, expected: 'eip155:1' },
     { input: '137', expected: 'eip155:137' },
@@ -589,6 +646,81 @@ describe('AccountsApiDataSource', () => {
       response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
         ?.amount,
     ).toBe('1000000000000000000');
+
+    controller.destroy();
+  });
+
+  it('fetch persists Stellar native and trustline metadata from v5 balances', async () => {
+    const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
+    const stellarAddress =
+      'GCRTHNJHYCV4F4JOAIMUE2ALYPE3C7Q53XTSUVGYJ4UXYIKWZAK7FWPG';
+    const nativeAssetId = 'stellar:pubnet/slip44:148';
+    const usdcAssetId =
+      'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+    // The Accounts API client parses balance-row metadata, so the data source
+    // only ever sees the `V6TokenBalanceMetadata` fields.
+    const nativeMetadata = {
+      spendableBalance: '8944804518',
+      minimumReserveBalance: '200000000',
+    };
+    const trustlineMetadata = {
+      limit: '9223372036854775807',
+      authorized: true,
+      sponsored: false,
+    };
+
+    const { controller } = await setupController({
+      supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      },
+      balances: [
+        createMockBalanceItem(
+          `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+          nativeAssetId,
+          '914.4804518',
+          nativeMetadata,
+        ),
+        createMockBalanceItem(
+          `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+          usdcAssetId,
+          '0',
+          trustlineMetadata,
+        ),
+      ],
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({
+        chainIds: [STELLAR_CHAIN_ID],
+        accounts: [
+          createMockAccount({
+            address: stellarAddress,
+            type: 'stellar:ss58',
+            scopes: [STELLAR_CHAIN_ID],
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[
+        nativeAssetId as Caip19AssetId
+      ],
+    ).toStrictEqual({
+      amount: '914.4804518',
+      metadata: nativeMetadata,
+    });
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[
+        usdcAssetId as Caip19AssetId
+      ],
+    ).toStrictEqual({
+      amount: '0',
+      metadata: trustlineMetadata,
+    });
 
     controller.destroy();
   });
@@ -779,6 +911,86 @@ describe('AccountsApiDataSource', () => {
         response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
           ?.amount,
       ).toBe('1000000000000000000');
+
+      controller.destroy();
+    });
+
+    it('persists Stellar native and trustline metadata from v6 balances', async () => {
+      const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
+      const stellarAddress =
+        'GDZRSRB4DOK3372HO2OKYVJKGTL5MYF5VUSO5CD5CJJNQVG35HMBQT6U';
+      const nativeAssetId = 'stellar:pubnet/slip44:148';
+      const aquaAssetId =
+        'stellar:pubnet/asset:AQUA-GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA';
+      // The Accounts API client parses balance-row metadata, so the data
+      // source only ever sees the `V6TokenBalanceMetadata` fields.
+      const nativeMetadata = {
+        spendableBalance: '8944803018',
+        minimumReserveBalance: '200000000',
+      };
+      const trustlineMetadata = {
+        limit: '9223372036854775807',
+        authorized: true,
+        sponsored: false,
+      };
+
+      const { controller } = await setupController({
+        supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+        remoteFeatureFlags: {
+          assetsAccountsApiV6: { value: true },
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+        },
+        v6Balances: [
+          createMockV6BalanceItem(
+            `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+            aquaAssetId,
+            '0',
+            'token',
+            'token',
+            trustlineMetadata,
+          ),
+          createMockV6BalanceItem(
+            `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+            nativeAssetId,
+            '914.4803018',
+            'token',
+            'native',
+            nativeMetadata,
+          ),
+        ],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({
+          chainIds: [STELLAR_CHAIN_ID],
+          accounts: [
+            createMockAccount({
+              address: stellarAddress,
+              type: 'stellar:ss58',
+              scopes: [STELLAR_CHAIN_ID],
+            }),
+          ],
+        }),
+      );
+
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[
+          aquaAssetId as Caip19AssetId
+        ],
+      ).toStrictEqual({
+        amount: '0',
+        metadata: trustlineMetadata,
+      });
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[
+          nativeAssetId as Caip19AssetId
+        ],
+      ).toStrictEqual({
+        amount: '914.4803018',
+        metadata: nativeMetadata,
+      });
 
       controller.destroy();
     });

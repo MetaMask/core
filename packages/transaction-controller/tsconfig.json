@@ -39,6 +39,9 @@
     },
     {
       "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

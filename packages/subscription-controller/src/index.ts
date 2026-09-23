@@ -48,6 +48,7 @@ export type {
   AuthUtils,
   CancelSubscriptionRequest,
   CancelType,
+  CancellationReasonCode,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
   StartDelegationCryptoSubscriptionRequest,
@@ -61,6 +62,8 @@ export type {
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
+  SubscriptionInvoice,
+  InvoicePaymentStatus,
   SubmitUserEventRequest,
   SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
@@ -85,6 +88,9 @@ export type {
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
   CryptoPaymentMethodError,
+  CryptoPaymentError,
+  UpdateErc20PaymentMethodCryptoRequest,
+  UpdateDelegationPaymentMethodCryptoRequest,
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -106,6 +112,8 @@ export type {
 export {
   CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -118,16 +126,22 @@ export {
   MoneyAccountFeature,
   ShieldFeature,
 } from './types.js';
+export { CANCELLATION_REASONS } from './constants.js';
 export {
   selectHasEntitlement,
   selectIsActiveSubscriber,
   selectIsUsageAvailable,
+  selectIsPaymentFailed,
+  selectPaymentFailureReason,
+  selectIsRenewalNeeded,
+  selectIsDelegationExhausted,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
   Env,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
+  SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
 export type {
   SubscriptionServiceOptions,
@@ -160,3 +174,23 @@ export type {
   SubscriptionServiceGetPricingAction,
   SubscriptionServiceGetBillingPortalUrlAction,
 } from './SubscriptionService-method-action-types.js';
+
+export type {
+  SubscriptionDelegationServiceActions,
+  SubscriptionDelegationServiceEvents,
+  SubscriptionDelegationServiceMessenger,
+  SubscriptionDelegationServiceOptions,
+} from './subscription-delegation/SubscriptionDelegationService.js';
+export {
+  SubscriptionDelegationService,
+  serviceName as subscriptionDelegationServiceName,
+} from './subscription-delegation/SubscriptionDelegationService.js';
+export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type {
+  MoneyAccountBalanceCheckRequest,
+  MoneyAccountBalanceCheckResult,
+  PrepareSubscriptionDelegationRequest,
+  PreparedSubscriptionDelegation,
+} from './subscription-delegation/types.js';
+export { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './subscription-delegation/types.js';

@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  hasTransactionType,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -39,6 +42,7 @@ import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
+  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -64,7 +68,11 @@ import {
   isPredictWithdraw,
 } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import {
+  getRelayMaxQuote,
+  isSubsidizedAtomicMaxQuote,
+  throwAtomicPromotionFailed,
+} from './relay-max.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -140,12 +148,32 @@ export async function getRelayQuotes(
       ),
     );
 
-    await validateRelayQuotes({
-      messenger: request.messenger,
-      quotes,
-      signal: request.signal,
-      transaction: request.transaction,
-    });
+    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
+    const otherQuotes = quotes.filter(
+      (quote) => !isSubsidizedAtomicMaxQuote(quote),
+    );
+
+    if (otherQuotes.length > 0) {
+      await validateRelayQuotes({
+        messenger: request.messenger,
+        quotes: otherQuotes,
+        signal: request.signal,
+        transaction: request.transaction,
+      });
+    }
+
+    if (atomicMaxQuotes.length > 0) {
+      try {
+        await validateRelayQuotes({
+          messenger: request.messenger,
+          quotes: atomicMaxQuotes,
+          signal: request.signal,
+          transaction: request.transaction,
+        });
+      } catch (error) {
+        throwAtomicPromotionFailed(error);
+      }
+    }
 
     return quotes;
   } catch (error) {
@@ -164,7 +192,7 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
+  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
 }
 
 /**
@@ -375,7 +403,10 @@ async function getSingleQuote(
     const hasTransactions = Boolean(body.txs?.length);
     const requiresExactOutput =
       hasTransactions ||
-      transaction.type === TransactionType.perpsDepositAndOrder;
+      hasTransactionType(transaction, [
+        TransactionType.perpsDepositAndOrder,
+        TransactionType.predictDepositAndOrder,
+      ]);
     const finalBody: RelayQuoteRequest = {
       ...body,
       amount:
@@ -513,7 +544,13 @@ async function processTransactions(
     return true;
   }
 
-  if (isMaxAmount) {
+  // Eligible atomic max requests carry a destination amount, so the calls
+  // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
+  if (
+    isMaxAmount &&
+    (request.isPostQuote === true ||
+      !isAtomicMaxEnabled(messenger, transaction))
+  ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
 
