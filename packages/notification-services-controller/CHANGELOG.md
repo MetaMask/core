@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
 
+### Fixed
+
+- Retain a locally-created FCM token when re-enabling notifications with every wallet-activity account disabled.
+  - Push services now skip the links API for an empty address list. If the user later enables an account, the saved token can be linked then.
+
 ## [29.0.0]
 
 ### Changed

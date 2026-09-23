@@ -1240,12 +1240,12 @@ describe('NotificationServicesController', () => {
         await controller.createOnChainTriggers();
 
         expect(mockTriggerUpdate.isDone()).toBe(false);
-        // No addresses to register, so the device is unregistered rather than
-        // sent an empty list the push API would reject.
+        // Register the device token without linking any wallet-activity
+        // addresses. A later account opt-in can then link this token.
         await waitFor(() => {
-          expect(mockDisablePushNotifications).toHaveBeenCalled();
+          expect(mockEnablePushNotifications).toHaveBeenCalledWith([]);
         });
-        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
       });
 
       it('ignores the legacy wallet-activity push toggle when registering push notifications', async () => {
@@ -1306,6 +1306,34 @@ describe('NotificationServicesController', () => {
         expect(mockGetConfig).toHaveBeenCalled();
         expect(mockUpdateNotifications).not.toHaveBeenCalled();
         expect(mockEnablePushNotifications).toHaveBeenCalled();
+      });
+
+      it('creates a push registration when re-enabling with all wallet-activity accounts disabled', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockDisablePushNotifications,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 200,
+          body: [{ address: ADDRESS_1.toLowerCase(), enabled: false }],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.enableMetamaskNotifications();
+
+        await waitFor(() => {
+          expect(mockEnablePushNotifications).toHaveBeenCalledWith([]);
+        });
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
       });
     });
 
@@ -2213,7 +2241,7 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).not.toHaveBeenCalled();
     });
 
-    it('unregisters the device when no account has notifications enabled', async () => {
+    it('creates a push registration without linking addresses when all accounts are disabled', async () => {
       const {
         messenger,
         mockEnablePushNotifications,
@@ -2234,10 +2262,8 @@ describe('NotificationServicesController', () => {
 
       await controller.enablePushNotifications();
 
-      // The push API rejects a registration with no addresses, which would
-      // leave the device's existing links in place.
-      expect(mockDisablePushNotifications).toHaveBeenCalled();
-      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).toHaveBeenCalledWith([]);
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
     });
 
     it('leaves existing push links alone when the Trigger API is unreadable', async () => {
