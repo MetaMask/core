@@ -248,6 +248,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:refreshSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
+  'KycController:clearState',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -278,6 +279,8 @@ type KycControllerSessionStatus = {
   finalStatus: string;
   kycStatus: string;
   vendorStatus: string;
+  /** Canonical id of the profile that owns the session (set at creation). */
+  externalUserId: string;
 };
 
 /**
@@ -304,6 +307,11 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
 export type KycControllerHasCompletedSessionDisclaimersAction = {
   type: 'KycController:hasCompletedSessionDisclaimers';
   handler: () => Promise<boolean>;
+};
+
+export type KycControllerClearStateAction = {
+  type: 'KycController:clearState';
+  handler: () => void;
 };
 
 /**
@@ -333,16 +341,69 @@ type LookupUnavailableResult = Extract<
 >;
 
 /**
- * The Mobile route for the current VBA onboarding step.
+ * KYC vocabulary used on the VBA onboarding snapshot. `'none'` means no
+ * session exists yet (or the vendor returned an unrecognized status).
  */
-export enum VbaOnboardingStage {
-  EmailOtpRequired = 'EmailOtpRequired',
-  VendorTermsRequired = 'VendorTermsRequired',
-  ProviderTermsRequired = 'ProviderTermsRequired',
-  KycRequired = 'KycRequired',
-  KycPending = 'KycPending',
-  KycRejected = 'KycRejected',
-  Completed = 'Completed',
+export const VBA_KYC_STATUSES = [
+  'none',
+  'new',
+  'retry',
+  'pending',
+  'approved',
+  'rejected',
+] as const;
+
+export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
+
+/**
+ * Autoramp setup progress after KYC has been approved.
+ * `'in_progress'` is reserved for hosts that observe an in-flight hydrate;
+ * {@link RampsController.hydrateVbaOnboarding} itself returns `'ready'` or
+ * `'retryable_failure'` once the coalesced run settles.
+ */
+export const VBA_AUTORAMP_STATUSES = [
+  'not_ready',
+  'in_progress',
+  'ready',
+  'retryable_failure',
+] as const;
+
+export type VbaAutorampStatus = (typeof VBA_AUTORAMP_STATUSES)[number];
+
+/**
+ * Backend facts for VBA onboarding. Hosts own funnel order and map this
+ * snapshot onto screens; this controller does not name routes.
+ */
+export type VbaOnboardingSnapshot = {
+  sessionExists: boolean;
+  vendorDisclaimersComplete: boolean;
+  sessionDisclaimersComplete: boolean;
+  /** Overall KYC session outcome used to decide whether autoramp setup can run. */
+  kycStatus: VbaKycStatus;
+  autorampStatus: VbaAutorampStatus;
+};
+
+const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
+  sessionExists: false,
+  vendorDisclaimersComplete: false,
+  sessionDisclaimersComplete: false,
+  kycStatus: 'none',
+  autorampStatus: 'not_ready',
+};
+
+const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
+
+/**
+ * Maps a vendor status string onto the snapshot vocabulary.
+ *
+ * @param value - Raw KYC status from the session.
+ * @returns A known {@link VbaKycStatus}, or `'none'` when missing/unknown.
+ */
+function toVbaKycStatus(value: string | undefined): VbaKycStatus {
+  if (value && VBA_KYC_STATUS_SET.has(value)) {
+    return value as VbaKycStatus;
+  }
+  return 'none';
 }
 
 /**
@@ -613,10 +674,6 @@ export type RampsControllerState = {
    * token conflict instead of showing the "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
-  /**
-   * The current Mobile-routable VBA onboarding stage.
-   */
-  vbaOnboardingStage: VbaOnboardingStage | null;
 };
 
 /**
@@ -678,12 +735,6 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providerAutoSelected: {
-    persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
-  vbaOnboardingStage: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -751,7 +802,6 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     orders: [],
     autoramps: [],
     providerAutoSelected: false,
-    vbaOnboardingStage: null,
   };
 }
 
@@ -888,6 +938,7 @@ type AllowedActions =
   | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerClearStateAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -1257,7 +1308,7 @@ export class RampsController extends BaseController<
 
   #initPromise: Promise<void> | null = null;
 
-  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingStage> | null = null;
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingSnapshot> | null = null;
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -3811,21 +3862,23 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Hydrates the Mobile-routable VBA onboarding stage from KYC state and
-   * completes wallet and autoramp setup after KYC acceptance.
+   * Refreshes KYC session facts and, when Iron has approved KYC, activates the
+   * Money Account (wallet registration + autoramp). Hosts map the returned
+   * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
+   * name screens.
    *
    * Overlapping calls share one run so polling cannot trigger duplicate wallet
    * signatures or autoramp creation.
    *
    * @param params - VBA onboarding parameters.
    * @param params.walletAddress - Monad Money Account wallet address.
-   * @returns The hydrated onboarding stage.
+   * @returns Independent KYC and autoramp facts for the current customer.
    */
   async hydrateVbaOnboarding({
     walletAddress,
   }: {
     walletAddress: string;
-  }): Promise<VbaOnboardingStage> {
+  }): Promise<VbaOnboardingSnapshot> {
     if (this.#vbaOnboardingHydrationPromise) {
       return await this.#vbaOnboardingHydrationPromise;
     }
@@ -3844,21 +3897,22 @@ export class RampsController extends BaseController<
 
   async #hydrateVbaOnboarding(
     walletAddress: string,
-  ): Promise<VbaOnboardingStage> {
-    // Fetch the customer's latest session from the vendor account so each stage
-    // reflects backend truth (e.g. re-verification required after a new
-    // document) rather than only device-local state. A `null` session means no
-    // customer/session exists yet, so onboarding starts at the email step.
+  ): Promise<VbaOnboardingSnapshot> {
     // Prefer the in-memory/persisted session status over the backend
-    // latest-status endpoint: after SumSub the backend endpoint lags (it still
-    // reports kycStatus 'new' right after an 'approved' applicant result), while
+    // latest-status endpoint: after SumSub the backend endpoint can lag, while
     // the controller state reflects the journey/SDK outcome. Fall back to a
     // backend fetch only when the controller has no session in state (e.g. a
     // reinstall/cleared state resuming an existing customer, or a brand-new user
     // with no session at all).
     let session: KycControllerSessionStatus | null = null;
+    // Whether `session` came from persisted controller state (as opposed to a
+    // fresh backend fetch, which is always scoped to the current user). Only a
+    // persisted session can belong to a previous identity, so only that path
+    // needs the ownership check below.
+    let sessionFromCache = false;
     try {
       session = this.messenger.call('KycController:refreshSessionStatus');
+      sessionFromCache = true;
     } catch {
       try {
         session = await this.messenger.call(
@@ -3867,54 +3921,44 @@ export class RampsController extends BaseController<
         );
       } catch {
         // No session exists for this customer yet: the backend returns 404
-        // ("KYC session not found"), which surfaces as a rejection here. Treat
-        // it as "start onboarding at the email step" rather than an error.
+        // ("KYC session not found"), which surfaces as a rejection here.
         session = null;
       }
     }
     if (!session) {
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
+    // A persisted session can outlive the identity that created it — e.g. a new
+    // wallet created over an install that still holds a previous customer's
+    // session. Reusing it makes the backend reject every session-scoped call
+    // (owner mismatch), dead-ending the user. Verify ownership up front against
+    // the signed-in profile and, on a mismatch, discard the stale session.
     if (
-      !(await this.messenger.call(
-        'KycController:hasCompletedVendorDisclaimers',
-      ))
+      sessionFromCache &&
+      !(await this.#isVbaSessionOwnedByCurrentProfile(session))
     ) {
-      return this.#setVbaOnboardingStage(
-        VbaOnboardingStage.VendorTermsRequired,
-      );
+      this.messenger.call('KycController:clearState');
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
-    if (
-      !(await this.messenger.call(
-        'KycController:hasCompletedSessionDisclaimers',
-      ))
-    ) {
-      return this.#setVbaOnboardingStage(
-        VbaOnboardingStage.ProviderTermsRequired,
-      );
-    }
+    const vendorDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedVendorDisclaimers',
+    );
+    const sessionDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedSessionDisclaimers',
+    );
 
-    // Status fields draw from the KYC vocabulary (new | pending | approved |
-    // rejected | retry). `finalStatus` is the vendor's final decision, which
-    // stays `pending` until Iron finalizes. `kycStatus` is the SumSub applicant
-    // outcome (from the journey/SDK result): `new` before the applicant runs
-    // SumSub, moving to `approved`/`pending` once they submit while the vendor
-    // finalizes. So gate the SumSub screen on `kycStatus`, and only complete
-    // onboarding once `finalStatus` is the terminal `approved`.
-    const { finalStatus, kycStatus } = session;
+    const snapshot: VbaOnboardingSnapshot = {
+      sessionExists: true,
+      vendorDisclaimersComplete,
+      sessionDisclaimersComplete,
+      kycStatus: toVbaKycStatus(session.finalStatus),
+      autorampStatus: 'not_ready',
+    };
 
-    if (finalStatus === 'rejected' || kycStatus === 'rejected') {
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
-    }
-    if (finalStatus !== 'approved') {
-      if (kycStatus === 'new' || kycStatus === 'retry') {
-        // Applicant still has to run (or re-run) SumSub document verification.
-        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
-      }
-      // Submitted; vendor is finalizing → "verification in progress".
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    if (snapshot.kycStatus !== 'approved') {
+      return snapshot;
     }
     if (!walletAddress.trim()) {
       throw new Error('walletAddress is required after KYC acceptance.');
@@ -3922,10 +3966,9 @@ export class RampsController extends BaseController<
 
     // KYC is approved; the remaining work activates the Money account (register
     // the wallet + ensure an autoramp). Those calls hit the neobank backend and
-    // can fail transiently (e.g. an address-list lookup timeout). If they do,
-    // keep the user on the "verification in progress" screen so a refresh
-    // retries the activation, rather than dropping them onto the recoverable-
-    // error screen — the KYC decision itself already succeeded.
+    // can fail transiently (e.g. an address-list lookup timeout). Surface
+    // `retryable_failure` so the host can keep the user on a pending screen
+    // rather than a fatal error — the KYC decision itself already succeeded.
     try {
       const registration = await this.registerMoneyAccountWallet({
         address: walletAddress,
@@ -3960,19 +4003,38 @@ export class RampsController extends BaseController<
         await this.createAutoramp({});
       }
     } catch {
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+      return { ...snapshot, autorampStatus: 'retryable_failure' };
     }
 
-    return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+    return { ...snapshot, autorampStatus: 'ready' };
   }
 
-  #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
-    if (this.state.vbaOnboardingStage !== stage) {
-      this.update((state) => {
-        state.vbaOnboardingStage = stage;
-      });
+  /**
+   * Whether a persisted KYC session belongs to the currently signed-in profile.
+   * A session's `externalUserId` is the canonical profile id captured when the
+   * session was created, so it must match the current profile for the session
+   * to be reused. When the current identity cannot be resolved, err on the side
+   * of keeping the session (return `true`) so a transient profile-read failure
+   * never discards a valid session.
+   *
+   * @param session - The persisted KYC session status to check.
+   * @returns Whether the session is owned by the current profile.
+   */
+  async #isVbaSessionOwnedByCurrentProfile(
+    session: KycControllerSessionStatus,
+  ): Promise<boolean> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonicalId =
+      typeof profile?.canonicalProfileId === 'string' &&
+      profile.canonicalProfileId.length > 0
+        ? profile.canonicalProfileId
+        : profile?.profileId;
+    if (typeof canonicalId !== 'string' || canonicalId.length === 0) {
+      return true;
     }
-    return stage;
+    return session.externalUserId === canonicalId;
   }
 
   /**

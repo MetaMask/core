@@ -19,9 +19,9 @@ import type {
   ResourceState,
   UserRegion,
 } from './RampsController.js';
+import type { VbaOnboardingSnapshot } from './RampsController.js';
 import {
   RampsController,
-  VbaOnboardingStage,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -194,7 +194,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -272,7 +271,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2645,7 +2643,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2689,7 +2686,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2709,7 +2705,6 @@ describe('RampsController', () => {
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2777,7 +2772,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -10187,11 +10181,17 @@ describe('RampsController', () => {
   });
 
   describe('hydrateVbaOnboarding', () => {
+    // A session's externalUserId is the canonical profile id that created it;
+    // hydration only reuses a persisted session when it matches the signed-in
+    // profile returned by AuthenticationController:getSessionProfile.
+    const CANONICAL_PROFILE_ID = 'canonical-1';
+
     type KycSession = {
       id: string;
       finalStatus: string;
       kycStatus: string;
       vendorStatus: string;
+      externalUserId: string;
     };
 
     type KycHandlers = {
@@ -10199,6 +10199,8 @@ describe('RampsController', () => {
       refreshSessionStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
+      clearState: jest.Mock;
+      getSessionProfile: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
@@ -10221,6 +10223,8 @@ describe('RampsController', () => {
       getSessionRejects: boolean;
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
+      /** Canonical id of the currently signed-in profile. */
+      profileCanonicalId: string | null;
     };
 
     const approvedSession: KycSession = {
@@ -10228,6 +10232,7 @@ describe('RampsController', () => {
       finalStatus: 'approved',
       kycStatus: 'approved',
       vendorStatus: 'approved',
+      externalUserId: CANONICAL_PROFILE_ID,
     };
 
     const registerKycHandlers = (
@@ -10240,6 +10245,7 @@ describe('RampsController', () => {
         getSessionRejects: false,
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
+        profileCanonicalId: CANONICAL_PROFILE_ID,
         ...overrides,
       };
 
@@ -10265,9 +10271,17 @@ describe('RampsController', () => {
         hasCompletedSessionDisclaimers: jest
           .fn()
           .mockResolvedValue(values.sessionDisclaimersCompleted),
+        clearState: jest.fn(),
+        getSessionProfile: jest
+          .fn()
+          .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile' as never,
+        handlers.getSessionProfile as never,
+      );
       rootMessenger.registerActionHandler(
         'KycController:getSessionStatusForVendor' as never,
         handlers.getSessionStatusForVendor as never,
@@ -10285,6 +10299,10 @@ describe('RampsController', () => {
         handlers.hasCompletedSessionDisclaimers as never,
       );
       rootMessenger.registerActionHandler(
+        'KycController:clearState' as never,
+        handlers.clearState as never,
+      );
+      rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
         handlers.getAutoramps as never,
       );
@@ -10292,67 +10310,81 @@ describe('RampsController', () => {
       return handlers;
     };
 
-    const pendingSession = (kycStatus: string): KycSession => ({
+    const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
-      finalStatus: 'pending',
-      kycStatus,
-      vendorStatus: 'pending',
+      finalStatus,
+      kycStatus: 'approved',
+      vendorStatus: finalStatus,
+      externalUserId: CANONICAL_PROFILE_ID,
+    });
+
+    const emptySnapshot = (): VbaOnboardingSnapshot => ({
+      sessionExists: false,
+      vendorDisclaimersComplete: false,
+      sessionDisclaimersComplete: false,
+      kycStatus: 'none',
+      autorampStatus: 'not_ready',
+    });
+
+    const factsSnapshot = (
+      overrides: Partial<VbaOnboardingSnapshot> = {},
+    ): VbaOnboardingSnapshot => ({
+      sessionExists: true,
+      vendorDisclaimersComplete: true,
+      sessionDisclaimersComplete: true,
+      kycStatus: 'pending',
+      autorampStatus: 'not_ready',
+      ...overrides,
     });
 
     it.each([
       {
-        name: 'email OTP when no session exists in state or on the backend',
+        name: 'an empty snapshot when no session exists in state or on the backend',
         overrides: { refreshThrows: true, session: null },
-        expected: VbaOnboardingStage.EmailOtpRequired,
+        expected: emptySnapshot(),
       },
       {
-        name: 'email OTP when the backend session lookup 404s',
+        name: 'an empty snapshot when the backend session lookup 404s',
         overrides: { refreshThrows: true, getSessionRejects: true },
-        expected: VbaOnboardingStage.EmailOtpRequired,
+        expected: emptySnapshot(),
       },
       {
-        name: 'vendor terms when Iron disclaimers are incomplete',
-        overrides: { vendorDisclaimersCompleted: false },
-        expected: VbaOnboardingStage.VendorTermsRequired,
-      },
-      {
-        name: 'provider terms when SumSub session disclaimers are incomplete',
-        overrides: { sessionDisclaimersCompleted: false },
-        expected: VbaOnboardingStage.ProviderTermsRequired,
-      },
-      {
-        name: 'the SumSub widget when KYC has not started',
-        overrides: { session: pendingSession('new') },
-        expected: VbaOnboardingStage.KycRequired,
-      },
-      {
-        name: 'the SumSub widget when KYC needs a retry',
-        overrides: { session: pendingSession('retry') },
-        expected: VbaOnboardingStage.KycRequired,
-      },
-      {
-        name: 'pending KYC while the vendor finalizes',
-        overrides: { session: pendingSession('pending') },
-        expected: VbaOnboardingStage.KycPending,
-      },
-      {
-        name: 'rejected KYC when the vendor finalizes as rejected',
-        overrides: { session: pendingSession('rejected') },
-        expected: VbaOnboardingStage.KycRejected,
-      },
-      {
-        name: 'rejected KYC when the final status is rejected',
+        name: 'incomplete vendor disclaimers without collapsing other facts',
         overrides: {
-          session: {
-            id: 'session-1',
-            finalStatus: 'rejected',
-            kycStatus: 'pending',
-            vendorStatus: 'rejected',
-          },
+          session: sessionWithStatus('pending'),
+          vendorDisclaimersCompleted: false,
         },
-        expected: VbaOnboardingStage.KycRejected,
+        expected: factsSnapshot({ vendorDisclaimersComplete: false }),
       },
-    ])('routes to $name', async ({ overrides, expected }) => {
+      {
+        name: 'incomplete session disclaimers without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          sessionDisclaimersCompleted: false,
+        },
+        expected: factsSnapshot({ sessionDisclaimersComplete: false }),
+      },
+      {
+        name: 'kycStatus new when KYC has not started',
+        overrides: { session: sessionWithStatus('new') },
+        expected: factsSnapshot({ kycStatus: 'new' }),
+      },
+      {
+        name: 'kycStatus retry when KYC needs a retry',
+        overrides: { session: sessionWithStatus('retry') },
+        expected: factsSnapshot({ kycStatus: 'retry' }),
+      },
+      {
+        name: 'kycStatus pending while the vendor finalizes',
+        overrides: { session: sessionWithStatus('pending') },
+        expected: factsSnapshot({ kycStatus: 'pending' }),
+      },
+      {
+        name: 'kycStatus rejected when KYC is rejected',
+        overrides: { session: sessionWithStatus('rejected') },
+        expected: factsSnapshot({ kycStatus: 'rejected' }),
+      },
+    ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger, overrides);
         const registerWallet = jest.spyOn(
@@ -10363,9 +10395,8 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(expected);
+        ).toStrictEqual(expected);
 
-        expect(controller.state.vbaOnboardingStage).toBe(expected);
         expect(registerWallet).not.toHaveBeenCalled();
         expect(createAutoramp).not.toHaveBeenCalled();
       });
@@ -10380,7 +10411,7 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.EmailOtpRequired);
+        ).toStrictEqual(emptySnapshot());
 
         expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
         expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith('iron');
@@ -10390,19 +10421,92 @@ describe('RampsController', () => {
     it('prefers the in-state session status over the backend fetch', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {
-          session: pendingSession('new'),
+          session: sessionWithStatus('new'),
         });
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycRequired);
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
 
         expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
         expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
       });
     });
 
-    it('registers the wallet, creates the autoramp, and completes onboarding after accepted KYC', async () => {
+    it('discards a persisted session owned by a different profile and returns an empty snapshot', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A persisted session created by a previous identity: its externalUserId
+        // no longer matches the signed-in profile.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: { ...approvedSession, externalUserId: 'previous-identity' },
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(emptySnapshot());
+
+        expect(handlers.clearState).toHaveBeenCalledTimes(1);
+        // The stale session is discarded before any session-scoped call runs.
+        expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not ownership-check a freshly-fetched session (already scoped to the user)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // No in-state session; the backend fetch returns a session whose
+        // externalUserId differs from the resolved profile. It must not be
+        // discarded, since the fetch is already scoped to the current user.
+        const handlers = registerKycHandlers(rootMessenger, {
+          refreshThrows: true,
+          session: {
+            ...sessionWithStatus('new'),
+            externalUserId: 'previous-identity',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps a persisted session owned by the current profile', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('keeps a persisted session when the current profile id cannot be resolved', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A transient profile-read failure must not discard a valid session.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+          profileCanonicalId: null,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+      });
+    });
+
+    it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
@@ -10428,12 +10532,14 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.Completed);
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
 
         expect(createAutoramp).toHaveBeenCalledWith({});
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.Completed,
-        );
       });
     });
 
@@ -10464,7 +10570,12 @@ describe('RampsController', () => {
           await controller.hydrateVbaOnboarding({
             walletAddress: '0xabc',
           }),
-        ).toBe(VbaOnboardingStage.Completed);
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
 
         expect(createAutoramp).not.toHaveBeenCalled();
         expect(
@@ -10566,14 +10677,20 @@ describe('RampsController', () => {
         });
 
         expect(await Promise.all([first, second])).toStrictEqual([
-          VbaOnboardingStage.Completed,
-          VbaOnboardingStage.Completed,
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
         ]);
         expect(registerWallet).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('falls back to pending KYC when wallet registration fails on the approved path', async () => {
+    it('marks the autoramp retryable when wallet registration fails on the approved path', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         const error = new Error('signing rejected');
@@ -10583,14 +10700,16 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycPending);
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.KycPending,
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
         );
       });
     });
 
-    it('falls back to pending KYC when the wallet lookup is unavailable', async () => {
+    it('marks the autoramp retryable when the wallet lookup is unavailable', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         const error = new WalletRegistrationError('lookupUnavailable', {});
@@ -10601,14 +10720,16 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycPending);
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.KycPending,
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
         );
       });
     });
 
-    it('falls back to pending KYC when loading autoramps fails', async () => {
+    it('marks the autoramp retryable when loading autoramps fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
         const error = new Error('autoramp lookup failed');
@@ -10627,11 +10748,13 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycPending);
-        expect(createAutoramp).not.toHaveBeenCalled();
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.KycPending,
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
         );
+        expect(createAutoramp).not.toHaveBeenCalled();
       });
     });
 
@@ -10642,7 +10765,6 @@ describe('RampsController', () => {
         await expect(
           controller.hydrateVbaOnboarding({ walletAddress: ' ' }),
         ).rejects.toThrow('walletAddress is required after KYC acceptance.');
-        expect(controller.state.vbaOnboardingStage).toBeNull();
       });
     });
   });
