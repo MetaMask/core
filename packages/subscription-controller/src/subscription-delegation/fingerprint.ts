@@ -122,3 +122,58 @@ export function makeMatchesSubscriptionDelegation(
     }
   };
 }
+
+/**
+ * Reads the ERC-20 period-transfer `startDate` from a stored delegation.
+ *
+ * @param entry - Stored AUS delegation.
+ * @param enforcers - Enforcer addresses used to locate the period caveat.
+ * @returns Unix timestamp in seconds, or `undefined` when the caveat is
+ * missing or malformed.
+ */
+function getSubscriptionDelegationStartDate(
+  entry: DelegationResponse,
+  enforcers: SubscriptionDelegationEnforcers,
+): number | undefined {
+  const periodCaveat = entry.signedDelegation.caveats.find((caveat) =>
+    equalsIgnoreCase(caveat.enforcer, enforcers.erc20TokenPeriodTransfer),
+  );
+  if (!periodCaveat) {
+    return undefined;
+  }
+
+  try {
+    return Number(
+      decodeERC20TokenPeriodTransferTerms(periodCaveat.terms).startDate,
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Returns the fingerprint match with the latest period `startDate`.
+ *
+ * Equal `startDate`s keep list order. A delegation whose `startDate` cannot
+ * be read sorts last.
+ *
+ * @param matches - Fingerprint-matching AUS delegations, in list order.
+ * @param enforcers - Enforcer addresses used to read `startDate`.
+ * @returns The preferred match, or `undefined` when `matches` is empty.
+ */
+export function pickLatestMatchingSubscriptionDelegation(
+  matches: readonly DelegationResponse[],
+  enforcers: SubscriptionDelegationEnforcers,
+): DelegationResponse | undefined {
+  const byStartDateDescending = [...matches].sort((left, right) => {
+    const leftStart =
+      getSubscriptionDelegationStartDate(left, enforcers) ??
+      Number.NEGATIVE_INFINITY;
+    const rightStart =
+      getSubscriptionDelegationStartDate(right, enforcers) ??
+      Number.NEGATIVE_INFINITY;
+    return rightStart - leftStart;
+  });
+
+  return byStartDateDescending[0];
+}

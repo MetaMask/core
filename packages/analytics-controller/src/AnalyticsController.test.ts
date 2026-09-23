@@ -273,6 +273,7 @@ describe('AnalyticsController', () => {
         consentDecisionMade: false,
         optedInToMarketing: false,
         marketingConsentDecisionMade: false,
+        marketingCampaignCookieId: null,
       });
       expect('analyticsId' in defaults).toBe(false);
     });
@@ -307,6 +308,7 @@ describe('AnalyticsController', () => {
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
           "consentDecisionMade": true,
+          "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
           "optedIn": true,
           "optedInToMarketing": false,
@@ -329,6 +331,7 @@ describe('AnalyticsController', () => {
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
           "consentDecisionMade": true,
+          "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
           "optedIn": true,
           "optedInToMarketing": false,
@@ -351,6 +354,7 @@ describe('AnalyticsController', () => {
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
           "consentDecisionMade": true,
+          "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
           "optedIn": true,
           "optedInToMarketing": false,
@@ -2790,6 +2794,133 @@ describe('AnalyticsController', () => {
 
       expect(controller.state.optedIn).toBe(false);
       expect(controller.state.consentDecisionMade).toBe(true);
+    });
+
+    it('does not clear marketingCampaignCookieId', async () => {
+      const cookieId = 'GA1.1.123456789.1234567890';
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          marketingCampaignCookieId: cookieId,
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      controller.optOut();
+
+      expect(controller.state.marketingCampaignCookieId).toBe(cookieId);
+    });
+  });
+
+  describe('resetConsentDecision', () => {
+    it('does not clear marketingCampaignCookieId', async () => {
+      const cookieId = 'GA1.1.123456789.1234567890';
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          marketingCampaignCookieId: cookieId,
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      controller.resetConsentDecision();
+
+      expect(controller.state.marketingCampaignCookieId).toBe(cookieId);
+    });
+  });
+
+  describe('optOutOfMarketing', () => {
+    it('clears marketingCampaignCookieId', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.marketingCampaignCookieId).toBeNull();
+    });
+  });
+
+  describe('resetMarketingConsentDecision', () => {
+    it('clears marketingCampaignCookieId', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      controller.resetMarketingConsentDecision();
+
+      expect(controller.state.marketingCampaignCookieId).toBeNull();
+    });
+  });
+
+  describe('setMarketingCampaignCookieId', () => {
+    it('sets the marketing campaign cookie ID', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      controller.setMarketingCampaignCookieId('GA1.1.123456789.1234567890');
+
+      expect(controller.state.marketingCampaignCookieId).toBe(
+        'GA1.1.123456789.1234567890',
+      );
+    });
+
+    it('clears the marketing campaign cookie ID when called with null', async () => {
+      const { controller } = await setupController({
+        state: {
+          marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      controller.setMarketingCampaignCookieId(null);
+
+      expect(controller.state.marketingCampaignCookieId).toBeNull();
+    });
+
+    it('sets the marketing campaign cookie ID when called via the messenger action', async () => {
+      const { controller, messenger } = await setupController({
+        state: {
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      messenger.call(
+        'AnalyticsController:setMarketingCampaignCookieId',
+        'GA1.1.123456789.1234567890',
+      );
+
+      expect(controller.state.marketingCampaignCookieId).toBe(
+        'GA1.1.123456789.1234567890',
+      );
+    });
+
+    it('clears the marketing campaign cookie ID when the messenger action is called with null', async () => {
+      const { controller, messenger } = await setupController({
+        state: {
+          marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      messenger.call('AnalyticsController:setMarketingCampaignCookieId', null);
+
+      expect(controller.state.marketingCampaignCookieId).toBeNull();
     });
   });
 

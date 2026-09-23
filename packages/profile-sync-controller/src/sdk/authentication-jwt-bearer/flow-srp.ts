@@ -49,6 +49,7 @@ import type {
   OidcTokenAudience,
   OidcTokenClaims,
   PairSocialIdentifierParams,
+  ProfileIdentifier,
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
@@ -237,14 +238,21 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * @param options.email - Email address, required for email OTP.
    * @param options.entropySourceId - Entropy source whose profile owns the
    * credential.
+   * @param options.accessToken - Bearer to use instead of the base session
+   * token; an elevated token is required once a credential is already enrolled.
    * @returns Enrollment challenge for the client ceremony.
    */
   async beginMfaEnrollment(
     type: MfaCredentialType,
-    options?: { email?: string; entropySourceId?: string },
+    options?: {
+      email?: string;
+      entropySourceId?: string;
+      accessToken?: string;
+    },
   ): Promise<EnrollmentChallenge> {
     const { email, entropySourceId } = options ?? {};
-    const accessToken = await this.getAccessToken(entropySourceId);
+    const accessToken =
+      options?.accessToken ?? (await this.getAccessToken(entropySourceId));
     const result = await mfaEnroll(this.#config.env, accessToken, {
       credential_type: type,
       ...(email ? { identifier: email } : {}),
@@ -383,8 +391,12 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   async pairSocialIdentifier(
     params: PairSocialIdentifierParams,
     authAccessToken: string,
-  ): Promise<void> {
-    await pairSocialIdentifier(params, authAccessToken, this.#config.env);
+  ): Promise<ProfileIdentifier[] | undefined> {
+    return await pairSocialIdentifier(
+      params,
+      authAccessToken,
+      this.#config.env,
+    );
   }
 
   async pairSrpProfiles(

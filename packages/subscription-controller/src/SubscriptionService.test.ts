@@ -35,6 +35,7 @@ import type {
 } from './types.js';
 import {
   CANCEL_TYPES,
+  CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -581,6 +582,171 @@ describe('SubscriptionService', () => {
   });
 
   describe('getSubscriptions', () => {
+    it('accepts the complete payment-error response shape', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              subscriptions: [
+                {
+                  id: 'sub_money_account_plus_123',
+                  products: [
+                    {
+                      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                      unitAmount: 999,
+                      unitDecimals: 2,
+                      currency: 'usd',
+                    },
+                  ],
+                  status: SUBSCRIPTION_STATUSES.paused,
+                  interval: RECURRING_INTERVALS.month,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCrypto,
+                    crypto: {
+                      payerAddress:
+                        '0x123456789012345678901234567890123456abcd',
+                      chainId: '0x1',
+                      tokenSymbol: 'pvmUSD',
+                      error: 'insufficient_balance',
+                    },
+                  },
+                  lastInvoice: {
+                    id: 'in_123',
+                    status: 'FAILED',
+                    errorCode: 'insufficient_balance',
+                    updatedAt: '2026-09-20T12:00:00.000Z',
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.trialedProducts).toStrictEqual([
+          PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        ]);
+        expect(result.subscriptions[0]).toMatchObject({
+          status: SUBSCRIPTION_STATUSES.paused,
+          lastInvoice: {
+            id: 'in_123',
+            status: 'FAILED',
+            errorCode: 'insufficient_balance',
+            updatedAt: '2026-09-20T12:00:00.000Z',
+          },
+        });
+      });
+    });
+
+    it('accepts delegation execution error codes on the last invoice', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  id: 'sub_money_account_plus_123',
+                  products: [
+                    {
+                      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                      unitAmount: 999,
+                      unitDecimals: 2,
+                      currency: 'usd',
+                    },
+                  ],
+                  status: SUBSCRIPTION_STATUSES.paused,
+                  interval: RECURRING_INTERVALS.month,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCrypto,
+                    crypto: {
+                      payerAddress:
+                        '0x123456789012345678901234567890123456abcd',
+                      chainId: '0x1',
+                      tokenSymbol: 'pvmUSD',
+                      error: 'insufficient_balance',
+                    },
+                  },
+                  lastInvoice: {
+                    id: 'in_123',
+                    status: 'FAILED',
+                    errorCode: 'delegation_not_found',
+                    updatedAt: '2026-09-20T12:00:00.000Z',
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result).toMatchObject({
+          subscriptions: [
+            expect.objectContaining({
+              paymentMethod: expect.objectContaining({
+                crypto: expect.objectContaining({
+                  error: 'insufficient_balance',
+                }),
+              }),
+              lastInvoice: expect.objectContaining({
+                errorCode: 'delegation_not_found',
+              }),
+            }),
+          ],
+        });
+      });
+    });
+
+    it('rejects unsupported payment execution error codes', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  id: 'sub_money_account_plus_123',
+                  products: [
+                    {
+                      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                      unitAmount: 999,
+                      unitDecimals: 2,
+                      currency: 'usd',
+                    },
+                  ],
+                  status: SUBSCRIPTION_STATUSES.paused,
+                  interval: RECURRING_INTERVALS.month,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCrypto,
+                    crypto: {
+                      payerAddress:
+                        '0x123456789012345678901234567890123456abcd',
+                      chainId: '0x1',
+                      tokenSymbol: 'pvmUSD',
+                      error: 'unknown_payment_error',
+                    },
+                  },
+                  lastInvoice: {
+                    id: 'in_123',
+                    status: 'FAILED',
+                    errorCode: 'unknown_payment_error',
+                    updatedAt: '2026-09-20T12:00:00.000Z',
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'paymentMethod',
+        );
+      });
+    });
+
     it('returns product entitlements from the subscriptions response', async () => {
       await withMockSubscriptionService(async ({ service, fetchMock }) => {
         const productEntitlements = {
@@ -1475,6 +1641,45 @@ describe('SubscriptionService', () => {
             body: JSON.stringify({
               ...request,
               subscriptionId: undefined,
+            }),
+          },
+        );
+      });
+    });
+
+    it('should update crypto payment method with a delegation hash', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        const request: UpdatePaymentMethodCryptoRequest = {
+          subscriptionId: 'sub_123456789',
+          chainId: '0x1',
+          payerAddress: '0x0000000000000000000000000000000000000001',
+          tokenSymbol: 'pvmUSD',
+          recurringInterval: RECURRING_INTERVALS.month,
+          billingCycles: 12,
+          cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+          delegationHash: '0xabcdef1234567890',
+        };
+
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await service.updatePaymentMethodCrypto(request);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(
+            env,
+            'subscriptions/sub_123456789/payment-method/crypto',
+          ),
+          {
+            method: 'PATCH',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+              delegationHash: '0xabcdef1234567890',
             }),
           },
         );

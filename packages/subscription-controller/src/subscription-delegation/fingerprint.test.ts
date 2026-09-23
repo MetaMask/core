@@ -9,6 +9,7 @@ import type { Hex } from '@metamask/utils';
 import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
+  pickLatestMatchingSubscriptionDelegation,
 } from './fingerprint.js';
 import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
@@ -208,5 +209,54 @@ describe('makeMatchesSubscriptionDelegation', () => {
     entry.signedDelegation.caveats[0].terms = '0x';
 
     expect(matches(entry)).toBe(false);
+  });
+});
+
+describe('pickLatestMatchingSubscriptionDelegation', () => {
+  it('returns undefined when there are no matches', () => {
+    expect(
+      pickLatestMatchingSubscriptionDelegation([], expected.enforcers),
+    ).toBeUndefined();
+  });
+
+  it('prefers the matching delegation with the latest period startDate', () => {
+    const older = buildEntry({ startDate: NOW_SECONDS - 86_400 });
+    older.metadata.delegationHash = `0x${'11'.repeat(32)}`;
+    const newer = buildEntry({ startDate: NOW_SECONDS });
+    newer.metadata.delegationHash = `0x${'22'.repeat(32)}`;
+
+    expect(
+      pickLatestMatchingSubscriptionDelegation(
+        [older, newer],
+        expected.enforcers,
+      )?.metadata.delegationHash,
+    ).toBe(newer.metadata.delegationHash);
+
+    expect(
+      pickLatestMatchingSubscriptionDelegation(
+        [newer, older],
+        expected.enforcers,
+      )?.metadata.delegationHash,
+    ).toBe(newer.metadata.delegationHash);
+  });
+
+  it('deprioritizes delegations whose period startDate cannot be read', () => {
+    const withoutPeriodCaveat = buildEntry({ startDate: NOW_SECONDS + 86_400 });
+    withoutPeriodCaveat.signedDelegation.caveats.pop();
+    withoutPeriodCaveat.metadata.delegationHash = `0x${'11'.repeat(32)}`;
+
+    const malformedTerms = buildEntry({ startDate: NOW_SECONDS + 86_400 });
+    malformedTerms.signedDelegation.caveats[1].terms = '0x';
+    malformedTerms.metadata.delegationHash = `0x${'22'.repeat(32)}`;
+
+    const readable = buildEntry({ startDate: NOW_SECONDS - 86_400 });
+    readable.metadata.delegationHash = `0x${'33'.repeat(32)}`;
+
+    expect(
+      pickLatestMatchingSubscriptionDelegation(
+        [withoutPeriodCaveat, malformedTerms, readable],
+        expected.enforcers,
+      )?.metadata.delegationHash,
+    ).toBe(readable.metadata.delegationHash);
   });
 });

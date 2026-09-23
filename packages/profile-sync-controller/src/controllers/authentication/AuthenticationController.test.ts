@@ -45,6 +45,7 @@ import type {
 import {
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
 } from './mocks/mockResponses.js';
 
 jest.mock('../../shared/utils/message-signing.js', () => ({
@@ -823,6 +824,117 @@ describe('AuthenticationController', () => {
       }
     });
 
+    it('stores paired identifiers from the pair response on the primary SRP session only', async () => {
+      const pairedIdentifierIds = [
+        { id: 'h1', type: 'SRP' },
+        { id: 'id-1', type: 'SRP' },
+      ];
+      arrangeAuthAPIs({
+        mockPairProfiles: {
+          status: 200,
+          body: {
+            profile: {
+              identifier_id: 'id-1',
+              metametrics_id: 'mm-1',
+              profile_id: MOCK_LOGIN_RESPONSE.profile.profile_id,
+              paired_identifier_ids: pairedIdentifierIds,
+            },
+            profile_aliases: [],
+          },
+        },
+      });
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      await controller.performSignIn();
+
+      const [primaryId, secondaryId] = MOCK_ENTROPY_SOURCE_IDS;
+      expect(
+        controller.state.srpSessionData?.[primaryId]?.profile
+          .pairedIdentifierIds,
+      ).toStrictEqual(pairedIdentifierIds);
+      expect(
+        controller.state.srpSessionData?.[secondaryId]?.profile,
+      ).not.toHaveProperty('pairedIdentifierIds');
+    });
+
+    it.each([
+      ['a pair response', { needsProfilePairing: true }, MOCK_HD_KEYRINGS],
+      [
+        'a login response',
+        { expiresIn: 0 },
+        mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      ],
+    ])(
+      'keeps stored paired identifiers when %s omits them',
+      async (_, stateOptions, keyrings) => {
+        arrangeAuthAPIs();
+        const state = mockSignedInState(stateOptions);
+        const storedIds = [{ id: 'id-google', type: 'GOOGLE' }];
+        const primaryEntry = state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+        if (primaryEntry) {
+          primaryEntry.profile.pairedIdentifierIds = storedIds;
+        }
+        const { messenger, mockKeyringControllerGetState } =
+          createMockAuthenticationMessenger();
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings,
+        });
+        const controller = new AuthenticationController({
+          messenger,
+          state,
+          metametrics: createMockAuthMetaMetrics(),
+        });
+
+        await controller.performSignIn();
+
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+            .pairedIdentifierIds,
+        ).toStrictEqual(storedIds);
+      },
+    );
+
+    it('stores paired identifiers returned by login on the SRP session', async () => {
+      const pairedIdentifierIds = [
+        { id: 'id-google', type: 'GOOGLE' },
+        { id: MOCK_LOGIN_RESPONSE.profile.identifier_id, type: 'SRP' },
+      ];
+      arrangeAuthAPIs({
+        mockSrpLoginUrl: {
+          status: 200,
+          body: {
+            ...MOCK_LOGIN_RESPONSE,
+            profile: {
+              ...MOCK_LOGIN_RESPONSE.profile,
+              paired_identifier_ids: pairedIdentifierIds,
+            },
+          },
+        },
+      });
+      const { messenger, mockKeyringControllerGetState } =
+        createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      await controller.performSignIn();
+
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+          .pairedIdentifierIds,
+      ).toStrictEqual(pairedIdentifierIds);
+    });
+
     it('epoch check: a concurrent requestProfilePairing during multi-SRP performSignIn keeps the gate set', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
@@ -1013,6 +1125,54 @@ describe('AuthenticationController', () => {
       });
       expect(controller.state.needsSocialPairing).toBe(false);
       expect(accessTokens[0]).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
+    });
+
+    it('stores paired identifiers from the pair/identifier response on the primary SRP session', async () => {
+      const pairedIdentifierIds = [
+        { id: 'id-google', type: 'GOOGLE' },
+        { id: MOCK_LOGIN_RESPONSE.profile.identifier_id, type: 'SRP' },
+      ];
+      arrangeAuthAPIs({
+        mockPairSocialIdentifier: {
+          status: 200,
+          body: {
+            ...MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+            profile: {
+              ...MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE.profile,
+              paired_identifier_ids: pairedIdentifierIds,
+            },
+          },
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+          .pairedIdentifierIds,
+      ).toStrictEqual(pairedIdentifierIds);
     });
 
     it('treats undefined needsSocialPairing as still needed', async () => {
@@ -3321,6 +3481,77 @@ describe('MFA step-up verification', () => {
     expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
   });
 
+  it('sends the elevated token when beginning enrollment while a session is live', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeStepUp(controller);
+    const elevated = controller.getElevatedProfileToken()?.accessToken;
+    expect(elevated).toBeDefined();
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      expect(
+        new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
+          'Authorization',
+        ),
+      ).toBe(`Bearer ${elevated}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('sends the base token on enrollment calls without a live session', async () => {
+    const { controller } = createController();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      expect(
+        new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
+          'Authorization',
+        ),
+      ).toBe(`Bearer ${base}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('surfaces aal2_required from enrollment', async () => {
+    mockEndpointMfaEnroll({
+      status: 403,
+      body: { code: 'aal2_required', message: 'Elevated session required' },
+    });
+    const { controller } = createController();
+
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'aal2_required', status: 403 });
+  });
+
   it('clears an elevated session after successful enrollment', async () => {
     mockSuccessfulCompletion();
     mockEndpointMfaEnrollComplete();
@@ -3396,6 +3627,34 @@ describe('metadata', () => {
       ).toStrictEqual([
         { type: 'passkey', status: 'active', enrolledAt: 1_000 },
         { type: 'email_otp', status: 'pending', enrolledAt: 2_000 },
+      ]);
+    });
+
+    it('strips paired identifiers out of state logs', () => {
+      const state = mockSignedInState();
+      const primaryEntry = state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+      if (primaryEntry) {
+        primaryEntry.profile.pairedIdentifierIds = [
+          { id: 'hashed-google-sub', type: 'GOOGLE' },
+        ];
+      }
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty([
+        'srpSessionData',
+        MOCK_ENTROPY_SOURCE_IDS[0],
+        'profile',
+        'pairedIdentifierIds',
       ]);
     });
 
