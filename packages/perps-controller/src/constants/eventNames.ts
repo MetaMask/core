@@ -693,3 +693,6 @@ export const PERPS_EVENT_VALUE = {
     ASSET_DETAILS: 'asset_details',
   },
 } as const;
+
+export type PerpsMaxSlippageSource =
+  (typeof PERPS_EVENT_VALUE.MAX_SLIPPAGE_SOURCE)[keyof typeof PERPS_EVENT_VALUE.MAX_SLIPPAGE_SOURCE];

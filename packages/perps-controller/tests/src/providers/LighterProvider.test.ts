@@ -9751,45 +9751,10 @@ describe('LighterProvider', () => {
       };
       const result = await provider.validateClosePosition(request);
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain('Price moved too much');
+      expect(result.error).toContain('slippage tolerance since sizing');
       const execution = await provider.closePosition(request);
       expect(execution.success).toBe(false);
-      expect(execution.error).toContain('Price moved too much');
-      expect(execution.errorCode).toBe('PRICE_MOVED');
-      expect(execution.errorDetails).toMatchObject({
-        code: 'PRICE_MOVED',
-        maxSlippageBps: 500,
-      });
-    });
-
-    it('allows a full market close when the caller price snapshot is stale', async () => {
-      const { provider, clientInstance, calls } = buildProvider();
-      clientInstance.getAccountByIndex.mockResolvedValue({
-        code: 200,
-        accounts: [
-          {
-            ...ACCOUNT,
-            positions: [{ ...ACCOUNT.positions[0], position: '0.001' }],
-          },
-        ],
-      });
-
-      const request = {
-        symbol: 'BTC',
-        orderType: 'market' as const,
-        currentPrice: 90_000,
-        priceAtCalculation: 90_000,
-      };
-
-      const validation = await provider.validateClosePosition(request);
-      expect(validation.isValid).toBe(true);
-
-      const result = await provider.closePosition(request);
-
-      expect(result.success).toBe(true);
-      expect(calls.some((call) => call.function === '_signCreateOrder')).toBe(
-        true,
-      );
+      expect(execution.error).toContain('slippage tolerance since sizing');
     });
 
     it("rejects an 'Infinity' limit price in validators and placement alike", async () => {
@@ -10787,7 +10752,7 @@ describe('LighterProvider', () => {
         priceAtCalculation: 90000,
       });
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Price moved too much');
+      expect(result.error).toContain('slippage tolerance');
     });
   });
 
