@@ -7257,7 +7257,6 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/jest-when": "npm:^3.5.5"
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
@@ -8113,7 +8112,6 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/jest-when": "npm:^3.5.5"
     "@types/lodash-es": "npm:^4.17.12"
     "@types/node-fetch": "npm:^2.6.12"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9493,7 +9491,6 @@ __metadata:
     "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
-    "@types/jest-when": "npm:^3.5.5"
     "@types/lodash": "npm:^4.17.20"
     "@typescript/native": "npm:typescript@^7.0.2"
     debug: "npm:^4.3.4"
@@ -11951,16 +11948,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/jest-when@npm:^3.5.5":
-  version: 3.5.5
-  resolution: "@types/jest-when@npm:3.5.5"
-  dependencies:
-    "@types/jest": "npm:*"
-  checksum: 10/816c1ed5554182c43261d23c2902506c316bc0368f2ea1e632a0a93d05d8f6f2918afa6a406c2f5fdd4d277e042b8d2ba797993dc3c2fd2d5f53cda946696772
-  languageName: node
-  linkType: hard
-
-"@types/jest@npm:*, @types/jest@npm:^30.0.0":
+"@types/jest@npm:^30.0.0":
   version: 30.0.0
   resolution: "@types/jest@npm:30.0.0"
   dependencies:
