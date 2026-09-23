@@ -892,8 +892,8 @@ function getFiatRates(
  * transaction's params so that gas estimation and gas-fee-token logic handle
  * both transactions together.
  *
- * When the execute flow is active (indicated by `quote.metamask.isExecute`),
- * network fees are zeroed because the relayer covers them.
+ * Network fees are zeroed whenever the user does not pay origin gas, either
+ * because a relayer covers it or because MetaMask sponsors it.
  *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
@@ -917,31 +917,15 @@ async function calculateSourceNetworkCost(
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  if (quote.metamask?.isExecute) {
-    log('Zeroing network fees for execute flow');
-
-    return {
-      estimate: ZERO_AMOUNT,
-      max: ZERO_AMOUNT,
-      gasLimits: [],
-      is7702: false,
-    };
-  }
-
-  // HyperLiquid withdrawals are gasless -- the "deposit" step is an HL
-  // sendAsset (off-chain signature), not an on-chain transaction.
-  if (request.isHyperliquidSource) {
-    log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
-
-    return {
-      estimate: ZERO_AMOUNT,
-      max: ZERO_AMOUNT,
-      gasLimits: [],
-      is7702: false,
-    };
-  }
+  // Neither flow bills origin gas to the user: the execute flow has a relayer
+  // redeem a signed delegation, and a HyperLiquid withdrawal's "deposit" step
+  // is an off-chain HL sendAsset signature rather than an on-chain
+  // transaction.
+  const isExecuteFlow = Boolean(quote.metamask?.isExecute);
+  const isHyperliquidWithdrawal = Boolean(request.isHyperliquidSource);
 
   const gasPayment = resolveGasPayment({
+    isDelegated: isExecuteFlow || isHyperliquidWithdrawal,
     sourceTokenAddress,
     sponsorship: {
       accountSupports7702,
@@ -949,6 +933,20 @@ async function calculateSourceNetworkCost(
       transaction,
     },
   });
+
+  if (gasPayment.mode === GasPaymentMode.Delegation) {
+    log('Zeroing network fees as the user does not pay origin gas', {
+      isExecuteFlow,
+      isHyperliquidWithdrawal,
+    });
+
+    return {
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
+      gasLimits: [],
+      is7702: false,
+    };
+  }
 
   if (gasPayment.mode === GasPaymentMode.Sponsored) {
     log('Zeroing source network fees for sponsored same-chain Relay route');

@@ -70,7 +70,7 @@ export type GasPayment = {
   mode: GasPaymentMode;
 };
 
-export type GasPaymentRequest = {
+type GasPaymentRequest = {
   /**
    * Whether to set `excludeNativeTokenForFee` when a gas fee token is used.
    * Opt-in per strategy since it changes how the `TransactionController`
@@ -102,7 +102,7 @@ export type GasPaymentRequest = {
 };
 
 /** Origin gas priced in source-token units by the gas station. */
-export type GasStationCost = {
+type GasStationCost = {
   /** The cost, when the gas station will collect gas in the source token. */
   amount?: Amount;
 
@@ -114,7 +114,7 @@ export type GasStationCost = {
   isAvailable: boolean;
 };
 
-export type GasStationCostRequest = {
+type GasStationCostRequest = {
   /**
    * Whether the paying account can sign EIP-7702 authorizations. Omit when
    * unknown; only an explicit `false` blocks the gas station.
@@ -149,13 +149,13 @@ export type GasStationCostRequest = {
   totalItemCount: number;
 };
 
-export type GasStationStepData = {
+type GasStationStepData = {
   data: Hex;
   to: Hex;
   value?: string;
 };
 
-export type SponsorshipRequest = {
+type SponsorshipRequest = {
   /** Whether the paying account can sign EIP-7702 authorizations. */
   accountSupports7702: boolean | undefined;
 
