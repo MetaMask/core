@@ -9,12 +9,11 @@ import type {
   Caip19AssetId,
   ChainId,
   Context,
-  DataRequest,
   DataResponse,
   Middleware,
   NextFunction,
 } from '../types.js';
-import { normalizeAssetId } from '../utils/index.js';
+import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
 import { mergeDataResponses } from './ParallelMiddleware.js';
 
 const CONTROLLER_NAME = 'RpcFallbackMiddleware';
@@ -25,8 +24,9 @@ export type RpcFallbackMiddlewareOptions = {
   /** The RPC data source to use as a fallback. */
   rpcDataSource: AssetsDataSource;
   /**
-   * When true, recover `unprocessedCustomAssets` (Accounts API v6). When false,
-   * re-read stale tracked assets the v5 API omitted (legacy path).
+   * When true, recover failed and unprocessed chains with a full RPC refetch
+   * (Accounts API v6). When false, re-read stale tracked assets the v5 API
+   * omitted (legacy path).
    */
   isBalanceV6Enabled?: () => boolean;
 };
@@ -39,10 +39,10 @@ const noopNext = async (ctx: Context): Promise<Context> => ctx;
  * Accounts API v5: chains in `response.errors`, plus EVM assets tracked in
  * state that this response left empty (the API omits tokens it does not index).
  *
- * Accounts API v6: one RPC retry. `customAssets` is the union of
- * `response.unprocessedCustomAssets` (trust the API) and every tracked
- * asset on chains in `response.errors` (so a `full` update cannot drop
- * imported or previously detected tokens on a failed chain).
+ * Accounts API v6: one RPC retry on the chain axis. Chains in
+ * `response.errors` are refetched in full (native + existing balances + pins +
+ * default tracked assets). RPC reads those from state; the request is not
+ * scoped via `customAssets`.
  */
 export class RpcFallbackMiddleware {
   readonly name = CONTROLLER_NAME;
@@ -74,46 +74,32 @@ export class RpcFallbackMiddleware {
     const erroredChains = new Set<ChainId>(
       Object.keys(ctx.response.errors ?? {}) as ChainId[],
     );
-    const unprocessedAssetsPins = [
-      ...new Set(ctx.response.unprocessedCustomAssets ?? []),
-    ];
-    const assetsOnErroredChains = collectTrackedAssetsOnChains(
-      ctx,
-      erroredChains,
+    const chainsToFetch = ctx.request.chainIds.filter((id) =>
+      erroredChains.has(id),
     );
-    const customAssets = [
-      ...new Set([...unprocessedAssetsPins, ...assetsOnErroredChains]),
-    ];
-    const chainsToFetch = [
-      ...new Set([
-        ...ctx.request.chainIds.filter((id) => erroredChains.has(id)),
-        ...customAssets.map((assetId) => chainIdOfAsset(assetId)),
-      ]),
-    ];
 
     if (chainsToFetch.length === 0) {
       return next(ctx);
     }
 
-    const rpcRequest: DataRequest = {
-      ...ctx.request,
-      chainIds: chainsToFetch,
-      ...(customAssets.length > 0 ? { customAssets } : {}),
-    };
     const rpcResult = await this.#rpcDataSource.assetsMiddleware(
-      { ...ctx, request: rpcRequest, response: {} },
+      {
+        ...ctx,
+        request: { ...ctx.request, chainIds: chainsToFetch },
+        response: {},
+      },
       noopNext,
     );
 
     const rpcFailedChains = new Set<ChainId>(
       Object.keys(rpcResult.response.errors ?? {}) as ChainId[],
     );
-    const rpcAssetsBalance = filterOutChainBalances(
+    const rpcAssetsBalance = filterFailedChainBalances(
       rpcResult.response.assetsBalance,
       rpcFailedChains,
     );
 
-    let merged = mergeDataResponses([
+    const merged = mergeDataResponses([
       ctx.response,
       {
         ...rpcResult.response,
@@ -135,8 +121,6 @@ export class RpcFallbackMiddleware {
       }
     }
 
-    merged = clearRecoveredAssetIds(merged);
-
     return next({ ...ctx, response: merged });
   }
 
@@ -149,6 +133,9 @@ export class RpcFallbackMiddleware {
     const chainsToFetch = [
       ...new Set([
         ...ctx.request.chainIds.filter((id) => erroredChains.has(id)),
+        // Already restricted to requested chains. Their chain may not be
+        // errored: the Accounts API can answer for a chain while omitting a
+        // token it does not index.
         ...staleAssets.map((assetId) => assetId.split('/')[0] as ChainId),
       ]),
     ];
@@ -180,14 +167,23 @@ export class RpcFallbackMiddleware {
       noopNext,
     );
 
+    // A chain RPC itself failed on contributed nothing trustworthy: its
+    // balances are failure stubs (native 0) that would overwrite correct
+    // upstream amounts and, with replaceCoveredChainBalances, wipe the
+    // chain's token slice from state. Drop them before merging — this also
+    // keeps failed chains from counting as "recovered" below.
     const rpcFailedChains = new Set<ChainId>(
       Object.keys(rpcResult.response.errors ?? {}) as ChainId[],
     );
-    const rpcAssetsBalance = filterOutChainBalances(
+    const rpcAssetsBalance = filterFailedChainBalances(
       rpcResult.response.assetsBalance,
       rpcFailedChains,
     );
 
+    // RPC errors are kept only for chains that were already errored
+    // upstream. For chains fetched solely for stale tracked assets the
+    // upstream response succeeded and stays authoritative — the stale asset
+    // keeps its previous amount and is retried on the next pass.
     const rpcErrors = Object.fromEntries(
       Object.entries(rpcResult.response.errors ?? {}).filter(([chainId]) =>
         erroredChains.has(chainId as ChainId),
@@ -203,6 +199,13 @@ export class RpcFallbackMiddleware {
       },
     ]);
 
+    // Clear errors only for chains RPC actually recovered a balance for.
+    // We must inspect the (filtered) RPC balances — NOT merged — because
+    // merged also contains balances from the upstream sources (AccountsApi /
+    // Websocket / Staked). If those sources returned partial data for
+    // a chain that they also flagged as errored (e.g. via
+    // unprocessedNetworks), and RPC then failed for that same chain,
+    // looking at merged would incorrectly mark the error as recovered.
     if (merged.errors && rpcAssetsBalance) {
       const chainsRecoveredByRpc = new Set<string>();
       for (const accountBalances of Object.values(rpcAssetsBalance)) {
@@ -221,109 +224,17 @@ export class RpcFallbackMiddleware {
   }
 }
 
-function chainIdOfAsset(assetId: Caip19AssetId): ChainId {
-  return assetId.split('/')[0] as ChainId;
-}
-
 /**
- * Every EVM asset already in state on `chains` — balances and pins — so an RPC
- * retry of a failed chain re-reads the whole slice, not natives only. Hidden
- * assets are left out, matching the `excludeAssetIds` the Accounts API is sent.
- * Staking vaults belong to `StakedBalanceDataSource` and are skipped.
+ * EVM assets tracked in state that this balance response left empty and RPC
+ * should re-read.
  *
- * @param ctx - Pipeline context, for request accounts and assets state.
- * @param chains - Chains being recovered on RPC.
- * @returns Deduplicated asset IDs on those chains.
+ * Limited to chains both requested and supported by the owning account:
+ * RpcDataSource fetches per account and skips chains outside its supported
+ * set, so anything else would be queued and then silently dropped.
+ *
+ * @param ctx - Pipeline context.
+ * @returns Asset IDs to hand to the RPC data source.
  */
-function collectTrackedAssetsOnChains(
-  ctx: Context,
-  chains: Set<ChainId>,
-): Caip19AssetId[] {
-  if (chains.size === 0) {
-    return [];
-  }
-
-  const {
-    assetsBalance,
-    customAssets: statePins,
-    assetPreferences,
-  } = ctx.getAssetsState();
-  const tracked = new Set<Caip19AssetId>();
-
-  for (const { account } of ctx.request.accountsWithSupportedChains) {
-    const balanceIds = Object.keys(
-      assetsBalance[account.id] ?? {},
-    ) as Caip19AssetId[];
-    const pinIds = statePins?.[account.id] ?? [];
-    for (const assetId of [...balanceIds, ...pinIds]) {
-      if (
-        chains.has(chainIdOfAsset(assetId)) &&
-        assetId.startsWith(`${KnownCaipNamespace.Eip155}:`) &&
-        !isStakingContractAssetId(assetId) &&
-        !assetPreferences?.[normalizeAssetId(assetId)]?.hidden
-      ) {
-        tracked.add(assetId);
-      }
-    }
-  }
-
-  return [...tracked];
-}
-
-function clearRecoveredAssetIds(response: DataResponse): DataResponse {
-  if (
-    !response.unprocessedCustomAssets ||
-    response.unprocessedCustomAssets.length === 0
-  ) {
-    return response;
-  }
-
-  const recovered = new Set<Caip19AssetId>();
-  for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
-    for (const assetId of Object.keys(accountBalances)) {
-      recovered.add(normalizeAssetId(assetId as Caip19AssetId));
-    }
-  }
-
-  const stillUnprocessed = response.unprocessedCustomAssets.filter(
-    (assetId) => !recovered.has(normalizeAssetId(assetId)),
-  );
-
-  if (stillUnprocessed.length === response.unprocessedCustomAssets.length) {
-    return response;
-  }
-
-  const next = { ...response };
-  if (stillUnprocessed.length === 0) {
-    delete next.unprocessedCustomAssets;
-  } else {
-    next.unprocessedCustomAssets = stillUnprocessed;
-  }
-  return next;
-}
-
-function filterOutChainBalances(
-  assetsBalance: DataResponse['assetsBalance'],
-  chainIds: Set<ChainId>,
-): DataResponse['assetsBalance'] {
-  if (!assetsBalance || chainIds.size === 0) {
-    return assetsBalance;
-  }
-
-  const filtered: NonNullable<DataResponse['assetsBalance']> = {};
-  for (const [accountId, accountBalances] of Object.entries(assetsBalance)) {
-    const kept = Object.fromEntries(
-      Object.entries(accountBalances).filter(
-        ([assetId]) => !chainIds.has(assetId.split('/')[0] as ChainId),
-      ),
-    ) as Record<Caip19AssetId, AssetBalance>;
-    if (Object.keys(kept).length > 0) {
-      filtered[accountId] = kept;
-    }
-  }
-  return filtered;
-}
-
 function collectStaleTrackedAssets(ctx: Context): Caip19AssetId[] {
   const { assetsBalance: stateAssetsBalance, customAssets: stateCustomAssets } =
     ctx.getAssetsState();
@@ -345,6 +256,8 @@ function collectStaleTrackedAssets(ctx: Context): Caip19AssetId[] {
     for (const assetId of trackedAssetIds) {
       if (
         isEvmAssetOnChains(assetId, chainsForAccount) &&
+        // Staked vault balances belong to StakedBalanceDataSource; an RPC
+        // ERC-20 read of the share token would clobber them.
         !isStakingContractAssetId(assetId) &&
         isBalanceEmpty(ctx.response.assetsBalance?.[accountId], assetId)
       ) {
@@ -356,6 +269,16 @@ function collectStaleTrackedAssets(ctx: Context): Caip19AssetId[] {
   return [...staleAssets];
 }
 
+/**
+ * Whether a balance response carries no positive amount for an asset. A
+ * returned `0` cannot be distinguished from "not indexed", so both count as
+ * empty. Asset IDs are matched case-insensitively: state keys ERC-20 assets by
+ * checksummed address, while some data sources return them lower-cased.
+ *
+ * @param balances - Balance map for a single account from the response.
+ * @param assetId - Asset ID to check.
+ * @returns True when the response holds no positive amount for the asset.
+ */
 function isBalanceEmpty(
   balances: Record<string, AssetBalance> | undefined,
   assetId: Caip19AssetId,
@@ -370,6 +293,13 @@ function isBalanceEmpty(
   return !(Number(amount) > 0);
 }
 
+/**
+ * Whether an asset is an EVM asset on one of the given chains.
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @param chainIds - Chains to match against.
+ * @returns True for EVM assets whose chain is in `chainIds`.
+ */
 function isEvmAssetOnChains(
   assetId: Caip19AssetId,
   chainIds: ChainId[],

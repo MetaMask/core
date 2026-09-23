@@ -1,12 +1,25 @@
-# AssetsController - Accounts API v5 and v6 side by side
+# Managing the visible asset set across Accounts API v5 and v6
 
 ## What this change is about
 
 The AssetsController collects token balances, metadata, and prices for every
-account and chain, and stores the result for the UI to render.
+account and chain, and stores the result for the UI to render. The hard part is
+not fetching a balance — it is agreeing on **which tokens the user should see**,
+and keeping that set intact as several sources write into the same state.
 
-This release adds support for a new version of the Accounts API (**v6**) while
-keeping the current one (**v5**) fully intact. Which one runs is decided at
+The two Accounts API versions answer that question differently:
+
+- **v5**: the API decides what to return. The client cannot ask for a specific
+  token, so anything the API does not index (a pin, mUSD at zero) is patched in
+  afterwards — by RPC re-reads, a supplemental custom-asset poll, and custom
+  asset graduation. Responses are overlaid onto state (`merge`), so nothing is
+  ever removed and a stale token can linger.
+- **v6**: the client declares the visible set up front as `includeAssetIds` /
+  `excludeAssetIds`, and the answer is authoritative for the chains it covers
+  (`full`). That removes the patch-ups, but it means every visible asset must
+  appear in the snapshot — otherwise the replace would drop it.
+
+Both paths ship together and stay fully separate. Which one runs is decided at
 runtime by the `assetsAccountsApiV6` remote feature flag:
 
 - flag off, missing, or unreadable: the legacy **v5** path (today's production
@@ -14,7 +27,8 @@ runtime by the `assetsAccountsApiV6` remote feature flag:
 - `assetsAccountsApiV6: true`: the new **v6** path
 
 The flag is read in exactly one place, `AssetsController.#isBalanceV6Enabled()`,
-and passed down to `AccountsApiDataSource` and `RpcFallbackMiddleware`.
+and injected into `AccountsApiDataSource`, `SnapDataSource`, `RpcDataSource`
+(and through it `BalanceFetcher`), and `RpcFallbackMiddleware`.
 
 ## Vocabulary used below
 
@@ -22,11 +36,14 @@ and passed down to `AccountsApiDataSource` and `RpcFallbackMiddleware`.
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Pinned asset (custom asset)   | A token the user added manually (Manage Token flow). We always want to fetch it, even when the API does not return it on its own. |
 | Hidden asset                  | A token the user chose to hide, so it should not be fetched or shown.                                                             |
+| Default tracked asset         | A token the client always tracks on a chain even at zero (for example mUSD).                                                      |
+| Visible asset                 | Native, pin, or default tracked asset that is not hidden. Staking vault IDs are not visible; a dedicated source owns them.        |
 | Data source                   | Where balances come from: the Accounts API, RPC nodes, a Snap, or staking.                                                        |
 | Middleware                    | A step that enriches or repairs data after it is fetched (token detection, prices, metadata, RPC fallback).                       |
 | Fast lane                     | The first, quick round of fetching. Its result is written to state right away so the UI can render.                               |
 | Background lane               | The slower sources that run afterwards; their results are merged in.                                                              |
 | Update mode `merge` vs `full` | `merge` keeps assets already in state that the response did not mention. `full` replaces the whole slice the source covers.       |
+| Failed chain                  | A chain the source could not answer in full. Its balances are dropped from the response and existing state is left unchanged.     |
 | Basic functionality           | The user setting that turns off network calls to MetaMask services.                                                               |
 
 ## Why there are two paths
@@ -49,46 +66,80 @@ flowchart LR
   F -->|true| V6["v6 path"]
 ```
 
+## Shared visibility (v6)
+
+v6 sources do not take pins or hides from the request. They all call
+`getAssetVisibility(accountIds, chainIds)` (`utils/assetVisibility.ts`), which
+reads controller state and returns:
+
+- `visibleAssetIds`: natives (except chains with no native, e.g. Tempo), pins
+  for those accounts, and default tracked assets, minus hidden and staking IDs
+- `hiddenAssetIds`: hidden preferences on those chains
+
+Accounts API sends those lists as `includeAssetIds` / `excludeAssetIds`. RPC
+and Snap fetch the visible set and skip hidden IDs. Because a `full` snapshot
+must mention every visible asset (at zero when unheld), Snap pads missing
+visible IDs to `{ amount: '0' }`. RPC builds the same list from state, so a
+successful chain is already complete.
+
+`hideAsset` / `unhideAsset` and `addCustomAsset` / `removeCustomAsset`
+re-run `#subscribeAssets` so the next poll sees the new lists.
+`addCustomAsset` also force-fetches that token's chain (every pin from state,
+not only the new token) so a `full` snapshot cannot wipe the other pins.
+
 ## 1. Forced refresh
 
 Triggered by `getAssets(..., { forceUpdate: true })`. Both paths have the same
 shape: build a request, run the fast lane, write state, then run the background
-lane and merge its results.
+lane.
 
 ```mermaid
 flowchart TB
   subgraph v5fast ["v5 fast lane"]
     direction TB
-    V5P["Accounts API v5 + Staked"] --> V5G[CustomAssetGraduation] --> V5F[RpcFallback] --> V5D[Detection] --> V5T["Token + Price"] --> V5S["State: merge, replaceCoveredChainBalances"]
+    V5P["Accounts API v5 + Staked"] --> V5G[CustomAssetGraduation] --> V5F[RpcFallback] --> V5D[Detection] --> V5T["Token + Price"] --> V5S["State: merge + replaceCoveredChainBalances"]
   end
   subgraph v6fast ["v6 fast lane"]
     direction TB
-    V6P["Accounts API v6 + Staked<br/>includeAssetIds / excludeAssetIds"] --> V6F["RpcFallback<br/>errored chains + unprocessedIncludeAssetIds"] --> V6D[Detection] --> V6T["Token + Price"] --> V6S["State: full where the Accounts API has coverage"]
+    V6P["Accounts API v6 + Staked<br/>includeAssetIds / excludeAssetIds"] --> V6F["RpcFallback<br/>errored chains"] --> V6D[Detection] --> V6T["Token + Price"] --> V6S["State: full for covered chains"]
   end
-  subgraph bg ["Background lane (same for both)"]
+  subgraph bgv5 ["v5 background lane"]
     direction TB
-    B1["Snap + RPC"] --> B2[Detection] --> B3["Token + Price"] --> B4["State: merge"]
+    B5["Snap + RPC<br/>updateMode merge"] --> B5D[Detection] --> B5T["Token + Price"] --> B5S["State: merge"]
   end
-  v5fast --> bg
-  v6fast --> bg
+  subgraph bgv6 ["v6 background lane"]
+    direction TB
+    B6["Snap + RPC<br/>updateMode full"] --> B6D[Detection] --> B6T["Token + Price"] --> B6S["State: full for covered chains"]
+  end
+  v5fast --> bgv5
+  v6fast --> bgv6
 ```
 
 The requests differ as well:
 
-- **v5** asks for every pinned asset of the requested accounts, without scoping
-  them to chains, and does not mention hidden assets.
-- **v6** does not copy pins or hides onto the request. The Accounts API
-  reads them from state (`includeAssetIds` / `excludeAssetIds`). A
-  `customAssets` override still scopes a one-shot fetch (new pin, RPC
-  fallback).
+- **v5** puts every pinned asset of the requested accounts on
+  `request.customAssets`, without scoping them to chains, and does not mention
+  hidden assets. RPC fallback may add stale tracked assets to that list. Fast
+  fetch then writes state as `merge` plus `replaceCoveredChainBalances`, which
+  restores custom assets omitted by the API.
+- **v6** does not copy pins or hides onto the request. The Accounts API reads
+  visibility from state. Detected ERC-20 balances come back with the chain, so
+  `updateMode: 'full'` is a complete snapshot for successful chains. A chain
+  that is unprocessed, or that did not resolve every `includeAssetId`, is put
+  in `errors` and contributes no balances. RPC fallback retries those **chains**
+  in full from state and stamps `full`. Snap `#fetchV6` stamps `full` after
+  zero-filling missing visible assets. Background Snap+RPC both stamp `full`;
+  `mergeDataResponses` promotes `full` if any source did.
 
 When basic functionality is off, both fast lanes shrink to
-`Staked -> Detection`. The background lane is RPC only in both paths.
+`Staked -> Detection`. The background lane is RPC only in both paths
+(`merge` on v5, `full` on v6).
 
 ## 2. Setting up live updates (subscribe)
 
 Both paths first hand each chain to the data source with the highest priority
-for it. They differ in how pinned assets on those chains are covered:
+for it (Accounts API, then Snap, then RPC, plus Account Activity and staking
+on the chains they support).
 
 ```mermaid
 flowchart TB
@@ -99,12 +150,14 @@ flowchart TB
   subgraph v5sub ["v5"]
     direction TB
     V5A["Subscribe each source with accounts + assigned chains"]
-    V5WS["Account Activity<br/>updateMode merge"]
-    V5API["Accounts API<br/>updateMode merge"]
-    V5RPC["RPC<br/>updateMode merge"]
-    V5R["Extra RPC poll: customAssetsOnly<br/>pins on chains another source already owns<br/>updateMode merge"]
+    V5WS["Account Activity · merge"]
+    V5API["Accounts API · merge"]
+    V5SNAP["Snap · merge"]
+    V5RPC["RPC · merge"]
+    V5R["Extra RPC poll: customAssetsOnly<br/>pins on chains another source already owns · merge"]
     V5A --> V5WS
     V5A --> V5API
+    V5A --> V5SNAP
     V5A --> V5RPC
     V5A --> V5R
   end
@@ -112,11 +165,13 @@ flowchart TB
   subgraph v6sub ["v6"]
     direction TB
     V6A["Subscribe each source with accounts + assigned chains only"]
-    V6WS["Account Activity<br/>ignores pins/hides<br/>updateMode merge"]
-    V6API["Accounts API<br/>includeAssetIds / excludeAssetIds from state<br/>updateMode full"]
-    V6RPC["RPC<br/>polls customAssets from state on assigned chains<br/>updateMode merge"]
+    V6WS["Account Activity · event deltas · merge"]
+    V6API["Accounts API · visibility from state · full"]
+    V6SNAP["Snap · visible assets from state · full snapshot<br/>balance events stay merge"]
+    V6RPC["RPC · visible assets from state · full"]
     V6A --> V6WS
     V6A --> V6API
+    V6A --> V6SNAP
     V6A --> V6RPC
   end
 
@@ -126,11 +181,11 @@ flowchart TB
 
 - **v5** adds a separate RPC poll (`customAssetsOnly`) for pins that sit on a
   chain another source already owns.
-- **v6** subscribe only assigns accounts and chains. The Accounts API reads
-  pins and hides from state and sends them as `includeAssetIds` /
-  `excludeAssetIds`. RPC polls `customAssets` from state on its assigned
-  chains. Account Activity ignores pins/hides. Pins the API could not resolve
-  are recovered by `RpcFallbackMiddleware` on that update.
+- **v6** subscribe only assigns accounts and chains. There is no
+  `customAssetsOnly` supplement: RPC already polls the visible set on the
+  chains it was assigned, and Accounts API / Snap cover pins on their chains
+  through visibility. Account Activity events, RPC token detection, staked
+  balance updates, and Snap `accountBalancesUpdated` events stay `merge`.
 
 ## 3. Handling an incoming update
 
@@ -138,53 +193,113 @@ flowchart TB
 flowchart TB
   subgraph v5upd ["v5 · #handleAssetsUpdateV5"]
     direction TB
-    V5I["Incoming update"] --> V5G["CustomAssetGraduation<br/>Accounts API + Account Activity"] --> V5D[Detection] --> V5T["Token + Price"] --> V5S["State: merge<br/>replaceCoveredChainBalances"]
+    V5I["Incoming update"] --> V5G["CustomAssetGraduation<br/>Accounts API + Account Activity"] --> V5R["RpcFallback when source is Accounts API"] --> V5D[Detection] --> V5T["Token + Price"] --> V5S["State: applyV5<br/>merge, honor replaceCoveredChainBalances"]
   end
   subgraph v6upd ["v6 · #handleAssetsUpdateV6"]
     direction TB
-    V6I["Incoming update"] --> V6F["RpcFallback when basic functionality is on<br/>errored chains + unprocessedCustomAssets"] --> V6D[Detection] --> V6T["Token + Price"] --> V6S["State: full when Accounts API<br/>merge otherwise"]
+    V6I["Incoming update"] --> V6F["RpcFallback when basic functionality is on<br/>errored chains"] --> V6D[Detection] --> V6T["Token + Price"] --> V6S["State: applyV6<br/>full replace or merge overlay"]
   end
 ```
 
-- **v5** (`#handleAssetsUpdateV5`): CustomAssetGraduation (for the Accounts API
-  and AccountActivity) -> Detection -> Token + Price -> state written with
-  `merge`, honoring `replaceCoveredChainBalances`.
-- **v6** (`#handleAssetsUpdateV6`): RpcFallback when basic functionality is on
-  (for errored chains and `unprocessedCustomAssets`) -> Detection -> Token +
-  Price -> state written as `full` when the Accounts API marks it so.
+Both paths still run the Account Activity occurrence-floor filter when basic
+functionality is on.
 
-In other words: v5 never runs `RpcFallbackMiddleware` here, and v6 never runs
-`CustomAssetGraduationMiddleware` at all.
+- **v5** (`#handleAssetsUpdateV5`): CustomAssetGraduation (Accounts API and
+  Account Activity) → RpcFallback when the source is Accounts API → Detection →
+  Token + Price → `applyV5AccountBalanceUpdate` (`effectiveAccountBalancesV5`).
+- **v6** (`#handleAssetsUpdateV6`): never CustomAssetGraduation. RpcFallback
+  when basic functionality is on (failed chains; native + visible assets from
+  state, still `full`) → Detection → Token + Price →
+  `applyV6AccountBalanceUpdate` (`effectiveAccountBalancesV6`).
+
+`#updateState` picks the writer from the flag, not from `updateMode`:
+
+- flag off → v5 always
+- flag on → v6 always. Inside v6, `updateMode: 'merge'` overlays
+  `{ ...previous, ...incoming }`; `updateMode: 'full'` replaces each covered
+  chain slice. Assets the source was never asked about survive a `full`
+  replace via `isUnreported` (hidden tokens, and staking vaults until Accounts
+  API returns ETH staked balances).
+
+## Failed chains
+
+A v6 source either contributes a complete chain snapshot or nothing for that
+chain:
+
+- Accounts API: unprocessed networks and unresolved `includeAssetIds` go in
+  `errors`
+- RPC: a failed `balanceOf` or unknown decimals fails the whole chain (v5
+  still overlays the tokens that succeeded)
+- Snap: a snap that does not own the account is skipped; remaining chains stay
+  on the request for the next middleware
+- `filterFailedChainBalances` strips balances on failed chains before state is
+  written, so a partial chain cannot cover (and wipe) that slice
+
+RpcFallback then retries only `errors` keys.
 
 ## Behavior differences at a glance
 
-| Concern                   | v5                                          | v6                                                     |
-| ------------------------- | ------------------------------------------- | ------------------------------------------------------ |
-| Accounts API endpoint     | `fetchV5MultiAccountBalances`               | `fetchV6MultiAccountBalances`                          |
-| Accounts API update mode  | `merge`                                     | `full`                                                 |
-| Covered-chain merge       | Preserve old behavior                       | Replace the covered chain slice                        |
-| Pinned asset preservation | Keep custom + staked pins in the merge path | Keep `unprocessedCustomAssets` until RPC resolves them |
-| Hidden assets             | Not sent to the endpoint                    | Sent as `excludeAssetIds`                              |
-| Token detection filter    | Drop unknown tokens when detection is off   | Not applied; v6 snapshot is kept in full               |
-| RPC token fetch           | Flat `request.customAssets` for the chain   | Same: one EVM account per request                      |
+| Concern                   | v5                                                               | v6                                                                                          |
+| ------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Accounts API endpoint     | `fetchV5MultiAccountBalances`                                    | `fetchV6MultiAccountBalances`                                                               |
+| Fetch update mode         | `merge` for Accounts API, Snap, and RPC                          | `full` for Accounts API, Snap, and RPC                                                      |
+| Subscribe update mode     | `merge` for every source                                         | `full` for Accounts API, Snap snapshots, and RPC; `merge` for events (Snap, Account Activity, staking, detection) |
+| State writer              | `effectiveAccountBalancesV5`                                     | `effectiveAccountBalancesV6(updateMode)`                                                    |
+| Covered-chain replace     | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep hidden + staking via `isUnreported`                 |
+| Pinned assets             | `request.customAssets` + merge restore                           | Visibility → `includeAssetIds` / Snap zero-fill / RPC fetch list                            |
+| Hidden assets             | Not sent to the endpoint                                         | `excludeAssetIds`; skipped by RPC and Snap; prior balance kept on `full`                    |
+| Default tracked assets    | Survive only if already in state or returned                     | Always in visibility, so a `full` refresh keeps them at zero when unheld                    |
+| Token detection filter    | Drop unknown tokens when detection is off                        | Not applied; v6 snapshot is kept in full                                                    |
+| RPC token list            | Request `customAssets` + tracked balances                        | Visible natives, pins, and default tracked from state                                       |
+| RPC pin supplement        | Extra `customAssetsOnly` poll                                    | None                                                                                        |
+| Custom-asset graduation   | Fast lane and live Accounts API / Account Activity               | Never                                                                                       |
+| Failed chain              | Overlay whatever tokens succeeded                                | Drop the chain's balances; leave existing state until RPC recovers it                       |
+
+v6 `updateMode` by source:
+
+| Source           | Fetch / force refresh | Subscribe / live updates                                      |
+| ---------------- | --------------------- | ------------------------------------------------------------- |
+| Accounts API     | `full`                | `full` (polls `fetch`)                                        |
+| Snap             | `full`                | `full` initial fetch; balance events stay `merge`             |
+| RPC              | `full`                | `full` (balance poll and tx refresh); detection stays `merge` |
+| Account Activity | n/a (event-only)      | `merge`                                                       |
+| Staked balances  | `merge`               | `merge`                                                       |
+
+Fast-lane Accounts API `full` merged with staking `merge` still stamps `full`
+(`mergeDataResponses` promotes it). Staking rows that are present in that
+merged payload are written with the snapshot; if they are omitted, `isUnreported`
+keeps the prior vault balance.
 
 ## Where the code lives
 
 | Concern               | v5                                         | v6                                                                    |
 | --------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| Flag                  | `#isBalanceV6Enabled` (shared)             | injected into Accounts API, Snap, RPC, BalanceFetcher, RpcFallback    |
+| Visibility            | n/a (request `customAssets`)               | `getAssetVisibility` / `#getAssetVisibility`                          |
 | Force-update request  | `#buildForceUpdateRequestV5`               | `#buildDataRequest` (pins read from state)                            |
 | Force-update pipeline | `#forceUpdateAssetsV5`, `#runFastFetchV5`  | `#forceUpdateAssetsV6`, `#runFastFetchV6`                             |
 | Fast lane composition | `buildFastFetchSources` (graduation on)    | `buildFastFetchSources` (graduation off)                              |
-| Subscribe             | `#subscribeAssetsBalance` + RPC supplement | `#subscribeAssetsBalance`; Accounts API v6 include/exclude from state |
+| Subscribe             | `#subscribeAssetsBalance` + RPC supplement | `#subscribeAssetsBalance` only                                        |
 | Update handling       | `#handleAssetsUpdateV5`                    | `#handleAssetsUpdateV6`                                               |
-| Balance merge         | `mergeAccountBalancesV5`                   | `mergeAccountBalancesV6`                                              |
+| State apply           | `applyV5AccountBalanceUpdate`              | `applyV6AccountBalanceUpdate`                                         |
+| Balance merge         | `effectiveAccountBalancesV5`               | `effectiveAccountBalancesV6`                                          |
 | Accounts API fetch    | `#fetchV5Balances`                         | `#fetchV6Balances`                                                    |
+| Snap fetch            | `#fetchV5`                                 | `#fetchV6`                                                            |
+| RPC fetch             | `#fetchV5`                                 | `#fetchV6`                                                            |
+| RPC fetch list        | `#getAssetsToFetchV5`                      | `#getAssetsToFetchV6`                                                 |
 | RPC fallback          | `#recoverV5`                               | `#recoverV6`                                                          |
+| Failed-chain filter   | `filterFailedChainBalances` (shared)       | same helper; v6 uses it to keep snapshots atomic                      |
 
 ## Deleting v5 after rollout
 
 Once v6 is accepted as the only behavior:
 
-1. Remove the v5 methods and every `!this.#isBalanceV6Enabled()` branch.
-2. Keep the v6 methods as the single orchestration path.
+1. Remove the v5 methods (`#fetchV5`, `#fetchV5Balances`, `#recoverV5`,
+   `#forceUpdateAssetsV5`, `#handleAssetsUpdateV5`,
+   `applyV5AccountBalanceUpdate`, `effectiveAccountBalancesV5`,
+   `#subscribeRpcCustomAssetsSupplement`) and every
+   `!this.#isBalanceV6Enabled()` branch.
+2. Keep the v6 methods as the single orchestration path. Drop
+   `isStakingContractAssetId` from `isUnreported` when Accounts API returns
+   ETH staked balances.
 3. Remove this document's v5/v6 comparison tables.

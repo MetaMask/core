@@ -34,6 +34,8 @@ import type {
   DataRequest,
   DataResponse,
 } from '../types.js';
+import type { AssetVisibility } from '../utils/assetVisibility.js';
+import { getAssetVisibility } from '../utils/assetVisibility.js';
 import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 /**
@@ -117,6 +119,13 @@ async function runPipeline(
     queryApiClient,
     onActiveChainsUpdated: jest.fn(),
     getAssetsState: (): AssetsControllerStateInternal => state,
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const stakedBalanceDataSource = new StakedBalanceDataSource({
@@ -133,6 +142,13 @@ async function runPipeline(
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const tokenDataSource = new TokenDataSource(assetsControllerMessenger, {

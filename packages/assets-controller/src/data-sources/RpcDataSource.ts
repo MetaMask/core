@@ -39,7 +39,9 @@ import type {
   DataResponse,
   Middleware,
 } from '../types.js';
+import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { ZERO_ADDRESS } from '../utils/constants.js';
+import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
 import { normalizeAssetId } from '../utils/index.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
@@ -48,6 +50,7 @@ import type {
 } from './AbstractDataSource.js';
 import {
   BalanceFetcher,
+  isStakingContractAssetId,
   MulticallClient,
   TokenDetector,
   TokensApiClient,
@@ -151,6 +154,14 @@ export type RpcDataSourceOptions = {
 
   /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+  /**
+   * Whether Accounts API v6 is enabled. Unscoped fetches then include native,
+   * existing balances, pins, and default tracked assets. v5 unscoped fetches
+   * stay pins-from-state only. Omitted means v5.
+   */
+  isBalanceV6Enabled?: () => boolean;
+  /** Returns shared visible/hidden assets for an account/chain scope. */
+  getAssetVisibility: GetAssetVisibility;
 };
 
 /**
@@ -257,6 +268,10 @@ export class RpcDataSource extends AbstractDataSource<
     assetId: Caip19AssetId,
   ) => 'native' | 'erc20' | 'spl';
 
+  readonly #isBalanceV6Enabled: () => boolean;
+
+  readonly #getAssetVisibility: GetAssetVisibility;
+
   constructor(options: RpcDataSourceOptions) {
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
@@ -270,6 +285,9 @@ export class RpcDataSource extends AbstractDataSource<
     this.#useExternalService =
       options.useExternalService ?? ((): boolean => true);
     this.#isOnboarded = options.isOnboarded ?? ((): boolean => true);
+    this.#isBalanceV6Enabled =
+      options.isBalanceV6Enabled ?? ((): boolean => false);
+    this.#getAssetVisibility = options.getAssetVisibility;
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -332,6 +350,8 @@ export class RpcDataSource extends AbstractDataSource<
           const nativeId = this.#getNativeAssetForChain(chainId);
           return nativeId?.toLowerCase() === assetId.toLowerCase();
         },
+        isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
+        getAssetVisibility: this.#getAssetVisibility,
       },
     );
     // Polling controller awaits this callback; rejections must not become unhandled.
@@ -502,6 +522,21 @@ export class RpcDataSource extends AbstractDataSource<
    * @param result - The balance fetch result.
    */
   async #handleBalanceUpdate(result: BalanceFetchResult): Promise<void> {
+    if (this.#isBalanceV6Enabled()) {
+      await this.#handleBalanceUpdateV6(result);
+      return;
+    }
+
+    await this.#handleBalanceUpdateV5(result);
+  }
+
+  /**
+   * v5 poll path. Unchanged from the pre-v6 handler; delete the v6 sibling
+   * first if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param result - The balance fetch result.
+   */
+  async #handleBalanceUpdateV5(result: BalanceFetchResult): Promise<void> {
     const newBalances: Record<string, { amount: string }> = {};
 
     // Convert hex chain ID to CAIP-2 format
@@ -550,6 +585,94 @@ export class RpcDataSource extends AbstractDataSource<
       },
       assetsInfo,
       updateMode: 'merge',
+    };
+
+    const request: DataRequest = {
+      accountsWithSupportedChains: [],
+      chainIds: [caipChainId],
+      dataTypes: ['balance'],
+    };
+
+    log('Balance update response', {
+      accountId: result.accountId,
+      newBalanceCount: Object.keys(newBalances).length,
+    });
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      subscription.onAssetsUpdate(response, request)?.catch((error) => {
+        log('Failed to update assets', { error });
+      });
+    }
+  }
+
+  /**
+   * v6 poll path: a complete chain snapshot, or nothing. Delete with the rest
+   * of the v6 path if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param result - The balance fetch result.
+   */
+  async #handleBalanceUpdateV6(result: BalanceFetchResult): Promise<void> {
+    if (result.failedAddresses.length > 0) {
+      log('Skipping incomplete v6 poll snapshot', {
+        accountId: result.accountId,
+        chainId: result.chainId,
+        failedAddresses: result.failedAddresses,
+      });
+      return;
+    }
+
+    const newBalances: Record<string, { amount: string }> = {};
+
+    // Convert hex chain ID to CAIP-2 format
+    const chainIdDecimal = parseInt(result.chainId, 16);
+    const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
+
+    // Normalize asset IDs from BalanceFetcher (lowercase) to checksummed form
+    const normalizedBalances = result.balances.map((b) => ({
+      ...b,
+      assetId: normalizeAssetId(b.assetId),
+    }));
+
+    // Collect metadata for all balances
+    const assetsInfo = this.#collectMetadataForBalances(
+      normalizedBalances,
+      caipChainId,
+    );
+
+    // Convert balances to human-readable format.
+    // Unknown decimals mean the snapshot is incomplete: drop the chain
+    // instead of publishing a partial `full` result.
+    const existingMetadata = this.#getExistingAssetsMetadata();
+    for (const balance of normalizedBalances) {
+      const stateMetadata = existingMetadata[balance.assetId];
+      const pipelineMetadata = assetsInfo[balance.assetId];
+      const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
+
+      if (decimals === undefined) {
+        log('Skipping incomplete v6 poll snapshot', {
+          accountId: result.accountId,
+          chainId: result.chainId,
+          assetId: balance.assetId,
+        });
+        return;
+      }
+
+      const humanReadableAmount = this.#convertToHumanReadable(
+        balance.balance,
+        decimals,
+      );
+
+      newBalances[balance.assetId] = {
+        amount: humanReadableAmount,
+      };
+    }
+
+    const response: DataResponse = {
+      assetsBalance: {
+        [result.accountId]: newBalances,
+      },
+      assetsInfo,
+      updateMode: 'full',
     };
 
     const request: DataRequest = {
@@ -999,22 +1122,24 @@ export class RpcDataSource extends AbstractDataSource<
       log('Skipping fetch - onboarding not complete');
       return {};
     }
+    if (this.#isBalanceV6Enabled()) {
+      return this.#fetchV6(request);
+    }
+    return this.#fetchV5(request);
+  }
 
-    const response: DataResponse = {};
-
-    const chainsToFetch = request.chainIds.filter((chainId) =>
-      this.#activeChains.includes(chainId),
-    );
-
-    log('Fetch requested', {
-      accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
-      requestedChains: request.chainIds,
-      chainsToFetch,
-    });
-
+  /**
+   * v5 fetch. Overlays tokens that succeed, stamps `merge`. Delete with the
+   * rest of the v5 path if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param request - The data request.
+   * @returns Balance and metadata for the requested chains.
+   */
+  async #fetchV5(request: DataRequest): Promise<DataResponse> {
+    const chainsToFetch = this.#getChainsToFetch(request);
     if (chainsToFetch.length === 0) {
       log('No active chains to fetch');
-      return response;
+      return {};
     }
 
     const assetsBalance: Record<
@@ -1024,7 +1149,6 @@ export class RpcDataSource extends AbstractDataSource<
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
-    // Fetch balances for each account and its supported chains (pre-computed in request)
     for (const {
       account,
       supportedChains,
@@ -1041,19 +1165,11 @@ export class RpcDataSource extends AbstractDataSource<
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
         const nativeAssetId = this.#getNativeAssetForChain(chainId);
-
         const shouldSkipNative = shouldSkipNativeForCaipChainId(chainId);
-        const assetsToFetch: AssetFetchEntry[] = [];
-        if (!shouldSkipNative) {
-          // Build a single AssetFetchEntry[] for native + custom ERC-20s
-          assetsToFetch.push({ assetId: nativeAssetId, address: ZERO_ADDRESS });
-        }
-
-        this.#appendCustomErc20s(
-          assetsToFetch,
-          request.customAssets,
-          accountId,
+        const assetsToFetch = this.#getAssetsToFetchV5(
+          request,
           chainId,
+          shouldSkipNative,
         );
 
         try {
@@ -1063,93 +1179,252 @@ export class RpcDataSource extends AbstractDataSource<
             address as Address,
             assetsToFetch,
           );
-
-          if (!assetsBalance[accountId]) {
-            assetsBalance[accountId] = {};
-          }
-
-          // Normalize asset IDs from BalanceFetcher (which uses lowercase
-          // addresses) to checksummed form so they match assetsInfo state keys.
-          const normalizedBalances = result.balances.map((b) => ({
-            ...b,
-            assetId: normalizeAssetId(b.assetId),
-          }));
-
-          // Collect metadata for all balances
-          const balanceMetadata = this.#collectMetadataForBalances(
-            normalizedBalances,
+          await this.#ingestFetchedBalances(
+            result,
+            accountId,
             chainId,
+            assetsBalance,
+            assetsInfo,
           );
-          Object.assign(assetsInfo, balanceMetadata);
-
-          // Convert balances to human-readable format using decimals from
-          // assetsInfo state (which includes pendingMetadata from addCustomAsset).
-          // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still unknown.
-          const existingMetadata = this.#getExistingAssetsMetadata();
-          for (const balance of normalizedBalances) {
-            const stateMetadata = existingMetadata[balance.assetId];
-            const pipelineMetadata = assetsInfo[balance.assetId];
-            let decimals: number | undefined = this.#pickValidDecimals(
-              stateMetadata,
-              pipelineMetadata,
-            );
-
-            if (decimals === undefined) {
-              const parsed = parseCaipAssetType(balance.assetId);
-              if (this.#getAssetType(balance.assetId) === 'erc20') {
-                decimals = await this.#fetchDecimalsViaRpc(
-                  chainId,
-                  parsed.assetReference,
-                );
-              }
-            }
-
-            if (decimals === undefined) {
-              continue;
-            }
-
-            const humanReadableAmount = this.#convertToHumanReadable(
-              balance.balance,
-              decimals,
-            );
-
-            assetsBalance[accountId][balance.assetId] = {
-              amount: humanReadableAmount,
-            };
-          }
         } catch (error) {
-          log('Failed to fetch balance', { address, chainId, error });
-
-          if (!assetsBalance[accountId]) {
-            assetsBalance[accountId] = {};
-          }
-
-          if (!shouldSkipNative) {
-            assetsBalance[accountId][nativeAssetId] = { amount: '0' };
-          }
-          // On error, emit a stub only when no valid metadata exists in state
-          // yet. Re-emitting existing metadata would overwrite richer entries
-          // (e.g. image/description added by AccountsAPI) with a simpler stub.
-          const existingNativeMeta =
-            this.#getExistingAssetsMetadata()[nativeAssetId];
-          if (!this.#hasValidDecimals(existingNativeMeta)) {
-            const chainStatus = this.#chainStatuses[chainId];
-            if (chainStatus) {
-              assetsInfo[nativeAssetId] = {
-                type: 'native',
-                symbol: chainStatus.nativeCurrency,
-                name: chainStatus.nativeCurrency,
-                decimals: 18,
-              };
-            }
-          }
-
-          if (!failedChains.includes(chainId)) {
-            failedChains.push(chainId);
-          }
+          this.#recordFetchChainFailure({
+            address,
+            chainId,
+            error,
+            accountId,
+            nativeAssetId,
+            shouldSkipNative,
+            assetsBalance,
+            assetsInfo,
+            failedChains,
+          });
         }
       }
     }
+
+    return this.#completeFetchResponse({
+      assetsBalance,
+      assetsInfo,
+      failedChains,
+      chainsToFetch,
+      updateMode: 'merge',
+    });
+  }
+
+  /**
+   * v6 fetch. Visibility-scoped snapshot, atomic per chain, stamps `full`.
+   *
+   * @param request - The data request.
+   * @returns Balance and metadata for successful chains only.
+   */
+  async #fetchV6(request: DataRequest): Promise<DataResponse> {
+    const chainsToFetch = this.#getChainsToFetch(request);
+    if (chainsToFetch.length === 0) {
+      log('No active chains to fetch');
+      return {};
+    }
+
+    const assetsBalance: Record<
+      string,
+      Record<Caip19AssetId, AssetBalance>
+    > = {};
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
+    const failedChains: ChainId[] = [];
+
+    for (const {
+      account,
+      supportedChains,
+    } of request.accountsWithSupportedChains) {
+      const chainsForAccount = chainsToFetch.filter((chain) =>
+        supportedChains.includes(chain),
+      );
+      if (chainsForAccount.length === 0) {
+        continue;
+      }
+
+      const { address, id: accountId } = account;
+
+      for (const chainId of chainsForAccount) {
+        const hexChainId = caipChainIdToHex(chainId);
+        const nativeAssetId = this.#getNativeAssetForChain(chainId);
+        const shouldSkipNative = shouldSkipNativeForCaipChainId(chainId);
+
+        try {
+          const result = await this.#balanceFetcher.fetchBalancesForAssets(
+            hexChainId,
+            accountId,
+            address as Address,
+            this.#getAssetsToFetchV6(accountId, chainId),
+          );
+
+          // A failed `balanceOf` means we do not have the full list, so drop
+          // this chain instead of applying a partial result.
+          if (result.failedAddresses.length > 0) {
+            if (!failedChains.includes(chainId)) {
+              failedChains.push(chainId);
+            }
+            continue;
+          }
+
+          await this.#ingestFetchedBalances(
+            result,
+            accountId,
+            chainId,
+            assetsBalance,
+            assetsInfo,
+          );
+        } catch (error) {
+          this.#recordFetchChainFailure({
+            address,
+            chainId,
+            error,
+            accountId,
+            nativeAssetId,
+            shouldSkipNative,
+            assetsBalance,
+            assetsInfo,
+            failedChains,
+          });
+        }
+      }
+    }
+
+    return this.#completeFetchResponse({
+      // A failed chain contributes nothing, so its balances stay as they are.
+      assetsBalance: filterFailedChainBalances(
+        assetsBalance,
+        new Set(failedChains),
+      ),
+      assetsInfo,
+      failedChains,
+      chainsToFetch,
+      updateMode: 'full',
+    });
+  }
+
+  #getChainsToFetch(request: DataRequest): ChainId[] {
+    const chainsToFetch = request.chainIds.filter((chainId) =>
+      this.#activeChains.includes(chainId),
+    );
+
+    log('Fetch requested', {
+      accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
+      requestedChains: request.chainIds,
+      chainsToFetch,
+    });
+
+    return chainsToFetch;
+  }
+
+  async #ingestFetchedBalances(
+    result: BalanceFetchResult,
+    accountId: string,
+    chainId: ChainId,
+    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>,
+    assetsInfo: Record<Caip19AssetId, AssetMetadata>,
+  ): Promise<void> {
+    assetsBalance[accountId] ??= {};
+
+    const normalizedBalances = result.balances.map((balance) => ({
+      ...balance,
+      assetId: normalizeAssetId(balance.assetId),
+    }));
+
+    Object.assign(
+      assetsInfo,
+      this.#collectMetadataForBalances(normalizedBalances, chainId),
+    );
+
+    const existingMetadata = this.#getExistingAssetsMetadata();
+    for (const balance of normalizedBalances) {
+      const stateMetadata = existingMetadata[balance.assetId];
+      const pipelineMetadata = assetsInfo[balance.assetId];
+      let decimals: number | undefined = this.#pickValidDecimals(
+        stateMetadata,
+        pipelineMetadata,
+      );
+
+      if (decimals === undefined) {
+        const parsed = parseCaipAssetType(balance.assetId);
+        if (this.#getAssetType(balance.assetId) === 'erc20') {
+          decimals = await this.#fetchDecimalsViaRpc(
+            chainId,
+            parsed.assetReference,
+          );
+        }
+      }
+
+      if (decimals === undefined) {
+        continue;
+      }
+
+      assetsBalance[accountId][balance.assetId] = {
+        amount: this.#convertToHumanReadable(balance.balance, decimals),
+      };
+    }
+  }
+
+  #recordFetchChainFailure({
+    address,
+    chainId,
+    error,
+    accountId,
+    nativeAssetId,
+    shouldSkipNative,
+    assetsBalance,
+    assetsInfo,
+    failedChains,
+  }: {
+    address: string;
+    chainId: ChainId;
+    error: unknown;
+    accountId: string;
+    nativeAssetId: Caip19AssetId;
+    shouldSkipNative: boolean;
+    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
+    assetsInfo: Record<Caip19AssetId, AssetMetadata>;
+    failedChains: ChainId[];
+  }): void {
+    log('Failed to fetch balance', { address, chainId, error });
+
+    assetsBalance[accountId] ??= {};
+
+    if (!shouldSkipNative) {
+      assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+    }
+    const existingNativeMeta =
+      this.#getExistingAssetsMetadata()[nativeAssetId];
+    if (!this.#hasValidDecimals(existingNativeMeta)) {
+      const chainStatus = this.#chainStatuses[chainId];
+      if (chainStatus) {
+        assetsInfo[nativeAssetId] = {
+          type: 'native',
+          symbol: chainStatus.nativeCurrency,
+          name: chainStatus.nativeCurrency,
+          decimals: 18,
+        };
+      }
+    }
+
+    if (!failedChains.includes(chainId)) {
+      failedChains.push(chainId);
+    }
+  }
+
+  #completeFetchResponse({
+    assetsBalance,
+    assetsInfo,
+    failedChains,
+    chainsToFetch,
+    updateMode,
+  }: {
+    assetsBalance: DataResponse['assetsBalance'];
+    assetsInfo: Record<Caip19AssetId, AssetMetadata>;
+    failedChains: ChainId[];
+    chainsToFetch: ChainId[];
+    updateMode: DataResponse['updateMode'];
+  }): DataResponse {
+    const response: DataResponse = { updateMode };
 
     if (failedChains.length > 0) {
       log('Fetch PARTIAL - some chains failed', {
@@ -1166,18 +1441,15 @@ export class RpcDataSource extends AbstractDataSource<
     } else {
       log('Fetch SUCCESS', {
         chains: chainsToFetch,
-        accountCount: Object.keys(assetsBalance).length,
+        accountCount: Object.keys(assetsBalance ?? {}).length,
       });
     }
 
     response.assetsBalance = assetsBalance;
 
-    // Include metadata for native tokens if we have any
     if (Object.keys(assetsInfo).length > 0) {
       response.assetsInfo = assetsInfo;
     }
-
-    response.updateMode = 'merge';
 
     return response;
   }
@@ -1332,6 +1604,13 @@ export class RpcDataSource extends AbstractDataSource<
         context.response.errors = {
           ...context.response.errors,
           ...response.errors,
+        };
+      }
+
+      if (response.updateMode) {
+        context.response = {
+          ...context.response,
+          updateMode: response.updateMode,
         };
       }
 
@@ -1502,57 +1781,140 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * Append the ERC-20 pins this account-chain fetch must cover.
+   * v5 entries for one account-chain fetch: native plus the ERC-20s the
+   * caller scoped via `request.customAssets`. Unchanged from the pre-v6
+   * behavior; delete with the rest of the v5 path.
    *
-   * Prefers `request.customAssets` when the caller scoped the fetch.
-   * Otherwise reads the
-   * account's visible pins from state: RPC is their sole balance fetcher, and
-   * `fetch` builds its own entry list rather than going through
-   * `BalanceFetcher`'s state read (which polling uses), so an unscoped request
-   * would otherwise leave them stale until the next poll.
+   * @param request - The data request being fetched.
+   * @param chainId - Chain being fetched.
+   * @param shouldSkipNative - When true, omit the native entry.
+   * @returns Entries to hand to the balance fetcher.
+   */
+  #getAssetsToFetchV5(
+    request: DataRequest,
+    chainId: ChainId,
+    shouldSkipNative: boolean,
+  ): AssetFetchEntry[] {
+    const assetsToFetch: AssetFetchEntry[] = [];
+
+    if (!shouldSkipNative) {
+      // Build a single AssetFetchEntry[] for native + custom ERC-20s
+      assetsToFetch.push({
+        assetId: this.#getNativeAssetForChain(chainId),
+        address: ZERO_ADDRESS,
+      });
+    }
+
+    if (request.customAssets) {
+      const existingMetadata = this.#getExistingAssetsMetadata();
+
+      for (const assetId of request.customAssets) {
+        try {
+          const parsed = parseCaipAssetType(assetId);
+          const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+          if (
+            assetChainId === chainId &&
+            this.#getAssetType(assetId) === 'erc20'
+          ) {
+            const tokenAddress = parsed.assetReference.toLowerCase() as Address;
+            const normalizedId = normalizeAssetId(assetId);
+            const decimals = existingMetadata[normalizedId]?.decimals;
+
+            assetsToFetch.push({
+              assetId,
+              address: tokenAddress,
+              decimals,
+            });
+          }
+        } catch {
+          // Skip unparseable asset IDs
+        }
+      }
+    }
+
+    return assetsToFetch;
+  }
+
+  /**
+   * v6 entries for one account-chain fetch: the shared visible set (native,
+   * pins, default tracked) plus already-tracked ERC-20s that are not hidden.
+   * Chains with no native token omit native from `visibleAssetIds`. Hide is
+   * only applied to `assetsBalance` rows. The request is never scoped via
+   * `customAssets` on v6.
    *
-   * @param assetsToFetch - Native/custom entries for this account-chain fetch.
-   * @param requestCustomAssets - Flat pin list from the data request, if scoped.
    * @param accountId - Account being fetched.
    * @param chainId - Chain being fetched.
+   * @returns Entries to hand to the balance fetcher.
    */
-  #appendCustomErc20s(
-    assetsToFetch: AssetFetchEntry[],
-    requestCustomAssets: Caip19AssetId[] | undefined,
-    accountId: string,
-    chainId: ChainId,
-  ): void {
-    const {
-      assetsInfo = {},
-      customAssets = {},
-      assetPreferences = {},
-    } = this.#getAssetsState();
-    const candidates =
-      requestCustomAssets && requestCustomAssets.length > 0
-        ? requestCustomAssets
-        : (customAssets[accountId] ?? []).filter(
-            (assetId) => !assetPreferences[normalizeAssetId(assetId)]?.hidden,
-          );
+  #getAssetsToFetchV6(accountId: string, chainId: ChainId): AssetFetchEntry[] {
+    const { assetsInfo = {}, assetsBalance = {} } = this.#getAssetsState();
+    const { visibleAssetIds, hiddenAssetIds } = this.#getAssetVisibility(
+      [accountId],
+      [chainId],
+    );
+    const hidden = new Set(hiddenAssetIds);
+    const assetsToFetch: AssetFetchEntry[] = [];
+    const seen = new Set<Caip19AssetId>();
 
-    for (const assetId of candidates) {
+    // Fetch visible assets
+    for (const assetId of visibleAssetIds) {
+      try {
+        if (this.#getAssetType(assetId) === 'native') {
+          assetsToFetch.push({ assetId, address: ZERO_ADDRESS });
+          continue;
+        }
+
+        const parsed = parseCaipAssetType(assetId);
+        const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        if (
+          assetChainId !== chainId ||
+          this.#getAssetType(assetId) !== 'erc20' ||
+          seen.has(assetId)
+        ) {
+          continue;
+        }
+
+        seen.add(assetId);
+        assetsToFetch.push({
+          assetId,
+          address: parsed.assetReference.toLowerCase() as Address,
+          decimals: assetsInfo[assetId]?.decimals,
+        });
+      } catch {
+        // Skip unparseable asset IDs
+      }
+    }
+
+    // Fetch already-tracked ERC-20s that are not hidden
+    for (const assetId of Object.keys(
+      assetsBalance[accountId] ?? {},
+    ) as Caip19AssetId[]) {
       try {
         const parsed = parseCaipAssetType(assetId);
         const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
         const normalizedId = normalizeAssetId(assetId);
         if (
-          assetChainId === chainId &&
-          this.#getAssetType(assetId) === 'erc20'
+          hidden.has(normalizedId) ||
+          isStakingContractAssetId(assetId) ||
+          assetChainId !== chainId ||
+          this.#getAssetType(assetId) !== 'erc20' ||
+          seen.has(normalizedId)
         ) {
-          assetsToFetch.push({
-            assetId,
-            address: parsed.assetReference.toLowerCase() as Address,
-            decimals: assetsInfo[normalizedId]?.decimals,
-          });
+          continue;
         }
+
+        seen.add(normalizedId);
+        assetsToFetch.push({
+          assetId,
+          address: parsed.assetReference.toLowerCase() as Address,
+          decimals: assetsInfo[normalizedId]?.decimals,
+        });
       } catch {
         // Skip unparseable asset IDs
       }
     }
+
+    return assetsToFetch;
   }
 
   /**

@@ -1,5 +1,7 @@
 import type { CaipAssetType } from '@metamask/utils';
 
+import { getDefaultTrackedAssetsForChain } from '../../../defaults.js';
+import type { ChainId as AssetsChainId } from '../../../types.js';
 import type { MulticallClient } from '../clients/index.js';
 import type {
   Address,
@@ -103,7 +105,13 @@ function createMockBalanceResponse(
 // =============================================================================
 
 type WithControllerOptions = {
-  config?: BalanceFetcherConfig;
+  config?: Omit<
+    BalanceFetcherConfig,
+    'getAssetVisibility' | 'isBalanceV6Enabled'
+  > &
+    Partial<
+      Pick<BalanceFetcherConfig, 'getAssetVisibility' | 'isBalanceV6Enabled'>
+    >;
   assetsBalanceState?: AssetsBalanceState;
 };
 
@@ -129,13 +137,21 @@ async function withController<ReturnValue>(
     config = { isNativeAsset: (): boolean => false },
     assetsBalanceState,
   } = options;
+  const resolvedConfig: BalanceFetcherConfig = {
+    isBalanceV6Enabled: () => false,
+    getAssetVisibility: () => ({
+      visibleAssetIds: [],
+      hiddenAssetIds: [],
+    }),
+    ...config,
+  };
 
   const mockMulticallClient = createMockMulticallClient();
   const mockMessenger = createMockMessenger(assetsBalanceState);
   const controller = new BalanceFetcher(
     mockMulticallClient,
     mockMessenger,
-    config,
+    resolvedConfig,
   );
 
   try {
@@ -312,6 +328,115 @@ describe('BalanceFetcher', () => {
           expect(requestedTokens).toStrictEqual(
             [ZERO_ADDRESS.toLowerCase(), TEST_TOKEN_1.toLowerCase()].sort(),
           );
+        },
+      );
+    });
+
+    it('on the v6 path polls default tracked assets even when they have no assetsBalance entry', async () => {
+      const [mainnetMusd] = getDefaultTrackedAssetsForChain(
+        'eip155:1' as AssetsChainId,
+      );
+      const musdAddress = mainnetMusd.split(':').at(-1)?.toLowerCase() ?? '';
+
+      const mockState: AssetsBalanceState = {
+        assetsBalance: {
+          [TEST_ACCOUNT_ID]: {
+            [NATIVE_ETH_ASSET_ID]: { amount: '0' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+            isBalanceV6Enabled: (): boolean => true,
+            getAssetVisibility: () => ({
+              visibleAssetIds: [NATIVE_ETH_ASSET_ID, mainnetMusd],
+              hiddenAssetIds: [],
+            }),
+          },
+        },
+        async ({ controller, mockMulticallClient }) => {
+          controller.setOnBalanceUpdate(jest.fn());
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              ZERO_ADDRESS,
+              TEST_ACCOUNT,
+              true,
+              '1000000000000000000',
+            ),
+            createMockBalanceResponse(
+              musdAddress as Address,
+              TEST_ACCOUNT,
+              true,
+              '0',
+            ),
+          ]);
+
+          await controller._executePoll({
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          });
+
+          const [, batchedRequests] =
+            mockMulticallClient.batchBalanceOf.mock.calls[0];
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          ).map((req) => req.tokenAddress.toLowerCase());
+          expect(requestedTokens).toContain(ZERO_ADDRESS.toLowerCase());
+          expect(requestedTokens).toContain(musdAddress);
+        },
+      );
+    });
+
+    it('on the v6 path stops polling a tracked asset the user hid', async () => {
+      const mockState: AssetsBalanceState = {
+        assetsBalance: {
+          [TEST_ACCOUNT_ID]: {
+            [NATIVE_ETH_ASSET_ID]: { amount: '1' },
+            [TOKEN_1_ASSET_ID]: { amount: '500' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+            isBalanceV6Enabled: (): boolean => true,
+            getAssetVisibility: () => ({
+              visibleAssetIds: [NATIVE_ETH_ASSET_ID],
+              hiddenAssetIds: [TOKEN_1_ASSET_ID],
+            }),
+          },
+        },
+        async ({ controller, mockMulticallClient }) => {
+          controller.setOnBalanceUpdate(jest.fn());
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              ZERO_ADDRESS,
+              TEST_ACCOUNT,
+              true,
+              '1000000000000000000',
+            ),
+          ]);
+
+          await controller._executePoll({
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          });
+
+          const [, batchedRequests] =
+            mockMulticallClient.batchBalanceOf.mock.calls[0];
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          ).map((req) => req.tokenAddress.toLowerCase());
+          expect(requestedTokens).toStrictEqual([ZERO_ADDRESS.toLowerCase()]);
         },
       );
     });

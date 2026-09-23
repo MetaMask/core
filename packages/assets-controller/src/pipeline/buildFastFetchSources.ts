@@ -42,8 +42,8 @@ export type FastFetchSources = {
  * detection run; no network-backed source is used.
  * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
  * lane. The v6 lane never graduates custom assets: it sends the pins to the
- * endpoint as `includeAssetIds` and keeps the ones it could not resolve as
- * `unprocessedCustomAssets`.
+ * endpoint as `includeAssetIds`, and a chain that comes back without all of
+ * them is reported as errored so the RPC fallback refetches it.
  * @returns The composed source list, ready for `executeAssetsPipeline`.
  */
 export function buildFastFetchSources(

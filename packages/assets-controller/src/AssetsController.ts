@@ -109,7 +109,6 @@ import {
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
   buildDefaultAssetsInfo,
   getDefaultAssetMetadata,
-  getDefaultTrackedAssetsForChain,
 } from './defaults.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
@@ -150,11 +149,14 @@ import type {
   SubscriptionResponse,
   Asset,
 } from './types.js';
+import type { AssetVisibility } from './utils/assetVisibility.js';
+import { getAssetVisibility } from './utils/assetVisibility.js';
 import { ZERO_ADDRESS } from './utils/constants.js';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
   normalizeAmountString,
   normalizeAssetId,
+  safeNormalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
@@ -581,20 +583,11 @@ function normalizeResponse(response: DataResponse): DataResponse {
     normalized.replaceCoveredChainBalances = true;
   }
 
-  if (
-    response.unprocessedCustomAssets &&
-    response.unprocessedCustomAssets.length > 0
-  ) {
-    normalized.unprocessedCustomAssets = response.unprocessedCustomAssets.map(
-      (assetId) => normalizeAssetId(assetId),
-    );
-  }
-
   return normalized;
 }
 
 /**
- * Merge account balances from a data-source response into prior state.
+ * Compute the effective account balances from a data-source response and prior state.
  *
  * @param previousBalances - Balances already in state for this account.
  * @param accountBalances - Balances from the incoming response.
@@ -602,9 +595,9 @@ function normalizeResponse(response: DataResponse): DataResponse {
  *   on the Accounts API v5 path (`replaceCoveredChainBalances`).
  * @param replaceCoveredChains - When true (v5 force refresh), drop prior balances
  *   on chains present in the response before applying it, then restore custom assets.
- * @returns The merged balance map for the account.
+ * @returns The effective balance map for the account.
  */
-function mergeAccountBalancesV5(
+function effectiveAccountBalancesV5(
   previousBalances: Record<string, AssetBalance>,
   accountBalances: Record<string, AssetBalance>,
   customAssetIds: Caip19AssetId[],
@@ -650,63 +643,49 @@ function mergeAccountBalancesV5(
 }
 
 /**
- * Apply an Accounts API v6 authoritative chain snapshot.
+ * Compute the effective account balances for an Accounts API v6 update.
+ *
+ * `merge` overlays the incoming balances on prior state (Account Activity,
+ * Snap events, staking). `full` replaces each covered chain slice. v6 asks
+ * for natives, pins, and default tracked assets through `includeAssetIds`
+ * and either returns them (at zero when the account holds none) or names
+ * them in `unprocessedIncludeAssetIds`. Only assets the source was never
+ * asked about survive a `full` replace — see `isUnreported`.
  *
  * @param previousBalances - Balances already in state for this account.
  * @param accountBalances - Balances from the incoming response.
- * @param unprocessedCustomAssets - Pins that v6 and RPC could not resolve.
- * @returns The merged balance map for the account.
+ * @param isUnreported - Whether a prior asset was outside the source's scope,
+ *   so its absence from the response does not mean the balance is gone.
+ *   The staking-contract branch is temporary: drop `isStakingContractAssetId`
+ *   once Accounts API returns ETH staked balances in the v6 snapshot. Hidden
+ *   assets still need this callback after that.
+ * @param updateMode - `'merge'` overlays incoming balances; `'full'` replaces
+ *   each covered chain slice except unreported assets.
+ * @returns The effective balance map for the account.
  */
-function mergeAccountBalancesV6(
+function effectiveAccountBalancesV6(
   previousBalances: Record<string, AssetBalance>,
   accountBalances: Record<string, AssetBalance>,
-  unprocessedCustomAssets: Caip19AssetId[] = [],
+  isUnreported: (assetId: Caip19AssetId) => boolean,
+  updateMode: AssetsUpdateMode,
 ): Record<string, AssetBalance> {
+  if (updateMode === 'merge') {
+    return { ...previousBalances, ...accountBalances };
+  }
+
   const coveredChains = new Set(
     Object.keys(accountBalances).map((assetId) => assetId.split('/')[0]),
   );
   const next: Record<string, AssetBalance> = {};
   for (const [assetId, balance] of Object.entries(previousBalances)) {
-    if (!coveredChains.has(assetId.split('/')[0])) {
+    if (
+      !coveredChains.has(assetId.split('/')[0]) ||
+      isUnreported(assetId as Caip19AssetId)
+    ) {
       next[assetId] = balance;
     }
   }
   Object.assign(next, accountBalances);
-
-  const unprocessedSet = new Set(
-    unprocessedCustomAssets.map((assetId) => normalizeAssetId(assetId)),
-  );
-  for (const [assetId, balance] of Object.entries(previousBalances)) {
-    if (
-      unprocessedSet.has(normalizeAssetId(assetId as Caip19AssetId)) &&
-      !Object.prototype.hasOwnProperty.call(next, assetId)
-    ) {
-      next[assetId] = balance;
-    }
-  }
-  for (const [assetId, balance] of Object.entries(previousBalances)) {
-    if (
-      isStakingContractAssetId(assetId) &&
-      !Object.prototype.hasOwnProperty.call(next, assetId)
-    ) {
-      next[assetId] = balance;
-    }
-  }
-  // Default tracked assets (mUSD) are controller-managed and must render at
-  // zero when the account holds none. The v6 snapshot omits them in that
-  // case, so re-assert them on covered chains — otherwise a force refresh
-  // would drop them from the token list.
-  // TODO: seed defaults as visible pins in `customAssets` instead (skip if
-  // already present or `assetPreferences[assetId].hidden`), then drop this
-  // merge special case.
-  for (const chainId of coveredChains) {
-    for (const assetId of getDefaultTrackedAssetsForChain(chainId as ChainId)) {
-      if (!Object.prototype.hasOwnProperty.call(next, assetId)) {
-        next[assetId] =
-          previousBalances[assetId] ?? ({ amount: '0' } as AssetBalance);
-      }
-    }
-  }
   return next;
 }
 
@@ -1040,20 +1019,24 @@ export class AssetsController extends BaseController<
       ...accountsApiDataSourceConfig,
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetsState: (): AssetsControllerStateInternal => this.state,
+      getAssetVisibility: this.#getAssetVisibility.bind(this),
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       onAssetsUpdate: (response): Promise<void> =>
         this.handleAssetsUpdate(response, 'SnapDataSource'),
+      isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
+      getAssetVisibility: this.#getAssetVisibility.bind(this),
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
       getAssetsState: (): AssetsControllerStateInternal => this.state,
+      isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
+      getAssetVisibility: this.#getAssetVisibility.bind(this),
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
-        this.#getNativeAssetMap()[chainId] ??
-        `${chainId}/erc20:${ZERO_ADDRESS}`,
+        this.#getNativeAssetForChain(chainId),
       // Share the API platform's TanStack Query client so the RPC token
       // detector caches/dedupes its top-token-list fetches alongside the rest
       // of the package's API calls. Caller-provided rpcConfig.queryClient
@@ -1895,7 +1878,7 @@ export class AssetsController extends BaseController<
           parentContext,
           trace: pipelineTrace,
         });
-        await this.#updateState({ ...response, updateMode: 'merge' });
+        await this.#updateState(response);
       },
     }).catch((error) => log('Background pipeline failed', { error }));
   }
@@ -2619,6 +2602,34 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Canonical native CAIP-19 ID for a chain. Uses the native asset map when
+   * the chain is registered; otherwise falls back to the zero-address ERC-20
+   * encoding used for EVM natives without a SLIP-44 id.
+   *
+   * @param chainId - CAIP-2 chain ID.
+   * @returns The native asset ID for the chain.
+   */
+  #getNativeAssetForChain(chainId: ChainId): Caip19AssetId {
+    return (
+      this.#getNativeAssetMap()[chainId] ??
+      (`${chainId}/erc20:${ZERO_ADDRESS}` as Caip19AssetId)
+    );
+  }
+
+  #getAssetVisibility(
+    accountIds: AccountId[],
+    chainIds: ChainId[],
+  ): AssetVisibility {
+    return getAssetVisibility({
+      state: this.state,
+      accountIds,
+      chainIds,
+      getNativeAssetForChain: (chainId) =>
+        this.#getNativeAssetForChain(chainId),
+    });
+  }
+
+  /**
    * Checks whether the given CAIP-19 asset ID represents a native asset
    * according to the cached native asset map, the asset namespace, and the asset reference.
    *
@@ -2732,19 +2743,8 @@ export class AssetsController extends BaseController<
       this.#accountsApiDataSource.getActiveChainsSync(),
     );
 
-    // Chains whose pins went unresolved (`unprocessedCustomAssets`): route
-    // them to the slow pipeline so RPC fetches the pins.
-    const unprocessedCustomAssetChains = new Set<ChainId>(
-      (fastResponse.unprocessedCustomAssets ?? []).map(
-        (assetId) => assetId.split('/')[0] as ChainId,
-      ),
-    );
-
     return chainIds.filter((chainId) => {
       if (fastResponse.errors?.[chainId]) {
-        return true;
-      }
-      if (unprocessedCustomAssetChains.has(chainId)) {
         return true;
       }
       if (!accountsApiChains.has(chainId)) {
@@ -2870,6 +2870,7 @@ export class AssetsController extends BaseController<
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
+    const isBalanceV6Enabled = this.#isBalanceV6Enabled();
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -2957,30 +2958,26 @@ export class AssetsController extends BaseController<
         }
 
         if (normalizedResponse.assetsBalance) {
-          for (const [accountId, accountBalances] of Object.entries(
-            normalizedResponse.assetsBalance,
-          )) {
-            const previousBalances =
-              previousState.assetsBalance[accountId] ?? {};
-
+          const applyV5AccountBalanceUpdate = (
+            accountId: string,
+            accountBalances: Record<string, AssetBalance>,
+            previousBalances: Record<string, AssetBalance>,
+          ): void => {
             const customAssetIds =
               (state.customAssets as Record<string, Caip19AssetId[]>)[
                 accountId
               ] ?? [];
 
-            const effective =
-              mode === 'full'
-                ? mergeAccountBalancesV6(
-                    previousBalances,
-                    accountBalances,
-                    normalizedResponse.unprocessedCustomAssets ?? [],
-                  )
-                : mergeAccountBalancesV5(
-                    previousBalances,
-                    accountBalances,
-                    customAssetIds,
-                    normalizedResponse.replaceCoveredChainBalances === true,
-                  );
+            const replaceCoveredChains =
+              mode === 'full' ||
+              normalizedResponse.replaceCoveredChainBalances === true;
+
+            const effectiveAccountBalances = effectiveAccountBalancesV5(
+              previousBalances,
+              accountBalances,
+              customAssetIds,
+              replaceCoveredChains,
+            );
 
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#getSelectedAccounts().find(
@@ -2991,14 +2988,19 @@ export class AssetsController extends BaseController<
               : this.#getNativeAssetIdsForEnabledChains();
             for (const nativeAssetId of nativeAssetIdsForAccount) {
               if (
-                !Object.prototype.hasOwnProperty.call(effective, nativeAssetId)
+                !Object.prototype.hasOwnProperty.call(
+                  effectiveAccountBalances,
+                  nativeAssetId,
+                )
               ) {
-                effective[nativeAssetId] =
+                effectiveAccountBalances[nativeAssetId] =
                   getDefaultNativeAssetBalance(nativeAssetId);
               }
             }
 
-            for (const [assetId, balance] of Object.entries(effective)) {
+            for (const [assetId, balance] of Object.entries(
+              effectiveAccountBalances,
+            )) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as AssetBalance | undefined;
@@ -3019,7 +3021,7 @@ export class AssetsController extends BaseController<
               const newMetadata =
                 (balance as FungibleAssetBalance).metadata ??
                 (previousBalance as FungibleAssetBalance | undefined)?.metadata;
-              effective[assetId] = {
+              effectiveAccountBalances[assetId] = {
                 amount: newAmount,
                 ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
               };
@@ -3040,8 +3042,89 @@ export class AssetsController extends BaseController<
               }
             }
 
-            if (!isEqual(previousBalances, effective)) {
-              balances[accountId] = effective;
+            if (!isEqual(previousBalances, effectiveAccountBalances)) {
+              balances[accountId] = effectiveAccountBalances;
+            }
+          };
+
+          // Delete with the rest of the v6 path if `assetsAccountsApiV6` is
+          // rolled back; v5 keeps using `applyV5AccountBalanceUpdate`.
+          const applyV6AccountBalanceUpdate = (
+            accountId: string,
+            accountBalances: Record<string, AssetBalance>,
+            previousBalances: Record<string, AssetBalance>,
+          ): void => {
+            // Hidden assets go out as `excludeAssetIds` and staked positions
+            // are owned by StakedBalanceDataSource, so neither is in scope of
+            // a `full` snapshot. Remove `isStakingContractAssetId` from
+            // `isUnreported` when Accounts API returns ETH staked balances.
+            const effectiveAccountBalances = effectiveAccountBalancesV6(
+              previousBalances,
+              accountBalances,
+              (assetId) =>
+                state.assetPreferences[safeNormalizeAssetId(assetId)]
+                  ?.hidden === true || isStakingContractAssetId(assetId),
+              mode,
+            );
+
+            for (const [assetId, balance] of Object.entries(
+              effectiveAccountBalances,
+            )) {
+              const previousBalance = previousBalances[
+                assetId as Caip19AssetId
+              ] as AssetBalance | undefined;
+              const assetDecimals = (
+                metadata[assetId] as { decimals?: number } | undefined
+              )?.decimals;
+              const newAmount = normalizeAmountString(
+                (balance as { amount: unknown }).amount,
+                assetDecimals,
+              );
+              const newMetadata =
+                (balance as FungibleAssetBalance).metadata ??
+                (previousBalance as FungibleAssetBalance | undefined)?.metadata;
+              effectiveAccountBalances[assetId] = {
+                amount: newAmount,
+                ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
+              };
+              const oldAmount = previousBalance?.amount;
+              // A v6 snapshot reports assets the account holds none of (its
+              // `includeAssetIds`) at zero. Publishing those as a change would
+              // emit `0 -> 0`, since a missing previous amount reads as '0'.
+              const isNewZero = oldAmount === undefined && newAmount === '0';
+              if (oldAmount !== newAmount && !isNewZero) {
+                changedBalances.push({
+                  accountId,
+                  assetId,
+                  oldAmount,
+                  newAmount,
+                });
+              }
+            }
+
+            if (!isEqual(previousBalances, effectiveAccountBalances)) {
+              balances[accountId] = effectiveAccountBalances;
+            }
+          };
+
+          for (const [accountId, accountBalances] of Object.entries(
+            normalizedResponse.assetsBalance,
+          )) {
+            const previousBalances =
+              previousState.assetsBalance[accountId] ?? {};
+
+            if (isBalanceV6Enabled) {
+              applyV6AccountBalanceUpdate(
+                accountId,
+                accountBalances,
+                previousBalances,
+              );
+            } else {
+              applyV5AccountBalanceUpdate(
+                accountId,
+                accountBalances,
+                previousBalances,
+              );
             }
           }
         }
@@ -3410,8 +3493,9 @@ export class AssetsController extends BaseController<
    * 2. Map chains to accounts based on their scopes
    * 3. Split by data source (priority order) — each source gets one
    *    subscription for the chains it was assigned (accounts + chains only).
-   *    v6 sources read pins/hides from state themselves (Accounts API sends
-   *    `includeAssetIds` / `excludeAssetIds`). v5 uses a separate RPC
+   *    v6 sources read pins/hides/defaults from state themselves (Accounts API
+   *    sends `includeAssetIds` / `excludeAssetIds`; RPC polls native, balances,
+   *    pins, and default tracked assets). v5 uses a separate RPC
    *    `customAssetsOnly` supplement for pins on chains another source owns.
    *
    * @param accounts - Accounts to subscribe balance updates for.

@@ -27,6 +27,7 @@ import type {
   DataResponse,
   Middleware,
 } from '../types.js';
+import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
@@ -173,6 +174,10 @@ export type SnapDataSourceOptions = {
    * controller currently has an active subscription for the chain.
    */
   onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  /** Whether authoritative v6 balance snapshots are enabled. */
+  isBalanceV6Enabled: () => boolean;
+  /** Resolves native, pinned, default, and hidden assets for a request scope. */
+  getAssetVisibility: GetAssetVisibility;
   /** Configured networks to support (defaults to all snap networks) */
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
@@ -217,6 +222,10 @@ export class SnapDataSource extends AbstractDataSource<
 
   readonly #onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 
+  readonly #isBalanceV6Enabled: () => boolean;
+
+  readonly #getAssetVisibility: GetAssetVisibility;
+
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
     payload: AccountBalancesUpdatedEventPayload,
@@ -236,6 +245,8 @@ export class SnapDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#onAssetsUpdate = options.onAssetsUpdate;
+    this.#isBalanceV6Enabled = options.isBalanceV6Enabled;
+    this.#getAssetVisibility = options.getAssetVisibility;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -453,6 +464,22 @@ export class SnapDataSource extends AbstractDataSource<
     if (!request?.chainIds?.length) {
       return {};
     }
+
+    if (this.#isBalanceV6Enabled()) {
+      return this.#fetchV6(request);
+    }
+
+    return this.#fetchV5(request);
+  }
+
+  /**
+   * v5 fetch. Unchanged from the pre-v6 handler; delete the v6 sibling first
+   * if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param request - The data request.
+   * @returns Overlay (`merge`) balances from the snap keyring.
+   */
+  async #fetchV5(request: DataRequest): Promise<DataResponse> {
     if (!request?.accountsWithSupportedChains?.length) {
       return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
@@ -519,6 +546,125 @@ export class SnapDataSource extends AbstractDataSource<
     return results;
   }
 
+  /**
+   * v6 fetch: a complete snapshot of the requested account-chain slices.
+   * The snap only reports assets the account holds, so every other visible
+   * asset (native, pin, default tracked) is added at zero — otherwise a
+   * `full` replace would drop pins the Accounts API cannot resolve yet.
+   * Hidden assets are left out entirely. Delete with the rest of the v6 path
+   * if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param request - The data request.
+   * @returns Authoritative (`full`) balances for the requested slices.
+   */
+  async #fetchV6(request: DataRequest): Promise<DataResponse> {
+    if (!request?.accountsWithSupportedChains?.length) {
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
+    }
+
+    const results: DataResponse = {
+      assetsBalance: {},
+      assetsInfo: {},
+      updateMode: 'full',
+    };
+
+    // Fetch balances for each account using its snap ID from metadata
+    for (const { account } of request.accountsWithSupportedChains) {
+      // Skip accounts without snap metadata (non-snap accounts)
+      const snapId = account.metadata.snap?.id;
+      if (!snapId) {
+        continue;
+      }
+
+      // Skip accounts whose snap doesn't support any of the requested chains
+      const supportedChainIds = request.chainIds.filter(
+        (chainId) => this.state.chainToSnap[chainId] === snapId,
+      );
+      if (supportedChainIds.length === 0) {
+        continue;
+      }
+
+      const accountId = account.id;
+      try {
+        const client = this.#getKeyringClient(snapId);
+        const { visibleAssetIds, hiddenAssetIds } = this.#getAssetVisibility(
+          [accountId],
+          supportedChainIds,
+        );
+
+        // Step 1: Get the list of assets for this account
+        const accountAssets = await client.listAccountAssets(accountId);
+        const assetsToFetch = this.#selectAssetsToFetchV6(
+          accountAssets ?? [],
+          supportedChainIds,
+          hiddenAssetIds,
+        );
+
+        // Step 2: Get balances for those specific assets
+        const balances: Record<CaipAssetType, Balance> = assetsToFetch.length
+          ? await client.getAccountBalances(accountId, assetsToFetch)
+          : {};
+
+        // Transform keyring response to DataResponse format
+        const accountBalances: Record<string, AssetBalance> = {};
+        if (balances && typeof balances === 'object') {
+          for (const [assetId, balance] of Object.entries(balances)) {
+            accountBalances[assetId] = {
+              amount: balance.amount,
+              ...(balance.metadata ? { metadata: balance.metadata } : {}),
+            };
+          }
+        }
+
+        // Step 3: Complete the snapshot so the replace cannot drop assets the
+        // snap does not report a holding for.
+        for (const assetId of visibleAssetIds) {
+          accountBalances[assetId] ??= { amount: '0' };
+        }
+
+        if (results.assetsBalance) {
+          results.assetsBalance[accountId] = accountBalances;
+        }
+      } catch {
+        // Expected when account doesn't belong to this snap
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Narrow the snap's asset list to the requested chains, dropping assets the
+   * user hid so they are neither fetched nor written back to state.
+   *
+   * @param accountAssets - Asset IDs the snap listed for the account.
+   * @param supportedChainIds - Chains this snap was asked about.
+   * @param hiddenAssetIds - Asset IDs the user hid in this scope.
+   * @returns Asset IDs to request balances for.
+   */
+  #selectAssetsToFetchV6(
+    accountAssets: string[],
+    supportedChainIds: ChainId[],
+    hiddenAssetIds: Caip19AssetId[],
+  ): CaipAssetType[] {
+    const supportedChains = new Set(supportedChainIds);
+    const hidden = new Set(
+      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
+    );
+
+    return accountAssets.filter((assetId): assetId is CaipAssetType => {
+      try {
+        return (
+          supportedChains.has(extractChainFromAssetId(assetId)) &&
+          !hidden.has(assetId.toLowerCase())
+        );
+      } catch {
+        // Skip unparseable asset IDs
+        return false;
+      }
+    });
+  }
+
   // ============================================================================
   // MIDDLEWARE
   // ============================================================================
@@ -579,6 +725,12 @@ export class SnapDataSource extends AbstractDataSource<
           context.response.assetsPrice = {
             ...context.response.assetsPrice,
             ...response.assetsPrice,
+          };
+        }
+        if (response.updateMode) {
+          context.response = {
+            ...context.response,
+            updateMode: response.updateMode,
           };
         }
 

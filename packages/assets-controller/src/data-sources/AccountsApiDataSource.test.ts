@@ -4,6 +4,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
+import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -11,6 +12,10 @@ import type {
   Context,
   AssetsControllerStateInternal,
 } from '../types.js';
+import type { AssetVisibility } from '../utils/assetVisibility.js';
+import { getAssetVisibility } from '../utils/assetVisibility.js';
+import { ZERO_ADDRESS } from '../utils/constants.js';
+import { NATIVE_ASSETS } from '../utils/native-assets.js';
 import {
   SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
   SnapsAssetsMigrationStage,
@@ -33,6 +38,13 @@ const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;
 const CHAIN_ARBITRUM = 'eip155:42161' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
+const [MAINNET_MUSD] = getDefaultTrackedAssetsForChain(CHAIN_MAINNET);
+const MAINNET_NATIVE = 'eip155:1/slip44:60' as Caip19AssetId;
+const POLYGON_NATIVE = 'eip155:137/slip44:966' as Caip19AssetId;
+
+function getNativeAssetForChain(chainId: ChainId): Caip19AssetId {
+  return NATIVE_ASSETS[chainId] ?? `${chainId}/erc20:${ZERO_ADDRESS}`;
+}
 
 function isBalanceV6EnabledFromFlags(
   remoteFeatureFlags: Record<string, unknown>,
@@ -254,6 +266,13 @@ async function setupController(
     isBalanceV6Enabled: (): boolean =>
       isBalanceV6EnabledFromFlags(remoteFeatureFlags),
     getAssetsState,
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state: getAssetsState(),
+        accountIds,
+        chainIds,
+        getNativeAssetForChain,
+      }),
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
     ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
@@ -874,7 +893,7 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('calls the v6 endpoint without extra params when enabled', async () => {
+    it('calls the v6 endpoint with default tracked assets as includeAssetIds when enabled', async () => {
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
       });
@@ -885,7 +904,7 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
+        { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
       expect(
@@ -1085,17 +1104,38 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('marks v6 unprocessed networks as errors', async () => {
+    it('omits v6 balances from unprocessed networks', async () => {
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
         unprocessedNetworks: ['eip155:1'],
+        v6Balances: [
+          createMockV6BalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            MAINNET_NATIVE,
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(
+            `eip155:137:${MOCK_ADDRESS}`,
+            'eip155:137/slip44:966',
+            '2000000000000000000',
+            'token',
+            'native',
+          ),
+        ],
       });
 
-      const response = await controller.fetch(createDataRequest());
+      const response = await controller.fetch(
+        createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      );
 
       expect(response.errors?.[CHAIN_MAINNET]).toBe(
         'Unprocessed by Accounts API',
       );
+      expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+        'eip155:137/slip44:966': { amount: '2000000000000000000' },
+      });
 
       controller.destroy();
     });
@@ -1117,22 +1157,25 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('passes EVM custom assets on requested chains to v6 as includeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
       const customToken =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [customToken] },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({ customAssets: [customToken] }),
-      );
+      await controller.fetch(createDataRequest());
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        { includeAssetIds: [customToken] },
+        {
+          includeAssetIds: expect.arrayContaining([customToken, MAINNET_MUSD]),
+        },
         undefined,
       );
 
@@ -1140,93 +1183,109 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('omits custom assets that are not on a requested chain from includeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
-      // Custom asset on Polygon while only Mainnet is being fetched.
       const polygonToken =
         'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [polygonToken] },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({
-          chainIds: [CHAIN_MAINNET],
-          customAssets: [polygonToken],
-        }),
-      );
+      await controller.fetch(createDataRequest({ chainIds: [CHAIN_MAINNET] }));
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
+        { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
 
       controller.destroy();
     });
 
-    it('surfaces unprocessed include asset ids on the asset axis (unprocessedCustomAssets) without flagging the chain as errored', async () => {
+    it('errors a chain that came back without every requested include asset id', async () => {
       const customToken =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
         unprocessedIncludeAssetIds: [customToken],
+        v6Balances: [
+          createMockV6BalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            MAINNET_NATIVE,
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+        ],
       });
 
-      const response = await controller.fetch(
-        createDataRequest({ customAssets: [customToken] }),
-      );
+      const response = await controller.fetch(createDataRequest());
 
-      // The chain itself succeeded — only the specific pinned asset is
-      // outstanding, so it goes on the asset axis, not `errors`.
-      expect(response.errors?.[CHAIN_MAINNET]).toBeUndefined();
-      expect(response.unprocessedCustomAssets).toStrictEqual([customToken]);
+      // A snapshot missing one of its `includeAssetIds` is not a full
+      // snapshot, so the chain fails and its partial balances are dropped.
+      expect(response.errors?.[CHAIN_MAINNET]).toBe(
+        'Unresolved includeAssetIds',
+      );
+      expect(response.assetsBalance).toBeUndefined();
 
       controller.destroy();
     });
 
-    it('omits unparseable unprocessed include asset ids from unprocessedCustomAssets', async () => {
+    it('errors only the chain of the unresolved include asset id', async () => {
       const customToken =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
-        unprocessedIncludeAssetIds: [
-          customToken,
-          'not-a-caip-asset' as Caip19AssetId,
+        unprocessedIncludeAssetIds: [customToken],
+        v6Balances: [
+          createMockV6BalanceItem(
+            `eip155:137:${MOCK_ADDRESS}`,
+            POLYGON_NATIVE,
+            '5000000000000000000',
+            'token',
+            'native',
+          ),
         ],
       });
 
       const response = await controller.fetch(
-        createDataRequest({ customAssets: [customToken] }),
+        createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
       );
 
-      expect(response.unprocessedCustomAssets).toStrictEqual([customToken]);
+      expect(response.errors?.[CHAIN_POLYGON]).toBeUndefined();
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[POLYGON_NATIVE],
+      ).toStrictEqual({ amount: '5000000000000000000' });
 
       controller.destroy();
     });
 
-    it('skips non-EVM and malformed custom assets when building includeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
+    it('omits pins not on a requested chain from includeAssetIds', async () => {
       const solanaToken =
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
       const malformed = 'not-a-caip-asset' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [solanaToken, malformed] },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({ customAssets: [solanaToken, malformed] }),
-      );
+      await controller.fetch(createDataRequest());
 
-      // No EVM custom asset on a requested chain -> includeAssetIds omitted.
+      // No custom asset on a requested chain — still include defaults.
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
+        { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
 
@@ -1234,17 +1293,12 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('ignores malformed unprocessed include asset ids', async () => {
-      const customToken =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
         unprocessedIncludeAssetIds: ['not-a-caip-asset'],
       });
 
-      const response = await controller.fetch(
-        createDataRequest({ customAssets: [customToken] }),
-      );
+      const response = await controller.fetch(createDataRequest());
 
       // The malformed unprocessed id cannot be parsed, so it is dropped from
       // both axes (no error, no asset-axis entry).
@@ -1271,7 +1325,10 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        { excludeAssetIds: [hiddenToken] },
+        {
+          includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD],
+          excludeAssetIds: [hiddenToken],
+        },
         undefined,
       );
 
@@ -1295,14 +1352,14 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
+        { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
 
       controller.destroy();
     });
 
-    it('skips non-EVM and malformed hidden assets when building excludeAssetIds', async () => {
+    it('omits hidden assets not on a requested chain from excludeAssetIds', async () => {
       const solanaToken =
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
       const malformed = 'not-a-caip-asset' as Caip19AssetId;
@@ -1323,33 +1380,168 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
+        { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
 
       controller.destroy();
     });
 
-    it('reads visible pins from controller state as includeAssetIds when the request has none', async () => {
-      const customToken =
+    it('passes Solana pins on requested Solana chains to v6 as includeAssetIds', async () => {
+      const solanaChain = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
+      const solanaNative =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+      const solanaToken =
+        `${solanaChain}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        supportedChains: [1, solanaChain as unknown as number],
+        remoteFeatureFlags: {
+          assetsAccountsApiV6: true,
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+        },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [solanaToken] },
+          }),
+      });
+
+      await controller.fetch(createDataRequest({ chainIds: [solanaChain] }));
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`${solanaChain}:${MOCK_ADDRESS}`],
+        { includeAssetIds: [solanaNative, solanaToken] },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('passes hidden Solana assets on requested Solana chains to v6 as excludeAssetIds', async () => {
+      const solanaChain = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
+      const solanaNative =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+      const solanaToken =
+        `${solanaChain}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        supportedChains: [1, solanaChain as unknown as number],
+        remoteFeatureFlags: {
+          assetsAccountsApiV6: true,
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+        },
+        getAssetsState: () =>
+          createAssetsState({
+            assetPreferences: { [solanaToken]: { hidden: true } },
+          }),
+      });
+
+      await controller.fetch(createDataRequest({ chainIds: [solanaChain] }));
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`${solanaChain}:${MOCK_ADDRESS}`],
+        {
+          includeAssetIds: [solanaNative],
+          excludeAssetIds: [solanaToken],
+        },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('reads natives, visible pins, and default tracked assets as includeAssetIds, not detected ERC-20 balances', async () => {
+      const pinnedToken =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const trackedToken =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const native = 'eip155:1/slip44:60' as Caip19AssetId;
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
         getAssetsState: () =>
           createAssetsState({
-            customAssets: { 'mock-account-id': [customToken] },
+            customAssets: { 'mock-account-id': [pinnedToken] },
+            assetsBalance: {
+              'mock-account-id': {
+                [native]: { amount: '1' },
+                [trackedToken]: { amount: '2' },
+              },
+            },
           }),
       });
 
       await controller.fetch(createDataRequest());
 
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledWith(
-        [`eip155:1:${MOCK_ADDRESS}`],
-        { includeAssetIds: [customToken] },
-        undefined,
+      const [, params] =
+        apiClient.accounts.fetchV6MultiAccountBalances.mock.calls[0];
+      expect(params?.includeAssetIds ?? []).toStrictEqual(
+        expect.arrayContaining([pinnedToken, native, MAINNET_MUSD]),
       );
+      expect(params?.includeAssetIds ?? []).not.toContain(trackedToken);
+
+      controller.destroy();
+    });
+
+    it('includes map-encoded erc20 natives in includeAssetIds, not synthetic slip44 ids', async () => {
+      const gnosisNative =
+        'eip155:100/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
+      const syntheticSlip44 = 'eip155:1/slip44:bandwidth' as Caip19AssetId;
+      const gnosisChain = 'eip155:100' as ChainId;
+      const { controller, apiClient } = await setupController({
+        supportedChains: [1, 100],
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            assetsBalance: {
+              'mock-account-id': {
+                [gnosisNative]: { amount: '1' },
+                [syntheticSlip44]: { amount: '1' },
+              },
+            },
+          }),
+      });
+
+      await controller.fetch(
+        createDataRequest({ chainIds: [CHAIN_MAINNET, gnosisChain] }),
+      );
+
+      const [, params] =
+        apiClient.accounts.fetchV6MultiAccountBalances.mock.calls[0];
+      expect(params?.includeAssetIds ?? []).toContain(gnosisNative);
+      expect(params?.includeAssetIds ?? []).not.toContain(syntheticSlip44);
+
+      controller.destroy();
+    });
+
+    it('ignores request.customAssets when building v6 includeAssetIds', async () => {
+      const statePin =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const requestOnlyToken =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [statePin] },
+          }),
+      });
+
+      await controller.fetch(
+        createDataRequest({ customAssets: [requestOnlyToken] }),
+      );
+
+      const [, params] =
+        apiClient.accounts.fetchV6MultiAccountBalances.mock.calls[0];
+      expect(params?.includeAssetIds).toStrictEqual(
+        expect.arrayContaining([statePin, MAINNET_MUSD]),
+      );
+      expect(params?.includeAssetIds).not.toContain(requestOnlyToken);
 
       controller.destroy();
     });
@@ -1372,7 +1564,37 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        { excludeAssetIds: [token] },
+        {
+          includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD],
+          excludeAssetIds: [token],
+        },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('excludes hidden native and default tracked assets from includeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            assetPreferences: {
+              [MAINNET_NATIVE]: { hidden: true },
+              [MAINNET_MUSD]: { hidden: true },
+            },
+          }),
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        {
+          excludeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD],
+        },
         undefined,
       );
 
@@ -1399,8 +1621,61 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        { includeAssetIds: [pinned], excludeAssetIds: [hidden] },
+        {
+          includeAssetIds: expect.arrayContaining([pinned, MAINNET_MUSD]),
+          excludeAssetIds: [hidden],
+        },
         undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('includes default tracked assets as includeAssetIds even with no pins or native in state', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('sends the same includeAssetIds on subscribe polls as on fetch', async () => {
+      const pinnedToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const { controller, apiClient, assetsUpdateHandler } =
+        await setupController({
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
+          getAssetsState: () =>
+            createAssetsState({
+              customAssets: { 'mock-account-id': [pinnedToken] },
+            }),
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+      });
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        {
+          includeAssetIds: expect.arrayContaining([pinnedToken, MAINNET_MUSD]),
+        },
+        { staleTime: 0, gcTime: 0 },
       );
 
       controller.destroy();
@@ -1745,6 +2020,13 @@ describe('AccountsApiDataSource', () => {
         isBalanceV6Enabled: (): boolean =>
           isBalanceV6EnabledFromFlags(remoteFeatureFlags),
         getAssetsState,
+        getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+          getAssetVisibility({
+            state: getAssetsState(),
+            accountIds,
+            chainIds,
+            getNativeAssetForChain,
+          }),
       };
 
       if (tokenDetectionEnabled !== undefined) {
