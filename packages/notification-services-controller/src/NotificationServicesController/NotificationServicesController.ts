@@ -812,19 +812,12 @@ export class NotificationServicesController extends BaseController<
   /**
    * Registers this device for push notifications on the given addresses.
    *
-   * An empty list cannot be sent: the push API rejects a registration with no
-   * addresses, and because that request is what performs the delete-and-reinsert
-   * of the device's links, a rejection leaves the previous links in place and
-   * push keeps arriving. So "no addresses" has to mean unregistering the device.
+   * Always register the device token, including when no addresses are enabled.
+   * The links API rejects an empty list without removing the token.
    *
    * @param addresses - The addresses to receive push notifications for.
    */
   async #registerPushNotifications(addresses: string[]): Promise<void> {
-    if (addresses.length === 0) {
-      await this.#pushNotifications.disablePushNotifications();
-      return;
-    }
-
     await this.#pushNotifications.enablePushNotifications(addresses);
   }
 
