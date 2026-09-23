@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a foreign VBA onboarding session during hydration ([#10337](https://github.com/MetaMask/core/pull/10337))
+  - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+
+### Fixed
+
+- Discard a persisted KYC session that belongs to a previous identity during `RampsController:hydrateVbaOnboarding` instead of dead-ending on the recoverable-error stage ([#10337](https://github.com/MetaMask/core/pull/10337))
+  - A session persisted from a previous identity (e.g. a new wallet created over an existing install) is rejected by the backend on every session-scoped call (owner mismatch). Hydration now verifies the persisted session's `externalUserId` against the signed-in profile (`AuthenticationController:getSessionProfile`) up front and, on a mismatch, clears it via `KycController:clearState` and restarts at the email step.
+  - Ownership is checked only for the persisted session; a session fetched from the backend is already scoped to the current user. When the profile id cannot be resolved, the session is kept so a transient profile-read failure never discards a valid session.
 
 ## [24.0.0]
 

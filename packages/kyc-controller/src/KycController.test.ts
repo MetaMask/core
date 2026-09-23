@@ -585,6 +585,29 @@ describe('KycController', () => {
         },
       );
     });
+
+    it('returns true without re-fetching when session consents are already given', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: {
+                ...sessionStatus('pending'),
+                consentStatus: 'given',
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+          // idOS returns 409 ("already consented") on a re-fetch after consents
+          // are in, so the fetch must be skipped entirely.
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('fetchVendorDisclaimers', () => {

@@ -248,6 +248,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:refreshSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
+  'KycController:clearState',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -278,6 +279,8 @@ type KycControllerSessionStatus = {
   finalStatus: string;
   kycStatus: string;
   vendorStatus: string;
+  /** Canonical id of the profile that owns the session (set at creation). */
+  externalUserId: string;
 };
 
 /**
@@ -304,6 +307,11 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
 export type KycControllerHasCompletedSessionDisclaimersAction = {
   type: 'KycController:hasCompletedSessionDisclaimers';
   handler: () => Promise<boolean>;
+};
+
+export type KycControllerClearStateAction = {
+  type: 'KycController:clearState';
+  handler: () => void;
 };
 
 /**
@@ -888,6 +896,7 @@ type AllowedActions =
   | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerClearStateAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -3857,8 +3866,14 @@ export class RampsController extends BaseController<
     // reinstall/cleared state resuming an existing customer, or a brand-new user
     // with no session at all).
     let session: KycControllerSessionStatus | null = null;
+    // Whether `session` came from persisted controller state (as opposed to a
+    // fresh backend fetch, which is always scoped to the current user). Only a
+    // persisted session can belong to a previous identity, so only that path
+    // needs the ownership check below.
+    let sessionFromCache = false;
     try {
       session = this.messenger.call('KycController:refreshSessionStatus');
+      sessionFromCache = true;
     } catch {
       try {
         session = await this.messenger.call(
@@ -3873,6 +3888,21 @@ export class RampsController extends BaseController<
       }
     }
     if (!session) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+    }
+
+    // A persisted session can outlive the identity that created it — e.g. a new
+    // wallet created over an install that still holds a previous customer's
+    // session. Reusing it makes the backend reject every session-scoped call
+    // (owner mismatch), dead-ending the user. Verify ownership up front against
+    // the signed-in profile and, on a mismatch, discard the stale session and
+    // restart at email rather than reacting to opaque backend errors (which the
+    // API also returns for transient failures and already-completed consents).
+    if (
+      sessionFromCache &&
+      !(await this.#isVbaSessionOwnedByCurrentProfile(session))
+    ) {
+      this.messenger.call('KycController:clearState');
       return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
     }
 
@@ -3964,6 +3994,34 @@ export class RampsController extends BaseController<
     }
 
     return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+  }
+
+  /**
+   * Whether a persisted KYC session belongs to the currently signed-in profile.
+   * A session's `externalUserId` is the canonical profile id captured when the
+   * session was created, so it must match the current profile for the session
+   * to be reused. When the current identity cannot be resolved, err on the side
+   * of keeping the session (return `true`) so a transient profile-read failure
+   * never discards a valid session.
+   *
+   * @param session - The persisted KYC session status to check.
+   * @returns Whether the session is owned by the current profile.
+   */
+  async #isVbaSessionOwnedByCurrentProfile(
+    session: KycControllerSessionStatus,
+  ): Promise<boolean> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonicalId =
+      typeof profile?.canonicalProfileId === 'string' &&
+      profile.canonicalProfileId.length > 0
+        ? profile.canonicalProfileId
+        : profile?.profileId;
+    if (typeof canonicalId !== 'string' || canonicalId.length === 0) {
+      return true;
+    }
+    return session.externalUserId === canonicalId;
   }
 
   #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
