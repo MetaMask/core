@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove `'update'` from `AssetsUpdateMode`; use `'full'` (Accounts API v6 snapshot) or `'merge'` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Remove the `updateMode` option from `AssetsController.getAssets`; the data source now sets it on its response ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Remove `getAssetsState` from pipeline `Context`; inject it on data-source and middleware constructors instead (`TokenDataSourceOptions`, `PriceDataSourceOptions`, `DetectionMiddlewareOptions`, `CustomAssetGraduationMiddlewareOptions`, `RpcFallbackMiddlewareOptions`)
+- **BREAKING:** Remove `getAssetsState` from `SubscriptionRequest` and `PriceDataSource.fetch`; `PriceDataSource` reads state from its constructor
 - **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
   - Pass `() => this.state` from `AssetsController`
 - **BREAKING:** Require `getAssetVisibility` in `AccountsApiDataSourceOptions`, `SnapDataSourceOptions`, and `RpcDataSourceOptions`

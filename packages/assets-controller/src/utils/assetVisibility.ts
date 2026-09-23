@@ -5,7 +5,7 @@ import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/utils
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   AccountId,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   Caip19AssetId,
   ChainId,
 } from '../types.js';
@@ -24,7 +24,7 @@ export type GetAssetVisibility = (
 ) => AssetVisibility;
 
 export type GetAssetVisibilityOptions = {
-  state: AssetsControllerStateInternal;
+  state: AssetsControllerState;
   accountIds: AccountId[];
   chainIds: ChainId[];
   getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
@@ -91,7 +91,7 @@ export function getAssetVisibility({
 }
 
 function collectHiddenAssets(
-  state: AssetsControllerStateInternal,
+  state: AssetsControllerState,
   chainSet: Set<ChainId>,
 ): Map<string, Caip19AssetId> {
   const hiddenByKey = new Map<string, Caip19AssetId>();

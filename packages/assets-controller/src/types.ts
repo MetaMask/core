@@ -469,11 +469,14 @@ export type MiddlewareDataSource = {
 };
 
 // ============================================================================
-// UNIFIED MIDDLEWARE TYPES
+// CONTROLLER STATE
 // ============================================================================
 
 /**
- * Internal state structure for AssetsController following normalized design.
+ * State structure for AssetsController following normalized design.
+ *
+ * All values must stay JSON-serializable. UI preferences (e.g. hidden) live in
+ * assetPreferences, not in metadata.
  *
  * Keys use CAIP identifiers:
  * - assetsInfo keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
@@ -484,7 +487,7 @@ export type MiddlewareDataSource = {
  * - customAssets inner values: CAIP-19 asset IDs array
  * - assetPreferences keys: CAIP-19 asset IDs
  */
-export type AssetsControllerStateInternal = {
+export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
   assetsInfo: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
@@ -499,6 +502,10 @@ export type AssetsControllerStateInternal = {
   selectedCurrency: SupportedCurrency;
 };
 
+// ============================================================================
+// UNIFIED MIDDLEWARE TYPES
+// ============================================================================
+
 /**
  * Base context for all middleware operations.
  * Contains the common interface shared by fetch and subscribe.
@@ -508,8 +515,6 @@ export type Context = {
   request: DataRequest;
   /** The response data (mutated by middlewares) */
   response: DataResponse;
-  /** Get current assets state */
-  getAssetsState: () => AssetsControllerStateInternal;
   /**
    * Optional breakdown of latency (ms) per data source, e.g. from parallel
    * middlewares. Keys are source names (often "MiddlewareName.SourceName").

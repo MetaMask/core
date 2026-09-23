@@ -110,7 +110,6 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsInfo: {} }),
     ...overrides,
   };
 }

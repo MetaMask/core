@@ -21,7 +21,7 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
 import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
@@ -120,7 +120,7 @@ export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
    * Current AssetsController state. Used for v6 include/exclude asset IDs and
    * for filtering when token detection is off.
    */
-  getAssetsState: () => AssetsControllerStateInternal;
+  getAssetsState: () => AssetsControllerState;
   /** Returns shared visible/hidden assets for an account/chain scope. */
   getAssetVisibility: GetAssetVisibility;
   state?: Partial<AccountsApiDataSourceState>;
@@ -198,7 +198,7 @@ function caipChainIdToChainId(chainIdStr: string): ChainId {
  */
 export function filterResponseToKnownAssets(
   response: DataResponse,
-  assetsState: AssetsControllerStateInternal,
+  assetsState: AssetsControllerState,
 ): DataResponse {
   if (!response.assetsBalance) {
     return response;
@@ -271,7 +271,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
   /** Injected by AssetsController; `true` when the v6 balances endpoint should be used. */
   readonly #isBalanceV6Enabled: () => boolean;
 
-  readonly #getAssetsState: () => AssetsControllerStateInternal;
+  readonly #getAssetsState: () => AssetsControllerState;
 
   readonly #getAssetVisibility: GetAssetVisibility;
 

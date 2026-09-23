@@ -10,7 +10,7 @@ import type {
   Caip19AssetId,
   DataRequest,
   Context,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
 import type { AssetVisibility } from '../utils/assetVisibility.js';
 import { getAssetVisibility } from '../utils/assetVisibility.js';
@@ -157,8 +157,8 @@ function createDataRequest(
 }
 
 function createAssetsState(
-  overrides: Partial<AssetsControllerStateInternal> = {},
-): AssetsControllerStateInternal {
+  overrides: Partial<AssetsControllerState> = {},
+): AssetsControllerState {
   return {
     assetsInfo: {},
     assetsBalance: {},
@@ -174,7 +174,6 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn(),
     ...overrides,
   };
 }
@@ -197,7 +196,7 @@ async function setupController(
     fetchTimeoutMs?: number;
     v6Balances?: V6BalanceItem[];
     remoteFeatureFlags?: Record<string, unknown>;
-    getAssetsState?: () => AssetsControllerStateInternal;
+    getAssetsState?: () => AssetsControllerState;
     tokenDetectionEnabled?: () => boolean;
   } = {},
 ): Promise<SetupResult> {
@@ -210,7 +209,7 @@ async function setupController(
     fetchTimeoutMs,
     v6Balances = [],
     remoteFeatureFlags = {},
-    getAssetsState = (): AssetsControllerStateInternal => createAssetsState(),
+    getAssetsState = (): AssetsControllerState => createAssetsState(),
     tokenDetectionEnabled,
   } = options;
 
@@ -1954,7 +1953,7 @@ describe('AccountsApiDataSource', () => {
         balances?: V5BalanceItem[];
         unprocessedNetworks?: string[];
         tokenDetectionEnabled?: boolean;
-        getAssetsState?: () => AssetsControllerStateInternal;
+        getAssetsState?: () => AssetsControllerState;
         remoteFeatureFlags?: Record<string, unknown>;
       } = {},
     ): Promise<SetupResult> {
@@ -1963,8 +1962,7 @@ describe('AccountsApiDataSource', () => {
         balances = [],
         unprocessedNetworks = [],
         tokenDetectionEnabled,
-        getAssetsState = (): AssetsControllerStateInternal =>
-          createAssetsState(),
+        getAssetsState = (): AssetsControllerState => createAssetsState(),
         remoteFeatureFlags = {},
       } = options;
 
@@ -2323,7 +2321,7 @@ describe('filterResponseToKnownAssets', () => {
 
   function buildState(
     balances: Record<string, Record<string, { amount: string }>>,
-  ): AssetsControllerStateInternal {
+  ): AssetsControllerState {
     return createAssetsState({ assetsBalance: balances });
   }
 

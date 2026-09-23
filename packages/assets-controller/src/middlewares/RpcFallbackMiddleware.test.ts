@@ -1,7 +1,7 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type {
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   AssetsDataSource,
   Caip19AssetId,
   ChainId,
@@ -60,22 +60,43 @@ type StateOverrides = {
   assetPreferences?: Record<string, { hidden?: boolean }>;
 };
 
+let currentAssetsState: AssetsControllerState = {
+  assetsInfo: {},
+  assetsBalance: {},
+  customAssets: {},
+  assetPreferences: {},
+  assetsPrice: {},
+  selectedCurrency: 'usd',
+};
+
 function createContext(
   request: DataRequest,
   response: DataResponse = {},
   stateOverrides: StateOverrides = {},
 ): Context {
+  currentAssetsState = {
+    assetsInfo: {},
+    assetsBalance: stateOverrides.assetsBalance ?? {},
+    customAssets: stateOverrides.customAssets ?? {},
+    assetPreferences: stateOverrides.assetPreferences ?? {},
+    assetsPrice: {},
+    selectedCurrency: 'usd',
+  } as AssetsControllerState;
   return {
     request,
     response,
-    getAssetsState: jest.fn().mockReturnValue({
-      assetsInfo: {},
-      assetsBalance: stateOverrides.assetsBalance ?? {},
-      customAssets: stateOverrides.customAssets ?? {},
-      assetPreferences: stateOverrides.assetPreferences ?? {},
-      assetsPrice: {},
-    } as AssetsControllerStateInternal),
   };
+}
+
+function createFallback(
+  source: AssetsDataSource,
+  extra: { isBalanceV6Enabled?: () => boolean } = {},
+): RpcFallbackMiddleware {
+  return new RpcFallbackMiddleware({
+    rpcDataSource: source,
+    getAssetsState: () => currentAssetsState,
+    ...extra,
+  });
 }
 
 function createMockRpcSource(response: DataResponse = {}): {
@@ -102,7 +123,7 @@ describe('RpcFallbackMiddleware', () => {
 
   it('passes through when there are no errors in the response', async () => {
     const { source, middleware: rpcMw } = createMockRpcSource();
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(createDataRequest(['eip155:1']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
@@ -123,7 +144,7 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(createDataRequest(['eip155:1', 'eip155:137']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
@@ -146,7 +167,7 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(createDataRequest(['eip155:1', 'eip155:137']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
@@ -171,7 +192,7 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(createDataRequest(['eip155:137']), {
       errors: { 'eip155:137': 'Fetch failed: oops' },
     });
@@ -185,7 +206,7 @@ describe('RpcFallbackMiddleware', () => {
 
   it('keeps errors for chains RPC could not recover', async () => {
     const { source } = createMockRpcSource({});
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(createDataRequest(['eip155:137']), {
       errors: { 'eip155:137': 'Fetch failed: oops' },
     });
@@ -205,7 +226,7 @@ describe('RpcFallbackMiddleware', () => {
     // would still have its error cleared. The check must look at what RPC
     // actually returned.
     const { source } = createMockRpcSource({}); // RPC fails — empty response
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(createDataRequest(['eip155:137']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_POLYGON]: { amount: '7' } },
@@ -224,7 +245,7 @@ describe('RpcFallbackMiddleware', () => {
 
   it('does not run for non-balance data types', async () => {
     const { source, middleware: rpcMw } = createMockRpcSource();
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(
       {
         ...createDataRequest(['eip155:1']),
@@ -250,7 +271,7 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = createFallback(source);
     const ctx = createContext(
       createDataRequest(['eip155:1', 'eip155:137', 'eip155:56']),
       {
@@ -275,7 +296,7 @@ describe('RpcFallbackMiddleware', () => {
   describe('assets tracked in state that the response left empty', () => {
     it('passes through when tracked assets all have a positive balance in the response', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {
@@ -299,7 +320,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('matches response asset IDs case-insensitively', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {
@@ -329,7 +350,7 @@ describe('RpcFallbackMiddleware', () => {
         },
       };
       const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {
@@ -369,7 +390,7 @@ describe('RpcFallbackMiddleware', () => {
         },
       };
       const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {
@@ -397,7 +418,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('fetches custom assets from state that the response left empty', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {},
@@ -416,7 +437,7 @@ describe('RpcFallbackMiddleware', () => {
       const otherCustom =
         'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         { ...createDataRequest(['eip155:1']), customAssets: [otherCustom] },
         {},
@@ -438,7 +459,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('skips staking contract assets', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {},
@@ -459,7 +480,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('skips non-EVM tracked assets', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {},
@@ -478,7 +499,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('skips tracked assets on chains outside the request', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1'], ['eip155:1', 'eip155:137']),
         {},
@@ -497,7 +518,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('skips tracked assets on chains the account does not support', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1', 'eip155:137'], ['eip155:1']),
         {},
@@ -516,7 +537,7 @@ describe('RpcFallbackMiddleware', () => {
 
     it('fetches both errored chains and chains of stale tracked assets', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1', 'eip155:137']),
         {
@@ -550,7 +571,7 @@ describe('RpcFallbackMiddleware', () => {
         errors: { 'eip155:1': 'Fetch failed: provider down' },
       };
       const { source } = createMockRpcSource(rpcFailureResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1']),
         {
@@ -588,7 +609,7 @@ describe('RpcFallbackMiddleware', () => {
         errors: { 'eip155:137': 'Fetch failed: provider down' },
       };
       const { source } = createMockRpcSource(rpcFailureResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(createDataRequest(['eip155:137']), {
         errors: { 'eip155:137': 'Unprocessed by Accounts API' },
       });
@@ -616,7 +637,7 @@ describe('RpcFallbackMiddleware', () => {
         errors: { 'eip155:1': 'Fetch failed: provider down' },
       };
       const { source } = createMockRpcSource(rpcResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const ctx = createContext(
         createDataRequest(['eip155:1', 'eip155:137']),
         {
@@ -650,7 +671,7 @@ describe('RpcFallbackMiddleware', () => {
         [secondAccountId]: { [MOCK_ERC20_MAINNET]: { amount: '5' } },
       };
       const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const mw = createFallback(source);
       const request = {
         ...createDataRequest(['eip155:1']),
         accountsWithSupportedChains: [
@@ -682,6 +703,7 @@ describe('RpcFallbackMiddleware', () => {
       new RpcFallbackMiddleware({
         rpcDataSource,
         isBalanceV6Enabled: (): boolean => true,
+        getAssetsState: () => currentAssetsState,
       });
 
     it('retries an errored chain without listing tracked assets on the request', async () => {

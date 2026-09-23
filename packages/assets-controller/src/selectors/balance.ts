@@ -465,7 +465,7 @@ function aggregateBalances(
   const startTime = trace ? performance.now() : 0;
   const { assetsBalance, assetsInfo, assetPreferences, assetsPrice } = state;
 
-  const metadata = (assetsInfo ?? {}) as Record<Caip19AssetId, AssetMetadata>;
+  const metadata = assetsInfo;
 
   const hasPrices =
     Boolean(assetsPrice) &&

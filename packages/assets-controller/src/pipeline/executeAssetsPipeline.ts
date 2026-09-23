@@ -2,8 +2,8 @@ import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 
 import { AssetsDataSourceError } from '../errors.js';
 import type {
-  AssetsControllerStateInternal,
   AssetsDataSource,
+  Context,
   DataRequest,
   DataResponse,
   FetchContext,
@@ -23,8 +23,6 @@ export type ExecuteAssetsPipelineParams = {
   request: DataRequest;
   /** Optional initial response (for enriching existing data). */
   initialResponse?: DataResponse;
-  /** Reads the current controller state, exposed to every middleware via context. */
-  getAssetsState: () => AssetsControllerStateInternal;
   /** Reports middleware failures as an issue. Never allowed to throw. */
   captureException?: (error: Error) => void;
   /** Optional parent Sentry span; per-source timings nest under it. */
@@ -53,7 +51,6 @@ export async function executeAssetsPipeline(
     sources,
     request,
     initialResponse = {},
-    getAssetsState,
     captureException,
     parentContext,
     trace,
@@ -63,14 +60,7 @@ export async function executeAssetsPipeline(
   const inclusive: number[] = [];
   const wrapped = middlewares.map(
     (middleware, i) =>
-      (async (
-        ctx: FetchContext,
-        next: FetchNextFunction,
-      ): Promise<{
-        request: DataRequest;
-        response: DataResponse;
-        getAssetsState: () => AssetsControllerStateInternal;
-      }> => {
+      (async (ctx: FetchContext, next: FetchNextFunction): Promise<Context> => {
         const start = performance.now();
         try {
           return await middleware(ctx, next);
@@ -83,13 +73,7 @@ export async function executeAssetsPipeline(
   const middlewareErrors: string[] = [];
   const chain = wrapped.reduceRight<NextFunction>(
     (next, middleware, index) =>
-      async (
-        ctx,
-      ): Promise<{
-        request: DataRequest;
-        response: DataResponse;
-        getAssetsState: () => AssetsControllerStateInternal;
-      }> => {
+      async (ctx): Promise<Context> => {
         try {
           return await middleware(ctx, next);
         } catch (error) {
@@ -105,7 +89,6 @@ export async function executeAssetsPipeline(
   const result = await chain({
     request,
     response: initialResponse,
-    getAssetsState,
   });
 
   const durationByDataSource: Record<string, number> = {};

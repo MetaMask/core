@@ -1,6 +1,6 @@
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   Caip19AssetId,
   ChainId,
 } from '../types.js';
@@ -23,8 +23,8 @@ const STAKING_ASSET =
 const [MAINNET_DEFAULT] = getDefaultTrackedAssetsForChain(MAINNET);
 
 function createState(
-  overrides: Partial<AssetsControllerStateInternal> = {},
-): AssetsControllerStateInternal {
+  overrides: Partial<AssetsControllerState> = {},
+): AssetsControllerState {
   return {
     assetsInfo: {},
     assetsBalance: {},

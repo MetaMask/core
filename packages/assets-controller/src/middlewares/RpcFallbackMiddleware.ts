@@ -5,6 +5,7 @@ import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
   AssetBalance,
+  AssetsControllerState,
   AssetsDataSource,
   Caip19AssetId,
   ChainId,
@@ -29,6 +30,8 @@ export type RpcFallbackMiddlewareOptions = {
    * omitted (legacy path).
    */
   isBalanceV6Enabled?: () => boolean;
+  /** Current AssetsController state. Used to find tracked assets the response left empty. */
+  getAssetsState: () => AssetsControllerState;
 };
 
 const noopNext = async (ctx: Context): Promise<Context> => ctx;
@@ -51,10 +54,13 @@ export class RpcFallbackMiddleware {
 
   readonly #isBalanceV6Enabled: () => boolean;
 
+  readonly #getAssetsState: () => AssetsControllerState;
+
   constructor(options: RpcFallbackMiddlewareOptions) {
     this.#rpcDataSource = options.rpcDataSource;
     this.#isBalanceV6Enabled =
       options.isBalanceV6Enabled ?? ((): boolean => false);
+    this.#getAssetsState = options.getAssetsState;
   }
 
   getName(): string {
@@ -128,7 +134,7 @@ export class RpcFallbackMiddleware {
     const erroredChains = new Set<ChainId>(
       Object.keys(ctx.response.errors ?? {}) as ChainId[],
     );
-    const staleAssets = collectStaleTrackedAssets(ctx);
+    const staleAssets = collectStaleTrackedAssets(ctx, this.#getAssetsState());
 
     const chainsToFetch = [
       ...new Set([
@@ -233,11 +239,15 @@ export class RpcFallbackMiddleware {
  * set, so anything else would be queued and then silently dropped.
  *
  * @param ctx - Pipeline context.
+ * @param state - Current AssetsController state.
  * @returns Asset IDs to hand to the RPC data source.
  */
-function collectStaleTrackedAssets(ctx: Context): Caip19AssetId[] {
+function collectStaleTrackedAssets(
+  ctx: Context,
+  state: AssetsControllerState,
+): Caip19AssetId[] {
   const { assetsBalance: stateAssetsBalance, customAssets: stateCustomAssets } =
-    ctx.getAssetsState();
+    state;
 
   const staleAssets = new Set<Caip19AssetId>();
 

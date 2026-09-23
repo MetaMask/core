@@ -34,7 +34,7 @@ import type {
   Caip19AssetId,
   AssetBalance,
   AssetMetadata,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   DataRequest,
   DataResponse,
   Middleware,
@@ -125,7 +125,7 @@ export type RpcDataSourceOptions = {
    * Current AssetsController state. Used to include the account's visible
    * `customAssets` on fetch, and to read metadata for converting balances.
    */
-  getAssetsState: () => AssetsControllerStateInternal;
+  getAssetsState: () => AssetsControllerState;
   /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
   onActiveChainsUpdated: (
     dataSourceName: string,
@@ -225,7 +225,7 @@ export class RpcDataSource extends AbstractDataSource<
 > {
   readonly #messenger: AssetsControllerMessenger;
 
-  readonly #getAssetsState: () => AssetsControllerStateInternal;
+  readonly #getAssetsState: () => AssetsControllerState;
 
   readonly #onActiveChainsUpdated: (
     dataSourceName: string,

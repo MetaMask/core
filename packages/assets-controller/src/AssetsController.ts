@@ -130,8 +130,7 @@ import {
 } from './pipeline/index.js';
 import type {
   AccountId,
-  AssetPreferences,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   AssetsDataSource,
   AssetsUpdateMode,
   ChainId,
@@ -242,28 +241,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // STATE TYPES
 // ============================================================================
 
-/**
- * State structure for AssetsController.
- *
- * All values are JSON-serializable. UI preferences (e.g. hidden) are in
- * assetPreferences, not in metadata.
- *
- * @see AssetsControllerStateInternal for the semantic type structure
- */
-export type AssetsControllerState = {
-  /** Shared metadata for all assets (stored once per asset) */
-  assetsInfo: { [assetId: string]: AssetMetadata };
-  /** Per-account balance data */
-  assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
-  /** Price data for assets */
-  assetsPrice: { [assetId: string]: AssetPrice };
-  /** Custom assets added by users per account (CAIP-19 asset IDs) */
-  customAssets: { [accountId: string]: Caip19AssetId[] };
-  /** UI preferences per asset (e.g. hidden) */
-  assetPreferences: { [assetId: string]: AssetPreferences };
-  /** Currently-active ISO 4217 currency code */
-  selectedCurrency: SupportedCurrency;
-};
+export type { AssetsControllerState };
 
 /**
  * Returns the default state for AssetsController.
@@ -1017,7 +995,7 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
-      getAssetsState: (): AssetsControllerStateInternal => this.state,
+      getAssetsState: (): AssetsControllerState => this.state,
       getAssetVisibility: this.#getAssetVisibility.bind(this),
     });
     this.#snapDataSource = new SnapDataSource({
@@ -1030,7 +1008,7 @@ export class AssetsController extends BaseController<
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
-      getAssetsState: (): AssetsControllerStateInternal => this.state,
+      getAssetsState: (): AssetsControllerState => this.state,
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetVisibility: this.#getAssetVisibility.bind(this),
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
@@ -1058,13 +1036,17 @@ export class AssetsController extends BaseController<
       },
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
+      getAssetsState: (): AssetsControllerState => this.state,
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
+      getAssetsState: (): AssetsControllerState => this.state,
       ...priceDataSourceConfig,
     });
-    this.#detectionMiddleware = new DetectionMiddleware();
+    this.#detectionMiddleware = new DetectionMiddleware({
+      getAssetsState: (): AssetsControllerState => this.state,
+    });
     this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
       {
         getSelectedAccountId: (): AccountId | undefined => {
@@ -1076,11 +1058,13 @@ export class AssetsController extends BaseController<
         },
         removeCustomAsset: (accountId, assetId): void =>
           this.removeCustomAsset(accountId, assetId),
+        getAssetsState: (): AssetsControllerState => this.state,
       },
     );
     this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
       rpcDataSource: this.#rpcDataSource,
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
+      getAssetsState: (): AssetsControllerState => this.state,
     });
 
     log('Initializing AssetsController', {
@@ -1512,7 +1496,7 @@ export class AssetsController extends BaseController<
    * Returns response and exclusive duration per source (sum ≈ wall time).
    *
    * Thin wrapper over {@link executeAssetsPipeline} that supplies the
-   * controller-owned state accessor and exception reporter.
+   * controller-owned exception reporter.
    *
    * @param params - Middleware execution options.
    * @param params.sources - Data sources or middlewares with getName() and assetsMiddleware.
@@ -1535,7 +1519,6 @@ export class AssetsController extends BaseController<
   }> {
     return executeAssetsPipeline({
       ...params,
-      getAssetsState: () => this.state as AssetsControllerStateInternal,
       captureException: this.#captureException,
     });
   }
@@ -2558,7 +2541,6 @@ export class AssetsController extends BaseController<
       isUpdate,
       onAssetsUpdate: (response) =>
         this.handleAssetsUpdate(response, 'PriceDataSource'),
-      getAssetsState: () => this.state,
     };
 
     this.#priceDataSource.subscribe(subscribeReq).catch(console.error);
@@ -2652,7 +2634,7 @@ export class AssetsController extends BaseController<
    * @returns Lowercased CAIP-19 IDs that must survive the replace.
    */
   #getUndeletableAssetIds(
-    state: AssetsControllerStateInternal,
+    state: AssetsControllerState,
     accountId: AccountId,
     accountBalances: Record<string, AssetBalance>,
   ): Set<string> {
@@ -3102,7 +3084,7 @@ export class AssetsController extends BaseController<
             let undeletableAssetIds: Set<string> | undefined;
             const skipDelete = (assetId: Caip19AssetId): boolean => {
               undeletableAssetIds ??= this.#getUndeletableAssetIds(
-                state as AssetsControllerStateInternal,
+                state as AssetsControllerState,
                 accountId,
                 accountBalances,
               );
@@ -3787,7 +3769,6 @@ export class AssetsController extends BaseController<
       isUpdate,
       onAssetsUpdate: (response, request) =>
         this.handleAssetsUpdate(response, sourceId, request),
-      getAssetsState: () => this.state,
       ...(options.skipInitialFetch === true ? { skipInitialFetch: true } : {}),
     };
 
