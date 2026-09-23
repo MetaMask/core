@@ -528,7 +528,7 @@
       "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 7
+      "count": 8
     }
   },
   "packages/assets-controller/src/data-sources/AccountActivityDataSource.ts": {
@@ -1634,10 +1634,10 @@
   },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 5
     },
     "typescript/no-unsafe-return": {
-      "count": 4
+      "count": 5
     }
   },
   "packages/base-controller/jest.config.cjs": {
@@ -1652,7 +1652,7 @@
   },
   "packages/base-data-service/src/BaseDataService.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 9
     }
   },
   "packages/base-data-service/src/BaseDataService.ts": {
@@ -1668,6 +1668,14 @@
       "count": 1
     }
   },
+  "packages/base-data-service/src/utils.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 2
+    }
+  },
   "packages/base-data-service/tests/ExampleDataService.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
@@ -1676,7 +1684,7 @@
       "count": 4
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 4
     }
   },
   "packages/bitcoin-regtest-up/jest.config.cjs": {
@@ -5270,12 +5278,30 @@
       "count": 1
     }
   },
+  "packages/platform-api-docs/src/cli.test.ts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    },
+    "no-shadow": {
+      "count": 1
+    }
+  },
   "packages/platform-api-docs/src/cli.ts": {
     "n/hashbang": {
       "count": 1
     },
     "n/no-unsupported-features/node-builtins": {
       "count": 2
+    }
+  },
+  "packages/platform-api-docs/src/generate.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/platform-api-docs/src/root-messenger-discovery.test.ts": {
+    "no-shadow": {
+      "count": 1
     }
   },
   "packages/polling-controller/jest.config.cjs": {
@@ -6314,9 +6340,14 @@
       "count": 1
     }
   },
+  "packages/snap-account-service/src/SnapAccountCache.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 12
+    }
+  },
   "packages/snap-account-service/src/SnapAccountService.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 11
+      "count": 15
     },
     "typescript/no-unsafe-assignment": {
       "count": 2
@@ -6359,15 +6390,15 @@
   },
   "packages/social-controllers/src/SocialService.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 6
+      "count": 8
     }
   },
   "packages/social-controllers/src/SocialService.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 11
+      "count": 12
     },
     "typescript/no-unsafe-assignment": {
-      "count": 11
+      "count": 12
     }
   },
   "packages/solana-test-validator-up/jest.config.cjs": {
@@ -6519,7 +6550,7 @@
   },
   "packages/subscription-controller/src/types.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 1
+      "count": 3
     }
   },
   "packages/subscription-controller/src/types.ts": {
@@ -6540,13 +6571,13 @@
       "count": 7
     },
     "typescript/no-unsafe-assignment": {
-      "count": 76
+      "count": 70
     },
     "typescript/no-unsafe-call": {
-      "count": 11
+      "count": 10
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 9
     },
     "typescript/no-unsafe-return": {
       "count": 5
@@ -6887,6 +6918,11 @@
     }
   },
   "packages/transaction-controller/src/utils/revert-reason.test.ts": {
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/signature.test.ts": {
     "typescript/no-unsafe-return": {
       "count": 1
     }
@@ -7390,7 +7426,7 @@
       "count": 24
     },
     "typescript/no-unsafe-assignment": {
-      "count": 36
+      "count": 39
     },
     "typescript/no-unsafe-call": {
       "count": 8
@@ -7418,13 +7454,13 @@
       "count": 25
     },
     "typescript/no-unsafe-assignment": {
-      "count": 41
+      "count": 42
     },
     "typescript/no-unsafe-call": {
       "count": 20
     },
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 23
     },
     "typescript/no-unsafe-return": {
       "count": 3
@@ -7603,7 +7639,7 @@
   },
   "packages/transaction-pay-controller/src/utils/source-amounts.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 29
+      "count": 34
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
