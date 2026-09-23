@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
@@ -208,7 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.2...@metamask/social-controllers@3.1.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.1...@metamask/social-controllers@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.0...@metamask/social-controllers@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.8.1...@metamask/social-controllers@3.0.0
