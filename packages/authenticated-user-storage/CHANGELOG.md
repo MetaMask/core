@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getMarketingConsent` and `putMarketingConsent` methods to `AuthenticatedUserStorageService` for managing the authenticated user's marketing consent, along with corresponding messenger actions (`AuthenticatedUserStorageService:getMarketingConsent`, `AuthenticatedUserStorageService:putMarketingConsent`) and the `MarketingConsent` type
+- Add `getMarketingConsent` and `putMarketingConsent` methods to `AuthenticatedUserStorageService` for managing the authenticated user's marketing consent, along with corresponding messenger actions (`AuthenticatedUserStorageService:getMarketingConsent`, `AuthenticatedUserStorageService:putMarketingConsent`) and the `MarketingConsent` type ([#10390](https://github.com/MetaMask/core/pull/10390))
   - `getMarketingConsent` returns the marketing consent object or `null` on 404, mirroring `getNotificationPreferences`.
   - `putMarketingConsent` writes the full consent object and invalidates the `getMarketingConsent` cache on success.
 
