@@ -1180,7 +1180,11 @@ describe('SocialService', () => {
         json: () =>
           Promise.resolve({
             items: [
-              { ...mockFeedItem, firstTradeAt: 1_699_999_000, holdTimeMs: null },
+              {
+                ...mockFeedItem,
+                firstTradeAt: 1_699_999_000,
+                holdTimeMs: null,
+              },
             ],
             pagination: { olderCursor: null, newerCursor: null },
           }),
