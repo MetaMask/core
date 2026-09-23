@@ -2749,6 +2749,155 @@ export class KeyringController<
   }
 
   /**
+   * Reconcile the keyrings in memory with a pre-transaction snapshot, touching
+   * only the keyrings that the failed transaction changed.
+   *
+   * The snapshot is walked in order, so that the keyring order (and the
+   * primary-keyring invariant) is preserved: keyrings that the transaction
+   * did not change keep their existing instances, keyrings that the
+   * transaction mutated are rebuilt in place, keyrings that the transaction
+   * removed are recreated at their snapshot position, and keyrings that the
+   * transaction created are destroyed and dropped.
+   *
+   * Instances discarded by the reconciliation are destroyed only once the
+   * keyrings have been reconciled, and destruction failures are logged
+   * instead of thrown, so that the rollback always completes with the fully
+   * reconciled keyrings and preserves the error of the failed transaction.
+   *
+   * Unsupported keyrings are outside this reconciliation: no transaction
+   * path can change them, so the rollback has nothing to undo for them. Not
+   * being part of the snapshot, they could not be recovered if dropped. The
+   * only interaction is additive: keyrings that the rollback itself fails to
+   * recreate are parked among them.
+   *
+   * Must be called while the controller mutex is held.
+   *
+   * @param snapshot - Serialized keyrings taken before the transaction
+   *   (without unsupported keyrings).
+   */
+  async #rollbackToSnapshot(snapshot: SerializedKeyring[]): Promise<void> {
+    this.#assertControllerMutexIsLocked();
+
+    const oldKeyringsById = new Map(
+      this.#keyrings.map((oldKeyring) => [
+        oldKeyring.metadata.id,
+        oldKeyring,
+      ] as const),
+    );
+
+    // The new keyrings array is built by walking the snapshot, and becomes
+    // the controller's keyrings as it is built, so that duplicate account
+    // checks during recreation only consider already reconciled keyrings.
+    // Building the array cannot throw: serialization and recreation
+    // failures are handled within the walk, and discarded instances are
+    // destroyed only afterwards. The assignment therefore always results in
+    // the fully reconciled array.
+    const newKeyrings: KeyringEntry[] = [];
+    this.#keyrings = newKeyrings;
+
+    // Old keyrings discarded by the reconciliation, either replaced by a
+    // rebuilt instance or created by the failed transaction. They are
+    // destroyed only after the keyrings have been reconciled, so that a
+    // failing destruction cannot leave the controller in a partially
+    // restored state.
+    const oldStaleKeyrings: KeyringEntry[] = [];
+
+    for (const serialized of snapshot) {
+      // Snapshot keyrings derive from the keyrings in memory, so they always
+      // carry metadata; a keyring without metadata has no old counterpart to
+      // keep and is recreated with fresh metadata, mirroring
+      // `#restoreKeyring`.
+      const old = oldKeyringsById.get(serialized.metadata?.id ?? '');
+
+      if (!old) {
+        // The transaction removed this keyring from the keyrings array and
+        // destroyed its instance (e.g. `removeAccount` removing the last
+        // account of a keyring, or `withController` applying staged
+        // removals). The error typically surfaces only afterwards, when the
+        // changes are persisted. The instance is already destroyed, so the
+        // only way back is to rebuild the keyring from its snapshot, at its
+        // original position.
+        const newKeyring = await this.#recreateKeyringFromSnapshot(serialized);
+        if (newKeyring) {
+          newKeyrings.push(newKeyring);
+        }
+        continue;
+      }
+
+      oldKeyringsById.delete(old.metadata.id);
+
+      let isUnchanged = false;
+      try {
+        isUnchanged =
+          JSON.stringify(await old.keyring.serialize()) ===
+          JSON.stringify(serialized.data);
+      } catch {
+        // If the keyring cannot be serialized anymore, treat it as changed so
+        // that it is rebuilt from its snapshot state.
+      }
+
+      if (isUnchanged) {
+        // The transaction did not change the keyring: keep the old instance.
+        newKeyrings.push(old);
+        continue;
+      }
+
+      // The transaction mutated the keyring: rebuild it in place.
+      oldStaleKeyrings.push(old);
+      const newKeyring = await this.#recreateKeyringFromSnapshot(serialized);
+      if (newKeyring) {
+        newKeyrings.push(newKeyring);
+      }
+    }
+
+    // Whatever is left in the map was created by the failed transaction:
+    // drop it.
+    oldStaleKeyrings.push(...oldKeyringsById.values());
+
+    // Destroying an old stale keyring is cleanup: a failure is logged so that
+    // it neither aborts the rollback nor masks the error of the failed
+    // transaction.
+    for (const { keyring, keyringV2 } of oldStaleKeyrings) {
+      try {
+        await this.#destroyKeyring(keyring, keyringV2);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+
+  /**
+   * Build a new keyring from a snapshot keyring, without updating the
+   * keyrings array.
+   *
+   * On failure, this mirrors the behavior of `#restoreKeyring`: the error is
+   * logged and the serialized keyring is parked in the unsupported keyrings
+   * array, leaving the keyring absent from the controller.
+   *
+   * @param serialized - The snapshot keyring to recreate.
+   * @returns The new keyring, or `undefined` if it could not be recreated.
+   */
+  async #recreateKeyringFromSnapshot(
+    serialized: SerializedKeyring,
+  ): Promise<KeyringEntry | undefined> {
+    try {
+      const { keyring, keyringV2, metadata } = await this.#createKeyring(
+        serialized.type,
+        serialized.data,
+        serialized.metadata,
+      );
+
+      await this.#assertNoDuplicateAccounts([keyring]);
+
+      return { keyring, keyringV2, metadata };
+    } catch (error) {
+      console.error(error);
+      this.#unsupportedKeyrings.push(serialized);
+      return undefined;
+    }
+  }
+
+  /**
    * Unlock Keyrings, decrypting the vault and deserializing all
    * keyrings contained in it, using a password or an encryption key with salt.
    *
@@ -3268,7 +3417,11 @@ export class KeyringController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
-      const currentSerializedKeyrings = await this.#getSerializedKeyrings();
+      // Unsupported keyrings are not part of a failed transaction, and are
+      // left untouched by the rollback.
+      const currentSerializedKeyrings = await this.#getSerializedKeyrings({
+        includeUnsupported: false,
+      });
       const currentEncryptionKey = cloneDeep(this.#encryptionKey);
 
       try {
@@ -3276,7 +3429,7 @@ export class KeyringController<
       } catch (error) {
         // Keyrings and encryption credentials are restored to their previous state
         this.#encryptionKey = currentEncryptionKey;
-        await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
+        await this.#rollbackToSnapshot(currentSerializedKeyrings);
 
         throw error;
       }
