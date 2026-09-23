@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "cursor-team-marketplace-template/consensys-mcp-gateway": {
+      "enabled": true
+    }
+  }
+}
