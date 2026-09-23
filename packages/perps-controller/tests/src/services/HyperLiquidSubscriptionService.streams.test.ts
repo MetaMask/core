@@ -8,6 +8,7 @@
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import type {
   TwapHistoryResponse,
+  UserFillsWsEvent,
   UserTwapHistoryWsEvent,
 } from '@nktkas/hyperliquid';
 
@@ -16,6 +17,7 @@ import type { HyperLiquidClientService } from '../../../src/services/HyperLiquid
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
+  OrderFill,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
@@ -82,6 +84,9 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
     symbol,
     dex: null,
   })),
+  buildHyperLiquidFillId: jest.requireActual(
+    '../../../src/utils/hyperLiquidAdapter',
+  ).buildHyperLiquidFillId,
 }));
 
 // Mock DevLogger
@@ -1288,6 +1293,126 @@ describe('HyperLiquidSubscriptionService', () => {
       );
 
       unsubscribe();
+    });
+
+    describe('execution identifier', () => {
+      /**
+       * Two partial executions of ONE order that agree on oid, time, sz and
+       * px. HyperLiquid does not guarantee those four identify a single
+       * execution, so only tid separates them; a client deduplicating on the
+       * four-field tuple drops a real trade.
+       */
+      type StreamedFill = UserFillsWsEvent['fills'][number];
+      // A non-conforming venue payload: the SDK types tid as required.
+      type StreamedFillFixture = Omit<StreamedFill, 'tid'> & { tid?: number };
+
+      const baseFill: StreamedFill = {
+        oid: 777,
+        coin: 'BTC',
+        side: 'B',
+        sz: '0.5',
+        px: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        time: 1699999999999,
+        closedPnl: '0',
+        dir: 'Open Long',
+        startPosition: '0',
+        hash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        crossed: true,
+        twapId: null,
+        tid: 111111111111111,
+      };
+      const collidingFills: StreamedFill[] = [
+        baseFill,
+        { ...baseFill, tid: 222222222222222 },
+      ];
+
+      const emitFills = (fills: StreamedFillFixture[]) => {
+        mockSubscriptionClient.userFills.mockImplementation(
+          (
+            _params: { user: string },
+            callback: (data: UserFillsWsEvent) => void,
+          ) => {
+            setTimeout(() => {
+              callback({
+                user: '0x0000000000000000000000000000000000000000',
+                // The service must tolerate fills without tid at runtime.
+                fills: fills as StreamedFill[],
+                isSnapshot: true,
+              });
+            }, 0);
+            return Promise.resolve({
+              unsubscribe: jest.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+      };
+
+      const subscribeAndCollect = async (): Promise<OrderFill[]> => {
+        const mockCallback = jest.fn<void, [OrderFill[], boolean?]>();
+        const unsubscribe = service.subscribeToOrderFills({
+          callback: mockCallback,
+        });
+        await jest.runAllTimersAsync();
+        unsubscribe();
+        return mockCallback.mock.calls[0][0];
+      };
+
+      it('builds fillId from coin, time and tid for each streamed fill', async () => {
+        emitFills(collidingFills);
+
+        const emitted = await subscribeAndCollect();
+
+        expect(emitted).toHaveLength(2);
+        expect(emitted[0].fillId).toBe('BTC:1699999999999:111111111111111');
+        expect(emitted[1].fillId).toBe('BTC:1699999999999:222222222222222');
+      });
+
+      it('gives distinct fillIds to two executions sharing orderId, timestamp, size and price', async () => {
+        emitFills(collidingFills);
+
+        const emitted = await subscribeAndCollect();
+
+        const contentKey = (fill: OrderFill) =>
+          `${fill.orderId}-${fill.timestamp}-${fill.size}-${fill.price}`;
+        expect(contentKey(emitted[0])).toBe(contentKey(emitted[1]));
+        expect(emitted[0].fillId).not.toBe(emitted[1].fillId);
+        expect(new Map(emitted.map((fill) => [fill.fillId, fill])).size).toBe(
+          2,
+        );
+      });
+
+      it('omits fillId when the streamed payload carries no tid', async () => {
+        const { tid, ...withoutTid } = baseFill;
+        emitFills([withoutTid]);
+
+        const emitted = await subscribeAndCollect();
+
+        expect(emitted).toHaveLength(1);
+        expect(emitted[0].fillId).toBeUndefined();
+        expect(Object.hasOwn(emitted[0], 'fillId')).toBe(false);
+      });
+
+      it('leaves the rest of the streamed fill content unchanged', async () => {
+        emitFills([baseFill]);
+
+        const emitted = await subscribeAndCollect();
+
+        expect(emitted[0]).toMatchObject({
+          orderId: '777',
+          symbol: 'BTC',
+          side: 'B',
+          size: '0.5',
+          price: '50000',
+          fee: '1.25',
+          feeToken: 'USDC',
+          timestamp: 1699999999999,
+          pnl: '0',
+          direction: 'Open Long',
+          startPosition: '0',
+        });
+      });
     });
   });
 

@@ -152,12 +152,20 @@ export type TraderStats = {
   roiPercent30d?: number | null;
   /** Renamed from tradeCount. */
   tradeCount30d?: number | null;
+  /** 30-day trading volume in USD. */
+  volumeUsd30d?: number | null;
   pnl7d?: number | null;
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
   /** Median holding time in minutes. */
   medianHoldMinutes?: number | null;
+};
+
+export type CopytradedAllTime = {
+  count: number;
+  volumeUSD: number;
+  distinctActors: number;
 };
 
 export type PerChainBreakdown = {
@@ -187,6 +195,11 @@ export type TraderProfileResponse = {
   socialHandles: SocialHandles;
   followerCount: number;
   followingCount: number;
+  /**
+   * Linked copy-swap stats for this trader. Social-api always sends zeros
+   * when there are none.
+   */
+  copytradedAllTime: CopytradedAllTime;
   /**
    * Backend-derived tier from the Auth primary account 30d PnL. Omitted on older
    * social-api builds; `null` when unclaimed or activity is insufficient.
