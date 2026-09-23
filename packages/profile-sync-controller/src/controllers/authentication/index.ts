@@ -16,4 +16,11 @@ export type {
   AuthenticationControllerRequestProfilePairingAction,
   AuthenticationControllerGetPartnerIdentityTokenAction,
   AuthenticationControllerClearStateAction,
+  AuthenticationControllerRefreshEnrolledCredentialsAction,
+  AuthenticationControllerBeginCredentialEnrollmentAction,
+  AuthenticationControllerCompleteCredentialEnrollmentAction,
+  AuthenticationControllerBeginStepUpAction,
+  AuthenticationControllerCompleteStepUpAction,
+  AuthenticationControllerGetElevatedProfileTokenAction,
+  AuthenticationControllerClearStepUpSessionAction,
 } from './AuthenticationController-method-action-types.js';

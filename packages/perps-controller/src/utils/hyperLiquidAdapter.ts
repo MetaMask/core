@@ -56,7 +56,9 @@ export const HYPERLIQUID_SCALE_CLOID_MARKER = '4d4d5343';
  * @param clientOrderId - HyperLiquid client order ID.
  * @returns The Scale handle, or undefined for an unrelated order.
  */
-const readScaleGroupId = (clientOrderId: string | null): string | undefined => {
+export const readScaleGroupId = (
+  clientOrderId: string | null | undefined,
+): string | undefined => {
   const normalized = clientOrderId?.toLowerCase();
   if (
     normalized?.length !== 34 ||

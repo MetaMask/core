@@ -23,6 +23,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -34,6 +35,7 @@ import {
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
@@ -218,6 +220,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -241,6 +244,11 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
+  'KycController:getSessionStatusForVendor',
+  'KycController:refreshSessionStatus',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
+  'KycController:clearState',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -255,6 +263,55 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA stage machine reads.
+ */
+/**
+ * Identity vendor accepted by the KYC controller. Declared locally so the
+ * ramps package does not depend on `@metamask/kyc-controller`.
+ */
+type KycVendor = 'moonpay' | 'iron';
+
+type KycControllerSessionStatus = {
+  finalStatus: string;
+  kycStatus: string;
+  vendorStatus: string;
+  /** Canonical id of the profile that owns the session (set at creation). */
+  externalUserId: string;
+};
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not require a kyc-controller
+ * version that already exports them — the two changes land as separate PRs,
+ * with KYC merging first.
+ */
+export type KycControllerGetSessionStatusForVendorAction = {
+  type: 'KycController:getSessionStatusForVendor';
+  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+};
+
+export type KycControllerRefreshSessionStatusAction = {
+  type: 'KycController:refreshSessionStatus';
+  handler: () => KycControllerSessionStatus;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerClearStateAction = {
+  type: 'KycController:clearState';
+  handler: () => void;
 };
 
 /**
@@ -282,6 +339,72 @@ type LookupUnavailableResult = Extract<
   MoneyAccountWalletRegistrationResult,
   { type: 'lookupUnavailable' }
 >;
+
+/**
+ * KYC vocabulary used on the VBA onboarding snapshot. `'none'` means no
+ * session exists yet (or the vendor returned an unrecognized status).
+ */
+export const VBA_KYC_STATUSES = [
+  'none',
+  'new',
+  'retry',
+  'pending',
+  'approved',
+  'rejected',
+] as const;
+
+export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
+
+/**
+ * Autoramp setup progress after KYC has been approved.
+ * `'in_progress'` is reserved for hosts that observe an in-flight hydrate;
+ * {@link RampsController.hydrateVbaOnboarding} itself returns `'ready'` or
+ * `'retryable_failure'` once the coalesced run settles.
+ */
+export const VBA_AUTORAMP_STATUSES = [
+  'not_ready',
+  'in_progress',
+  'ready',
+  'retryable_failure',
+] as const;
+
+export type VbaAutorampStatus = (typeof VBA_AUTORAMP_STATUSES)[number];
+
+/**
+ * Backend facts for VBA onboarding. Hosts own funnel order and map this
+ * snapshot onto screens; this controller does not name routes.
+ */
+export type VbaOnboardingSnapshot = {
+  sessionExists: boolean;
+  vendorDisclaimersComplete: boolean;
+  sessionDisclaimersComplete: boolean;
+  /** Overall KYC session outcome used to decide whether autoramp setup can run. */
+  kycStatus: VbaKycStatus;
+  autorampStatus: VbaAutorampStatus;
+};
+
+const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
+  sessionExists: false,
+  vendorDisclaimersComplete: false,
+  sessionDisclaimersComplete: false,
+  kycStatus: 'none',
+  autorampStatus: 'not_ready',
+};
+
+const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
+
+/**
+ * Maps a vendor status string onto the snapshot vocabulary.
+ *
+ * @param value - Raw KYC status from the session.
+ * @returns A known {@link VbaKycStatus}, or `'none'` when missing/unknown.
+ */
+function toVbaKycStatus(value: string | undefined): VbaKycStatus {
+  if (value && VBA_KYC_STATUS_SET.has(value)) {
+    return value as VbaKycStatus;
+  }
+  return 'none';
+}
 
 /**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
@@ -804,12 +927,18 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
+  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerRefreshSessionStatusAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerClearStateAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -1023,6 +1152,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'removeOrder',
   'addAutoramp',
   'createAutoramp',
+  'hydrateVbaOnboarding',
   'removeAutoramp',
   'registerMoneyAccountWallet',
   'markAutorampAsNotified',
@@ -1177,6 +1307,8 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingSnapshot> | null = null;
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -3727,6 +3859,182 @@ export class RampsController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Refreshes KYC session facts and, when Iron has approved KYC, activates the
+   * Money Account (wallet registration + autoramp). Hosts map the returned
+   * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
+   * name screens.
+   *
+   * Overlapping calls share one run so polling cannot trigger duplicate wallet
+   * signatures or autoramp creation.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @returns Independent KYC and autoramp facts for the current customer.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+  }: {
+    walletAddress: string;
+  }): Promise<VbaOnboardingSnapshot> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding(walletAddress);
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding(
+    walletAddress: string,
+  ): Promise<VbaOnboardingSnapshot> {
+    // Prefer the in-memory/persisted session status over the backend
+    // latest-status endpoint: after SumSub the backend endpoint can lag, while
+    // the controller state reflects the journey/SDK outcome. Fall back to a
+    // backend fetch only when the controller has no session in state (e.g. a
+    // reinstall/cleared state resuming an existing customer, or a brand-new user
+    // with no session at all).
+    let session: KycControllerSessionStatus | null = null;
+    // Whether `session` came from persisted controller state (as opposed to a
+    // fresh backend fetch, which is always scoped to the current user). Only a
+    // persisted session can belong to a previous identity, so only that path
+    // needs the ownership check below.
+    let sessionFromCache = false;
+    try {
+      session = this.messenger.call('KycController:refreshSessionStatus');
+      sessionFromCache = true;
+    } catch {
+      try {
+        session = await this.messenger.call(
+          'KycController:getSessionStatusForVendor',
+          'iron',
+        );
+      } catch {
+        // No session exists for this customer yet: the backend returns 404
+        // ("KYC session not found"), which surfaces as a rejection here.
+        session = null;
+      }
+    }
+    if (!session) {
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+    }
+
+    // A persisted session can outlive the identity that created it — e.g. a new
+    // wallet created over an install that still holds a previous customer's
+    // session. Reusing it makes the backend reject every session-scoped call
+    // (owner mismatch), dead-ending the user. Verify ownership up front against
+    // the signed-in profile and, on a mismatch, discard the stale session.
+    if (
+      sessionFromCache &&
+      !(await this.#isVbaSessionOwnedByCurrentProfile(session))
+    ) {
+      this.messenger.call('KycController:clearState');
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+    }
+
+    const vendorDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedVendorDisclaimers',
+    );
+    const sessionDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedSessionDisclaimers',
+    );
+
+    const snapshot: VbaOnboardingSnapshot = {
+      sessionExists: true,
+      vendorDisclaimersComplete,
+      sessionDisclaimersComplete,
+      kycStatus: toVbaKycStatus(session.finalStatus),
+      autorampStatus: 'not_ready',
+    };
+
+    if (snapshot.kycStatus !== 'approved') {
+      return snapshot;
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    // KYC is approved; the remaining work activates the Money account (register
+    // the wallet + ensure an autoramp). Those calls hit the neobank backend and
+    // can fail transiently (e.g. an address-list lookup timeout). Surface
+    // `retryable_failure` so the host can keep the user on a pending screen
+    // rather than a fatal error — the KYC decision itself already succeeded.
+    try {
+      const registration = await this.registerMoneyAccountWallet({
+        address: walletAddress,
+      });
+      if (registration.type === 'lookupUnavailable') {
+        throw registration.error;
+      }
+
+      const remoteAutoramps = await this.messenger.call(
+        'NeoBankService:getAutoramps',
+      );
+      const remoteAutorampIds = new Set(
+        remoteAutoramps.map((autoramp) => autoramp.id),
+      );
+      for (const autoramp of remoteAutoramps) {
+        this.#applyAutorampRemoteSnapshot(autoramp);
+      }
+      this.update((state) => {
+        state.autoramps = state.autoramps.filter((autoramp) =>
+          remoteAutorampIds.has(autoramp.id),
+        );
+      });
+
+      const normalizedWalletAddress = walletAddress.toLowerCase();
+      const hasUsableAutoramp = this.state.autoramps.some(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+          autoramp.status !== AutorampStatus.Rejected &&
+          autoramp.status !== AutorampStatus.Cancelled,
+      );
+      if (!hasUsableAutoramp) {
+        await this.createAutoramp({});
+      }
+    } catch {
+      return { ...snapshot, autorampStatus: 'retryable_failure' };
+    }
+
+    return { ...snapshot, autorampStatus: 'ready' };
+  }
+
+  /**
+   * Whether a persisted KYC session belongs to the currently signed-in profile.
+   * A session's `externalUserId` is the canonical profile id captured when the
+   * session was created, so it must match the current profile for the session
+   * to be reused. When the current identity cannot be resolved, err on the side
+   * of keeping the session (return `true`) so a transient profile-read failure
+   * never discards a valid session.
+   *
+   * @param session - The persisted KYC session status to check.
+   * @returns Whether the session is owned by the current profile.
+   */
+  async #isVbaSessionOwnedByCurrentProfile(
+    session: KycControllerSessionStatus,
+  ): Promise<boolean> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonicalId =
+      typeof profile?.canonicalProfileId === 'string' &&
+      profile.canonicalProfileId.length > 0
+        ? profile.canonicalProfileId
+        : profile?.profileId;
+    if (typeof canonicalId !== 'string' || canonicalId.length === 0) {
+      return true;
+    }
+    return session.externalUserId === canonicalId;
   }
 
   /**

@@ -1,3 +1,5 @@
+import { toHex } from '@metamask/controller-utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -8,6 +10,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
+import { isAtomicMaxEnabled } from '../../utils/feature-flags.js';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
@@ -17,9 +21,12 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token.js';
+import { QuoteError } from '../../utils/validation.js';
+import { ATOMIC_PROMOTION_FAILURE_PREFIX } from './constants.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
-const log = createModuleLogger(projectLogger, 'relay-max-gas-station');
+const log = createModuleLogger(projectLogger, 'relay-max');
 
 const PROBE_AMOUNT_PERCENTAGE = 0.25;
 
@@ -51,6 +58,93 @@ type MaxAmountQuoteContext = {
   messenger: TransactionPayControllerMessenger;
   request: QuoteRequest;
 };
+
+/**
+ * Fetch a max quote using the client's atomic hint for subsidized routes.
+ *
+ * @param request - Max quote request.
+ * @param fullRequest - Full quote context.
+ * @param getSingleQuote - Fetcher for a single Relay quote.
+ * @returns An atomic subsidized quote or a non-atomic max quote.
+ */
+export async function getRelayMaxQuote(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+  getSingleQuote: GetSingleQuoteFn,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const { messenger, transaction } = fullRequest;
+  const { atomic, isPostQuote } = request;
+
+  if (isPostQuote || !isAtomicMaxEnabled(messenger, transaction)) {
+    return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
+  }
+
+  if (atomic !== false) {
+    const sourceToken = getTokenInfo(
+      messenger,
+      request.sourceTokenAddress,
+      request.sourceChainId,
+    );
+    const targetToken = getTokenInfo(
+      messenger,
+      request.targetTokenAddress,
+      request.targetChainId,
+    );
+
+    if (!sourceToken || !targetToken) {
+      throw new Error('Token decimals not found for atomic max quote');
+    }
+
+    // Fixed-spread subsidized routes exchange stablecoins 1:1 without fees.
+    // Use the source budget, not the required amount from before Max.
+    const targetAmount = new BigNumber(request.sourceTokenAmount)
+      .shiftedBy(targetToken.decimals - sourceToken.decimals)
+      .toFixed(0, BigNumber.ROUND_DOWN);
+    const quote = await getAtomicMaxQuote({
+      amount: targetAmount,
+      fullRequest,
+      getSingleQuote,
+      request,
+    });
+
+    if (isSubsidizedRelayQuote(quote.original)) {
+      return quote;
+    }
+
+    return getRelayMaxGasStationQuote(
+      { ...request, atomic: false },
+      fullRequest,
+      getSingleQuote,
+    );
+  }
+
+  const quote = await getRelayMaxGasStationQuote(
+    request,
+    fullRequest,
+    getSingleQuote,
+  );
+
+  if (!isSubsidizedRelayQuote(quote.original)) {
+    return quote;
+  }
+
+  try {
+    const promotedQuote = await getAtomicMaxQuote({
+      amount: quote.original.details.currencyOut.amount,
+      fullRequest,
+      getSingleQuote,
+      request,
+    });
+
+    if (!isSubsidizedRelayQuote(promotedQuote.original)) {
+      throw new Error('Promoted quote lost subsidy');
+    }
+
+    return promotedQuote;
+  } catch (error) {
+    return throwAtomicPromotionFailed(error);
+  }
+}
 
 /**
  * Returns a Relay max-amount quote using a two-phase gas-station fallback.
@@ -464,5 +558,136 @@ function markQuoteAsMaxGasStation(
   quote.original.metamask = {
     ...quote.original.metamask,
     isMaxGasStation: true,
+  };
+}
+
+async function getAtomicMaxQuote({
+  amount,
+  fullRequest,
+  getSingleQuote,
+  request,
+}: {
+  amount: string;
+  fullRequest: PayStrategyGetQuotesRequest;
+  getSingleQuote: GetSingleQuoteFn;
+  request: QuoteRequest;
+}): Promise<TransactionPayQuote<RelayQuote>> {
+  const targetAmount = validatePositiveIntegerString(amount);
+  const atomicTransaction = await applyAmountDataUpdates({
+    amount: targetAmount,
+    messenger: fullRequest.messenger,
+    transaction: cloneTransactionForPromotion(fullRequest.transaction),
+  });
+
+  return getSingleQuote(
+    {
+      ...request,
+      atomic: true,
+      targetAmountMinimum: targetAmount,
+    },
+    { ...fullRequest, transaction: atomicTransaction },
+  );
+}
+
+export function throwAtomicPromotionFailed(error: unknown): never {
+  const prefixed = prefixError(error, ATOMIC_PROMOTION_FAILURE_PREFIX);
+  throw new QuoteError({
+    detail: [prefixed.message],
+    message: prefixed.message,
+    reason: 'no-quotes',
+  });
+}
+
+export function isSubsidizedAtomicMaxQuote(
+  quote: TransactionPayQuote<RelayQuote>,
+): boolean {
+  return (
+    quote.request.isMaxAmount === true &&
+    quote.request.atomic === true &&
+    isSubsidizedRelayQuote(quote.original)
+  );
+}
+
+function validatePositiveIntegerString(value: string): string {
+  const amount = new BigNumber(value);
+
+  if (!amount.isFinite() || !amount.isInteger() || !amount.isGreaterThan(0)) {
+    throw new Error(`Invalid target amount: ${value}`);
+  }
+
+  return amount.toFixed(0);
+}
+
+function cloneTransactionForPromotion(
+  transaction: TransactionMeta,
+): TransactionMeta {
+  return {
+    ...transaction,
+    nestedTransactions: transaction.nestedTransactions?.map(
+      (nestedTransaction) => ({
+        ...nestedTransaction,
+      }),
+    ),
+    requiredAssets: transaction.requiredAssets?.map((requiredAsset) => ({
+      ...requiredAsset,
+    })),
+  };
+}
+
+async function applyAmountDataUpdates({
+  amount,
+  messenger,
+  transaction,
+}: {
+  amount: string;
+  messenger: TransactionPayControllerMessenger;
+  transaction: TransactionMeta;
+}): Promise<TransactionMeta> {
+  const { updates } = await messenger.call(
+    'TransactionPayController:getAmountData',
+    {
+      amount,
+      transaction,
+    },
+  );
+
+  if (!updates.length) {
+    throw new Error('getAmountData returned no updates for atomic promotion');
+  }
+
+  const nestedTransactions = transaction.nestedTransactions?.map(
+    (nestedTransaction) => ({
+      ...nestedTransaction,
+    }),
+  );
+
+  if (!nestedTransactions?.length) {
+    throw new Error('Missing nested transactions for atomic promotion');
+  }
+
+  for (const { nestedTransactionIndex, data } of updates) {
+    if (!nestedTransactions[nestedTransactionIndex]) {
+      throw new Error(
+        'getAmountData returned an unusable nested transaction update',
+      );
+    }
+
+    nestedTransactions[nestedTransactionIndex].data = data;
+  }
+
+  const requiredAssets = transaction.requiredAssets?.map((requiredAsset) => ({
+    ...requiredAsset,
+  }));
+
+  if (!requiredAssets?.[0]) {
+    throw new Error('Missing required assets for atomic promotion');
+  }
+
+  requiredAssets[0].amount = toHex(BigInt(amount));
+
+  return {
+    ...transaction,
+    nestedTransactions,
+    requiredAssets,
   };
 }

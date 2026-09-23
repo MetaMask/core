@@ -177,6 +177,7 @@ export const MfaCredentialsResponseStruct = type({
 export const MfaErrorResponseStruct = type({
   code: optional(string()),
   message: string(),
+  retry_after_seconds: optional(integer()),
 });
 
 export const TokenReasonStruct = object({
@@ -246,12 +247,14 @@ export const GetElevatedTokenRequestStruct = object({
   maxSessionAgeMs: optional(min(integer(), 0)),
 });
 
-export const ElevatedTokenClaimsStruct = type({
-  sub: sensitive(string()),
-  aal: literal(2),
-  exp: integer(),
-  amr: union([MfaCredentialTypeStruct, array(MfaCredentialTypeStruct)]),
-});
+export const ElevatedTokenClaimsStruct = sensitive(
+  type({
+    sub: string(),
+    aal: literal(2),
+    exp: integer(),
+    amr: union([MfaCredentialTypeStruct, array(MfaCredentialTypeStruct)]),
+  }),
+);
 
 function formatStructError(error: StructError): string {
   return error

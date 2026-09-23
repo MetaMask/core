@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** `RampsController:hydrateVbaOnboarding` now returns a `VbaOnboardingSnapshot` of KYC and autoramp facts instead of a linear `VbaOnboardingStage`. The persisted `vbaOnboardingStage` state field and `VbaOnboardingStage` enum are removed — hosts own funnel order and map the snapshot onto screens. ([#10354](https://github.com/MetaMask/core/pull/10354))
+  - `sessionExists`, disclaimer completion flags, `kycStatus`, and `autorampStatus` (`not_ready` / `in_progress` / `ready` / `retryable_failure`) are independent facts. `kycStatus` is the overall KYC session outcome; relay and vendor-specific statuses remain internal to `KycController`.
+  - After KYC approval, wallet registration and autoramp creation still run (coalesced). Setup failure sets `autorampStatus: 'retryable_failure'` rather than a fatal error.
+  - A persisted KYC session owned by a previous identity is discarded via `KycController:clearState` and returned as an empty snapshot (`sessionExists: false`).
+- **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a foreign VBA onboarding session during hydration. ([#10354](https://github.com/MetaMask/core/pull/10354))
+  - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+
+## [24.0.0]
+
+### Added
+
+- Add `NeoBankService:getAutoramps` to load all autoramp accounts for the authenticated customer from `GET /neobank/autoramps` ([#10278](https://github.com/MetaMask/core/pull/10278))
+- Add `RampsController:hydrateVbaOnboarding`, the persisted `vbaOnboardingStage` state, and the `VbaOnboardingStage` enum for Mobile routing ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - Resolve the current onboarding stage (email OTP, vendor terms, provider terms, SumSub, pending KYC, rejected KYC, or completed) from the customer's KYC session status.
+  - After KYC acceptance, register the Money Account wallet, load the customer's authoritative autoramps, and create one only when needed; keep the user on the pending stage if account activation is momentarily unavailable.
+  - Coalesce overlapping hydration calls to prevent duplicate wallet signatures or autoramp creation during polling.
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires the `KycController:getSessionStatusForVendor`, `KycController:refreshSessionStatus`, `KycController:hasCompletedVendorDisclaimers`, and `KycController:hasCompletedSessionDisclaimers` actions to hydrate VBA onboarding ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - The action types are declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Stop sending `crypto` on `RampsService.getPaymentMethods`. Payment methods are provider + region; the param was ignored by `/v2/regions/:region/payments` and split the CDN cache per token. `assetId` remains on the method for caller cache keys. ([#10307](https://github.com/MetaMask/core/pull/10307))
+
 ## [23.0.0]
 
 ### Added
@@ -39,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing: ([#9474](https://github.com/MetaMask/core/pull/9474))
   - `UserStorageController:getState`
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
@@ -612,7 +640,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...@metamask/ramps-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...@metamask/ramps-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...@metamask/ramps-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.3.0...@metamask/ramps-controller@21.0.0

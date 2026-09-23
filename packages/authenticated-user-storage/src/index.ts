@@ -21,6 +21,8 @@ export type {
   AuthenticatedUserStorageServiceRevokeDelegationAction,
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
+  AuthenticatedUserStorageServiceGetMarketingConsentAction,
+  AuthenticatedUserStorageServicePutMarketingConsentAction,
   AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
   AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
 } from './authenticated-user-storage-method-action-types.js';
@@ -34,6 +36,7 @@ export type {
   DelegationResponse,
   WalletActivityAccount,
   WalletActivityPreference,
+  MarketingConsent,
   MarketingPreference,
   PerpsWatchlistExchange,
   PerpsWatchlistMarkets,
