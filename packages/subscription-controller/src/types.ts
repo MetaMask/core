@@ -121,6 +121,16 @@ export const SUBSCRIPTION_STATUSES = {
 export type SubscriptionStatus =
   (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
 
+export const INVOICE_PAYMENT_STATUSES = {
+  PROCESSING: 'PROCESSING',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export type InvoicePaymentStatus =
+  (typeof INVOICE_PAYMENT_STATUSES)[keyof typeof INVOICE_PAYMENT_STATUSES];
+
 export const CANCEL_TYPES = {
   ALLOWED_IMMEDIATE: 'allowed_immediate',
   ALLOWED_AT_PERIOD_END: 'allowed_at_period_end',
@@ -212,7 +222,7 @@ export type Subscription = {
 
 export type SubscriptionInvoice = {
   id: string;
-  status: string;
+  status: InvoicePaymentStatus;
   errorCode?: CryptoPaymentError;
   updatedAt: string; // ISO 8601
 };

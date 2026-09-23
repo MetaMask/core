@@ -20,6 +20,7 @@ import {
   CRYPTO_AUTH_METHODS,
   CRYPTO_PAYMENT_ERRORS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -56,6 +57,9 @@ const ProductEntitlementsStruct = type({
 });
 const RecurringIntervalStruct = enums(Object.values(RECURRING_INTERVALS));
 const SubscriptionStatusStruct = enums(Object.values(SUBSCRIPTION_STATUSES));
+const InvoicePaymentStatusStruct = enums(
+  Object.values(INVOICE_PAYMENT_STATUSES),
+);
 const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
 const CryptoPaymentMethodErrorStruct = enums(
   Object.values(CRYPTO_PAYMENT_METHOD_ERRORS),
@@ -114,7 +118,7 @@ export const SubscriptionStruct = type({
   lastInvoice: optional(
     type({
       id: string(),
-      status: string(),
+      status: InvoicePaymentStatusStruct,
       errorCode: optional(CryptoPaymentErrorStruct),
       updatedAt: string(),
     }),

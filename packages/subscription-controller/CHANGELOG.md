@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `INVOICE_PAYMENT_STATUSES` / `InvoicePaymentStatus` for typed invoice
+  payment status values. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Add `CRYPTO_PAYMENT_ERRORS` / `CryptoPaymentError` and optional `Subscription.lastInvoice` (`SubscriptionInvoice`) for Subscription API crypto payment-execution failures. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Add `selectIsPaymentFailed`, `selectPaymentFailureReason`, `selectIsRenewalNeeded`, and `selectIsDelegationExhausted` selectors keyed by subscription product. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Add `UpdateDelegationPaymentMethodCryptoRequest` so `updatePaymentMethod` can rotate an active crypto subscription with `cryptoAuthMethod` and `delegationHash`. ([#10305](https://github.com/MetaMask/core/pull/10305))

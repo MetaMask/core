@@ -1,6 +1,10 @@
 import { ACTIVE_SUBSCRIPTION_STATUSES } from './constants.js';
 import type { SubscriptionControllerState } from './SubscriptionController.js';
-import { CRYPTO_PAYMENT_ERRORS, PAYMENT_TYPES } from './types.js';
+import {
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
+  PAYMENT_TYPES,
+} from './types.js';
 import type {
   CryptoPaymentError,
   ProductEntitlementFeatureMap,
@@ -25,7 +29,7 @@ function getPaymentExecutionError(
 
   if (
     subscription?.paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
-    subscription.lastInvoice?.status !== 'FAILED'
+    subscription.lastInvoice?.status !== INVOICE_PAYMENT_STATUSES.FAILED
   ) {
     return undefined;
   }
@@ -116,7 +120,7 @@ export function selectIsPaymentFailed(
 
   return Boolean(
     subscription?.paymentMethod.type === PAYMENT_TYPES.byCrypto &&
-    subscription.lastInvoice?.status === 'FAILED',
+    subscription.lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED,
   );
 }
 
