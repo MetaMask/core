@@ -1132,6 +1132,42 @@ describe('SocialService', () => {
         result.items[0]?.authorComment?.engagement.reactions,
       ).toStrictEqual([{ emotion: '🔥', count: 3, profiles: [] }]);
     });
+
+    it('accepts feed-card stats and still accepts items that omit them', async () => {
+      const withStats = {
+        ...mockFeedItem,
+        actor: {
+          ...mockProfileSummary,
+          winRate30d: 0.61,
+          pnl30d: 1200,
+          tradeCount30d: 40,
+          followerCount: 12,
+        },
+        commentCount: 1,
+        replyCount: 3,
+        holdTimeMs: 28_800_000,
+        entryPriceUsd: 2500,
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [withStats],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.actor.winRate30d).toBe(0.61);
+      expect(result.items[0]?.actor.followerCount).toBe(12);
+      expect(result.items[0]?.commentCount).toBe(1);
+      expect(result.items[0]?.replyCount).toBe(3);
+      expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
+      expect(result.items[0]?.entryPriceUsd).toBe(2500);
+    });
   });
 
   describe('fetchFollowing', () => {
