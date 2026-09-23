@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
@@ -647,7 +649,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...@metamask/ramps-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...@metamask/ramps-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...@metamask/ramps-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0

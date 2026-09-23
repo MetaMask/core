@@ -7,33 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
-- chore(deps): update dependency rimraf to v6 ([#10379](https://github.com/MetaMask/core/pull/10379))
-- chore(deps): update dependency @metamask/auto-changelog to ^6.2.1 ([#10364](https://github.com/MetaMask/core/pull/10364))
-- chore(deps): update dependency ethers to ^6.17.0 ([#10366](https://github.com/MetaMask/core/pull/10366))
-- chore(deps): update dependency ts-jest to ^29.4.12 ([#10328](https://github.com/MetaMask/core/pull/10328))
-- chore(deps): update dependency @lavamoat/allow-scripts to ^3.4.3 ([#10363](https://github.com/MetaMask/core/pull/10363))
-- chore(deps): update dependency nock to ^13.5.6 ([#10361](https://github.com/MetaMask/core/pull/10361))
-- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
-
 ### Added
 
-- Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#10374](https://github.com/MetaMask/core/pull/10374))
-  - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
-  - `AuthenticationController.beginCredentialEnrollment` sends the elevated token while a step-up session is live, since enrolling additional credentials requires AAL2
-  - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
-
-### Changed
-
-- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
-
-## [32.2.0]
-
-### Added
-
-- Add `beginStepUp`, `completeStepUp`, `getElevatedProfileToken` and `clearStepUpSession` to `AuthenticationController`, holding the elevated token in memory only behind a hard-expiring `stepUpSessionExpiresAt` state ([#10267](https://github.com/MetaMask/core/pull/10267))
 - Add `refreshEnrolledCredentials`, `beginCredentialEnrollment` and `completeCredentialEnrollment` to `AuthenticationController`, backed by a memory-only `enrolledCredentials` state and an optional `trace` callback ([#10266](https://github.com/MetaMask/core/pull/10266))
 - Add passkey and email OTP enrollment, verification, credential-list, and elevated-token exchange SDK methods ([#10265](https://github.com/MetaMask/core/pull/10265))
 - Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
@@ -1002,8 +977,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...HEAD
-[32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...HEAD
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...@metamask/profile-sync-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...@metamask/profile-sync-controller@32.0.0
