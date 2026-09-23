@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
 ### Added
 
 - Add `getMarketingConsent` and `putMarketingConsent` methods to `AuthenticatedUserStorageService` for managing the authenticated user's marketing consent, along with corresponding messenger actions (`AuthenticatedUserStorageService:getMarketingConsent`, `AuthenticatedUserStorageService:putMarketingConsent`) and the `MarketingConsent` type ([#10390](https://github.com/MetaMask/core/pull/10390))
@@ -113,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...@metamask/authenticated-user-storage@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.2...@metamask/authenticated-user-storage@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.1...@metamask/authenticated-user-storage@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.0...@metamask/authenticated-user-storage@3.0.1
