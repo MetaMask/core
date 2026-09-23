@@ -278,7 +278,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
       const request: DataRequest = {
         accountsWithSupportedChains: [{ account, supportedChains: [chainId] }],
         chainIds: [chainId],
-        dataTypes: ['balance'],
+        dataTypes: ['balance', 'metadata', 'price'],
       };
 
       Promise.resolve(this.#onAssetsUpdate(response, request)).catch(

@@ -295,7 +295,7 @@ describe('AccountActivityDataSource', () => {
           { account, supportedChains: [CHAIN_MAINNET] },
         ],
         chainIds: [CHAIN_MAINNET],
-        dataTypes: ['balance'],
+        dataTypes: ['balance', 'metadata', 'price'],
       });
 
       cleanup();
