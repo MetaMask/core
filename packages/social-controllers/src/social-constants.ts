@@ -35,6 +35,9 @@ export const SocialServiceErrorMessage = {
   LEADERBOARD_OPT_IN_FAILED: 'SocialService: Leaderboard opt-in request failed',
   FETCH_FEED_FAILED: 'SocialService: Feed request failed',
   FETCH_FEED_INVALID_RESPONSE: 'SocialService: Feed returned invalid response',
+  FETCH_TRADER_FEED_FAILED: 'SocialService: Trader feed request failed',
+  FETCH_TRADER_FEED_INVALID_RESPONSE:
+    'SocialService: Trader feed returned invalid response',
   REACT_TO_COMMENT_FAILED: 'SocialService: Comment reaction request failed',
   REACT_TO_COMMENT_INVALID_RESPONSE:
     'SocialService: Comment reaction returned invalid response',
