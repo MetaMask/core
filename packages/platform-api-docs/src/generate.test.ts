@@ -231,10 +231,6 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
     expect.assertions(2);
 
     await withinSandbox(async ({ directoryPath }) => {
-      // Scanning `.` makes the project root a scan directory, so its
-      // `node_modules` exclusion covers the published declaration files too.
-      // Each location has to be collected in its own call for them to survive,
-      // since exclusions apply to every pattern in the call they belong to.
       const srcDir = path.join(directoryPath, 'src');
       await fs.promises.mkdir(srcDir, { recursive: true });
       await fs.promises.writeFile(

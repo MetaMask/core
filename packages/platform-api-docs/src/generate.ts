@@ -362,10 +362,9 @@ async function scanSources(
   const project = createProject();
   const sourceFiles = [];
 
-  // One call per location, not one call carrying every pattern. Exclusions
-  // apply to a whole call, so combining them lets the source-tree
-  // `node_modules` and `dist` exclusions match the published declaration files
-  // and drop them.
+  // NOTE: We are calling `addSourceFiles` for each kind of source instead of
+  // calling it at the very end so that at each step we can make sure to exclude
+  // `node_modules` and `dist`.
   for (const dir of sources.scanDirs) {
     const root = await toGlobPath(projectPath, dir);
     sourceFiles.push(
