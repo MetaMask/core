@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
+- chore(deps): update dependency rimraf to v6 ([#10379](https://github.com/MetaMask/core/pull/10379))
+- chore(deps): update dependency @metamask/auto-changelog to ^6.2.1 ([#10364](https://github.com/MetaMask/core/pull/10364))
+- chore(deps): update dependency ts-jest to ^29.4.12 ([#10328](https://github.com/MetaMask/core/pull/10328))
+- chore(deps): update dependency @lavamoat/allow-scripts to ^3.4.3 ([#10363](https://github.com/MetaMask/core/pull/10363))
+- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
+- fix: bump `uuid` to `^11.1.1` across the monorepo ([#10243](https://github.com/MetaMask/core/pull/10243))
+- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
+- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.2.0` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348))
