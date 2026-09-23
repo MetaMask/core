@@ -156,7 +156,6 @@ import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement
 import {
   normalizeAmountString,
   normalizeAssetId,
-  safeNormalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
@@ -649,24 +648,24 @@ function effectiveAccountBalancesV5(
  * Snap events, staking). `full` replaces each covered chain slice. v6 asks
  * for natives, pins, and default tracked assets through `includeAssetIds`
  * and either returns them (at zero when the account holds none) or names
- * them in `unprocessedIncludeAssetIds`. Only assets the source was never
- * asked about survive a `full` replace — see `isUnreported`.
+ * them in `unprocessedIncludeAssetIds`. Assets the client tracks on purpose
+ * survive a `full` replace even when the response omits them, so an upstream
+ * gap cannot wipe them — see `skipDelete`.
  *
  * @param previousBalances - Balances already in state for this account.
  * @param accountBalances - Balances from the incoming response.
- * @param isUnreported - Whether a prior asset was outside the source's scope,
- *   so its absence from the response does not mean the balance is gone.
- *   The staking-contract branch is temporary: drop `isStakingContractAssetId`
- *   once Accounts API returns ETH staked balances in the v6 snapshot. Hidden
- *   assets still need this callback after that.
+ * @param skipDelete - Whether a prior asset must be kept even though the
+ *   response omits it, because the client asked for it as a visible asset
+ *   (native, pin, or default tracked). Hidden assets are excluded from
+ *   snapshots and dropped here; unhide is expected to fetch a new snapshot.
  * @param updateMode - `'merge'` overlays incoming balances; `'full'` replaces
- *   each covered chain slice except unreported assets.
+ *   each covered chain slice except assets kept by `skipDelete`.
  * @returns The effective balance map for the account.
  */
 function effectiveAccountBalancesV6(
   previousBalances: Record<string, AssetBalance>,
   accountBalances: Record<string, AssetBalance>,
-  isUnreported: (assetId: Caip19AssetId) => boolean,
+  skipDelete: (assetId: Caip19AssetId) => boolean,
   updateMode: AssetsUpdateMode,
 ): Record<string, AssetBalance> {
   if (updateMode === 'merge') {
@@ -680,7 +679,7 @@ function effectiveAccountBalancesV6(
   for (const [assetId, balance] of Object.entries(previousBalances)) {
     if (
       !coveredChains.has(assetId.split('/')[0]) ||
-      isUnreported(assetId as Caip19AssetId)
+      skipDelete(assetId as Caip19AssetId)
     ) {
       next[assetId] = balance;
     }
@@ -2294,13 +2293,8 @@ export class AssetsController extends BaseController<
 
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
-      const chainId = extractChainId(normalizedAssetId);
-      // Same force-update on both paths: the token's chain, every pin from
-      // state. v5 already did this (merge + all pins on the request). v6
-      // must too, because it applies `updateMode: 'full'` and reads pins
-      // as `includeAssetIds` — a single-token override would wipe others.
       await this.getAssets([account], {
-        chainIds: [chainId],
+        chainIds: [extractChainId(normalizedAssetId)],
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
         forceUpdate: true,
@@ -2378,10 +2372,13 @@ export class AssetsController extends BaseController<
 
   /**
    * Unhide an asset globally.
+   * Force-fetches that asset's chain (including every visible pin) so a
+   * `full` snapshot can restore the balance immediately, then re-evaluates
+   * subscriptions so later polls stop excluding it.
    *
    * @param assetId - The CAIP-19 asset ID to unhide.
    */
-  unhideAsset(assetId: Caip19AssetId): void {
+  async unhideAsset(assetId: Caip19AssetId): Promise<void> {
     const normalizedAssetId = normalizeAssetId(assetId);
 
     log('Unhiding asset', { assetId: normalizedAssetId });
@@ -2396,7 +2393,19 @@ export class AssetsController extends BaseController<
       }
     });
 
-    // Re-evaluate subscriptions so polls stop excluding the asset.
+    const chainId = extractChainId(normalizedAssetId);
+    const account = this.#getSelectedAccounts().find((selectedAccount) =>
+      this.#getEnabledChainsForAccount(selectedAccount).includes(chainId),
+    );
+    if (account) {
+      await this.getAssets([account], {
+        chainIds: [chainId],
+        dataTypes: ['balance', 'metadata', 'price'],
+        assetTypes: ['fungible'],
+        forceUpdate: true,
+      });
+    }
+
     this.#subscribeAssets();
   }
 
@@ -2410,14 +2419,15 @@ export class AssetsController extends BaseController<
    * @returns `true` when the v6 remote flag is on.
    */
   #isBalanceV6Enabled(): boolean {
-    try {
-      const { remoteFeatureFlags } = this.messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      return remoteFeatureFlags?.assetsAccountsApiV6 === true;
-    } catch {
-      return false;
-    }
+    return true;
+    // try {
+    //   const { remoteFeatureFlags } = this.messenger.call(
+    //     'RemoteFeatureFlagController:getState',
+    //   );
+    //   return remoteFeatureFlags?.assetsAccountsApiV6 === true;
+    // } catch {
+    //   return false;
+    // }
   }
 
   // ============================================================================
@@ -2627,6 +2637,42 @@ export class AssetsController extends BaseController<
       getNativeAssetForChain: (chainId) =>
         this.#getNativeAssetForChain(chainId),
     });
+  }
+
+  /**
+   * Lowercased asset IDs a v6 `full` snapshot must keep for an account, even
+   * when the response omits them: natives, pins, and default tracked assets
+   * the client asked for. Hidden assets are sent as `excludeAssetIds` and are
+   * dropped here; unhide is expected to fetch a new snapshot. Everything else
+   * on a covered chain was discovered by the source, so its absence means the
+   * balance is gone.
+   *
+   * @param state - State being updated (the in-flight draft, not `this.state`).
+   * @param accountId - Account whose pins apply.
+   * @param accountBalances - Incoming balances, which define the covered chains.
+   * @returns Lowercased CAIP-19 IDs that must survive the replace.
+   */
+  #getUndeletableAssetIds(
+    state: AssetsControllerStateInternal,
+    accountId: AccountId,
+    accountBalances: Record<string, AssetBalance>,
+  ): Set<string> {
+    const coveredChainIds = [
+      ...new Set(
+        Object.keys(accountBalances).map(
+          (assetId) => assetId.split('/')[0] as ChainId,
+        ),
+      ),
+    ];
+    const { visibleAssetIds } = getAssetVisibility({
+      state,
+      accountIds: [accountId],
+      chainIds: coveredChainIds,
+      getNativeAssetForChain: (chainId) =>
+        this.#getNativeAssetForChain(chainId),
+    });
+
+    return new Set(visibleAssetIds.map((assetId) => assetId.toLowerCase()));
   }
 
   /**
@@ -3054,16 +3100,23 @@ export class AssetsController extends BaseController<
             accountBalances: Record<string, AssetBalance>,
             previousBalances: Record<string, AssetBalance>,
           ): void => {
-            // Hidden assets go out as `excludeAssetIds` and staked positions
-            // are owned by StakedBalanceDataSource, so neither is in scope of
-            // a `full` snapshot. Remove `isStakingContractAssetId` from
-            // `isUnreported` when Accounts API returns ETH staked balances.
+            let undeletableAssetIds: Set<string> | undefined;
+            const skipDelete = (assetId: Caip19AssetId): boolean => {
+              undeletableAssetIds ??= this.#getUndeletableAssetIds(
+                state as AssetsControllerStateInternal,
+                accountId,
+                accountBalances,
+              );
+              return (
+                undeletableAssetIds.has(assetId.toLowerCase()) ||
+                isStakingContractAssetId(assetId)
+              );
+            };
+
             const effectiveAccountBalances = effectiveAccountBalancesV6(
               previousBalances,
               accountBalances,
-              (assetId) =>
-                state.assetPreferences[safeNormalizeAssetId(assetId)]
-                  ?.hidden === true || isStakingContractAssetId(assetId),
+              skipDelete,
               mode,
             );
 

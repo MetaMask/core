@@ -1,4 +1,11 @@
-# Managing the visible asset set across Accounts API v5 and v6
+# Accounts API v6 integration
+
+- Date: 2026-09-23
+- Status: Accepted
+- Package: `@metamask/assets-controller`
+
+How AssetsController manages the visible asset set across Accounts API v5
+and v6 while both paths ship behind `assetsAccountsApiV6`.
 
 ## What this change is about
 
@@ -82,10 +89,10 @@ must mention every visible asset (at zero when unheld), Snap pads missing
 visible IDs to `{ amount: '0' }`. RPC builds the same list from state, so a
 successful chain is already complete.
 
-`hideAsset` / `unhideAsset` and `addCustomAsset` / `removeCustomAsset`
-re-run `#subscribeAssets` so the next poll sees the new lists.
-`addCustomAsset` also force-fetches that token's chain (every pin from state,
-not only the new token) so a `full` snapshot cannot wipe the other pins.
+`hideAsset` / `removeCustomAsset` re-run `#subscribeAssets` so the next poll
+sees the new lists. `addCustomAsset` and `unhideAsset` also force-fetch that
+token's chain (every pin from state, not only the new token) so a `full`
+snapshot restores the balance immediately and cannot wipe the other pins.
 
 ## 1. Forced refresh
 
@@ -217,9 +224,10 @@ functionality is on.
 - flag off → v5 always
 - flag on → v6 always. Inside v6, `updateMode: 'merge'` overlays
   `{ ...previous, ...incoming }`; `updateMode: 'full'` replaces each covered
-  chain slice. Assets the source was never asked about survive a `full`
-  replace via `isUnreported` (hidden tokens, and staking vaults until Accounts
-  API returns ETH staked balances).
+  chain slice. Visible assets the client asked for survive a `full` replace
+  via `skipDelete` (natives, pins, and default tracked assets, plus staking
+  vaults until Accounts API returns ETH staked balances). Hidden assets are
+  excluded from the snapshot and dropped; unhide is expected to fetch again.
 
 ## Failed chains
 
@@ -245,9 +253,9 @@ RpcFallback then retries only `errors` keys.
 | Fetch update mode         | `merge` for Accounts API, Snap, and RPC                          | `full` for Accounts API, Snap, and RPC                                                      |
 | Subscribe update mode     | `merge` for every source                                         | `full` for Accounts API, Snap snapshots, and RPC; `merge` for events (Snap, Account Activity, staking, detection) |
 | State writer              | `effectiveAccountBalancesV5`                                     | `effectiveAccountBalancesV6(updateMode)`                                                    |
-| Covered-chain replace     | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep hidden + staking via `isUnreported`                 |
+| Covered-chain replace     | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `skipDelete` |
 | Pinned assets             | `request.customAssets` + merge restore                           | Visibility → `includeAssetIds` / Snap zero-fill / RPC fetch list                            |
-| Hidden assets             | Not sent to the endpoint                                         | `excludeAssetIds`; skipped by RPC and Snap; prior balance kept on `full`                    |
+| Hidden assets             | Not sent to the endpoint                                         | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches) |
 | Default tracked assets    | Survive only if already in state or returned                     | Always in visibility, so a `full` refresh keeps them at zero when unheld                    |
 | Token detection filter    | Drop unknown tokens when detection is off                        | Not applied; v6 snapshot is kept in full                                                    |
 | RPC token list            | Request `customAssets` + tracked balances                        | Visible natives, pins, and default tracked from state                                       |
@@ -267,7 +275,7 @@ v6 `updateMode` by source:
 
 Fast-lane Accounts API `full` merged with staking `merge` still stamps `full`
 (`mergeDataResponses` promotes it). Staking rows that are present in that
-merged payload are written with the snapshot; if they are omitted, `isUnreported`
+merged payload are written with the snapshot; if they are omitted, `skipDelete`
 keeps the prior vault balance.
 
 ## Where the code lives
@@ -300,6 +308,7 @@ Once v6 is accepted as the only behavior:
    `#subscribeRpcCustomAssetsSupplement`) and every
    `!this.#isBalanceV6Enabled()` branch.
 2. Keep the v6 methods as the single orchestration path. Drop
-   `isStakingContractAssetId` from `isUnreported` when Accounts API returns
-   ETH staked balances.
+   `isStakingContractAssetId` from `skipDelete` when Accounts API returns ETH
+   staked balances, and drop its native branch when Accounts API always returns
+   an explicit zero row for every requested native.
 3. Remove this document's v5/v6 comparison tables.

@@ -950,6 +950,60 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('unhideAsset', () => {
+    it('force-fetches the unhidden token as an includeAssetId on v6', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      await withController(
+        {
+          queryApiClient,
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
+          state: {
+            customAssets: {
+              [MOCK_ACCOUNT_ID]: [MOCK_ASSET_ID],
+            },
+            assetPreferences: {
+              [MOCK_ASSET_ID]: { hidden: true },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await flushPromises();
+          fetchV6MultiAccountBalances.mockClear();
+
+          await controller.unhideAsset(MOCK_ASSET_ID);
+
+          expect(
+            controller.state.assetPreferences[MOCK_ASSET_ID]?.hidden,
+          ).toBeUndefined();
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+          for (const [, params] of fetchV6MultiAccountBalances.mock.calls) {
+            expect(params?.includeAssetIds ?? []).toContain(MOCK_ASSET_ID);
+            expect(params?.excludeAssetIds ?? []).not.toContain(MOCK_ASSET_ID);
+          }
+        },
+      );
+    });
+  });
+
   describe('getAssetMetadata', () => {
     it('returns metadata for existing asset', async () => {
       const initialState: Partial<AssetsControllerState> = {
@@ -3182,7 +3236,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('drops pins a full update omits, since v6 requests them as includeAssetIds', async () => {
+    it('keeps pins a full update omits, since an omission means the source could not report them', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {
@@ -3215,7 +3269,7 @@ describe('AssetsController', () => {
 
           expect(
             controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toBeUndefined();
+          ).toStrictEqual({ amount: '1' });
           expect(
             controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
               MOCK_NATIVE_ASSET_ID
@@ -3225,7 +3279,81 @@ describe('AssetsController', () => {
       );
     });
 
-    it('retains hidden balances without re-fetching or displaying them in full mode', async () => {
+    it('drops a detected token a full update omits', async () => {
+      const detectedAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [detectedAssetId]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          state: initialState,
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              updateMode: 'full',
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[detectedAssetId],
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('keeps a known native balance a full update omits', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          state: initialState,
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              updateMode: 'full',
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '3' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          ).toStrictEqual({ amount: '0.5' });
+        },
+      );
+    });
+
+    it('drops a hidden balance a full update omits, since unhide fetches a new snapshot', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsInfo: {
           [MOCK_ASSET_ID]: {
@@ -3269,7 +3397,7 @@ describe('AssetsController', () => {
 
           expect(
             controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toStrictEqual({ amount: '1' });
+          ).toBeUndefined();
           expect(
             controller.getAccountAssetByID(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
           ).toBeUndefined();
