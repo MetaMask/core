@@ -24,6 +24,7 @@ import type {
 import { accountSupports7702 } from '../../utils/7702.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getGasBuffer } from '../../utils/feature-flags.js';
+import { GasPaymentMode, resolveGasPayment } from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   collectTransactionIds,
@@ -127,8 +128,18 @@ async function submitTransactions(
 ): Promise<Hex | undefined> {
   const { swapTx } = quote.original.quote;
   const { gasLimits: quoteGasLimits, is7702 } = quote.original.metamask;
-  const { from } = quote.request;
+  const { from, sourceTokenAddress } = quote.request;
   const chainId = toHex(swapTx.chainId);
+
+  // Across has no relayer-paid delegation flow and is never sponsored, so the
+  // only lift available is the gas station collecting gas in the source token.
+  const gasPayment = resolveGasPayment({
+    excludeNativeTokenForFee: true,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress,
+  });
+  const isGasFeeTokenPayment = gasPayment.mode === GasPaymentMode.GasFeeToken;
+
   const orderedTransactions = getAcrossOrderedTransactions({
     quote: quote.original.quote,
     swapType: acrossDepositType,
@@ -165,10 +176,11 @@ async function submitTransactions(
     parentTransaction.txParams.authorizationList?.length,
   );
 
-  const shouldUseGasFeeToken7702Submit = shouldEstimate7702SubmitBatch(
+  const shouldUseGasFeeToken7702Submit = shouldEstimate7702SubmitBatch({
+    isGasFeeTokenPayment,
     parentTransaction,
     quote,
-  )
+  })
     ? accountSupports7702(messenger, from)
     : false;
   const shouldUse7702Submit = [
@@ -259,10 +271,7 @@ async function submitTransactions(
   );
 
   let result: { result: Promise<string> } | undefined;
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? quote.request.sourceTokenAddress
-    : undefined;
-  const excludeNativeTokenForFee = gasFeeToken ? true : undefined;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   try {
     if (transactions.length === 1) {
@@ -419,18 +428,25 @@ async function waitForAcrossCompletion(
  * gas with the source token, because the final submit batch can differ from the
  * batch shape that Across quoted.
  *
- * @param parentTransaction - Original transaction metadata.
- * @param quote - Across quote selected for execution.
+ * @param args - Check arguments.
+ * @param args.isGasFeeTokenPayment - Whether source-chain gas is paid with a gas fee token.
+ * @param args.parentTransaction - Original transaction metadata.
+ * @param args.quote - Across quote selected for execution.
  * @returns Whether submit should try to estimate the final 7702 batch gas.
  */
-function shouldEstimate7702SubmitBatch(
-  parentTransaction: TransactionMeta,
-  quote: TransactionPayQuote<AcrossQuote>,
-): boolean {
+function shouldEstimate7702SubmitBatch({
+  isGasFeeTokenPayment,
+  parentTransaction,
+  quote,
+}: {
+  isGasFeeTokenPayment: boolean;
+  parentTransaction: TransactionMeta;
+  quote: TransactionPayQuote<AcrossQuote>;
+}): boolean {
   return (
     hasTransactionType(parentTransaction, [TransactionType.predictWithdraw]) &&
     quote.request.isPostQuote === true &&
-    quote.fees.isSourceGasFeeToken === true
+    isGasFeeTokenPayment
   );
 }
 
