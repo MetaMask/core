@@ -227,7 +227,6 @@ export class SubjectMetadataController extends BaseController<
     this.#subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
-      // @ts-expect-error TS2589: Type instantiation is excessively deep and possibly infinite
       draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];

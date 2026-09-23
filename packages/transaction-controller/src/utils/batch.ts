@@ -15,7 +15,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
-import type { WritableDraft } from 'immer/dist/internal.js';
+import type { WritableDraft } from 'immer';
 import { parse, v4 } from 'uuid';
 
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
