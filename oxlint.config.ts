@@ -33,6 +33,10 @@ export default createConfig({
     {
       files: ['**/*.ts', '**/*.mts', '**/*.cts'],
       extends: [typescript],
+      rules: {
+        // TODO: Auto-fix breaks stuff.
+        'typescript/promise-function-async': 'off',
+      },
     },
 
     {
