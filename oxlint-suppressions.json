@@ -5598,13 +5598,13 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 17
+      "count": 19
     },
     "typescript/no-unsafe-member-access": {
-      "count": 16
+      "count": 18
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication.test.ts": {
