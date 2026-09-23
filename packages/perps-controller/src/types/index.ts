@@ -7,8 +7,10 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { PerpsMaxSlippageSource } from '../constants/eventNames.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
-import type { PerpsErrorDetails, PerpsErrorResultFields } from '../errors.js';
+import type { PerpsErrorDetails } from '../errors.js';
+import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
@@ -204,9 +206,8 @@ export type TrackingData = {
 
   // Slippage context for trade and close transaction analytics.
   maxSlippageBps?: number;
-  maxSlippageSource?: string;
+  maxSlippageSource?: PerpsMaxSlippageSource;
   estimatedSlippageBps?: number;
-  isFullClose?: boolean;
 
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
@@ -361,7 +362,7 @@ export type OrderResult = {
   orderId?: string;
   error?: string;
   /** Stable error classification for client-side translation. */
-  errorCode?: PerpsErrorResultFields['errorCode'];
+  errorCode?: PerpsErrorCode;
   /** Optional structured data for the classified error. */
   errorDetails?: PerpsErrorDetails;
   filledSize?: string; // Amount filled

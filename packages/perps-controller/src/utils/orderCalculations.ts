@@ -6,6 +6,7 @@ import {
   MAX_ORDER_MARGIN_BUFFER,
   ORDER_SLIPPAGE_CONFIG,
 } from '../constants/perpsConfig.js';
+import { createPriceMovedError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import type { PerpsDebugLogger } from '../types/index.js';
@@ -14,7 +15,6 @@ import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
 } from './hyperLiquidAdapter.js';
-import { createPriceMovedError } from '../errors.js';
 import {
   getTriggerDirection,
   isLimitExecutionOrderType,
@@ -73,9 +73,6 @@ export type CalculateFinalPositionSizeParams = {
   // rejects a reduce-only order whose size exceeds the live position with
   // "Reduce only order would increase position".
   reduceOnly?: boolean;
-  // Full market closes use the live position size and retain venue-side
-  // slippage protection, so they do not need the local snapshot guard.
-  isFullClose?: boolean;
   debugLogger?: OrderCalculationsDebugLogger;
 };
 
@@ -616,17 +613,14 @@ export function calculateFinalPositionSize(
     szDecimals,
     leverage,
     reduceOnly,
-    isFullClose,
     debugLogger,
   } = params;
 
   let finalPositionSize: number;
 
-  // USD-derived sizing needs a fresh snapshot to avoid submitting a size that
-  // no longer represents the user's requested USD amount. A full close already
-  // submits the live position size, so the venue-side slippage-capped limit is
-  // the relevant protection and the local snapshot guard is redundant.
-  if (priceAtCalculation && !isFullClose) {
+  // Only USD-derived sizing needs a snapshot guard. Exact-size orders retain
+  // venue-side slippage protection without depending on a calculation price.
+  if (priceAtCalculation && usdAmount) {
     const priceDeltaBps = Math.abs(
       ((currentPrice - priceAtCalculation) / priceAtCalculation) * 10000,
     );
@@ -637,8 +631,16 @@ export function calculateFinalPositionSize(
       throw createPriceMovedError({
         expectedPrice: priceAtCalculation,
         currentPrice,
+        formattedExpectedPrice: formatHyperLiquidPrice({
+          price: priceAtCalculation,
+          szDecimals,
+        }),
+        formattedCurrentPrice: formatHyperLiquidPrice({
+          price: currentPrice,
+          szDecimals,
+        }),
+        priceDeltaBps,
         maxSlippageBps: maxSlippageBpsValue,
-        szDecimals,
       });
     }
 

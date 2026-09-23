@@ -1,5 +1,5 @@
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { PerpsControllerError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   calculateFinalPositionSize,
   floorToSizeDecimals,
@@ -512,7 +512,7 @@ describe('calculateFinalPositionSize', () => {
     });
 
     it('throws when the price moved beyond the allowed slippage', () => {
-      try {
+      const calculate = (): ReturnType<typeof calculateFinalPositionSize> =>
         calculateFinalPositionSize({
           usdAmount: '5000',
           currentPrice: 45000,
@@ -520,10 +520,10 @@ describe('calculateFinalPositionSize', () => {
           maxSlippageBps: 300,
           szDecimals: 3,
         });
-        throw new Error('Expected price movement to be rejected');
-      } catch (error) {
-        expect(error).toBeInstanceOf(PerpsControllerError);
-        expect(error).toMatchObject({
+
+      expect(calculate).toThrow(PerpsControllerError);
+      expect(calculate).toThrow(
+        expect.objectContaining({
           errorCode: PERPS_ERROR_CODES.PRICE_MOVED,
           errorDetails: {
             code: PERPS_ERROR_CODES.PRICE_MOVED,
@@ -531,13 +531,12 @@ describe('calculateFinalPositionSize', () => {
             maxSlippageBps: 300,
             expectedPrice: 50000,
             currentPrice: 45000,
-            szDecimals: 3,
           },
-        });
-      }
+        }),
+      );
     });
 
-    it('does not reject a full reduce-only close when the snapshot is stale', () => {
+    it('does not reject an exact-size close when the snapshot is stale', () => {
       const result = calculateFinalPositionSize({
         size: '0.123',
         currentPrice: 45000,
@@ -545,10 +544,21 @@ describe('calculateFinalPositionSize', () => {
         maxSlippageBps: 300,
         szDecimals: 3,
         reduceOnly: true,
-        isFullClose: true,
       });
 
       expect(result.finalPositionSize).toBeCloseTo(0.123, 10);
+    });
+
+    it('formats sub-cent price movement without collapsing prices to zero', () => {
+      expect(() =>
+        calculateFinalPositionSize({
+          usdAmount: '100',
+          currentPrice: 0.021,
+          priceAtCalculation: 0.017,
+          maxSlippageBps: 300,
+          szDecimals: 0,
+        }),
+      ).toThrow('Expected: 0.017, Current: 0.021');
     });
   });
 

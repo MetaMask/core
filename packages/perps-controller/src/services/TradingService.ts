@@ -8,8 +8,8 @@ import {
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { PerpsControllerError } from '../errors.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
