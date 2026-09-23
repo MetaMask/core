@@ -49,6 +49,7 @@ import type {
   OidcTokenAudience,
   OidcTokenClaims,
   PairSocialIdentifierParams,
+  ProfileIdentifier,
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
@@ -390,8 +391,12 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   async pairSocialIdentifier(
     params: PairSocialIdentifierParams,
     authAccessToken: string,
-  ): Promise<void> {
-    await pairSocialIdentifier(params, authAccessToken, this.#config.env);
+  ): Promise<ProfileIdentifier[] | undefined> {
+    return await pairSocialIdentifier(
+      params,
+      authAccessToken,
+      this.#config.env,
+    );
   }
 
   async pairSrpProfiles(
