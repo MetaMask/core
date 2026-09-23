@@ -32,6 +32,7 @@ import type {
   LoginIdentifierType,
   LoginResponse,
   ProfileAlias,
+  ProfileIdentifier,
   SRPInterface,
   SrpLoginTag,
   UserProfile,
@@ -137,7 +138,7 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   srpSessionData: {
-    // Remove access token from state logs
+    // Remove access token and paired identifiers from state logs
     includeInStateLogs: (srpSessionData) => {
       // Unreachable branch, included just to fix a type error for the case where this property is
       // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
@@ -151,9 +152,12 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
         (sanitizedSrpSessionData, [key, value]) => {
           const { accessToken: _unused, ...tokenWithoutAccessToken } =
             value.token;
+          const { pairedIdentifierIds: _unusedPairedIdentifierIds, ...profileWithoutPairedIdentifierIds } =
+            value.profile;
           sanitizedSrpSessionData[key] = {
             ...value,
             token: tokenWithoutAccessToken,
+            profile: profileWithoutPairedIdentifierIds,
           };
           return sanitizedSrpSessionData;
         },
@@ -190,7 +194,6 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
  * action window, per the MFA phase-1 specification.
  */
 export const STEP_UP_SESSION_TTL_MS = 60_000;
-
 type ControllerConfig = {
   env: Env;
   /**
@@ -690,7 +693,7 @@ export class AuthenticationController extends BaseController<
     }
 
     try {
-      await this.#auth.pairSocialIdentifier(
+      const pairedIdentifierIds = await this.#auth.pairSocialIdentifier(
         {
           identifierType,
           socialJwt,
@@ -698,6 +701,7 @@ export class AuthenticationController extends BaseController<
         },
         primaryAccessToken,
       );
+      this.#setPrimaryPairedIdentifierIds(pairedIdentifierIds);
       this.#clearNeedsSocialPairing();
     } catch (error) {
       if (error instanceof PairConflictError) {
@@ -793,10 +797,29 @@ export class AuthenticationController extends BaseController<
     const primaryAccessToken = accessTokens[0]; // Associated with primary SRP.
     const {
       profileAliases,
-      profile: { canonicalProfileId },
+      profile: { canonicalProfileId, pairedIdentifierIds },
     } = await this.#auth.pairSrpProfiles(accessTokens, primaryAccessToken);
     this.#propagateCanonical(canonicalProfileId);
+    this.#setPrimaryPairedIdentifierIds(pairedIdentifierIds);
     return profileAliases;
+  }
+
+  /**
+   * Pair calls use the primary SRP's token, so their response only describes
+   * the primary's profile: secondaries skipped by the server are not in it.
+   *
+   * @param pairedIdentifierIds - Identifiers returned by the pair call.
+   */
+  #setPrimaryPairedIdentifierIds(
+    pairedIdentifierIds: ProfileIdentifier[] = [],
+  ): void {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    this.update((state) => {
+      const entry = state.srpSessionData?.[primaryEntropySourceId];
+      if (entry?.profile) {
+        entry.profile.pairedIdentifierIds = pairedIdentifierIds;
+      }
+    });
   }
 
   #propagateCanonical(canonicalProfileId: string): void {

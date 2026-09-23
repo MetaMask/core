@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
   - `AuthenticationController.beginCredentialEnrollment` sends the elevated token while a step-up session is live, since enrolling additional credentials requires AAL2
   - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
+- Add `pairedIdentifierIds` to `UserProfile` in `srpSessionData`, set from the login response and, on the primary SRP session, from the SRP and social pairing responses, so clients can tell whether a profile has been socially paired ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 
 ### Changed
 
