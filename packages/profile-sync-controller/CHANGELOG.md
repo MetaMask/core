@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.3.0]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
@@ -1003,7 +1005,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...HEAD
+[32.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...@metamask/profile-sync-controller@32.3.0
 [32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...@metamask/profile-sync-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
