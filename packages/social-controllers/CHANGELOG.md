@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `volumeUsd30d` on `TraderStats` and required `copytradedAllTime` (`count`, `volumeUSD`, `distinctActors`) on `TraderProfileResponse` for the trader stats sheet ([#10389](https://github.com/MetaMask/core/pull/10389))
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^32.3.0` ([#10409](https://github.com/MetaMask/core/pull/10409))
+
 ## [3.1.0]
 
 ### Added
