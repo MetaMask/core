@@ -98,10 +98,7 @@ function publishAccountsRemoved(
   rootMessenger: RootMessenger,
   accountIds: string[],
 ): void {
-  rootMessenger.publish(
-    'AccountsController:accountsRemoved',
-    accountIds,
-  );
+  rootMessenger.publish('AccountsController:accountsRemoved', accountIds);
 }
 
 type Mocks = {
