@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `volumeUsd30d` on `TraderStats` and required `copytradedAllTime` (`count`, `volumeUSD`, `distinctActors`) on `TraderProfileResponse` for the trader stats sheet ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add optional `volumeUsd30d` on `TraderStats` and required `copytradedAllTime` (`count`, `volumeUSD`, `distinctActors`) on `TraderProfileResponse` for the trader stats sheet ([#10389](https://github.com/MetaMask/core/pull/10389))
 - Add optional feed-card stats on `FeedItem`: `actor.winRate30d`, `actor.pnl30d`, `actor.tradeCount30d`, `actor.followerCount`, `commentCount`, `replyCount`, `holdTimeMs`, and `entryPriceUsd`. Older social-api responses that omit them still validate ([#10352](https://github.com/MetaMask/core/pull/10352))
 - Add optional `authorComment` on `FeedItem` (uid, text, timestamp, `engagement.reactions` / `userReaction`) so clients can render Call-backed feed reactions ([#10345](https://github.com/MetaMask/core/pull/10345))
 - Add `reactToComment` and `removeCommentReaction` methods on `SocialService` (and the matching messenger actions). Call `PUT` / `DELETE /swap-comment/:id/reaction` and return per-emotion counts plus `userReaction`. Deprecated `likeCount` / `isLikedByUser` on the social-api wire are ignored ([#10345](https://github.com/MetaMask/core/pull/10345))
