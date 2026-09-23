@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Retain a locally-created FCM token when re-enabling notifications with every wallet-activity account disabled.
-  - Push services now skip the links API for an empty address list. If the user later enables an account, the saved token can be linked then.
+- Retain a locally-created FCM token when re-enabling notifications with every wallet-activity account disabled ([#10401](https://github.com/MetaMask/core/pull/10401)).
 
 ## [29.0.0]
 
