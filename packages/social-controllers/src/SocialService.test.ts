@@ -1171,6 +1171,7 @@ describe('SocialService', () => {
         },
         commentCount: 1,
         replyCount: 3,
+        firstTradeAt: 1_699_999_000,
         holdTimeMs: 28_800_000,
         entryPriceUsd: 2500,
       };
@@ -1191,8 +1192,35 @@ describe('SocialService', () => {
       expect(result.items[0]?.actor.followerCount).toBe(12);
       expect(result.items[0]?.commentCount).toBe(1);
       expect(result.items[0]?.replyCount).toBe(3);
+      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
       expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
       expect(result.items[0]?.entryPriceUsd).toBe(2500);
+    });
+
+    // An open position has no final hold; the anchor is what the client
+    // counts from, so it has to survive validation on its own.
+    it('accepts an open position that sends only the hold anchor', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                ...mockFeedItem,
+                firstTradeAt: 1_699_999_000,
+                holdTimeMs: null,
+              },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
+      expect(result.items[0]?.holdTimeMs).toBeNull();
     });
   });
 

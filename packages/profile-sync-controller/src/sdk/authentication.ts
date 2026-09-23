@@ -23,6 +23,7 @@ import type {
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
+  ProfileIdentifier,
   OidcTokenAudience,
   OidcTokenClaims,
   UserProfileLineage,
@@ -177,9 +178,9 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   async pairSocialIdentifier(
     params: PairSocialIdentifierParams,
     authAccessToken: string,
-  ): Promise<void> {
+  ): Promise<ProfileIdentifier[] | undefined> {
     this.#assertSRP(this.#type, this.#sdk);
-    await this.#sdk.pairSocialIdentifier(params, authAccessToken);
+    return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
   }
 
   async signMessage(

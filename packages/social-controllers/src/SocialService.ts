@@ -215,6 +215,7 @@ const FeedItemStruct = assign(
     authorComment: optional(nullable(AuthorCommentStruct)),
     commentCount: optional(number()),
     replyCount: optional(number()),
+    firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
   }),
