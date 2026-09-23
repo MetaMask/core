@@ -253,7 +253,7 @@ describe('MfaRecoveryController', () => {
   });
 
   describe('getRecoverySecret', () => {
-    it('refuses to read while a mutation is writing', async () => {
+    it('reads the highest version while a mutation is writing', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
         escrowA.failNextApplyCount = 1;
@@ -261,13 +261,11 @@ describe('MfaRecoveryController', () => {
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
 
-        await expect(controller.getRecoverySecret(PASSKEY)).rejects.toThrow(
-          'A pending mutation must be resumed or aborted first',
-        );
-
-        await controller.resume();
         const recovered = await controller.getRecoverySecret(PASSKEY);
+
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
+        expect(recovered.epoch).toBe(REGISTERED_EPOCH + 1);
+        expect(await controller.getPhase()).toBe('writing');
       });
     });
 

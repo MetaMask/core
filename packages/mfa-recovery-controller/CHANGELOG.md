@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Persist only an encrypted `authorizing` / `writing` pending mutation (`idle` when `pendingOperation` is `null`)
   - `register` and `updateIdentifiers` require at least two distinct identifiers (`MIN_IDENTIFIERS`)
   - Identifier types `passkey`, `oidc`, and `siwe` are key-bound; `emailOtp` / `smsOtp` are not wired yet
-  - `getRecoverySecret` returns `{ recoverySecret, epoch }`; pass that `epoch` into later `updateRecoverySecret` / `updateIdentifiers` calls (register uses `0`). Refuses while a mutation is `writing` (`resume()` first)
+  - `getRecoverySecret` returns `{ recoverySecret, epoch }`; pass that `epoch` into later `updateRecoverySecret` / `updateIdentifiers` calls (register uses `0`). Does not block on a pending mutation; returns the highest consistent version across available escrows
   - Mutation `payloadHash` is the hash of the logical pending payload (`identifiers` and/or `0x`-hex secret). At apply, each escrow receives `{ pkE, ciphertext }` wrapped to its own wrap key with escrow-wrap-v1
   - `getSecret` request hashes bind the client's ephemeral `pkE`; responses are `{ ciphertext }` plus `wrapKeyId`
   - `Mutation.audiences` is the configured replica-id list, in that order. Each replica should require an exact match

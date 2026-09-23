@@ -318,19 +318,13 @@ export class MfaRecoveryController extends BaseController<
   /**
    * Reads the recovery secret from available escrows and returns the highest
    * consistent version. `epoch` is the current recovery version and is required
-   * by later mutations. Refuses while a mutation is `writing`.
+   * by later mutations. Does not wait for a pending mutation to be repaired.
    *
    * @param identifier - Identifier used to authorize the read.
    * @returns Recovered secret bytes and the selected epoch.
    */
   async getRecoverySecret(identifier: Identifier): Promise<RecoveredSecret> {
     return await this.#withLock(async () => {
-      if ((await this.#loadPending())?.phase === 'writing') {
-        throw new MfaRecoveryError(
-          'A pending mutation must be resumed or aborted first',
-          'pending_mutation',
-        );
-      }
       this.#assertKnownIdentifierTypes([identifier]);
       const requestId = randomId();
       const ephemeral = generateSigningKey();

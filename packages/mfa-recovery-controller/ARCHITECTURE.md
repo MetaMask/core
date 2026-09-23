@@ -157,8 +157,9 @@ sequenceDiagram
   end
 ```
 
-`getRecoverySecret` refuses while phase is `writing`. Replicas can disagree
-in that window; finish with `resume()` first.
+`getRecoverySecret` does not block on a pending mutation. During `writing`,
+replicas may hold different versions; the read takes the highest one. The
+next mutation still requires `resume()` first.
 
 ## Identifier auth (inside writes and reads)
 

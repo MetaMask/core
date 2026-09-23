@@ -45,7 +45,7 @@ export type MfaRecoveryControllerUpdateIdentifiersAction = {
 /**
  * Reads the recovery secret from available escrows and returns the highest
  * consistent version. `epoch` is the current recovery version and is required
- * by later mutations. Refuses while a mutation is `writing`.
+ * by later mutations. Does not wait for a pending mutation to be repaired.
  *
  * @param identifier - Identifier used to authorize the read.
  * @returns Recovered secret bytes and the selected epoch.
