@@ -49,7 +49,11 @@ email OTP enrollment and step-up verification:
 
 - `refreshEnrolledCredentials()` refreshes the in-memory credential list.
 - `beginCredentialEnrollment()` and `completeCredentialEnrollment()` surround
-  a client-owned passkey ceremony or email-code screen.
+  a client-owned passkey ceremony or email-code screen. Beginning enrollment
+  of a second or later credential requires an elevated session:
+  `beginCredentialEnrollment()` sends the elevated token while one is live,
+  and the server otherwise rejects it with `aal2_required`, so clients should
+  step up and retry.
 - `beginStepUp()` and `completeStepUp()` verify an enrolled credential and
   return an elevated profile token.
 - `getElevatedProfileToken()` reuses a live elevated session when it satisfies

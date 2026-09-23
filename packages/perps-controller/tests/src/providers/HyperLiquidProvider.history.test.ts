@@ -1374,6 +1374,134 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  describe('getOrderFills execution identifier', () => {
+    /**
+     * Two partial executions of ONE order. HyperLiquid does not guarantee
+     * that oid + time + sz + px identifies a single execution, so these
+     * agree on all four and differ only by tid. A client deduplicating on
+     * that four-field tuple silently drops one real trade.
+     */
+    const collidingRawFills = [
+      {
+        oid: 777,
+        coin: 'BTC',
+        side: 'B',
+        sz: '0.5',
+        px: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        time: 1699999999999,
+        closedPnl: '0',
+        dir: 'Open Long',
+        startPosition: '0',
+        tid: 111111111111111,
+      },
+      {
+        oid: 777,
+        coin: 'BTC',
+        side: 'B',
+        sz: '0.5',
+        px: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        time: 1699999999999,
+        closedPnl: '0',
+        dir: 'Open Long',
+        startPosition: '0',
+        tid: 222222222222222,
+      },
+    ];
+
+    it('builds fillId from coin, time and tid for each fill', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue(collidingRawFills),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills).toHaveLength(2);
+      expect(fills[0].fillId).toBe('BTC:1699999999999:111111111111111');
+      expect(fills[1].fillId).toBe('BTC:1699999999999:222222222222222');
+    });
+
+    it('gives distinct fillIds to two executions sharing orderId, timestamp, size and price', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue(collidingRawFills),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      // Premise: the four fields a content-based dedupe key would use are
+      // identical, so nothing but the execution id can separate these.
+      const contentKey = (fill: (typeof fills)[number]) =>
+        `${fill.orderId}-${fill.timestamp}-${fill.size}-${fill.price}`;
+      expect(contentKey(fills[0])).toBe(contentKey(fills[1]));
+
+      expect(fills[0].fillId).toBeDefined();
+      expect(fills[1].fillId).toBeDefined();
+      expect(fills[0].fillId).not.toBe(fills[1].fillId);
+    });
+
+    it('keeps both executions when deduplicated by fillId', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue(collidingRawFills),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      const byFillId = new Map(fills.map((fill) => [fill.fillId, fill]));
+      expect(byFillId.size).toBe(2);
+    });
+
+    it('omits fillId when the venue payload carries no tid', async () => {
+      const { tid, ...withoutTid } = collidingRawFills[0];
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue([withoutTid]),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills).toHaveLength(1);
+      expect(fills[0].fillId).toBeUndefined();
+      // Never the string 'undefined': an absent id must be detectable so a
+      // client can fall back to content matching instead of keying on it.
+      expect(Object.hasOwn(fills[0], 'fillId')).toBe(false);
+    });
+
+    it('leaves the rest of the fill content unchanged', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue([collidingRawFills[0]]),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills[0]).toMatchObject({
+        orderId: '777',
+        symbol: 'BTC',
+        side: 'buy',
+        size: '0.5',
+        price: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        timestamp: 1699999999999,
+        pnl: '0',
+        direction: 'Open Long',
+        startPosition: '0',
+        success: true,
+      });
+    });
+  });
+
   describe('getOpenOrders additional coverage', () => {
     it('returns empty array when frontendOpenOrders throws error', async () => {
       // Arrange

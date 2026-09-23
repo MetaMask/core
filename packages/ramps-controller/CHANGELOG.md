@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+
+### Added
+
+- Add `fallback` to `BuyWidget` and the `BuyWidgetFallback` type for the hosted-flow entry the quotes API attaches when an embedded checkout may turn the user away ([#10391](https://github.com/MetaMask/core/pull/10391))
+- Add `getBuyWidgetFallback` to read a quote's buy-widget fallback ([#10391](https://github.com/MetaMask/core/pull/10391))
+- Add `RampsController:getFallbackBuyWidgetData` to resolve a buy-widget fallback into the hosted widget, optionally setting its `redirectUrl` ([#10391](https://github.com/MetaMask/core/pull/10391))
+
+## [25.0.0]
+
 ### Changed
 
+- **BREAKING:** `RampsController:hydrateVbaOnboarding` now returns a `VbaOnboardingSnapshot` of KYC and autoramp facts instead of a linear `VbaOnboardingStage`. The persisted `vbaOnboardingStage` state field and `VbaOnboardingStage` enum are removed — hosts own funnel order and map the snapshot onto screens. ([#10354](https://github.com/MetaMask/core/pull/10354))
+  - `sessionExists`, disclaimer completion flags, `kycStatus`, and `autorampStatus` (`not_ready` / `in_progress` / `ready` / `retryable_failure`) are independent facts. `kycStatus` is the overall KYC session outcome; relay and vendor-specific statuses remain internal to `KycController`.
+  - After KYC approval, wallet registration and autoramp creation still run (coalesced). Setup failure sets `autorampStatus: 'retryable_failure'` rather than a fatal error.
+  - A persisted KYC session owned by a previous identity is discarded via `KycController:clearState` and returned as an empty snapshot (`sessionExists: false`).
+- **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a foreign VBA onboarding session during hydration. ([#10354](https://github.com/MetaMask/core/pull/10354))
+  - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
 
 ## [24.0.0]
@@ -632,7 +648,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.0...HEAD
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.0.0...@metamask/ramps-controller@25.1.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...@metamask/ramps-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...@metamask/ramps-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...@metamask/ramps-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0

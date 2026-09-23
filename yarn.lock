@@ -5846,7 +5846,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
@@ -5857,7 +5857,6 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
-    p-limit: "npm:^3.1.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.13"
@@ -5913,9 +5912,9 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
@@ -5981,7 +5980,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/authenticated-user-storage@npm:^4.0.0, @metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage":
+"@metamask/authenticated-user-storage@npm:^4.1.0, @metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage":
   version: 0.0.0-use.local
   resolution: "@metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage"
   dependencies:
@@ -6069,7 +6068,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6085,6 +6084,7 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    uuid: "npm:^11.1.1"
   languageName: unknown
   linkType: soft
 
@@ -6136,7 +6136,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6174,7 +6174,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6258,7 +6258,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -6286,7 +6286,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -6332,7 +6332,7 @@ __metadata:
     "@metamask/core-backend": "npm:^11.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/slip44": "npm:^4.3.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6543,7 +6543,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
@@ -6727,7 +6727,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/stake-sdk": "npm:^3.2.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -6752,7 +6752,7 @@ __metadata:
     "@metamask/preferences-controller": "npm:^24.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7257,12 +7257,11 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/jest-when": "npm:^3.5.5"
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    jest-when: "npm:^3.7.0"
+    jest-when: "npm:^4.0.3"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
@@ -7293,7 +7292,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7598,7 +7597,7 @@ __metadata:
     "@noble/curves": "npm:^1.9.2"
     "@noble/hashes": "npm:^1.8.0"
     "@scure/base": "npm:^1.2.6"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     chokidar-cli: "npm:^3.0.0"
@@ -7769,7 +7768,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -7845,7 +7844,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
   dependencies:
-    "@metamask/authenticated-user-storage": "npm:^4.0.0"
+    "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/chomp-api-service": "npm:^5.0.0"
@@ -7879,7 +7878,7 @@ __metadata:
     "@ethersproject/abstract-provider": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8113,7 +8112,6 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/jest-when": "npm:^3.5.5"
     "@types/lodash-es": "npm:^4.17.12"
     "@types/node-fetch": "npm:^2.6.12"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8124,7 +8122,7 @@ __metadata:
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
-    jest-when: "npm:^3.7.0"
+    jest-when: "npm:^4.0.3"
     lodash-es: "npm:^4.17.21"
     loglevel: "npm:^1.8.1"
     nock: "npm:^13.5.6"
@@ -8154,7 +8152,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^4.0.0"
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/slip44": "npm:^4.3.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8189,7 +8187,7 @@ __metadata:
     "@contentful/rich-text-html-renderer": "npm:^16.5.2"
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/authenticated-user-storage": "npm:^4.0.0"
+    "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8385,7 +8383,7 @@ __metadata:
   dependencies:
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-tree-controller": "npm:^10.0.1"
-    "@metamask/authenticated-user-storage": "npm:^4.0.0"
+    "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8396,8 +8394,9 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
+    "@metamask/subscription-controller": "npm:^9.1.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@nktkas/hyperliquid": "npm:^0.33.1"
     "@types/jest": "npm:^30.0.0"
@@ -8413,7 +8412,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
-    viem: "npm:^2.55.8"
+    viem: "npm:^2.56.8"
   languageName: unknown
   linkType: soft
 
@@ -8427,7 +8426,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-sig-util": "npm:^9.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/jest": "npm:^30.0.0"
     "@types/punycode": "npm:^2.1.0"
@@ -8554,7 +8553,7 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8640,7 +8639,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ramps-controller@npm:^24.0.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
+"@metamask/ramps-controller@npm:^25.1.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
@@ -8696,18 +8695,20 @@ __metadata:
     "@metamask/base-data-service": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
-    "@tanstack/react-query": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/react-query": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
+    nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.13"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    uuid: "npm:^11.1.1"
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -8774,7 +8775,7 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -8872,7 +8873,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -8901,9 +8902,9 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/signature-controller": "npm:^40.0.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.1.2"
@@ -8988,7 +8989,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -9257,7 +9258,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
-    "@metamask/authenticated-user-storage": "npm:^4.0.0"
+    "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.0.0"
@@ -9273,9 +9274,9 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^32.2.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -9324,7 +9325,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^70.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^71.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -9400,10 +9401,10 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^37.0.0"
-    "@metamask/ramps-controller": "npm:^24.0.0"
+    "@metamask/ramps-controller": "npm:^25.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/sentinel-api-service": "npm:^2.0.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9439,7 +9440,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9492,13 +9493,12 @@ __metadata:
     "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
-    "@types/jest-when": "npm:^3.5.5"
     "@types/lodash": "npm:^4.17.20"
     "@typescript/native": "npm:typescript@^7.0.2"
     debug: "npm:^4.3.4"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    jest-when: "npm:^3.7.0"
+    jest-when: "npm:^4.0.3"
     lodash: "npm:^4.17.21"
     pony-cause: "npm:^2.1.10"
     rimraf: "npm:^6.1.3"
@@ -9587,7 +9587,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.62.16"
+    "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@types/react": "npm:^19.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9629,7 +9629,7 @@ __metadata:
     "@metamask/shield-controller": "npm:^7.0.1"
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/subscription-controller": "npm:^9.1.0"
-    "@metamask/transaction-controller": "npm:^70.1.0"
+    "@metamask/transaction-controller": "npm:^71.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -11528,21 +11528,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:5.101.2, @tanstack/query-core@npm:^5.62.16":
-  version: 5.101.2
-  resolution: "@tanstack/query-core@npm:5.101.2"
-  checksum: 10/567af5e3c21628745a08c1a5054d838597bc620dcbbeabe20cdd6ccffdcca85a8d38128f6e80829b6e04d10f79ca793a7dd8fddc8a3d6bef10c2d580ae214c7d
+"@tanstack/query-core@npm:5.103.1, @tanstack/query-core@npm:^5.89.0":
+  version: 5.103.1
+  resolution: "@tanstack/query-core@npm:5.103.1"
+  checksum: 10/b8b8b37c1b3230f4683ec03e4c5a93ba353c3b0d110afcc938a70d4ef68c533f57a78dc6838c21efb3d9cbeec6bb1cbe86d529557803b89d8c0c20e3eda7c380
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:^5.62.16":
-  version: 5.101.2
-  resolution: "@tanstack/react-query@npm:5.101.2"
+"@tanstack/react-query@npm:^5.89.0":
+  version: 5.103.1
+  resolution: "@tanstack/react-query@npm:5.103.1"
   dependencies:
-    "@tanstack/query-core": "npm:5.101.2"
+    "@tanstack/query-core": "npm:5.103.1"
   peerDependencies:
     react: ^18 || ^19
-  checksum: 10/0837c176b6afb01e3632010bbd8bdfeee7f46c4a25a50ed2ba9ddddce11c34431161d80dd8e53a2f55190c2313bbfb22a84a77308e6ccf29877b4818de68c4b3
+  checksum: 10/4b90b441f2249b09aaf4e4027de8c10c2624b989e2765a76a02b97233aa701324cdd95a5bac116b0f839a2af52a02c85e1c4c4b542e4f3f9deee96aaffa8eb49
   languageName: node
   linkType: hard
 
@@ -11950,16 +11950,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/jest-when@npm:^3.5.5":
-  version: 3.5.5
-  resolution: "@types/jest-when@npm:3.5.5"
-  dependencies:
-    "@types/jest": "npm:*"
-  checksum: 10/816c1ed5554182c43261d23c2902506c316bc0368f2ea1e632a0a93d05d8f6f2918afa6a406c2f5fdd4d277e042b8d2ba797993dc3c2fd2d5f53cda946696772
-  languageName: node
-  linkType: hard
-
-"@types/jest@npm:*, @types/jest@npm:^30.0.0":
+"@types/jest@npm:^30.0.0":
   version: 30.0.0
   resolution: "@types/jest@npm:30.0.0"
   dependencies:
@@ -20452,12 +20443,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-when@npm:^3.7.0":
-  version: 3.7.0
-  resolution: "jest-when@npm:3.7.0"
+"jest-when@npm:^4.0.3":
+  version: 4.0.3
+  resolution: "jest-when@npm:4.0.3"
   peerDependencies:
-    jest: ">= 25"
-  checksum: 10/b5b88d077ed467aab220c71c885dbc5f448604f06e68f761ce9f479c99bb74e0dbf553d1cc980751d88401b034a578e1c44eec5e4095743b7586f02bb7c6313d
+    jest: ">= 27"
+  checksum: 10/71b35080b6d9cadf0828da440e3d3799d50aaa806ef8a1ad36fe89be5a93b2340c987b12a253cab66f7937a515252a5e3cbd839e88785f9d6d926452377c08eb
   languageName: node
   linkType: hard
 
@@ -22927,9 +22918,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ox@npm:0.14.32":
-  version: 0.14.32
-  resolution: "ox@npm:0.14.32"
+"ox@npm:0.14.45":
+  version: 0.14.45
+  resolution: "ox@npm:0.14.45"
   dependencies:
     "@adraffy/ens-normalize": "npm:^1.11.0"
     "@noble/ciphers": "npm:^1.3.0"
@@ -22944,7 +22935,7 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/d631768f48d7b1208b586df92661273019b9d95a135eeb691ce6721857acfebe6c61b3ab7f950ba8ca1b43d531a0971b4e3e39be703fbceab27e4bd0ead8a5b2
+  checksum: 10/44f4414d28a93cfe1f608eba7135a2fe7b153305f25b0af5fc35eb7d345ad452e47423d1045ea3a15035d130bd10874fb71be958d5ed16ad49d97114075cae58
   languageName: node
   linkType: hard
 
@@ -27944,9 +27935,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^2.55.8":
-  version: 2.55.8
-  resolution: "viem@npm:2.55.8"
+"viem@npm:^2.56.8":
+  version: 2.56.8
+  resolution: "viem@npm:2.56.8"
   dependencies:
     "@noble/curves": "npm:1.9.1"
     "@noble/hashes": "npm:1.8.0"
@@ -27954,14 +27945,14 @@ __metadata:
     "@scure/bip39": "npm:1.6.0"
     abitype: "npm:1.2.3"
     isows: "npm:1.0.7"
-    ox: "npm:0.14.32"
+    ox: "npm:0.14.45"
     ws: "npm:8.21.0"
   peerDependencies:
     typescript: ">=5.0.4"
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/77a5c474e185654e78f5a561d618ce2152263f126ff91aedcb24f5b1f79454494f825e1863603f12d7f4eb85f84ff1cee6b32f93dc70f32853506dde4a94c54e
+  checksum: 10/db2166334b7fb97cea5fc8feb10fcf0ee14d4fd403f4cffa6b26db22e01f57dd0f273c174147960314d34a9f4564c3b9ecc53241a1a71cc40e81d92d58acb2bc
   languageName: node
   linkType: hard
 

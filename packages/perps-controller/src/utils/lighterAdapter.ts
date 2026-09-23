@@ -466,6 +466,9 @@ export function adaptFillFromLighterTrade(
   }
   return {
     orderId: String(accountIsAsk ? trade.askId : trade.bidId),
+    // Lighter's unique execution id, validated as a safe non-negative
+    // integer above. Order id alone cannot separate two fills of one order.
+    fillId: String(trade.tradeId),
     symbol,
     side: accountIsAsk ? 'sell' : 'buy',
     size: trade.size,

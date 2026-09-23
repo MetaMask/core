@@ -62,6 +62,8 @@ export type {
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
+  SubscriptionInvoice,
+  InvoicePaymentStatus,
   SubmitUserEventRequest,
   SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
@@ -86,6 +88,9 @@ export type {
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
   CryptoPaymentMethodError,
+  CryptoPaymentError,
+  UpdateErc20PaymentMethodCryptoRequest,
+  UpdateDelegationPaymentMethodCryptoRequest,
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -107,6 +112,8 @@ export type {
 export {
   CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -124,6 +131,10 @@ export {
   selectHasEntitlement,
   selectIsActiveSubscriber,
   selectIsUsageAvailable,
+  selectIsPaymentFailed,
+  selectPaymentFailureReason,
+  selectIsRenewalNeeded,
+  selectIsDelegationExhausted,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {

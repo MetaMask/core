@@ -56,7 +56,9 @@ export const HYPERLIQUID_SCALE_CLOID_MARKER = '4d4d5343';
  * @param clientOrderId - HyperLiquid client order ID.
  * @returns The Scale handle, or undefined for an unrelated order.
  */
-const readScaleGroupId = (clientOrderId: string | null): string | undefined => {
+export const readScaleGroupId = (
+  clientOrderId: string | null | undefined,
+): string | undefined => {
   const normalized = clientOrderId?.toLowerCase();
   if (
     normalized?.length !== 34 ||
@@ -626,6 +628,33 @@ export function calculateHip3AssetId(
     perpDexIndex * HIP3_ASSET_ID_CONFIG.DexMultiplier +
     indexInMeta
   );
+}
+
+/**
+ * Build the provider-neutral execution id for a HyperLiquid fill.
+ *
+ * HyperLiquid's `tid` is a 50-bit hash, and the venue documents
+ * `(block_time, coin, tid)` as a trade's global identity, so all three go into
+ * the id. REST and websocket fills report the same `time`, `coin` and `tid` for
+ * one execution, so both transports yield the same id.
+ *
+ * @param fill - The raw HyperLiquid fill.
+ * @param fill.coin - Venue asset name, including any HIP-3 dex prefix.
+ * @param fill.time - Fill block time in milliseconds.
+ * @param fill.tid - Venue trade id.
+ * @returns The id, or `undefined` when the payload carries no `tid`. Omitting
+ * it, rather than stringifying a missing value, keeps malformed fills from
+ * sharing one id.
+ */
+export function buildHyperLiquidFillId(fill: {
+  coin: string;
+  time: number;
+  tid?: number | null;
+}): string | undefined {
+  if (fill.tid === undefined || fill.tid === null) {
+    return undefined;
+  }
+  return `${fill.coin}:${fill.time}:${fill.tid}`;
 }
 
 export function parseAssetName(assetName: string): {

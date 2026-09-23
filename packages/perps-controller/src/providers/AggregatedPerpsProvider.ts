@@ -214,6 +214,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Which provider a write with this route actually reaches.
+   *
+   * `protocolId` is `aggregated` and `getPositions` spans every active
+   * provider, so a caller that needs to reason about one write — pricing the
+   * positions a close can actually touch, for instance — cannot infer the route
+   * from either. This reports it explicitly.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId(providerId?: PerpsProviderType): PerpsProviderType {
+    return providerId ?? this.#defaultProvider;
+  }
+
+  /**
    * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.
@@ -996,6 +1011,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
+  /**
+   * Approve the dedicated subscription builder on the HyperLiquid provider.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder; nothing on the order path reads this.
+   * @returns Whether the builder is approved.
+   */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
     const provider =
       this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();

@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When `assetsAccountsApiV6` is enabled, Accounts API v6 reads pins and hides from state and sends them as `includeAssetIds` / `excludeAssetIds`, then applies the response with `updateMode: 'full'` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - `hideAsset` now re-evaluates subscriptions so live polls start excluding the asset immediately ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** `unhideAsset` is now async and force-fetches the asset's chain (same as `addCustomAsset`) so a v6 `full` snapshot can restore the balance immediately ([#9651](https://github.com/MetaMask/core/pull/9651))
-- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^71.0.0` ([#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386))
 
 ### Fixed
 

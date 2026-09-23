@@ -27,6 +27,24 @@ export type ProfileSummary = {
 };
 
 /**
+ * Trader attached to a feed item. Extends {@link ProfileSummary} with the
+ * profile stats the feed hydrator already loaded and used to drop.
+ *
+ * Every field is optional: a social-api that predates them omits the keys,
+ * and `null` means the window has no data (distinct from "not sent").
+ */
+export type FeedActorSummary = ProfileSummary & {
+  /** 30-day win rate as a 0–1 ratio. */
+  winRate30d?: number | null;
+  /** 30-day realized PnL in USD. */
+  pnl30d?: number | null;
+  /** 30-day sell count behind `winRate30d`. */
+  tradeCount30d?: number | null;
+  /** Profiles following this trader. */
+  followerCount?: number | null;
+};
+
+/**
  * Social media handles attached to a trader profile.
  */
 export type SocialHandles = {
@@ -134,12 +152,20 @@ export type TraderStats = {
   roiPercent30d?: number | null;
   /** Renamed from tradeCount. */
   tradeCount30d?: number | null;
+  /** 30-day trading volume in USD. */
+  volumeUsd30d?: number | null;
   pnl7d?: number | null;
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
   /** Median holding time in minutes. */
   medianHoldMinutes?: number | null;
+};
+
+export type CopytradedAllTime = {
+  count: number;
+  volumeUSD: number;
+  distinctActors: number;
 };
 
 export type PerChainBreakdown = {
@@ -169,6 +195,11 @@ export type TraderProfileResponse = {
   socialHandles: SocialHandles;
   followerCount: number;
   followingCount: number;
+  /**
+   * Linked copy-swap stats for this trader. Social-api always sends zeros
+   * when there are none.
+   */
+  copytradedAllTime: CopytradedAllTime;
   /**
    * Backend-derived tier from the Auth primary account 30d PnL. Omitted on older
    * social-api builds; `null` when unclaimed or activity is insufficient.
@@ -283,12 +314,12 @@ export type AuthorComment = {
 
 /**
  * A single trader-activity feed item: a {@link Position} the trade belongs to,
- * plus the {@link ProfileSummary} of the trader who made it (`actor`) and the
+ * plus the {@link FeedActorSummary} of the trader who made it (`actor`) and the
  * item's creation `timestamp` (Unix seconds).
  */
 export type FeedItem = Position & {
   /** The trader who made this trade. */
-  actor: ProfileSummary;
+  actor: FeedActorSummary;
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
@@ -296,6 +327,28 @@ export type FeedItem = Position & {
    * builds; `null` when that phase has no comment.
    */
   authorComment?: AuthorComment | null;
+  /** Author comments on this position. Absent on older social-api builds. */
+  commentCount?: number;
+  /** Replies across those comments. Absent on older social-api builds. */
+  replyCount?: number;
+  /**
+   * Unix seconds of the position's first fill. Count from this to render a
+   * live hold on a position that is still open, where {@link holdTimeMs} is
+   * `null`. `null` when unknown. Absent on older social-api builds.
+   */
+  firstTradeAt?: number | null;
+  /**
+   * Final hold in milliseconds, first fill to last. Only set once the
+   * position is closed; `null` while it is still running, because that span
+   * grows every second — use {@link firstTradeAt} for those. Absent on older
+   * social-api builds.
+   */
+  holdTimeMs?: number | null;
+  /**
+   * Average entry price in USD from remaining cost basis / remaining holding.
+   * `null` when the position is flat. Absent on older social-api builds.
+   */
+  entryPriceUsd?: number | null;
 };
 
 export type ReactToCommentOptions = {

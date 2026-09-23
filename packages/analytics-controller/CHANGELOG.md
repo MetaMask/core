@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `marketingCampaignCookieId` state field and `setMarketingCampaignCookieId` action to `AnalyticsController`; the field is automatically set to `null` when the user calls `optOutOfMarketing` or `resetMarketingConsentDecision` ([#10373](https://github.com/MetaMask/core/pull/10373))
+
 ## [3.1.0]
 
 ### Added
