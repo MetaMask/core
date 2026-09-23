@@ -699,6 +699,35 @@ describe('lighterAdapter', () => {
       expect(parseFloat(adapted.filledSize)).toBeCloseTo(0.2, 10);
     });
 
+    it.each(['0', '0.2'])(
+      'preserves reported filled size %s when cancellation clears the remaining size',
+      (filledBaseAmount) => {
+        const canceledOrder = {
+          ...order,
+          status: 'canceled',
+          remainingBaseAmount: '0',
+          filledBaseAmount,
+        };
+
+        const adapted = adaptOrderFromLighter(canceledOrder, 'BTC');
+
+        expect(adapted).toMatchObject({
+          status: 'canceled',
+          originalSize: '0.5',
+          remainingSize: '0',
+          filledSize: filledBaseAmount,
+        });
+      },
+    );
+
+    it('prefers the reported filled size for open orders', () => {
+      const openOrder = { ...order, filledBaseAmount: '0.1' };
+
+      const adapted = adaptOrderFromLighter(openOrder, 'BTC');
+
+      expect(adapted.filledSize).toBe('0.1');
+    });
+
     it('maps ask orders to sell side', () => {
       const adapted = adaptOrderFromLighter({ ...order, isAsk: true }, 'BTC');
       expect(adapted.side).toBe('sell');

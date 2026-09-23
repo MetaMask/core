@@ -1,5 +1,8 @@
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
@@ -12,6 +15,7 @@ import {
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
 import {
+  isSubsidizedRelayQuote,
   getRelayExecuteRequest,
   submitViaRelayExecute,
 } from './relay-submit-execute.js';
@@ -109,7 +113,7 @@ describe('Relay Submit Execute', () => {
   let successfulFetchMock: jest.SpyInstance;
   let quote: TransactionPayQuote<RelayQuote>;
   let transaction: TransactionMeta;
-  let allParams: { to?: Hex; data?: Hex; value?: Hex }[];
+  let allParams: TransactionParams[];
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -157,6 +161,7 @@ describe('Relay Submit Execute', () => {
 
     allParams = [
       {
+        from: FROM_MOCK,
         to: '0xfedcb' as Hex,
         data: '0x1234' as Hex,
         value: '0x4d2' as Hex,
@@ -166,6 +171,20 @@ describe('Relay Submit Execute', () => {
 
   afterEach(() => {
     successfulFetchMock.mockRestore();
+  });
+
+  describe('isSubsidizedRelayQuote', () => {
+    it.each([
+      [{ fees: { subsidized: { amountUsd: 1 } } }, true],
+      [{ fees: { subsidized: { amountUsd: 0.000001 } } }, true],
+      [{ fees: { subsidized: { amountUsd: 0 } } }, false],
+      [{ fees: { subsidized: { amountUsd: -1 } } }, false],
+      [{}, false],
+      [{ fees: {} }, false],
+      [{ fees: { subsidized: {} } }, false],
+    ])('returns %s for %p', (testQuote, expected) => {
+      expect(isSubsidizedRelayQuote(testQuote as RelayQuote)).toBe(expected);
+    });
   });
 
   describe('submitViaRelayExecute', () => {
@@ -216,11 +235,13 @@ describe('Relay Submit Execute', () => {
 
       const multiParams = [
         {
+          from: FROM_MOCK,
           to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
           data: '0x1111' as Hex,
           value: '0x1' as Hex,
         },
         {
+          from: FROM_MOCK,
           to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
           data: '0x2222' as Hex,
           value: '0x2' as Hex,
@@ -332,6 +353,7 @@ describe('Relay Submit Execute', () => {
     it('uses fallback values for missing data and value in source params', async () => {
       const paramsWithoutDataOrValue = [
         {
+          from: FROM_MOCK,
           to: '0xfedcb' as Hex,
           data: undefined,
           value: undefined,
@@ -406,6 +428,7 @@ describe('Relay Submit Execute', () => {
 
       allParams = [
         {
+          from: FROM_MOCK,
           to: '0xfedcb' as Hex,
           data: '0xa9059cbb000000000000000000000000abcdef1234567890abcdef1234567890abcdef120000000000000000000000000000000000000000000000000000000000989680' as Hex,
           value: '0x4d2' as Hex,
@@ -542,6 +565,7 @@ describe('Relay Submit Execute', () => {
     it('uses 0x fallback when params.data is undefined', async () => {
       const paramsWithoutData = [
         {
+          from: FROM_MOCK,
           to: '0xfedcb' as Hex,
           data: undefined,
           value: '0x4d2' as Hex,
@@ -660,11 +684,13 @@ describe('Relay Submit Execute', () => {
 
       const multiParams = [
         {
+          from: FROM_MOCK,
           to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
           data: '0x1111' as Hex,
           value: '0x1' as Hex,
         },
         {
+          from: FROM_MOCK,
           to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
           data: '0x2222' as Hex,
           value: '0x2' as Hex,

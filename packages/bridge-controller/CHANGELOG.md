@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
+
+## [81.3.0]
+
+### Added
+
+- Add optional `quote.feeData.reserve` on V2 quotes for native minimum-balance requirements ([#10241](https://github.com/MetaMask/core/pull/10241))
+  - Sibling of `feeData.network`, not a `FeeType`, so fee aggregators do not treat it as spendable
+  - Normalized via `toNormalizedAmounts` and converted to fiat via `toCurrencyValues`
+
 ## [81.2.0]
 
 ### Added
@@ -2058,7 +2071,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.0...HEAD
+[81.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.2.0...@metamask/bridge-controller@81.3.0
 [81.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.1.0...@metamask/bridge-controller@81.2.0
 [81.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.0.0...@metamask/bridge-controller@81.1.0
 [81.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.1...@metamask/bridge-controller@81.0.0

@@ -27,6 +27,24 @@ export type ProfileSummary = {
 };
 
 /**
+ * Trader attached to a feed item. Extends {@link ProfileSummary} with the
+ * profile stats the feed hydrator already loaded and used to drop.
+ *
+ * Every field is optional: a social-api that predates them omits the keys,
+ * and `null` means the window has no data (distinct from "not sent").
+ */
+export type FeedActorSummary = ProfileSummary & {
+  /** 30-day win rate as a 0–1 ratio. */
+  winRate30d?: number | null;
+  /** 30-day realized PnL in USD. */
+  pnl30d?: number | null;
+  /** 30-day sell count behind `winRate30d`. */
+  tradeCount30d?: number | null;
+  /** Profiles following this trader. */
+  followerCount?: number | null;
+};
+
+/**
  * Social media handles attached to a trader profile.
  */
 export type SocialHandles = {
@@ -244,15 +262,90 @@ export type PositionsResponse = {
 // ---------------------------------------------------------------------------
 
 /**
+ * One emotion's aggregated count on a Call (swap comment), plus an optional
+ * facepile sample. `profiles` is always present on the wire and is often empty.
+ */
+export type CommentReaction = {
+  emotion: string;
+  count: number;
+  profiles: CommentReactionProfile[];
+};
+
+export type CommentReactionProfile = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Engagement on a Call. Counts live on `reactions`; do not read deprecated
+ * `likeCount` / `isLikedByUser` even if the social-api still emits them as 0/false.
+ */
+export type CommentEngagement = {
+  reactions: CommentReaction[];
+  /** Viewer's own emotion, when the hydrator was given their profile. */
+  userReaction: string | null;
+  /** Reply count on the comment. Present on feed `authorComment`, not on write responses. */
+  replyCount?: number;
+};
+
+/**
+ * Position thesis for the feed big card. `null` when that intent phase has no Call.
+ */
+export type AuthorComment = {
+  uid: string;
+  text: string;
+  /** Unix timestamp (seconds) when the comment was created. */
+  timestamp: number;
+  engagement: CommentEngagement;
+};
+
+/**
  * A single trader-activity feed item: a {@link Position} the trade belongs to,
- * plus the {@link ProfileSummary} of the trader who made it (`actor`) and the
+ * plus the {@link FeedActorSummary} of the trader who made it (`actor`) and the
  * item's creation `timestamp` (Unix seconds).
  */
 export type FeedItem = Position & {
   /** The trader who made this trade. */
-  actor: ProfileSummary;
+  actor: FeedActorSummary;
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
+  /**
+   * Latest author Call in the current intent phase. Absent on older social-api
+   * builds; `null` when that phase has no comment.
+   */
+  authorComment?: AuthorComment | null;
+  /** Author comments on this position. Absent on older social-api builds. */
+  commentCount?: number;
+  /** Replies across those comments. Absent on older social-api builds. */
+  replyCount?: number;
+  /**
+   * Unix seconds of the position's first fill. Count from this to render a
+   * live hold on a position that is still open, where {@link holdTimeMs} is
+   * `null`. `null` when unknown. Absent on older social-api builds.
+   */
+  firstTradeAt?: number | null;
+  /**
+   * Final hold in milliseconds, first fill to last. Only set once the
+   * position is closed; `null` while it is still running, because that span
+   * grows every second — use {@link firstTradeAt} for those. Absent on older
+   * social-api builds.
+   */
+  holdTimeMs?: number | null;
+  /**
+   * Average entry price in USD from remaining cost basis / remaining holding.
+   * `null` when the position is flat. Absent on older social-api builds.
+   */
+  entryPriceUsd?: number | null;
+};
+
+export type ReactToCommentOptions = {
+  commentId: string;
+  /** Emoji or short code (1–64 chars), e.g. `👍`. */
+  emotion: string;
+};
+
+export type RemoveCommentReactionOptions = {
+  commentId: string;
 };
 
 /**

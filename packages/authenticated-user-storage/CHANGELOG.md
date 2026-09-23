@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `importTokens`/`hideTokens` are high-level wrappers that fetch the current blob, merge with deduplication and mutual exclusivity, persist, and return the resolved blob.
   - `clearUserAssets` wipes the blob by persisting empty lists, giving users a clean slate.
   - Writes enforce that every entry is a CAIP-19 asset identifier and that each list holds at most `USER_ASSETS_MAX_ASSETS` (100) entries, mirroring the API's server-side cap, throwing a superstruct `StructError` before the request is sent.
+- Add `getMarketingConsent` and `putMarketingConsent` methods to `AuthenticatedUserStorageService` for managing the authenticated user's marketing consent, along with corresponding messenger actions (`AuthenticatedUserStorageService:getMarketingConsent`, `AuthenticatedUserStorageService:putMarketingConsent`) and the `MarketingConsent` type ([#10390](https://github.com/MetaMask/core/pull/10390))
+  - `getMarketingConsent` returns the marketing consent object or `null` on 404, mirroring `getNotificationPreferences`.
+  - `putMarketingConsent` writes the full consent object and invalidates the `getMarketingConsent` cache on success.
 
 ### Changed
 

@@ -125,6 +125,15 @@ export type NotificationPreferences = {
 };
 
 // ---------------------------------------------------------------------------
+// Marketing consent
+// ---------------------------------------------------------------------------
+
+/** Marketing consent for the authenticated user (master toggle). */
+export type MarketingConsent = {
+  marketingConsentEnabled: boolean;
+};
+
+// ---------------------------------------------------------------------------
 // Assets watchlist
 // ---------------------------------------------------------------------------
 

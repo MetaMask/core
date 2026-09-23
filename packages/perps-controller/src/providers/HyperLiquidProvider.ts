@@ -186,6 +186,7 @@ import {
   formatHyperLiquidSize,
   HYPERLIQUID_SCALE_CLOID_MARKER,
   parseAssetName,
+  readScaleGroupId,
 } from '../utils/hyperLiquidAdapter.js';
 import {
   previewHyperLiquidIsolatedPositionModify,
@@ -237,6 +238,10 @@ import {
   queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
 import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
+import {
+  markSubscriptionCloid,
+  quantizeBuilderFeeTenthsBps,
+} from '../utils/subscriptionFeeWaiver.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
@@ -925,13 +930,18 @@ type ScaleOrderGroup = {
  * rung. HyperLiquid requires every CLOID to be unique, so the last byte holds
  * the rung index while the preceding 15 bytes identify the shared group.
  *
+ * The byte right after the Scale marker is reserved for the subscription flag
+ * byte and is always zeroed here. Random entropy in that position would set the
+ * `fee_reduction_applied` bit roughly half the time, so an unmarked ladder would
+ * decode downstream as a waived one.
+ *
  * @param count - Number of ladder rungs.
  * @returns The public group handle and venue client order IDs.
  */
 const createScaleOrderIdentity = (count: number): ScaleOrderIdentity => {
-  const groupKey = `${HYPERLIQUID_SCALE_CLOID_MARKER}${uuidv4()
+  const groupKey = `${HYPERLIQUID_SCALE_CLOID_MARKER}00${uuidv4()
     .replace(/-/gu, '')
-    .slice(0, 22)}`;
+    .slice(0, 20)}`;
   const clientOrderIds = Array.from({ length: count }, (_, index) => {
     const clientOrderId: Hex = `0x${groupKey}${index
       .toString(16)
@@ -992,6 +1002,16 @@ type ChaseSession = {
    * would otherwise be re-quoted at the undiscounted maximum.
    */
   builder?: BuilderOrderContext;
+  /**
+   * Whether this chase's orders carry the subscription cloid marking.
+   *
+   * Captured with {@link builder} and for the same reason: the fee resolution
+   * that decides it is live only around the caller's `placeOrder`, and a chase
+   * returns immediately, so every replacement runs after it is cleared. Without
+   * this a replacement would pay the discounted fee the session captured while
+   * shipping an unmarked cloid, and the fill could not be attributed.
+   */
+  marksSubscriptionCloid?: boolean;
   /** Manual HIP-3 collateral retained while this session has venue exposure. */
   hip3Transfer?: Hip3TransferContext;
   /** Coalesces concurrent terminal cleanup reads for this session. */
@@ -4353,6 +4373,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Failure is non-blocking: order construction will use the ordinary builder
    * at the standard fee until a later approval succeeds.
    *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder, so nothing reads this approval any more —
+   * {@link #getBuilderOrderContext} never selects the subscription builder
+   * address. The approval machinery is kept intact, unreachable, so the
+   * previous design can be restored cheaply if cloid marking does not hold up
+   * in shadow mode; remove it, the builder-address config, and
+   * {@link #getSubscriptionBuilderAddress} once it does.
    * @returns Whether the builder is approved for the current account.
    */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
@@ -5324,7 +5351,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     try {
       const result = await exchangeClient.order({
-        orders,
+        orders: this.#applySubscriptionCloid(orders),
         grouping,
         ...(builder && { builder }),
       });
@@ -6234,17 +6261,34 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
     const { prices, sizes } = ladder;
     const count = prices.length;
-    const { groupId, clientOrderIds } = createScaleOrderIdentity(count);
+    const { clientOrderIds: ladderClientOrderIds } =
+      createScaleOrderIdentity(count);
 
-    const orders: SDKOrderParams[] = prices.map((price, index) => ({
-      a: assetId,
-      b: params.isBuy,
-      p: price,
-      s: sizes[index],
-      r: params.reduceOnly ?? false,
-      t: { limit: { tif: 'Gtc' as const } },
-      c: clientOrderIds[index],
-    }));
+    // Marked here rather than at submission so the ids recorded for
+    // cancel-by-cloid are exactly the ids the venue received. Marking keeps the
+    // Scale group marker and the rung index, so the group stays recoverable.
+    const orders: SDKOrderParams[] = this.#applySubscriptionCloid(
+      prices.map((price, index) => ({
+        a: assetId,
+        b: params.isBuy,
+        p: price,
+        s: sizes[index],
+        r: params.reduceOnly ?? false,
+        t: { limit: { tif: 'Gtc' as const } },
+        c: ladderClientOrderIds[index],
+      })),
+      // These ids were generated a few lines above, so they are ours to stamp.
+      new Set(ladderClientOrderIds),
+    );
+    const clientOrderIds: Hex[] = orders.map((order, index) =>
+      order.c === undefined ? ladderClientOrderIds[index] : (order.c as Hex),
+    );
+    // Derived from the submitted ids, not from the pre-marking identity: the
+    // group is recovered from open orders by reading their cloids, so tracking
+    // it under any other key would register the same ladder twice.
+    const groupId =
+      readScaleGroupId(clientOrderIds[0]) ??
+      `scale:${clientOrderIds[0].slice(2, -2)}`;
 
     this.#deps.debugLogger.log('Submitting scale ladder', {
       symbol: params.symbol,
@@ -6510,6 +6554,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     generation: number,
   ): Promise<OrderResult> {
     const { assetId, szDecimals, formattedSize, builder } = context;
+    // Captured now, alongside the builder fee and for the same reason: the fee
+    // resolution behind it is cleared when the caller's `placeOrder` returns,
+    // which for a chase is before any replacement runs.
+    const marksSubscriptionCloid = this.#isSubscriptionFeeSource();
 
     // The preamble is several round trips long. A disconnect during it has
     // already torn down everything this session would run on, so the chase
@@ -6563,6 +6611,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           size: formattedSize,
           reduceOnly: params.reduceOnly ?? false,
           builder,
+          marksSubscriptionCloid,
           exchangeClient: placingClient,
         });
         break;
@@ -6618,6 +6667,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       intervalMs,
       lastSnapshotSizeRefreshAt: 0,
       builder,
+      marksSubscriptionCloid,
       deadline:
         params.chaseMaxDurationMs === undefined
           ? Number.POSITIVE_INFINITY
@@ -6755,6 +6805,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.size - Formatted size.
    * @param params.reduceOnly - Whether the order may only reduce a position.
    * @param params.builder - Builder context captured when the session started.
+   * @param params.marksSubscriptionCloid - Whether to mark the cloid, captured
+   * when the session started. Passed explicitly rather than read live: a
+   * replacement runs long after the fee resolution behind it was cleared.
    * @param params.exchangeClient - Client to submit through. Passed in rather
    * than looked up here so a first placement can keep the instance it signed
    * with, which is the only one that can take the order back once `disconnect`
@@ -6768,21 +6821,26 @@ export class HyperLiquidProvider implements PerpsProvider {
     size: string;
     reduceOnly: boolean;
     builder?: BuilderOrderContext;
+    marksSubscriptionCloid?: boolean;
     exchangeClient: ExchangeClient;
   }): Promise<string> {
     const result = await params.exchangeClient.order({
-      orders: [
-        {
-          a: params.assetId,
-          b: params.isBuy,
-          p: params.price,
-          s: params.size,
-          r: params.reduceOnly,
-          // Post-only: a chase adds liquidity at the touch. Crossing would end
-          // the chase on its first tick at a worse price than resting does.
-          t: { limit: { tif: 'Alo' as const } },
-        },
-      ],
+      orders: this.#applySubscriptionCloid(
+        [
+          {
+            a: params.assetId,
+            b: params.isBuy,
+            p: params.price,
+            s: params.size,
+            r: params.reduceOnly,
+            // Post-only: a chase adds liquidity at the touch. Crossing would
+            // end the chase on its first tick at a worse price than resting.
+            t: { limit: { tif: 'Alo' as const } },
+          },
+        ],
+        undefined,
+        params.marksSubscriptionCloid,
+      ),
       grouping: 'na',
       ...(params.builder && { builder: params.builder }),
     });
@@ -7165,6 +7223,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             size: remaining,
             reduceOnly: session.reduceOnly,
             builder: session.builder,
+            marksSubscriptionCloid: session.marksSubscriptionCloid,
             // A running session is on a live provider, so the current client is
             // the right one; only the first placement has a teardown to survive.
             exchangeClient: this.#clientService.getExchangeClient(),
@@ -8535,18 +8594,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (this.#userFeeDiscountBips === undefined) {
       return BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
     }
-    return Math.floor(
-      BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
-        (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
-    );
+    // Shared with the preview so a quoted rate is the rate the venue charges.
+    return quantizeBuilderFeeTenthsBps(this.#userFeeDiscountBips);
   }
 
   /**
    * Resolve the builder payload for the current operation.
    *
-   * Subscription waivers use their dedicated builder only after approval is
-   * cached for this provider/account session. Until then, the ordinary builder
-   * and standard fee keep the trade attributable and non-blocking.
+   * ADR 0064 removed the dedicated subscription builder: every source — the
+   * subscription waiver included — now pays through the standard builder at the
+   * resolved fee, and the subscription attribution rides on the order's cloid
+   * instead (see {@link #applySubscriptionCloid}). That drops the per-user
+   * builder approval the ADR rejected, and lets a partial waiver charge a real
+   * blended fee, which a dedicated 0-bips builder could not express.
    *
    * @param setupContext - Account, network, and builder approved for the order.
    * @returns HyperLiquid builder address and fee payload.
@@ -8554,36 +8614,79 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #getBuilderOrderContext(
     setupContext: BuilderFeeSetupContext,
   ): Promise<{ b: string; f: number }> {
-    const {
-      network,
-      userAddress,
-      builderAddress: defaultBuilder,
-    } = setupContext;
-    const isTestnet = network === 'testnet';
+    return {
+      b: setupContext.builderAddress,
+      f: this.#getDiscountedBuilderFee(),
+    };
+  }
 
-    if (this.#userFeeResolution?.source === 'subscription') {
-      const subscriptionBuilder =
-        this.#getSubscriptionBuilderAddress(isTestnet);
-      if (
-        subscriptionBuilder &&
-        this.#approvedBuilderAddresses.has(
-          this.#getApprovedBuilderKey(
-            network,
-            userAddress,
-            subscriptionBuilder,
-          ),
-        )
-      ) {
-        return { b: subscriptionBuilder, f: 0 };
-      }
+  /**
+   * Whether the operation in flight actually carries a subscription reduction.
+   *
+   * Winning the comparison is not sufficient. A nearly-spent allowance produces
+   * a blend that approaches the full fee without reaching it, so it still wins
+   * on `<=` — but its discount rounds to zero bips and
+   * {@link #getDiscountedBuilderFee} then charges the undiscounted fee. Marking
+   * such an order would tell the fill fan-out a waiver applied when the user
+   * paid full price. The marking therefore follows the charged fee, not the
+   * winning source.
+   *
+   * @returns True when the resolved source is `subscription` and it reduced the fee.
+   */
+  #isSubscriptionFeeSource(): boolean {
+    return (
+      this.#userFeeResolution?.source === 'subscription' &&
+      this.#getDiscountedBuilderFee() < BUILDER_FEE_CONFIG.MaxFeeTenthsBps
+    );
+  }
 
-      return {
-        b: defaultBuilder,
-        f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
-      };
+  /**
+   * Mark an order's cloid for the subscription program when it won the fee.
+   *
+   * This is the single place a cloid becomes subscription-attributed. Every
+   * placement path — primary submit, scale ladder, TP/SL (attached and
+   * standalone), batch close, modify/replace, and chase — routes its orders
+   * through here, so no path can silently ship an unmarked order while the
+   * waiver is being charged, and no other fee source can produce a marked one.
+   *
+   * A cloid this package generated keeps its trailing entropy, so the Scale
+   * ladder's per-rung index and its cancel-by-cloid recovery survive marking.
+   * A caller's `OrderParams.clientOrderId` is never rewritten, so those orders
+   * go unattributed — which is why `isGenerated` is passed explicitly rather
+   * than inferred from the id's leading bytes: a caller is free to supply one
+   * that happens to begin with a reserved marker.
+   *
+   * @param orders - The SDK order payloads about to be submitted.
+   * @param generatedCloids - Cloids this package generated for these orders and
+   * may therefore re-stamp. Only the Scale ladder supplies any; every other path
+   * either has no cloid or carries the caller's own.
+   * @param marksSubscriptionCloid - Overrides the live fee resolution for a
+   * chase replacement, which runs after that resolution has been cleared.
+   * @returns The same payloads, with cloids marked when subscription won.
+   */
+  #applySubscriptionCloid(
+    orders: SDKOrderParams[],
+    generatedCloids?: ReadonlySet<string>,
+    marksSubscriptionCloid?: boolean,
+  ): SDKOrderParams[] {
+    // A chase replacement decides from the session, because the live resolution
+    // was cleared when the caller's `placeOrder` returned. Everything else
+    // decides from the resolution in flight.
+    const marks = marksSubscriptionCloid ?? this.#isSubscriptionFeeSource();
+    if (!marks) {
+      // Any other source leaves the id exactly as the caller built it.
+      return orders;
     }
 
-    return { b: defaultBuilder, f: this.#getDiscountedBuilderFee() };
+    return orders.map((order) => ({
+      ...order,
+      c: markSubscriptionCloid({
+        clientOrderId: order.c ?? undefined,
+        isGenerated:
+          order.c !== undefined && Boolean(generatedCloids?.has(order.c)),
+        entropy: uuidv4().replace(/-/gu, ''),
+      }),
+    }));
   }
 
   /**
@@ -8873,7 +8976,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // builder-fee approval.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Submit modification via SDK
+      // Submit modification via SDK. The cloid is deliberately left unmarked:
+      // `modify` carries no builder field, as the readiness call above records,
+      // so no MetaMask fee is charged on this action and marking it would tell
+      // the fill fan-out a reduction applied to an order that paid nothing.
+      // The replacement inherits the resting order's own attribution.
       const exchangeClient = this.#clientService.getExchangeClient();
       const result = await exchangeClient.modify({
         oid:
@@ -9434,7 +9541,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Single batch API call
       const result = await exchangeClient.order({
-        orders,
+        orders: this.#applySubscriptionCloid(orders),
         grouping: 'na',
         ...(builder && { builder }),
       });
@@ -10052,7 +10159,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
           try {
             const result = await exchangeClient.order({
-              orders: entries.map((entry) => entry.order),
+              orders: this.#applySubscriptionCloid(
+                entries.map((entry) => entry.order),
+              ),
               grouping: protection.grouping,
               ...(entries.some((entry) => entry.chargesMetamaskBuilderFee) &&
                 builderOrderContext && { builder: builderOrderContext }),
@@ -10205,7 +10314,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       let result: Awaited<ReturnType<ExchangeClient['order']>>;
       try {
         result = await exchangeClient.order({
-          orders,
+          orders: this.#applySubscriptionCloid(orders),
           grouping: isPartialTpsl ? 'na' : 'positionTpsl',
           ...(replacementChargesMetamaskBuilderFee &&
             builderOrderContext && { builder: builderOrderContext }),
@@ -14608,6 +14717,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // MetaMask fees
       metamaskFeeRate,
       metamaskFeeAmount,
+      chargesMetamaskBuilderFee,
     };
 
     this.#deps.debugLogger.log('Final Fee Calculation Result', {
@@ -14997,6 +15107,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     return this.#builderAddressMainnet || BUILDER_FEE_CONFIG.MainnetBuilder;
   }
 
+  /**
+   * The dedicated subscription builder address for this network, if configured.
+   *
+   * @deprecated Only {@link approveSubscriptionBuilderFee} still reads this;
+   * order construction no longer does. See that method for the removal plan.
+   * @param isTestnet - Whether the provider is in testnet mode.
+   * @returns The configured address, or undefined.
+   */
   #getSubscriptionBuilderAddress(isTestnet: boolean): string | undefined {
     return isTestnet
       ? this.#subscriptionBuilderAddressTestnet

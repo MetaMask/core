@@ -3,6 +3,7 @@ import type {
   AssetsWatchlistBlob,
   DelegationResponse,
   DelegationSubmission,
+  MarketingConsent,
   NotificationPreferences,
   UserAssetsBlob,
 } from '../../src/types.js';
@@ -10,6 +11,7 @@ import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators.js';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
+export const MOCK_MARKETING_CONSENT_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/marketing-consent`;
 export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/assets-watchlist`;
 export const MOCK_USER_ASSETS_URL = `${getAuthenticatedStorageUrl('prod')}/custom-tokens`;
 
@@ -76,6 +78,10 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     pushNotificationsEnabled: false,
   },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+};
+
+export const MOCK_MARKETING_CONSENT: MarketingConsent = {
+  marketingConsentEnabled: true,
 };
 
 export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {

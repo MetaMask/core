@@ -60,6 +60,52 @@ export type AuthenticationControllerCompleteCredentialEnrollmentAction = {
   handler: AuthenticationController['completeCredentialEnrollment'];
 };
 
+/**
+ * Begins step-up verification with an enrolled credential.
+ *
+ * @param request - Credential type and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginStepUpAction = {
+  type: `AuthenticationController:beginStepUp`;
+  handler: AuthenticationController['beginStepUp'];
+};
+
+/**
+ * Completes step-up verification and opens a short-lived elevated session.
+ *
+ * The AAL2 assertion returned by the MFA service is exchanged at Hydra for
+ * an elevated access token, whose claims are checked before the session
+ * opens. The token itself never enters controller state.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The elevated profile access token.
+ */
+export type AuthenticationControllerCompleteStepUpAction = {
+  type: `AuthenticationController:completeStepUp`;
+  handler: AuthenticationController['completeStepUp'];
+};
+
+/**
+ * Returns the active elevated token when it meets the requested freshness.
+ *
+ * @param request - Optional maximum session age in milliseconds, measured
+ * from when the token was obtained. Zero always requires a new ceremony.
+ * @returns A live elevated token, or null when no reusable session exists.
+ */
+export type AuthenticationControllerGetElevatedProfileTokenAction = {
+  type: `AuthenticationController:getElevatedProfileToken`;
+  handler: AuthenticationController['getElevatedProfileToken'];
+};
+
+/**
+ * Clears the in-memory elevated session and its expiration timer.
+ */
+export type AuthenticationControllerClearStepUpSessionAction = {
+  type: `AuthenticationController:clearStepUpSession`;
+  handler: AuthenticationController['clearStepUpSession'];
+};
+
 export type AuthenticationControllerPerformSignOutAction = {
   type: `AuthenticationController:performSignOut`;
   handler: AuthenticationController['performSignOut'];
@@ -182,6 +228,10 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerRefreshEnrolledCredentialsAction
   | AuthenticationControllerBeginCredentialEnrollmentAction
   | AuthenticationControllerCompleteCredentialEnrollmentAction
+  | AuthenticationControllerBeginStepUpAction
+  | AuthenticationControllerCompleteStepUpAction
+  | AuthenticationControllerGetElevatedProfileTokenAction
+  | AuthenticationControllerClearStepUpSessionAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerClearStateAction
   | AuthenticationControllerGetBearerTokenAction

@@ -121,6 +121,37 @@ export type SocialServiceFetchFeedAction = {
 };
 
 /**
+ * Adds or replaces the current user's reaction on a swap comment (Call).
+ *
+ * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
+ * user per comment: a later PUT replaces the previous emotion.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @param options.emotion - Emoji or short code to store.
+ * @returns Refreshed per-emotion counts and the caller's `userReaction`.
+ */
+export type SocialServiceReactToCommentAction = {
+  type: `SocialService:reactToComment`;
+  handler: SocialService['reactToComment'];
+};
+
+/**
+ * Removes the current user's reaction on a swap comment (Call).
+ *
+ * Calls `DELETE ${baseUrl}/swap-comment/${commentId}/reaction`. Idempotent
+ * when the caller has never reacted.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @returns Refreshed per-emotion counts and a null `userReaction`.
+ */
+export type SocialServiceRemoveCommentReactionAction = {
+  type: `SocialService:removeCommentReaction`;
+  handler: SocialService['removeCommentReaction'];
+};
+
+/**
  * Fetches the list of traders the current user is following.
  *
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -213,6 +244,8 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchFollowersAction
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
+  | SocialServiceReactToCommentAction
+  | SocialServiceRemoveCommentReactionAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
