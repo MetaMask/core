@@ -89,6 +89,11 @@
       "count": 2
     }
   },
+  "packages/analytics-controller/src/AnalyticsController.test.ts": {
+    "TS2741": {
+      "count": 6
+    }
+  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "TS6307": {
       "count": 1
@@ -634,9 +639,6 @@
     },
     "TS2345": {
       "count": 4
-    },
-    "TS2589": {
-      "count": 1
     }
   },
   "packages/perps-controller/tests/src/PerpsController.operations.test.ts": {
@@ -645,6 +647,9 @@
     },
     "TS2322": {
       "count": 2
+    },
+    "TS2589": {
+      "count": 1
     },
     "TS2769": {
       "count": 6
