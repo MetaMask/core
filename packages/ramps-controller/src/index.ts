@@ -47,6 +47,7 @@ export type {
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
+  RampsControllerGetFallbackBuyWidgetDataAction,
   RampsControllerAddPrecreatedOrderAction,
   RampsControllerGetOrderAction,
   RampsControllerGetOrderFromCallbackAction,
@@ -117,6 +118,7 @@ export type {
   RampsToken,
   TokensResponse,
   BuyWidget,
+  BuyWidgetFallback,
   RampsOrder,
   RampsOrderNetwork,
   RampsOrderCryptoCurrency,
@@ -187,6 +189,7 @@ export {
   isExternalBrowserQuote,
   isCustomActionQuote,
   isInAppOnlyQuote,
+  getBuyWidgetFallback,
 } from './quoteClassification.js';
 export {
   TERMINAL_ORDER_STATUSES,

@@ -79,6 +79,7 @@ import type {
 } from './RampsService-method-action-types.js';
 import type {
   BuyWidget,
+  BuyWidgetFallback,
   Country,
   TokensResponse,
   Provider,
@@ -1111,6 +1112,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'startOrderPolling',
   'stopOrderPolling',
   'getBuyWidgetData',
+  'getFallbackBuyWidgetData',
   'addPrecreatedOrder',
   'getOrder',
   'getOrderFromCallback',
@@ -4264,6 +4266,44 @@ export class RampsController extends BaseController<
       return null;
     }
 
+    return this.#fetchBuyWidget(buyUrl);
+  }
+
+  /**
+   * Fetches the widget data for a quote's hosted-flow fallback (see
+   * `getBuyWidgetFallback`), used when an embedded checkout turns the user away.
+   *
+   * @param fallback - The buy-widget fallback attached to the quote.
+   * @param options - Optional request options.
+   * @param options.redirectUrl - Where the hosted flow returns to; set as the
+   * `redirectUrl` query parameter, replacing any existing value.
+   * @returns Promise resolving to the hosted BuyWidget, or null if the fallback has no URL or the response has an empty url.
+   * @throws TypeError if the fallback URL is not a valid URL.
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
+   */
+  async getFallbackBuyWidgetData(
+    fallback: BuyWidgetFallback,
+    options?: { redirectUrl?: string },
+  ): Promise<BuyWidget | null> {
+    if (!fallback?.url) {
+      return null;
+    }
+
+    const buyUrl = new URL(fallback.url);
+    if (options?.redirectUrl) {
+      buyUrl.searchParams.set('redirectUrl', options.redirectUrl);
+    }
+
+    return this.#fetchBuyWidget(buyUrl.toString());
+  }
+
+  /**
+   * Resolves a buy-widget request URL into the provider widget via the RampsService.
+   *
+   * @param buyUrl - The buy-widget request URL.
+   * @returns Promise resolving to the BuyWidget, or null if the response has an empty url.
+   */
+  async #fetchBuyWidget(buyUrl: string): Promise<BuyWidget | null> {
     const buyWidget = await this.messenger.call(
       'RampsService:getBuyWidgetUrl',
       buyUrl,
