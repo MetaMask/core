@@ -1,4 +1,5 @@
-import { PERPS_ERROR_CODES, type PerpsErrorCode } from './perpsErrorCodes.js';
+import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
+import type { PerpsErrorCode } from './perpsErrorCodes.js';
 
 /**
  * Details for a local price movement rejection.
@@ -12,7 +13,6 @@ export type PriceMovedErrorDetails = {
   maxSlippageBps: number;
   expectedPrice: number;
   currentPrice: number;
-  szDecimals: number;
 };
 
 export type PerpsErrorDetails = PriceMovedErrorDetails;
@@ -44,37 +44,44 @@ export class PerpsControllerError extends Error {
 }
 
 /**
- * Creates the normalized local price movement error used by both providers.
+ * Creates a normalized local price movement error.
  *
- * @param params - Price snapshots, tolerance, and asset precision.
+ * @param params - Price movement context.
+ * @param params.expectedPrice - Price used when the order was sized.
+ * @param params.currentPrice - Current price used for submission.
+ * @param params.formattedExpectedPrice - Provider-formatted expected price.
+ * @param params.formattedCurrentPrice - Provider-formatted current price.
+ * @param params.priceDeltaBps - Absolute price movement in basis points.
+ * @param params.maxSlippageBps - Maximum allowed movement in basis points.
  * @returns A structured price movement error.
  */
 export function createPriceMovedError(params: {
   expectedPrice: number;
   currentPrice: number;
+  formattedExpectedPrice: string;
+  formattedCurrentPrice: string;
+  priceDeltaBps: number;
   maxSlippageBps: number;
-  szDecimals: number;
 }): PerpsControllerError {
-  const { expectedPrice, currentPrice, maxSlippageBps, szDecimals } = params;
-  const priceDeltaBps = Math.abs(
-    ((currentPrice - expectedPrice) / expectedPrice) * 10000,
-  );
-  const priceDecimals =
-    Number.isInteger(szDecimals) && szDecimals >= 0
-      ? Math.max(2, szDecimals)
-      : 2;
+  const {
+    expectedPrice,
+    currentPrice,
+    formattedExpectedPrice,
+    formattedCurrentPrice,
+    priceDeltaBps,
+    maxSlippageBps,
+  } = params;
 
   return new PerpsControllerError(
     PERPS_ERROR_CODES.PRICE_MOVED,
     `Price moved too much: ${priceDeltaBps.toFixed(0)} bps (max: ${maxSlippageBps} bps). ` +
-      `Expected: ${expectedPrice.toFixed(priceDecimals)}, Current: ${currentPrice.toFixed(priceDecimals)}`,
+      `Expected: ${formattedExpectedPrice}, Current: ${formattedCurrentPrice}`,
     {
       code: PERPS_ERROR_CODES.PRICE_MOVED,
       priceDeltaBps,
       maxSlippageBps,
       expectedPrice,
       currentPrice,
-      szDecimals,
     },
   );
 }
