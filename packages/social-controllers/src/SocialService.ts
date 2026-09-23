@@ -140,6 +140,7 @@ const TraderStatsStruct = structType({
   winRate30d: optional(nullable(number())),
   roiPercent30d: optional(nullable(number())),
   tradeCount30d: optional(nullable(number())),
+  volumeUsd30d: optional(nullable(number())),
   pnl7d: optional(nullable(number())),
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
@@ -156,6 +157,12 @@ const PerChainBreakdownStruct = structType({
   perChainVolume7d: optional(record(string(), number())),
 });
 
+const CopytradedAllTimeStruct = structType({
+  count: number(),
+  volumeUSD: number(),
+  distinctActors: number(),
+});
+
 const TraderProfileResponseStruct = structType({
   profile: TraderProfileStruct,
   stats: TraderStatsStruct,
@@ -163,6 +170,7 @@ const TraderProfileResponseStruct = structType({
   socialHandles: SocialHandlesStruct,
   followerCount: number(),
   followingCount: number(),
+  copytradedAllTime: CopytradedAllTimeStruct,
   rankingTag: optional(nullable(enums(TRADER_RANKING_TAGS))),
 });
 
