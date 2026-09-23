@@ -319,10 +319,16 @@ export type FeedItem = Position & {
   /** Replies across those comments. Absent on older social-api builds. */
   replyCount?: number;
   /**
-   * How long the position has been held, in milliseconds. A closed position
-   * is measured from its first fill to its last; an open one is measured to
-   * the time the response was built, so it keeps growing between requests.
-   * `null` when the first fill is unknown. Absent on older social-api builds.
+   * Unix seconds of the position's first fill. Count from this to render a
+   * live hold on a position that is still open, where {@link holdTimeMs} is
+   * `null`. `null` when unknown. Absent on older social-api builds.
+   */
+  firstTradeAt?: number | null;
+  /**
+   * Final hold in milliseconds, first fill to last. Only set once the
+   * position is closed; `null` while it is still running, because that span
+   * grows every second — use {@link firstTradeAt} for those. Absent on older
+   * social-api builds.
    */
   holdTimeMs?: number | null;
   /**
