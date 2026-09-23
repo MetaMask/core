@@ -1,6 +1,6 @@
 import { stringToBytes, bytesToHex, hexToBytes } from '@metamask/utils';
 
-import { pbkdf2Sha256, pbkdf2Sha384, pbkdf2Sha512 } from './pbkdf2';
+import { pbkdf2Sha256, pbkdf2Sha384, pbkdf2Sha512 } from './pbkdf2.js';
 
 const salt = hexToBytes(
   '0xf38a650903309967f2073b437852f77c87af7529cd5c85f4d2bdcf470083553c',
