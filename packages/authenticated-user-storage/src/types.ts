@@ -134,6 +134,28 @@ export type MarketingConsent = {
 };
 
 // ---------------------------------------------------------------------------
+// Identity-sharing consent
+// ---------------------------------------------------------------------------
+
+/** Partner audience that may receive verified identity claims. */
+export type IdentitySharingAudience = 'kyc' | 'iron';
+
+/**
+ * Granted identity-sharing audiences for the authenticated user.
+ * Only granted keys are present; a missing key is not granted.
+ */
+export type IdentitySharingConsent = {
+  kyc?: boolean;
+  iron?: boolean;
+};
+
+/** Body for granting or revoking a single identity-sharing audience. */
+export type IdentitySharingConsentWrite = {
+  audience: IdentitySharingAudience;
+  granted: boolean;
+};
+
+// ---------------------------------------------------------------------------
 // Assets watchlist
 // ---------------------------------------------------------------------------
 

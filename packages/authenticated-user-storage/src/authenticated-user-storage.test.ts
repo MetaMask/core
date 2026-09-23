@@ -14,6 +14,8 @@ import {
   handleMockPutNotificationPreferences,
   handleMockGetMarketingConsent,
   handleMockPutMarketingConsent,
+  handleMockGetIdentitySharingConsent,
+  handleMockPutIdentitySharingConsent,
   handleMockGetAssetsWatchlist,
   handleMockSetAssetsWatchlist,
 } from '../tests/fixtures/authenticated-userstorage.js';
@@ -23,6 +25,9 @@ import {
   MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
   MOCK_MARKETING_CONSENT,
   MOCK_MARKETING_CONSENT_URL,
+  MOCK_IDENTITY_SHARING_CONSENT,
+  MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+  MOCK_IDENTITY_SHARING_CONSENT_URL,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_ASSETS_WATCHLIST_BLOB,
   MOCK_ASSETS_WATCHLIST_URL,
@@ -362,6 +367,138 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
+  describe('AuthenticatedUserStorageService:getIdentitySharingConsent', () => {
+    it('returns the identity-sharing consent via the messenger', async () => {
+      handleMockGetIdentitySharingConsent();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getIdentitySharingConsent',
+      );
+
+      expect(result).toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:putIdentitySharingConsent', () => {
+    it('puts identity-sharing consent via the messenger', async () => {
+      const mock = handleMockPutIdentitySharingConsent();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:putIdentitySharingConsent',
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getIdentitySharingConsent', () => {
+    it('returns identity-sharing consent from the API', async () => {
+      const mock = handleMockGetIdentitySharingConsent();
+      const { service } = createService();
+
+      const result = await service.getIdentitySharingConsent();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT);
+    });
+
+    it('returns null when identity-sharing consent is not found', async () => {
+      handleMockGetIdentitySharingConsent({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getIdentitySharingConsent();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetIdentitySharingConsent({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getIdentitySharingConsent()).rejects.toThrow(
+        'Failed to get identity-sharing consent: 500',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetIdentitySharingConsent({
+        status: 200,
+        body: { kyc: 'yes' },
+      });
+      const { service } = createService();
+
+      await expect(service.getIdentitySharingConsent()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+  });
+
+  describe('putIdentitySharingConsent', () => {
+    it('submits identity-sharing consent to the API', async () => {
+      const mock = handleMockPutIdentitySharingConsent();
+      const { service } = createService();
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_IDENTITY_SHARING_CONSENT_URL, {
+        reqheaders: {
+          'x-client-type': 'mobile',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+        'mobile',
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends the audience write body, not the granted-audience map', async () => {
+      handleMockPutIdentitySharingConsent(undefined, async (_, requestBody) => {
+        expect(requestBody).toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT_WRITE);
+        expect(requestBody).not.toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT);
+      });
+      const { service } = createService();
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockPutIdentitySharingConsent({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.putIdentitySharingConsent(MOCK_IDENTITY_SHARING_CONSENT_WRITE),
+      ).rejects.toThrow('Failed to put identity-sharing consent: 400');
+    });
+
+    it('throws before requesting when the audience is unknown', async () => {
+      const { service } = createService();
+
+      await expect(
+        service.putIdentitySharingConsent({
+          audience: 'kalshi',
+          granted: true,
+        } as never),
+      ).rejects.toThrow(/Expected.*"kyc"|"iron"/u);
+    });
+  });
+
   describe('AuthenticatedUserStorageService:getAssetsWatchlist', () => {
     it('returns the assets-watchlist via the messenger', async () => {
       handleMockGetAssetsWatchlist();
@@ -634,6 +771,21 @@ describe('AuthenticatedUserStorageService', () => {
 
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ['AuthenticatedUserStorageService:getMarketingConsent'],
+      });
+    });
+
+    it('invalidates getIdentitySharingConsent cache after putIdentitySharingConsent', async () => {
+      handleMockPutIdentitySharingConsent();
+      handleMockGetIdentitySharingConsent();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getIdentitySharingConsent'],
       });
     });
 

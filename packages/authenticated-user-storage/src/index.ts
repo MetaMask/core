@@ -23,6 +23,8 @@ export type {
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   AuthenticatedUserStorageServiceGetMarketingConsentAction,
   AuthenticatedUserStorageServicePutMarketingConsentAction,
+  AuthenticatedUserStorageServiceGetIdentitySharingConsentAction,
+  AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
   AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
   AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
 } from './authenticated-user-storage-method-action-types.js';
@@ -37,6 +39,9 @@ export type {
   WalletActivityAccount,
   WalletActivityPreference,
   MarketingConsent,
+  IdentitySharingAudience,
+  IdentitySharingConsent,
+  IdentitySharingConsentWrite,
   MarketingPreference,
   PerpsWatchlistExchange,
   PerpsWatchlistMarkets,
