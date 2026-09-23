@@ -861,6 +861,44 @@ describe('AuthenticationController', () => {
       ).not.toHaveProperty('pairedIdentifierIds');
     });
 
+    it.each([
+      ['a pair response', { needsProfilePairing: true }, MOCK_HD_KEYRINGS],
+      [
+        'a login response',
+        { expiresIn: 0 },
+        mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      ],
+    ])(
+      'keeps stored paired identifiers when %s omits them',
+      async (_, stateOptions, keyrings) => {
+        arrangeAuthAPIs();
+        const state = mockSignedInState(stateOptions);
+        const storedIds = [{ id: 'id-google', type: 'GOOGLE' }];
+        const primaryEntry = state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+        if (primaryEntry) {
+          primaryEntry.profile.pairedIdentifierIds = storedIds;
+        }
+        const { messenger, mockKeyringControllerGetState } =
+          createMockAuthenticationMessenger();
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings,
+        });
+        const controller = new AuthenticationController({
+          messenger,
+          state,
+          metametrics: createMockAuthMetaMetrics(),
+        });
+
+        await controller.performSignIn();
+
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+            .pairedIdentifierIds,
+        ).toStrictEqual(storedIds);
+      },
+    );
+
     it('stores paired identifiers returned by login on the SRP session', async () => {
       const pairedIdentifierIds = [
         { id: 'id-google', type: 'GOOGLE' },

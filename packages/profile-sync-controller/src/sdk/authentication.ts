@@ -178,7 +178,7 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   async pairSocialIdentifier(
     params: PairSocialIdentifierParams,
     authAccessToken: string,
-  ): Promise<ProfileIdentifier[]> {
+  ): Promise<ProfileIdentifier[] | undefined> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
   }

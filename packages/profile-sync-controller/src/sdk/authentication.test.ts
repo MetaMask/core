@@ -674,7 +674,7 @@ describe('Authentication - pairSocialIdentifier()', () => {
         },
         'primary-srp-token',
       ),
-    ).toStrictEqual([]);
+    ).toBeUndefined();
     expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
   });
 

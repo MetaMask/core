@@ -318,7 +318,7 @@ export async function pairProfiles(
         metaMetricsId: pairResponse.profile.metametrics_id ?? '',
         profileId: pairResponse.profile.profile_id,
         canonicalProfileId: pairResponse.profile.profile_id,
-        pairedIdentifierIds: pairResponse.profile.paired_identifier_ids ?? [],
+        pairedIdentifierIds: pairResponse.profile.paired_identifier_ids,
       },
       profileAliases: parseProfileAliases(pairResponse.profile_aliases ?? []),
     };
@@ -337,13 +337,13 @@ export async function pairProfiles(
  * @param params - Social identifier type, social JWT, and optional email
  * @param authAccessToken - Bearer token of the canonical (primary SRP) profile
  * @param env - server environment
- * @returns The profile's paired identifiers, including the new one
+ * @returns The profile's paired identifiers, if returned by the API
  */
 export async function pairSocialIdentifier(
   params: PairSocialIdentifierParams,
   authAccessToken: string,
   env: Env,
-): Promise<ProfileIdentifier[]> {
+): Promise<ProfileIdentifier[] | undefined> {
   const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER_URL(env));
   const errorPrefix = 'Failed to pair social identifier';
 
@@ -369,7 +369,7 @@ export async function pairSocialIdentifier(
     }
 
     const pairResponse = await response.json();
-    return pairResponse.profile.paired_identifier_ids ?? [];
+    return pairResponse.profile.paired_identifier_ids;
   } catch (error) {
     return await throwServiceError(error, errorPrefix, PairError);
   }
@@ -535,7 +535,7 @@ export async function authenticate(
         metaMetricsId: loginResponse.profile.metametrics_id,
         profileId: loginResponse.profile.profile_id,
         canonicalProfileId: loginResponse.profile.profile_id,
-        pairedIdentifierIds: loginResponse.profile.paired_identifier_ids ?? [],
+        pairedIdentifierIds: loginResponse.profile.paired_identifier_ids,
       },
       profileAliases: parseProfileAliases(loginResponse.profile_aliases ?? []),
     };

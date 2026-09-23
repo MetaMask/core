@@ -384,7 +384,7 @@ describe('services', () => {
           metaMetricsId: 'mm-1',
           profileId: 'profile-1',
           canonicalProfileId: 'profile-1',
-          pairedIdentifierIds: [],
+          pairedIdentifierIds: undefined,
         },
         profileAliases: [],
       });

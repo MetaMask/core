@@ -391,8 +391,12 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   async pairSocialIdentifier(
     params: PairSocialIdentifierParams,
     authAccessToken: string,
-  ): Promise<ProfileIdentifier[]> {
-    return await pairSocialIdentifier(params, authAccessToken, this.#config.env);
+  ): Promise<ProfileIdentifier[] | undefined> {
+    return await pairSocialIdentifier(
+      params,
+      authAccessToken,
+      this.#config.env,
+    );
   }
 
   async pairSrpProfiles(

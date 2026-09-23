@@ -152,8 +152,10 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
         (sanitizedSrpSessionData, [key, value]) => {
           const { accessToken: _unused, ...tokenWithoutAccessToken } =
             value.token;
-          const { pairedIdentifierIds: _unusedPairedIdentifierIds, ...profileWithoutPairedIdentifierIds } =
-            value.profile;
+          const {
+            pairedIdentifierIds: _unusedPairedIdentifierIds,
+            ...profileWithoutPairedIdentifierIds
+          } = value.profile;
           sanitizedSrpSessionData[key] = {
             ...value,
             token: tokenWithoutAccessToken,
@@ -426,11 +428,17 @@ export class AuthenticationController extends BaseController<
       if (!state.srpSessionData) {
         state.srpSessionData = {};
       }
+      // The API omits `paired_identifier_ids` when it fails to load them, so
+      // keep the last known value rather than wiping it.
+      const pairedIdentifierIds =
+        loginResponse.profile.pairedIdentifierIds ??
+        state.srpSessionData[resolvedId]?.profile.pairedIdentifierIds;
       state.srpSessionData[resolvedId] = {
         ...loginResponse,
         profile: {
           ...loginResponse.profile,
           metaMetricsId,
+          ...(pairedIdentifierIds ? { pairedIdentifierIds } : {}),
         },
       };
     });
@@ -808,11 +816,14 @@ export class AuthenticationController extends BaseController<
    * Pair calls use the primary SRP's token, so their response only describes
    * the primary's profile: secondaries skipped by the server are not in it.
    *
-   * @param pairedIdentifierIds - Identifiers returned by the pair call.
+   * @param pairedIdentifierIds - Identifiers returned by the pair call, if any.
    */
   #setPrimaryPairedIdentifierIds(
-    pairedIdentifierIds: ProfileIdentifier[] = [],
+    pairedIdentifierIds: ProfileIdentifier[] | undefined,
   ): void {
+    if (!pairedIdentifierIds) {
+      return;
+    }
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     this.update((state) => {
       const entry = state.srpSessionData?.[primaryEntropySourceId];
