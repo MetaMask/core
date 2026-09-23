@@ -2892,6 +2892,36 @@ describe('AnalyticsController', () => {
 
       expect(controller.state.marketingCampaignCookieId).toBeNull();
     });
+
+    it('sets the marketing campaign cookie ID when called via the messenger action', async () => {
+      const { controller, messenger } = await setupController({
+        state: {
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      messenger.call(
+        'AnalyticsController:setMarketingCampaignCookieId',
+        'GA1.1.123456789.1234567890',
+      );
+
+      expect(controller.state.marketingCampaignCookieId).toBe(
+        'GA1.1.123456789.1234567890',
+      );
+    });
+
+    it('clears the marketing campaign cookie ID when the messenger action is called with null', async () => {
+      const { controller, messenger } = await setupController({
+        state: {
+          marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+          analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
+        },
+      });
+
+      messenger.call('AnalyticsController:setMarketingCampaignCookieId', null);
+
+      expect(controller.state.marketingCampaignCookieId).toBeNull();
+    });
   });
 
   describe('pre-consent event queue', () => {
