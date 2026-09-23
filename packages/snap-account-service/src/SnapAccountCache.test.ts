@@ -1,7 +1,5 @@
 import type {
   AccountsControllerAccountsAddedEvent,
-  AccountsControllerAccountsRemovedEvent,
-  AccountsControllerGetStateAction,
   AccountsControllerState,
 } from '@metamask/accounts-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -107,7 +105,7 @@ function publishAccountsRemoved(
 ): void {
   rootMessenger.publish(
     'AccountsController:accountsRemoved',
-    accountIds as AccountsControllerAccountsRemovedEvent['payload'][0],
+    accountIds,
   );
 }
 

@@ -266,41 +266,6 @@ function buildAccountsState(
 }
 
 /**
- * Publishes an `AccountsController:accountsAdded` event on the root messenger,
- * adding the given accounts to the service's Snap-ownership cache.
- *
- * @param rootMessenger - The root messenger.
- * @param accounts - The accounts that were added.
- */
-function publishAccountsAdded(
-  rootMessenger: RootMessenger,
-  accounts: { id: string; snapId?: string }[],
-): void {
-  rootMessenger.publish(
-    'AccountsController:accountsAdded',
-    accounts.map(({ id, snapId }) => ({
-      id,
-      metadata: snapId ? { snap: { id: snapId } } : {},
-    })),
-  );
-}
-
-/**
- * Publishes an `AccountsController:accountsRemoved` event on the root
- * messenger, removing the given account IDs from the service's Snap-ownership
- * cache.
- *
- * @param rootMessenger - The root messenger.
- * @param accountIds - The IDs of the accounts that were removed.
- */
-function publishAccountsRemoved(
-  rootMessenger: RootMessenger,
-  accountIds: string[],
-): void {
-  rootMessenger.publish('AccountsController:accountsRemoved', accountIds);
-}
-
-/**
  * Publishes an AccountTreeController accountGroupCreated event on the root
  * messenger.
  *
