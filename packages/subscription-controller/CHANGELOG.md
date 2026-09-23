@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
 - Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
 - Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
 
 ## [9.1.0]
 

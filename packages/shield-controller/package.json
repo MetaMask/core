@@ -58,7 +58,7 @@
     "@metamask/signature-controller": "^40.0.0",
     "@metamask/transaction-controller": "^71.0.0",
     "@metamask/utils": "^12.0.0",
-    "@tanstack/query-core": "^5.62.16",
+    "@tanstack/query-core": "^5.89.0",
     "cockatiel": "^3.1.2"
   },
   "devDependencies": {
