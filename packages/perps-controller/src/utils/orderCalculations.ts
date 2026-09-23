@@ -14,6 +14,7 @@ import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
 } from './hyperLiquidAdapter.js';
+import { createPriceMovedError } from '../errors.js';
 import {
   getTriggerDirection,
   isLimitExecutionOrderType,
@@ -72,6 +73,9 @@ export type CalculateFinalPositionSizeParams = {
   // rejects a reduce-only order whose size exceeds the live position with
   // "Reduce only order would increase position".
   reduceOnly?: boolean;
+  // Full market closes use the live position size and retain venue-side
+  // slippage protection, so they do not need the local snapshot guard.
+  isFullClose?: boolean;
   debugLogger?: OrderCalculationsDebugLogger;
 };
 
@@ -612,16 +616,17 @@ export function calculateFinalPositionSize(
     szDecimals,
     leverage,
     reduceOnly,
+    isFullClose,
     debugLogger,
   } = params;
 
   let finalPositionSize: number;
 
-  // Validate price staleness whenever the caller supplied a calculation-time
-  // price. This runs before the sizing branches on purpose: a full close submits
-  // the exact live position size rather than a USD-derived one, and it must still
-  // be rejected when the price has moved past the caller's tolerance.
-  if (priceAtCalculation) {
+  // USD-derived sizing needs a fresh snapshot to avoid submitting a size that
+  // no longer represents the user's requested USD amount. A full close already
+  // submits the live position size, so the venue-side slippage-capped limit is
+  // the relevant protection and the local snapshot guard is redundant.
+  if (priceAtCalculation && !isFullClose) {
     const priceDeltaBps = Math.abs(
       ((currentPrice - priceAtCalculation) / priceAtCalculation) * 10000,
     );
@@ -629,10 +634,12 @@ export function calculateFinalPositionSize(
       maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps;
 
     if (priceDeltaBps > maxSlippageBpsValue) {
-      throw new Error(
-        `Price moved too much: ${priceDeltaBps.toFixed(0)} bps (max: ${maxSlippageBpsValue} bps). ` +
-          `Expected: ${priceAtCalculation.toFixed(2)}, Current: ${currentPrice.toFixed(2)}`,
-      );
+      throw createPriceMovedError({
+        expectedPrice: priceAtCalculation,
+        currentPrice,
+        maxSlippageBps: maxSlippageBpsValue,
+        szDecimals,
+      });
     }
 
     debugLogger?.log('Price validation passed:', {

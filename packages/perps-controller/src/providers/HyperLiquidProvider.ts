@@ -5433,7 +5433,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
-    return createErrorResult(mappedError, { success: false });
+    const result = createErrorResult(mappedError, { success: false });
+    const mappedErrorCode = Object.values(PERPS_ERROR_CODES).includes(
+      mappedError.message as PerpsErrorCode,
+    )
+      ? (mappedError.message as PerpsErrorCode)
+      : undefined;
+
+    return mappedErrorCode ? { ...result, errorCode: mappedErrorCode } : result;
   }
 
   /**
@@ -5572,6 +5579,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         szDecimals: assetInfo.szDecimals,
         leverage: params.leverage,
         reduceOnly: params.reduceOnly,
+        isFullClose: params.reduceOnly === true && params.isFullClose === true,
       });
 
       const { orderPrice, formattedSize, formattedPrice } =
