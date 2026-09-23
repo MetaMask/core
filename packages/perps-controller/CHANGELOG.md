@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1280.0.0 ([#10409](https://github.com/MetaMask/core/pull/10409))
+- chore: remove stale ts-bridge references ([#10405](https://github.com/MetaMask/core/pull/10405))
+- Release/1278.0.0 ([#10400](https://github.com/MetaMask/core/pull/10400))
+- chore(deps): update dependency viem to ^2.56.8 ([#10370](https://github.com/MetaMask/core/pull/10370))
+- Release/1275.0.0 ([#10386](https://github.com/MetaMask/core/pull/10386))
+- chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
+- chore(deps): update dependency rimraf to v6 ([#10379](https://github.com/MetaMask/core/pull/10379))
+- chore(deps): update dependency @metamask/auto-changelog to ^6.2.1 ([#10364](https://github.com/MetaMask/core/pull/10364))
+- chore(deps): update dependency ts-jest to ^29.4.12 ([#10328](https://github.com/MetaMask/core/pull/10328))
+
 ### Added
 
 - Add optional `subscriptionWaiverKind` (`'full' | 'partial'`) and `subscriptionCoveredNotionalUsd` fields to `PerpsFeeResolution`, reporting how much of an order the subscription allowance covered. ([#10294](https://github.com/MetaMask/core/pull/10294))
