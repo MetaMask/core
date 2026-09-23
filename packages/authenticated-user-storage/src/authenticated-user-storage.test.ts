@@ -12,6 +12,8 @@ import {
   handleMockRevokeDelegation,
   handleMockGetNotificationPreferences,
   handleMockPutNotificationPreferences,
+  handleMockGetMarketingConsent,
+  handleMockPutMarketingConsent,
   handleMockGetAssetsWatchlist,
   handleMockSetAssetsWatchlist,
 } from '../tests/fixtures/authenticated-userstorage.js';
@@ -19,6 +21,8 @@ import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
   MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
+  MOCK_MARKETING_CONSENT,
+  MOCK_MARKETING_CONSENT_URL,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_ASSETS_WATCHLIST_BLOB,
   MOCK_ASSETS_WATCHLIST_URL,
@@ -242,6 +246,119 @@ describe('AuthenticatedUserStorageService', () => {
       await expect(
         service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES),
       ).rejects.toThrow('Failed to put notification preferences: 400');
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:getMarketingConsent', () => {
+    it('returns the marketing consent via the messenger', async () => {
+      handleMockGetMarketingConsent();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getMarketingConsent',
+      );
+
+      expect(result).toStrictEqual(MOCK_MARKETING_CONSENT);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:putMarketingConsent', () => {
+    it('puts the marketing consent via the messenger', async () => {
+      const mock = handleMockPutMarketingConsent();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:putMarketingConsent',
+        MOCK_MARKETING_CONSENT,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getMarketingConsent', () => {
+    it('returns marketing consent from the API', async () => {
+      const mock = handleMockGetMarketingConsent();
+      const { service } = createService();
+
+      const result = await service.getMarketingConsent();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_MARKETING_CONSENT);
+    });
+
+    it('returns null when marketing consent is not found', async () => {
+      handleMockGetMarketingConsent({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getMarketingConsent();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetMarketingConsent({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getMarketingConsent()).rejects.toThrow(
+        'Failed to get marketing consent: 500',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetMarketingConsent({
+        status: 200,
+        body: { unexpected: 'shape' },
+      });
+      const { service } = createService();
+
+      await expect(service.getMarketingConsent()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+  });
+
+  describe('putMarketingConsent', () => {
+    it('submits marketing consent to the API', async () => {
+      const mock = handleMockPutMarketingConsent();
+      const { service } = createService();
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_MARKETING_CONSENT_URL, {
+        reqheaders: {
+          'x-client-type': 'mobile',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT, 'mobile');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      handleMockPutMarketingConsent(undefined, async (_, requestBody) => {
+        expect(requestBody).toStrictEqual(MOCK_MARKETING_CONSENT);
+      });
+      const { service } = createService();
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockPutMarketingConsent({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.putMarketingConsent(MOCK_MARKETING_CONSENT),
+      ).rejects.toThrow('Failed to put marketing consent: 400');
     });
   });
 
@@ -504,6 +621,19 @@ describe('AuthenticatedUserStorageService', () => {
         queryKey: [
           'AuthenticatedUserStorageService:getNotificationPreferences',
         ],
+      });
+    });
+
+    it('invalidates getMarketingConsent cache after putMarketingConsent', async () => {
+      handleMockPutMarketingConsent();
+      handleMockGetMarketingConsent();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getMarketingConsent'],
       });
     });
 

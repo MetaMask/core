@@ -59,6 +59,28 @@ export type AuthenticatedUserStorageServicePutNotificationPreferencesAction = {
 };
 
 /**
+ * Returns the marketing consent for the authenticated user.
+ *
+ * @returns The marketing consent object, or `null` if none has been
+ * set (404).
+ */
+export type AuthenticatedUserStorageServiceGetMarketingConsentAction = {
+  type: `AuthenticatedUserStorageService:getMarketingConsent`;
+  handler: AuthenticatedUserStorageService['getMarketingConsent'];
+};
+
+/**
+ * Creates or updates the marketing consent for the authenticated user.
+ *
+ * @param consent - The full marketing consent object.
+ * @param clientType - Optional client type header.
+ */
+export type AuthenticatedUserStorageServicePutMarketingConsentAction = {
+  type: `AuthenticatedUserStorageService:putMarketingConsent`;
+  handler: AuthenticatedUserStorageService['putMarketingConsent'];
+};
+
+/**
  * Returns the assets-watchlist for the authenticated user.
  *
  * @returns The assets-watchlist blob, or `null` if none has been set (404).
@@ -94,5 +116,7 @@ export type AuthenticatedUserStorageServiceMethodActions =
   | AuthenticatedUserStorageServiceRevokeDelegationAction
   | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
   | AuthenticatedUserStorageServicePutNotificationPreferencesAction
+  | AuthenticatedUserStorageServiceGetMarketingConsentAction
+  | AuthenticatedUserStorageServicePutMarketingConsentAction
   | AuthenticatedUserStorageServiceGetAssetsWatchlistAction
   | AuthenticatedUserStorageServiceSetAssetsWatchlistAction;

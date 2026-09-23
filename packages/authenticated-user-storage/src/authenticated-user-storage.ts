@@ -17,12 +17,14 @@ import type {
   ClientType,
   DelegationResponse,
   DelegationSubmission,
+  MarketingConsent,
   NotificationPreferences,
 } from './types.js';
 import {
   assertAssetsWatchlistBlob,
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
+  assertMarketingConsent,
   assertNotificationPreferences,
 } from './validators.js';
 
@@ -52,6 +54,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'revokeDelegation',
   'getNotificationPreferences',
   'putNotificationPreferences',
+  'getMarketingConsent',
+  'putMarketingConsent',
   'getAssetsWatchlist',
   'setAssetsWatchlist',
 ] as const;
@@ -345,6 +349,86 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
     await this.invalidateQueries({
       queryKey: [`${this.name}:getNotificationPreferences`],
+    });
+  }
+
+  /**
+   * Returns the marketing consent for the authenticated user.
+   *
+   * @returns The marketing consent object, or `null` if none has been
+   * set (404).
+   */
+  async getMarketingConsent(): Promise<MarketingConsent | null> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/marketing-consent`;
+
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getMarketingConsent`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to get marketing consent: ${response.status}`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    assertMarketingConsent(data);
+    return data;
+  }
+
+  /**
+   * Creates or updates the marketing consent for the authenticated user.
+   *
+   * @param consent - The full marketing consent object.
+   * @param clientType - Optional client type header.
+   */
+  async putMarketingConsent(
+    consent: MarketingConsent,
+    clientType?: ClientType,
+  ): Promise<void> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/marketing-consent`;
+
+    await this.fetchQuery({
+      queryKey: [
+        `${this.name}:putMarketingConsent`,
+        consent as unknown as Json,
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(consent),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to put marketing consent: ${response.status}`,
+          );
+        }
+
+        return null;
+      },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getMarketingConsent`],
     });
   }
 
