@@ -25,6 +25,10 @@ import {
   isTriggerOrderType,
   SCALE_ORDER_COUNT,
 } from './orderTypes.js';
+import {
+  PerpsControllerError,
+  type PerpsErrorResultFields,
+} from '../errors.js';
 
 /**
  * Optional debug logger for validation functions.
@@ -46,12 +50,26 @@ export type ValidationDebugLogger = PerpsDebugLogger | undefined;
  */
 export function createErrorResult<
   TValue extends { success: boolean; error?: string },
->(error: unknown, defaultResponse: TValue): TValue {
+>(error: unknown, defaultResponse: TValue): TValue & PerpsErrorResultFields {
+  const errorFields =
+    error instanceof PerpsControllerError
+      ? {
+          errorCode: error.errorCode,
+          errorDetails: error.errorDetails,
+        }
+      : error instanceof Error &&
+          Object.values(PERPS_ERROR_CODES).includes(
+            error.message as (typeof PERPS_ERROR_CODES)[keyof typeof PERPS_ERROR_CODES],
+          )
+        ? { errorCode: error.message as PerpsErrorResultFields['errorCode'] }
+        : {};
+
   return {
     ...defaultResponse,
     success: false,
     error:
       error instanceof Error ? error.message : PERPS_ERROR_CODES.UNKNOWN_ERROR,
+    ...errorFields,
   };
 }
 

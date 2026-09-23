@@ -1,4 +1,5 @@
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { PerpsControllerError } from '../../../src/errors.js';
 import {
   calculateFinalPositionSize,
   floorToSizeDecimals,
@@ -511,15 +512,43 @@ describe('calculateFinalPositionSize', () => {
     });
 
     it('throws when the price moved beyond the allowed slippage', () => {
-      expect(() =>
+      try {
         calculateFinalPositionSize({
           usdAmount: '5000',
           currentPrice: 45000,
           priceAtCalculation: 50000,
           maxSlippageBps: 300,
           szDecimals: 3,
-        }),
-      ).toThrow('Price moved too much');
+        });
+        throw new Error('Expected price movement to be rejected');
+      } catch (error) {
+        expect(error).toBeInstanceOf(PerpsControllerError);
+        expect(error).toMatchObject({
+          errorCode: PERPS_ERROR_CODES.PRICE_MOVED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PRICE_MOVED,
+            priceDeltaBps: 1000,
+            maxSlippageBps: 300,
+            expectedPrice: 50000,
+            currentPrice: 45000,
+            szDecimals: 3,
+          },
+        });
+      }
+    });
+
+    it('does not reject a full reduce-only close when the snapshot is stale', () => {
+      const result = calculateFinalPositionSize({
+        size: '0.123',
+        currentPrice: 45000,
+        priceAtCalculation: 50000,
+        maxSlippageBps: 300,
+        szDecimals: 3,
+        reduceOnly: true,
+        isFullClose: true,
+      });
+
+      expect(result.finalPositionSize).toBeCloseTo(0.123, 10);
     });
   });
 
