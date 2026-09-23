@@ -182,6 +182,7 @@ import {
   adaptPositionTriggerOrderFromSDK,
   adaptTpslLinkageToGrouping,
   buildAssetMapping,
+  buildHyperLiquidFillId,
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
   HYPERLIQUID_SCALE_CLOID_MARKER,
@@ -11460,8 +11461,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       const fills = (rawFills || []).reduce((acc: OrderFill[], fill) => {
         // Perps only, no Spots
         if (!['Buy', 'Sell'].includes(fill.dir)) {
+          const fillId = buildHyperLiquidFillId(fill);
           acc.push({
             orderId: fill.oid?.toString() || '',
+            // Two partial fills of one order can share oid, time, sz and px,
+            // so the execution id is the only field that tells them apart
+            // downstream. Omitted when a non-conforming payload lacks tid.
+            ...(fillId === undefined ? {} : { fillId }),
             symbol: fill.coin,
             side: fill.side === 'A' ? 'sell' : 'buy',
             startPosition: fill.startPosition,
