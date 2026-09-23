@@ -16,6 +16,7 @@ import {
 import type {
   AgenticCliPreference,
   DelegationResponse,
+  MarketingConsent,
   NotificationPreferences,
   PriceAlertPreference,
 } from './types.js';
@@ -114,6 +115,10 @@ const NotificationPreferencesSchema = type({
   priceAlerts: PriceAlertPreferenceSchema,
 });
 
+const MarketingConsentSchema = type({
+  marketingConsentEnabled: boolean(),
+});
+
 /**
  * Default Agentic CLI notification preferences for consumers building a
  * fresh `NotificationPreferences` object.
@@ -205,6 +210,18 @@ export function assertNotificationPreferences(
   data: unknown,
 ): asserts data is NotificationPreferences {
   assert(data, NotificationPreferencesSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `MarketingConsent`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertMarketingConsent(
+  data: unknown,
+): asserts data is MarketingConsent {
+  assert(data, MarketingConsentSchema);
 }
 
 /**
