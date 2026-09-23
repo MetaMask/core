@@ -633,9 +633,7 @@ describe('AuthenticatedUserStorageService', () => {
       await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
 
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: [
-          'AuthenticatedUserStorageService:getMarketingConsent',
-        ],
+        queryKey: ['AuthenticatedUserStorageService:getMarketingConsent'],
       });
     });
 
