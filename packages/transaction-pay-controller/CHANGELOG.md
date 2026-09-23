@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Cap max-amount post-quote source amounts to the amount encoded in the original transaction, so Relay deposits are no longer quoted for more than the batch funds
+- Cap max-amount post-quote source amounts to the amount encoded in the original transaction, so Relay deposits are no longer quoted for more than the batch funds ([#10392](https://github.com/MetaMask/core/pull/10392))
   - Post-quote batches prepend the original transaction to fund the source account, so a balance refreshed after that amount was encoded could produce a deposit that reverted with `Token balance is too low`.
   - Synthetic sources (HyperLiquid, Polymarket deposit wallet) and payment overrides build their funding from the quote amount itself and are not capped.
 
