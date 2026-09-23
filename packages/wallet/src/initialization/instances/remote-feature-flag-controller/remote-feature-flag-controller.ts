@@ -25,6 +25,7 @@ export const remoteFeatureFlagController: InitializationConfiguration<
       fetchInterval: options.fetchInterval,
       disabled: options.disabled,
       defaultFeatureFlags: options.defaultFeatureFlags,
+      overrideFeatureFlags: options.overrideFeatureFlags,
     }),
   getMessenger: (parent) =>
     new Messenger({

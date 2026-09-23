@@ -232,6 +232,24 @@ describe('remoteFeatureFlagController', () => {
     });
   });
 
+  it('forwards overrideFeatureFlags to the controller', () => {
+    const messenger =
+      remoteFeatureFlagController.getMessenger(getRootMessenger());
+
+    const instance = remoteFeatureFlagController.init({
+      state: undefined,
+      messenger,
+      options: {
+        clientConfigApiService: getClientConfigApiService(),
+        overrideFeatureFlags: { overrideFlag: true },
+      },
+    });
+
+    expect(instance.state.remoteFeatureFlags).toStrictEqual({
+      overrideFlag: true,
+    });
+  });
+
   it('exposes its state through the root messenger', () => {
     const rootMessenger = getRootMessenger();
     const messenger = remoteFeatureFlagController.getMessenger(rootMessenger);
