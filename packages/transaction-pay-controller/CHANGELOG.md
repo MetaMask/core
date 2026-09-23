@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.1.1]
 
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^24.0.0` to `^25.0.0`
+
 ## [29.1.0]
 
 ### Changed
