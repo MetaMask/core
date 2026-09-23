@@ -114,12 +114,8 @@ function getRootMessenger(
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SnapAccountServiceMessenger {
-  const messenger = new Messenger({
+  return rootMessenger.buildChild({
     namespace: 'SnapAccountService',
-    parent: rootMessenger,
-  });
-  rootMessenger.delegate({
-    messenger,
     actions: [
       'SnapController:getState',
       'SnapController:getSnap',
@@ -151,7 +147,6 @@ function getMessenger(
       'AccountsController:accountsRemoved',
     ],
   });
-  return messenger;
 }
 
 /**
@@ -263,41 +258,6 @@ function buildAccountsState(
   return {
     internalAccounts: { accounts: accountsRecord },
   } as unknown as AccountsControllerState;
-}
-
-/**
- * Publishes an `AccountsController:accountsAdded` event on the root messenger,
- * adding the given accounts to the service's Snap-ownership cache.
- *
- * @param rootMessenger - The root messenger.
- * @param accounts - The accounts that were added.
- */
-function publishAccountsAdded(
-  rootMessenger: RootMessenger,
-  accounts: { id: string; snapId?: string }[],
-): void {
-  rootMessenger.publish(
-    'AccountsController:accountsAdded',
-    accounts.map(({ id, snapId }) => ({
-      id,
-      metadata: snapId ? { snap: { id: snapId } } : {},
-    })),
-  );
-}
-
-/**
- * Publishes an `AccountsController:accountsRemoved` event on the root
- * messenger, removing the given account IDs from the service's Snap-ownership
- * cache.
- *
- * @param rootMessenger - The root messenger.
- * @param accountIds - The IDs of the accounts that were removed.
- */
-function publishAccountsRemoved(
-  rootMessenger: RootMessenger,
-  accountIds: string[],
-): void {
-  rootMessenger.publish('AccountsController:accountsRemoved', accountIds);
 }
 
 /**
@@ -1405,68 +1365,6 @@ describe('SnapAccountService', () => {
         expect(listener).not.toHaveBeenCalled();
       },
     );
-
-    it('picks up added/removed accounts from AccountsController:accountsAdded and :accountsRemoved', async () => {
-      // Initially the Snap does not own the account, so the update is dropped.
-      const { service, rootMessenger } = await setup({
-        accounts: [
-          { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
-        ],
-      });
-      const listener = jest.fn();
-      rootMessenger.subscribe(
-        'SnapAccountService:accountBalancesUpdated',
-        listener,
-      );
-
-      const payload = {
-        balances: {
-          [MOCK_ACCOUNT_ID]: {
-            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
-          },
-        },
-      } satisfies AccountBalancesUpdatedEventPayload;
-
-      let result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
-      expect(result).toBeNull();
-      expect(listener).not.toHaveBeenCalled();
-
-      // The account is added for this Snap — the cache picks it up from
-      // `accountsAdded` and the next update is forwarded. A no-Snap account
-      // is included to verify such accounts are skipped when updating the
-      // cache incrementally.
-      publishAccountsAdded(rootMessenger, [
-        { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
-        { id: MOCK_NO_SNAP_ACCOUNT_ID },
-      ]);
-
-      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
-      expect(result).toBeNull();
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith({
-        balances: {
-          [MOCK_ACCOUNT_ID]: payload.balances[MOCK_ACCOUNT_ID],
-        },
-      });
-
-      // The account is removed — the cache drops it and the next update is
-      // dropped again (fail closed).
-      publishAccountsRemoved(rootMessenger, [MOCK_ACCOUNT_ID]);
-
-      listener.mockClear();
-      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
-      expect(result).toBeNull();
-      expect(listener).not.toHaveBeenCalled();
-    });
   });
 
   describe('on AccountTreeController:selectedAccountGroupChange', () => {
