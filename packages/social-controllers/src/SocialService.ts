@@ -66,6 +66,16 @@ const ProfileSummaryStruct = structType({
   imageUrl: optional(nullable(string())),
 });
 
+const FeedActorStruct = assign(
+  ProfileSummaryStruct,
+  structType({
+    winRate30d: optional(nullable(number())),
+    pnl30d: optional(nullable(number())),
+    tradeCount30d: optional(nullable(number())),
+    followerCount: optional(nullable(number())),
+  }),
+);
+
 const PositionStruct = structType({
   positionId: string(),
   tokenSymbol: string(),
@@ -192,9 +202,13 @@ const AuthorCommentStruct = structType({
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
-    actor: ProfileSummaryStruct,
+    actor: FeedActorStruct,
     timestamp: number(),
     authorComment: optional(nullable(AuthorCommentStruct)),
+    commentCount: optional(number()),
+    replyCount: optional(number()),
+    holdTimeMs: optional(nullable(number())),
+    entryPriceUsd: optional(nullable(number())),
   }),
 );
 

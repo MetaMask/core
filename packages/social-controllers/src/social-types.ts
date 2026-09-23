@@ -27,6 +27,24 @@ export type ProfileSummary = {
 };
 
 /**
+ * Trader attached to a feed item. Extends {@link ProfileSummary} with the
+ * profile stats the feed hydrator already loaded and used to drop.
+ *
+ * Every field is optional: a social-api that predates them omits the keys,
+ * and `null` means the window has no data (distinct from "not sent").
+ */
+export type FeedActorSummary = ProfileSummary & {
+  /** 30-day win rate as a 0–1 ratio. */
+  winRate30d?: number | null;
+  /** 30-day realized PnL in USD. */
+  pnl30d?: number | null;
+  /** 30-day sell count behind `winRate30d`. */
+  tradeCount30d?: number | null;
+  /** Profiles following this trader. */
+  followerCount?: number | null;
+};
+
+/**
  * Social media handles attached to a trader profile.
  */
 export type SocialHandles = {
@@ -283,12 +301,12 @@ export type AuthorComment = {
 
 /**
  * A single trader-activity feed item: a {@link Position} the trade belongs to,
- * plus the {@link ProfileSummary} of the trader who made it (`actor`) and the
+ * plus the {@link FeedActorSummary} of the trader who made it (`actor`) and the
  * item's creation `timestamp` (Unix seconds).
  */
 export type FeedItem = Position & {
   /** The trader who made this trade. */
-  actor: ProfileSummary;
+  actor: FeedActorSummary;
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
@@ -296,6 +314,22 @@ export type FeedItem = Position & {
    * builds; `null` when that phase has no comment.
    */
   authorComment?: AuthorComment | null;
+  /** Author comments on this position. Absent on older social-api builds. */
+  commentCount?: number;
+  /** Replies across those comments. Absent on older social-api builds. */
+  replyCount?: number;
+  /**
+   * How long the position has been held, in milliseconds. A closed position
+   * is measured from its first fill to its last; an open one is measured to
+   * the time the response was built, so it keeps growing between requests.
+   * `null` when the first fill is unknown. Absent on older social-api builds.
+   */
+  holdTimeMs?: number | null;
+  /**
+   * Average entry price in USD from remaining cost basis / remaining holding.
+   * `null` when the position is flat. Absent on older social-api builds.
+   */
+  entryPriceUsd?: number | null;
 };
 
 export type ReactToCommentOptions = {
