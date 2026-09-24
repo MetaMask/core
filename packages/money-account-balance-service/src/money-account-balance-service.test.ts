@@ -205,6 +205,7 @@ function publishRFFCStateChange(
  * @param args.captureException - Error reporter wired on the root messenger.
  * @param args.options - Partial constructor options for the service.
  * @param args.mockFetchPositions - Stub for `MoneyAccountApiDataService:fetchPositions`.
+ * @param args.mockInvalidateApiQueries - Stub for `MoneyAccountApiDataService:invalidateQueries`.
  * @returns The constructed service together with messenger instances and mock stubs.
  */
 function createService({
@@ -1951,6 +1952,41 @@ describe('MoneyAccountBalanceService', () => {
           MOCK_ACCOUNT_ADDRESS.toLowerCase(),
         ],
       });
+    });
+
+    it('still rejects a stale API balance when invalidating the positions cache fails', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const mockInvalidateApiQueries = jest
+        .fn()
+        .mockRejectedValue(new Error('invalidation failed'));
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        mockInvalidateApiQueries,
+        captureException,
+      });
+
+      const result = await service.fetchBalanceWithFallback(
+        MOCK_ACCOUNT_ADDRESS,
+        { minBlock: MOCK_API_POSITIONS.as_of_block + 1 },
+      );
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(mockInvalidateApiQueries).toHaveBeenCalledTimes(1);
+      expect(captureException).not.toHaveBeenCalled();
     });
 
     it('accepts API balance when as_of_block meets minBlock', async () => {

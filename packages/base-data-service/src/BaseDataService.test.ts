@@ -9,7 +9,7 @@ import {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
-import { hashKey } from '@tanstack/query-core';
+import { CancelledError, hashKey } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
 
@@ -540,6 +540,42 @@ describe('BaseDataService', () => {
     });
 
     expect(publishSpy).toHaveBeenCalledTimes(8);
+  });
+
+  it('cancels in-flight queries when requested', async () => {
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    // The refresh that follows the cancellation makes a second request.
+    mockAssets();
+
+    // The rejection is captured up front so that it is handled as soon as the
+    // cancellation happens.
+    const cancelledRequest = service
+      .getAssets(MOCK_ASSETS)
+      .catch((error) => error);
+    const refreshedAssets = await service.refreshAssets(MOCK_ASSETS);
+
+    expect(await cancelledRequest).toBeInstanceOf(CancelledError);
+    expect(refreshedAssets).toStrictEqual([
+      {
+        assetId: 'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+        decimals: 18,
+        name: 'Dai Stablecoin',
+        symbol: 'DAI',
+      },
+      {
+        assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+        decimals: 8,
+        name: 'Bitcoin',
+        symbol: 'BTC',
+      },
+      {
+        assetId: 'eip155:1/slip44:60',
+        decimals: 18,
+        name: 'Ethereum',
+        symbol: 'ETH',
+      },
+    ]);
   });
 
   describe('validation', () => {

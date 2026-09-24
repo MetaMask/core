@@ -155,6 +155,16 @@ export class ExampleDataService extends BaseDataService<
     });
   }
 
+  async refreshAssets(assets: string[]): Promise<GetAssetsResponse> {
+    // Cancel any in-flight fetch so that its response cannot win the shared
+    // query key after the refresh completes.
+    await this.cancelQueries({
+      queryKey: [`${this.name}:getAssets`, assets],
+    });
+
+    return this.getAssets(assets);
+  }
+
   async getActivity(
     address: string,
     page?: PageParam,
