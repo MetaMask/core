@@ -1,9 +1,21 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export type {
+  MetaMaskProfile,
+  XProfile,
+  ProfileControllerState,
+  ProfileControllerGetStateAction,
+  ProfileControllerActions,
+  ProfileControllerChangeEvent,
+  ProfileControllerEvents,
+  ProfileControllerMessenger,
+} from './ProfileController.js';
+export {
+  ProfileController,
+  getDefaultProfileControllerState,
+} from './ProfileController.js';
+export type {
+  ProfileControllerCheckUsernameAvailabilityAction,
+  ProfileControllerCreateProfileAction,
+  ProfileControllerGetMetaMaskProfileAction,
+  ProfileControllerGetXprofileAction,
+  ProfileControllerUpdateProfileAction,
+} from './ProfileController-method-action-types.js';
