@@ -10,7 +10,6 @@ on:
 permissions:
   contents: read
 
-# A rebase can push twice in quick succession. Only the newest head is worth repairing.
 concurrency:
   group: repair-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -25,7 +24,6 @@ jobs:
     outputs:
       needed: ${{ steps.head-author.outputs.needed }}
     steps:
-      # This job pushes to the pull request branch, so without this it would react to its own push.
       - name: Read the head commit author
         id: head-author
         env:
