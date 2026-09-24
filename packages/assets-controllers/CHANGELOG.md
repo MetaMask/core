@@ -9,8 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^71.0.0` ([#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409))
+- Bump `@types/bn.js` from `^5.1.5` to `^5.2.0` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+
+## [112.0.2]
+
+### Changed
+
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
+- Bump `@metamask/core-backend` from `^10.0.1` to `^11.0.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
 
 ## [112.0.1]
 
@@ -3511,7 +3526,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.2...HEAD
+[112.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.1...@metamask/assets-controllers@112.0.2
 [112.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.0...@metamask/assets-controllers@112.0.1
 [112.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.3.0...@metamask/assets-controllers@112.0.0
 [111.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.2.0...@metamask/assets-controllers@111.3.0

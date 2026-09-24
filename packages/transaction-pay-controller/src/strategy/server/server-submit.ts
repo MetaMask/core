@@ -56,6 +56,18 @@ const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   salt: { name: 'salt', type: 'bytes32' },
 };
 
+/**
+ * A transaction to submit for a single quote step.
+ *
+ * The semantic transaction type is held alongside `params` rather than within
+ * it, since `TransactionParams.type` is the EVM envelope type (`0x0` - `0x4`)
+ * and is rejected by the transaction controller if given anything else.
+ */
+type StepTransaction = {
+  params: TransactionParams;
+  type?: TransactionType;
+};
+
 function isSignatureStep(
   step: ServerQuote['steps'][number],
 ): step is ServerSignatureStep {
@@ -149,7 +161,7 @@ async function executeSingleServerQuote(
 /**
  * Submit the on-chain transaction steps for a server quote.
  *
- * Validates the source balance, builds the complete set of params (including
+ * Validates the source balance, builds the complete set of transactions (including
  * any post-quote or payment-override prepends), then dispatches to the
  * gasless execute path or TransactionController depending on the quote.
  *
@@ -185,7 +197,7 @@ async function submitTransactionSteps(
     await validateSourceBalance(quote, messenger);
   }
 
-  const allParams = await buildTransactionParams(
+  const stepTransactions = await buildStepTransactions(
     quote,
     transactionSteps,
     transaction,
@@ -193,11 +205,16 @@ async function submitTransactionSteps(
   );
 
   if (quote.original.gasless) {
-    await submitViaServerExecute(quote, allParams, messenger, transaction);
+    await submitViaServerExecute(
+      quote,
+      stepTransactions,
+      messenger,
+      transaction,
+    );
   } else {
     await submitViaTransactionController(
       quote,
-      allParams,
+      stepTransactions,
       messenger,
       transaction,
     );
@@ -205,32 +222,32 @@ async function submitTransactionSteps(
 }
 
 /**
- * Build the complete flat array of TransactionParams for on-chain submission.
+ * Build the complete flat array of transactions for on-chain submission.
  *
- * Converts server transaction steps to params, then prepends any additional
- * calls required by the payment override or post-quote flow. The returned
- * array is ready to pass directly to submitViaServerExecute or
+ * Converts server transaction steps to transactions, then prepends any
+ * additional calls required by the payment override or post-quote flow. The
+ * returned array is ready to pass directly to submitViaServerExecute or
  * submitViaTransactionController.
  *
  * @param quote - Server quote.
  * @param transactionSteps - Transaction steps from the quote (pre-filtered).
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @returns Complete ordered array of TransactionParams for submission.
+ * @returns Complete ordered array of transactions for submission.
  */
-async function buildTransactionParams(
+async function buildStepTransactions(
   quote: TransactionPayQuote<ServerQuote>,
   transactionSteps: ServerTransactionStep[],
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): Promise<TransactionParams[]> {
+): Promise<StepTransaction[]> {
   const { from, isPostQuote, paymentOverride } = quote.request;
   const { gasLimits, maxFeePerGas, maxPriorityFeePerGas } =
     quote.original.client;
   const originalType = getEffectiveTransactionType(transaction);
 
-  const relayParams = transactionSteps.map((step, i) =>
-    transactionStepToParams(
+  const quoteStepTransactions = transactionSteps.map((step, i) =>
+    buildStepTransaction(
       step,
       i,
       transactionSteps.length,
@@ -243,8 +260,8 @@ async function buildTransactionParams(
   );
 
   if (paymentOverride) {
-    return prependPaymentOverrideParams(
-      relayParams,
+    return prependPaymentOverrideTransactions(
+      quoteStepTransactions,
       quote,
       transaction,
       messenger,
@@ -252,14 +269,19 @@ async function buildTransactionParams(
   }
 
   if (isPostQuote && transaction.txParams.to) {
-    return prependPostQuoteParams(relayParams, quote, transaction, messenger);
+    return prependPostQuoteTransactions(
+      quoteStepTransactions,
+      quote,
+      transaction,
+      messenger,
+    );
   }
 
-  return relayParams;
+  return quoteStepTransactions;
 }
 
 /**
- * Converts a single server transaction step to TransactionParams.
+ * Converts a single server transaction step to a transaction.
  *
  * @param step - The transaction step.
  * @param index - Zero-based position within the transaction steps array.
@@ -269,9 +291,9 @@ async function buildTransactionParams(
  * @param clientMaxFeePerGas - Client-side max fee per gas fallback.
  * @param clientMaxPriorityFeePerGas - Client-side max priority fee per gas fallback.
  * @param originalType - Effective type of the parent transaction.
- * @returns Normalized TransactionParams for this step.
+ * @returns Normalized transaction for this step.
  */
-function transactionStepToParams(
+function buildStepTransaction(
   step: ServerTransactionStep,
   index: number,
   totalSteps: number,
@@ -280,7 +302,7 @@ function transactionStepToParams(
   clientMaxFeePerGas: string | undefined,
   clientMaxPriorityFeePerGas: string | undefined,
   originalType: TransactionMeta['type'],
-): TransactionParams {
+): StepTransaction {
   let gas: Hex | undefined;
   const gasLimit = gasLimits[index];
 
@@ -305,11 +327,12 @@ function transactionStepToParams(
       ? toHex(resolvedMaxPriorityFeePerGas)
       : undefined,
     to: step.to,
-    type: getTransactionType(index, totalSteps, originalType),
     value: toHex(step.value),
   };
 
-  log('Built transaction params for step', {
+  const type = getTransactionType(index, totalSteps, originalType);
+
+  log('Built transaction for step', {
     index,
     step: {
       gasLimit: step.gasLimit,
@@ -321,12 +344,12 @@ function transactionStepToParams(
       gas: params.gas,
       maxFeePerGas: params.maxFeePerGas,
       maxPriorityFeePerGas: params.maxPriorityFeePerGas,
-      type: params.type,
+      type,
       value: params.value,
     },
   });
 
-  return params;
+  return { params, type };
 }
 
 /**
@@ -392,24 +415,24 @@ function getEffectiveTransactionType(
 }
 
 /**
- * Prepend payment override calls before the relay transaction steps.
+ * Prepend payment override calls before the quote transaction steps.
  *
  * For money-account payment override flows the override account supplies
  * the source funds. The override transactions must be batched ahead of the
- * relay deposit steps.
+ * deposit steps.
  *
- * @param relayParams - Already-built relay step params.
+ * @param quoteStepTransactions - Transactions already built from the quote steps.
  * @param quote - Server quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @returns Combined params with override calls prepended.
+ * @returns Combined transactions with override calls prepended.
  */
-async function prependPaymentOverrideParams(
-  relayParams: TransactionParams[],
+async function prependPaymentOverrideTransactions(
+  quoteStepTransactions: StepTransaction[],
   quote: TransactionPayQuote<ServerQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): Promise<TransactionParams[]> {
+): Promise<StepTransaction[]> {
   const { transactionData } = messenger.call(
     'TransactionPayController:getState',
   );
@@ -425,35 +448,41 @@ async function prependPaymentOverrideParams(
 
   if (!overrideCalls.length) {
     log('No payment override calls to prepend');
-    return relayParams;
+    return quoteStepTransactions;
   }
 
   log('Prepending payment override calls', { count: overrideCalls.length });
 
-  return [...(overrideCalls as TransactionParams[]), ...relayParams];
+  const overrideTransactions = (overrideCalls as TransactionParams[]).map(
+    (params) => ({
+      params,
+    }),
+  );
+
+  return [...overrideTransactions, ...quoteStepTransactions];
 }
 
 /**
  * Prepend the original transaction (or a delegation-wrapped version) before
- * the relay deposit steps for post-quote flows.
+ * the deposit steps for post-quote flows.
  *
  * In post-quote flows the source tokens are held in the Safe and only become
  * available after the original transaction executes as part of the batch.
  * When an accountOverride is active the override account cannot directly
  * execute the original call, so it is wrapped in a delegation transaction.
  *
- * @param relayParams - Already-built relay step params.
+ * @param quoteStepTransactions - Transactions already built from the quote steps.
  * @param quote - Server quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @returns Combined params with the original tx prepended.
+ * @returns Combined transactions with the original tx prepended.
  */
-async function prependPostQuoteParams(
-  relayParams: TransactionParams[],
+async function prependPostQuoteTransactions(
+  quoteStepTransactions: StepTransaction[],
   quote: TransactionPayQuote<ServerQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): Promise<TransactionParams[]> {
+): Promise<StepTransaction[]> {
   const hasAccountOverride =
     quote.request.from.toLowerCase() !==
     (transaction.txParams.from as Hex).toLowerCase();
@@ -476,7 +505,7 @@ async function prependPostQuoteParams(
     } as TransactionParams;
   }
 
-  // Ensure the prepended tx carries the same fee caps as the relay steps so
+  // Ensure the prepended tx carries the same fee caps as the quote steps so
   // it isn't submitted with undefined maxFeePerGas in a non-7702 batch.
   prependedParams.maxFeePerGas = maxFeePerGas ? toHex(maxFeePerGas) : undefined;
   prependedParams.maxPriorityFeePerGas = maxPriorityFeePerGas
@@ -485,7 +514,7 @@ async function prependPostQuoteParams(
 
   log('Prepending post-quote original tx', { hasAccountOverride });
 
-  return [prependedParams, ...relayParams];
+  return [{ params: prependedParams }, ...quoteStepTransactions];
 }
 
 /**
@@ -575,14 +604,14 @@ async function validateSourceBalance(
 
 async function submitViaServerExecute(
   quote: TransactionPayQuote<ServerQuote>,
-  allParams: TransactionParams[],
+  stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
   const { from, sourceChainId } = quote.request;
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
-  const nestedTransactions = allParams.map((params) => ({
+  const nestedTransactions = stepTransactions.map(({ params }) => ({
     data: (params.data ?? '0x') as Hex,
     to: params.to as Hex,
     value: (params.value ?? '0x0') as Hex,
@@ -638,7 +667,7 @@ async function submitViaServerExecute(
 
 async function submitViaTransactionController(
   quote: TransactionPayQuote<ServerQuote>,
-  allParams: TransactionParams[],
+  stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
@@ -655,7 +684,7 @@ async function submitViaTransactionController(
     gasFeeToken,
     is7702,
     networkClientId,
-    paramCount: allParams.length,
+    transactionCount: stepTransactions.length,
     sourceChainId,
   });
 
@@ -681,33 +710,36 @@ async function submitViaTransactionController(
   );
 
   try {
-    if (allParams.length === 1) {
+    if (stepTransactions.length === 1) {
+      const { params, type } = stepTransactions[0];
+
       const addTransactionOptions = {
         gasFeeToken,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
+        type,
       };
 
       log('Calling addTransaction', {
-        params: allParams[0],
+        params,
         options: addTransactionOptions,
       });
 
       await messenger.call(
         'TransactionController:addTransaction',
-        allParams[0],
+        params,
         addTransactionOptions,
       );
     } else {
       const gasLimit7702 = is7702 ? toHex(gasLimits[0]) : undefined;
 
-      const batchTransactions = allParams.map((params) => {
-        // params.gas was already resolved correctly by transactionStepToParams
-        // (indexed by relay-step position), so use it directly. Indexing
-        // allParams position into gasLimits would be wrong when payment-
-        // override or post-quote params are prepended.
+      const batchTransactions = stepTransactions.map(({ params, type }) => {
+        // params.gas was already resolved correctly by buildStepTransaction
+        // (indexed by quote-step position), so use it directly. Indexing
+        // the step position into gasLimits would be wrong when payment-
+        // override or post-quote transactions are prepended.
         const gas = (gasLimit7702 ?? params.gas) as Hex | undefined;
 
         return {
@@ -719,7 +751,7 @@ async function submitViaTransactionController(
             to: params.to as Hex,
             value: params.value as Hex,
           },
-          type: params.type as TransactionType | undefined,
+          type,
         };
       });
 

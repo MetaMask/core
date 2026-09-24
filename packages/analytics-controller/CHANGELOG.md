@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+
+### Added
+
+- Add `marketingCampaignCookieId` state field and `setMarketingCampaignCookieId` action to `AnalyticsController`; the field is automatically set to `null` when the user calls `optOutOfMarketing` or `resetMarketingConsentDecision` ([#10373](https://github.com/MetaMask/core/pull/10373))
+
+## [3.1.0]
+
+### Added
+
+- Add independent marketing consent and purpose-aware event classification ([#10232](https://github.com/MetaMask/core/pull/10232))
+  - Adds `optedInToMarketing`, `optInToMarketing` / `optOutOfMarketing` / `resetMarketingConsentDecision`, and a persisted `eventsConfig` whose unlisted events default to product-only
+  - Named `track` and `view` payloads are delivered once with their allowed purposes in `context.consent.categoryPreferences` and their capture-time config version in `context.eventsConfigVersion`
+  - Queues and fragments retain capture-time purpose classification so config changes cannot reclassify captured events. Mixed-purpose fragments classify each declared lifecycle event independently
+
 ### Changed
 
-- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [3.0.0]
@@ -96,7 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.1.0...@metamask/analytics-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.0.0...@metamask/analytics-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.1.0...@metamask/analytics-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.0.0...@metamask/analytics-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...@metamask/analytics-controller@2.0.0

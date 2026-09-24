@@ -9,8 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+
+### Fixed
+
+- Omit fungible `TokenAmount.amount` from API and local activity mappers when decimals are unknown; optional `getKnownTokenDecimals` recovers scale from host token state ([#10256](https://github.com/MetaMask/core/pull/10256))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
 
 ## [3.0.0]
 
@@ -165,7 +182,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.2...HEAD
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.1...@metamask/client-utils@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.0...@metamask/client-utils@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...@metamask/client-utils@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.0...@metamask/client-utils@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.2...@metamask/client-utils@2.1.0

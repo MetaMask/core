@@ -13,6 +13,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPaySourceAmount,
+  TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from './types.js';
 import { getStrategyOrder } from './utils/feature-flags.js';
@@ -36,6 +37,11 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
+const PAYMENT_TOKEN_MOCK = {
+  address: TOKEN_ADDRESS_MOCK,
+  balanceRaw: '0',
+  chainId: CHAIN_ID_MOCK,
+} as TransactionPaymentToken;
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
@@ -960,6 +966,87 @@ describe('TransactionPayController', () => {
         messenger,
         getBalance,
       );
+    });
+
+    it('updates source amounts without quotes when payment token balance changes on max amount', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.isMaxAmount = true;
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = { ...PAYMENT_TOKEN_MOCK, balanceRaw: '5855729' };
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores payment token balance change when not max amount', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = { ...PAYMENT_TOKEN_MOCK, balanceRaw: '5855729' };
+      });
+
+      expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores payment token balance change when post quote', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.isMaxAmount = true;
+        data.isPostQuote = true;
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = { ...PAYMENT_TOKEN_MOCK, balanceRaw: '5855729' };
+      });
+
+      expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      expect(updateQuotesMock).not.toHaveBeenCalled();
     });
   });
 

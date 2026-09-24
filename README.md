@@ -300,6 +300,7 @@ linkStyle default opacity:0.5
   assets_controller --> remote_feature_flag_controller;
   assets_controller --> transaction_controller;
   assets_controller --> utils;
+  assets_controller --> eth_json_rpc_provider;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -404,6 +405,7 @@ linkStyle default opacity:0.5
   core_backend --> profile_sync_controller;
   core_backend --> remote_feature_flag_controller;
   core_backend --> utils;
+  cryptography --> utils;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
@@ -594,6 +596,7 @@ linkStyle default opacity:0.5
   perps_controller --> network_controller;
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
+  perps_controller --> subscription_controller;
   perps_controller --> transaction_controller;
   phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
@@ -617,6 +620,7 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> utils;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
+  profile_sync_controller --> controller_utils;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
   profile_sync_controller --> seedless_onboarding_controller;
@@ -685,6 +689,7 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> transaction_controller;
   smart_transactions_controller --> utils;
   smart_transactions_controller --> json_rpc_engine;
+  snap_account_service --> accounts_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   snap_account_service --> utils;
@@ -696,12 +701,18 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   storage_service --> utils;
+  subscription_controller --> authenticated_user_storage;
   subscription_controller --> base_controller;
   subscription_controller --> base_data_service;
+  subscription_controller --> chomp_api_service;
   subscription_controller --> controller_utils;
+  subscription_controller --> delegation_controller;
   subscription_controller --> messenger;
+  subscription_controller --> money_account_balance_service;
+  subscription_controller --> money_account_utils;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
+  subscription_controller --> remote_feature_flag_controller;
   subscription_controller --> transaction_controller;
   subscription_controller --> utils;
   transaction_controller --> accounts_controller;

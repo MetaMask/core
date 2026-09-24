@@ -7534,6 +7534,8 @@ export class LighterProvider implements PerpsProvider {
       feeAmount: Number.isFinite(amount) ? amount * feeRate : 0,
       protocolFeeRate: feeRate,
       metamaskFeeRate: 0,
+      // Structurally zero on this venue, not a waiver applied to a real fee.
+      chargesMetamaskBuilderFee: false,
     };
   }
 

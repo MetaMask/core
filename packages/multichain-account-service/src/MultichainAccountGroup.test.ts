@@ -92,7 +92,7 @@ describe('MultichainAccountGroup', () => {
         [MOCK_WALLET_1_SOL_ACCOUNT],
       ];
       const groupIndex = 0;
-      const { wallet, group } = setup({ groupIndex, accounts });
+      const { wallet, group, providers } = setup({ groupIndex, accounts });
 
       const expectedWalletId = toMultichainAccountWalletId(
         wallet.entropySource,
@@ -109,6 +109,12 @@ describe('MultichainAccountGroup', () => {
       expect(group.getAccountIds()).toStrictEqual(
         expectedAccounts.map((a) => a.id),
       );
+      expect(group.getAccountIds(providers[0])).toStrictEqual([
+        MOCK_WALLET_1_EVM_ACCOUNT.id,
+      ]);
+      expect(group.getAccountIds(providers[1])).toStrictEqual([
+        MOCK_WALLET_1_SOL_ACCOUNT.id,
+      ]);
       expect(group.getAccounts()).toHaveLength(expectedAccounts.length);
       expect(group.getAccounts()).toStrictEqual(expectedAccounts);
     });

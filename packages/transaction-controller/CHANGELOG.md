@@ -12,10 +12,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 - Export `getOperatorFeeFromReceipt` and `getLayer1FeeFromReceipt` helpers to derive L1 + operator fees from transaction receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 
+## [71.0.0]
+
+### Added
+
+- Add `membershipSubscription` transaction type ([#10340](https://github.com/MetaMask/core/pull/10340))
+
+### Changed
+
+- **BREAKING:** Move sponsorship and signing decisions to optional approval-time `isSponsored` and `shouldSign` hooks ([#10109](https://github.com/MetaMask/core/pull/10109))
+  - The hooks default to non-sponsored and local signing when omitted. Sponsored transactions skip the `shouldSign` hook and local signing, while transactions that skip local signing retain an existing nonce and require a publish hook.
+  - `isGasFeeSponsored` and `isExternalSign` remain in the public types as deprecated compatibility properties but no longer control the transaction lifecycle; `isGasFeeSponsored` remains available as migration metadata.
+  - Add `TransactionMeta.isGasFeeSponsoredAvailable` and refresh it during approval preparation when simulation is enabled so sponsorship hooks receive current availability without overriding simulation preferences.
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+
+## [70.1.0]
+
+### Changed
+
+- Use the selected network client's gas estimate for transactions without caller-provided gas instead of assigning a fixed 21,000 gas limit to plain transfers ([#10245](https://github.com/MetaMask/core/pull/10245))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+## [70.0.1]
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
-- Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [70.0.0]
@@ -2770,7 +2793,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...HEAD
+[71.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...@metamask/transaction-controller@71.0.0
+[70.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...@metamask/transaction-controller@70.1.0
+[70.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...@metamask/transaction-controller@70.0.1
 [70.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.1...@metamask/transaction-controller@70.0.0
 [69.8.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.0...@metamask/transaction-controller@69.8.1
 [69.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.7.0...@metamask/transaction-controller@69.8.0

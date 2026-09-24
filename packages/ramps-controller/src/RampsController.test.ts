@@ -19,6 +19,7 @@ import type {
   ResourceState,
   UserRegion,
 } from './RampsController.js';
+import type { VbaOnboardingSnapshot } from './RampsController.js';
 import {
   RampsController,
   getDefaultRampsControllerState,
@@ -437,6 +438,345 @@ describe('RampsController', () => {
         );
 
         expect(order).toStrictEqual(mockOrder);
+      });
+    });
+  });
+
+  describe('getQuoteWithFees', () => {
+    const GQF_ASSET_ID = 'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b';
+    const GQF_NETWORK = 'eip155:143';
+    const GQF_PAYMENT_METHOD = '/payments/debit-credit-card';
+    const GQF_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
+
+    /**
+     * Builds a single-quote `QuotesResponse` for the given provider and fees.
+     *
+     * @param provider - Provider id for the quote.
+     * @param fees - Optional provider/network fee overrides.
+     * @param fees.providerFee - Provider fee on the quote.
+     * @param fees.networkFee - Network fee on the quote.
+     * @returns A quotes response with a single success quote.
+     */
+    function buildQuotesResponse(
+      provider: string,
+      fees: { providerFee?: number; networkFee?: number } = {},
+    ): QuotesResponse {
+      return {
+        success: [
+          {
+            provider,
+            quote: {
+              amountIn: 15,
+              amountOut: 14.25,
+              amountOutInFiat: 14.3,
+              networkFee: fees.networkFee ?? 0.2,
+              paymentMethod: GQF_PAYMENT_METHOD,
+              providerFee: fees.providerFee ?? 0.5,
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+    }
+
+    /**
+     * Calls `RampsController:getQuoteWithFees` with default MM Pay-style options.
+     *
+     * @param messenger - The restricted controller messenger.
+     * @param overrides - Option overrides.
+     * @param overrides.isFeeExcludedFromFiat - Fee mode override.
+     * @param overrides.providers - Explicit provider ids override.
+     * @returns The reconciled quote, or undefined.
+     */
+    async function callGetQuoteWithFees(
+      messenger: RampsControllerMessenger,
+      overrides: { isFeeExcludedFromFiat?: boolean; providers?: string[] } = {},
+    ): Promise<Quote | undefined> {
+      return messenger.call('RampsController:getQuoteWithFees', {
+        amount: 15,
+        assetId: GQF_ASSET_ID,
+        fiat: 'USD',
+        paymentMethods: [GQF_PAYMENT_METHOD],
+        providers: ['/providers/transak-native'],
+        region: 'US',
+        walletAddress: GQF_WALLET,
+        ...overrides,
+      });
+    }
+
+    it('reconciles a Transak Native quote to the native total fee and keeps the network split', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        // Native total 0.9: aggregator network fee (0.2) stays on the network
+        // line, the remainder (0.7) goes to the provider fee, and the total is
+        // the native total.
+        expect(quote?.quote.providerFee).toBe('0.7');
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.totalFees).toBe('0.9');
+      });
+    });
+
+    it('clamps the network split when the native total is below the aggregator network fee', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () =>
+            buildQuotesResponse('/providers/transak-native', { networkFee: 1 }),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.3 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.networkFee).toBe('0.3');
+        expect(quote?.quote.providerFee).toBe('0');
+        expect(quote?.quote.totalFees).toBe('0.3');
+      });
+    });
+
+    it('requests the native quote in fee-on-top mode by default', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          GQF_PAYMENT_METHOD,
+          '15',
+          true,
+        );
+      });
+    });
+
+    it('forwards a fee-inclusive request when isFeeExcludedFromFiat is false', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger, { isFeeExcludedFromFiat: false });
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          GQF_PAYMENT_METHOD,
+          '15',
+          false,
+        );
+      });
+    });
+
+    it('uses the resolved quote payment method for the native lookup, not the request list', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        const quotesResponse = buildQuotesResponse('/providers/transak-native');
+        // The aggregator priced a method other than the caller's list head.
+        quotesResponse.success[0].quote.paymentMethod =
+          '/payments/sepa-bank-transfer';
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => quotesResponse,
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          '/payments/sepa-bank-transfer',
+          '15',
+          true,
+        );
+      });
+    });
+
+    it('leaves a non-native quote unchanged and does not fetch a native quote', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/moonpay'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/moonpay'],
+        });
+
+        expect(getBuyQuote).not.toHaveBeenCalled();
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('falls back to the aggregator quote when the native lookup fails', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => {
+            throw new Error('native lookup failed');
+          },
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('falls back to the aggregator quote when the native fee is unusable', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: -1 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('returns undefined when no quote is available', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => ({
+            success: [],
+            sorted: [],
+            error: [],
+            customActions: [],
+          }),
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote).toBeUndefined();
+      });
+    });
+
+    it('does not write the shared Unified Buy native buy-quote state', async () => {
+      await withController(async ({ controller, messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const before = JSON.parse(
+          JSON.stringify(controller.state.nativeProviders.transak.buyQuote),
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        // The native lookup must use the stateless `TransakService:getBuyQuote`,
+        // not the stateful `transakGetBuyQuote`, so Unified Buy's shared
+        // buy-quote resource is left untouched.
+        expect(controller.state.nativeProviders.transak.buyQuote).toStrictEqual(
+          before,
+        );
+      });
+    });
+
+    it('does not treat the aggregator Transak provider as native', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/transak'],
+        });
+
+        expect(getBuyQuote).not.toHaveBeenCalled();
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('puts the whole native total on the network line when it equals the aggregator network fee', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () =>
+            buildQuotesResponse('/providers/transak-native', {
+              networkFee: 0.2,
+            }),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.2 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.providerFee).toBe('0');
+        expect(quote?.quote.totalFees).toBe('0.2');
       });
     });
   });
@@ -9331,6 +9671,133 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getFallbackBuyWidgetData', () => {
+    const fallback = {
+      url: 'https://on-ramp.uat-api.cx.metamask.io/providers/coinbase/buy-widget?checkout=hosted',
+      browser: 'IN_APP_OS_BROWSER' as const,
+    };
+
+    it('fetches the hosted widget for the fallback url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn(async () => ({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+          browser: 'IN_APP_OS_BROWSER' as const,
+          orderId: '/providers/coinbase/orders/abc',
+        }));
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          fallback,
+        );
+
+        expect(getBuyWidgetUrl).toHaveBeenCalledWith(fallback.url);
+        expect(buyWidget).toStrictEqual({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+          browser: 'IN_APP_OS_BROWSER',
+          orderId: '/providers/coinbase/orders/abc',
+        });
+      });
+    });
+
+    it('sets redirectUrl on the fallback url, replacing an existing one', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn(async (_buyUrl: string) => ({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+        }));
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          { ...fallback, url: `${fallback.url}&redirectUrl=https%3A%2F%2Fold` },
+          { redirectUrl: 'metamask://on-ramp/providers/coinbase' },
+        );
+
+        const requested = new URL(getBuyWidgetUrl.mock.calls[0][0]);
+        expect(requested.searchParams.get('checkout')).toBe('hosted');
+        expect(requested.searchParams.getAll('redirectUrl')).toStrictEqual([
+          'metamask://on-ramp/providers/coinbase',
+        ]);
+      });
+    });
+
+    it('returns null without calling the service when the fallback has no url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          { ...fallback, url: '' },
+        );
+
+        expect(buyWidget).toBeNull();
+        expect(getBuyWidgetUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws without calling the service when the fallback url is malformed', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        await expect(
+          rootMessenger.call('RampsController:getFallbackBuyWidgetData', {
+            ...fallback,
+            url: 'not a url',
+          }),
+        ).rejects.toThrow('Invalid URL');
+        expect(getBuyWidgetUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns null when the service returns an empty url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({ url: '', browser: 'IN_APP_OS_BROWSER' as const }),
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          fallback,
+        );
+
+        expect(buyWidget).toBeNull();
+      });
+    });
+
+    it('propagates errors from the service', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:getFallbackBuyWidgetData',
+            fallback,
+          ),
+        ).rejects.toThrow('Network error');
+      });
+    });
+  });
+
   describe('addPrecreatedOrder', () => {
     it('adds a stub order with Precreated status for polling', async () => {
       await withController(({ controller, rootMessenger }) => {
@@ -9836,6 +10303,595 @@ describe('RampsController', () => {
 
         expect(afterBlank.customerId).toBe('cust-1');
         expect(afterBlank.walletAddress).toBe('0xabc');
+      });
+    });
+  });
+
+  describe('hydrateVbaOnboarding', () => {
+    // A session's externalUserId is the canonical profile id that created it;
+    // hydration only reuses a persisted session when it matches the signed-in
+    // profile returned by AuthenticationController:getSessionProfile.
+    const CANONICAL_PROFILE_ID = 'canonical-1';
+
+    type KycSession = {
+      id: string;
+      finalStatus: string;
+      kycStatus: string;
+      vendorStatus: string;
+      externalUserId: string;
+    };
+
+    type KycHandlers = {
+      getSessionStatusForVendor: jest.Mock;
+      refreshSessionStatus: jest.Mock;
+      hasCompletedVendorDisclaimers: jest.Mock;
+      hasCompletedSessionDisclaimers: jest.Mock;
+      clearState: jest.Mock;
+      getSessionProfile: jest.Mock;
+      getAutoramps: jest.Mock;
+    };
+
+    type KycValues = {
+      /**
+       * Session status resolved by the KYC controller. `null` means no session
+       * exists yet (start onboarding at the email step).
+       */
+      session: KycSession | null;
+      /**
+       * When `true`, `KycController:refreshSessionStatus` throws (no session in
+       * controller state), so hydration falls back to the backend
+       * `getSessionStatusForVendor` fetch.
+       */
+      refreshThrows: boolean;
+      /**
+       * When `true`, the `getSessionStatusForVendor` fallback rejects with a
+       * 404-style error (treated as "no session").
+       */
+      getSessionRejects: boolean;
+      vendorDisclaimersCompleted: boolean;
+      sessionDisclaimersCompleted: boolean;
+      /** Canonical id of the currently signed-in profile. */
+      profileCanonicalId: string | null;
+    };
+
+    const approvedSession: KycSession = {
+      id: 'session-1',
+      finalStatus: 'approved',
+      kycStatus: 'approved',
+      vendorStatus: 'approved',
+      externalUserId: CANONICAL_PROFILE_ID,
+    };
+
+    const registerKycHandlers = (
+      rootMessenger: RootMessenger,
+      overrides: Partial<KycValues> = {},
+    ): KycHandlers => {
+      const values: KycValues = {
+        session: approvedSession,
+        refreshThrows: false,
+        getSessionRejects: false,
+        vendorDisclaimersCompleted: true,
+        sessionDisclaimersCompleted: true,
+        profileCanonicalId: CANONICAL_PROFILE_ID,
+        ...overrides,
+      };
+
+      const refreshSessionStatus = jest.fn(() => {
+        if (values.refreshThrows) {
+          throw new Error('no session in state');
+        }
+        return values.session;
+      });
+      const getSessionStatusForVendor = jest.fn(async () => {
+        if (values.getSessionRejects) {
+          throw new Error('KYC session not found');
+        }
+        return values.session;
+      });
+
+      const handlers: KycHandlers = {
+        getSessionStatusForVendor,
+        refreshSessionStatus,
+        hasCompletedVendorDisclaimers: jest
+          .fn()
+          .mockResolvedValue(values.vendorDisclaimersCompleted),
+        hasCompletedSessionDisclaimers: jest
+          .fn()
+          .mockResolvedValue(values.sessionDisclaimersCompleted),
+        clearState: jest.fn(),
+        getSessionProfile: jest
+          .fn()
+          .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
+        getAutoramps: jest.fn().mockResolvedValue([]),
+      };
+
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile' as never,
+        handlers.getSessionProfile as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getSessionStatusForVendor' as never,
+        handlers.getSessionStatusForVendor as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:refreshSessionStatus' as never,
+        handlers.refreshSessionStatus as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:hasCompletedVendorDisclaimers' as never,
+        handlers.hasCompletedVendorDisclaimers as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:hasCompletedSessionDisclaimers' as never,
+        handlers.hasCompletedSessionDisclaimers as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:clearState' as never,
+        handlers.clearState as never,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getAutoramps' as never,
+        handlers.getAutoramps as never,
+      );
+
+      return handlers;
+    };
+
+    const sessionWithStatus = (finalStatus: string): KycSession => ({
+      id: 'session-1',
+      finalStatus,
+      kycStatus: 'approved',
+      vendorStatus: finalStatus,
+      externalUserId: CANONICAL_PROFILE_ID,
+    });
+
+    const emptySnapshot = (): VbaOnboardingSnapshot => ({
+      sessionExists: false,
+      vendorDisclaimersComplete: false,
+      sessionDisclaimersComplete: false,
+      kycStatus: 'none',
+      autorampStatus: 'not_ready',
+    });
+
+    const factsSnapshot = (
+      overrides: Partial<VbaOnboardingSnapshot> = {},
+    ): VbaOnboardingSnapshot => ({
+      sessionExists: true,
+      vendorDisclaimersComplete: true,
+      sessionDisclaimersComplete: true,
+      kycStatus: 'pending',
+      autorampStatus: 'not_ready',
+      ...overrides,
+    });
+
+    it.each([
+      {
+        name: 'an empty snapshot when no session exists in state or on the backend',
+        overrides: { refreshThrows: true, session: null },
+        expected: emptySnapshot(),
+      },
+      {
+        name: 'an empty snapshot when the backend session lookup 404s',
+        overrides: { refreshThrows: true, getSessionRejects: true },
+        expected: emptySnapshot(),
+      },
+      {
+        name: 'incomplete vendor disclaimers without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          vendorDisclaimersCompleted: false,
+        },
+        expected: factsSnapshot({ vendorDisclaimersComplete: false }),
+      },
+      {
+        name: 'incomplete session disclaimers without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          sessionDisclaimersCompleted: false,
+        },
+        expected: factsSnapshot({ sessionDisclaimersComplete: false }),
+      },
+      {
+        name: 'kycStatus new when KYC has not started',
+        overrides: { session: sessionWithStatus('new') },
+        expected: factsSnapshot({ kycStatus: 'new' }),
+      },
+      {
+        name: 'kycStatus retry when KYC needs a retry',
+        overrides: { session: sessionWithStatus('retry') },
+        expected: factsSnapshot({ kycStatus: 'retry' }),
+      },
+      {
+        name: 'kycStatus pending while the vendor finalizes',
+        overrides: { session: sessionWithStatus('pending') },
+        expected: factsSnapshot({ kycStatus: 'pending' }),
+      },
+      {
+        name: 'kycStatus rejected when KYC is rejected',
+        overrides: { session: sessionWithStatus('rejected') },
+        expected: factsSnapshot({ kycStatus: 'rejected' }),
+      },
+    ])('returns $name', async ({ overrides, expected }) => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, overrides);
+        const registerWallet = jest.spyOn(
+          controller,
+          'registerMoneyAccountWallet',
+        );
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(expected);
+
+        expect(registerWallet).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('falls back to the backend session fetch when no session is in state', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          refreshThrows: true,
+          session: null,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(emptySnapshot());
+
+        expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith('iron');
+      });
+    });
+
+    it('prefers the in-state session status over the backend fetch', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+      });
+    });
+
+    it('discards a persisted session owned by a different profile and returns an empty snapshot', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A persisted session created by a previous identity: its externalUserId
+        // no longer matches the signed-in profile.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: { ...approvedSession, externalUserId: 'previous-identity' },
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(emptySnapshot());
+
+        expect(handlers.clearState).toHaveBeenCalledTimes(1);
+        // The stale session is discarded before any session-scoped call runs.
+        expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not ownership-check a freshly-fetched session (already scoped to the user)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // No in-state session; the backend fetch returns a session whose
+        // externalUserId differs from the resolved profile. It must not be
+        // discarded, since the fetch is already scoped to the current user.
+        const handlers = registerKycHandlers(rootMessenger, {
+          refreshThrows: true,
+          session: {
+            ...sessionWithStatus('new'),
+            externalUserId: 'previous-identity',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps a persisted session owned by the current profile', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('keeps a persisted session when the current profile id cannot be resolved', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A transient profile-read failure must not discard a valid session.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+          profileCanonicalId: null,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+      });
+    });
+
+    it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-1',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Created,
+            }),
+          );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
+      });
+    });
+
+    it('loads an existing autoramp from the service instead of creating another', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        handlers.getAutoramps.mockResolvedValue([
+          {
+            id: 'autoramp-1',
+            customerId: 'customer-1',
+            walletAddress: '0xAbC',
+            status: AutorampStatus.Approved,
+          },
+        ]);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'alreadyRegistered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+          }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
+
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(
+          controller.state.autoramps.map(
+            ({ updatedAt: _updatedAt, ...account }) => account,
+          ),
+        ).toMatchInlineSnapshot(`
+          [
+            {
+              "customerId": "customer-1",
+              "depositRailsSummary": undefined,
+              "id": "autoramp-1",
+              "lastSeenStatus": "Approved",
+              "status": "Approved",
+              "walletAddress": "0xAbC",
+            },
+          ]
+        `);
+      });
+    });
+
+    it('creates a new autoramp when the existing account is terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        handlers.getAutoramps.mockResolvedValue([
+          {
+            id: 'autoramp-rejected',
+            customerId: 'customer-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Rejected,
+          },
+        ]);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'alreadyRegistered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-new',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+            }),
+          );
+
+        await controller.hydrateVbaOnboarding({
+          walletAddress: '0xabc',
+        });
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
+      });
+    });
+
+    it('coalesces overlapping hydration calls', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        let resolveRegistration: (
+          result: Awaited<
+            ReturnType<RampsController['registerMoneyAccountWallet']>
+          >,
+        ) => void = () => undefined;
+        const registerWallet = jest
+          .spyOn(controller, 'registerMoneyAccountWallet')
+          .mockReturnValue(
+            new Promise((resolve) => {
+              resolveRegistration = resolve;
+            }),
+          );
+        jest.spyOn(controller, 'createAutoramp').mockImplementation(async () =>
+          controller.addAutoramp({
+            id: 'autoramp-1',
+            customerId: 'customer-1',
+            walletAddress: '0xabc',
+          }),
+        );
+
+        const first = controller.hydrateVbaOnboarding({
+          walletAddress: '0xabc',
+        });
+        const second = controller.hydrateVbaOnboarding({
+          walletAddress: '0xabc',
+        });
+        resolveRegistration({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+
+        expect(await Promise.all([first, second])).toStrictEqual([
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        ]);
+        expect(registerWallet).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('marks the autoramp retryable when wallet registration fails on the approved path', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        const error = new Error('signing rejected');
+        jest
+          .spyOn(controller, 'registerMoneyAccountWallet')
+          .mockRejectedValue(error);
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
+        );
+      });
+    });
+
+    it('marks the autoramp retryable when the wallet lookup is unavailable', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        const error = new WalletRegistrationError('lookupUnavailable', {});
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'lookupUnavailable',
+          error,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
+        );
+      });
+    });
+
+    it('marks the autoramp retryable when loading autoramps fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        const error = new Error('autoramp lookup failed');
+        handlers.getAutoramps.mockRejectedValue(error);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'alreadyRegistered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
+        );
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('requires a wallet address only after KYC is accepted', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+
+        await expect(
+          controller.hydrateVbaOnboarding({ walletAddress: ' ' }),
+        ).rejects.toThrow('walletAddress is required after KYC acceptance.');
       });
     });
   });
@@ -11771,6 +12827,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('fetches buy quote and updates state on success', async () => {
@@ -11807,6 +12865,8 @@ describe('RampsController', () => {
                 "notes": [],
                 "paymentMethod": "credit_debit_card",
                 "quoteId": "quote-1",
+                "requestedAssetId": "BTC",
+                "requestedChainId": "bitcoin",
                 "slippage": 0.5,
                 "totalFee": 1,
               },
@@ -11815,6 +12875,61 @@ describe('RampsController', () => {
               "selected": null,
             }
           `);
+        });
+      });
+
+      it('forwards fee-inclusive behavior when requested', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await controller.transakGetBuyQuote(
+            'USD',
+            'MUSD',
+            'monad',
+            'credit_debit_card',
+            '15',
+            false,
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'MUSD',
+            'monad',
+            'credit_debit_card',
+            '15',
+            false,
+          );
+        });
+      });
+
+      it('defaults Unified Buy native quotes to fee exclusion', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await controller.transakGetBuyQuote(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+            true,
+          );
         });
       });
 
@@ -12310,6 +13425,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('calls messenger with correct arguments and returns URL', async () => {
@@ -12374,6 +13491,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('calls messenger with correct arguments and returns the widget URL', async () => {

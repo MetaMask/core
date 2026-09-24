@@ -1,15 +1,11 @@
 import type { Hex } from '@metamask/utils';
 
+import type { TradeType } from '../../utils/trade-type.js';
+
 /** Provider names supported by the server intents API. */
 export enum ServerProviderName {
   Relay = 'relay',
   Across = 'across',
-}
-
-/** Trade type for server quote requests. */
-export enum ServerTradeType {
-  ExactInput = 'EXACT_INPUT',
-  ExpectedOutput = 'EXPECTED_OUTPUT',
 }
 
 /** Token amount with chain and token context. */
@@ -72,7 +68,7 @@ export type ServerQuoteRequest = {
   source: { chainId: number; token: Hex };
   target: { chainId: number; token: Hex };
   amount: string;
-  tradeType: ServerTradeType;
+  tradeType: TradeType;
   sender: Hex;
   recipient: Hex;
   refundTo?: Hex;

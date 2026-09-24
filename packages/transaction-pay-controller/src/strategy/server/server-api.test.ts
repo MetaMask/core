@@ -1,11 +1,12 @@
 import type { PayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { TradeType } from '../../utils/trade-type.js';
 import {
   fetchServerQuote,
   getServerStatus,
   submitServerIntent,
 } from './server-api.js';
-import { ServerProviderName, ServerStatus, ServerTradeType } from './types.js';
+import { ServerProviderName, ServerStatus } from './types.js';
 import type { ServerQuoteRequest, ServerSubmitRequest } from './types.js';
 
 jest.mock('../../utils/feature-flags');
@@ -53,7 +54,7 @@ describe('server-api', () => {
       source: { chainId: 137, token: '0xbbb' },
       target: { chainId: 1, token: '0xaaa' },
       amount: '1000000',
-      tradeType: ServerTradeType.ExpectedOutput,
+      tradeType: TradeType.ExpectedOutput,
       sender: '0xccc',
       recipient: '0xccc',
     };

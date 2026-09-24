@@ -407,10 +407,36 @@ export function parseValueTransfers(
   };
 }
 
+/**
+ * Optional host callback that resolves ERC-20 decimals (and optionally symbol)
+ * when Accounts API enrichment omitted them on a value transfer.
+ *
+ * Hosts typically wire this to on-device token state (e.g. TokensController).
+ * Do not use this to override a present-but-wrong `transfer.decimal`.
+ */
+export type GetKnownTokenDecimals = (
+  chainId: CaipChainId,
+  contractAddress: string,
+) => { decimals?: number; symbol?: string } | undefined;
+
+/**
+ * Maps an Accounts API value transfer into a fungible/NFT {@link TokenAmount}.
+ *
+ * Fungible amounts are base units and are only emitted when a decimals scale is
+ * known (from the transfer, native defaults, static metadata, or the optional
+ * host hook). NFT amounts are token counts and are never fail-closed.
+ *
+ * @param transfer - Indexed value transfer, or undefined.
+ * @param direction - Whether this leg is incoming or outgoing for the subject.
+ * @param chainId - CAIP-2 chain id for the transaction.
+ * @param getKnownTokenDecimals - Optional host lookup for missing ERC-20 metadata.
+ * @returns A token amount, or undefined when nothing useful can be derived.
+ */
 export function getTokenAmountFromTransfer(
   transfer: ValueTransfer | undefined,
   direction: TokenAmount['direction'],
   chainId: CaipChainId,
+  getKnownTokenDecimals?: GetKnownTokenDecimals,
 ): TokenAmount | undefined {
   if (!transfer) {
     return undefined;
@@ -418,29 +444,54 @@ export function getTokenAmountFromTransfer(
 
   const { transferType, amount } = transfer;
   const isNftTransfer = isNftStandard(transferType);
-  const symbol = isNftTransfer
-    ? transfer.name || transfer.symbol
-    : transfer.symbol;
+  const assetType = getAssetTypeFromTransferType(transferType);
+  const isNative = assetType === 'native';
 
-  if (!symbol && amount === undefined) {
-    return undefined;
+  const knownToken =
+    !isNftTransfer && !isNative && transfer.contractAddress
+      ? getKnownTokenMetadata(chainId, transfer.contractAddress)
+      : undefined;
+  const hostToken =
+    !isNftTransfer && !isNative && transfer.contractAddress
+      ? getKnownTokenDecimals?.(chainId, transfer.contractAddress)
+      : undefined;
+
+  const symbol = isNftTransfer
+    ? (transfer.name ?? transfer.symbol)
+    : (transfer.symbol ?? knownToken?.symbol ?? hostToken?.symbol);
+
+  let decimals: number | undefined;
+  if (transfer.decimal !== undefined) {
+    decimals = transfer.decimal;
+  } else if (isNative) {
+    decimals = nativeTokenDecimals;
+  } else if (!isNftTransfer) {
+    decimals = knownToken?.decimals ?? hostToken?.decimals;
   }
 
-  const hasTransferAmount =
-    !isNftTransfer && amount !== null && amount !== undefined;
-  const assetType = getAssetTypeFromTransferType(transferType);
+  const hasScaledAmount =
+    !isNftTransfer &&
+    amount !== null &&
+    amount !== undefined &&
+    decimals !== undefined;
+  // NFT amounts are counts, not base units — keep them even without decimals.
+  const hasNftAmount = isNftTransfer && amount !== null && amount !== undefined;
 
   let assetId: string | undefined;
-  if (assetType === 'native') {
+  if (isNative) {
     assetId = resolveNativeAssetId(chainId, symbol);
-  } else if (transfer && !isNftTransfer) {
+  } else if (!isNftTransfer) {
     assetId = resolveAssetId(chainId, transfer.contractAddress);
+  }
+
+  if (!symbol && !hasScaledAmount && !hasNftAmount && !assetId) {
+    return undefined;
   }
 
   return {
     direction,
-    ...(hasTransferAmount ? { amount: String(amount) } : {}),
-    ...(transfer.decimal === undefined ? {} : { decimals: transfer.decimal }),
+    ...(hasScaledAmount || hasNftAmount ? { amount: String(amount) } : {}),
+    ...(decimals === undefined ? {} : { decimals }),
     ...(symbol ? { symbol } : {}),
     ...(assetId ? { assetId } : {}),
     ...(assetType ? { assetType } : {}),

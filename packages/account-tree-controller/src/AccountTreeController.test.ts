@@ -319,18 +319,27 @@ function setup({
     consoleWarn: jest.SpyInstance;
   };
   mocks: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     KeyringController: {
       keyrings: KeyringObject[];
       getState: jest.Mock;
+      removeAccount: jest.Mock;
       verifyPassword: jest.Mock;
       withController: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    MultichainAccountService: {
+      removeMultichainAccountWallet: jest.Mock;
+    };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     AccountsController: {
       accounts: InternalAccount[];
       listMultichainAccounts: jest.Mock;
       getSelectedMultichainAccount: jest.Mock;
       getAccount: jest.Mock;
+      getAccounts: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     UserStorageController: {
       performGetStorage: jest.Mock;
       performGetStorageAllFeatureEntries: jest.Mock;
@@ -338,6 +347,7 @@ function setup({
       performBatchSetStorage: jest.Mock;
       syncInternalAccountsWithUserStorage: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     AuthenticationController: {
       getSessionProfile: jest.Mock;
     };
@@ -347,13 +357,18 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      removeAccount: jest.fn().mockResolvedValue(undefined),
       verifyPassword: jest.fn().mockResolvedValue(undefined),
       withController: jest.fn(),
+    },
+    MultichainAccountService: {
+      removeMultichainAccountWallet: jest.fn().mockResolvedValue(undefined),
     },
     AccountsController: {
       accounts,
       listMultichainAccounts: jest.fn(),
       getAccount: jest.fn(),
+      getAccounts: jest.fn(),
       getSelectedMultichainAccount: jest.fn(),
     },
     UserStorageController: {
@@ -390,6 +405,16 @@ function setup({
     messenger.registerActionHandler(
       'AccountsController:getAccount',
       mocks.AccountsController.getAccount,
+    );
+
+    mocks.AccountsController.getAccounts.mockImplementation((ids: string[]) =>
+      ids.map((id) =>
+        mocks.AccountsController.accounts.find((account) => account.id === id),
+      ),
+    );
+    messenger.registerActionHandler(
+      'AccountsController:getAccounts',
+      mocks.AccountsController.getAccounts,
     );
 
     // Mock AccountsController:getSelectedMultichainAccount to return the first account
@@ -456,6 +481,11 @@ function setup({
       mocks.KeyringController.verifyPassword,
     );
 
+    messenger.registerActionHandler(
+      'KeyringController:removeAccount',
+      mocks.KeyringController.removeAccount,
+    );
+
     // Default: call the callback with no existing keyrings so private-key
     // imports are a no-op unless the test overrides this handler.
     mocks.KeyringController.withController.mockImplementation(
@@ -471,6 +501,11 @@ function setup({
       mocks.KeyringController.withController,
     );
   }
+
+  messenger.registerActionHandler(
+    'MultichainAccountService:removeMultichainAccountWallet',
+    mocks.MultichainAccountService.removeMultichainAccountWallet,
+  );
 
   const accountTreeControllerMessenger =
     getAccountTreeControllerMessenger(messenger);
@@ -554,6 +589,237 @@ describe('AccountTreeController', () => {
       controller.init();
 
       expect(messenger.call('AccountTreeController:isInitialized')).toBe(true);
+    });
+  });
+
+  describe('removeAccountWallet', () => {
+    it('throws if the account tree is not initialized', async () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      await expect(
+        controller.removeAccountWallet(MOCK_PREPOPULATED_WALLET_ID),
+      ).rejects.toThrow('Account tree is not initialized');
+    });
+
+    it('throws if the wallet does not exist', async () => {
+      const { controller } = setup();
+      controller.init();
+
+      await expect(
+        controller.removeAccountWallet(
+          'entropy:missing-wallet' as AccountWalletId,
+        ),
+      ).rejects.toThrow('Account wallet not found in tree');
+    });
+
+    it('throws before removing the primary entropy wallet', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      await expect(
+        controller.removeAccountWallet(
+          toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+        ),
+      ).rejects.toThrow('Cannot remove the primary account wallet');
+      expect(
+        mocks.MultichainAccountService.removeMultichainAccountWallet,
+      ).not.toHaveBeenCalled();
+      expect(mocks.KeyringController.removeAccount).not.toHaveBeenCalled();
+    });
+
+    it('removes a secondary entropy wallet through MultichainAccountService', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      mocks.MultichainAccountService.removeMultichainAccountWallet.mockImplementation(
+        async () => {
+          messenger.publish('AccountsController:accountsRemoved', [
+            MOCK_HD_ACCOUNT_2.id,
+          ]);
+        },
+      );
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(
+        mocks.MultichainAccountService.removeMultichainAccountWallet,
+      ).toHaveBeenCalledWith(MOCK_HD_KEYRING_2.metadata.id);
+      expect(controller.getAccountWalletObject(walletId)).toBeUndefined();
+    });
+
+    it('force-removes every hardware account through KeyringController', async () => {
+      const secondHardwareAccount: InternalAccount = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-hardware-id-2',
+        address: '0xDEF',
+      };
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1, secondHardwareAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+      mocks.KeyringController.removeAccount.mockImplementation(
+        async (address) => {
+          const account = [MOCK_HARDWARE_ACCOUNT_1, secondHardwareAccount].find(
+            (candidate) => candidate.address === address,
+          );
+          messenger.publish('AccountsController:accountsRemoved', [
+            account?.id as AccountId,
+          ]);
+        },
+      );
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledTimes(2);
+      expect(mocks.KeyringController.removeAccount).toHaveBeenNthCalledWith(
+        1,
+        MOCK_HARDWARE_ACCOUNT_1.address,
+      );
+      expect(mocks.KeyringController.removeAccount).toHaveBeenNthCalledWith(
+        2,
+        secondHardwareAccount.address,
+      );
+      expect(controller.getAccountWalletObject(walletId)).toBeUndefined();
+    });
+
+    it('force-removes Snap accounts through KeyringController', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_SNAP_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () =>
+          MOCK_SNAP_2 as unknown as ReturnType<
+            SnapControllerGetSnap['handler']
+          >,
+      );
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Snap,
+        MOCK_SNAP_2.id,
+      );
+      mocks.KeyringController.removeAccount.mockImplementation(async () => {
+        messenger.publish('AccountsController:accountsRemoved', [
+          MOCK_SNAP_ACCOUNT_2.id,
+        ]);
+      });
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledWith(
+        MOCK_SNAP_ACCOUNT_2.address,
+      );
+      expect(controller.getAccountWalletObject(walletId)).toBeUndefined();
+    });
+
+    it('continues removing accounts after an individual removal fails', async () => {
+      const secondHardwareAccount: InternalAccount = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-hardware-id-2',
+        address: '0xDEF',
+      };
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1, secondHardwareAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+      mocks.KeyringController.removeAccount
+        .mockRejectedValueOnce(new Error('Removal failed'))
+        .mockImplementationOnce(async () => {
+          messenger.publish('AccountsController:accountsRemoved', [
+            secondHardwareAccount.id,
+          ]);
+        });
+
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledTimes(2);
+      expect(
+        controller.getAccountWalletObject(walletId)?.groups[
+          toAccountGroupId(walletId, MOCK_HARDWARE_ACCOUNT_1.address)
+        ].accounts,
+      ).toStrictEqual([MOCK_HARDWARE_ACCOUNT_1.id]);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Account wallet removal is incomplete',
+        expect.objectContaining({
+          error: expect.any(Error),
+          context: expect.objectContaining({
+            failures: expect.arrayContaining([
+              expect.objectContaining({ id: MOCK_HARDWARE_ACCOUNT_1.id }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('keeps the wallet when an account is missing from AccountsController', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+      mocks.AccountsController.accounts = [];
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).not.toHaveBeenCalled();
+      expect(controller.getAccountWalletObject(walletId)).toBeDefined();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Account wallet removal is incomplete',
+        expect.objectContaining({
+          error: expect.any(Error),
+          context: expect.objectContaining({
+            failures: expect.arrayContaining([
+              expect.objectContaining({ id: MOCK_HARDWARE_ACCOUNT_1.id }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('is exposed through the controller messenger', async () => {
+      const { accountTreeControllerMessenger, controller } = setup();
+      controller.init();
+
+      await expect(
+        accountTreeControllerMessenger.call(
+          'AccountTreeController:removeAccountWallet',
+          'entropy:missing-wallet' as AccountWalletId,
+        ),
+      ).rejects.toThrow('Account wallet not found in tree');
     });
   });
 

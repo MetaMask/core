@@ -4,6 +4,7 @@ import {
   assert,
   assign,
   boolean,
+  enums,
   literal,
   number,
   optional,
@@ -16,6 +17,9 @@ import {
 import type {
   AgenticCliPreference,
   DelegationResponse,
+  IdentitySharingConsent,
+  IdentitySharingConsentWrite,
+  MarketingConsent,
   NotificationPreferences,
   PriceAlertPreference,
 } from './types.js';
@@ -114,6 +118,20 @@ const NotificationPreferencesSchema = type({
   priceAlerts: PriceAlertPreferenceSchema,
 });
 
+const MarketingConsentSchema = type({
+  marketingConsentEnabled: boolean(),
+});
+
+const IdentitySharingConsentSchema = type({
+  kyc: optional(boolean()),
+  iron: optional(boolean()),
+});
+
+const IdentitySharingConsentWriteSchema = type({
+  audience: enums(['kyc', 'iron']),
+  granted: boolean(),
+});
+
 /**
  * Default Agentic CLI notification preferences for consumers building a
  * fresh `NotificationPreferences` object.
@@ -205,6 +223,44 @@ export function assertNotificationPreferences(
   data: unknown,
 ): asserts data is NotificationPreferences {
   assert(data, NotificationPreferencesSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `MarketingConsent`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertMarketingConsent(
+  data: unknown,
+): asserts data is MarketingConsent {
+  assert(data, MarketingConsentSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `IdentitySharingConsent`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertIdentitySharingConsent(
+  data: unknown,
+): asserts data is IdentitySharingConsent {
+  assert(data, IdentitySharingConsentSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `IdentitySharingConsentWrite`
+ * before it is sent to the API.
+ *
+ * @param data - The unknown value to validate.
+ * @throws A `StructError` if `audience` is not `kyc` or `iron`, or if
+ * `granted` is missing or not a boolean.
+ */
+export function assertIdentitySharingConsentForWrite(
+  data: unknown,
+): asserts data is IdentitySharingConsentWrite {
+  assert(data, IdentitySharingConsentWriteSchema);
 }
 
 /**
