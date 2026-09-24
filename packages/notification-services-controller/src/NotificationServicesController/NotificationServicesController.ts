@@ -1056,7 +1056,7 @@ export class NotificationServicesController extends BaseController<
       // Even at first-time setup, existing subscriptions win: a user upgrading
       // from a client that never wrote a preferences blob keeps whichever
       // accounts they had already disabled.
-      let accountsWithNotifications = await getEnabledAccounts(
+      const accountsWithNotifications = await getEnabledAccounts(
         bearerToken,
         accounts,
         this.#env,
@@ -1074,11 +1074,6 @@ export class NotificationServicesController extends BaseController<
           bearerToken,
           accounts.map((address) => ({ address, enabled: true })),
           this.#env,
-        );
-        // Match the lower-case form the Trigger API echoes back, which is what
-        // every other path feeding the push API uses.
-        accountsWithNotifications = accounts.map((address) =>
-          address.toLowerCase(),
         );
       }
 
