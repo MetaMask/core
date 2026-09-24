@@ -15,15 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `selectIsPaymentFailed`, `selectPaymentFailureReason`, `selectIsRenewalNeeded`, and `selectIsDelegationExhausted` selectors keyed by subscription product. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Add `UpdateDelegationPaymentMethodCryptoRequest` so `updatePaymentMethod` can rotate an active crypto subscription with `cryptoAuthMethod` and `delegationHash`. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Add optional `forceNew` to `SubscriptionDelegationService:prepareDelegation` to create a replacement delegation instead of reusing a matching stored one. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add optional `TokenPaymentInfo.vault` and the `VaultName` type plus `VAULT_NAMES` constants, for the named vault a vault-share settlement token belongs to. `VaultName` is an open `string` because the set of vaults is server-driven. ([#10416](https://github.com/MetaMask/core/pull/10416))
+- Add `isVaultShareToken` to identify a yield-bearing vault-share settlement token, replacing the removed `isVaultShare` flag. ([#10416](https://github.com/MetaMask/core/pull/10416))
 
 ### Changed
 
+- **BREAKING:** Remove `TokenPaymentInfo.isVaultShare`, which the Subscription API no longer sends. A vault share is now identified by the presence of `accountantAddress` — use `isVaultShareToken`. Leaving the field in place made `getPricing` reject every vault-share token and fail the whole pricing response. ([#10416](https://github.com/MetaMask/core/pull/10416))
 - **BREAKING:** Make `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` optional so paused or failed crypto subscriptions can validate. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Refresh the access token when Money Account Plus subscription snapshots change, including payment-failure state while status remains active. ([#10305](https://github.com/MetaMask/core/pull/10305))
 - Prefer the latest period `startDate` when `prepareDelegation` reuses a matching stored cash-subscription delegation, so a `forceNew` replacement is chosen over an older equivalent record. ([#10305](https://github.com/MetaMask/core/pull/10305))
-- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409))
 - Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
 - Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
 
 ## [9.1.0]
 

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409))
 - Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
 
 ### Fixed

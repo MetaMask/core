@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `fetchTraderFeed` method to `SocialService` (and the `SocialService:fetchTraderFeed` messenger action) for one trader's activity as feed items. Calls `GET /traders/:addressOrId/feed` with optional `commentedOnly`, `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10408](https://github.com/MetaMask/core/pull/10408))
 - Add optional `volumeUsd30d` on `TraderStats` and required `copytradedAllTime` (`count`, `volumeUSD`, `distinctActors`) on `TraderProfileResponse` for the trader stats sheet ([#10389](https://github.com/MetaMask/core/pull/10389))
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^32.3.0` ([#10409](https://github.com/MetaMask/core/pull/10409))
+
 ## [3.1.0]
 
 ### Added

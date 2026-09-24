@@ -1,6 +1,9 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
@@ -487,6 +490,20 @@ describe('submitServerQuotes', () => {
       expect(addTxMock).toHaveBeenCalledTimes(1);
       expect(addTxBatchMock).not.toHaveBeenCalled();
       expect(submitServerIntentMock).not.toHaveBeenCalled();
+    });
+
+    it('passes the semantic type as an option rather than in the transaction params', async () => {
+      const singleStepRequest = buildNonGaslessRequest();
+      singleStepRequest.transaction.type = 'predictDeposit' as TransactionType;
+
+      await submitServerQuotes(singleStepRequest);
+
+      const [txParams, options] = addTxMock.mock.calls[0];
+
+      // `TransactionParams.type` is the EVM envelope type, so leaking the
+      // semantic type into it makes the controller reject the envelope.
+      expect(txParams).not.toHaveProperty('type');
+      expect(options).toMatchObject({ type: 'predictRelayDeposit' });
     });
 
     it('uses addTransactionBatch when the quote has multiple steps', async () => {

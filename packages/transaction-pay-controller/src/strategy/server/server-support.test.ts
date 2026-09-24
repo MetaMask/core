@@ -103,29 +103,16 @@ describe('server-support', () => {
       TransactionType.perpsDepositAndOrder,
       TransactionType.predictDepositAndOrder,
     ])(
-      'returns exact output for %s even when explicitly allowlisted',
+      'returns undefined for exact-output type %s once allowlisted',
       (transactionType) => {
         expect(
           getReason({
             enabledTransactionTypes: [transactionType],
             transaction: { type: transactionType } as TransactionMeta,
           }),
-        ).toBe(ServerUnsupportedReason.ExactOutput);
+        ).toBeUndefined();
       },
     );
-
-    it('returns exact output when a nested transaction requires it', () => {
-      expect(
-        getReason({
-          transaction: {
-            nestedTransactions: [
-              { type: TransactionType.perpsDepositAndOrder },
-            ],
-            type: TransactionType.perpsDeposit,
-          } as TransactionMeta,
-        }),
-      ).toBe(ServerUnsupportedReason.ExactOutput);
-    });
 
     it.each([
       ['atomic', { atomic: false }, ServerUnsupportedReason.NonAtomic],

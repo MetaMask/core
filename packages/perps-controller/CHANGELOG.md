@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
 ### Added
 
 - Add optional `subscriptionWaiverKind` (`'full' | 'partial'`) and `subscriptionCoveredNotionalUsd` fields to `PerpsFeeResolution`, reporting how much of an order the subscription allowance covered. ([#10294](https://github.com/MetaMask/core/pull/10294))
@@ -1009,7 +1011,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0
