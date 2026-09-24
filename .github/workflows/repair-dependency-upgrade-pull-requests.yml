@@ -21,14 +21,14 @@ concurrency:
 
 jobs:
   check:
-    name: Check whether the head commit needs repairing
+    name: Check whether the last commit was a repair
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
     runs-on: ubuntu-latest
     outputs:
-      needed: ${{ steps.head-author.outputs.needed }}
+      needed: ${{ steps.last-author.outputs.needed }}
     steps:
-      - name: Read the head commit author
-        id: head-author
+      - name: Read the author of the last commit
+        id: last-author
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           author="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.author.email')"
           if [[ "$author" == "$REPAIR_COMMIT_EMAIL" ]]; then
-            echo 'The head commit is a repair, nothing to do.'
+            echo 'The last commit is a repair, nothing to do.'
             echo 'needed=false' >> "$GITHUB_OUTPUT"
           else
             echo 'needed=true' >> "$GITHUB_OUTPUT"
