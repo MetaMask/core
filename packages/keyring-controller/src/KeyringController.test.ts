@@ -6488,6 +6488,44 @@ describe('KeyringController', () => {
       });
     });
 
+    it('fails the transaction and restores the drained keyring if its destruction fails', async () => {
+      await withController(async ({ controller }) => {
+        const importedAccount = await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+        const simpleKeyring = controller.getKeyringsByType(
+          KeyringTypes.simple,
+        )[0] as EthKeyring;
+        const destroy = jest.fn().mockRejectedValue(new Error('Cannot destroy'));
+        (simpleKeyring as {
+          destroy?: () => Promise<void>;
+        }).destroy = destroy;
+
+        // The operation drains the Simple keyring; the cleanup removes it,
+        // but its destruction fails.
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.simple },
+            async ({ keyring }) => {
+              keyring.removeAccount?.(importedAccount as Hex);
+            },
+          ),
+        ).rejects.toThrow('Cannot destroy');
+
+        // The drained keyring is restored at its original position, rebuilt
+        // from its snapshot.
+        const simpleKeyrings = controller.getKeyringsByType(
+          KeyringTypes.simple,
+        );
+        expect(simpleKeyrings).toHaveLength(1);
+        expect(simpleKeyrings[0]).not.toBe(simpleKeyring);
+        expect(
+          await controller.getKeyringForAccount(importedAccount),
+        ).toBeDefined();
+      });
+    });
+
     it('drops the operated keyring created and drained by a failed transaction', async () => {
       await withController(async ({ controller, encryptor }) => {
         const accountsBefore = await controller.getAccounts();

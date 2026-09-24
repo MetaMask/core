@@ -3458,7 +3458,8 @@ export class KeyringController<
         const result = await run(entry);
 
         // Scoped cleanup: only the operated keyring can have transitioned to
-        // empty during the operation.
+        // empty during the operation. A failing destruction fails the
+        // transaction; the rollback then restores the drained keyring.
         if (
           this.#keyrings.length > 1 &&
           wasNonEmpty &&
