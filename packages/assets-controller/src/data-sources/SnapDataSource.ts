@@ -548,11 +548,10 @@ export class SnapDataSource extends AbstractDataSource<
 
   /**
    * v6 fetch: a complete snapshot of the requested account-chain slices.
-   * The snap only reports assets the account holds, so every other visible
-   * asset (native, pin, default tracked) is added at zero — otherwise a
-   * `full` replace would drop pins the Accounts API cannot resolve yet.
-   * Hidden assets are left out entirely. Delete with the rest of the v6 path
-   * if `assetsAccountsApiV6` is rolled back.
+   * Listed holdings and expected visible assets (native, pin, default
+   * tracked) are requested together. Hidden assets are left out entirely.
+   * Delete with the rest of the v6 path if `assetsAccountsApiV6` is rolled
+   * back.
    *
    * @param request - The data request.
    * @returns Authoritative (`full`) balances for the requested slices.
@@ -596,6 +595,7 @@ export class SnapDataSource extends AbstractDataSource<
         const accountAssets = await client.listAccountAssets(accountId);
         const assetsToFetch = this.#selectAssetsToFetchV6(
           accountAssets ?? [],
+          visibleAssetIds,
           supportedChainIds,
           hiddenAssetIds,
         );
@@ -616,8 +616,8 @@ export class SnapDataSource extends AbstractDataSource<
           }
         }
 
-        // Step 3: Complete the snapshot so the replace cannot drop assets the
-        // snap does not report a holding for.
+        // Step 3: Guard against an incomplete snap response. A `full` replace
+        // would drop any expected visible asset that was requested but omitted.
         for (const assetId of visibleAssetIds) {
           accountBalances[assetId] ??= { amount: '0' };
         }
@@ -634,16 +634,19 @@ export class SnapDataSource extends AbstractDataSource<
   }
 
   /**
-   * Narrow the snap's asset list to the requested chains, dropping assets the
-   * user hid so they are neither fetched nor written back to state.
+   * Union the snap's listed holdings with expected visible assets (native,
+   * pin, default tracked), limited to the requested chains. Hidden assets
+   * are dropped so they are neither fetched nor written back to state.
    *
    * @param accountAssets - Asset IDs the snap listed for the account.
+   * @param visibleAssetIds - Native, pin, and default tracked IDs for this scope.
    * @param supportedChainIds - Chains this snap was asked about.
    * @param hiddenAssetIds - Asset IDs the user hid in this scope.
    * @returns Asset IDs to request balances for.
    */
   #selectAssetsToFetchV6(
     accountAssets: string[],
+    visibleAssetIds: Caip19AssetId[],
     supportedChainIds: ChainId[],
     hiddenAssetIds: Caip19AssetId[],
   ): CaipAssetType[] {
@@ -651,18 +654,30 @@ export class SnapDataSource extends AbstractDataSource<
     const hidden = new Set(
       hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
     );
+    const assetsToFetch = new Map<string, CaipAssetType>();
 
-    return accountAssets.filter((assetId): assetId is CaipAssetType => {
+    for (const assetId of [...accountAssets, ...visibleAssetIds]) {
+      const normalizedAssetId = assetId.toLowerCase();
+      if (
+        assetsToFetch.has(normalizedAssetId) ||
+        hidden.has(normalizedAssetId)
+      ) {
+        continue;
+      }
+
       try {
-        return (
-          supportedChains.has(extractChainFromAssetId(assetId)) &&
-          !hidden.has(assetId.toLowerCase())
-        );
+        if (!supportedChains.has(extractChainFromAssetId(assetId))) {
+          continue;
+        }
       } catch {
         // Skip unparseable asset IDs
-        return false;
+        continue;
       }
-    });
+
+      assetsToFetch.set(normalizedAssetId, assetId as CaipAssetType);
+    }
+
+    return Array.from(assetsToFetch.values());
   }
 
   // ============================================================================

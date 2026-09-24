@@ -68,15 +68,14 @@ const STATUS_CHANGE_DEBOUNCE_MS = 1000;
 // on downstream consumers).
 const STATUS_CHANGE_JITTER_MS = 1000;
 
-// EVM subscriptions are always enabled.
-const ALWAYS_SUPPORTED_CHAIN_PREFIXES = ['eip155'] as const;
+// EVM and Tron subscriptions are always enabled.
+const ALWAYS_SUPPORTED_CHAIN_PREFIXES = ['eip155', 'tron'] as const;
 
 // Non-EVM chains are gated behind the
 // per-network snaps-migration remote feature flags: a chain is
 // enabled when its flag payload has `stage >= 1`.
 const CHAIN_PREFIX_FEATURE_FLAGS = {
   solana: 'networkAssetsSnapsMigrationSolana',
-  tron: 'networkAssetsSnapsMigrationTron',
   stellar: 'networkAssetsSnapsMigrationStellar',
 } as const;
 
@@ -630,9 +629,9 @@ export class AccountActivityService {
   }
 
   /**
-   * Get the chain prefixes currently enabled for subscriptions: EVM is always
-   * enabled, while other chains are gated behind their per-network remote
-   * feature flag (enabled when the flag payload has `stage >= 1`).
+   * Get the chain prefixes currently enabled for subscriptions: EVM and Tron
+   * are always enabled, while other chains are gated behind their per-network
+   * remote feature flag (enabled when the flag payload has `stage >= 1`).
    *
    * @param remoteFeatureFlags - The remote feature flags state to check for enabled chains.
    * @returns An array of enabled CAIP-2 namespace prefixes (e.g. `['eip155', 'solana']`)

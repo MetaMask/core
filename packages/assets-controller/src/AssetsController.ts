@@ -628,42 +628,45 @@ function effectiveAccountBalancesV5(
  * and either returns them (at zero when the account holds none) or names
  * them in `unprocessedIncludeAssetIds`. Assets the client tracks on purpose
  * survive a `full` replace even when the response omits them, so an upstream
- * gap cannot wipe them — see `skipDelete`.
+ * gap cannot wipe them — see `shouldKeepAsset`.
  *
  * @param previousBalances - Balances already in state for this account.
- * @param accountBalances - Balances from the incoming response.
- * @param skipDelete - Whether a prior asset must be kept even though the
- *   response omits it, because the client asked for it as a visible asset
- *   (native, pin, or default tracked). Hidden assets are excluded from
- *   snapshots and dropped here; unhide is expected to fetch a new snapshot.
+ * @param updatedBalances - Balances from the incoming response.
+ * @param undeletableAssetIds - Visible assets the client asked for (native,
+ *   pin, or default tracked). They survive a `full` replace if the response
+ *   omits them. Hidden assets are excluded from snapshots and dropped here;
+ *   unhide is expected to fetch a new snapshot.
  * @param updateMode - `'merge'` overlays incoming balances; `'full'` replaces
- *   each covered chain slice except assets kept by `skipDelete`.
+ *   each updated chain slice except undeletable and staking assets.
  * @returns The effective balance map for the account.
  */
 function effectiveAccountBalancesV6(
   previousBalances: Record<string, AssetBalance>,
-  accountBalances: Record<string, AssetBalance>,
-  skipDelete: (assetId: Caip19AssetId) => boolean,
+  updatedBalances: Record<string, AssetBalance>,
+  undeletableAssetIds: Set<string>,
   updateMode: AssetsUpdateMode,
 ): Record<string, AssetBalance> {
   if (updateMode === 'merge') {
-    return { ...previousBalances, ...accountBalances };
+    return { ...previousBalances, ...updatedBalances };
   }
 
-  const coveredChains = new Set(
-    Object.keys(accountBalances).map((assetId) => assetId.split('/')[0]),
+  const updatedChains = new Set(
+    Object.keys(updatedBalances).map((assetId) =>
+      extractChainId(assetId as Caip19AssetId),
+    ),
   );
-  const next: Record<string, AssetBalance> = {};
+  const shouldKeepAsset = (assetId: Caip19AssetId): boolean =>
+    !updatedChains.has(extractChainId(assetId)) ||
+    undeletableAssetIds.has(assetId.toLowerCase()) ||
+    isStakingContractAssetId(assetId);
+
+  const keptBalances: Record<string, AssetBalance> = {};
   for (const [assetId, balance] of Object.entries(previousBalances)) {
-    if (
-      !coveredChains.has(assetId.split('/')[0]) ||
-      skipDelete(assetId as Caip19AssetId)
-    ) {
-      next[assetId] = balance;
+    if (shouldKeepAsset(assetId as Caip19AssetId)) {
+      keptBalances[assetId] = balance;
     }
   }
-  Object.assign(next, accountBalances);
-  return next;
+  return { ...keptBalances, ...updatedBalances };
 }
 
 // ============================================================================
@@ -2402,14 +2405,15 @@ export class AssetsController extends BaseController<
    * @returns `true` when the v6 remote flag is on.
    */
   #isBalanceV6Enabled(): boolean {
-    try {
-      const { remoteFeatureFlags } = this.messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      return remoteFeatureFlags?.assetsAccountsApiV6 === true;
-    } catch {
-      return false;
-    }
+    return true;
+    // try {
+    //   const { remoteFeatureFlags } = this.messenger.call(
+    //     'RemoteFeatureFlagController:getState',
+    //   );
+    //   return remoteFeatureFlags?.assetsAccountsApiV6 === true;
+    // } catch {
+    //   return false;
+    // }
   }
 
   // ============================================================================
@@ -3081,23 +3085,14 @@ export class AssetsController extends BaseController<
             accountBalances: Record<string, AssetBalance>,
             previousBalances: Record<string, AssetBalance>,
           ): void => {
-            let undeletableAssetIds: Set<string> | undefined;
-            const skipDelete = (assetId: Caip19AssetId): boolean => {
-              undeletableAssetIds ??= this.#getUndeletableAssetIds(
-                state as AssetsControllerState,
-                accountId,
-                accountBalances,
-              );
-              return (
-                undeletableAssetIds.has(assetId.toLowerCase()) ||
-                isStakingContractAssetId(assetId)
-              );
-            };
-
             const effectiveAccountBalances = effectiveAccountBalancesV6(
               previousBalances,
               accountBalances,
-              skipDelete,
+              this.#getUndeletableAssetIds(
+                state as AssetsControllerState,
+                accountId,
+                accountBalances,
+              ),
               mode,
             );
 

@@ -195,6 +195,9 @@ export function shouldSupportChain(
   if (!namespace) {
     return true;
   }
+  if (namespace === 'tron') {
+    return true;
+  }
   const stage = parseSnapsAssetsMigrationStage(
     remoteFeatureFlags?.[SNAPS_ASSETS_MIGRATION_FLAG_KEYS[namespace]],
   );

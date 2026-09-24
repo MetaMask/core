@@ -169,7 +169,17 @@ function createMockHandleRequest(
       return Promise.resolve(accountAssets);
     }
     if (request?.method === 'keyring_getAccountBalances') {
-      return Promise.resolve(balances);
+      const requested = request.params?.assets as string[] | undefined;
+      if (!requested) {
+        return Promise.resolve(balances);
+      }
+      return Promise.resolve(
+        Object.fromEntries(
+          requested
+            .filter((assetId) => balances[assetId])
+            .map((assetId) => [assetId, balances[assetId]]),
+        ),
+      );
     }
     return Promise.resolve(null);
   });
@@ -541,12 +551,12 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('returns a full v6 snapshot with visible assets missing from the snap set to zero', async () => {
+  it('requests expected visible assets and zero-fills any the snap omitted', async () => {
     const getAssetVisibility = jest.fn().mockReturnValue({
       visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
       hiddenAssetIds: [],
     });
-    const { controller, cleanup } = setupController({
+    const { controller, mockHandleRequest, cleanup } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -565,6 +575,17 @@ describe('SnapDataSource', () => {
       ['mock-account-id'],
       [SOLANA_MAINNET],
     );
+    expect(mockHandleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          method: 'keyring_getAccountBalances',
+          params: {
+            id: 'mock-account-id',
+            assets: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+          },
+        }),
+      }),
+    );
     expect(response).toStrictEqual({
       assetsBalance: {
         'mock-account-id': {
@@ -574,6 +595,72 @@ describe('SnapDataSource', () => {
       },
       assetsInfo: {},
       updateMode: 'full',
+    });
+
+    cleanup();
+  });
+
+  it('uses the snap balance for a visible asset omitted from listAccountAssets', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+        [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+        hiddenAssetIds: [],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+      [MOCK_SOL_ASSET]: { amount: '1000000000' },
+      [MOCK_SOL_PIN]: { amount: '42' },
+    });
+
+    cleanup();
+  });
+
+  it('does not request hidden assets on the v6 snap fetch', async () => {
+    const { controller, mockHandleRequest, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+        [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET],
+        hiddenAssetIds: [MOCK_SOL_PIN],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(mockHandleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          method: 'keyring_getAccountBalances',
+          params: {
+            id: 'mock-account-id',
+            assets: [MOCK_SOL_ASSET],
+          },
+        }),
+      }),
+    );
+    expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+      [MOCK_SOL_ASSET]: { amount: '1000000000' },
     });
 
     cleanup();

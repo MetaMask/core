@@ -84,10 +84,11 @@ reads controller state and returns:
 - `hiddenAssetIds`: hidden preferences on those chains
 
 Accounts API sends those lists as `includeAssetIds` / `excludeAssetIds`. RPC
-and Snap fetch the visible set and skip hidden IDs. Because a `full` snapshot
-must mention every visible asset (at zero when unheld), Snap pads missing
-visible IDs to `{ amount: '0' }`. RPC builds the same list from state, so a
-successful chain is already complete.
+and Snap fetch the visible set and skip hidden IDs. Snap also asks the keyring
+for those visible IDs (not only `listAccountAssets` holdings). Because a `full`
+snapshot must mention every visible asset, Snap then zero-fills any ID still
+missing from the snap response — a guard if the response is incomplete. RPC
+builds the same list from state, so a successful chain is already complete.
 
 `hideAsset` / `removeCustomAsset` re-run `#subscribeAssets` so the next poll
 sees the new lists. `addCustomAsset` and `unhideAsset` also force-fetch that
@@ -134,8 +135,9 @@ The requests differ as well:
   `updateMode: 'full'` is a complete snapshot for successful chains. A chain
   that is unprocessed, or that did not resolve every `includeAssetId`, is put
   in `errors` and contributes no balances. RPC fallback retries those **chains**
-  in full from state and stamps `full`. Snap `#fetchV6` stamps `full` after
-  zero-filling missing visible assets. Background Snap+RPC both stamp `full`;
+  in full from state and stamps `full`. Snap `#fetchV6` requests visible
+  assets with listed holdings, stamps `full`, and zero-fills any still
+  missing from the snap response. Background Snap+RPC both stamp `full`;
   `mergeDataResponses` promotes `full` if any source did.
 
 When basic functionality is off, both fast lanes shrink to
@@ -225,7 +227,7 @@ functionality is on.
 - flag on → v6 always. Inside v6, `updateMode: 'merge'` overlays
   `{ ...previous, ...incoming }`; `updateMode: 'full'` replaces each covered
   chain slice. Visible assets the client asked for survive a `full` replace
-  via `skipDelete` (natives, pins, and default tracked assets, plus staking
+  via `shouldKeepAsset` (natives, pins, and default tracked assets, plus staking)
   vaults until Accounts API returns ETH staked balances). Hidden assets are
   excluded from the snapshot and dropped; unhide is expected to fetch again.
 
@@ -253,7 +255,7 @@ RpcFallback then retries only `errors` keys.
 | Fetch update mode       | `merge` for Accounts API, Snap, and RPC                                 | `full` for Accounts API, Snap, and RPC                                                                            |
 | Subscribe update mode   | `merge` for every source                                                | `full` for Accounts API, Snap snapshots, and RPC; `merge` for events (Snap, Account Activity, staking, detection) |
 | State writer            | `effectiveAccountBalancesV5`                                            | `effectiveAccountBalancesV6(updateMode)`                                                                          |
-| Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `skipDelete`                  |
+| Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `shouldKeepAsset`             |
 | Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap zero-fill / RPC fetch list                                                  |
 | Hidden assets           | Not sent to the endpoint                                                | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches)                   |
 | Default tracked assets  | Survive only if already in state or returned                            | Always in visibility, so a `full` refresh keeps them at zero when unheld                                          |
@@ -268,14 +270,14 @@ v6 `updateMode` by source:
 | Source           | Fetch / force refresh | Subscribe / live updates                                      |
 | ---------------- | --------------------- | ------------------------------------------------------------- |
 | Accounts API     | `full`                | `full` (polls `fetch`)                                        |
-| Snap             | `full`                | `full` initial fetch; balance events stay `merge`             |
+| Snap             | `full`                | `merge`                                                       |
 | RPC              | `full`                | `full` (balance poll and tx refresh); detection stays `merge` |
 | Account Activity | n/a (event-only)      | `merge`                                                       |
 | Staked balances  | `merge`               | `merge`                                                       |
 
 Fast-lane Accounts API `full` merged with staking `merge` still stamps `full`
 (`mergeDataResponses` promotes it). Staking rows that are present in that
-merged payload are written with the snapshot; if they are omitted, `skipDelete`
+merged payload are written with the snapshot; if they are omitted, `shouldKeepAsset`
 keeps the prior vault balance.
 
 ## Where the code lives
@@ -308,7 +310,7 @@ Once v6 is accepted as the only behavior:
    `#subscribeRpcCustomAssetsSupplement`) and every
    `!this.#isBalanceV6Enabled()` branch.
 2. Keep the v6 methods as the single orchestration path. Drop
-   `isStakingContractAssetId` from `skipDelete` when Accounts API returns ETH
+   `isStakingContractAssetId` from `shouldKeepAsset` when Accounts API returns ETH
    staked balances, and drop its native branch when Accounts API always returns
    an explicit zero row for every requested native.
 3. Remove this document's v5/v6 comparison tables.
