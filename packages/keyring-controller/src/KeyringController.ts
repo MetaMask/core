@@ -377,6 +377,22 @@ type SessionState = {
   encryptionKey?: CachedEncryptionKey;
 };
 
+/**
+ * A snapshot of a single keyring entry, taken before a transaction that is
+ * known to operate on that keyring only.
+ */
+type ScopedKeyringSnapshot = {
+  /**
+   * The position of the keyring entry in the keyrings array when the
+   * snapshot was taken.
+   */
+  index: number;
+  /**
+   * The serialized keyring.
+   */
+  serialized: SerializedKeyring;
+};
+
 export type EncryptionResultConstraint<SupportedKeyMetadata> = {
   salt?: string;
   keyMetadata?: SupportedKeyMetadata;
@@ -917,6 +933,9 @@ export class KeyringController<
   async addNewAccount(accountCount?: number): Promise<string> {
     this.#assertIsUnlocked();
 
+    // TODO: This operation targets a single keyring. Migrate it to
+    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // diffs only the operated keyring, instead of every keyring.
     return this.#persistOrRollback(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring
@@ -966,6 +985,9 @@ export class KeyringController<
     // ethereum compatible, but "Snap Keyring" might not be.
     this.#assertIsUnlocked();
 
+    // TODO: This operation targets a single keyring. Migrate it to
+    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // diffs only the operated keyring, instead of every keyring.
     return this.#persistOrRollback(async () => {
       const oldAccounts = await this.#getAccountsFromKeyrings();
 
@@ -1051,6 +1073,9 @@ export class KeyringController<
   ): Promise<KeyringMetadata> {
     this.#assertIsUnlocked();
 
+    // TODO: This operation creates a single keyring. Migrate it to
+    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // diffs only the operated keyring, instead of every keyring.
     return this.#getKeyringMetadata(
       await this.#persistOrRollback(async () => this.#newKeyring(type, opts)),
     );
@@ -1363,6 +1388,10 @@ export class KeyringController<
     args: any[],
   ): Promise<string> {
     this.#assertIsUnlocked();
+
+    // TODO: This operation targets a single keyring. Migrate it to
+    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // diffs only the operated keyring, instead of every keyring.
     return this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
@@ -1430,6 +1459,9 @@ export class KeyringController<
   async removeAccount(address: string): Promise<void> {
     this.#assertIsUnlocked();
 
+    // TODO: This operation targets a single keyring. Migrate it to
+    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // diffs only the operated keyring, instead of every keyring.
     await this.#persistOrRollback(async () => {
       const keyringIndex = await this.#findKeyringIndexForAccount(address);
 
@@ -1901,6 +1933,11 @@ export class KeyringController<
    * function execution, or rolls back the changes if an error
    * is thrown.
    *
+   * The operation must only mutate the keyring it is given: the transaction
+   * snapshots, persists, and rolls back only the selected keyring. Changes
+   * made to other keyrings (e.g. through references obtained from
+   * deprecated direct-access methods) are neither persisted nor rolled back.
+   *
    * @param selector - Keyring selector object.
    * @param operation - Function to execute with the selected keyring.
    * @param options - Additional options.
@@ -1931,6 +1968,11 @@ export class KeyringController<
    * The method automatically persists changes at the end of the
    * function execution, or rolls back the changes if an error
    * is thrown.
+   *
+   * The operation must only mutate the keyring it is given: the transaction
+   * snapshots, persists, and rolls back only the selected keyring. Changes
+   * made to other keyrings (e.g. through references obtained from
+   * deprecated direct-access methods) are neither persisted nor rolled back.
    *
    * @param selector - Keyring selector object.
    * @param operation - Function to execute with the selected keyring.
@@ -1966,36 +2008,27 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => {
-      let entry: KeyringEntry | undefined = await this.#selectKeyringEntry({
-        v2: false,
-        selector,
-      });
-
-      if (!entry && 'type' in selector && options.createIfMissing) {
+    return this.#withScopedKeyringTransaction(
+      () => this.#selectKeyringEntry({ v2: false, selector }),
+      async () => {
+        if (!options.createIfMissing || !('type' in selector)) {
+          return undefined;
+        }
         const newKeyring = (await this.#newKeyring(
           selector.type,
           options.createWithData,
         )) as SelectedKeyring;
-        entry = this.#keyrings.find(({ keyring }) => keyring === newKeyring);
-      }
-
-      if (!entry) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringNotFound,
-        );
-      }
-
-      const { metadata } = entry;
-      const keyring = entry.keyring as SelectedKeyring;
-
-      return this.#assertNoUnsafeDirectKeyringAccess(
-        await this.#cleanUpEmptiedKeyringsAfter(async () =>
-          operation({ keyring, metadata }),
+        return this.#keyrings.find(({ keyring }) => keyring === newKeyring);
+      },
+      async ({ keyring, metadata }) =>
+        this.#assertNoUnsafeDirectKeyringAccess(
+          await operation({
+            keyring: keyring as SelectedKeyring,
+            metadata,
+          }),
+          keyring,
         ),
-        keyring,
-      );
-    });
+    );
   }
 
   /**
@@ -2082,6 +2115,11 @@ export class KeyringController<
    * function execution, or rolls back the changes if an error
    * is thrown.
    *
+   * The operation must only mutate the keyring it is given: the transaction
+   * snapshots, persists, and rolls back only the selected keyring. Changes
+   * made to other keyrings (e.g. through references obtained from
+   * deprecated direct-access methods) are neither persisted nor rolled back.
+   *
    * @param selector - Keyring selector object.
    * @param operation - Function to execute with the wrapped V2 keyring.
    * @returns Promise resolving to the result of the function execution.
@@ -2102,37 +2140,25 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => {
-      const entry = await this.#selectKeyringEntry({
-        v2: true,
-        selector,
-      });
+    return this.#withScopedKeyringTransaction(
+      () => this.#selectKeyringEntry({ v2: true, selector }),
+      async () => undefined,
+      async ({ keyringV2, metadata }) => {
+        if (!keyringV2) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.KeyringV2NotSupported,
+          );
+        }
 
-      if (!entry) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringNotFound,
-        );
-      }
-
-      if (!entry.keyringV2) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringV2NotSupported,
-        );
-      }
-
-      const { metadata } = entry;
-      const keyring = entry.keyringV2 as SelectedKeyring;
-
-      return this.#assertNoUnsafeDirectKeyringAccess(
-        await this.#cleanUpEmptiedKeyringsAfter(async () =>
-          operation({
-            keyring,
+        return this.#assertNoUnsafeDirectKeyringAccess(
+          await operation({
+            keyring: keyringV2 as SelectedKeyring,
             metadata,
           }),
-        ),
-        keyring,
-      );
-    });
+          keyringV2,
+        );
+      },
+    );
   }
 
   /**
@@ -2779,10 +2805,9 @@ export class KeyringController<
     this.#assertControllerMutexIsLocked();
 
     const oldKeyringsById = new Map(
-      this.#keyrings.map((oldKeyring) => [
-        oldKeyring.metadata.id,
-        oldKeyring,
-      ] as const),
+      this.#keyrings.map(
+        (oldKeyring) => [oldKeyring.metadata.id, oldKeyring] as const,
+      ),
     );
 
     // The new keyrings array is built by walking the snapshot, and becomes
@@ -2854,15 +2879,10 @@ export class KeyringController<
     // drop it.
     oldStaleKeyrings.push(...oldKeyringsById.values());
 
-    // Destroying an old stale keyring is cleanup: a failure is logged so that
-    // it neither aborts the rollback nor masks the error of the failed
-    // transaction.
-    for (const { keyring, keyringV2 } of oldStaleKeyrings) {
-      try {
-        await this.#destroyKeyring(keyring, keyringV2);
-      } catch (error) {
-        console.error(error);
-      }
+    // Destroying an old stale keyring is cleanup: a failure must neither
+    // abort the rollback nor mask the error of the failed transaction.
+    for (const oldStaleKeyring of oldStaleKeyrings) {
+      await this.#destroyKeyringIgnoringErrors(oldStaleKeyring);
     }
   }
 
@@ -3179,74 +3199,6 @@ export class KeyringController<
   }
 
   /**
-   * Run the given operation and afterwards clean up any keyring whose
-   * account list transitioned from non-empty to empty during the operation.
-   *
-   * This mirrors the cleanup behavior of {@link KeyringController.removeAccount}
-   * for code paths where the consumer mutates a keyring directly via
-   * {@link KeyringController.withKeyring} or
-   * {@link KeyringController.withKeyringV2}: if the consumer drains the last
-   * account from a keyring, the now-empty keyring is removed from
-   * {@link KeyringController.#keyrings} and destroyed before persistence runs.
-   *
-   * Pre-existing empty keyrings (e.g. those created intentionally via
-   * {@link KeyringController.addNewKeyring} without subsequent account
-   * creation) are left alone, as are keyrings created within the operation
-   * itself (they are not part of the pre-operation snapshot). The primary
-   * keyring (see {@link KeyringController.#isPrimaryKeyring}) is also preserved
-   * unconditionally to keep `removeAccount`'s primary-keyring invariant intact.
-   *
-   * @param operation - The operation to execute.
-   * @returns The result of the operation.
-   * @template Result - The type of the value resolved by the operation.
-   */
-  async #cleanUpEmptiedKeyringsAfter<Result>(
-    operation: () => Promise<Result>,
-  ): Promise<Result> {
-    // Only the primary keyring exists, which is never auto-removed, so there
-    // is nothing to clean up regardless of what the operation does.
-    if (this.#keyrings.length <= 1) {
-      return operation();
-    }
-
-    const wasNonEmpty = new WeakSet<EthKeyring>();
-    await Promise.all(
-      this.#keyrings.map(async ({ keyring }) => {
-        if ((await keyring.getAccounts()).length > 0) {
-          wasNonEmpty.add(keyring);
-        }
-      }),
-    );
-
-    const result = await operation();
-
-    const isNowEmpty = await Promise.all(
-      this.#keyrings.map(
-        async ({ keyring }) => (await keyring.getAccounts()).length === 0,
-      ),
-    );
-
-    const emptied = this.#keyrings.filter(
-      (entry, index) =>
-        !this.#isPrimaryKeyring(entry, this.#keyrings) &&
-        wasNonEmpty.has(entry.keyring) &&
-        isNowEmpty[index],
-    );
-
-    if (emptied.length > 0) {
-      const removed = new Set(emptied);
-      this.#keyrings = this.#keyrings.filter((entry) => !removed.has(entry));
-      await Promise.all(
-        emptied.map(({ keyring, keyringV2 }) =>
-          this.#destroyKeyring(keyring, keyringV2),
-        ),
-      );
-    }
-
-    return result;
-  }
-
-  /**
    * Remove all managed keyrings, destroying all their
    * instances in memory.
    */
@@ -3336,6 +3288,22 @@ export class KeyringController<
   }
 
   /**
+   * Destroy the given keyring entry, logging instead of throwing on failure.
+   *
+   * Destroying a discarded keyring is cleanup: a failure must neither abort
+   * a rollback nor mask the error of the failed transaction.
+   *
+   * @param entry - The keyring entry to destroy.
+   */
+  async #destroyKeyringIgnoringErrors(entry: KeyringEntry): Promise<void> {
+    try {
+      await this.#destroyKeyring(entry.keyring, entry.keyringV2);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  /**
    * Assert that there are no duplicate accounts in the keyrings.
    *
    * @param additionalKeyrings - Additional keyrings to include in the check.
@@ -3407,6 +3375,207 @@ export class KeyringController<
   }
 
   /**
+   * Execute a transaction that is known to operate on a single keyring
+   * entry, selected (and possibly created) before the transaction starts.
+   *
+   * Because the blast radius is a single known keyring, only that keyring is
+   * snapshotted, diffed, persisted and rolled back: the other keyrings are
+   * never serialized, and keep their instances even if the transaction
+   * fails. This relies on the operations run this way (the `withKeyring`
+   * family) only mutating the keyring they are given.
+   *
+   * If the operation drains the operated keyring of all its accounts, the
+   * keyring is removed and destroyed (mirroring `removeAccount`), unless it
+   * is the primary keyring.
+   *
+   * @param select - Selects the keyring entry to operate on, returning
+   *   `undefined` if there is none.
+   * @param create - Creates the keyring entry to operate on when selection
+   *   found nothing, returning `undefined` if no keyring is created.
+   * @param run - Runs the operation with the selected or created entry.
+   * @returns The result of the operation.
+   */
+  async #withScopedKeyringTransaction<Result>(
+    select: () => Promise<KeyringEntry | undefined>,
+    create: () => Promise<KeyringEntry | undefined>,
+    run: (entry: KeyringEntry) => Promise<Result>,
+  ): Promise<Result> {
+    return this.#withControllerLock(async () => {
+      // The operated keyring is selected (and possibly created) first, so
+      // that the transaction's blast radius is a single known keyring.
+      const selected = await select();
+      const entry = selected ?? (await create());
+
+      if (!entry) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
+      }
+
+      // Whether the operated keyring can be auto-removed if the operation
+      // drains it of all its accounts.
+      const wasNonEmpty = (await entry.keyring.getAccounts()).length > 0;
+
+      // Snapshot only the operated keyring. `undefined` means that the
+      // transaction created the keyring, so there is no pre-transaction state
+      // to restore. The snapshot doubles as the "before" state for the
+      // scoped change detection below. The serialized data is cloned, as
+      // keyrings are free to return aliased internal state from
+      // `serialize()`, which the operation could then mutate through the
+      // snapshot itself.
+      const snapshot: ScopedKeyringSnapshot | undefined = selected
+        ? {
+            index: this.#keyrings.indexOf(entry),
+            serialized: {
+              type: entry.keyring.type,
+              data: cloneDeep(await entry.keyring.serialize()),
+              metadata: { ...entry.metadata },
+            },
+          }
+        : undefined;
+
+      try {
+        const result = await run(entry);
+
+        // Scoped cleanup: only the operated keyring can have transitioned to
+        // empty during the operation.
+        if (
+          this.#keyrings.length > 1 &&
+          wasNonEmpty &&
+          (await entry.keyring.getAccounts()).length === 0 &&
+          !this.#isPrimaryKeyring(entry, this.#keyrings)
+        ) {
+          this.#keyrings.splice(this.#keyrings.indexOf(entry), 1);
+          await this.#destroyKeyring(entry.keyring, entry.keyringV2);
+        }
+
+        // Scoped change detection: the vault is updated only if the operated
+        // keyring changed.
+        if (await this.#scopedKeyringHasChanged(entry, snapshot)) {
+          await this.#updateVault();
+        }
+
+        return result;
+      } catch (error) {
+        await this.#rollbackKeyringToScopedSnapshot(entry, snapshot);
+
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Check whether the keyring entry operated on by a scoped transaction has
+   * changed relative to its snapshot.
+   *
+   * A keyring that cannot be serialized anymore is treated as changed, so
+   * that a vault update is attempted and, if it fails, the keyring is
+   * rebuilt from its snapshot state.
+   *
+   * @param entry - The operated keyring entry.
+   * @param snapshot - The snapshot taken before the operation, or `undefined`
+   *   if the transaction created the keyring.
+   * @returns Whether the operated keyring has changed.
+   */
+  async #scopedKeyringHasChanged(
+    entry: KeyringEntry,
+    snapshot: ScopedKeyringSnapshot | undefined,
+  ): Promise<boolean> {
+    // A keyring created by the transaction is always a change.
+    if (!snapshot) {
+      return true;
+    }
+
+    const old = this.#getKeyringEntryById(entry.metadata.id);
+    // The old keyring was removed by the drained-keyring cleanup.
+    if (!old) {
+      return true;
+    }
+
+    try {
+      return (
+        JSON.stringify(await old.keyring.serialize()) !==
+        JSON.stringify(snapshot.serialized.data)
+      );
+    } catch {
+      return true;
+    }
+  }
+
+  /**
+   * Restore the keyring entry operated on by a failed scoped transaction
+   * from its snapshot, touching no other keyring.
+   *
+   * A keyring created by the transaction is destroyed and dropped; a keyring
+   * removed during the transaction (drained-keyring cleanup, with the error
+   * surfacing at persist time) is recreated at its original position; a
+   * changed keyring is rebuilt in place; an unchanged keyring is kept as is.
+   *
+   * Must be called while the controller mutex is held.
+   *
+   * @param entry - The operated keyring entry.
+   * @param snapshot - The snapshot taken before the operation, or `undefined`
+   *   if the transaction created the keyring.
+   */
+  async #rollbackKeyringToScopedSnapshot(
+    entry: KeyringEntry,
+    snapshot: ScopedKeyringSnapshot | undefined,
+  ): Promise<void> {
+    this.#assertControllerMutexIsLocked();
+
+    const old = this.#getKeyringEntryById(entry.metadata.id);
+
+    if (!snapshot) {
+      // The failed transaction created the keyring: destroy it and drop it.
+      if (old) {
+        this.#keyrings.splice(this.#keyrings.indexOf(old), 1);
+        await this.#destroyKeyringIgnoringErrors(old);
+      }
+      return;
+    }
+
+    if (!old) {
+      // The transaction removed the keyring: rebuild it from its snapshot,
+      // at its original position. Other keyrings cannot have shifted, as the
+      // controller lock is held and only the operated keyring can change.
+      const newKeyring = await this.#recreateKeyringFromSnapshot(
+        snapshot.serialized,
+      );
+      if (newKeyring) {
+        this.#keyrings.splice(snapshot.index, 0, newKeyring);
+      }
+      return;
+    }
+
+    let isUnchanged = false;
+    try {
+      isUnchanged =
+        JSON.stringify(await old.keyring.serialize()) ===
+        JSON.stringify(snapshot.serialized.data);
+    } catch {
+      // If the keyring cannot be serialized anymore, treat it as changed so
+      // that it is rebuilt from its snapshot state.
+    }
+
+    if (isUnchanged) {
+      return;
+    }
+
+    // The transaction mutated the keyring: rebuild it in place. The old
+    // entry is removed first, so that the duplicate account check performed
+    // during recreation only sees reconciled keyrings.
+    const index = this.#keyrings.indexOf(old);
+    this.#keyrings.splice(index, 1);
+    const newKeyring = await this.#recreateKeyringFromSnapshot(
+      snapshot.serialized,
+    );
+    if (newKeyring) {
+      this.#keyrings.splice(index, 0, newKeyring);
+    }
+    await this.#destroyKeyringIgnoringErrors(old);
+  }
+
+  /**
    * Execute the given function after acquiring the controller lock
    * and rollback keyrings and password states in case of error.
    *
@@ -3418,10 +3587,15 @@ export class KeyringController<
   ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       // Unsupported keyrings are not part of a failed transaction, and are
-      // left untouched by the rollback.
-      const currentSerializedKeyrings = await this.#getSerializedKeyrings({
-        includeUnsupported: false,
-      });
+      // left untouched by the rollback. The serialized data is cloned, as
+      // keyrings are free to return aliased internal state from
+      // `serialize()`, which the transaction could then mutate through the
+      // snapshot itself.
+      const currentSerializedKeyrings = (
+        await this.#getSerializedKeyrings({
+          includeUnsupported: false,
+        })
+      ).map((serialized) => cloneDeep(serialized));
       const currentEncryptionKey = cloneDeep(this.#encryptionKey);
 
       try {

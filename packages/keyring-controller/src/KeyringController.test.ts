@@ -5870,7 +5870,7 @@ describe('KeyringController', () => {
         ).rejects.toThrow('Oops');
 
         // The operated keyring is rebuilt from its snapshot state, while the
-        // untouched keyring keeps its live instance and is not destroyed.
+        // untouched keyring keeps its old instance and is not destroyed.
         expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(1);
         expect(controller.getKeyringsByType(KeyringTypes.hd)[0]).not.toBe(
           hdKeyring,
@@ -5906,7 +5906,9 @@ describe('KeyringController', () => {
             ),
           ).rejects.toThrow('Oops');
 
-          expect(controller.getKeyringsByType(MockKeyring.type)).toHaveLength(0);
+          expect(controller.getKeyringsByType(MockKeyring.type)).toHaveLength(
+            0,
+          );
           expect(destroy).toHaveBeenCalledTimes(1);
           expect(controller.state.keyrings).toHaveLength(1);
         },
@@ -5937,7 +5939,7 @@ describe('KeyringController', () => {
         );
 
         // The removed keyring is recreated at its original position, while the
-        // untouched keyring keeps its live instance.
+        // untouched keyring keeps its old instance.
         await controller.withController(async (restrictedController) => {
           expect(restrictedController.keyrings).toHaveLength(2);
           expect(restrictedController.keyrings[0].keyring).toBe(hdKeyring);
@@ -5953,9 +5955,9 @@ describe('KeyringController', () => {
         });
 
         expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
-        expect(
-          await controller.getKeyringForAccount(importedAccount),
-        ).not.toBe(simpleKeyring);
+        expect(await controller.getKeyringForAccount(importedAccount)).not.toBe(
+          simpleKeyring,
+        );
       });
     });
 
@@ -5996,9 +5998,7 @@ describe('KeyringController', () => {
     });
 
     it('leaves unsupported keyrings untouched by the rollback', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       try {
         await withController(
           {
@@ -6057,9 +6057,7 @@ describe('KeyringController', () => {
     });
 
     it('parks keyrings as unsupported when their recreation fails, without failing the rollback', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller, encryptor }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -6086,9 +6084,9 @@ describe('KeyringController', () => {
 
           // The rollback itself does not fail: the original error is the one
           // thrown to the caller.
-          await expect(controller.removeAccount(importedAccount)).rejects.toThrow(
-            'Encryption failed',
-          );
+          await expect(
+            controller.removeAccount(importedAccount),
+          ).rejects.toThrow('Encryption failed');
 
           await controller.withController(async (restrictedController) => {
             expect(restrictedController.keyrings).toHaveLength(1);
@@ -6113,9 +6111,7 @@ describe('KeyringController', () => {
     });
 
     it('parks a mutated keyring as unsupported when its rebuild fails, without failing the rollback', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller }) => {
           // Make the rollback's rebuild of the mutated HD keyring fail.
@@ -6178,9 +6174,7 @@ describe('KeyringController', () => {
     });
 
     it('completes the rollback and preserves the original error if destroying a discarded keyring fails', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -6194,9 +6188,11 @@ describe('KeyringController', () => {
           const destroy = jest
             .fn()
             .mockRejectedValue(new Error('Cannot destroy'));
-          (simpleKeyring as {
-            destroy?: () => Promise<void>;
-          }).destroy = destroy;
+          (
+            simpleKeyring as {
+              destroy?: () => Promise<void>;
+            }
+          ).destroy = destroy;
 
           await expect(
             controller.withKeyring(
@@ -6247,6 +6243,39 @@ describe('KeyringController', () => {
       );
     });
 
+    it('rolls back keyrings whose serialize() returns aliased state', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)] },
+        async ({ controller, initialState }) => {
+          await controller.addNewKeyring(MockShallowKeyring.type);
+          const [primaryAccount] = initialState.keyrings[0].accounts;
+
+          // The operation mutates the shallow keyring through its in-memory
+          // instance. Its `serialize()` returns the mutated internal array,
+          // so the rollback snapshot must not alias it.
+          await expect(
+            controller.withController(async (restrictedController) => {
+              await restrictedController.keyrings[1].keyring.addAccounts(1);
+              throw new Error('Oops');
+            }),
+          ).rejects.toThrow('Oops');
+
+          // The mutation is rolled back: the shallow keyring is rebuilt
+          // empty.
+          const shallowKeyrings = controller.getKeyringsByType(
+            MockShallowKeyring.type,
+          );
+          expect(shallowKeyrings).toHaveLength(1);
+          expect(
+            await (shallowKeyrings[0] as EthKeyring).getAccounts(),
+          ).toStrictEqual([]);
+          expect(await controller.getAccounts()).toStrictEqual([
+            primaryAccount,
+          ]);
+        },
+      );
+    });
+
     it('does not touch any keyring when only persistence fails', async () => {
       await withController(async ({ controller, encryptor }) => {
         await controller.importAccountWithStrategy(
@@ -6273,12 +6302,291 @@ describe('KeyringController', () => {
           'Encryption failed',
         );
 
-        expect(controller.getKeyringsByType(KeyringTypes.hd)[0]).toBe(hdKeyring);
+        expect(controller.getKeyringsByType(KeyringTypes.hd)[0]).toBe(
+          hdKeyring,
+        );
         expect(controller.getKeyringsByType(KeyringTypes.simple)[0]).toBe(
           simpleKeyring,
         );
         expect(hdDestroy).not.toHaveBeenCalled();
         expect(simpleDestroy).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('scoped keyring transactions', () => {
+    it('only serializes the operated keyring', async () => {
+      await withController(async ({ controller }) => {
+        await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+        const simpleKeyring = controller.getKeyringsByType(
+          KeyringTypes.simple,
+        )[0] as EthKeyring;
+        const serializeSpy = jest.spyOn(simpleKeyring, 'serialize');
+
+        // Happy path, with no change to the operated keyring.
+        await controller.withKeyring({ type: KeyringTypes.hd }, async () => {
+          // No operation.
+        });
+        expect(serializeSpy).not.toHaveBeenCalled();
+
+        // Error path, after mutating the operated keyring.
+        serializeSpy.mockClear();
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.hd },
+            async ({ keyring }) => {
+              await keyring.addAccounts(1);
+              throw new Error('Oops');
+            },
+          ),
+        ).rejects.toThrow('Oops');
+        expect(serializeSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not update the vault when the operated keyring is unchanged', async () => {
+      await withController(async ({ controller, messenger, initialState }) => {
+        const mockStateChange = jest.fn();
+        messenger.subscribe('KeyringController:stateChange', mockStateChange);
+
+        await controller.withKeyring({ type: KeyringTypes.hd }, async () => {
+          // No operation.
+        });
+
+        expect(mockStateChange).not.toHaveBeenCalled();
+        expect(controller.state.vault).toBe(initialState.vault);
+      });
+    });
+
+    it('recreates the operated keyring at its original position when it was drained and persistence fails', async () => {
+      await withController(async ({ controller, encryptor }) => {
+        const importedAccount = await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+        const hdKeyring = controller.getKeyringsByType(
+          KeyringTypes.hd,
+        )[0] as EthKeyring;
+        const simpleKeyringId = controller.state.keyrings[1].metadata.id;
+        jest
+          .spyOn(encryptor, 'encryptWithKey')
+          .mockRejectedValue(new Error('Encryption failed'));
+
+        // The operation drains the Simple keyring, the cleanup removes it,
+        // and then persistence fails.
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.simple },
+            async ({ keyring }) => {
+              keyring.removeAccount?.(importedAccount as Hex);
+            },
+          ),
+        ).rejects.toThrow('Encryption failed');
+
+        await controller.withController(async (restrictedController) => {
+          expect(restrictedController.keyrings).toHaveLength(2);
+          expect(restrictedController.keyrings[0].keyring).toBe(hdKeyring);
+          expect(restrictedController.keyrings[1].keyring.type).toBe(
+            KeyringTypes.simple,
+          );
+          expect(restrictedController.keyrings[1].metadata.id).toBe(
+            simpleKeyringId,
+          );
+        });
+        expect(
+          await controller.getKeyringForAccount(importedAccount),
+        ).toBeDefined();
+      });
+    });
+
+    it('does not roll back changes made to other keyrings through direct references', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const importedAccount = await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+        const [primaryAccount] = initialState.keyrings[0].accounts;
+        // A reference to the Simple keyring obtained through the deprecated
+        // direct-access API, outside the transaction's scope.
+        const simpleKeyring = controller.getKeyringsByType(
+          KeyringTypes.simple,
+        )[0] as EthKeyring;
+
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.hd },
+            async ({ keyring }) => {
+              await keyring.addAccounts(1);
+              // Per the `withKeyring` callback contract, this rogue mutation
+              // is neither persisted nor rolled back.
+              simpleKeyring.removeAccount?.(importedAccount as Hex);
+              throw new Error('Oops');
+            },
+          ),
+        ).rejects.toThrow('Oops');
+
+        // The operated keyring is restored, the out-of-scope keyring is not.
+        // (The controller state is not refreshed by a rollback, so the
+        // keyrings in memory are inspected directly.)
+        expect(await simpleKeyring.getAccounts()).toStrictEqual([]);
+        expect(controller.getKeyringsByType(KeyringTypes.simple)[0]).toBe(
+          simpleKeyring,
+        );
+        const hdKeyringAfter = controller.getKeyringsByType(
+          KeyringTypes.hd,
+        )[0] as EthKeyring;
+        expect(await hdKeyringAfter.getAccounts()).toStrictEqual([
+          primaryAccount,
+        ]);
+      });
+    });
+
+    it('treats an unserializable operated keyring as changed after a successful operation', async () => {
+      await withController(async ({ controller }) => {
+        const accountsBefore = await controller.getAccounts();
+
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.hd },
+            async ({ keyring }) => {
+              jest
+                .spyOn(keyring, 'serialize')
+                .mockRejectedValue(new Error('Cannot serialize'));
+            },
+          ),
+          // The keyring cannot be persisted in this state, so the operation
+          // fails and the keyring is rebuilt from its snapshot state.
+        ).rejects.toThrow('Cannot serialize');
+
+        expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(1);
+        expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+      });
+    });
+
+    it('does not auto-remove the primary keyring when the operation drains it', async () => {
+      await withController(async ({ controller, initialState }) => {
+        await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+        const [primaryAccount] = initialState.keyrings[0].accounts;
+
+        await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => {
+            keyring.removeAccount?.(primaryAccount as Hex);
+          },
+        );
+
+        // The primary keyring is kept (empty), and the change is persisted.
+        expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(1);
+        expect(controller.state.keyrings).toHaveLength(2);
+        expect(controller.state.keyrings[0].accounts).toStrictEqual([]);
+      });
+    });
+
+    it('drops the operated keyring created and drained by a failed transaction', async () => {
+      await withController(async ({ controller, encryptor }) => {
+        const accountsBefore = await controller.getAccounts();
+        jest
+          .spyOn(encryptor, 'encryptWithKey')
+          .mockRejectedValue(new Error('Encryption failed'));
+
+        // The operation creates the Simple keyring and drains it; the
+        // cleanup removes it, and then persistence fails.
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.simple },
+            async ({ keyring }) => {
+              const [account] = await keyring.getAccounts();
+              keyring.removeAccount?.(account);
+            },
+            { createIfMissing: true, createWithData: [privateKey] },
+          ),
+        ).rejects.toThrow('Encryption failed');
+
+        // The created keyring is not brought back by the failed persistence.
+        expect(controller.getKeyringsByType(KeyringTypes.simple)).toHaveLength(
+          0,
+        );
+        expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+      });
+    });
+
+    it('parks the drained operated keyring as unsupported when its recreation fails', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      try {
+        await withController(async ({ controller, encryptor }) => {
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+
+          // Make the rollback's recreation of the Simple keyring fail. The
+          // no-argument constructor call must keep succeeding.
+          const deserializeSpy = jest
+            .spyOn(SimpleKeyring.prototype, 'deserialize')
+            .mockImplementation(async (privateKeys: string[]) => {
+              if (privateKeys.length > 0) {
+                throw new Error('Cannot deserialize the keyring');
+              }
+              return undefined;
+            });
+          jest
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockRejectedValue(new Error('Encryption failed'));
+
+          // The operation drains the Simple keyring, the cleanup removes it,
+          // persistence fails, and the rollback cannot recreate it.
+          await expect(
+            controller.withKeyring(
+              { type: KeyringTypes.simple },
+              async ({ keyring }) => {
+                keyring.removeAccount?.(importedAccount as Hex);
+              },
+            ),
+          ).rejects.toThrow('Encryption failed');
+
+          expect(
+            controller.getKeyringsByType(KeyringTypes.simple),
+          ).toHaveLength(0);
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message: 'Cannot deserialize the keyring',
+            }),
+          );
+          deserializeSpy.mockRestore();
+        });
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    });
+
+    it('rebuilds the operated V2 keyring in place when the operation throws', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const hdKeyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+
+        await expect(
+          controller.withKeyringV2(
+            { type: KeyringType.Hd },
+            async ({ keyring }) => {
+              const [account] = await keyring.getAccounts();
+              await keyring.deleteAccount(account.id);
+              throw new Error('Oops');
+            },
+          ),
+        ).rejects.toThrow('Oops');
+
+        expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(1);
+        expect(controller.getKeyringsByType(KeyringTypes.hd)[0]).not.toBe(
+          hdKeyring,
+        );
+        expect(await controller.getAccounts()).toStrictEqual(
+          initialState.keyrings[0].accounts,
+        );
       });
     });
   });
