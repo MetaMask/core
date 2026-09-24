@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `PerpsController.getMarginModeLock` (and the `PerpsController:getMarginModeLock` messenger action) plus the optional `PerpsProvider.getMarginModeLock`, reporting the margin mode an asset is locked to by an open position or resting order/TWAP so clients can keep their margin-mode picker in sync with what order placement will accept. HyperLiquid implements it; other providers report `not_implemented`. ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `PerpsController.getMarginModeLock` (and the `PerpsController:getMarginModeLock` messenger action) plus the optional `PerpsProvider.getMarginModeLock`, reporting the margin mode an asset is locked to by an open position or resting order/TWAP so clients can keep their margin-mode picker in sync with what order placement will accept. HyperLiquid implements it; other providers report `not_implemented`. ([#10414](https://github.com/MetaMask/core/pull/10414))
 
 ## [18.0.0]
 
