@@ -2,6 +2,19 @@ import type { Hex } from '@metamask/utils';
 
 // === COMMON TYPES ===
 
+/**
+ * The CHOMP intent metadata `type` discriminator, covering the base vault
+ * (`cash-deposit`, `cash-withdrawal`), the premium vault
+ * (`cash-deposit-premium`, `cash-withdrawal-premium`), and the recurring
+ * subscription payment (`cash-subscription`).
+ */
+export type ChompIntentType =
+  | 'cash-deposit'
+  | 'cash-withdrawal'
+  | 'cash-deposit-premium'
+  | 'cash-withdrawal-premium'
+  | 'cash-subscription';
+
 export type DelegationCaveat = {
   enforcer: Hex;
   terms: Hex;
@@ -44,7 +57,7 @@ export type IntentMetadataParams = {
   allowance: Hex;
   tokenSymbol: string;
   tokenAddress: Hex;
-  type: 'cash-deposit' | 'cash-withdrawal';
+  type: ChompIntentType;
 };
 
 export type SendIntentParams = {
@@ -137,7 +150,7 @@ export type IntentMetadataResponse = {
   allowance: Hex;
   tokenSymbol: string;
   tokenAddress: Hex;
-  type: 'cash-deposit' | 'cash-withdrawal';
+  type: ChompIntentType;
 };
 
 export type SendIntentResponse = {
@@ -158,7 +171,7 @@ export type IntentEntry = {
     allowance: Hex;
     tokenAddress: Hex;
     tokenSymbol: string;
-    type: 'cash-deposit' | 'cash-withdrawal';
+    type: ChompIntentType;
   };
 };
 
@@ -176,12 +189,15 @@ export type ServiceDetailsSupportedToken = {
 export type ServiceDetailsProtocol = {
   supportedTokens: ServiceDetailsSupportedToken[];
   adapterAddress: Hex;
-  intentTypes: ('cash-deposit' | 'cash-withdrawal')[];
+  intentTypes: ChompIntentType[];
 };
 
 export type ServiceDetailsChain = {
   autoDepositDelegate: Hex;
-  protocol: Record<string, ServiceDetailsProtocol>;
+  protocol: {
+    vedaProtocol: ServiceDetailsProtocol;
+    vedaPremiumProtocol?: ServiceDetailsProtocol;
+  };
 };
 
 export type ServiceDetailsResponse = {

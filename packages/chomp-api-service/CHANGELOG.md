@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ChompIntentType` export, covering every vault and subscription CHOMP intent type ([#10406](https://github.com/MetaMask/core/pull/10406))
+- Add optional `vedaPremiumProtocol` service-details support alongside the required base `vedaProtocol` ([#10406](https://github.com/MetaMask/core/pull/10406))
+
 ### Changed
 
+- **BREAKING:** Widen the intent metadata type union (used by `SendIntentParams`, intent responses, and the service-details `intentTypes` struct) to include `cash-deposit-premium`, `cash-withdrawal-premium`, and `cash-subscription`, alongside the existing `cash-deposit` and `cash-withdrawal` ([#10406](https://github.com/MetaMask/core/pull/10406))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [5.0.0]

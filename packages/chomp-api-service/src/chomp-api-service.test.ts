@@ -520,6 +520,31 @@ describe('ChompApiService', () => {
         'At path: 0.delegationHash -- Expected a string',
       );
     });
+
+    for (const type of [
+      'cash-deposit-premium',
+      'cash-withdrawal-premium',
+      'cash-subscription',
+    ] as const) {
+      it(`accepts and returns the "${type}" intent type`, async () => {
+        const params = [
+          {
+            ...intentParams[0],
+            metadata: { ...intentParams[0].metadata, type },
+          },
+        ];
+        const response = [
+          {
+            ...intentResponse[0],
+            metadata: { ...intentResponse[0].metadata, type },
+          },
+        ];
+        nock(BASE_URL).post('/v1/intent', params).reply(201, response);
+        const { service } = createService();
+
+        expect(await service.createIntents(params)).toStrictEqual(response);
+      });
+    }
   });
 
   describe('getIntentsByAddress', () => {
@@ -573,6 +598,27 @@ describe('ChompApiService', () => {
         "Get intents request failed with status '500'",
       );
     });
+
+    for (const type of [
+      'cash-deposit-premium',
+      'cash-withdrawal-premium',
+      'cash-subscription',
+    ] as const) {
+      it(`accepts and returns the "${type}" intent type`, async () => {
+        const response = [
+          {
+            ...intentsResponse[0],
+            metadata: { ...intentsResponse[0].metadata, type },
+          },
+        ];
+        nock(BASE_URL).get('/v1/intent/account/0xabc').reply(200, response);
+        const { service } = createService();
+
+        expect(await service.getIntentsByAddress('0xabc')).toStrictEqual(
+          response,
+        );
+      });
+    }
 
     it('throws on malformed response', async () => {
       nock(BASE_URL)
@@ -667,6 +713,46 @@ describe('ChompApiService', () => {
       );
 
       expect(result).toStrictEqual(serviceDetailsResponse);
+    });
+
+    it('accepts a separate premium Veda protocol', async () => {
+      const response = {
+        ...serviceDetailsResponse,
+        chains: {
+          '0xa4b1': {
+            ...serviceDetailsResponse.chains['0xa4b1'],
+            protocol: {
+              ...serviceDetailsResponse.chains['0xa4b1'].protocol,
+              vedaPremiumProtocol: {
+                supportedTokens: [
+                  {
+                    tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+                    tokenDecimals: 6,
+                  },
+                  {
+                    tokenAddress: '0xBFeC8c2b1ccea3931a1363E4CaC27352c1C908B7',
+                    tokenDecimals: 6,
+                  },
+                ],
+                adapterAddress: '0x9AF808DA682aC92AA23CF40509F5A3694445e2b7',
+                intentTypes: [
+                  'cash-deposit-premium',
+                  'cash-withdrawal-premium',
+                ],
+              },
+            },
+          },
+        },
+      };
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .reply(200, response);
+      const { service } = createService();
+
+      expect(await service.getServiceDetails(['0xa4b1'])).toStrictEqual(
+        response,
+      );
     });
 
     it('supports multiple chain IDs as a comma-separated query param', async () => {
