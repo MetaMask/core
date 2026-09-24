@@ -1794,7 +1794,9 @@ export class SeedlessOnboardingController<
     }
 
     try {
-      const persistMetadataFn = async (): Promise<Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }> => {
+      const persistMetadataFn = async (): Promise<
+        Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }
+      > => {
         await this.toprfClient.addSecretDataItem({
           encKey,
           secretData,

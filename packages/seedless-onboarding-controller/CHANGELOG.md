@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
+### Fixed
+
+- Prevent initial TOPRF seed phrase backup retries from skipping the remote metadata write after a partial failure ([#10419](https://github.com/MetaMask/core/pull/10419))
+
 ## [11.0.0]
 
 ### Changed
