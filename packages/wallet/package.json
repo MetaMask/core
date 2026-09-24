@@ -66,7 +66,7 @@
     "@metamask/passkey-controller": "^4.1.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/scure-bip39": "^2.1.1",
-    "@metamask/seedless-onboarding-controller": "^11.0.0",
+    "@metamask/seedless-onboarding-controller": "^11.0.1",
     "@metamask/shield-controller": "^7.0.2",
     "@metamask/storage-service": "^2.0.0",
     "@metamask/subscription-controller": "^10.0.0",

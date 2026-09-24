@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-## [14.0.2]
+## [15.0.1]
 
 ### Changed
 
-- Bump `@metamask/seedless-onboarding-controller` from `11.0.0` to `11.0.1`
-- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
-=======
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+
 ## [15.0.0]
 
 ### Changed
@@ -26,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10420](https://github.com/MetaMask/core/pull/10420), [#10423](https://github.com/MetaMask/core/pull/10423))
   - Approval-time sponsorship and signing hooks have been removed from types exposed through `DefaultInstances`:
     - Migrate `isSponsored` and `shouldSign` hooks to `isGasFeeSponsored` and `isExternalSign` transaction metadata. The `hooks` option is required again; pass `hooks: {}` when no hooks are needed.
->>>>>>> origin/main
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 - Bump `@metamask/shield-controller` from `^7.0.1` to `^7.0.2` ([#10423](https://github.com/MetaMask/core/pull/10423))
 
