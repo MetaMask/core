@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ServerStrategy.supports` no longer declines `perpsDepositAndOrder` and `predictDepositAndOrder`.
 - Bump `@metamask/ramps-controller` from `^25.0.0` to `^25.1.0` ([#10402](https://github.com/MetaMask/core/pull/10402))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/transaction-controller` from `^71.0.0` to `^72.0.0` ([#10423](https://github.com/MetaMask/core/pull/10423))
 
 ### Fixed
 
