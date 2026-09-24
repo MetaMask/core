@@ -461,6 +461,7 @@ linkStyle default opacity:0.5
   keyring_controller --> controller_utils;
   keyring_controller --> messenger;
   keyring_controller --> utils;
+  kyc_controller --> authenticated_user_storage;
   kyc_controller --> base_controller;
   kyc_controller --> base_data_service;
   kyc_controller --> controller_utils;
