@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
 
 ## [32.3.1]
 
