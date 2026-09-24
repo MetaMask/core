@@ -934,7 +934,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     // TODO: This operation targets a single keyring. Migrate it to
-    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // `#withKeyringOrRollback` so that its transaction snapshots and
     // diffs only the operated keyring, instead of every keyring.
     return this.#persistOrRollback(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
@@ -986,7 +986,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     // TODO: This operation targets a single keyring. Migrate it to
-    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // `#withKeyringOrRollback` so that its transaction snapshots and
     // diffs only the operated keyring, instead of every keyring.
     return this.#persistOrRollback(async () => {
       const oldAccounts = await this.#getAccountsFromKeyrings();
@@ -1074,7 +1074,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     // TODO: This operation creates a single keyring. Migrate it to
-    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // `#withKeyringOrRollback` so that its transaction snapshots and
     // diffs only the operated keyring, instead of every keyring.
     return this.#getKeyringMetadata(
       await this.#persistOrRollback(async () => this.#newKeyring(type, opts)),
@@ -1390,7 +1390,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     // TODO: This operation targets a single keyring. Migrate it to
-    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // `#withKeyringOrRollback` so that its transaction snapshots and
     // diffs only the operated keyring, instead of every keyring.
     return this.#persistOrRollback(async () => {
       let privateKey;
@@ -1460,7 +1460,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     // TODO: This operation targets a single keyring. Migrate it to
-    // `#withScopedKeyringTransaction` so that its transaction snapshots and
+    // `#withKeyringOrRollback` so that its transaction snapshots and
     // diffs only the operated keyring, instead of every keyring.
     await this.#persistOrRollback(async () => {
       const keyringIndex = await this.#findKeyringIndexForAccount(address);
@@ -2008,7 +2008,7 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#withScopedKeyringTransaction(
+    return this.#withKeyringOrRollback(
       () => this.#selectKeyringEntry({ v2: false, selector }),
       async () => {
         if (!options.createIfMissing || !('type' in selector)) {
@@ -2140,7 +2140,7 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#withScopedKeyringTransaction(
+    return this.#withKeyringOrRollback(
       () => this.#selectKeyringEntry({ v2: true, selector }),
       async () => undefined,
       async ({ keyringV2, metadata }) => {
@@ -2801,7 +2801,7 @@ export class KeyringController<
    * @param snapshots - Snapshots of the keyrings taken before the
    *   transaction (without unsupported keyrings).
    */
-  async #rollbackToSnapshot(snapshots: KeyringSnapshot[]): Promise<void> {
+  async #rollbackKeyrings(snapshots: KeyringSnapshot[]): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
     const oldKeyringsById = new Map(
@@ -2842,7 +2842,7 @@ export class KeyringController<
         // changes are persisted. The instance is already destroyed, so the
         // only way back is to rebuild the keyring from its snapshot, at its
         // original position.
-        const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
+        const newKeyring = await this.#recreateKeyring(snapshot);
         if (newKeyring) {
           newKeyrings.push(newKeyring);
         }
@@ -2859,7 +2859,7 @@ export class KeyringController<
 
       // The transaction mutated the keyring: rebuild it in place.
       oldStaleKeyrings.push(old);
-      const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
+      const newKeyring = await this.#recreateKeyring(snapshot);
       if (newKeyring) {
         newKeyrings.push(newKeyring);
       }
@@ -2912,7 +2912,7 @@ export class KeyringController<
    * @param snapshot - The keyring snapshot to recreate.
    * @returns The new keyring, or `undefined` if it could not be recreated.
    */
-  async #recreateKeyringFromSnapshot(
+  async #recreateKeyring(
     snapshot: KeyringSnapshot,
   ): Promise<KeyringEntry | undefined> {
     try {
@@ -3417,7 +3417,7 @@ export class KeyringController<
    * @param run - Runs the operation with the selected or created entry.
    * @returns The result of the operation.
    */
-  async #withScopedKeyringTransaction<Result>(
+  async #withKeyringOrRollback<Result>(
     select: () => Promise<KeyringEntry | undefined>,
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
@@ -3471,13 +3471,13 @@ export class KeyringController<
 
         // Scoped change detection: the vault is updated only if the operated
         // keyring changed.
-        if (await this.#scopedKeyringHasChanged(entry, snapshot)) {
+        if (await this.#hasKeyringChanged(entry, snapshot)) {
           await this.#updateVault();
         }
 
         return result;
       } catch (error) {
-        await this.#rollbackKeyringToScopedSnapshot(entry, snapshot);
+        await this.#rollbackKeyring(entry, snapshot);
 
         throw error;
       }
@@ -3497,7 +3497,7 @@ export class KeyringController<
    *   if the transaction created the keyring.
    * @returns Whether the operated keyring has changed.
    */
-  async #scopedKeyringHasChanged(
+  async #hasKeyringChanged(
     entry: KeyringEntry,
     snapshot: KeyringSnapshot | undefined,
   ): Promise<boolean> {
@@ -3530,7 +3530,7 @@ export class KeyringController<
    * @param snapshot - The snapshot taken before the operation, or `undefined`
    *   if the transaction created the keyring.
    */
-  async #rollbackKeyringToScopedSnapshot(
+  async #rollbackKeyring(
     entry: KeyringEntry,
     snapshot: KeyringSnapshot | undefined,
   ): Promise<void> {
@@ -3551,7 +3551,7 @@ export class KeyringController<
       // The transaction removed the keyring: rebuild it from its snapshot,
       // at its original position. Other keyrings cannot have shifted, as the
       // controller lock is held and only the operated keyring can change.
-      const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
+      const newKeyring = await this.#recreateKeyring(snapshot);
       if (newKeyring) {
         this.#keyrings.splice(snapshot.index, 0, newKeyring);
       }
@@ -3567,7 +3567,7 @@ export class KeyringController<
     // during recreation only sees reconciled keyrings.
     const index = this.#keyrings.indexOf(old);
     this.#keyrings.splice(index, 1);
-    const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
+    const newKeyring = await this.#recreateKeyring(snapshot);
     if (newKeyring) {
       this.#keyrings.splice(index, 0, newKeyring);
     }
@@ -3602,7 +3602,7 @@ export class KeyringController<
       } catch (error) {
         // Keyrings and encryption credentials are restored to their previous state
         this.#encryptionKey = currentEncryptionKey;
-        await this.#rollbackToSnapshot(currentKeyringSnapshots);
+        await this.#rollbackKeyrings(currentKeyringSnapshots);
 
         throw error;
       }
