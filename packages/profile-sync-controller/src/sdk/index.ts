@@ -8,20 +8,20 @@ export type {
   TokenReason,
   EnrollmentChallenge,
   EnrollmentProof,
-  StepUpChallenge,
-  StepUpProof,
-  ElevatedProfileToken,
+  VerificationChallenge,
+  VerificationProof,
+  VerificationToken,
   BeginEnrollmentRequest,
   CompleteEnrollmentRequest,
-  BeginStepUpRequest,
-  CompleteStepUpRequest,
-  GetElevatedTokenRequest,
+  BeginVerificationRequest,
+  CompleteVerificationRequest,
+  GetVerificationTokenRequest,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
 } from './authentication-jwt-bearer/mfa/types.js';
-export type { MfaStepUpAssertion } from './authentication-jwt-bearer/mfa/services.js';
+export type { MfaVerificationAssertion } from './authentication-jwt-bearer/mfa/services.js';
 export * from './user-storage.js';
 export * from './errors.js';
 export * from './utils/messaging-signing-snap-requests.js';
