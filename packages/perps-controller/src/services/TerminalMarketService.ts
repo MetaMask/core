@@ -491,8 +491,10 @@ export class TerminalMarketService {
     if (!identity.enabledDexes.includes(market.dex)) {
       throw invalid('dex');
     }
-    const expectedProvider = market.dex === 'main' ? 'hyperliquid' : market.dex;
-    if (market.provider !== expectedProvider) {
+    // `provider` is the venue (Hyperliquid), including HIP-3 markets whose
+    // DEX lives in `dex`. Terminal v3 emits `provider: "hyperliquid"` for
+    // both `main` and `xyz` rows; HIP-3 identity is `dex`, not `provider`.
+    if (market.provider !== identity.provider) {
       throw invalid('provider');
     }
     const expectedPrefix = market.dex === 'main' ? '' : `${market.dex}:`;

@@ -44,7 +44,7 @@ export type GetGasFeeTokensRequest = {
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
  * @param request.transactionMeta - The transaction metadata.
  * @param request.getSimulationConfig - Optional transaction simulation parameters.
- * @returns The available gas fee tokens and whether gas fee sponsorship is available.
+ * @returns An array of gas fee tokens.
  */
 export async function getGasFeeTokens({
   chainId,
@@ -55,7 +55,7 @@ export async function getGasFeeTokens({
   getSimulationConfig,
 }: GetGasFeeTokensRequest): Promise<{
   gasFeeTokens: GasFeeToken[];
-  isGasFeeSponsoredAvailable: boolean;
+  isGasFeeSponsored: boolean;
 }> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
@@ -116,7 +116,7 @@ export async function getGasFeeTokens({
     return result;
   } catch (error) {
     log('Failed to gas fee tokens', error);
-    return { gasFeeTokens: [], isGasFeeSponsoredAvailable: false };
+    return { gasFeeTokens: [], isGasFeeSponsored: false };
   }
 }
 
@@ -174,6 +174,7 @@ export async function checkGasFeeTokenBeforePublish({
       );
 
       updateTransaction(transaction.id, (tx) => {
+        tx.isExternalSign = false;
         tx.selectedGasFeeToken = undefined;
       });
 
@@ -181,7 +182,10 @@ export async function checkGasFeeTokenBeforePublish({
     }
   }
 
-  const gasFeeTokens = await fetchGasFeeTokens(transaction);
+  const gasFeeTokens = await fetchGasFeeTokens({
+    ...transaction,
+    isExternalSign: true,
+  });
 
   const isSelectedGasFeeTokenAvailable = gasFeeTokens?.some(
     (token) =>
@@ -191,6 +195,7 @@ export async function checkGasFeeTokenBeforePublish({
   if (!isSelectedGasFeeTokenAvailable) {
     updateTransaction(transaction.id, (tx) => {
       tx.gasFeeTokens = gasFeeTokens;
+      tx.isExternalSign = false;
     });
 
     throw new Error('Gas fee token not found and insufficient native balance');
@@ -198,6 +203,7 @@ export async function checkGasFeeTokenBeforePublish({
 
   updateTransaction(transaction.id, (tx) => {
     tx.gasFeeTokens = gasFeeTokens;
+    tx.isExternalSign = true;
     tx.txParams.nonce = undefined;
   });
 
@@ -209,14 +215,16 @@ export async function checkGasFeeTokenBeforePublish({
  * Extract gas fee tokens from a simulation response.
  *
  * @param response - The simulation response.
- * @returns The available gas fee tokens and whether gas fee sponsorship is available.
+ * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored
  */
 function parseGasFeeTokens(response: SimulationResponse): {
   gasFeeTokens: GasFeeToken[];
-  isGasFeeSponsoredAvailable: boolean;
+  isGasFeeSponsored: boolean;
 } {
   const feeLevel = response.transactions?.[0]
     ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
+
+  const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
 
   const tokenFees = feeLevel?.tokenFees ?? [];
 
@@ -235,7 +243,7 @@ function parseGasFeeTokens(response: SimulationResponse): {
       symbol: tokenFee.token.symbol,
       tokenAddress: tokenFee.token.address,
     })),
-    isGasFeeSponsoredAvailable: response.sponsorship?.isSponsored ?? false,
+    isGasFeeSponsored,
   };
 }
 

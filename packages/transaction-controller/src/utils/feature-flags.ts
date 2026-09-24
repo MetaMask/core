@@ -44,6 +44,15 @@ type GasEstimateFallback = {
   maxGasLimit?: number;
 };
 
+/** A smart contract that supports EIP-7702 batch transactions. */
+type EIP7702Contract = {
+  /** Address of the smart contract. */
+  address: Hex;
+
+  /** Signature to verify the contract is authentic. */
+  signature: Hex;
+};
+
 export type TransactionControllerFeatureFlags = {
   /** Feature flags to support EIP-7702 / type-4 transactions. */
   [FeatureFlag.EIP7702]?: {
@@ -52,16 +61,7 @@ export type TransactionControllerFeatureFlags = {
      * Keyed by chain ID.
      * First entry in each array is the contract that standard EOAs will be upgraded to.
      */
-    contracts?: Record<
-      Hex,
-      {
-        /** Address of the smart contract. */
-        address: Hex;
-
-        /** Signature to verify the contract is authentic. */
-        signature: Hex;
-      }[]
-    >;
+    contracts?: Record<Hex, EIP7702Contract[]>;
 
     /** Chains enabled for EIP-7702 batch transactions. */
     supportedChains?: Hex[];
@@ -257,26 +257,17 @@ export function getEIP7702ContractAddresses(
   messenger: TransactionControllerMessenger,
   publicKey: Hex,
 ): Hex[] {
-  const featureFlags = getFeatureFlags(messenger);
-
-  const contracts =
-    featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
-      chainId.toLowerCase() as Hex
-    ] ?? [];
-
-  return contracts
-    .filter((contract) =>
-      isValidSignature(
-        [contract.address, padHexToEvenLength(chainId) as Hex],
-        contract.signature,
-        publicKey,
-      ),
-    )
+  return getEIP7702Contracts(chainId, messenger)
+    .filter((contract) => isContractAuthentic(contract, chainId, publicKey))
     .map((contract) => contract.address);
 }
 
 /**
  * Retrieves the EIP-7702 upgrade contract address.
+ *
+ * Equivalent to the first entry of `getEIP7702ContractAddresses`, but stops
+ * validating once an authentic contract is found rather than validating every
+ * contract for the chain.
  *
  * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
@@ -288,7 +279,9 @@ export function getEIP7702UpgradeContractAddress(
   messenger: TransactionControllerMessenger,
   publicKey: Hex,
 ): Hex | undefined {
-  return getEIP7702ContractAddresses(chainId, messenger, publicKey)?.[0];
+  return getEIP7702Contracts(chainId, messenger).find((contract) =>
+    isContractAuthentic(contract, chainId, publicKey),
+  )?.address;
 }
 
 /**
@@ -550,6 +543,48 @@ export function getReplaceUnderpricedSavedGasFeesEnabled(
     replaceUnderpricedSavedGasFeesFlags?.perChainConfig?.[chainId] ??
     replaceUnderpricedSavedGasFeesFlags?.default ??
     false
+  );
+}
+
+/**
+ * Retrieves the configured EIP-7702 contracts for a given chain ID, without
+ * validating their authenticity.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The configured contracts.
+ */
+function getEIP7702Contracts(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): EIP7702Contract[] {
+  const featureFlags = getFeatureFlags(messenger);
+
+  return (
+    featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
+      chainId.toLowerCase() as Hex
+    ] ?? []
+  );
+}
+
+/**
+ * Determines whether an EIP-7702 contract is authentic by verifying its
+ * signature against the given public key.
+ *
+ * @param contract - The contract to validate.
+ * @param chainId - The chain ID the contract is configured for.
+ * @param publicKey - The public key used to validate the contract authenticity.
+ * @returns True if the contract signature is valid, false otherwise.
+ */
+function isContractAuthentic(
+  contract: EIP7702Contract,
+  chainId: Hex,
+  publicKey: Hex,
+): boolean {
+  return isValidSignature(
+    [contract.address, padHexToEvenLength(chainId) as Hex],
+    contract.signature,
+    publicKey,
   );
 }
 

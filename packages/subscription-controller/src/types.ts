@@ -465,29 +465,71 @@ type TokenPaymentInfoBase = {
 };
 
 /**
- * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
- * `accountantAddress` is not present on this variant.
+ * Named vault a vault-share settlement token belongs to, e.g. `base` or
+ * `premium`. Distinguishes which vault to withdraw from.
+ *
+ * Deliberately a plain `string` rather than a union: the set of vaults is
+ * server-driven and grows without a client release, so narrowing it here would
+ * make the pricing response fail validation the first time the API adds a
+ * vault. Compare against `VAULT_NAMES` instead of raw literals, and always
+ * handle the unknown case.
  */
-export type SpotTokenPaymentInfo = TokenPaymentInfoBase & {
-  isVaultShare?: false;
-};
+export type VaultName = string;
+
+/**
+ * The vault names known at the time of writing. Not exhaustive — see
+ * {@link VaultName}.
+ */
+export const VAULT_NAMES = {
+  base: 'base',
+  premium: 'premium',
+} as const;
+
+/**
+ * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
+ * Neither `accountantAddress` nor `vault` is present on this variant.
+ */
+export type SpotTokenPaymentInfo = TokenPaymentInfoBase;
 
 /**
  * Yield-bearing vault share priced via an accountant rate.
  */
 export type VaultTokenPaymentInfo = TokenPaymentInfoBase & {
-  isVaultShare: true;
   /**
-   * Veda accountant address used to value this vault share.
+   * Veda accountant address used to value this vault share. Every vault has
+   * its own accountant, so this is present on every vault-share token — which
+   * is what makes it the discriminant for this variant.
    */
   accountantAddress: Hex;
+  /**
+   * Named vault this token is a share of. Sent only for vault-share tokens.
+   */
+  vault?: VaultName;
 };
 
 /**
- * A settlement token in a pricing chain. Discriminated by `isVaultShare`:
- * vault shares require `accountantAddress`; spot tokens omit it.
+ * A settlement token in a pricing chain. Discriminated by the presence of
+ * `accountantAddress`: vault shares carry it (and may carry `vault`), spot
+ * tokens carry neither.
+ *
+ * The API previously sent an explicit `isVaultShare` boolean. It no longer
+ * does, so do not reintroduce a dependency on it — use
+ * {@link isVaultShareToken}.
  */
 export type TokenPaymentInfo = SpotTokenPaymentInfo | VaultTokenPaymentInfo;
+
+/**
+ * Whether a settlement token is a yield-bearing vault share, which must be
+ * valued through its accountant rate rather than at face value.
+ *
+ * @param token - The settlement token to check.
+ * @returns True if the token is a vault share.
+ */
+export function isVaultShareToken(
+  token: TokenPaymentInfo,
+): token is VaultTokenPaymentInfo {
+  return (token as VaultTokenPaymentInfo).accountantAddress !== undefined;
+}
 
 export type ChainPaymentInfo = {
   chainId: Hex;

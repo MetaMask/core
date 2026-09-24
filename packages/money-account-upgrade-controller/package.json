@@ -56,7 +56,7 @@
     "@metamask/delegation-controller": "^4.0.0",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
-    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-utils": "^2.0.0",
     "@metamask/network-controller": "^37.0.0",

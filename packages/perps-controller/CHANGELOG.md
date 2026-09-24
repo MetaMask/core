@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement `getMarginModeLock` for Lighter, reporting the mode an open position binds to its market. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Add optional `supportedMarginModes` to ready order capabilities; HyperLiquid reports `['isolated', 'cross']` for main-DEX markets and `['isolated']` for HIP-3 or isolated-only assets, so clients stop inferring margin-mode support from the provider. ([#10414](https://github.com/MetaMask/core/pull/10414))
 
+### Fixed
+
+- Accept Terminal v3 HIP-3 snapshot markets whose `provider` is the Hyperliquid venue while `dex` carries the HIP-3 DEX (for example `xyz`). ([#10429](https://github.com/MetaMask/core/pull/10429))
+  - Previous validation required `provider === dex` for non-`main` markets, which rejected the live Terminal payload (`provider: "hyperliquid"`, `dex: "xyz"`) and forced clients onto the Hyperliquid fallback without tags/`listedAt`.
+
 ## [18.0.0]
 
 ### Added
