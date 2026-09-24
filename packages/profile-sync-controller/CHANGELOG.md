@@ -9,16 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432))
   - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
   - State and constant: `stepUpSessionExpiresAt` → `verificationSessionExpiresAt`, `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
   - Types: `ElevatedProfileToken` → `VerificationToken`, `GetElevatedTokenRequest` → `GetVerificationTokenRequest`, and `StepUp` becomes `Verification` in `BeginStepUpRequest`, `CompleteStepUpRequest`, `StepUpChallenge`, `StepUpProof` and `MfaStepUpAssertion`
   - Error: `ElevatedTokenInvalidError` (`elevated_token_invalid`) → `VerificationTokenInvalidError` (`verification_token_invalid`)
   - Trace spans: `MFA Step-Up Begin` / `Complete` → `MFA Verification Begin` / `Complete`
-- **BREAKING:** Accept MFA data as the server sends it ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- **BREAKING:** Accept MFA data as the server sends it ([#10432](https://github.com/MetaMask/core/pull/10432))
   - `email_otp` credentials without an address are kept: `EnrolledCredential.email` is now optional
   - Verification tokens are accepted with any `amr` method name and any `aal`: `claims.amr` is widened and `claims.aal` is removed, since the server enforces assurance levels
-- Let one verification cover a whole setup flow ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Let one verification cover a whole setup flow ([#10432](https://github.com/MetaMask/core/pull/10432))
   - The verification session lasts as long as its token, up to 15 minutes instead of 1
   - Enrolling a credential no longer ends the session
   - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
