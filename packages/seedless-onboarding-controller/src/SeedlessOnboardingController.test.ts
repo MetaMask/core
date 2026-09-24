@@ -1402,6 +1402,37 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should throw if a vault already exists', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultAlreadyExists,
+          );
+        },
+      );
+    });
+
     it('should store accessToken in the vault during backup creation', async () => {
       await withController(
         {
@@ -3951,7 +3982,6 @@ describe('SeedlessOnboardingController', () => {
   describe('changePassword', () => {
     const MOCK_PASSWORD = 'mock-password';
     const NEW_MOCK_PASSWORD = 'new-mock-password';
-    const MOCK_VAULT = JSON.stringify({ foo: 'bar' });
 
     it('should be able to update new password', async () => {
       await withController(
@@ -4128,7 +4158,6 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         {
           state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
             authPubKey: MOCK_AUTH_PUB_KEY_OUTDATED,
             withMockAuthenticatedUser: true,
           }),
@@ -5051,19 +5080,9 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            vault: 'mock-vault',
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:storeKeyringEncryptionKey',
-              '',
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
-          );
-
           // Setup and store keyring encryption key.
           await mockCreateToprfKeyAndBackupSeedPhrase(
             toprfClient,

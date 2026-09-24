@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Prevent initial TOPRF seed phrase backup retries from skipping the remote metadata write after a partial failure ([#10419](https://github.com/MetaMask/core/pull/10419))
+- Reject duplicate TOPRF key and seed phrase backup attempts when a vault already exists ([#10419](https://github.com/MetaMask/core/pull/10419))
 
 ## [11.0.0]
 

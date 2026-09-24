@@ -646,6 +646,12 @@ export class SeedlessOnboardingController<
       // assert that the user is authenticated before creating the TOPRF key and backing up the seed phrase
       this.#assertIsAuthenticatedUser(this.state);
 
+      if (this.state.vault) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.VaultAlreadyExists,
+        );
+      }
+
       // locally evaluate the encryption key from the password
       const { encKey, pwEncKey, authKeyPair, oprfKey } =
         await this.toprfClient.createLocalKey({
