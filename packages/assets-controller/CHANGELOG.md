@@ -20,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
   - Pass `() => this.state` from `AssetsController`
 - **BREAKING:** Require `getAssetVisibility` in `AccountsApiDataSourceOptions`, `SnapDataSourceOptions`, and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
-  - Pass the shared native/pin/default/hidden visibility resolver from `AssetsController`
 - **BREAKING:** Require `isBalanceV6Enabled` in `SnapDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - When `assetsAccountsApiV6` is enabled, Accounts API v6 requests the visible set from controller state as `includeAssetIds` / `excludeAssetIds` and writes balances with `updateMode: 'full'` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - `hideAsset` now re-evaluates live subscriptions so the next poll excludes the hidden asset ([#9651](https://github.com/MetaMask/core/pull/9651))
@@ -30,13 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
 - On the v6 path, a successful response is the complete visible set for the chains it covers (`updateMode: 'full'`): natives, visible pins, and default tracked assets. Hidden assets are not fetched and omitted balances are dropped; staking positions are carried over ([#9651](https://github.com/MetaMask/core/pull/9651))
-  - A chain that fails, or that v6 did not answer for every requested `includeAssetId`, is listed in `errors`, contributes no balances, and leaves existing state unchanged until RPC fallback recovers it
 - Accounts API, Snap, RPC, and RPC fallback share that visibility list instead of `request.customAssets`, so a force refresh or fallback retry cannot drop other pins on a `full` snapshot ([#9651](https://github.com/MetaMask/core/pull/9651))
-  - `addCustomAsset` force-fetches the token's chain with every visible pin, not only the new token
-  - RPC stamps `full` only when every `balanceOf` and decimals lookup succeeds; otherwise `merge`, so resolved balances still overlay state
-  - A failed RPC `balanceOf` or unknown decimals is a chain failure: that chain's snapshot is discarded
-  - RPC skips staking vault share tokens so a `full` snapshot cannot overwrite the converted staked amount
-  - Snap initial fetches stamp `full` and zero-fill any still-missing visible assets so non-EVM pins survive; Snap balance events remain `merge`
 
 ## [16.1.1]
 

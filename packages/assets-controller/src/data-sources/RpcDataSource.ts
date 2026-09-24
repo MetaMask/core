@@ -578,15 +578,15 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * v6 poll path. A complete chain snapshot stamps `full`; a failed
-   * `balanceOf` or missing metadata stamps `merge` so successful tokens still
-   * overlay state. Delete with the rest of the v6 path if
-   * `assetsAccountsApiV6` is rolled back.
+   * v6 poll path. Always stamps `full`: assets that resolve get their fresh
+   * amount, and a failed `balanceOf` or missing metadata keeps the amount
+   * already in state instead of dropping the asset. Delete with the rest of
+   * the v6 path if `assetsAccountsApiV6` is rolled back.
    *
    * @param result - The balance fetch result.
    */
   async #handleBalanceUpdateV6(result: BalanceFetchResult): Promise<void> {
-    const newBalances: Record<string, { amount: string }> = {};
+    const newBalances: Record<string, AssetBalance> = {};
 
     // Convert hex chain ID to CAIP-2 format
     const chainIdDecimal = parseInt(result.chainId, 16);
@@ -606,15 +606,29 @@ export class RpcDataSource extends AbstractDataSource<
 
     // Convert balances that have decimals. Skip the rest so a missing
     // metadata lookup cannot drop the tokens that did resolve.
-    let skippedDecimals = false;
+    const visibleAssetKeys = this.#getVisibleAssetKeys(
+      result.accountId,
+      caipChainId,
+    );
+    const handledAssetKeys = new Set<string>();
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
+      if (
+        this.#isUnheldInvisibleAsset(
+          balance.assetId,
+          balance.balance,
+          visibleAssetKeys,
+        )
+      ) {
+        handledAssetKeys.add(balance.assetId.toLowerCase());
+        continue;
+      }
+
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
       const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
 
       if (decimals === undefined) {
-        skippedDecimals = true;
         continue;
       }
 
@@ -626,20 +640,36 @@ export class RpcDataSource extends AbstractDataSource<
       newBalances[balance.assetId] = {
         amount: humanReadableAmount,
       };
+      handledAssetKeys.add(balance.assetId.toLowerCase());
     }
 
     if (Object.keys(newBalances).length === 0) {
       return;
     }
 
-    const isPartial = result.failedAddresses.length > 0 || skippedDecimals;
+    // Everything requested that did not resolve keeps its previous amount, so
+    // the snapshot stays complete for the chain and can be applied as `full`.
+    const unresolved = this.#getAssetsToFetchV6(
+      result.accountId,
+      caipChainId,
+    ).filter(
+      (entry) =>
+        !handledAssetKeys.has(normalizeAssetId(entry.assetId).toLowerCase()),
+    );
+    this.#carryOverUnresolvedBalances({
+      unresolved,
+      accountId: result.accountId,
+      chainId: caipChainId,
+      balances: newBalances,
+      visibleAssetKeys,
+    });
 
     const response: DataResponse = {
       assetsBalance: {
         [result.accountId]: newBalances,
       },
       assetsInfo,
-      updateMode: isPartial ? 'merge' : 'full',
+      updateMode: 'full',
     };
 
     const request: DataRequest = {
@@ -1179,13 +1209,17 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * v6 fetch. Visibility-scoped snapshot. Stamps `full` when every requested
-   * `balanceOf` and decimals lookup succeeds; stamps `merge` when some tokens
-   * fail so the ones that resolved still overlay state.
+   * v6 fetch. Visibility-scoped snapshot, always stamped `full`.
+   *
+   * A single failed `balanceOf` or unknown decimals no longer holds back the
+   * rest of the chain: the assets that resolved are written, and the ones that
+   * did not keep the amount already in state (see
+   * `#carryOverUnresolvedBalances`). A chain that resolved nothing at all is
+   * reported in `errors` and contributes no balances.
    *
    * @param request - The data request.
-   * @returns Balance and metadata for successful tokens. Fully failed chains
-   * are omitted.
+   * @returns An authoritative snapshot for the chains that resolved at least
+   * one balance. Fully failed chains are omitted.
    */
   async #fetchV6(request: DataRequest): Promise<DataResponse> {
     const chainsToFetch = this.#getChainsToFetch(request);
@@ -1200,7 +1234,6 @@ export class RpcDataSource extends AbstractDataSource<
     > = {};
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
-    let hasPartialSuccess = false;
 
     for (const {
       account,
@@ -1221,11 +1254,16 @@ export class RpcDataSource extends AbstractDataSource<
         const shouldSkipNative = shouldSkipNativeForCaipChainId(chainId);
 
         try {
+          const assetsToFetch = this.#getAssetsToFetchV6(accountId, chainId);
+          const visibleAssetKeys = this.#getVisibleAssetKeys(
+            accountId,
+            chainId,
+          );
           const result = await this.#balanceFetcher.fetchBalancesForAssets(
             hexChainId,
             accountId,
             address as Address,
-            this.#getAssetsToFetchV6(accountId, chainId),
+            assetsToFetch,
           );
 
           const ingestedBefore = this.#countAccountChainBalances(
@@ -1233,16 +1271,22 @@ export class RpcDataSource extends AbstractDataSource<
             accountId,
             chainId,
           );
-          const ingestedAll = await this.#ingestFetchedBalances(
+          const handledAssetKeys = await this.#ingestFetchedBalances(
             result,
             accountId,
             chainId,
             assetsBalance,
             assetsInfo,
+            visibleAssetKeys,
           );
-          const isPartial = result.failedAddresses.length > 0 || !ingestedAll;
+          const unresolved = assetsToFetch.filter(
+            (entry) =>
+              !handledAssetKeys.has(
+                normalizeAssetId(entry.assetId).toLowerCase(),
+              ),
+          );
 
-          if (!isPartial) {
+          if (unresolved.length === 0) {
             continue;
           }
 
@@ -1250,16 +1294,28 @@ export class RpcDataSource extends AbstractDataSource<
             this.#countAccountChainBalances(assetsBalance, accountId, chainId) >
             ingestedBefore;
 
-          if (ingestedAny) {
-            hasPartialSuccess = true;
-            log('Partial v6 RPC fetch', {
-              accountId,
-              chainId,
-              failedAddresses: result.failedAddresses,
-            });
-          } else if (!failedChains.includes(chainId)) {
-            failedChains.push(chainId);
+          if (!ingestedAny) {
+            // Nothing at all resolved, so there is no trustworthy slice to
+            // write. Leave the chain to the RPC fallback.
+            if (!failedChains.includes(chainId)) {
+              failedChains.push(chainId);
+            }
+            continue;
           }
+
+          log('Partial v6 RPC fetch', {
+            accountId,
+            chainId,
+            failedAddresses: result.failedAddresses,
+            unresolved: unresolved.map((entry) => entry.assetId),
+          });
+          this.#carryOverUnresolvedBalances({
+            unresolved,
+            accountId,
+            chainId,
+            balances: assetsBalance[accountId],
+            visibleAssetKeys,
+          });
         } catch (error) {
           this.#recordFetchChainFailure({
             address,
@@ -1285,7 +1341,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsInfo,
       failedChains,
       chainsToFetch,
-      updateMode: hasPartialSuccess ? 'merge' : 'full',
+      updateMode: 'full',
     });
   }
 
@@ -1304,19 +1360,59 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
+   * Lowercased visible asset IDs (native, pins, default tracked) for one
+   * account-chain scope, for membership checks against normalized IDs.
+   *
+   * @param accountId - Account being fetched.
+   * @param chainId - Chain being fetched.
+   * @returns Lookup keys for the visible set.
+   */
+  #getVisibleAssetKeys(accountId: string, chainId: ChainId): Set<string> {
+    const { visibleAssetIds } = this.#getAssetVisibility(
+      [accountId],
+      [chainId],
+    );
+    return new Set(visibleAssetIds.map((assetId) => assetId.toLowerCase()));
+  }
+
+  /**
+   * Whether a v6 snapshot should leave a fetched asset out.
+   *
+   * RPC also reads tokens that are only tracked because they were detected
+   * earlier. A zero balance for one of those is not worth a row: writing it
+   * keeps an empty token in state indefinitely, and on a `full` snapshot the
+   * omission drops it instead. Visible assets (native, pins, default tracked)
+   * are always written, at zero when the account holds none.
+   *
+   * @param assetId - Normalized CAIP-19 asset ID.
+   * @param rawBalance - Raw on-chain amount as returned by the fetcher.
+   * @param visibleAssetKeys - Lowercased visible IDs for this account-chain.
+   * @returns True when the asset should be omitted from the snapshot.
+   */
+  #isUnheldInvisibleAsset(
+    assetId: Caip19AssetId,
+    rawBalance: string,
+    visibleAssetKeys: Set<string>,
+  ): boolean {
+    return rawBalance === '0' && !visibleAssetKeys.has(assetId.toLowerCase());
+  }
+
+  /**
    * Convert fetched raw balances into human-readable amounts.
    *
-   * Tokens that resolve are overlaid; tokens whose decimals cannot be
-   * resolved are skipped. Callers stamp `full` only when this returns true
-   * and no `balanceOf` failed.
+   * Tokens that resolve are overlaid; tokens whose decimals cannot be resolved
+   * are skipped so callers can preserve their previous amount.
    *
    * @param result - The balance fetch result.
    * @param accountId - The account the balances belong to.
    * @param chainId - The CAIP-2 chain ID.
    * @param assetsBalance - Accumulator for converted balances.
    * @param assetsInfo - Accumulator for metadata collected from this fetch.
-   * @returns `true` when every fetched token was converted; `false` when any
-   * token was skipped for unresolved decimals.
+   * @param visibleAssetKeys - Lowercased visible IDs (v6 only). When given,
+   * zero balances for assets outside the set are left out of the snapshot.
+   * @returns Lowercased IDs this pass settled: written, or deliberately left
+   * out as an unheld invisible asset. Anything requested but missing from the
+   * set failed and still needs its previous amount.
    */
   async #ingestFetchedBalances(
     result: BalanceFetchResult,
@@ -1324,7 +1420,8 @@ export class RpcDataSource extends AbstractDataSource<
     chainId: ChainId,
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>,
     assetsInfo: Record<Caip19AssetId, AssetMetadata>,
-  ): Promise<boolean> {
+    visibleAssetKeys?: Set<string>,
+  ): Promise<Set<string>> {
     assetsBalance[accountId] ??= {};
 
     const normalizedBalances = result.balances.map((balance) => ({
@@ -1337,9 +1434,26 @@ export class RpcDataSource extends AbstractDataSource<
       this.#collectMetadataForBalances(normalizedBalances, chainId),
     );
 
-    let ingestedAll = true;
+    const handledAssetKeys = new Set<string>();
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
+      if (
+        visibleAssetKeys &&
+        this.#isUnheldInvisibleAsset(
+          balance.assetId,
+          balance.balance,
+          visibleAssetKeys,
+        )
+      ) {
+        log('Skipping unheld asset outside the visible set', {
+          accountId,
+          chainId,
+          assetId: balance.assetId,
+        });
+        handledAssetKeys.add(balance.assetId.toLowerCase());
+        continue;
+      }
+
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
       let decimals: number | undefined = this.#pickValidDecimals(
@@ -1358,7 +1472,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       if (decimals === undefined) {
-        ingestedAll = false;
         log('Skipping asset with unresolved decimals on RPC fetch', {
           accountId,
           chainId,
@@ -1370,9 +1483,73 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance[accountId][balance.assetId] = {
         amount: this.#convertToHumanReadable(balance.balance, decimals),
       };
+      handledAssetKeys.add(balance.assetId.toLowerCase());
     }
 
-    return ingestedAll;
+    return handledAssetKeys;
+  }
+
+  /**
+   * Preserve the amount already in state for assets this pass could not read.
+   *
+   * A v6 snapshot replaces the chain slice it covers, so an asset left out
+   * would be dropped. Writing its previous amount back means one failed
+   * `balanceOf` or unknown decimals no longer blocks the chain from updating:
+   * every other asset still gets its fresh amount, and the unreadable one is
+   * retried on the next poll. An unheld asset outside the visible set is not
+   * preserved — the same rule as a fresh zero read applies.
+   *
+   * @param options - Carry-over inputs.
+   * @param options.unresolved - Requested entries the fetch did not settle.
+   * @param options.accountId - Account being fetched.
+   * @param options.chainId - Chain being fetched.
+   * @param options.balances - Balance map for this account, mutated in place.
+   * @param options.visibleAssetKeys - Lowercased visible IDs for this scope.
+   */
+  #carryOverUnresolvedBalances({
+    unresolved,
+    accountId,
+    chainId,
+    balances,
+    visibleAssetKeys,
+  }: {
+    unresolved: AssetFetchEntry[];
+    accountId: string;
+    chainId: ChainId;
+    balances: Record<string, AssetBalance>;
+    visibleAssetKeys: Set<string>;
+  }): void {
+    const previousBalances =
+      this.#getAssetsState().assetsBalance[accountId] ?? {};
+    const previousByKey = new Map(
+      Object.entries(previousBalances).map(([assetId, balance]) => [
+        assetId.toLowerCase(),
+        balance,
+      ]),
+    );
+
+    for (const entry of unresolved) {
+      const assetId = normalizeAssetId(entry.assetId);
+      const key = assetId.toLowerCase();
+      if (balances[assetId] !== undefined) {
+        continue;
+      }
+
+      const previous = previousByKey.get(key);
+      if (previous === undefined) {
+        continue;
+      }
+      if (!visibleAssetKeys.has(key) && Number(previous.amount) === 0) {
+        continue;
+      }
+
+      log('Keeping previous balance for unreadable asset', {
+        accountId,
+        chainId,
+        assetId,
+      });
+      balances[assetId] = { ...previous };
+    }
   }
 
   #countAccountChainBalances(
