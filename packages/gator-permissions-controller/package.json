@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "Ethereum",

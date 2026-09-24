@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.3.1]
+
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^81.2.0` to `^81.3.0` ([#10341](https://github.com/MetaMask/core/pull/10341))
+- Bump `@metamask/bridge-controller` from `^81.2.0` to `^81.3.1` ([#10341](https://github.com/MetaMask/core/pull/10341), [#10423](https://github.com/MetaMask/core/pull/10423))
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.1` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
 - Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
@@ -1616,7 +1618,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.1...HEAD
+[76.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.0...@metamask/bridge-status-controller@76.3.1
 [76.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.2.0...@metamask/bridge-status-controller@76.3.0
 [76.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.1.0...@metamask/bridge-status-controller@76.2.0
 [76.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.0.0...@metamask/bridge-status-controller@76.1.0

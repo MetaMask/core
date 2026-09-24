@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "7.0.1",
+  "version": "7.0.2",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "Ethereum",

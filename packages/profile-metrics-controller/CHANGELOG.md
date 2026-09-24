@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1]
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.3.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
@@ -269,7 +271,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.1...HEAD
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...@metamask/profile-metrics-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...@metamask/profile-metrics-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.4...@metamask/profile-metrics-controller@5.0.0
 [4.0.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.3...@metamask/profile-metrics-controller@4.0.4
