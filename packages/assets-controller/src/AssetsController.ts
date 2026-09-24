@@ -160,6 +160,7 @@ import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
   getDefaultNativeAssetBalance,
+  getZeroAssetBalance,
 } from './utils/index.js';
 import type {
   BridgeExchangeRatesFormat,
@@ -600,7 +601,7 @@ function effectiveAccountBalancesV5(
   for (const customId of customAssetIds) {
     if (!Object.prototype.hasOwnProperty.call(next, customId)) {
       const prev = previousBalances[customId];
-      next[customId] = prev ?? ({ amount: '0' } as AssetBalance);
+      next[customId] = prev ?? getZeroAssetBalance(customId);
     }
   }
 
@@ -1006,6 +1007,7 @@ export class AssetsController extends BaseController<
         this.handleAssetsUpdate(response, 'SnapDataSource'),
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetVisibility: this.#getAssetVisibility.bind(this),
+      getAssetsState: (): AssetsControllerState => this.state,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
@@ -2272,7 +2274,8 @@ export class AssetsController extends BaseController<
         Record<string, AssetBalance>
       >;
       balances[accountId] ??= {};
-      balances[accountId][normalizedAssetId] ??= { amount: '0' };
+      balances[accountId][normalizedAssetId] ??=
+        getZeroAssetBalance(normalizedAssetId);
     });
 
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);

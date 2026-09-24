@@ -21,6 +21,7 @@ import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
+  AssetsControllerState,
   ChainId,
   Caip19AssetId,
   DataRequest,
@@ -28,6 +29,7 @@ import type {
   Middleware,
 } from '../types.js';
 import type { GetAssetVisibility } from '../utils/assetVisibility.js';
+import { getZeroAssetBalance } from '../utils/getZeroAssetBalance.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
@@ -178,6 +180,11 @@ export type SnapDataSourceOptions = {
   isBalanceV6Enabled: () => boolean;
   /** Resolves native, pinned, default, and hidden assets for a request scope. */
   getAssetVisibility: GetAssetVisibility;
+  /**
+   * Current AssetsController state. Used to keep the last-known amount when
+   * a v6 snap snapshot omits a visible asset.
+   */
+  getAssetsState: () => AssetsControllerState;
   /** Configured networks to support (defaults to all snap networks) */
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
@@ -226,6 +233,8 @@ export class SnapDataSource extends AbstractDataSource<
 
   readonly #getAssetVisibility: GetAssetVisibility;
 
+  readonly #getAssetsState: () => AssetsControllerState;
+
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
     payload: AccountBalancesUpdatedEventPayload,
@@ -247,6 +256,7 @@ export class SnapDataSource extends AbstractDataSource<
     this.#onAssetsUpdate = options.onAssetsUpdate;
     this.#isBalanceV6Enabled = options.isBalanceV6Enabled;
     this.#getAssetVisibility = options.getAssetVisibility;
+    this.#getAssetsState = options.getAssetsState;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -600,37 +610,85 @@ export class SnapDataSource extends AbstractDataSource<
           hiddenAssetIds,
         );
 
-        // Step 2: Get balances for those specific assets
+        // Step 2: Get balances for those specific assets. An empty map is a
+        // failed fetch (or nothing to ask for), not a zero snapshot. Leave
+        // this account out so `full` cannot replace last-known amounts with 0.
         const balances: Record<CaipAssetType, Balance> = assetsToFetch.length
           ? await client.getAccountBalances(accountId, assetsToFetch)
           : {};
+        if (
+          !balances ||
+          typeof balances !== 'object' ||
+          Object.keys(balances).length === 0
+        ) {
+          continue;
+        }
 
         // Transform keyring response to DataResponse format
         const accountBalances: Record<string, AssetBalance> = {};
-        if (balances && typeof balances === 'object') {
-          for (const [assetId, balance] of Object.entries(balances)) {
-            accountBalances[assetId] = {
-              amount: balance.amount,
-              ...(balance.metadata ? { metadata: balance.metadata } : {}),
-            };
-          }
+        for (const [assetId, balance] of Object.entries(balances)) {
+          accountBalances[assetId] = {
+            amount: balance.amount,
+            ...(balance.metadata ? { metadata: balance.metadata } : {}),
+          };
         }
 
         // Step 3: Guard against an incomplete snap response. A `full` replace
         // would drop any expected visible asset that was requested but omitted.
-        for (const assetId of visibleAssetIds) {
-          accountBalances[assetId] ??= { amount: '0' };
-        }
+        // Keep the last-known amount when we have one; otherwise seed 0.
+        this.#fillOmittedVisibleAssets(
+          accountId,
+          visibleAssetIds,
+          accountBalances,
+        );
 
         if (results.assetsBalance) {
           results.assetsBalance[accountId] = accountBalances;
         }
       } catch {
-        // Expected when account doesn't belong to this snap
+        // Snap failed or the account does not belong to this snap. Contribute
+        // nothing so previous balances stay in state.
       }
     }
 
     return results;
+  }
+
+  /**
+   * Put every omitted visible asset on the snapshot so `full` cannot drop it.
+   * Reuse the amount already in state when one exists; otherwise seed `0`.
+   *
+   * @param accountId - Account whose balances were fetched.
+   * @param visibleAssetIds - Native, pin, and default tracked IDs for this scope.
+   * @param accountBalances - Snapshot being built, mutated in place.
+   */
+  #fillOmittedVisibleAssets(
+    accountId: string,
+    visibleAssetIds: Caip19AssetId[],
+    accountBalances: Record<string, AssetBalance>,
+  ): void {
+    const previousByKey = new Map(
+      Object.entries(this.#getAssetsState().assetsBalance[accountId] ?? {}).map(
+        ([assetId, balance]) => [assetId.toLowerCase(), balance],
+      ),
+    );
+    const presentKeys = new Set(
+      Object.keys(accountBalances).map((assetId) => assetId.toLowerCase()),
+    );
+
+    for (const assetId of visibleAssetIds) {
+      if (presentKeys.has(assetId.toLowerCase())) {
+        continue;
+      }
+
+      const previous = previousByKey.get(assetId.toLowerCase());
+      if (previous) {
+        accountBalances[assetId] = { ...previous };
+        continue;
+      }
+
+      accountBalances[assetId] = getZeroAssetBalance(assetId as Caip19AssetId);
+    }
   }
 
   /**

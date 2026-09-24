@@ -86,12 +86,13 @@ reads controller state and returns:
 Accounts API sends those lists as `includeAssetIds` / `excludeAssetIds`. RPC
 and Snap fetch the visible set and skip hidden IDs. Snap also asks the keyring
 for those visible IDs (not only `listAccountAssets` holdings). Because a `full`
-snapshot must mention every visible asset, Snap then zero-fills any ID still
-missing from the snap response — a guard if the response is incomplete. RPC
-requests the visible set plus already-tracked ERC-20s (detected tokens already
-in `assetsBalance`), always stamps `full`, and carries the previous amount for
-any asset whose `balanceOf` or decimals lookup failed so one unreadable token
-cannot wipe the rest of the chain.
+snapshot must mention every visible asset, Snap then fills any ID still
+missing from a non-empty snap response — last-known amount if present,
+otherwise `0`. An empty `getAccountBalances` result is treated as a failed
+fetch, not a zero snapshot. RPC requests the visible set plus already-tracked
+ERC-20s (detected tokens already in `assetsBalance`), always stamps `full`,
+and carries the previous amount for any asset whose `balanceOf` or decimals
+lookup failed so one unreadable token cannot wipe the rest of the chain.
 
 `hideAsset` / `removeCustomAsset` re-run `#subscribeAssets` so the next poll
 sees the new lists. `addCustomAsset` and `unhideAsset` also force-fetch that
@@ -142,7 +143,9 @@ The requests differ as well:
   amount, unread tokens keep the amount already in state, and a chain that
   resolved nothing is listed in `errors` instead of writing an empty slice.
   Snap `#fetchV6` requests visible assets with listed holdings, stamps `full`,
-  and zero-fills any still missing from the snap response. Background Snap and
+  and fills omitted visible assets from current state (`0` if none). An empty
+  `getAccountBalances` map (or a thrown fetch) contributes nothing, so last-
+  known amounts are kept. Background Snap and
   RPC both stamp `full`. `mergeDataResponses` promotes `full` if any source did.
 
 When basic functionality is off, both fast lanes shrink to
@@ -341,7 +344,7 @@ RpcFallback then retries only `errors` keys.
 | Subscribe update mode   | `merge` for every source                                                | `full` for Accounts API, Snap snapshots, and RPC (carry previous on unread tokens); `merge` for events (Snap, Account Activity, staking, detection)                   |
 | State writer            | `effectiveAccountBalancesV5`                                            | `effectiveAccountBalancesV6(updateMode)`                                                                                                                             |
 | Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `shouldKeepAsset`                                                                |
-| Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap zero-fill / RPC fetch list                                                                                                     |
+| Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap fill from state-or-0 / RPC fetch list                                                                                                     |
 | Hidden assets           | Not sent to the endpoint                                                | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches)                                                                      |
 | Default tracked assets  | Survive only if already in state or returned                            | Always in visibility, so a `full` refresh keeps them at zero when unheld                                                                                             |
 | Token detection filter  | Drop unknown tokens when detection is off                               | Not applied; v6 snapshot is kept in full                                                                                                                             |

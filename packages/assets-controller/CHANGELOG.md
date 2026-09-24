@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `isBalanceV6Enabled` to `AccountsApiDataSourceOptions`, `RpcDataSourceOptions`, and `RpcFallbackMiddlewareOptions`, so the `assetsAccountsApiV6` flag is read once by `AssetsController` and injected ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Add `getZeroNativeAssetBalance` and `getZeroTokenAssetBalance` so Stellar native zeros include spendable/reserve metadata and Stellar token zeros include empty trustline metadata. `getZeroAssetBalance` picks between them with `isNativeAssetId`
 
 ### Changed
 
@@ -17,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove the `updateMode` option from `AssetsController.getAssets`; the data source now sets it on its response ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Remove `getAssetsState` from pipeline `Context`; inject it on data-source and middleware constructors instead (`TokenDataSourceOptions`, `PriceDataSourceOptions`, `DetectionMiddlewareOptions`, `CustomAssetGraduationMiddlewareOptions`, `RpcFallbackMiddlewareOptions`) ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Remove `getAssetsState` from `SubscriptionRequest` and `PriceDataSource.fetch`; `PriceDataSource` reads state from its constructor ([#9651](https://github.com/MetaMask/core/pull/9651))
-- **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions`, `SnapDataSourceOptions`, and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
   - Pass `() => this.state` from `AssetsController`
 - **BREAKING:** Require `getAssetVisibility` in `AccountsApiDataSourceOptions`, `SnapDataSourceOptions`, and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Require `isBalanceV6Enabled` in `SnapDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
@@ -27,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Snap v6 fetch skips an empty `getAccountBalances` response instead of filling visible assets, so a failed snap cannot replace last-known balances with `0`
+- Snap v6 fills omitted visible assets from current state, and seeds a chain-specific zero balance only when there is no previous amount
 - Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
 - On the v6 path, a successful response is the complete visible set for the chains it covers (`updateMode: 'full'`): natives, visible pins, and default tracked assets. Hidden assets are not fetched and omitted balances are dropped; staking positions are carried over ([#9651](https://github.com/MetaMask/core/pull/9651))
 - Accounts API, Snap, RPC, and RPC fallback share that visibility list instead of `request.customAssets`, so a force refresh or fallback retry cannot drop other pins on a `full` snapshot ([#9651](https://github.com/MetaMask/core/pull/9651))

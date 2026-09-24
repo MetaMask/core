@@ -712,6 +712,26 @@ describe('AssetsController', () => {
       });
     });
 
+    it('seeds a Stellar custom asset with empty trustline metadata', async () => {
+      const stellarAssetId =
+        'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
+
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, stellarAssetId);
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[stellarAssetId],
+        ).toStrictEqual({
+          amount: '0',
+          metadata: {
+            authorized: false,
+            limit: '0',
+            sponsored: false,
+          },
+        });
+      });
+    });
+
     it('force-fetches the asset chain with every pinned token as includeAssetIds', async () => {
       // Use a valid checksummed address (DAI token address)
       const secondAssetId =
