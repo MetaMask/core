@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Quotes now default to exact-input pricing on the source amount, instead of expected-output pricing on the target amount, using exact output only for bundled calls, deposit-and-order types, and Money Account post-quote deposits.
   - `ServerStrategy.supports` no longer declines `perpsDepositAndOrder` and `predictDepositAndOrder`.
 - Bump `@metamask/ramps-controller` from `^25.0.0` to `^25.1.0` ([#10402](https://github.com/MetaMask/core/pull/10402))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
 ### Fixed
 
