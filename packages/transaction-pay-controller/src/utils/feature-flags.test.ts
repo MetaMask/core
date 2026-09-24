@@ -37,6 +37,7 @@ import {
   isEIP7702Chain,
   getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
+  isAtomicMaxEnabled,
   isRelayValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
@@ -768,6 +769,135 @@ describe('Feature Flags Utils', () => {
     });
   });
 
+  describe('isAtomicMaxEnabled', () => {
+    it('returns false for a Money Account deposit when no flag is set', () => {
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false for a non-Money Account deposit when no flag is set', () => {
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false when default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { atomicMaxEnabled: { default: false } },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { atomicMaxEnabled: { default: true } },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns true when per-type override is true and default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when per-type override is false and default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.moneyAccountDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns default value for a type with no per-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+  });
+
   describe('isChainExcludedFromInfura', () => {
     it('returns false when no feature flags are set', () => {
       expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
@@ -983,11 +1113,50 @@ describe('Feature Flags Utils', () => {
 
       expect(config.server).toStrictEqual({
         enabled: false,
+        enabledTransactionTypes: [],
         baseUrl: DEFAULT_SERVER_BASE_URL,
         pollingInterval: 2000,
         pollingTimeout: undefined,
       });
     });
+
+    it.each([
+      ['the flag is absent', undefined, []],
+      ['the flag is not an array', 'perpsDeposit', []],
+      [
+        'the flag lists known types',
+        ['perpsDeposit', 'perpsWithdraw'],
+        [TransactionType.perpsDeposit, TransactionType.perpsWithdraw],
+      ],
+      [
+        'the flag lists unknown types',
+        ['perpsDeposit', 'notATransactionType'],
+        [TransactionType.perpsDeposit],
+      ],
+      [
+        'the flag lists duplicates',
+        ['perpsDeposit', 'perpsDeposit'],
+        [TransactionType.perpsDeposit],
+      ],
+    ])(
+      'returns enabled transaction types when %s',
+      (_name, enabledTransactionTypes, expected) => {
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay_extended: {
+              payStrategies: {
+                server: { enabledTransactionTypes },
+              },
+            },
+          },
+        });
+
+        expect(
+          getPayStrategiesConfig(messenger).server.enabledTransactionTypes,
+        ).toStrictEqual(expected);
+      },
+    );
 
     it('returns enabled: true when the flag enables server', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({

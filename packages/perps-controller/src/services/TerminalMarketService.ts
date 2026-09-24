@@ -33,7 +33,7 @@ import { formatChange } from '../utils/marketDataTransform.js';
 import { clonePerpsMarketData } from '../utils/marketUtils.js';
 
 const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
-const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 2;
+const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 3;
 const GLOBAL_SNAPSHOT_CONSUMER_MAX_AGE_MS = 30_000;
 const GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES = 1_048_576;
 const GLOBAL_SNAPSHOT_PERCENT_TOLERANCE = 0.01;
@@ -44,7 +44,9 @@ const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const DEX_PATTERN = /^(?:main|[a-z0-9][a-z0-9-]*)$/u;
 
 const GlobalSnapshotMarketStruct = object({
+  id: string(),
   symbol: string(),
+  network: string(),
   provider: string(),
   dex: string(),
   name: nullable(string()),
@@ -216,7 +218,7 @@ export class TerminalMarketService {
   }
 
   /**
-   * Fetch, authenticate by exact identity, and map a schema-v2 atomic market
+   * Fetch, authenticate by exact identity, and map a schema-v3 atomic market
    * snapshot. Accepted entries remain inside the source freshness window;
    * rejected responses are never cached.
    *
@@ -480,11 +482,19 @@ export class TerminalMarketService {
       new Error(
         `Terminal global snapshot market ${String(index)} has invalid ${field}`,
       );
+    if (market.id.length === 0) {
+      throw invalid('id');
+    }
+    if (market.network !== identity.network) {
+      throw invalid('network');
+    }
     if (!identity.enabledDexes.includes(market.dex)) {
       throw invalid('dex');
     }
-    const expectedProvider = market.dex === 'main' ? 'hyperliquid' : market.dex;
-    if (market.provider !== expectedProvider) {
+    // `provider` is the venue (Hyperliquid), including HIP-3 markets whose
+    // DEX lives in `dex`. Terminal v3 emits `provider: "hyperliquid"` for
+    // both `main` and `xyz` rows; HIP-3 identity is `dex`, not `provider`.
+    if (market.provider !== identity.provider) {
       throw invalid('provider');
     }
     const expectedPrefix = market.dex === 'main' ? '' : `${market.dex}:`;
@@ -605,6 +615,7 @@ export class TerminalMarketService {
     const marketType = this.#marketTypeFor(market.dex, market.category);
 
     return {
+      id: market.id,
       symbol: market.symbol,
       name: market.name ?? market.symbol,
       ...(market.description !== null && {

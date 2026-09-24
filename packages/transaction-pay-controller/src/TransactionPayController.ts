@@ -356,6 +356,9 @@ export class TransactionPayController extends BaseController<
           originalPaymentToken?.address?.toLowerCase() ||
         current.paymentToken?.chainId !== originalPaymentToken?.chainId;
 
+      const isPaymentTokenBalanceUpdated =
+        current.paymentToken?.balanceRaw !== originalPaymentToken?.balanceRaw;
+
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
@@ -382,6 +385,22 @@ export class TransactionPayController extends BaseController<
         );
 
         shouldUpdateQuotes = true;
+      } else if (
+        isPaymentTokenBalanceUpdated &&
+        current.isMaxAmount &&
+        !current.isPostQuote
+      ) {
+        // On max the source amount is the payment token balance, so a
+        // refreshed balance must re-derive it, otherwise the amount stays at
+        // whatever the balance was when the token was selected. Quotes are not
+        // requested again here: the balance is refreshed by `updateQuotes`
+        // itself, which reads the re-derived amounts before building requests.
+        updateSourceAmounts(
+          transactionId,
+          current as never,
+          this.messenger,
+          this.#getBalance,
+        );
       }
 
       if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {

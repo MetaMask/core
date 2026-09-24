@@ -360,6 +360,31 @@ describe('lighterAdapter', () => {
       });
     });
 
+    it('carries the venue trade id as the execution identifier', () => {
+      const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
+      expect(fill.fillId).toBe('9509524');
+    });
+
+    it('gives distinct fillIds to two executions of one order sharing timestamp, size and price', () => {
+      // One resting order matched twice. Order id, timestamp, size and price
+      // are identical; only the venue trade id separates the executions.
+      const first = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
+      const second = adaptFillFromLighterTrade(
+        { ...REAL_TRADE, tradeId: REAL_TRADE.tradeId + 1 },
+        'SOL',
+        28,
+      );
+
+      expect(first.orderId).toBe(second.orderId);
+      expect(first.timestamp).toBe(second.timestamp);
+      expect(first.size).toBe(second.size);
+      expect(first.price).toBe(second.price);
+      expect(first.fillId).not.toBe(second.fillId);
+      expect(
+        new Map([first, second].map((fill) => [fill.fillId, fill])).size,
+      ).toBe(2);
+    });
+
     it('adapts the counterparty: a buy from a flat position is Open Long', () => {
       const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 7);
       expect(fill.side).toBe('buy');
@@ -697,6 +722,35 @@ describe('lighterAdapter', () => {
         providerId: 'lighter',
       });
       expect(parseFloat(adapted.filledSize)).toBeCloseTo(0.2, 10);
+    });
+
+    it.each(['0', '0.2'])(
+      'preserves reported filled size %s when cancellation clears the remaining size',
+      (filledBaseAmount) => {
+        const canceledOrder = {
+          ...order,
+          status: 'canceled',
+          remainingBaseAmount: '0',
+          filledBaseAmount,
+        };
+
+        const adapted = adaptOrderFromLighter(canceledOrder, 'BTC');
+
+        expect(adapted).toMatchObject({
+          status: 'canceled',
+          originalSize: '0.5',
+          remainingSize: '0',
+          filledSize: filledBaseAmount,
+        });
+      },
+    );
+
+    it('prefers the reported filled size for open orders', () => {
+      const openOrder = { ...order, filledBaseAmount: '0.1' };
+
+      const adapted = adaptOrderFromLighter(openOrder, 'BTC');
+
+      expect(adapted.filledSize).toBe('0.1');
     });
 
     it('maps ask orders to sell side', () => {

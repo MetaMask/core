@@ -12,8 +12,7 @@ import { AccountId } from '@metamask/keyring-utils';
  * `multichain-account-service` legitimately depends on `snap-account-service`
  * (for `:ensureReady`), and `account-tree-controller` legitimately depends on
  * `multichain-account-service`. Importing `AccountTreeController` types here
- * would close the cycle and crash `ts-bridge` with a stack overflow during
- * project-reference builds.
+ * would close the cycle and break project-reference builds (`tsc --build`).
  *
  * Keep these signatures in sync with `@metamask/account-tree-controller`.
  */

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+
+### Changed
+
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/subscription-controller` from `^9.1.0` to `^10.0.0` ([#10305](https://github.com/MetaMask/core/pull/10305), [#10416](https://github.com/MetaMask/core/pull/10416), [#10423](https://github.com/MetaMask/core/pull/10423))
+  - Types exposed through `DefaultInstances` and `DefaultState` have changed:
+    - `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` are now optional; consumers must handle missing values.
+    - `TokenPaymentInfo.isVaultShare` was removed; use `isVaultShareToken` instead.
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10420](https://github.com/MetaMask/core/pull/10420), [#10423](https://github.com/MetaMask/core/pull/10423))
+  - Approval-time sponsorship and signing hooks have been removed from types exposed through `DefaultInstances`:
+    - Migrate `isSponsored` and `shouldSign` hooks to `isGasFeeSponsored` and `isExternalSign` transaction metadata. The `hooks` option is required again; pass `hooks: {}` when no hooks are needed.
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/shield-controller` from `^7.0.1` to `^7.0.2` ([#10423](https://github.com/MetaMask/core/pull/10423))
+
+## [14.0.1]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^4.0.0` to `^4.1.0`. ([#10351](https://github.com/MetaMask/core/pull/10351))
+
+### Fixed
+
+- Fixed subscription getBenefits delegation in the `SubscriptionController` init. ([#10355](https://github.com/MetaMask/core/pull/10355))
+
+## [14.0.0]
+
 ### Added
 
 - Wire `SubscriptionDelegationService` into the default wallet initialization. ([#10130](https://github.com/MetaMask/core/pull/10130))
@@ -20,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use of this package is now limited to Non-Commercial Use as defined in `LICENSE`. If your use falls outside of that, reach out to communications@metamask.io.
 - Bump `@metamask/claims-controller` from `^1.0.0` to `^1.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
 - Bump `@metamask/shield-controller` from `^7.0.0` to `^7.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
-- Bump `@metamask/subscription-controller` from `^9.0.0` to `^9.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/subscription-controller` from `^9.0.0` to `^9.1.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10280](https://github.com/MetaMask/core/pull/10280))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
 
@@ -265,7 +297,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...@metamask/wallet@15.0.1
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@15.0.0
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...@metamask/wallet@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.3...@metamask/wallet@13.0.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...@metamask/wallet@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...@metamask/wallet@12.0.2

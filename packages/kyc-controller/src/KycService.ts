@@ -14,14 +14,12 @@ import {
   array,
   assert,
   boolean,
-  enums,
   optional,
   string,
   StructError,
   type,
 } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
-import { Duration, inMilliseconds } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
@@ -32,7 +30,6 @@ import type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycUserStatusResponse,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -50,20 +47,19 @@ export const serviceName = 'KycService';
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
   'fetchVendorDisclaimers',
-  'createSession',
-  'checkKycRequired',
+  'createMoonpaySession',
   'createVendorCustomer',
   'submitVendorDisclaimers',
   'fetchSessionDisclaimersByCountry',
   'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
-  'fetchKycStatus',
   'fetchIdosEnclaveJwks',
   'fetchIdosRelayJwks',
   'createUkycSession',
   'setAuthorizations',
   'createJourney',
   'getSessionStatus',
+  'getSessionStatusForVendor',
 ] as const;
 
 /**
@@ -173,10 +169,6 @@ const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
-// The live KYC API returns the flag under `required`; the service normalizes
-// this to `kycRequired` for consumers (see `checkKycRequired`).
-const KycRequiredResponseStruct = type({ required: boolean() });
-
 // The session server's public key, in JWK-like form, returned inside an
 // encryption schema from `POST /sessions`. `x` is the base64url public key
 // used to wrap a secret for that schema.
@@ -224,12 +216,15 @@ export type ApplicantAccessTokenResponse = Infer<
 >;
 
 const SessionStatusResponseStruct = type({
+  id: string(),
   finalStatus: string(),
   statusMessage: optional(string()),
   externalUserId: string(),
   kycStatus: string(),
   vendor: string(),
   vendorStatus: string(),
+  consentStatus: optional(string()),
+  idOSStatus: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
@@ -240,20 +235,6 @@ const VendorCustomerResponseStruct = type({
   status: string(),
 });
 export type VendorCustomerResponse = Infer<typeof VendorCustomerResponseStruct>;
-
-const KYC_USER_STATUSES = [
-  'not-started',
-  'pending',
-  'need-more-information',
-  'terminal-failure',
-  'completed',
-] as const;
-
-const KycUserStatusResponseStruct = type({
-  status: enums([...KYC_USER_STATUSES]),
-  sumsubSessionId: optional(string()),
-  errorCode: optional(string()),
-});
 
 const CatalogDocumentFields = {
   key: string(),
@@ -288,27 +269,10 @@ const SessionDisclaimersResponseStruct = type({
 
 // === PARAM TYPES ===
 
-export type CreateSessionParams = {
+export type CreateMoonpaySessionParams = {
   email: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
-};
-
-export type CheckKycRequiredParams = {
-  /**
-   * Identity vendor to check. Defaults to `moonpay` for the existing
-   * Check/Auth path.
-   */
-  vendor?: KycVendor;
-  /**
-   * MoonPay access token. Required when `vendor` is `moonpay` (or omitted).
-   */
-  accessToken?: string;
-  /**
-   * ISO 3166-1 alpha-3 country code. Required when `vendor` is `moonpay`.
-   */
-  country?: string;
-  capabilities?: { product: string }[];
 };
 
 export type CreateVendorCustomerParams = {
@@ -348,7 +312,6 @@ export type SubmitSessionDisclaimersParams = {
 };
 
 export type CreateUkycSessionParams = {
-  jwtToken: string;
   /**
    * The client's per-session X25519 public key (unpadded base64url). Generated
    * with the matching private key used later to wrap authorizations, so the
@@ -402,21 +365,7 @@ export type GetSessionStatusParams = {
  * `fetch` when provided), and the auth bearer token and geolocation come from
  * other controllers via the messenger.
  *
- * It extends {@link BaseDataService}, so read-only endpoints are routed through
- * `fetchQuery`: they are wrapped in the shared service policy (retries, circuit
- * breaker) and their results are exposed via the service's `QueryClient`.
- * `fetchDisclaimers` and `fetchJwks` are cached with a `staleTime`;
- * session-scoped disclaimer and status-polling reads opt out of caching
- * (`staleTime`/`gcTime` of `0`) so they never serve a stale result.
- *
- * Write endpoints (every `POST`) deliberately bypass `fetchQuery`. The query
- * cache is built for idempotent reads: it deduplicates concurrent requests
- * sharing a `queryKey`, retains responses for replay, and publishes them on the
- * messenger via `cacheUpdated`. None of that is safe for calls that create
- * sessions, customers, or consents — two overlapping `createVendorCustomer`
- * calls would collapse into a single `POST`, and session tokens would be
- * broadcast as cache payloads. Writes therefore call `#requestJson` directly,
- * which also means they are not retried by the service policy.
+ * HTTP endpoints call `#requestJson` (via the injected or native `fetch`).
  */
 export class KycService extends BaseDataService<
   typeof serviceName,
@@ -538,11 +487,7 @@ export class KycService extends BaseDataService<
   }): Promise<KycDisclaimer[]> {
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
     url.searchParams.set('country', country);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchVendorDisclaimers`, vendor, country],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      staleTime: inMilliseconds(5, Duration.Minute),
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       DisclaimersResponseStruct,
@@ -551,13 +496,13 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Creates a vendor session via the UKYC backend.
+   * Creates a MoonPay vendor session via the UKYC backend.
    *
    * @param params - The session parameters.
    * @returns The created session token.
    */
-  async createSession(
-    params: CreateSessionParams,
+  async createMoonpaySession(
+    params: CreateMoonpaySessionParams,
   ): Promise<Infer<typeof CreateSessionResponseStruct>> {
     const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
     const data = await this.#requestJson(url, {
@@ -569,54 +514,6 @@ export class KycService extends BaseDataService<
       CreateSessionResponseStruct,
       'sessions',
     );
-  }
-
-  /**
-   * Checks whether KYC is required for the given vendor, country, and
-   * capabilities.
-   *
-   * @param params - The check parameters.
-   * @returns Whether KYC is required.
-   */
-  async checkKycRequired(
-    params: CheckKycRequiredParams,
-  ): Promise<{ kycRequired: boolean }> {
-    const vendor = params.vendor ?? 'moonpay';
-    const url = new URL(`/vendors/${vendor}/kyc-required`, this.#baseUrl);
-    const capabilities = params.capabilities ?? [{ product: 'ramps' }];
-    const body =
-      vendor === 'moonpay'
-        ? {
-            accessToken: params.accessToken,
-            country: params.country,
-            capabilities,
-          }
-        : {};
-
-    // MoonPay requires accessToken and country; validate before making the request.
-    if (vendor === 'moonpay') {
-      if (!params.accessToken) {
-        throw new Error(
-          'checkKycRequired: accessToken is required for vendor "moonpay".',
-        );
-      }
-      if (!params.country) {
-        throw new Error(
-          'checkKycRequired: country is required for vendor "moonpay".',
-        );
-      }
-    }
-
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    const { required } = this.#validateResponse(
-      data,
-      KycRequiredResponseStruct,
-      'kyc-required',
-    );
-    return { kycRequired: required };
   }
 
   /**
@@ -697,12 +594,7 @@ export class KycService extends BaseDataService<
 
     const url = new URL('/disclaimers', this.#baseUrl);
     url.searchParams.set('country', country);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimersByCountry`, country],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       GlobalDisclaimersResponseStruct,
@@ -728,13 +620,7 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(sessionId)}/disclaimers`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimersBySessionId`, sessionId],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Consent state can change after a POST, so always re-fetch.
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       SessionDisclaimersResponseStruct,
@@ -775,39 +661,15 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Fetches the user-keyed simplified KYC status used by Money toast / banner
-   * surfaces (`GET /kyc/status`).
-   *
-   * @returns The simplified status payload.
-   */
-  async fetchKycStatus(): Promise<KycUserStatusResponse> {
-    const url = new URL('/kyc/status', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchKycStatus`],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Status is polled for toast flips, so it must always be fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
-    return this.#validateResponse(
-      data,
-      KycUserStatusResponseStruct,
-      'kyc status',
-    );
-  }
-
-  /**
-   * Fetches a well-known JWKS from `baseUrl`, caching the result for an hour.
+   * Fetches a well-known JWKS from `baseUrl`.
    *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
-   * @param queryName - Cache query-key segment.
    * @param responseLabel - Label used in malformed-response errors.
    * @param missingConfigMessage - Error thrown when `baseUrl` is empty.
    * @returns The JWKS keys.
    */
   async #fetchWellKnownJwks(
     baseUrl: string,
-    queryName: string,
     responseLabel: string,
     missingConfigMessage: string,
   ): Promise<JwksResponse> {
@@ -815,12 +677,11 @@ export class KycService extends BaseDataService<
       throw new Error(missingConfigMessage);
     }
     const url = new URL(UKYC_JWKS_PATH, baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:${queryName}`, baseUrl],
-      queryFn: async () =>
-        this.#requestJson(url, { method: 'GET' }, { authenticated: false }),
-      staleTime: inMilliseconds(1, Duration.Hour),
-    });
+    const data = await this.#requestJson(
+      url,
+      { method: 'GET' },
+      { authenticated: false },
+    );
     return this.#validateResponse(data, JwksResponseStruct, responseLabel);
   }
 
@@ -837,7 +698,6 @@ export class KycService extends BaseDataService<
   async fetchIdosEnclaveJwks(): Promise<JwksResponse> {
     return this.#fetchWellKnownJwks(
       this.#idosEnclaveBaseUrl,
-      'fetchIdosEnclaveJwks',
       'idOS enclave JWKS',
       'KycService: idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema.',
     );
@@ -855,7 +715,6 @@ export class KycService extends BaseDataService<
   async fetchIdosRelayJwks(): Promise<JwksResponse> {
     return this.#fetchWellKnownJwks(
       this.#idosRelayBaseUrl,
-      'fetchIdosRelayJwks',
       'idOS relay JWKS',
       'KycService: idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema.',
     );
@@ -884,7 +743,7 @@ export class KycService extends BaseDataService<
       body: JSON.stringify({
         vendorId: params.vendor ?? 'moonpay',
         vendorUserId: 'mockedId',
-        jwtToken: params.jwtToken,
+        jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
         sessionClientPublicKey: params.sessionClientPublicKey,
         residenceCountry: params.residenceCountry,
         vendorMetadata: params.vendorMetadata ?? {},
@@ -964,18 +823,44 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(params.sessionId)}/status`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:getSessionStatus`, params.sessionId],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Status is polled for a terminal decision, so it must always be fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       SessionStatusResponseStruct,
       'session status',
     );
+  }
+
+  /**
+   * Fetches the latest UKYC session status for an identity vendor
+   * (`GET /sessions/latest/status/{vendor}`).
+   *
+   * @param vendor - Identity vendor whose latest session should be queried.
+   * @returns The session status, or `null` when no latest session exists.
+   */
+  async getSessionStatusForVendor(
+    vendor: KycVendor,
+  ): Promise<KycSessionStatus | null> {
+    const url = new URL(
+      `/sessions/latest/status/${encodeURIComponent(vendor)}`,
+      this.#baseUrl,
+    );
+    try {
+      const data = await this.#requestJson(url, { method: 'GET' });
+      if (data === null) {
+        return null;
+      }
+      return this.#validateResponse(
+        data,
+        SessionStatusResponseStruct,
+        'latest session status',
+      );
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1015,12 +900,9 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Performs a single JSON request.
+   * Performs a single JSON request via `fetch`.
    *
-   * Read endpoints pass this as the `queryFn` to {@link fetchQuery}, which
-   * wraps it in the shared service policy (retries, circuit breaker). Write
-   * endpoints call it directly, so they are executed exactly once. Requests
-   * are authenticated with the wallet bearer token by default; pass
+   * Requests are authenticated with the wallet bearer token by default; pass
    * `{ authenticated: false }` for calls to services that do not expect it
    * (e.g. the idOS enclave or idOS relay JWKS endpoints).
    *

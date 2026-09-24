@@ -39,6 +39,14 @@ export const toNormalizedAmounts = (
             networkFee?.asset?.decimals,
           ),
         })),
+        ...(feeData?.reserve && {
+          reserve: feeData.reserve.map((reserve) => ({
+            normalizedAmount: calcNormalizedTokenAmount(
+              reserve?.amount,
+              reserve?.asset?.decimals,
+            ),
+          })),
+        }),
         relayer: feeData?.[FeeType.RELAYER]?.map((relayerFee) => ({
           normalizedAmount: calcNormalizedTokenAmount(
             relayerFee.amount,

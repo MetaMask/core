@@ -15,6 +15,9 @@ export type {
   NativeProvidersState,
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
+  VbaAutorampStatus,
+  VbaKycStatus,
+  VbaOnboardingSnapshot,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -37,6 +40,7 @@ export type {
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,
   RampsControllerCreateAutorampAction,
+  RampsControllerHydrateVbaOnboardingAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerRegisterMoneyAccountWalletAction,
   RampsControllerMarkAutorampAsNotifiedAction,
@@ -46,6 +50,7 @@ export type {
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
+  RampsControllerGetFallbackBuyWidgetDataAction,
   RampsControllerAddPrecreatedOrderAction,
   RampsControllerGetOrderAction,
   RampsControllerGetOrderFromCallbackAction,
@@ -79,6 +84,8 @@ export type {
 } from './RampsController-method-action-types.js';
 export {
   RampsController,
+  VBA_AUTORAMP_STATUSES,
+  VBA_KYC_STATUSES,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -115,6 +122,7 @@ export type {
   RampsToken,
   TokensResponse,
   BuyWidget,
+  BuyWidgetFallback,
   RampsOrder,
   RampsOrderNetwork,
   RampsOrderCryptoCurrency,
@@ -185,6 +193,7 @@ export {
   isExternalBrowserQuote,
   isCustomActionQuote,
   isInAppOnlyQuote,
+  getBuyWidgetFallback,
 } from './quoteClassification.js';
 export {
   TERMINAL_ORDER_STATUSES,
@@ -301,6 +310,7 @@ export type {
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,
