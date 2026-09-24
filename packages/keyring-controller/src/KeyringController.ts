@@ -3457,13 +3457,16 @@ export class KeyringController<
       try {
         const result = await run(entry);
 
+        // Might now be empty after the operation.
+        const isEmpty = (await entry.keyring.getAccounts()).length === 0;
+
         // Scoped cleanup: only the operated keyring can have transitioned to
         // empty during the operation. A failing destruction fails the
         // transaction; the rollback then restores the drained keyring.
         if (
           this.#keyrings.length > 1 &&
           wasNonEmpty &&
-          (await entry.keyring.getAccounts()).length === 0 &&
+          isEmpty &&
           !this.#isPrimaryKeyring(entry, this.#keyrings)
         ) {
           this.#keyrings.splice(this.#keyrings.indexOf(entry), 1);
