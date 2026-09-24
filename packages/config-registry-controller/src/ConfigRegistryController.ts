@@ -297,7 +297,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       if (!result.modified) {
         if (result.etag !== undefined) {
           this.update((state) => {
-            state.eventsConfigEtag = result.etag ?? null;
+            state.eventsConfigEtag = result.etag as string;
           });
         }
         return;

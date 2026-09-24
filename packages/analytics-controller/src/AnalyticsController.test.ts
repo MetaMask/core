@@ -1037,7 +1037,7 @@ describe('AnalyticsController', () => {
 
     function buildConfigRegistryState(
       eventsConfig: Record<string, unknown> | null = null,
-    ) {
+    ): ReturnType<ConfigRegistryControllerGetStateAction['handler']> {
       return {
         configs: {
           networks: {},

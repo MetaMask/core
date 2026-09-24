@@ -895,6 +895,46 @@ describe('ConfigRegistryController', () => {
       );
     });
 
+    it('updates eventsConfig when events config fetch returns modified without etag', async () => {
+      await withController(
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.unregisterActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+          );
+          const eventsConfig = {
+            schemaVersion: '1.0.0',
+            version: 'abc123',
+            timestamp: 1761829548000,
+            events: { TestEvent: ['product'] },
+          };
+          rootMessenger.registerActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+            jest.fn().mockResolvedValue({
+              modified: true,
+              data: { data: eventsConfig },
+            }),
+          );
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(controller.state.configs.eventsConfig).toStrictEqual(
+            eventsConfig,
+          );
+          expect(controller.state.eventsConfigEtag).toBeNull();
+        },
+      );
+    });
+
     it('handles errors during events config fetch without affecting networks', async () => {
       await withController(
         async ({
@@ -924,6 +964,32 @@ describe('ConfigRegistryController', () => {
             expect.objectContaining({ message: 'Events config fetch failed' }),
           );
           expect(controller.state.configs.eventsConfig).toBeNull();
+        },
+      );
+    });
+
+    it('handles non-Error thrown during events config fetch', async () => {
+      await withController(
+        async ({ rootMessenger, mockRemoteFeatureFlagGetState }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.unregisterActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+          );
+          rootMessenger.registerActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+            jest.fn().mockRejectedValue('string error'),
+          );
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'string error' }),
+          );
         },
       );
     });
