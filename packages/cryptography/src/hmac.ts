@@ -40,7 +40,6 @@ export async function hmacSha512(
   return hmac(key, 'SHA-512', data);
 }
 
-
 /**
  * Compute the HMAC-SHA of the given data using the given key.
  *
