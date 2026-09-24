@@ -29,6 +29,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import {
   areMoneyAccountVaultConfigsEqual,
+  getMoneyAccountPremiumVaultConfig,
   getMoneyAccountVaultConfig,
 } from '@metamask/money-account-utils';
 import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
@@ -61,6 +62,15 @@ import type { UpgradeConfig } from './types.js';
  * against in `@metamask/delegation-deployments`.
  */
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
+
+/**
+ * The vault config a bootstrap arms: the base vault plus, when the
+ * `moneyAccountPremiumVaultConfig` flag is served for the same chain, the
+ * premium vault.
+ */
+type BootstrapVaultConfig = MoneyAccountVaultConfig & {
+  premium?: MoneyAccountVaultConfig;
+};
 
 export const controllerName = 'MoneyAccountUpgradeController';
 
@@ -110,7 +120,10 @@ export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgr
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['upgradeAccount'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'upgradeAccount',
+  'ensureDelegationsReadiness',
+] as const;
 
 export type MoneyAccountUpgradeControllerGetStateAction =
   ControllerGetStateAction<
@@ -252,7 +265,7 @@ export class MoneyAccountUpgradeController extends BaseController<
 
   #bootstrap?: Promise<void>;
 
-  #bootstrappedConfig?: MoneyAccountVaultConfig;
+  #bootstrappedConfig?: BootstrapVaultConfig;
 
   #missingConfigReported = false;
 
@@ -352,15 +365,23 @@ export class MoneyAccountUpgradeController extends BaseController<
         return;
       }
 
-      const vaultConfig = getMoneyAccountVaultConfig(remoteFeatureFlags);
-      if (!vaultConfig) {
+      const baseVaultConfig = getMoneyAccountVaultConfig(remoteFeatureFlags);
+      if (!baseVaultConfig) {
         this.#reportMissingConfig();
         return;
       }
 
+      // Delegations are signed on the base vault's chain, so a premium vault
+      // served for another chain is ignored.
+      const premium = getMoneyAccountPremiumVaultConfig(remoteFeatureFlags);
+      const vaultConfig: BootstrapVaultConfig =
+        premium?.chainId === baseVaultConfig.chainId
+          ? { ...baseVaultConfig, premium }
+          : baseVaultConfig;
+
       if (
         this.#bootstrappedConfig &&
-        areMoneyAccountVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig)
+        areBootstrapVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig)
       ) {
         return;
       }
@@ -418,7 +439,7 @@ export class MoneyAccountUpgradeController extends BaseController<
     return this.#isEnabled(remoteFeatureFlags) && this.#isWalletReady();
   }
 
-  #scheduleBootstrap(vaultConfig: MoneyAccountVaultConfig): void {
+  #scheduleBootstrap(vaultConfig: BootstrapVaultConfig): void {
     this.#bootstrappedConfig = vaultConfig;
 
     // Scheduling means the served vault config no longer matches whatever is
@@ -467,7 +488,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param vaultConfig - The config the abandoned run was scheduled with.
    */
-  #forget(vaultConfig: MoneyAccountVaultConfig): void {
+  #forget(vaultConfig: BootstrapVaultConfig): void {
     if (this.#bootstrappedConfig === vaultConfig) {
       this.#bootstrappedConfig = undefined;
     }
@@ -494,10 +515,11 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param vaultConfig - The vault config to arm; its `boringVault` is the
    * withdrawal-side delegation token (vmUSD), supplied via the flag until
-   * the CHOMP service-details API exposes it.
+   * the CHOMP service-details API exposes it. Its optional `premium` vault
+   * config is armed alongside it.
    */
-  async #applyVaultConfig(vaultConfig: MoneyAccountVaultConfig): Promise<void> {
-    const { chainId, boringVault: boringVaultAddress } = vaultConfig;
+  async #applyVaultConfig(vaultConfig: BootstrapVaultConfig): Promise<void> {
+    const { chainId, boringVault: boringVaultAddress, premium } = vaultConfig;
 
     const contracts =
       DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)];
@@ -517,7 +539,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       throw new Error(`Chain ${chainId} not found in service details response`);
     }
 
-    const { vedaProtocol } = chain.protocol;
+    const { vedaPremiumProtocol, vedaProtocol } = chain.protocol;
     if (!vedaProtocol) {
       throw new Error(
         `vedaProtocol not found for chain ${chainId} in service details response`,
@@ -528,6 +550,18 @@ export class MoneyAccountUpgradeController extends BaseController<
       throw new Error(
         `No supported tokens found for vedaProtocol on chain ${chainId}`,
       );
+    }
+
+    // `vedaPremiumProtocol` is not yet mandatory: until it is live for every
+    // client, a premium vault config served without a matching protocol in
+    // the service details response is silently dropped rather than failing
+    // the whole bootstrap (which would also block the base vault).
+    let premiumVault: UpgradeConfig['premiumVault'];
+    if (premium && vedaPremiumProtocol) {
+      premiumVault = {
+        boringVaultAddress: premium.boringVault,
+        vedaVaultAdapterAddress: vedaPremiumProtocol.adapterAddress,
+      };
     }
 
     // A disarm (isEnabled flipping off) or a newer scheduled config during
@@ -547,6 +581,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       erc20TransferAmountEnforcer: contracts.ERC20TransferAmountEnforcer,
       redeemerEnforcer: contracts.RedeemerEnforcer,
       valueLteEnforcer: contracts.ValueLteEnforcer,
+      ...(premiumVault && { premiumVault }),
     };
   }
 
@@ -578,6 +613,49 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
+    const config = await this.#getArmedConfig();
+
+    const accountKey = address.toLowerCase() as Hex;
+    const configFingerprint = computeConfigFingerprint(config);
+    if (
+      this.state.upgradedAccounts[accountKey]?.configFingerprint ===
+      configFingerprint
+    ) {
+      return;
+    }
+
+    await this.#runSteps(address, config);
+  }
+
+  /**
+   * Like {@link upgradeAccount}, but always runs the upgrade steps, ignoring
+   * the recorded upgrade. Use this immediately before an action that depends
+   * on the base and (when configured) premium vault delegations and CHOMP
+   * intents actually existing right now — e.g. before starting a
+   * subscription — rather than trusting a fingerprint recorded on a
+   * previous run, which does not reflect deletions or revocations made
+   * since (on this device or elsewhere).
+   *
+   * As with `upgradeAccount`, each step only performs its action if its own
+   * remote check finds it is not already done, so a call that finds
+   * everything in place performs no signing and makes no writes.
+   *
+   * @param address - The Money Account address.
+   * @throws If the controller is not bootstrapped, if the armed config is
+   * disarmed or superseded while the sequence is running, or if a step
+   * fails (wrapped in a {@link MoneyAccountUpgradeStepError}).
+   */
+  async ensureDelegationsReadiness(address: Hex): Promise<void> {
+    const config = await this.#getArmedConfig();
+    await this.#runSteps(address, config);
+  }
+
+  /**
+   * Waits for the bootstrap chain to settle and returns the armed config.
+   *
+   * @returns The armed upgrade config.
+   */
+  async #getArmedConfig(): Promise<UpgradeConfig & { chainId: Hex }> {
     let bootstrap = this.#bootstrap;
     while (bootstrap) {
       await bootstrap.catch(() => undefined);
@@ -589,20 +667,22 @@ export class MoneyAccountUpgradeController extends BaseController<
     // re-fetch), so the wallet has to be checked here as well.
     if (!this.#config || !this.#areGatesOpen()) {
       throw new Error(
-        'MoneyAccountUpgradeController is not bootstrapped: upgradeAccount() requires the feature flag on, the wallet unlocked, and a successful bootstrap',
+        'MoneyAccountUpgradeController is not bootstrapped: this action requires the feature flag on, the wallet unlocked, and a successful bootstrap',
       );
     }
-    const config = this.#config;
+    return this.#config;
+  }
 
-    const accountKey = address.toLowerCase() as Hex;
-    const configFingerprint = computeConfigFingerprint(config);
-    if (
-      this.state.upgradedAccounts[accountKey]?.configFingerprint ===
-      configFingerprint
-    ) {
-      return;
-    }
-
+  /**
+   * Runs the upgrade steps for `address` and records the completed upgrade.
+   *
+   * @param address - The Money Account address.
+   * @param config - The armed config to run against.
+   */
+  async #runSteps(
+    address: Hex,
+    config: UpgradeConfig & { chainId: Hex },
+  ): Promise<void> {
     for (const step of this.#steps) {
       if (this.#config !== config) {
         throw new Error(
@@ -621,8 +701,8 @@ export class MoneyAccountUpgradeController extends BaseController<
     }
 
     this.update((state) => {
-      state.upgradedAccounts[accountKey] = {
-        configFingerprint,
+      state.upgradedAccounts[address.toLowerCase() as Hex] = {
+        configFingerprint: computeConfigFingerprint(config),
         completedAt: Date.now(),
       };
     });
@@ -651,7 +731,34 @@ function computeConfigFingerprint(
     config.erc20TransferAmountEnforcer,
     config.redeemerEnforcer,
     config.valueLteEnforcer,
+    ...(config.premiumVault
+      ? [
+          config.premiumVault.boringVaultAddress,
+          config.premiumVault.vedaVaultAdapterAddress,
+        ]
+      : []),
   ]
     .map((value) => value.toLowerCase())
     .join('|');
+}
+
+/**
+ * Compares bootstrap vault configs, including whether the premium vault is
+ * served and, if so, its fields.
+ *
+ * @param a - One bootstrap vault config.
+ * @param b - The other bootstrap vault config.
+ * @returns Whether the configs are equal.
+ */
+function areBootstrapVaultConfigsEqual(
+  a: BootstrapVaultConfig,
+  b: BootstrapVaultConfig,
+): boolean {
+  if (!areMoneyAccountVaultConfigsEqual(a, b)) {
+    return false;
+  }
+  if (a.premium === undefined || b.premium === undefined) {
+    return a.premium === b.premium;
+  }
+  return areMoneyAccountVaultConfigsEqual(a.premium, b.premium);
 }

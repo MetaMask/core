@@ -1,4 +1,4 @@
-export type { UpgradeConfig } from './types.js';
+export type { UpgradeConfig, VaultDelegationType } from './types.js';
 export {
   MissingMoneyAccountVaultConfigError,
   MoneyAccountUpgradeStepError,
@@ -20,4 +20,7 @@ export type {
   MoneyAccountUpgradeControllerMessenger,
   MoneyAccountUpgradeStatus,
 } from './MoneyAccountUpgradeController.js';
-export type { MoneyAccountUpgradeControllerUpgradeAccountAction } from './MoneyAccountUpgradeController-method-action-types.js';
+export type {
+  MoneyAccountUpgradeControllerUpgradeAccountAction,
+  MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction,
+} from './MoneyAccountUpgradeController-method-action-types.js';
