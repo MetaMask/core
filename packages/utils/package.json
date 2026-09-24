@@ -81,7 +81,7 @@
     "stdio-mock": "^1.2.0",
     "ts-jest": "^29.4.12",
     "tstyche": "^7.2.5",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
