@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.1]
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
@@ -536,7 +538,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.1...HEAD
+[13.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.0...@metamask/earn-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.7...@metamask/earn-controller@13.0.0
 [12.2.7]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.6...@metamask/earn-controller@12.2.7
 [12.2.6]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.5...@metamask/earn-controller@12.2.6

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `execa` from `^5.0.0` to `^5.1.1` ([#10330](https://github.com/MetaMask/core/pull/10330))
+- Bump `execa` from `^5.0.0` to `^10.0.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332))
 
 ## [0.2.1]
 
@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Speed up documentation generation by loading source files in bulk instead of one at a time ([#9990](https://github.com/MetaMask/core/pull/9990))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Link a capability to its source rather than to the build output compiled from it, where both are available ([#10085](https://github.com/MetaMask/core/pull/10085))
 
 ## [0.1.0]
 

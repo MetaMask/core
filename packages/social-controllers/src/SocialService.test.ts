@@ -1224,6 +1224,124 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchTraderFeed', () => {
+    const mockFeedItem = {
+      ...mockPosition,
+      actor: mockProfileSummary,
+      timestamp: 1700000000,
+    };
+
+    const mockFeedResponse = {
+      items: [mockFeedItem],
+      pagination: { olderCursor: 'older-cursor', newerCursor: 'newer-cursor' },
+    };
+
+    it('fetches the trader feed from the correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderFeed({ addressOrId: '0x1234' });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/traders/0x1234/feed`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('encodes the address in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFeed({ addressOrId: 'addr/with/slashes' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/addr%2Fwith%2Fslashes/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('appends commentedOnly, limit, and pagination cursors', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFeed({
+        addressOrId: '0x1234',
+        commentedOnly: true,
+        limit: 25,
+        olderThan: 'older-cursor',
+        newerThan: 'newer-cursor',
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain('/traders/0x1234/feed');
+      expect(calledUrl).toContain('commentedOnly=true');
+      expect(calledUrl).toContain('limit=25');
+      expect(calledUrl).toContain('olderThan=older-cursor');
+      expect(calledUrl).toContain('newerThan=newer-cursor');
+    });
+
+    it('omits commentedOnly when it is false or unset', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFeed({
+        addressOrId: '0x1234',
+        commentedOnly: false,
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).not.toContain('commentedOnly');
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFeed({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED}: 404`,
+      );
+    });
+
+    it('throws when the pagination shape is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [mockFeedItem],
+            pagination: { olderCursor: 123, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFeed({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+      );
+    });
+  });
+
   describe('fetchFollowing', () => {
     const mockFollowingResponse = {
       following: [mockProfileSummary],

@@ -482,6 +482,7 @@ describe('Source Amounts Utils', () => {
         tokens: [
           {
             ...TRANSACTION_TOKEN_MOCK,
+            amountRaw: '6000000',
             skipIfBalance: false,
           },
         ],
@@ -749,6 +750,7 @@ describe('Source Amounts Utils', () => {
           tokens: [
             {
               ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '2000000',
               skipIfBalance: false,
             },
           ],
@@ -761,6 +763,200 @@ describe('Source Amounts Utils', () => {
             sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
             sourceAmountRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
             sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('caps the max source amount to the amount the transaction funds', () => {
+        const getBalance = jest.fn().mockReturnValue({
+          balanceRaw: '21046127',
+        });
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountHuman: '21.040001',
+              amountRaw: '21040001',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(
+          TRANSACTION_ID_MOCK,
+          transactionData,
+          messenger,
+          getBalance,
+        );
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: '21.040001',
+            sourceAmountRaw: '21040001',
+            sourceBalanceRaw: '21046127',
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('uses the balance on max when the transaction funds at least the balance', () => {
+        const getBalance = jest.fn().mockReturnValue({
+          balanceRaw: '21040001',
+        });
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountHuman: '21.046127',
+              amountRaw: '21046127',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(
+          TRANSACTION_ID_MOCK,
+          transactionData,
+          messenger,
+          getBalance,
+        );
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: '21040001',
+            sourceBalanceRaw: '21040001',
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('uses the balance on max when the transaction has no encoded amount', () => {
+        const getBalance = jest.fn().mockReturnValue({
+          balanceRaw: '21046127',
+        });
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '0',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(
+          TRANSACTION_ID_MOCK,
+          transactionData,
+          messenger,
+          getBalance,
+        );
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: '21046127',
+            sourceBalanceRaw: '21046127',
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('does not cap the max source amount for a HyperLiquid source', () => {
+        const getBalance = jest.fn().mockReturnValue({
+          balanceRaw: '21046127',
+        });
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isHyperliquidSource: true,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '21040001',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(
+          TRANSACTION_ID_MOCK,
+          transactionData,
+          messenger,
+          getBalance,
+        );
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: '21046127',
+            sourceBalanceRaw: '21046127',
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('does not cap the max source amount for a Polymarket deposit wallet source', () => {
+        const getBalance = jest.fn().mockReturnValue({
+          balanceRaw: '21046127',
+        });
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPolymarketDepositWallet: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '21040001',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(
+          TRANSACTION_ID_MOCK,
+          transactionData,
+          messenger,
+          getBalance,
+        );
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: '21046127',
+            sourceBalanceRaw: '21046127',
             sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
             sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
             targetTokenAddress: DESTINATION_TOKEN_MOCK.address,

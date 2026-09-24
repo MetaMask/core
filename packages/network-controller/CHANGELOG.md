@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/analytics-controller` from `^3.0.0` to `^3.1.0` ([#10301](https://github.com/MetaMask/core/pull/10301))
 - Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `@metamask/analytics-controller` from `^3.0.0` to `^3.2.0` ([#10301](https://github.com/MetaMask/core/pull/10301), [#10411](https://github.com/MetaMask/core/pull/10411))
 
 ## [37.0.0]
 

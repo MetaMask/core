@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
-import execa from 'execa';
+import { execa } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -227,6 +228,56 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
     });
   });
 
+  it('keeps published declaration files when a scan directory contains node_modules', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Local.ts'),
+        `
+export type LocalGetAction = {
+  type: 'Local:get';
+  handler: () => void;
+};
+
+export type LocalMessenger = Messenger<'Local', LocalGetAction, never>;
+`,
+      );
+
+      const distDir = path.join(
+        directoryPath,
+        'node_modules',
+        '@metamask',
+        'published-pkg',
+        'dist',
+      );
+      await fs.promises.mkdir(distDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(distDir, 'index.d.cts'),
+        `
+export type PublishedGetAction = {
+  type: 'Published:get';
+  handler: () => void;
+};
+
+export type PublishedMessenger = Messenger<'Published', PublishedGetAction, never>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
+        scanDirs: ['.'],
+      });
+
+      expect(result.namespaces).toBe(2);
+      expect(result.actions).toBe(2);
+    });
+  });
+
   it('follows symlinked @metamask packages when scanning node_modules/@metamask/*/dist', async () => {
     expect.assertions(1);
 
@@ -335,6 +386,77 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
         'utf8',
       );
       expect(actionsMd).toContain('Gets foo.');
+    });
+  });
+
+  it('deduplicates items preferring source over build output', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // Reproduces how build output wins in a real monorepo. `a-controller` is
+      // scanned before `b-controller`, and its import of `@metamask/b-controller`
+      // resolves through node_modules to the published `.d.cts`, so the first
+      // declaration seen for `B:get` is the built one. The source declaration is
+      // reached later, when `b-controller/src` is scanned, and should win.
+      const declaration = `
+/** Gets b. */
+export type BGetAction = {
+  type: 'B:get';
+  handler: () => string;
+};
+`;
+
+      const bSrc = path.join(directoryPath, 'packages', 'b-controller', 'src');
+      await fs.promises.mkdir(bSrc, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(bSrc, 'BController.ts'),
+        `${declaration}
+export type BMessenger = Messenger<'B', BGetAction, never>;
+`,
+      );
+
+      const bDist = path.join(
+        directoryPath,
+        'node_modules',
+        '@metamask',
+        'b-controller',
+        'dist',
+      );
+      await fs.promises.mkdir(bDist, { recursive: true });
+      await fs.promises.writeFile(path.join(bDist, 'index.d.cts'), declaration);
+      await fs.promises.writeFile(
+        path.join(bDist, '..', 'package.json'),
+        JSON.stringify({
+          name: '@metamask/b-controller',
+          types: './dist/index.d.cts',
+        }),
+      );
+
+      const aSrc = path.join(directoryPath, 'packages', 'a-controller', 'src');
+      await fs.promises.mkdir(aSrc, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(aSrc, 'AController.ts'),
+        `
+import type { BGetAction } from '@metamask/b-controller';
+
+export type AMessenger = Messenger<'A', BGetAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        strategy: 'scan',
+        scanDirs: ['src'],
+      });
+
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'B', 'actions.md'),
+        'utf8',
+      );
+      expect(actionsMd).toContain('packages/b-controller/src/BController.ts');
+      expect(actionsMd).not.toContain('/dist/');
     });
   });
 

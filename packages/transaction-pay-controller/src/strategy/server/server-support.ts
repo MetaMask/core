@@ -17,23 +17,6 @@ import type { QuoteRequest } from '../../types.js';
  */
 export const DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES: TransactionType[] = [];
 
-/**
- * Transaction types whose quote must be priced as an exact output.
- *
- * The transaction embeds a call that transfers exactly `targetAmountMinimum`,
- * so a quote priced on expected output underfunds the transfer and reverts.
- * The server strategy cannot express this yet because {@link ServerTradeType}
- * has no exact-output member, and these flows route to HyperCore, which
- * suppresses the embedded calls that would otherwise let the backend infer it.
- *
- * Enforced independently of the remote flag so the flag cannot enable a flow
- * that is known to misprice.
- */
-const EXACT_OUTPUT_TRANSACTION_TYPES: TransactionType[] = [
-  TransactionType.perpsDepositAndOrder,
-  TransactionType.predictDepositAndOrder,
-];
-
 /** Why the server strategy declined to handle a request. */
 export enum ServerUnsupportedReason {
   /** The direct mUSD Money Account fiat flow is not implemented. */
@@ -41,9 +24,6 @@ export enum ServerUnsupportedReason {
 
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
-
-  /** The flow requires exact-output pricing, which is not implemented. */
-  ExactOutput = 'exactOutput',
 
   /** Reserving the HyperLiquid activation fee is not implemented. */
   HyperliquidActivationFee = 'hyperliquidActivationFee',
@@ -91,12 +71,6 @@ export function getServerUnsupportedReason({
 }): ServerUnsupportedReason | undefined {
   if (!hasTransactionType(transaction, enabledTransactionTypes)) {
     return ServerUnsupportedReason.DisabledTransactionType;
-  }
-
-  // Checked after the allowlist so that a transaction combining an allowlisted
-  // type with an exact-output type is still declined.
-  if (hasTransactionType(transaction, EXACT_OUTPUT_TRANSACTION_TYPES)) {
-    return ServerUnsupportedReason.ExactOutput;
   }
 
   for (const request of requests) {
