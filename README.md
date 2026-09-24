@@ -114,6 +114,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/platform-api-docs`](packages/platform-api-docs)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
+- [`@metamask/profile-controller`](packages/profile-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/ramps-controller`](packages/ramps-controller)
@@ -222,6 +223,7 @@ linkStyle default opacity:0.5
   platform_api_docs(["@metamask/platform-api-docs"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
+  profile_controller(["@metamask/profile-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
   ramps_controller(["@metamask/ramps-controller"]);

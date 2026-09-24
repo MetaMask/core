@@ -214,6 +214,9 @@
       "path": "./packages/notification-services-controller"
     },
     {
+      "path": "./packages/package-template"
+    },
+    {
       "path": "./packages/passkey-controller"
     },
     {
@@ -236,6 +239,9 @@
     },
     {
       "path": "./packages/preferences-controller"
+    },
+    {
+      "path": "./packages/profile-controller"
     },
     {
       "path": "./packages/profile-metrics-controller"
@@ -314,9 +320,6 @@
     },
     {
       "path": "./packages/wallet-framework-docs"
-    },
-    {
-      "path": "./packages/package-template"
     }
   ],
   "files": [],
