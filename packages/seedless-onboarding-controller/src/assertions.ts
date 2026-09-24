@@ -1,4 +1,9 @@
-import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
+import {
+  SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingOperation,
+  SeedlessOperationLifecycle,
+} from './constants.js';
+import { SeedlessOnboardingError } from './errors.js';
 import type { AuthenticatedUserDetails, VaultData } from './types.js';
 
 /**
@@ -125,4 +130,32 @@ export function assertIsValidVaultData(
       SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
     );
   }
+}
+
+/**
+ * Assert that no unresolved operation prevents starting a password change.
+ *
+ * Password changes have a specific recovery error. Any other unresolved
+ * operation uses the generic in-progress error so it is not misidentified as
+ * a password change.
+ *
+ * @param lifecycle - The lifecycle to check.
+ * @throws If the lifecycle is not empty and the operation is not a password change.
+ */
+export function assertCanChangePassword(
+  lifecycle?: SeedlessOperationLifecycle,
+): void {
+  if (lifecycle === undefined) {
+    return;
+  }
+
+  if (lifecycle.operation === SeedlessOnboardingOperation.PasswordChange) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
+    );
+  }
+
+  throw new SeedlessOnboardingError(
+    SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+  );
 }

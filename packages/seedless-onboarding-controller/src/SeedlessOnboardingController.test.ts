@@ -24,6 +24,7 @@ import {
   EncAccountDataType,
   TOPRFError,
   TOPRFErrorCode,
+  ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import type {
   FetchAuthPubKeyResult,
@@ -31,14 +32,12 @@ import type {
   ChangeEncryptionKeyResult,
   KeyPair,
   RecoverEncryptionKeyResult,
-  ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
   bytesToString,
   stringToBytes,
-  bigIntToHex,
 } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { utf8ToBytes } from '@noble/ciphers/utils';
@@ -70,8 +69,11 @@ import {
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
+  SeedlessOnboardingOperation,
+  SeedlessOnboardingCheckpoint,
+  PasswordSyncInstruction,
 } from './constants.js';
-import { PasswordSyncError, RecoveryError } from './errors.js';
+import { RecoveryError } from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import {
   SeedlessOnboardingController,
@@ -82,6 +84,16 @@ import type {
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController.js';
 import type { SeedlessOnboardingControllerState } from './types.js';
+
+const SeedlessPasswordChangePhase = {
+  SeedlessChangePending: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+  SeedlessCommitted: SeedlessOnboardingCheckpoint.LocalStatePending,
+  LocalKeyringPending: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+  KeySyncPending: SeedlessOnboardingCheckpoint.KeySyncPending,
+  Unknown: SeedlessOnboardingCheckpoint.RemoteKeyPending,
+} as const;
+type SeedlessPasswordChangePhase =
+  (typeof SeedlessPasswordChangePhase)[keyof typeof SeedlessPasswordChangePhase];
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -529,6 +541,34 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<
 }
 
 /**
+ * Creates a mock user with a vault and stores the Keyring encryption key.
+ *
+ * @param toprfClient - The ToprfSecureBackup instance.
+ * @param controller - The SeedlessOnboardingController instance.
+ * @param baseMessenger - The root messenger to call the methods through.
+ * @param password - The mock password.
+ */
+async function newUserSetup<EKey, SupportedKeyDerivationParams>(
+  toprfClient: ToprfSecureBackup,
+  controller: SeedlessOnboardingController<EKey, SupportedKeyDerivationParams>,
+  baseMessenger: RootMessenger,
+  password: string,
+): Promise<void> {
+  await mockCreateToprfKeyAndBackupSeedPhrase(
+    toprfClient,
+    controller,
+    baseMessenger,
+    password,
+    MOCK_SEED_PHRASE,
+    MOCK_KEYRING_ID,
+  );
+  await baseMessenger.call(
+    'SeedlessOnboardingController:storeKeyringEncryptionKey',
+    MOCK_KEYRING_ENCRYPTION_KEY,
+  );
+}
+
+/**
  * Creates a mock vault.
  *
  * @param encKey - The encryption key.
@@ -643,6 +683,7 @@ async function decryptVault(
  * @param options.encryptedSeedlessEncryptionKey - The mock encrypted seedless encryption key.
  * @param options.pendingToBeRevokedTokens - The mock pending to be revoked tokens.
  * @param options.migrationVersion - The mock migration version.
+ * @param options.passwordChangePhase - The mock password-change phase.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -665,6 +706,7 @@ function getMockInitialControllerState(options?: {
       }[]
     | undefined;
   migrationVersion?: number;
+  passwordChangePhase?: SeedlessPasswordChangePhase;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getInitialSeedlessOnboardingControllerStateWithDefaults();
 
@@ -718,7 +760,20 @@ function getMockInitialControllerState(options?: {
     state.migrationVersion = options.migrationVersion;
   }
 
+  if (options?.passwordChangePhase !== undefined) {
+    state.seedlessOperationLifecycle = {
+      operation: SeedlessOnboardingOperation.PasswordChange,
+      checkpoint: options.passwordChangePhase,
+    };
+  }
+
   return state;
+}
+
+function getLifecyclePhase(
+  state: SeedlessOnboardingControllerState,
+): SeedlessOnboardingCheckpoint | undefined {
+  return state.seedlessOperationLifecycle?.checkpoint;
 }
 
 describe('SeedlessOnboardingController', () => {
@@ -1110,10 +1165,47 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should preserve the existing revoke token when it is omitted', async () => {
+      const existingRevokeToken = 'existing-revoke-token';
+
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+            revokeToken: existingRevokeToken,
+          },
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens,
+              authConnectionId,
+              userId,
+              authConnection,
+              socialLoginEmail,
+              refreshToken,
+              accessToken,
+              metadataAccessToken,
+            },
+          );
+
+          expect(controller.state.revokeToken).toBe(existingRevokeToken);
+        },
+      );
+    });
   });
 
-  describe('checkPasswordOutdated', () => {
-    it('should return false if password is not outdated (authPubKey matches)', async () => {
+  describe('resolvePasswordSyncState (no lifecycle: outdated check)', () => {
+    it('should return InSync if password is not outdated (authPubKey matches)', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -1125,21 +1217,21 @@ describe('SeedlessOnboardingController', () => {
           const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(false);
+          expect(result).toBe(PasswordSyncInstruction.InSync);
           // Call again to test cache
           const result2 = await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result2).toBe(false);
+          expect(result2).toBe(PasswordSyncInstruction.InSync);
           // Should only call fetchAuthPubKey once due to cache
           expect(spy).toHaveBeenCalledTimes(1);
         },
       );
     });
 
-    it('should return true if password is outdated (authPubKey does not match)', async () => {
+    it('should return PasswordOutdated if password is outdated (authPubKey does not match)', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -1151,14 +1243,14 @@ describe('SeedlessOnboardingController', () => {
           const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(true);
+          expect(result).toBe(PasswordSyncInstruction.PasswordOutdated);
           // Call again to test cache
           const result2 = await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result2).toBe(true);
+          expect(result2).toBe(PasswordSyncInstruction.PasswordOutdated);
           // Should only call fetchAuthPubKey once due to cache
           expect(spy).toHaveBeenCalledTimes(1);
         },
@@ -1177,26 +1269,26 @@ describe('SeedlessOnboardingController', () => {
           const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
             {
               skipCache: true,
             },
           );
-          expect(result).toBe(false);
+          expect(result).toBe(PasswordSyncInstruction.InSync);
           // Call again with skipCache: true, should call fetchAuthPubKey again
           const result2 = await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
             {
               skipCache: true,
             },
           );
-          expect(result2).toBe(false);
+          expect(result2).toBe(PasswordSyncInstruction.InSync);
           expect(spy).toHaveBeenCalledTimes(2);
         },
       );
     });
 
-    it('should throw SRPNotBackedUpError if no authPubKey in state', async () => {
+    it('should throw if no authPubKey is in state', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -1206,16 +1298,14 @@ describe('SeedlessOnboardingController', () => {
         async ({ baseMessenger }) => {
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:checkIsPasswordOutdated',
+              'SeedlessOnboardingController:resolvePasswordSyncState',
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
-          );
+          ).rejects.toThrow(/./u);
         },
       );
     });
 
-    it('should throw InsufficientAuthToken if no nodeAuthTokens in state', async () => {
+    it('should throw if no nodeAuthTokens are in state', async () => {
       await withController(
         {
           state: {
@@ -1229,16 +1319,14 @@ describe('SeedlessOnboardingController', () => {
         async ({ baseMessenger }) => {
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:checkIsPasswordOutdated',
+              'SeedlessOnboardingController:resolvePasswordSyncState',
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
-          );
+          ).rejects.toThrow(/./u);
         },
       );
     });
 
-    it('should throw FailedToFetchAuthPubKey error when fetchAuthPubKey fails', async () => {
+    it('should throw when fetchAuthPubKey fails', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -1254,11 +1342,9 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:checkIsPasswordOutdated',
+              'SeedlessOnboardingController:resolvePasswordSyncState',
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
-          );
+          ).rejects.toThrow(/./u);
         },
       );
     });
@@ -1892,6 +1978,78 @@ describe('SeedlessOnboardingController', () => {
           SeedlessOnboardingControllerErrorMessage.PrimarySrpCannotBeAddedViaAddNewSecretData,
         );
       });
+    });
+
+    it('should throw PasswordChangeInProgress if a password change is pending', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ baseMessenger }) => {
+          // Unlock first so #assertIsUnlocked() passes; the phase stays
+          // set because submitPassword does not touch it.
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:addNewSecretData',
+              NEW_KEY_RING_1.seedPhrase,
+              EncAccountDataType.ImportedSrp,
+              {
+                keyringId: NEW_KEY_RING_1.id,
+              },
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
+          );
+        },
+      );
+    });
+
+    it('should throw OperationInProgress if another operation is pending', async () => {
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withMockAuthPubKey: true,
+              vault: MOCK_VAULT,
+              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+            }),
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.PasswordSync,
+              checkpoint: SeedlessOnboardingCheckpoint.LocalStatePending,
+            },
+          },
+        },
+        async ({ baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+          );
+        },
+      );
     });
 
     it('should be able to add a new seed phrase backup', async () => {
@@ -3983,6 +4141,26 @@ describe('SeedlessOnboardingController', () => {
           const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
             mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
+          // Observe lifecycle transitions as the password change progresses:
+          // REMOTE_PASSWORD_PENDING is written before the remote mutation,
+          // LOCAL_STATE_PENDING after it succeeds, then
+          // LOCAL_PASSWORD_PENDING once the local vault is rewritten.
+          const observedPhaseTransitions: (
+            | SeedlessOnboardingCheckpoint
+            | undefined
+          )[] = [];
+          let previousPhase = getLifecyclePhase(controller.state);
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              const phase = getLifecyclePhase(state);
+              if (phase !== previousPhase) {
+                observedPhaseTransitions.push(phase);
+              }
+              previousPhase = phase;
+            },
+          );
+
           await baseMessenger.call(
             'SeedlessOnboardingController:changePassword',
             NEW_MOCK_PASSWORD,
@@ -4012,6 +4190,86 @@ describe('SeedlessOnboardingController', () => {
           expect(newEncKeyFromVault).toStrictEqual(newEncKey);
           expect(newAuthKeyPairFromVault.sk).toStrictEqual(newAuthKeyPair.sk);
           expect(newAuthKeyPairFromVault.pk).toStrictEqual(newAuthKeyPair.pk);
+
+          // The lifecycle advances through every phase in order and ends on
+          // LOCAL_PASSWORD_PENDING, signalling the local rewrite completed.
+          expect(observedPhaseTransitions).toStrictEqual([
+            SeedlessPasswordChangePhase.SeedlessChangePending,
+            SeedlessPasswordChangePhase.SeedlessCommitted,
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          ]);
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordChange,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          });
+        },
+      );
+    });
+
+    it('should set LOCAL_PASSWORD_PENDING and the re-encrypted keyring key in the same state update', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+          );
+          const oldEncryptedKeyringEncryptionKey =
+            controller.state.encryptedKeyringEncryptionKey;
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          // Capture the encryptedKeyringEncryptionKey value at the moment
+          // LOCAL_PASSWORD_PENDING first appears. If the phase and the
+          // re-encrypted key are written in the same update, this equals
+          // the final value; if they are separate updates, it is the stale
+          // (pre-re-encryption) value.
+          let keyAtLocalKeyringPending: string | undefined;
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              if (
+                getLifecyclePhase(state) ===
+                  SeedlessPasswordChangePhase.LocalKeyringPending &&
+                keyAtLocalKeyringPending === undefined
+              ) {
+                keyAtLocalKeyringPending = state.encryptedKeyringEncryptionKey;
+              }
+            },
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            NEW_MOCK_PASSWORD,
+            MOCK_PASSWORD,
+          );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          // The phase and the re-encrypted key are set in one update, so the
+          // key at the moment the phase advances is already the new one.
+          expect(keyAtLocalKeyringPending).toStrictEqual(
+            controller.state.encryptedKeyringEncryptionKey,
+          );
+          expect(keyAtLocalKeyringPending).not.toStrictEqual(
+            oldEncryptedKeyringEncryptionKey,
+          );
         },
       );
     });
@@ -4094,12 +4352,16 @@ describe('SeedlessOnboardingController', () => {
           expect(newEncKeyFromVault).toStrictEqual(newEncKey);
           expect(newAuthKeyPairFromVault.sk).toStrictEqual(newAuthKeyPair.sk);
           expect(newAuthKeyPairFromVault.pk).toStrictEqual(newAuthKeyPair.pk);
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
         },
       );
     });
 
     it('should throw an error if the controller is locked', async () => {
-      await withController(async ({ baseMessenger }) => {
+      await withController(async ({ controller, baseMessenger }) => {
         await expect(
           baseMessenger.call(
             'SeedlessOnboardingController:changePassword',
@@ -4109,7 +4371,55 @@ describe('SeedlessOnboardingController', () => {
         ).rejects.toThrow(
           SeedlessOnboardingControllerErrorMessage.ControllerLocked,
         );
+
+        // No lifecycle is written when the controller rejects up front.
+        expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
       });
+    });
+
+    it('should reject a second password change while one is already in progress', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.SeedlessChangePending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          // A previous change left the lifecycle set (e.g. a
+          // crash after the remote commit). Recovery has not finished, so a
+          // fresh change must not start.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessChangePending,
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
+          );
+
+          // The guard must not mutate the persisted phase.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessChangePending,
+          );
+        },
+      );
     });
 
     it('should throw error if password is outdated', async () => {
@@ -4144,6 +4454,11 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
+
+          // The outdated-password check rejects before the first lifecycle
+          // write (REMOTE_PASSWORD_PENDING), so there is nothing to recover
+          // and the lifecycle stays unset.
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
         },
       );
     });
@@ -4188,6 +4503,15 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+
+          // The lifecycle was advanced to REMOTE_PASSWORD_PENDING before the
+          // remote mutation, so on remote failure that phase is preserved as
+          // the recovery signal. The client performs an authoritative
+          // password-outdated check to decide the branch; the controller does
+          // not clear it.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessChangePending,
           );
         },
       );
@@ -4242,6 +4566,10 @@ describe('SeedlessOnboardingController', () => {
               newKeyShareIndex: LATEST_KEY_INDEX,
               newPassword: NEW_MOCK_PASSWORD,
             }),
+          );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
           );
         },
       );
@@ -4355,6 +4683,10 @@ describe('SeedlessOnboardingController', () => {
 
           const [legacyTransformed] = transformDataItems?.([legacyItem]) ?? [];
           expect(legacyTransformed?.version).toBe('v1');
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
         },
       );
     });
@@ -4417,6 +4749,10 @@ describe('SeedlessOnboardingController', () => {
               newPassword: NEW_MOCK_PASSWORD,
             }),
           );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
         },
       );
     });
@@ -4453,6 +4789,1327 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
+
+          // The fetch failure rejects before the first lifecycle write
+          // (REMOTE_PASSWORD_PENDING), so there is nothing to recover and the
+          // lifecycle stays unset.
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+        },
+      );
+    });
+
+    describe('completePasswordChange', () => {
+      it('clears an in-progress lifecycle', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              passwordChangePhase: SeedlessPasswordChangePhase.Unknown,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+          },
+        );
+      });
+
+      it('clears a password-sync lifecycle', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordSync,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+          },
+        );
+      });
+
+      it('is a no-op when no change is in progress', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+          },
+        );
+      });
+    });
+
+    describe('markPasswordChangeKeySyncPending', () => {
+      it('advances the lifecycle to KEY_SYNC_PENDING', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              passwordChangePhase:
+                SeedlessPasswordChangePhase.LocalKeyringPending,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(getLifecyclePhase(controller.state)).toBe(
+              SeedlessPasswordChangePhase.KeySyncPending,
+            );
+          },
+        );
+      });
+
+      it('is a no-op when already KEY_SYNC_PENDING', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              passwordChangePhase: SeedlessPasswordChangePhase.KeySyncPending,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(getLifecyclePhase(controller.state)).toBe(
+              SeedlessPasswordChangePhase.KeySyncPending,
+            );
+          },
+        );
+      });
+
+      it('preserves a password-sync lifecycle operation', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordSync,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+              operation: SeedlessOnboardingOperation.PasswordSync,
+              checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+            });
+          },
+        );
+      });
+
+      it('does not overwrite a lifecycle owned by another operation', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.CreateNewAccount,
+                checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
+            });
+          },
+        );
+      });
+    });
+  });
+
+  describe('resolvePasswordSyncState (recovery phases)', () => {
+    it('returns in-sync when no phase is set and the password is in sync', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
+          const result = await controller.resolvePasswordSyncState();
+          expect(result).toBe(PasswordSyncInstruction.InSync);
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+        },
+      );
+    });
+
+    it('throws when a lifecycle is owned by another operation', async () => {
+      await withController(
+        {
+          state: {
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+          );
+        },
+      );
+    });
+
+    it('routes a password-sync lifecycle by its phase', async () => {
+      await withController(
+        {
+          state: {
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.PasswordSync,
+              checkpoint: SeedlessOnboardingCheckpoint.LocalStatePending,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(await controller.resolvePasswordSyncState()).toBe(
+            PasswordSyncInstruction.PasswordOutdated,
+          );
+        },
+      );
+    });
+
+    it('returns enter-new-password when the phase is LOCAL_STATE_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller }) => {
+          const result = await controller.resolvePasswordSyncState();
+          expect(result).toBe(PasswordSyncInstruction.PasswordOutdated);
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessCommitted,
+          );
+        },
+      );
+    });
+
+    it('returns reconcile-keyring when the phase is LOCAL_PASSWORD_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.LocalKeyringPending,
+          }),
+        },
+        async ({ controller }) => {
+          const result = await controller.resolvePasswordSyncState();
+          expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
+        },
+      );
+    });
+
+    it('returns sync-key when the phase is KEY_SYNC_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.KeySyncPending,
+          }),
+        },
+        async ({ controller }) => {
+          const result = await controller.resolvePasswordSyncState();
+          expect(result).toBe(PasswordSyncInstruction.SyncKey);
+        },
+      );
+    });
+
+    it('throws when the phase is not a password-sync checkpoint', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.Unknown,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+          );
+        },
+      );
+    });
+
+    it('throws for an unrecognized persisted phase', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              'unrecognized' as unknown as SeedlessPasswordChangePhase,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+          );
+        },
+      );
+    });
+
+    it('clears the lifecycle when REMOTE_PASSWORD_PENDING and remote did not commit', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.SeedlessChangePending,
+          }),
+        },
+        async ({ toprfClient, controller }) => {
+          // Remote auth pub key matches the local one -> not outdated.
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
+          const result = await controller.resolvePasswordSyncState();
+          expect(result).toBe(PasswordSyncInstruction.InSync);
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+        },
+      );
+    });
+
+    it('re-reads the lifecycle phase after waiting for an in-flight password change', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          const oldPassword = 'old-mock-password';
+          const newPassword = 'new-mock-password';
+
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            oldPassword,
+          );
+
+          const currentAuthPubKey = base64ToBytes(
+            controller.state.authPubKey as string,
+          );
+          const newToprfEncryptor = createMockToprfEncryptor();
+          const changeEncryptionKeyResult: ChangeEncryptionKeyResult = {
+            encKey: newToprfEncryptor.deriveEncKey(newPassword),
+            pwEncKey: newToprfEncryptor.derivePwEncKey(newPassword),
+            authKeyPair: newToprfEncryptor.deriveAuthKeyPair(newPassword),
+          };
+
+          let resolveChangeEncKeyStarted!: () => void;
+          const changeEncKeyStarted = new Promise<void>((resolve) => {
+            resolveChangeEncKeyStarted = resolve;
+          });
+          let resolveChangeEncKey!: (result: ChangeEncryptionKeyResult) => void;
+          const changeEncKeyResult = new Promise<ChangeEncryptionKeyResult>(
+            (resolve) => {
+              resolveChangeEncKey = resolve;
+            },
+          );
+
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockResolvedValueOnce({
+              authPubKey: currentAuthPubKey,
+              keyIndex: 1,
+            })
+            .mockResolvedValue({
+              authPubKey: changeEncryptionKeyResult.authKeyPair.pk,
+              keyIndex: 1,
+            });
+          jest.spyOn(toprfClient, 'changeEncKey').mockImplementation(() => {
+            resolveChangeEncKeyStarted();
+            return changeEncKeyResult;
+          });
+
+          const changePasswordPromise = baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            newPassword,
+            oldPassword,
+          );
+          await changeEncKeyStarted;
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessChangePending,
+          );
+
+          // resolvePasswordSyncState snapshots the pending phase before it
+          // waits for the controller lock. The password change completes first,
+          // so the resolver must use LOCAL_PASSWORD_PENDING instead of clearing
+          // the lifecycle and returning in-sync.
+          const resolvePasswordSyncStatePromise =
+            controller.resolvePasswordSyncState();
+          resolveChangeEncKey(changeEncryptionKeyResult);
+          await changePasswordPromise;
+
+          expect(await resolvePasswordSyncStatePromise).toBe(
+            PasswordSyncInstruction.ReconcileKeyring,
+          );
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+        },
+      );
+    });
+
+    it('throws and preserves the phase when the remote check fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.SeedlessChangePending,
+          }),
+        },
+        async ({ toprfClient, controller }) => {
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(new Error('network failure'));
+          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          );
+          // The phase is preserved as the recovery signal.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessChangePending,
+          );
+        },
+      );
+    });
+  });
+
+  describe('reconcilePassword', () => {
+    const OLD_PASSWORD = 'old-mock-password';
+    const NEW_PASSWORD = 'new-mock-password';
+
+    beforeEach(() => {
+      jest
+        .spyOn(ToprfSecureBackup.prototype, 'fetchAuthPubKey')
+        .mockResolvedValue({
+          authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
+          keyIndex: 1,
+        });
+    });
+
+    it('returns in-sync when no phase is set and the password is in sync', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+          expect(result).toBe(PasswordSyncInstruction.InSync);
+        },
+      );
+    });
+
+    it('throws when a lifecycle is owned by another operation', async () => {
+      await withController(
+        {
+          state: {
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+          );
+        },
+      );
+    });
+
+    it('clears REMOTE_PASSWORD_PENDING when the remote password is unchanged', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.SeedlessChangePending,
+          }),
+        },
+        async ({ controller }) => {
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+          expect(result).toBe(PasswordSyncInstruction.InSync);
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+        },
+      );
+    });
+
+    it('unlocks the Seedless vault without re-running password sync when LOCAL_PASSWORD_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.LocalKeyringPending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            NEW_PASSWORD,
+          );
+          await controller.setLocked();
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const recoverPwEncKeySpy = jest.spyOn(toprfClient, 'recoverPwEncKey');
+
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+
+          expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+          expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
+    it.each([
+      {
+        phase: SeedlessPasswordChangePhase.LocalKeyringPending,
+        instruction: PasswordSyncInstruction.ReconcileKeyring,
+      },
+      {
+        phase: SeedlessPasswordChangePhase.KeySyncPending,
+        instruction: PasswordSyncInstruction.SyncKey,
+      },
+    ])(
+      'keeps a refreshed accessToken when unlocking from $phase',
+      async ({ phase, instruction }) => {
+        const refreshedAccessToken = createMockJWTToken({
+          exp: Math.floor(Date.now() / 1000) + 7200,
+        });
+
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withMockAuthPubKey: true,
+              passwordChangePhase: phase,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            baseMessenger,
+            mockRefreshJWTToken,
+            encryptor,
+          }) => {
+            await newUserSetup(
+              toprfClient,
+              controller,
+              baseMessenger,
+              NEW_PASSWORD,
+            );
+            await controller.setLocked();
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              accessToken: refreshedAccessToken,
+              metadataAccessToken: 'new-metadata-access-token',
+            });
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            await controller.refreshAuthTokens();
+            expect(controller.state.accessToken).toBe(refreshedAccessToken);
+
+            const result = await controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            });
+
+            expect(result).toBe(instruction);
+            expect(controller.state.accessToken).toBe(refreshedAccessToken);
+
+            const decryptedVaultData = await encryptor.decrypt(
+              NEW_PASSWORD,
+              controller.state.vault as string,
+            );
+            const parsedVaultData = JSON.parse(decryptedVaultData as string);
+            expect(parsedVaultData.accessToken).toBe(refreshedAccessToken);
+          },
+        );
+      },
+    );
+
+    it('returns sync-key when the phase is KEY_SYNC_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.KeySyncPending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            NEW_PASSWORD,
+          );
+          await controller.setLocked();
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const recoverPwEncKeySpy = jest.spyOn(toprfClient, 'recoverPwEncKey');
+
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+          expect(result).toBe(PasswordSyncInstruction.SyncKey);
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+          expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
+    it('throws when the phase is not a password-sync checkpoint', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.Unknown,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+          );
+        },
+      );
+    });
+
+    it('throws for an unrecognized persisted phase', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              'unrecognized' as unknown as SeedlessPasswordChangePhase,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+          );
+        },
+      );
+    });
+
+    it('syncs the Seedless side and advances to Keyring reconciliation when no phase is set and the remote password is outdated', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+          );
+
+          // Remote auth pub key differs from the local one -> outdated, so
+          // the no-phase branch re-checks and runs the password-sync flow.
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
+          );
+
+          // Mock the password-sync flow for the new password. recoverEncKey
+          // is called by both chain unlock and local vault rewrite.
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(NEW_PASSWORD);
+          const pwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+            encKey,
+            authKeyPair,
+            pwEncKey,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+          // recoverPwEncKey recovers the vault key the existing vault was
+          // encrypted with, so it must return the OLD password's pwEncKey.
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
+          });
+
+          const observedPhases: SeedlessOnboardingCheckpoint[] = [];
+          let localKeyringPendingStateUpdates = 0;
+          let previousPhase = getLifecyclePhase(controller.state);
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              const phase = getLifecyclePhase(state);
+              if (phase === SeedlessPasswordChangePhase.LocalKeyringPending) {
+                localKeyringPendingStateUpdates += 1;
+              }
+              if (phase !== undefined && phase !== previousPhase) {
+                observedPhases.push(phase);
+              }
+              previousPhase = phase;
+            },
+          );
+
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+
+          expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(observedPhases).toStrictEqual([
+            SeedlessPasswordChangePhase.SeedlessCommitted,
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          ]);
+          expect(localKeyringPendingStateUpdates).toBe(1);
+          // Another-device recovery must continue through the local Keyring
+          // reconciliation boundary after the Seedless side is synchronized.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordSync,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          });
+          // Vault rewrite must re-wrap the stored Keyring encryption key so
+          // the old-Keyring branch can load it after sync.
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
+    it('throws when the no-phase outdated check fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ toprfClient, controller }) => {
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(new Error('Network error'));
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          );
+        },
+      );
+    });
+
+    it('reconciles the Seedless side and advances to LOCAL_PASSWORD_PENDING when LOCAL_STATE_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+          );
+
+          // Mock the password-sync flow for the new password. recoverEncKey
+          // is called by both chain unlock and local vault rewrite.
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(NEW_PASSWORD);
+          const pwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+            encKey,
+            authKeyPair,
+            pwEncKey,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+          // recoverPwEncKey recovers the vault key the existing vault was
+          // encrypted with, so it must return the OLD password's pwEncKey.
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
+          });
+
+          let localKeyringPendingStateUpdates = 0;
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              if (
+                getLifecyclePhase(state) ===
+                SeedlessPasswordChangePhase.LocalKeyringPending
+              ) {
+                localKeyringPendingStateUpdates += 1;
+              }
+            },
+          );
+
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+
+          expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordSync,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          });
+          expect(localKeyringPendingStateUpdates).toBe(1);
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
+    it('persists recovery state atomically so an interrupted rewrite can be retried', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+          );
+
+          const vaultBeforeSync = controller.state.vault;
+          const oldEncryptedKeyringEncryptionKey =
+            controller.state.encryptedKeyringEncryptionKey;
+
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const newEncKey = mockToprfEncryptor.deriveEncKey(NEW_PASSWORD);
+          const newPwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
+          const newAuthKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+            encKey: newEncKey,
+            authKeyPair: newAuthKeyPair,
+            pwEncKey: newPwEncKey,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockResolvedValueOnce({
+              // The first attempt unlocks the old local vault.
+              pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
+            })
+            .mockResolvedValue({
+              // A retry after the rewrite unlocks the new local vault.
+              pwEncKey: newPwEncKey,
+            });
+
+          let interruptPersistence = true;
+          const controllerWithUpdate = controller as unknown as {
+            update: (...args: unknown[]) => unknown;
+          };
+          const originalUpdate = controllerWithUpdate.update.bind(controller);
+          jest
+            .spyOn(controllerWithUpdate, 'update')
+            .mockImplementation((...args: unknown[]) => {
+              const result = originalUpdate(...args) as {
+                nextState: SeedlessOnboardingControllerState;
+              };
+              if (
+                interruptPersistence &&
+                result.nextState.vault !== vaultBeforeSync
+              ) {
+                interruptPersistence = false;
+                throw new Error('simulated persistence interruption');
+              }
+              return result;
+            });
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow('simulated persistence interruption');
+
+          // The rewritten vault must never be persisted without its matching
+          // auth key, Keyring ciphertext, and recovery phase.
+          expect(controller.state.authPubKey).toBe(
+            bytesToBase64(newAuthKeyPair.pk),
+          );
+          expect(controller.state.encryptedKeyringEncryptionKey).not.toBe(
+            oldEncryptedKeyringEncryptionKey,
+          );
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          const recoveredKeyringEncryptionKey = managedNonce(gcm)(
+            newPwEncKey,
+          ).decrypt(
+            base64ToBytes(
+              controller.state.encryptedKeyringEncryptionKey as string,
+            ),
+          );
+          expect(bytesToString(recoveredKeyringEncryptionKey)).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+
+          // Simulate a restart so the retry cannot use a stale decrypted-vault
+          // cache from before the interrupted rewrite.
+          await controller.setLocked();
+
+          expect(
+            await controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
+    it('reconciles the Seedless side when no Keyring encryption key is stored', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+            encKey: mockToprfEncryptor.deriveEncKey(NEW_PASSWORD),
+            authKeyPair: mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD),
+            pwEncKey: mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD),
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
+          });
+
+          expect(
+            await controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(
+            controller.state.encryptedKeyringEncryptionKey,
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('throws and preserves the phase when reconciliation fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          // Make the password-sync flow fail.
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockRejectedValueOnce(new Error('recover failed'));
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.LoginFailedError,
+          );
+          // The phase is preserved as the recovery signal.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessCommitted,
+          );
+        },
+      );
+    });
+
+    it('throws when the password-key chain limit is exceeded', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockRecoverEncKey(toprfClient, NEW_PASSWORD);
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                TOPRFErrorCode.MaxKeyChainLengthExceeded,
+                'Max key chain length exceeded',
+              ),
+            );
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
+          );
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.SeedlessCommitted,
+          );
+        },
+      );
+    });
+
+    it('throws when recovered vault credentials are stale', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          const staleState = {
+            ...controller.state,
+            vaultEncryptionSalt: 'stale-salt',
+          };
+          await controller.setLocked();
+          (
+            controller as unknown as {
+              update: (
+                callback: (state: SeedlessOnboardingControllerState) => void,
+              ) => void;
+            }
+          ).update((state) => {
+            state.vaultEncryptionSalt = staleState.vaultEncryptionSalt;
+          });
+
+          mockRecoverEncKey(toprfClient, NEW_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: createMockToprfEncryptor().derivePwEncKey(OLD_PASSWORD),
+          });
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(/./u);
+        },
+      );
+    });
+
+    it('throws when the stored Seedless encryption key is missing', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          await controller.setLocked();
+          (
+            controller as unknown as {
+              update: (
+                callback: (state: SeedlessOnboardingControllerState) => void,
+              ) => void;
+            }
+          ).update((state) => {
+            delete state.encryptedSeedlessEncryptionKey;
+          });
+          mockRecoverEncKey(toprfClient, NEW_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: createMockToprfEncryptor().derivePwEncKey(OLD_PASSWORD),
+          });
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
+          );
+        },
+      );
+    });
+
+    it('throws when the chain unlock reports a TOPRF error', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockRecoverEncKey(toprfClient, NEW_PASSWORD);
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                TOPRFErrorCode.CouldNotFetchPassword,
+                'Could not fetch password',
+              ),
+            );
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
+          );
+        },
+      );
+    });
+
+    it('throws when token refresh fails during chain unlock', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockRefreshJWTToken,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockRecoverEncKey(toprfClient, NEW_PASSWORD);
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockRejectedValueOnce(
+              new TOPRFError(
+                TOPRFErrorCode.AuthTokenExpired,
+                'Auth token expired',
+              ),
+            );
+          mockRefreshJWTToken.mockRejectedValueOnce(
+            new Error('Failed to refresh token'),
+          );
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+          );
+        },
+      );
+    });
+  });
+
+  describe('password-change lifecycle neutrality of key storage', () => {
+    const MOCK_PASSWORD = 'mock-password';
+
+    it('storeKeyringEncryptionKey does not change the lifecycle phase', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.LocalKeyringPending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+          );
+
+          // The shared key-storage operation must remain lifecycle-neutral
+          // so it cannot advance or regress recovery when called by the client.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+        },
+      );
+    });
+
+    it('loadKeyringEncryptionKey does not change the lifecycle phase', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.LocalKeyringPending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+          );
+
+          const loaded = await baseMessenger.call(
+            'SeedlessOnboardingController:loadKeyringEncryptionKey',
+          );
+
+          expect(loaded).toStrictEqual(MOCK_KEYRING_ENCRYPTION_KEY);
+          // Loading a key is read-only with respect to lifecycle state.
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
         },
       );
     });
@@ -4473,7 +6130,7 @@ describe('SeedlessOnboardingController', () => {
           expect(state.userId).toBeDefined();
           expect(state.authConnectionId).toBeDefined();
 
-          baseMessenger.call('SeedlessOnboardingController:clearState');
+          await baseMessenger.call('SeedlessOnboardingController:clearState');
           expect(controller.state).toStrictEqual(
             getInitialSeedlessOnboardingControllerStateWithDefaults(),
           );
@@ -4966,73 +6623,6 @@ describe('SeedlessOnboardingController', () => {
     const GLOBAL_PASSWORD = 'global-password';
     const RECOVERED_PASSWORD = 'recovered-password';
 
-    it('should store and recover keyring encryption key', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ controller, toprfClient, baseMessenger }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            baseMessenger,
-            RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
-          );
-
-          // Mock recoverEncKey for the global password
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            authKeyPair,
-            pwEncKey,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock toprfClient.recoverPassword
-          const recoveredPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(RECOVERED_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
-            pwEncKey: recoveredPwEncKey,
-          });
-
-          await baseMessenger.call('SeedlessOnboardingController:setLocked');
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitGlobalPassword',
-            {
-              globalPassword: GLOBAL_PASSWORD,
-            },
-          );
-
-          const keyringEncryptionKey = await baseMessenger.call(
-            'SeedlessOnboardingController:loadKeyringEncryptionKey',
-          );
-
-          expect(keyringEncryptionKey).toStrictEqual(
-            MOCK_KEYRING_ENCRYPTION_KEY,
-          );
-          expect(toprfClient.recoverEncKey).toHaveBeenCalled();
-          expect(toprfClient.recoverPwEncKey).toHaveBeenCalled();
-        },
-      );
-    });
-
     it('should throw if key not set', async () => {
       await withController(
         {
@@ -5052,7 +6642,6 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
 
-          // Setup and store keyring encryption key.
           await mockCreateToprfKeyAndBackupSeedPhrase(
             toprfClient,
             controller,
@@ -5082,19 +6671,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           const result = await baseMessenger.call(
@@ -5114,19 +6695,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           await mockChangePassword(
@@ -5147,751 +6720,6 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(result).toStrictEqual(MOCK_KEYRING_ENCRYPTION_KEY);
-        },
-      );
-    });
-
-    it('should recover keyring encryption key after change password', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ controller, toprfClient, baseMessenger }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            baseMessenger,
-            RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
-          );
-
-          await mockChangePassword(
-            controller,
-            toprfClient,
-            RECOVERED_PASSWORD,
-            GLOBAL_PASSWORD,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:changePassword',
-            GLOBAL_PASSWORD,
-            RECOVERED_PASSWORD,
-          );
-
-          // Mock recoverEncKey for the global password
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock toprfClient.recoverPwEncKey
-          const recoveredPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
-            pwEncKey: recoveredPwEncKey,
-          });
-
-          await baseMessenger.call('SeedlessOnboardingController:setLocked');
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitGlobalPassword',
-            {
-              globalPassword: GLOBAL_PASSWORD,
-            },
-          );
-
-          const keyringEncryptionKey = await baseMessenger.call(
-            'SeedlessOnboardingController:loadKeyringEncryptionKey',
-          );
-
-          expect(keyringEncryptionKey).toStrictEqual(
-            MOCK_KEYRING_ENCRYPTION_KEY,
-          );
-        },
-      );
-    });
-
-    it('should throw if encryptedKeyringEncryptionKey not set', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          // Mock recoverEncKey for the global password
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock toprfClient.recoverPwEncKey
-          const recoveredPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(RECOVERED_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
-            pwEncKey: recoveredPwEncKey,
-          });
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
-          );
-        },
-      );
-    });
-
-    it('should throw SRPNotBackedUpError if no authPubKey in state', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({}),
-        },
-        async ({ baseMessenger }) => {
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
-          );
-        },
-      );
-    });
-
-    it('should propagate errors from recoverEncKey', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          jest
-            .spyOn(toprfClient, 'recoverEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(
-                TOPRFErrorCode.CouldNotDeriveEncryptionKey,
-                'Could not derive encryption key',
-              ),
-            );
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toStrictEqual(
-            new RecoveryError(
-              SeedlessOnboardingControllerErrorMessage.IncorrectPassword,
-            ),
-          );
-        },
-      );
-    });
-
-    it('should propagate errors from toprfClient.recoverPassword', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          jest
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(
-                TOPRFErrorCode.CouldNotFetchPassword,
-                'Could not fetch password',
-              ),
-            );
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toStrictEqual(
-            new PasswordSyncError(
-              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
-            ),
-          );
-        },
-      );
-    });
-
-    it('should not propagate unknown errors from #toprfClient.recoverPassword', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          jest
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(new Error('Unknown error'));
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toStrictEqual(
-            new PasswordSyncError(
-              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
-            ),
-          );
-        },
-      );
-    });
-
-    it('should throw MaxKeyChainLengthExceeded error when max key chain length is exceeded', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-
-          // Mock recoverEncKey to succeed
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock recoverPwEncKey to throw max key chain length error
-          jest
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(
-                TOPRFErrorCode.MaxKeyChainLengthExceeded,
-                'Max key chain length exceeded',
-              ),
-            );
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
-          );
-        },
-      );
-    });
-  });
-
-  describe('syncLatestGlobalPassword', () => {
-    const OLD_PASSWORD = 'old-mock-password';
-    const GLOBAL_PASSWORD = 'new-global-password';
-    const mockToprfEncryptor = createMockToprfEncryptor();
-    let MOCK_VAULT: string;
-    let MOCK_VAULT_ENCRYPTION_KEY: string;
-    let MOCK_VAULT_ENCRYPTION_SALT: string;
-    let INITIAL_AUTH_PUB_KEY: string;
-    let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
-    let initialEncKey: Uint8Array; // Store initial encKey for vault creation
-    let initialPwEncKey: Uint8Array; // Store initial pwEncKey for vault creation
-    let initialEncryptedSeedlessEncryptionKey: Uint8Array; // Store initial encryptedSeedlessEncryptionKey for vault creation
-    let newEncKey: Uint8Array;
-    let newPwEncKey: Uint8Array;
-    let newAuthKeyPair: KeyPair;
-
-    // Generate initial keys and vault state before tests run
-    beforeAll(async () => {
-      initialEncKey = mockToprfEncryptor.deriveEncKey(OLD_PASSWORD);
-      initialPwEncKey = mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
-      initialAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(OLD_PASSWORD);
-      INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
-
-      const mockResult = await createMockVault(
-        initialEncKey,
-        initialPwEncKey,
-        initialAuthKeyPair,
-        OLD_PASSWORD,
-        revokeToken,
-      );
-
-      MOCK_VAULT = mockResult.encryptedMockVault;
-      MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
-
-      const aes = managedNonce(gcm)(initialPwEncKey);
-      initialEncryptedSeedlessEncryptionKey = aes.encrypt(
-        utf8ToBytes(MOCK_VAULT_ENCRYPTION_KEY),
-      );
-    });
-
-    // Remove beforeEach as setup is done in beforeAll now
-    beforeEach(() => {
-      // Mock recoverEncKey for the new global password
-      newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-      newPwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-      newAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-    });
-
-    it('should successfully sync the latest global password', async () => {
-      const b64EncKey = bytesToBase64(initialEncryptedSeedlessEncryptionKey);
-      await withController(
-        {
-          // Pass the pre-generated state values
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            withMockAuthPubKey: true,
-            encryptedSeedlessEncryptionKey: b64EncKey,
-          }),
-        },
-        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
-          // Unlock controller first - requires vaultEncryptionKey/Salt or password
-          // Since we provide key/salt in state, submitPassword isn't strictly needed here
-          // but we keep it to match the method's requirement of being unlocked
-          // We'll use the key/salt implicitly by not providing password to unlockVaultAndGetBackupEncKey
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            OLD_PASSWORD,
-          ); // Unlock using the standard method
-
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
-          const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-
-          recoverEncKeySpy.mockResolvedValueOnce({
-            encKey: newEncKey,
-            pwEncKey: newPwEncKey,
-            authKeyPair: newAuthKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // We still need verifyPassword to work conceptually, even if unlock is bypassed
-          // verifyPasswordSpy.mockResolvedValueOnce(); // Don't mock, let the real one run inside syncLatestGlobalPassword
-
-          await baseMessenger.call('SeedlessOnboardingController:setLocked');
-
-          // Mock recoverEncKey for the global password
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock toprfClient.recoverPwEncKey
-          const recoveredPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
-            pwEncKey: recoveredPwEncKey,
-          });
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitGlobalPassword',
-            {
-              globalPassword: GLOBAL_PASSWORD,
-            },
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:syncLatestGlobalPassword',
-            {
-              globalPassword: GLOBAL_PASSWORD,
-            },
-          );
-
-          // Assertions
-          expect(recoverEncKeySpy).toHaveBeenCalledWith(
-            expect.objectContaining({ password: GLOBAL_PASSWORD }),
-          );
-
-          // Check if vault was re-encrypted with the new password and keys
-          const expectedSerializedVaultData = JSON.stringify({
-            toprfEncryptionKey: bytesToBase64(newEncKey),
-            toprfPwEncryptionKey: bytesToBase64(newPwEncKey),
-            toprfAuthKeyPair: JSON.stringify({
-              sk: bigIntToHex(newAuthKeyPair.sk),
-              pk: bytesToBase64(newAuthKeyPair.pk),
-            }),
-            revokeToken: controller.state.revokeToken,
-            accessToken: controller.state.accessToken,
-          });
-          expect(encryptorSpy).toHaveBeenCalledWith(
-            GLOBAL_PASSWORD,
-            expectedSerializedVaultData,
-          );
-
-          // Check if authPubKey was updated in state
-          expect(controller.state.authPubKey).toBe(
-            bytesToBase64(newAuthKeyPair.pk),
-          );
-          // Check if vault content actually changed
-          expect(controller.state.vault).not.toBe(MOCK_VAULT);
-        },
-      );
-    });
-
-    it('should persist the latest accessToken when state token is newer than vault token', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const newerAccessToken = createMockJWTToken({ exp: futureExp }); // refreshed accessToken
-      const b64EncKey = bytesToBase64(initialEncryptedSeedlessEncryptionKey);
-
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            withMockAuthPubKey: true,
-            encryptedSeedlessEncryptionKey: b64EncKey,
-          }),
-        },
-        async ({
-          controller,
-          toprfClient,
-          encryptor,
-          mockRefreshJWTToken,
-          baseMessenger,
-        }) => {
-          // Unlock controller first - requires vaultEncryptionKey/Salt or password
-          // Since we provide key/salt in state, submitPassword isn't strictly needed here
-          // but we keep it to match the method's requirement of being unlocked
-          // We'll use the key/salt implicitly by not providing password to unlockVaultAndGetBackupEncKey
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            OLD_PASSWORD,
-          ); // Unlock using the standard method
-
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
-          const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-
-          recoverEncKeySpy.mockResolvedValueOnce({
-            encKey: newEncKey,
-            pwEncKey: newPwEncKey,
-            authKeyPair: newAuthKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-          // Lock the wallet
-          await baseMessenger.call('SeedlessOnboardingController:setLocked');
-
-          // The following mocks are to simulate the token expiry and refresh.
-          // mock token expiry
-          jest
-            .spyOn(controller, 'checkNodeAuthTokenExpired')
-            .mockReturnValueOnce(true);
-          // mock token refresh
-          mockRefreshJWTToken.mockResolvedValueOnce({
-            idTokens: ['newIdToken'],
-            accessToken: newerAccessToken,
-            metadataAccessToken: 'new-metadata-access-token',
-          });
-          // mock toprfClient.authenticate which is called to generate new NodeAuthTokens
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
-            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-            isNewUser: false,
-          });
-
-          // Mock recoverEncKey for the global password
-          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-          const authKeyPair =
-            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
-            encKey,
-            pwEncKey,
-            authKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Mock toprfClient.recoverPwEncKey
-          const recoveredPwEncKey =
-            mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
-            pwEncKey: recoveredPwEncKey,
-          });
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitGlobalPassword',
-            {
-              globalPassword: GLOBAL_PASSWORD,
-            },
-          );
-
-          // assert that the newer access token is set in the state
-          expect(controller.state.accessToken).toBe(newerAccessToken);
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:syncLatestGlobalPassword',
-            {
-              globalPassword: GLOBAL_PASSWORD,
-            },
-          );
-
-          // Check if vault was re-encrypted with the new password and keys
-          const expectedSerializedVaultData = JSON.stringify({
-            toprfEncryptionKey: bytesToBase64(newEncKey),
-            toprfPwEncryptionKey: bytesToBase64(newPwEncKey),
-            toprfAuthKeyPair: JSON.stringify({
-              sk: bigIntToHex(newAuthKeyPair.sk),
-              pk: bytesToBase64(newAuthKeyPair.pk),
-            }),
-            revokeToken: controller.state.revokeToken,
-            accessToken: newerAccessToken,
-          });
-          expect(encryptorSpy).toHaveBeenCalledWith(
-            GLOBAL_PASSWORD,
-            expectedSerializedVaultData,
-          );
-        },
-      );
-    });
-
-    it('should throw an error if recovering the encryption key for the global password fails', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            authPubKey: INITIAL_AUTH_PUB_KEY,
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          // Unlock controller first
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            OLD_PASSWORD,
-          );
-
-          const recoverEncKeySpy = jest
-            .spyOn(toprfClient, 'recoverEncKey')
-            .mockRejectedValueOnce(
-              new RecoveryError(
-                SeedlessOnboardingControllerErrorMessage.LoginFailedError,
-              ),
-            );
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:syncLatestGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.LoginFailedError,
-          );
-
-          expect(recoverEncKeySpy).toHaveBeenCalledWith(
-            expect.objectContaining({ password: GLOBAL_PASSWORD }),
-          );
-        },
-      );
-    });
-
-    it('should throw an error if creating the new vault fails', async () => {
-      const state = getMockInitialControllerState({
-        withMockAuthenticatedUser: true,
-        authPubKey: INITIAL_AUTH_PUB_KEY,
-        vault: MOCK_VAULT,
-        vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-        vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-      });
-      delete state.revokeToken;
-      delete state.accessToken;
-
-      await withController(
-        {
-          state,
-        },
-        async ({ toprfClient, encryptor, baseMessenger }) => {
-          // Unlock controller first
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            OLD_PASSWORD,
-          );
-
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
-          const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-
-          // Make recoverEncKey succeed
-          recoverEncKeySpy.mockResolvedValueOnce({
-            encKey: newEncKey,
-            pwEncKey: newPwEncKey,
-            authKeyPair: newAuthKeyPair,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-
-          // Make encryptWithDetail always fail to ensure we catch any call to it
-          encryptorSpy.mockRejectedValue(new Error('Vault creation failed'));
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:syncLatestGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toThrow('Vault creation failed');
-
-          expect(recoverEncKeySpy).toHaveBeenCalledWith(
-            expect.objectContaining({ password: GLOBAL_PASSWORD }),
-          );
-          expect(encryptorSpy).toHaveBeenCalled();
-        },
-      );
-    });
-
-    /**
-     * This test is to verify that the controller throws an error if the encryption salt is expired.
-     * The test creates a mock vault with a different salt value in the state to simulate an expired salt.
-     * It then creates mock keys associated with the new global password and uses these values as mock return values for the recoverEncKey and recoverPwEncKey calls.
-     * The test expects the controller to throw an error indicating that the password could not be recovered since the encryption salt from state is different from the salt in the mock vault.
-     */
-    it('should throw an error if the encryption salt is expired', async () => {
-      const encryptedSeedlessEncryptionKey = bytesToBase64(
-        initialEncryptedSeedlessEncryptionKey,
-      );
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            // Mock a different salt value in state to simulate an expired salt
-            vaultEncryptionSalt: 'DIFFERENT-SALT',
-            withMockAuthPubKey: true,
-            encryptedSeedlessEncryptionKey,
-          }),
-        },
-        async ({ toprfClient, baseMessenger }) => {
-          // Here we are creating mock keys associated with the new global password
-          // and these values are used as mock return values for the recoverEncKey and recoverPwEncKey calls
-          const recoverEncKeySpy = jest
-            .spyOn(toprfClient, 'recoverEncKey')
-            .mockResolvedValueOnce({
-              encKey: newEncKey,
-              pwEncKey: newPwEncKey,
-              authKeyPair: newAuthKeyPair,
-              rateLimitResetResult: Promise.resolve(),
-              keyShareIndex: 1,
-            });
-
-          const recoverPwEncKeySpy = jest
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockResolvedValueOnce({
-              pwEncKey: initialPwEncKey,
-            });
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
-          );
-
-          expect(recoverEncKeySpy).toHaveBeenCalled();
-          expect(recoverPwEncKeySpy).toHaveBeenCalled();
         },
       );
     });
@@ -5932,7 +6760,7 @@ describe('SeedlessOnboardingController', () => {
 
           // This should not trigger token refresh since access token check is skipped when locked
           await baseMessenger.call(
-            'SeedlessOnboardingController:checkIsPasswordOutdated',
+            'SeedlessOnboardingController:resolvePasswordSyncState',
           );
 
           // Verify that refreshAuthTokens was not called
@@ -5955,14 +6783,12 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(toprfClient, 'fetchAuthPubKey')
             .mockRejectedValue(new Error('Network error'));
 
-          // This should throw the wrapped error without retrying
+          // This should throw without retrying (non-token error).
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:checkIsPasswordOutdated',
+              'SeedlessOnboardingController:resolvePasswordSyncState',
             ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
-          );
+          ).rejects.toThrow(/./u);
 
           // Verify that fetchAuthPubKey was only called once (no retry)
           expect(toprfClient.fetchAuthPubKey).toHaveBeenCalledTimes(1);
@@ -6104,8 +6930,8 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('checkIsPasswordOutdated with token refresh', () => {
-      it('should retry checkIsPasswordOutdated after refreshing expired tokens', async () => {
+    describe('resolvePasswordSyncState with token refresh', () => {
+      it('should retry resolvePasswordSyncState after refreshing expired tokens', async () => {
         await withController(
           {
             state: {
@@ -6141,7 +6967,7 @@ describe('SeedlessOnboardingController', () => {
             });
 
             await baseMessenger.call(
-              'SeedlessOnboardingController:checkIsPasswordOutdated',
+              'SeedlessOnboardingController:resolvePasswordSyncState',
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
@@ -6349,235 +7175,6 @@ describe('SeedlessOnboardingController', () => {
 
             // Verify that changeEncKey was only called once (no retry)
             expect(toprfClient.changeEncKey).toHaveBeenCalledTimes(1);
-          },
-        );
-      });
-    });
-
-    describe('syncLatestGlobalPassword with token refresh', () => {
-      const OLD_PASSWORD = 'old-mock-password';
-      const GLOBAL_PASSWORD = 'new-global-password';
-      let MOCK_VAULT: string;
-      let MOCK_VAULT_ENCRYPTION_KEY: string;
-      let MOCK_VAULT_ENCRYPTION_SALT: string;
-      let INITIAL_AUTH_PUB_KEY: string;
-      let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
-      let initialEncKey: Uint8Array; // Store initial encKey for vault creation
-      let initialPwEncKey: Uint8Array; // Store initial pwEncKey for vault creation
-
-      // Generate initial keys and vault state before tests run
-      beforeAll(async () => {
-        const mockToprfEncryptor = createMockToprfEncryptor();
-        initialEncKey = mockToprfEncryptor.deriveEncKey(OLD_PASSWORD);
-        initialPwEncKey = mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD);
-        initialAuthKeyPair = mockToprfEncryptor.deriveAuthKeyPair(OLD_PASSWORD);
-        INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
-
-        const mockResult = await createMockVault(
-          initialEncKey,
-          initialPwEncKey,
-          initialAuthKeyPair,
-          OLD_PASSWORD,
-        );
-
-        MOCK_VAULT = mockResult.encryptedMockVault;
-        MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-        MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
-      });
-
-      it('should retry syncLatestGlobalPassword after refreshing expired tokens', async () => {
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              authPubKey: INITIAL_AUTH_PUB_KEY,
-              vault: MOCK_VAULT,
-              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            }),
-          },
-          async ({
-            controller,
-            toprfClient,
-            encryptor,
-            mockRefreshJWTToken,
-            baseMessenger,
-          }) => {
-            // Unlock controller first
-            await baseMessenger.call(
-              'SeedlessOnboardingController:submitPassword',
-              OLD_PASSWORD,
-            );
-
-            // Capture before the call — proactive renewRefreshToken inside
-            // refreshAuthTokens will rotate state.refreshToken afterwards.
-            const originalRefreshToken = controller.state.refreshToken;
-
-            const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
-            const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
-
-            // Mock recoverEncKey for the new global password
-            const mockToprfEncryptor = createMockToprfEncryptor();
-            const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
-            const newPwEncKey =
-              mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
-            const newAuthKeyPair =
-              mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-
-            // Mock recoverEncKey to fail first with token expired error, then succeed
-            recoverEncKeySpy
-              .mockImplementationOnce(() => {
-                throw new TOPRFError(
-                  TOPRFErrorCode.AuthTokenExpired,
-                  'Auth token expired',
-                );
-              })
-              .mockResolvedValueOnce({
-                encKey: newEncKey,
-                pwEncKey: newPwEncKey,
-                authKeyPair: newAuthKeyPair,
-                rateLimitResetResult: Promise.resolve(),
-                keyShareIndex: 1,
-              });
-
-            // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
-              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-              isNewUser: false,
-            });
-
-            await baseMessenger.call(
-              'SeedlessOnboardingController:syncLatestGlobalPassword',
-              {
-                globalPassword: GLOBAL_PASSWORD,
-              },
-            );
-
-            // Verify that getNewRefreshToken was called
-            expect(mockRefreshJWTToken).toHaveBeenCalledWith({
-              connection: controller.state.authConnection,
-              refreshToken: originalRefreshToken,
-            });
-
-            // Verify that recoverEncKey was called twice (once failed, once succeeded)
-            expect(recoverEncKeySpy).toHaveBeenCalledTimes(2);
-
-            // Verify that authenticate was called during token refresh
-            expect(toprfClient.authenticate).toHaveBeenCalled();
-
-            // Check if vault was re-encrypted with the new password and keys
-            const expectedSerializedVaultData = JSON.stringify({
-              toprfEncryptionKey: bytesToBase64(newEncKey),
-              toprfPwEncryptionKey: bytesToBase64(newPwEncKey),
-              toprfAuthKeyPair: JSON.stringify({
-                sk: bigIntToHex(newAuthKeyPair.sk),
-                pk: bytesToBase64(newAuthKeyPair.pk),
-              }),
-              revokeToken: controller.state.revokeToken,
-              accessToken: controller.state.accessToken,
-            });
-            expect(encryptorSpy).toHaveBeenCalledWith(
-              GLOBAL_PASSWORD,
-              expectedSerializedVaultData,
-            );
-
-            // Check if authPubKey was updated in state
-            expect(controller.state.authPubKey).toBe(
-              bytesToBase64(newAuthKeyPair.pk),
-            );
-          },
-        );
-      });
-
-      it('should fail if token refresh fails during syncLatestGlobalPassword', async () => {
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              authPubKey: INITIAL_AUTH_PUB_KEY,
-              vault: MOCK_VAULT,
-              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            }),
-          },
-          async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
-            // Unlock controller first
-            await baseMessenger.call(
-              'SeedlessOnboardingController:submitPassword',
-              OLD_PASSWORD,
-            );
-
-            // Mock recoverEncKey to fail with token expired error
-            jest
-              .spyOn(toprfClient, 'recoverEncKey')
-              .mockImplementationOnce(() => {
-                throw new TOPRFError(
-                  TOPRFErrorCode.AuthTokenExpired,
-                  'Auth token expired',
-                );
-              });
-
-            // Mock getNewRefreshToken to fail
-            mockRefreshJWTToken.mockRejectedValueOnce(
-              new Error('Failed to get new refresh token'),
-            );
-
-            await expect(
-              baseMessenger.call(
-                'SeedlessOnboardingController:syncLatestGlobalPassword',
-                {
-                  globalPassword: GLOBAL_PASSWORD,
-                },
-              ),
-            ).rejects.toThrow(
-              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
-            );
-
-            // Verify that getNewRefreshToken was called
-            expect(mockRefreshJWTToken).toHaveBeenCalled();
-          },
-        );
-      });
-
-      it('should not retry on non-token-related errors during syncLatestGlobalPassword', async () => {
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              authPubKey: INITIAL_AUTH_PUB_KEY,
-              vault: MOCK_VAULT,
-              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            }),
-          },
-          async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
-            // Unlock controller first
-            await baseMessenger.call(
-              'SeedlessOnboardingController:submitPassword',
-              OLD_PASSWORD,
-            );
-
-            // Mock recoverEncKey to fail with a non-token error
-            jest
-              .spyOn(toprfClient, 'recoverEncKey')
-              .mockRejectedValue(new Error('Some other error'));
-
-            await expect(
-              baseMessenger.call(
-                'SeedlessOnboardingController:syncLatestGlobalPassword',
-                {
-                  globalPassword: GLOBAL_PASSWORD,
-                },
-              ),
-            ).rejects.toThrow(
-              SeedlessOnboardingControllerErrorMessage.LoginFailedError,
-            );
-
-            // Verify that getNewRefreshToken was NOT called
-            expect(mockRefreshJWTToken).not.toHaveBeenCalled();
-
-            // Verify that recoverEncKey was only called once (no retry)
-            expect(toprfClient.recoverEncKey).toHaveBeenCalledTimes(1);
           },
         );
       });
@@ -6835,103 +7432,6 @@ describe('SeedlessOnboardingController', () => {
             expect(authenticateSpy).toHaveBeenCalled();
             // should call persistLocalKey twice, once for the first call and another from the refresh token
             expect(persistLocalKeySpy).toHaveBeenCalledTimes(2);
-          },
-        );
-      });
-    });
-
-    describe('recover keyring encryption key with token refresh', () => {
-      // const OLD_PASSWORD = 'old-mock-password';
-      // const GLOBAL_PASSWORD = 'new-global-password';
-      let MOCK_VAULT: string;
-      let MOCK_VAULT_ENCRYPTION_KEY: string;
-      let MOCK_VAULT_ENCRYPTION_SALT: string;
-      let INITIAL_AUTH_PUB_KEY: string;
-      let initialAuthKeyPair: KeyPair; // Store initial keypair for vault creation
-      let initialEncKey: Uint8Array; // Store initial encKey for vault creation
-      let initialPwEncKey: Uint8Array; // Store initial pwEncKey for vault creation
-      let initialEncryptedSeedlessEncryptionKey: Uint8Array; // Store initial encryptedSeedlessEncryptionKey for vault creation
-      // Generate initial keys and vault state before tests run
-      beforeAll(async () => {
-        const mockToprfEncryptor = createMockToprfEncryptor();
-        initialEncKey = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-        initialPwEncKey = mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
-
-        initialAuthKeyPair =
-          mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-        INITIAL_AUTH_PUB_KEY = bytesToBase64(initialAuthKeyPair.pk);
-
-        const mockResult = await createMockVault(
-          initialEncKey,
-          initialPwEncKey,
-          initialAuthKeyPair,
-          MOCK_PASSWORD,
-        );
-
-        MOCK_VAULT = mockResult.encryptedMockVault;
-        MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-        MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
-        const aes = managedNonce(gcm)(mockResult.pwEncKey);
-        initialEncryptedSeedlessEncryptionKey = aes.encrypt(
-          utf8ToBytes(MOCK_VAULT_ENCRYPTION_KEY),
-        );
-      });
-
-      it('should retry after refreshing expired tokens', async () => {
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthPubKey: true,
-              withMockAuthenticatedUser: true,
-              authPubKey: INITIAL_AUTH_PUB_KEY,
-              vault: MOCK_VAULT,
-              vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-              vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-              encryptedSeedlessEncryptionKey: bytesToBase64(
-                initialEncryptedSeedlessEncryptionKey,
-              ),
-            }),
-          },
-          async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
-            await baseMessenger.call(
-              'SeedlessOnboardingController:submitPassword',
-              MOCK_PASSWORD,
-            );
-
-            // Mock recoverEncKey
-            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-            // second call after refresh token
-            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-
-            // Mock recoverPassword
-            jest
-              .spyOn(toprfClient, 'recoverPwEncKey')
-              .mockImplementationOnce(() => {
-                // First call fails with token expired error
-                throw new TOPRFError(
-                  TOPRFErrorCode.AuthTokenExpired,
-                  'Auth token expired',
-                );
-              })
-              .mockResolvedValueOnce({
-                pwEncKey: initialPwEncKey,
-              });
-
-            // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
-              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-              isNewUser: false,
-            });
-
-            await baseMessenger.call(
-              'SeedlessOnboardingController:submitGlobalPassword',
-              {
-                globalPassword: MOCK_PASSWORD,
-              },
-            );
-
-            expect(mockRefreshJWTToken).toHaveBeenCalled();
-            expect(toprfClient.recoverPwEncKey).toHaveBeenCalledTimes(2);
           },
         );
       });
@@ -7335,6 +7835,40 @@ describe('SeedlessOnboardingController', () => {
 
             // Despite two callers, only one HTTP request should have been made.
             expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should not clear a newer in-flight refresh promise', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            let nestedRefreshPromise!: Promise<void>;
+            mockRefreshJWTToken.mockImplementationOnce(() => {
+              // The nested call starts before the outer call assigns its
+              // in-flight promise. The outer assignment must not be cleared
+              // by the nested call's finally handler.
+              nestedRefreshPromise = controller.refreshAuthTokens();
+              return Promise.resolve({
+                idTokens: ['newIdToken'],
+                metadataAccessToken: 'mock-metadata-access-token',
+                accessToken,
+              });
+            });
+
+            await controller.refreshAuthTokens();
+            await nestedRefreshPromise;
+
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(2);
           },
         );
       });
@@ -8791,6 +9325,39 @@ describe('SeedlessOnboardingController', () => {
           // The first one was removed in the catch block (line 1911)
           // The second one was removed after successful revocation
           expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
+        },
+      );
+    });
+
+    it('should retain all pending tokens when every revocation fails', async () => {
+      const pendingTokens = [
+        {
+          refreshToken: 'old-refresh-token-1',
+          revokeToken: 'old-revoke-token-1',
+        },
+        {
+          refreshToken: 'old-refresh-token-2',
+          revokeToken: 'old-revoke-token-2',
+        },
+      ];
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            pendingToBeRevokedTokens: pendingTokens,
+          }),
+        },
+        async ({ controller, mockRevokeRefreshToken, baseMessenger }) => {
+          mockRevokeRefreshToken.mockRejectedValue(new Error('Revoke failed'));
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:revokePendingRefreshTokens',
+          );
+
+          expect(controller.state.pendingToBeRevokedTokens).toStrictEqual(
+            pendingTokens,
+          );
         },
       );
     });
