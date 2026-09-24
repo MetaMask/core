@@ -1,10 +1,15 @@
 import type {
+  AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
+  IdentitySharingAudience,
+} from '@metamask/authenticated-user-storage';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetPartnerIdentityTokenAction } from '@metamask/profile-sync-controller/auth';
 import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
@@ -19,6 +24,10 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
+import {
+  getEmailFromPartnerIdentityToken,
+  isUnprocessableEntity,
+} from './partnerIdentityToken.js';
 import { isSumSubFlowCompleted } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import {
@@ -247,7 +256,9 @@ export type KycControllerActions =
 type AllowedActions =
   | KycServiceMethodActions
   | UserStorageControllerPerformGetStorageAction
-  | UserStorageControllerPerformSetStorageAction;
+  | UserStorageControllerPerformSetStorageAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
+  | AuthenticatedUserStorageServicePutIdentitySharingConsentAction;
 
 export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -330,19 +341,59 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Records identity-sharing consent for the vendor's audience, then mints a
+   * partner identity token and returns the email claim from JWT `ext`.
+   *
+   * @param vendor - Identity vendor whose partner audience to request.
+   * @returns The verified-email claim from the minted token, or `null` when
+   * the profile has no verified email (HTTP 422 / `EmailRequiredError`).
+   */
+  async #getVerifiedEmailToUseForVendor(
+    vendor: KycVendor,
+  ): Promise<string | null> {
+    // TODO: Fix this typing. Safe for now as only Iron is used
+    const audience = vendor as IdentitySharingAudience;
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
+      { audience, granted: true },
+    );
+    let token: string;
+    try {
+      token = await this.messenger.call(
+        'AuthenticationController:getPartnerIdentityToken',
+        ['email'],
+        audience,
+      );
+    } catch (error) {
+      if (isUnprocessableEntity(error)) {
+        return null;
+      }
+      throw error;
+    }
+    return getEmailFromPartnerIdentityToken(token);
+  }
+
+  /**
    * Starts a KYC session for the given vendor and email. Reuses a latest
    * vendor session when one exists; otherwise creates a UKYC session.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
-   * @param params.email - Account email associated with the session.
+   * @param params.email - Fallback account email associated with the session if unable to resolve from partner identity token
    * @returns The current or newly created session status.
    */
   async startSession(params: {
     vendor: KycVendor;
-    email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
+    email?: string; // TODO: This will be removed once OTP is implemented
   }): Promise<KycSessionStatus> {
-    if (this.state.email !== null && this.state.email !== params.email) {
+    const email =
+      (await this.#getVerifiedEmailToUseForVendor(params.vendor)) ??
+      params.email ??
+      this.state.email;
+    if (!email) {
+      throw new Error('KycController missing verified email for vendor');
+    }
+    if (this.state.email !== null && this.state.email !== email) {
       throw new Error(
         'KycController already initialized with a different email',
       );
@@ -364,7 +415,7 @@ export class KycController extends BaseController<
     }
 
     this.update((state) => {
-      state.email = params.email;
+      state.email = email;
       state.vendor = params.vendor;
       state.geoCountry = geoCountry;
     });
@@ -385,7 +436,7 @@ export class KycController extends BaseController<
       // It's assumed that if the session does not exist, the customer does not exist either
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
-        email: params.email,
+        email,
       });
 
       return this.#createUkycSession({ vendor: params.vendor, geoCountry });
