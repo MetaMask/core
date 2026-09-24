@@ -198,6 +198,15 @@ describe('caip helpers', () => {
         ),
       ).toBeUndefined();
     });
+
+    it('returns undefined when the chain id cannot be normalized', () => {
+      expect(
+        resolveNativeAssetIdForTokenAddress(
+          '0xzzzz',
+          '0x3600000000000000000000000000000000000000',
+        ),
+      ).toBeUndefined();
+    });
   });
 
   describe('getNativeAsset', () => {
