@@ -41,13 +41,19 @@ export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
  * Like {@link upgradeAccount}, but always runs the upgrade steps, ignoring
  * the recorded upgrade. Use this immediately before an action that depends
  * on the base and (when configured) premium vault delegations and CHOMP
- * intents actually existing right now, rather than trusting a fingerprint
- * recorded on a previous run.
+ * intents actually existing right now — e.g. before starting a
+ * subscription — rather than trusting a fingerprint recorded on a
+ * previous run, which does not reflect deletions or revocations made
+ * since (on this device or elsewhere).
+ *
+ * As with `upgradeAccount`, each step only performs its action if its own
+ * remote check finds it is not already done, so a call that finds
+ * everything in place performs no signing and makes no writes.
  *
  * @param address - The Money Account address.
  * @throws If the controller is not bootstrapped, if the armed config is
- * disarmed or superseded while the sequence is running, or if a step fails
- * (wrapped in a {@link MoneyAccountUpgradeStepError}).
+ * disarmed or superseded while the sequence is running, or if a step
+ * fails (wrapped in a {@link MoneyAccountUpgradeStepError}).
  */
 export type MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction = {
   type: `MoneyAccountUpgradeController:ensureDelegationsReadiness`;

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME` and `getMoneyAccountPremiumVaultConfig` for the `moneyAccountPremiumVaultConfig` remote feature flag ([#10406](https://github.com/MetaMask/core/pull/10406))
+- Add `MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME` and `getMoneyAccountPremiumVaultConfig` for the `moneyAccountPremiumVaultConfig` remote feature flag ([#10430](https://github.com/MetaMask/core/pull/10430))
   - The premium flag is parsed with the same `MoneyAccountVaultConfig` shape as `moneyAccountVaultConfig`; its Veda adapter comes from CHOMP service details.
 
 ### Changed

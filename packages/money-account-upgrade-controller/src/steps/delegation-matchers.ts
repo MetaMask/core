@@ -116,7 +116,10 @@ export const makeMatchesVaultDelegation = (
   );
   return (entry) =>
     equalsIgnoreCase(entry.signedDelegation.delegator, context.address) &&
-    equalsIgnoreCase(entry.signedDelegation.delegate, context.delegateAddress) &&
+    equalsIgnoreCase(
+      entry.signedDelegation.delegate,
+      context.delegateAddress,
+    ) &&
     equalsIgnoreCase(entry.metadata.chainIdHex, context.chainId) &&
     equalsIgnoreCase(entry.metadata.tokenAddress, delegation.tokenAddress) &&
     hasVedaRedeemerCaveat(entry);

@@ -267,6 +267,18 @@ export class MoneyAccountUpgradeController extends BaseController<
 
   #bootstrappedConfig?: BootstrapVaultConfig;
 
+  /**
+   * Whether the last successful bootstrap ran against a vault config that
+   * requested a premium vault, but armed the base vault only because
+   * CHOMP's service details did not (yet) include a matching
+   * `vedaPremiumProtocol` for the chain. While this is `true`, `sync()`
+   * re-schedules a bootstrap for an otherwise-unchanged vault config instead
+   * of treating it as already bootstrapped, so a later `vedaPremiumProtocol`
+   * addition is picked up on the next feature-flag or keyring trigger
+   * without requiring the vault config itself to change.
+   */
+  #premiumVaultPending = false;
+
   #missingConfigReported = false;
 
   readonly #steps: Step[] = [
@@ -381,7 +393,8 @@ export class MoneyAccountUpgradeController extends BaseController<
 
       if (
         this.#bootstrappedConfig &&
-        areBootstrapVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig)
+        areBootstrapVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig) &&
+        !this.#premiumVaultPending
       ) {
         return;
       }
@@ -555,7 +568,10 @@ export class MoneyAccountUpgradeController extends BaseController<
     // `vedaPremiumProtocol` is not yet mandatory: until it is live for every
     // client, a premium vault config served without a matching protocol in
     // the service details response is silently dropped rather than failing
-    // the whole bootstrap (which would also block the base vault).
+    // the whole bootstrap (which would also block the base vault). `sync()`
+    // re-checks `#premiumVaultPending` on every trigger, so this is retried
+    // (rather than treated as fully bootstrapped) until CHOMP starts
+    // returning `vedaPremiumProtocol` for the chain.
     let premiumVault: UpgradeConfig['premiumVault'];
     if (premium && vedaPremiumProtocol) {
       premiumVault = {
@@ -570,6 +586,8 @@ export class MoneyAccountUpgradeController extends BaseController<
     if (this.#bootstrappedConfig !== vaultConfig) {
       return;
     }
+
+    this.#premiumVaultPending = Boolean(premium) && !premiumVault;
 
     this.#config = {
       chainId,

@@ -1115,6 +1115,45 @@ describe('MoneyAccountUpgradeController', () => {
       await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
     });
+
+    it('retries arming the premium vault on the next trigger, even though the vault config itself has not changed', async () => {
+      const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      makeAusAndChompWritable(mocks);
+      // First bootstrap: CHOMP has not rolled out vedaPremiumProtocol yet.
+      mocks.getServiceDetails.mockResolvedValueOnce({
+        ...MOCK_SERVICE_DETAILS_RESPONSE,
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            ...MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID],
+            protocol: {
+              vedaProtocol:
+                MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID].protocol
+                  .vedaProtocol,
+            },
+          },
+        },
+      });
+      await bootstrap();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      // Only the base pair could be signed; premium was not armed.
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+      // CHOMP now serves vedaPremiumProtocol; the flags themselves never
+      // change, only some unrelated trigger (e.g. a keyring change) fires.
+      mocks.getServiceDetails.mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE);
+      clearMockCalls(mocks);
+      await triggerKeyringChange();
+
+      // The sync re-fetched service details instead of treating the
+      // (flag-wise unchanged) vault config as already bootstrapped.
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      // Only the premium pair was missing; the base pair is already stored.
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('upgradeAccount', () => {

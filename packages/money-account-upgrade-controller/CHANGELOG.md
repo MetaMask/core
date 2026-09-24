@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Create the premium vault (pvmUSD) deposit and withdrawal delegations and register their CHOMP intents (`cash-deposit-premium` / `cash-withdrawal-premium`) when the `moneyAccountPremiumVaultConfig` flag is served for the base vault's chain and CHOMP's service details include `vedaPremiumProtocol` for that chain ([#10406](https://github.com/MetaMask/core/pull/10406))
+- Create the premium vault (pvmUSD) deposit and withdrawal delegations and register their CHOMP intents (`cash-deposit-premium` / `cash-withdrawal-premium`) when the `moneyAccountPremiumVaultConfig` flag is served for the base vault's chain and CHOMP's service details include `vedaPremiumProtocol` for that chain ([#10430](https://github.com/MetaMask/core/pull/10430))
   - Add optional `premiumVault` to `UpgradeConfig`.
-  - Resolve the premium delegation redeemer from CHOMP's `vedaPremiumProtocol.adapterAddress`; the remote feature flag only supplies vault contracts. A premium vault config served without a matching `vedaPremiumProtocol` in the service details response is dropped for that bootstrap run; the base vault still arms.
+  - Resolve the premium delegation redeemer from CHOMP's `vedaPremiumProtocol.adapterAddress`; the remote feature flag only supplies vault contracts. A premium vault config served without a matching `vedaPremiumProtocol` in the service details response is dropped for that bootstrap run — the base vault still arms — and retried on the next feature-flag or keyring trigger, even if the vault config itself has not changed, until CHOMP starts serving `vedaPremiumProtocol` for the chain.
   - Accounts already upgraded re-run the upgrade once when the premium vault config is first served; only the premium pair is signed and registered.
   - Add `VaultDelegationType` type.
-- Add `ensureDelegationsReadiness(address)` method and `MoneyAccountUpgradeController:ensureDelegationsReadiness` messenger action, which always runs the upgrade steps (ignoring the recorded upgrade) so the base and, when configured, premium vault delegations and CHOMP intents exist before an action that depends on them ([#10406](https://github.com/MetaMask/core/pull/10406))
+- Add `ensureDelegationsReadiness(address)` method and `MoneyAccountUpgradeController:ensureDelegationsReadiness` messenger action, which always runs the upgrade steps (ignoring the recorded upgrade) so the base and, when configured, premium vault delegations and CHOMP intents exist before an action that depends on them ([#10430](https://github.com/MetaMask/core/pull/10430))
 
 ### Changed
 
