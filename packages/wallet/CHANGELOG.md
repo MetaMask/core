@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/subscription-controller` from `^9.1.0` to `^10.0.0` ([#10305](https://github.com/MetaMask/core/pull/10305), [#10416](https://github.com/MetaMask/core/pull/10416), [#10423](https://github.com/MetaMask/core/pull/10423))
+  - Types exposed through `DefaultInstances` and `DefaultState` have changed:
+    - `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` are now optional; consumers must handle missing values.
+    - `TokenPaymentInfo.isVaultShare` was removed; use `isVaultShareToken` instead.
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10420](https://github.com/MetaMask/core/pull/10420), [#10423](https://github.com/MetaMask/core/pull/10423))
+  - Approval-time sponsorship and signing hooks have been removed from types exposed through `DefaultInstances`:
+    - Migrate `isSponsored` and `shouldSign` hooks to `isGasFeeSponsored` and `isExternalSign` transaction metadata. The `hooks` option is required again; pass `hooks: {}` when no hooks are needed.
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/shield-controller` from `^7.0.1` to `^7.0.2` ([#10423](https://github.com/MetaMask/core/pull/10423))
 
 ## [14.0.1]
 
@@ -282,7 +297,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...@metamask/wallet@15.0.1
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...@metamask/wallet@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.3...@metamask/wallet@13.0.0

@@ -31,6 +31,7 @@ import type {
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
+  FetchTraderFeedOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
   FollowingResponse,
@@ -262,6 +263,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchFollowing',
   'fetchPositionById',
   'fetchFeed',
+  'fetchTraderFeed',
   'reactToComment',
   'removeCommentReaction',
   'follow',
@@ -615,6 +617,76 @@ export class SocialService extends BaseDataService<
     });
 
     return feedResponse;
+  }
+
+  /**
+   * Fetches a page of one trader's activity as feed items.
+   *
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/feed`. Unlike {@link fetchFeed},
+   * this is scoped to a single profile (open and closed positions in the feed)
+   * and does not accept `scope` or `chains`. Set `commentedOnly` to only return
+   * positions that carry an author comment.
+   *
+   * The route is public, but the Authorization header is still sent so the
+   * social-api can hydrate `authorComment.engagement.userReaction` for the
+   * signed-in viewer.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @param options.commentedOnly - When true, only positions with a comment.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchTraderFeed(
+    options: FetchTraderFeedOptions,
+  ): Promise<FeedResponse> {
+    const traderFeedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderFeed`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const { addressOrId, commentedOnly, limit, olderThan, newerThan } =
+          options;
+        const url = new URL(
+          `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/feed`,
+        );
+        if (commentedOnly === true) {
+          url.searchParams.append('commentedOnly', 'true');
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
+        );
+        const feedData = await response.json();
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData as FeedResponse;
+      },
+    });
+
+    return traderFeedResponse;
   }
 
   /**

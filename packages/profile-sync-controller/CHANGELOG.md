@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The verification session lasts as long as its token, up to 15 minutes instead of 1
   - Enrolling a credential no longer ends the session
   - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
 
 ## [32.3.1]
 
