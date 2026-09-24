@@ -38,6 +38,7 @@ Core backend services for MetaMask, serving as the data layer between Backend se
       - [Constructor Options](#constructor-options-1)
       - [Methods](#methods-1)
       - [Events Published](#events-published)
+    - [RampsActivityService](#rampsactivityservice)
 
 ## Installation
 
@@ -655,3 +656,33 @@ interface AccountActivityServiceOptions {
 - `AccountActivityService:balanceUpdated` - Real-time balance changes
 - `AccountActivityService:transactionUpdated` - Transaction status updates
 - `AccountActivityService:statusChanged` - Chain/service status changes
+
+### RampsActivityService
+
+Profile-scoped service for receiving ramps activity notifications through
+`BackendWebSocketService`. It derives the
+`ramps-activity.v1.<profileId>` channel from
+`AuthenticationController:getSessionProfile`, preferring
+`canonicalProfileId` (the same identity Ramps uses as MoonPay `external_id`)
+and falling back to the per-SRP `profileId`. It validates every server event at
+runtime, and automatically resubscribes after WebSocket reconnects, profile
+changes, and wallet unlocks.
+
+```typescript
+const rampsActivityService = new RampsActivityService({
+  messenger: rampsActivityServiceMessenger,
+});
+
+await rampsActivityService.init();
+
+messenger.subscribe('RampsActivityService:eventReceived', (event) => {
+  if (event.needsFetch) {
+    // Refresh ramps data via RampsController (GET is source of truth).
+  }
+});
+```
+
+Published events:
+
+- `RampsActivityService:eventReceived` - A validated profile-scoped ramps activity event
+- `RampsActivityService:statusChanged` - The backend WebSocket connection status

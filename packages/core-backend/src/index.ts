@@ -41,13 +41,11 @@ export type {
   SubscriptionOptions,
   AccountActivityServiceOptions,
   AccountActivityServiceActions,
-  AllowedActions as AccountActivityServiceAllowedActions,
   AccountActivityServiceTransactionUpdatedEvent,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceSubscriptionErrorEvent,
   AccountActivityServiceStatusChangedEvent,
   AccountActivityServiceEvents,
-  AllowedEvents as AccountActivityServiceAllowedEvents,
   AccountActivityServiceMessenger,
 } from './ws/AccountActivityService.js';
 
@@ -63,6 +61,27 @@ export type {
   BalanceUpdate,
   AccountActivityMessage,
 } from './types.js';
+
+// ============================================================================
+// RAMPS ACTIVITY SERVICE
+// ============================================================================
+
+export {
+  RampsActivityService,
+  RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS,
+} from './ws/RampsActivityService.js';
+
+export type {
+  RampsActivityEntity,
+  RampsActivityEvent,
+  RampsActivityServiceOptions,
+  RampsActivityServiceActions,
+  RampsActivityServiceEventReceivedEvent,
+  RampsActivityServiceStatusChangedEvent,
+  RampsActivityServiceEvents,
+  RampsActivityServiceMessenger,
+} from './ws/RampsActivityService.js';
 
 // ============================================================================
 // API PLATFORM CLIENT SERVICE
@@ -96,12 +115,10 @@ export type {
   OHLCVSystemNotificationData,
   OHLCVServiceOptions,
   OHLCVServiceActions,
-  OHLCVServiceAllowedActions,
   OHLCVServiceBarUpdatedEvent,
   OHLCVServiceChainStatusChangedEvent,
   OHLCVServiceSubscriptionErrorEvent,
   OHLCVServiceEvents,
-  OHLCVServiceAllowedEvents,
   OHLCVServiceMessenger,
 } from './ws/ohlcv/index.js';
 
