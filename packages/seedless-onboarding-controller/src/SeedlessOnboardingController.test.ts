@@ -1402,6 +1402,71 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should retry the remote backup after vault creation fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+          const { createLocalKeySpy } = mockcreateLocalKey(
+            toprfClient,
+            MOCK_PASSWORD,
+          );
+          const retryToprfEncryptor = createMockToprfEncryptor();
+          createLocalKeySpy.mockResolvedValueOnce({
+            encKey: retryToprfEncryptor.deriveEncKey('retry-password'),
+            pwEncKey: retryToprfEncryptor.derivePwEncKey('retry-password'),
+            authKeyPair:
+              retryToprfEncryptor.deriveAuthKeyPair('retry-password'),
+            oprfKey: BigInt(1),
+            seed: stringToBytes('retry-password'),
+          });
+
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValue();
+
+          // The first attempt writes the remote metadata, then fails while
+          // creating the vault. The retry must therefore write the metadata
+          // again using the newly generated TOPRF key.
+          const firstMockSecretDataAdd = handleMockSecretDataAdd();
+          const retryMockSecretDataAdd = handleMockSecretDataAdd();
+          jest
+            .spyOn(encryptor, 'encryptWithDetail')
+            .mockRejectedValueOnce(new Error('Failed to create vault'));
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow('Failed to create vault');
+
+          expect(firstMockSecretDataAdd.isDone()).toBe(true);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([]);
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(retryMockSecretDataAdd.isDone()).toBe(true);
+          expect(createLocalKeySpy).toHaveBeenCalledTimes(2);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            {
+              type: SecretType.Mnemonic,
+              keyringId: MOCK_KEYRING_ID,
+              hash: keccak256AndHexify(MOCK_SEED_PHRASE),
+            },
+          ]);
+        },
+      );
+    });
+
     it('should throw if a vault already exists', async () => {
       await withController(
         {
