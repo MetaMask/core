@@ -741,9 +741,9 @@ export class AnalyticsController extends BaseController<
   /**
    * In-memory event-purpose lookup from persisted state.
    */
-  readonly #eventPurposes: Map<string, AnalyticsPurpose[]>;
+  #eventPurposes: Map<string, AnalyticsPurpose[]>;
 
-  readonly #eventsConfigVersion: string | undefined;
+  #eventsConfigVersion: string | undefined;
 
   /**
    * The in-flight (or settled) initialization promise. Set on the first

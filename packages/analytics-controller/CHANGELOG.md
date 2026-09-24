@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Wire up `#fetchEventsConfig` in `AnalyticsController.init` to read `eventsConfig` from `ConfigRegistryController:getState` and update in-memory event-purpose classification when a newer version is available ([#10401](https://github.com/MetaMask/core/pull/10401))
+- Wire up `#fetchEventsConfig` in `AnalyticsController.init` to read `eventsConfig` from `ConfigRegistryController:getState` and update in-memory event-purpose classification when a newer version is available ([#10448](https://github.com/MetaMask/core/pull/10448))
 
 ## [3.2.0]
 
