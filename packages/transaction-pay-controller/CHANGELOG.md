@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.2.1]
+
 ### Fixed
 
 - Cap max-amount post-quote source amounts to the amount encoded in the original transaction, so Relay deposits are no longer quoted for more than the batch funds ([#10392](https://github.com/MetaMask/core/pull/10392))
@@ -1624,7 +1626,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.1...HEAD
+[29.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.0...@metamask/transaction-pay-controller@29.2.1
 [29.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.1...@metamask/transaction-pay-controller@29.2.0
 [29.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.0...@metamask/transaction-pay-controller@29.1.1
 [29.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.2...@metamask/transaction-pay-controller@29.1.0
