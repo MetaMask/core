@@ -91,10 +91,11 @@ describe('configRegistryController', () => {
     });
 
     expect(instance.state).toStrictEqual({
-      configs: { networks: {} },
+      configs: { networks: {}, eventsConfig: null },
       version: null,
       lastFetched: null,
       etag: null,
+      eventsConfigEtag: null,
     });
   });
 
@@ -127,10 +128,11 @@ describe('configRegistryController', () => {
     expect(
       rootMessenger.call('ConfigRegistryController:getState'),
     ).toStrictEqual({
-      configs: { networks: {} },
+      configs: { networks: {}, eventsConfig: null },
       version: null,
       lastFetched: null,
       etag: null,
+      eventsConfigEtag: null,
     });
   });
 });
