@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^71.0.0` ([#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
 ### Fixed
 
+- `AccountActivityDataSource` now applies websocket balance amounts without writing `assetsInfo` ([#10410](https://github.com/MetaMask/core/pull/10410))
+- `AccountActivityDataSource` now requests `metadata` and `price` enrichment, so assets first seen in a websocket balance update get metadata and a spot price in the same pipeline pass instead of waiting for the next price poll ([#10410](https://github.com/MetaMask/core/pull/10410))
+- Seed `NATIVE_ASSETS` with Bitcoin mainnet (`bip122:000000000019d6689c085ae165831e93/slip44:0`) so `#getNativeAssetForChain` no longer falls back to a bogus `erc20:0x000…000` ID on Bitcoin mainnet ([#10410](https://github.com/MetaMask/core/pull/10410))
 - Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
 - `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
 
