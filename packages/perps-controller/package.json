@@ -86,7 +86,7 @@
     "@metamask/authenticated-user-storage": "^4.1.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/geolocation-controller": "^2.0.0",
-    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/keyring-controller": "^28.1.0",
     "@metamask/keyring-internal-api": "^12.0.0",
     "@metamask/network-controller": "^37.0.0",
     "@metamask/profile-sync-controller": "^32.3.0",
