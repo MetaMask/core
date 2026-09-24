@@ -450,6 +450,22 @@ export type FetchFollowersOptions = {
   addressOrId: string;
 };
 
+export type FetchTraderFeedOptions = {
+  /** Wallet address or Clicker profile ID. */
+  addressOrId: string;
+  /**
+   * When true, return only positions that carry an author comment.
+   * Omitted from the request when false or unset (API default is false).
+   */
+  commentedOnly?: boolean;
+  /** Number of results to return. */
+  limit?: number;
+  /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
+  olderThan?: string;
+  /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
+  newerThan?: string;
+};
+
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,
