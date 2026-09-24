@@ -1490,7 +1490,10 @@ describe('LighterProvider', () => {
 
     it.each([
       ['no account', { code: 200, accounts: [] }],
-      ['no positions array', { code: 200, accounts: [{ ...ACCOUNT, positions: undefined }] }],
+      [
+        'no positions array',
+        { code: 200, accounts: [{ ...ACCOUNT, positions: undefined }] },
+      ],
     ])(
       'reports unavailable when the account response has %s',
       async (_case, response) => {

@@ -957,6 +957,36 @@ describe('HyperLiquidProvider', () => {
       expect(activeAssetData).not.toHaveBeenCalled();
     });
 
+    it('reports unavailable when the selected account changes while the asset mode is read', async () => {
+      let resolveAssetData: (value: unknown) => void = () => undefined;
+      const activeAssetData = jest.fn().mockReturnValue(
+        new Promise((resolve) => {
+          resolveAssetData = resolve;
+        }),
+      );
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const pendingLock = provider.getMarginModeLock({ symbol: 'BTC' });
+      await new Promise(process.nextTick);
+      await new Promise(process.nextTick);
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      resolveAssetData({ leverage: { type: 'cross', value: 5 } });
+      const lock = await pendingLock;
+
+      expect(activeAssetData).toHaveBeenCalled();
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+
     it('reports unavailable when positions cannot be read', async () => {
       mockInfoClient({
         clearinghouseState: jest.fn().mockRejectedValue(new Error('offline')),

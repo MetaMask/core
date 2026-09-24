@@ -5300,6 +5300,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         user,
         coin: symbol,
       });
+      await assertSameAccount();
       return { marginMode: asset.leverage.type, reason: 'open_order' };
     }
     return null;
