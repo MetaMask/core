@@ -13,7 +13,6 @@ import type {
 import { BalanceFetcher } from './BalanceFetcher.js';
 import type {
   BalanceFetcherConfig,
-  BalanceFetcherMessenger,
   BalancePollingInput,
 } from './BalanceFetcher.js';
 
@@ -81,14 +80,10 @@ function createMockAssetsBalanceState(
   };
 }
 
-function createMockMessenger(
+function createMockGetAssetsState(
   assetsBalanceState?: AssetsBalanceState,
-): BalanceFetcherMessenger {
-  return {
-    call: (_action: 'AssetsController:getState'): AssetsBalanceState => {
-      return assetsBalanceState ?? { assetsBalance: {} };
-    },
-  };
+): () => AssetsBalanceState {
+  return () => assetsBalanceState ?? { assetsBalance: {} };
 }
 
 function createMockBalanceResponse(
@@ -107,10 +102,13 @@ function createMockBalanceResponse(
 type WithControllerOptions = {
   config?: Omit<
     BalanceFetcherConfig,
-    'getAssetVisibility' | 'isBalanceV6Enabled'
+    'getAssetsState' | 'getAssetVisibility' | 'isBalanceV6Enabled'
   > &
     Partial<
-      Pick<BalanceFetcherConfig, 'getAssetVisibility' | 'isBalanceV6Enabled'>
+      Pick<
+        BalanceFetcherConfig,
+        'getAssetsState' | 'getAssetVisibility' | 'isBalanceV6Enabled'
+      >
     >;
   assetsBalanceState?: AssetsBalanceState;
 };
@@ -138,6 +136,7 @@ async function withController<ReturnValue>(
     assetsBalanceState,
   } = options;
   const resolvedConfig: BalanceFetcherConfig = {
+    getAssetsState: createMockGetAssetsState(assetsBalanceState),
     isBalanceV6Enabled: () => false,
     getAssetVisibility: () => ({
       visibleAssetIds: [],
@@ -147,12 +146,7 @@ async function withController<ReturnValue>(
   };
 
   const mockMulticallClient = createMockMulticallClient();
-  const mockMessenger = createMockMessenger(assetsBalanceState);
-  const controller = new BalanceFetcher(
-    mockMulticallClient,
-    mockMessenger,
-    resolvedConfig,
-  );
+  const controller = new BalanceFetcher(mockMulticallClient, resolvedConfig);
 
   try {
     return await fn({ controller, mockMulticallClient });

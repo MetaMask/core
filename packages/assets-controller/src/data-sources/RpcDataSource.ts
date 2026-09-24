@@ -24,10 +24,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { BigNumber as BigNumberJS } from 'bignumber.js';
 
-import type {
-  AssetsControllerGetStateAction,
-  AssetsControllerMessenger,
-} from '../AssetsController.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
@@ -78,8 +75,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | AssetsControllerGetStateAction;
+  | NetworkControllerGetNetworkClientByIdAction;
 
 // Allowed events that RpcDataSource can subscribe to
 export type RpcDataSourceAllowedEvents =
@@ -318,42 +314,18 @@ export class RpcDataSource extends AbstractDataSource<
         )?.contracts?.multicall3,
     });
 
-    // Create messenger adapters for BalanceFetcher and TokenDetector
-    const balanceFetcherMessenger = {
-      call: (
-        _action: 'AssetsController:getState',
-      ): {
-        assetsBalance: Record<string, Record<string, { amount: string }>>;
-        customAssets?: Record<string, string[]>;
-      } => {
-        // The messenger is not being called from a constructor, so this is safe.
-        // eslint-disable-next-line no-restricted-syntax
-        const state = this.#messenger.call('AssetsController:getState');
-        return {
-          assetsBalance: (state.assetsBalance ?? {}) as Record<
-            string,
-            Record<string, { amount: string }>
-          >,
-          customAssets: (state.customAssets ?? {}) as Record<string, string[]>,
-        };
-      },
-    };
-
     // Initialize BalanceFetcher with polling interval
-    this.#balanceFetcher = new BalanceFetcher(
-      this.#multicallClient,
-      balanceFetcherMessenger,
-      {
-        pollingInterval: balanceInterval,
-        isNativeAsset: (assetId: Caip19AssetId): boolean => {
-          const { chainId } = parseCaipAssetType(assetId);
-          const nativeId = this.#getNativeAssetForChain(chainId);
-          return nativeId?.toLowerCase() === assetId.toLowerCase();
-        },
-        isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
-        getAssetVisibility: this.#getAssetVisibility,
+    this.#balanceFetcher = new BalanceFetcher(this.#multicallClient, {
+      pollingInterval: balanceInterval,
+      getAssetsState: this.#getAssetsState,
+      isNativeAsset: (assetId: Caip19AssetId): boolean => {
+        const { chainId } = parseCaipAssetType(assetId);
+        const nativeId = this.#getNativeAssetForChain(chainId);
+        return nativeId?.toLowerCase() === assetId.toLowerCase();
       },
-    );
+      isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
+      getAssetVisibility: this.#getAssetVisibility,
+    });
     // Polling controller awaits this callback; rejections must not become unhandled.
     this.#balanceFetcher.setOnBalanceUpdate(async (result) => {
       try {
@@ -606,21 +578,14 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * v6 poll path: a complete chain snapshot, or nothing. Delete with the rest
-   * of the v6 path if `assetsAccountsApiV6` is rolled back.
+   * v6 poll path. A complete chain snapshot stamps `full`; a failed
+   * `balanceOf` or missing metadata stamps `merge` so successful tokens still
+   * overlay state. Delete with the rest of the v6 path if
+   * `assetsAccountsApiV6` is rolled back.
    *
    * @param result - The balance fetch result.
    */
   async #handleBalanceUpdateV6(result: BalanceFetchResult): Promise<void> {
-    if (result.failedAddresses.length > 0) {
-      log('Skipping incomplete v6 poll snapshot', {
-        accountId: result.accountId,
-        chainId: result.chainId,
-        failedAddresses: result.failedAddresses,
-      });
-      return;
-    }
-
     const newBalances: Record<string, { amount: string }> = {};
 
     // Convert hex chain ID to CAIP-2 format
@@ -639,9 +604,9 @@ export class RpcDataSource extends AbstractDataSource<
       caipChainId,
     );
 
-    // Convert balances to human-readable format.
-    // Unknown decimals mean the snapshot is incomplete: drop the chain
-    // instead of publishing a partial `full` result.
+    // Convert balances that have decimals. Skip the rest so a missing
+    // metadata lookup cannot drop the tokens that did resolve.
+    let skippedDecimals = false;
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
@@ -649,12 +614,8 @@ export class RpcDataSource extends AbstractDataSource<
       const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
 
       if (decimals === undefined) {
-        log('Skipping incomplete v6 poll snapshot', {
-          accountId: result.accountId,
-          chainId: result.chainId,
-          assetId: balance.assetId,
-        });
-        return;
+        skippedDecimals = true;
+        continue;
       }
 
       const humanReadableAmount = this.#convertToHumanReadable(
@@ -667,12 +628,18 @@ export class RpcDataSource extends AbstractDataSource<
       };
     }
 
+    if (Object.keys(newBalances).length === 0) {
+      return;
+    }
+
+    const isPartial = result.failedAddresses.length > 0 || skippedDecimals;
+
     const response: DataResponse = {
       assetsBalance: {
         [result.accountId]: newBalances,
       },
       assetsInfo,
-      updateMode: 'full',
+      updateMode: isPartial ? 'merge' : 'full',
     };
 
     const request: DataRequest = {
@@ -1212,10 +1179,13 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * v6 fetch. Visibility-scoped snapshot, atomic per chain, stamps `full`.
+   * v6 fetch. Visibility-scoped snapshot. Stamps `full` when every requested
+   * `balanceOf` and decimals lookup succeeds; stamps `merge` when some tokens
+   * fail so the ones that resolved still overlay state.
    *
    * @param request - The data request.
-   * @returns Balance and metadata for successful chains only.
+   * @returns Balance and metadata for successful tokens. Fully failed chains
+   * are omitted.
    */
   async #fetchV6(request: DataRequest): Promise<DataResponse> {
     const chainsToFetch = this.#getChainsToFetch(request);
@@ -1230,6 +1200,7 @@ export class RpcDataSource extends AbstractDataSource<
     > = {};
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
+    let hasPartialSuccess = false;
 
     for (const {
       account,
@@ -1257,28 +1228,37 @@ export class RpcDataSource extends AbstractDataSource<
             this.#getAssetsToFetchV6(accountId, chainId),
           );
 
-          // A failed `balanceOf` or unresolved decimals means we do not have
-          // the full list, so drop this chain instead of applying a partial
-          // `full` snapshot (which would omit that token from state).
-          if (result.failedAddresses.length > 0) {
-            if (!failedChains.includes(chainId)) {
-              failedChains.push(chainId);
-            }
-            continue;
-          }
-
-          const ingested = await this.#ingestFetchedBalances(
+          const ingestedBefore = this.#countAccountChainBalances(
+            assetsBalance,
+            accountId,
+            chainId,
+          );
+          const ingestedAll = await this.#ingestFetchedBalances(
             result,
             accountId,
             chainId,
             assetsBalance,
             assetsInfo,
-            { failOnUnresolvedDecimals: true },
           );
-          if (!ingested) {
-            if (!failedChains.includes(chainId)) {
-              failedChains.push(chainId);
-            }
+          const isPartial = result.failedAddresses.length > 0 || !ingestedAll;
+
+          if (!isPartial) {
+            continue;
+          }
+
+          const ingestedAny =
+            this.#countAccountChainBalances(assetsBalance, accountId, chainId) >
+            ingestedBefore;
+
+          if (ingestedAny) {
+            hasPartialSuccess = true;
+            log('Partial v6 RPC fetch', {
+              accountId,
+              chainId,
+              failedAddresses: result.failedAddresses,
+            });
+          } else if (!failedChains.includes(chainId)) {
+            failedChains.push(chainId);
           }
         } catch (error) {
           this.#recordFetchChainFailure({
@@ -1297,7 +1277,7 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     return this.#completeFetchResponse({
-      // A failed chain contributes nothing, so its balances stay as they are.
+      // A fully failed chain contributes nothing, so its balances stay as they are.
       assetsBalance: filterFailedChainBalances(
         assetsBalance,
         new Set(failedChains),
@@ -1305,7 +1285,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsInfo,
       failedChains,
       chainsToFetch,
-      updateMode: 'full',
+      updateMode: hasPartialSuccess ? 'merge' : 'full',
     });
   }
 
@@ -1326,19 +1306,17 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Convert fetched raw balances into human-readable amounts.
    *
-   * v5 overlays tokens that resolve and skips the rest (`merge`). v6 must not
-   * publish a partial `full` snapshot: when `failOnUnresolvedDecimals` is set,
-   * unresolved decimals abort ingest so the caller can fail the chain.
+   * Tokens that resolve are overlaid; tokens whose decimals cannot be
+   * resolved are skipped. Callers stamp `full` only when this returns true
+   * and no `balanceOf` failed.
    *
    * @param result - The balance fetch result.
    * @param accountId - The account the balances belong to.
    * @param chainId - The CAIP-2 chain ID.
    * @param assetsBalance - Accumulator for converted balances.
    * @param assetsInfo - Accumulator for metadata collected from this fetch.
-   * @param options - Ingest options.
-   * @param options.failOnUnresolvedDecimals - When true, stop ingesting and
-   * return false if any token's decimals cannot be resolved.
-   * @returns `false` when ingest was aborted for unresolved decimals; otherwise `true`.
+   * @returns `true` when every fetched token was converted; `false` when any
+   * token was skipped for unresolved decimals.
    */
   async #ingestFetchedBalances(
     result: BalanceFetchResult,
@@ -1346,9 +1324,6 @@ export class RpcDataSource extends AbstractDataSource<
     chainId: ChainId,
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>,
     assetsInfo: Record<Caip19AssetId, AssetMetadata>,
-    {
-      failOnUnresolvedDecimals = false,
-    }: { failOnUnresolvedDecimals?: boolean } = {},
   ): Promise<boolean> {
     assetsBalance[accountId] ??= {};
 
@@ -1362,6 +1337,7 @@ export class RpcDataSource extends AbstractDataSource<
       this.#collectMetadataForBalances(normalizedBalances, chainId),
     );
 
+    let ingestedAll = true;
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
@@ -1382,14 +1358,12 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       if (decimals === undefined) {
-        if (failOnUnresolvedDecimals) {
-          log('Skipping incomplete v6 fetch snapshot', {
-            accountId,
-            chainId,
-            assetId: balance.assetId,
-          });
-          return false;
-        }
+        ingestedAll = false;
+        log('Skipping asset with unresolved decimals on RPC fetch', {
+          accountId,
+          chainId,
+          assetId: balance.assetId,
+        });
         continue;
       }
 
@@ -1398,7 +1372,18 @@ export class RpcDataSource extends AbstractDataSource<
       };
     }
 
-    return true;
+    return ingestedAll;
+  }
+
+  #countAccountChainBalances(
+    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>,
+    accountId: string,
+    chainId: ChainId,
+  ): number {
+    const prefix = `${chainId}/`;
+    return Object.keys(assetsBalance[accountId] ?? {}).filter((assetId) =>
+      assetId.startsWith(prefix),
+    ).length;
   }
 
   #recordFetchChainFailure({

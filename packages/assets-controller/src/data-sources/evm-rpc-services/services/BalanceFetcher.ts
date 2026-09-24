@@ -24,18 +24,13 @@ import {
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 
-/**
- * Minimal messenger interface for BalanceFetcher.
- */
-export type BalanceFetcherMessenger = {
-  call: (action: 'AssetsController:getState') => AssetsBalanceState;
-};
-
 export type BalanceFetcherConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 30s) */
   pollingInterval?: number;
+  /** Current AssetsController balance/custom-asset state. */
+  getAssetsState: () => AssetsBalanceState;
   /** Determines whether a CAIP-19 asset ID represents a native asset. */
   isNativeAsset: (assetId: CaipAssetType) => boolean;
   /**
@@ -85,17 +80,18 @@ export type OnBalanceUpdateCallback = (
 export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalancePollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #messenger: BalanceFetcherMessenger;
-
   readonly #config: Required<
     Omit<
       BalanceFetcherConfig,
       | 'pollingInterval'
+      | 'getAssetsState'
       | 'isNativeAsset'
       | 'isBalanceV6Enabled'
       | 'getAssetVisibility'
     >
   >;
+
+  readonly #getAssetsState: () => AssetsBalanceState;
 
   readonly #isNativeAsset: (assetId: CaipAssetType) => boolean;
 
@@ -105,18 +101,14 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
   #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
 
-  constructor(
-    multicallClient: MulticallClient,
-    messenger: BalanceFetcherMessenger,
-    config: BalanceFetcherConfig,
-  ) {
+  constructor(multicallClient: MulticallClient, config: BalanceFetcherConfig) {
     super();
     this.#multicallClient = multicallClient;
-    this.#messenger = messenger;
     this.#config = {
       defaultBatchSize: config.defaultBatchSize ?? 300,
       defaultTimeoutMs: config.defaultTimeoutMs ?? 30000,
     };
+    this.#getAssetsState = config.getAssetsState;
     this.#isNativeAsset = config.isNativeAsset;
     this.#isBalanceV6Enabled = config.isBalanceV6Enabled;
     this.#getAssetVisibility = config.getAssetVisibility;
@@ -167,7 +159,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     accountId: AccountId,
     customAssetsOnly: boolean,
   ): AssetFetchEntry[] {
-    const state = this.#messenger.call('AssetsController:getState');
+    const state = this.#getAssetsState();
 
     // Convert hex chainId to decimal for CAIP-2 matching
     // This is safe because we are filtring with an accountId that is for evm balances only
@@ -239,7 +231,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     chainId: ChainId,
     accountId: AccountId,
   ): AssetFetchEntry[] {
-    const state = this.#messenger.call('AssetsController:getState');
+    const state = this.#getAssetsState();
     const chainIdDecimal = parseInt(chainId, 16).toString();
 
     const { visibleAssetIds, hiddenAssetIds } = this.#getAssetVisibility(

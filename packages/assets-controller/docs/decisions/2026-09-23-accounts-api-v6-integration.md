@@ -135,14 +135,16 @@ The requests differ as well:
   `updateMode: 'full'` is a complete snapshot for successful chains. A chain
   that is unprocessed, or that did not resolve every `includeAssetId`, is put
   in `errors` and contributes no balances. RPC fallback retries those **chains**
-  in full from state and stamps `full`. Snap `#fetchV6` requests visible
-  assets with listed holdings, stamps `full`, and zero-fills any still
-  missing from the snap response. Background Snap+RPC both stamp `full`;
+  in full from state. RPC stamps `full` when every `balanceOf` and decimals
+  lookup succeeds, and `merge` when some tokens fail so the resolved balances
+  still overlay state. Snap `#fetchV6` requests visible assets with listed
+  holdings, stamps `full`, and zero-fills any still missing from the snap
+  response. Background Snap stamps `full`; RPC may stamp `full` or `merge`.
   `mergeDataResponses` promotes `full` if any source did.
 
 When basic functionality is off, both fast lanes shrink to
 `Staked -> Detection`. The background lane is RPC only in both paths
-(`merge` on v5, `full` on v6).
+(`merge` on v5; `full` or `merge` on v6 depending on RPC completeness).
 
 ## 2. Setting up live updates (subscribe)
 
@@ -249,31 +251,31 @@ RpcFallback then retries only `errors` keys.
 
 ## Behavior differences at a glance
 
-| Concern                 | v5                                                                      | v6                                                                                                                |
-| ----------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Accounts API endpoint   | `fetchV5MultiAccountBalances`                                           | `fetchV6MultiAccountBalances`                                                                                     |
-| Fetch update mode       | `merge` for Accounts API, Snap, and RPC                                 | `full` for Accounts API, Snap, and RPC                                                                            |
-| Subscribe update mode   | `merge` for every source                                                | `full` for Accounts API, Snap snapshots, and RPC; `merge` for events (Snap, Account Activity, staking, detection) |
-| State writer            | `effectiveAccountBalancesV5`                                            | `effectiveAccountBalancesV6(updateMode)`                                                                          |
-| Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `shouldKeepAsset`             |
-| Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap zero-fill / RPC fetch list                                                  |
-| Hidden assets           | Not sent to the endpoint                                                | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches)                   |
-| Default tracked assets  | Survive only if already in state or returned                            | Always in visibility, so a `full` refresh keeps them at zero when unheld                                          |
-| Token detection filter  | Drop unknown tokens when detection is off                               | Not applied; v6 snapshot is kept in full                                                                          |
-| RPC token list          | Request `customAssets` + tracked balances                               | Visible natives, pins, and default tracked from state                                                             |
-| RPC pin supplement      | Extra `customAssetsOnly` poll                                           | None                                                                                                              |
-| Custom-asset graduation | Fast lane and live Accounts API / Account Activity                      | Never                                                                                                             |
-| Failed chain            | Overlay whatever tokens succeeded                                       | Drop the chain's balances; leave existing state until RPC recovers it                                             |
+| Concern                 | v5                                                                      | v6                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts API endpoint   | `fetchV5MultiAccountBalances`                                           | `fetchV6MultiAccountBalances`                                                                                                                                        |
+| Fetch update mode       | `merge` for Accounts API, Snap, and RPC                                 | `full` for Accounts API and Snap; RPC `full` when complete, `merge` when some tokens fail                                                                            |
+| Subscribe update mode   | `merge` for every source                                                | `full` for Accounts API and Snap snapshots; RPC `full` when complete, `merge` when some tokens fail; `merge` for events (Snap, Account Activity, staking, detection) |
+| State writer            | `effectiveAccountBalancesV5`                                            | `effectiveAccountBalancesV6(updateMode)`                                                                                                                             |
+| Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `shouldKeepAsset`                                                                |
+| Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap zero-fill / RPC fetch list                                                                                                     |
+| Hidden assets           | Not sent to the endpoint                                                | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches)                                                                      |
+| Default tracked assets  | Survive only if already in state or returned                            | Always in visibility, so a `full` refresh keeps them at zero when unheld                                                                                             |
+| Token detection filter  | Drop unknown tokens when detection is off                               | Not applied; v6 snapshot is kept in full                                                                                                                             |
+| RPC token list          | Request `customAssets` + tracked balances                               | Visible natives, pins, and default tracked from state                                                                                                                |
+| RPC pin supplement      | Extra `customAssetsOnly` poll                                           | None                                                                                                                                                                 |
+| Custom-asset graduation | Fast lane and live Accounts API / Account Activity                      | Never                                                                                                                                                                |
+| Failed chain            | Overlay whatever tokens succeeded                                       | Accounts API / Snap drop the chain; RPC overlays tokens that succeeded (`merge`) and drops only fully failed chains                                                  |
 
 v6 `updateMode` by source:
 
-| Source           | Fetch / force refresh | Subscribe / live updates                                      |
-| ---------------- | --------------------- | ------------------------------------------------------------- |
-| Accounts API     | `full`                | `full` (polls `fetch`)                                        |
-| Snap             | `full`                | `merge`                                                       |
-| RPC              | `full`                | `full` (balance poll and tx refresh); detection stays `merge` |
-| Account Activity | n/a (event-only)      | `merge`                                                       |
-| Staked balances  | `merge`               | `merge`                                                       |
+| Source           | Fetch / force refresh                               | Subscribe / live updates                                                                                   |
+| ---------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Accounts API     | `full`                                              | `full` (polls `fetch`)                                                                                     |
+| Snap             | `full`                                              | `merge`                                                                                                    |
+| RPC              | `full` when complete, `merge` when some tokens fail | `full` when complete, `merge` when some tokens fail (balance poll and tx refresh); detection stays `merge` |
+| Account Activity | n/a (event-only)                                    | `merge`                                                                                                    |
+| Staked balances  | `merge`                                             | `merge`                                                                                                    |
 
 Fast-lane Accounts API `full` merged with staking `merge` still stamps `full`
 (`mergeDataResponses` promotes it). Staking rows that are present in that

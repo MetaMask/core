@@ -15,16 +15,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove `'update'` from `AssetsUpdateMode`; use `'full'` (Accounts API v6 snapshot) or `'merge'` ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Remove the `updateMode` option from `AssetsController.getAssets`; the data source now sets it on its response ([#9651](https://github.com/MetaMask/core/pull/9651))
-- **BREAKING:** Remove `getAssetsState` from pipeline `Context`; inject it on data-source and middleware constructors instead (`TokenDataSourceOptions`, `PriceDataSourceOptions`, `DetectionMiddlewareOptions`, `CustomAssetGraduationMiddlewareOptions`, `RpcFallbackMiddlewareOptions`)
-- **BREAKING:** Remove `getAssetsState` from `SubscriptionRequest` and `PriceDataSource.fetch`; `PriceDataSource` reads state from its constructor
+- **BREAKING:** Remove `getAssetsState` from pipeline `Context`; inject it on data-source and middleware constructors instead (`TokenDataSourceOptions`, `PriceDataSourceOptions`, `DetectionMiddlewareOptions`, `CustomAssetGraduationMiddlewareOptions`, `RpcFallbackMiddlewareOptions`) ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Remove `getAssetsState` from `SubscriptionRequest` and `PriceDataSource.fetch`; `PriceDataSource` reads state from its constructor ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** Require `getAssetsState` in `AccountsApiDataSourceOptions` and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
   - Pass `() => this.state` from `AssetsController`
-- **BREAKING:** Require `getAssetVisibility` in `AccountsApiDataSourceOptions`, `SnapDataSourceOptions`, and `RpcDataSourceOptions`
+- **BREAKING:** Require `getAssetVisibility` in `AccountsApiDataSourceOptions`, `SnapDataSourceOptions`, and `RpcDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
   - Pass the shared native/pin/default/hidden visibility resolver from `AssetsController`
-- **BREAKING:** Require `isBalanceV6Enabled` in `SnapDataSourceOptions`
-- When `assetsAccountsApiV6` is enabled, Accounts API v6 reads pins and hides from state and sends them as `includeAssetIds` / `excludeAssetIds`, then applies the response with `updateMode: 'full'` ([#9651](https://github.com/MetaMask/core/pull/9651))
-- `hideAsset` now re-evaluates subscriptions so live polls start excluding the asset immediately ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Require `isBalanceV6Enabled` in `SnapDataSourceOptions` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- When `assetsAccountsApiV6` is enabled, Accounts API v6 requests the visible set from controller state as `includeAssetIds` / `excludeAssetIds` and writes balances with `updateMode: 'full'` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- `hideAsset` now re-evaluates live subscriptions so the next poll excludes the hidden asset ([#9651](https://github.com/MetaMask/core/pull/9651))
 - **BREAKING:** `unhideAsset` is now async and force-fetches the asset's chain (same as `addCustomAsset`) so a v6 `full` snapshot can restore the balance immediately ([#9651](https://github.com/MetaMask/core/pull/9651))
+
+### Fixed
+
+- Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
+- On the v6 path, a successful response is the complete visible set for the chains it covers (`updateMode: 'full'`): natives, visible pins, and default tracked assets. Hidden assets are not fetched and omitted balances are dropped; staking positions are carried over ([#9651](https://github.com/MetaMask/core/pull/9651))
+  - A chain that fails, or that v6 did not answer for every requested `includeAssetId`, is listed in `errors`, contributes no balances, and leaves existing state unchanged until RPC fallback recovers it
+- Accounts API, Snap, RPC, and RPC fallback share that visibility list instead of `request.customAssets`, so a force refresh or fallback retry cannot drop other pins on a `full` snapshot ([#9651](https://github.com/MetaMask/core/pull/9651))
+  - `addCustomAsset` force-fetches the token's chain with every visible pin, not only the new token
+  - RPC stamps `full` only when every `balanceOf` and decimals lookup succeeds; otherwise `merge`, so resolved balances still overlay state
+  - A failed RPC `balanceOf` or unknown decimals is a chain failure: that chain's snapshot is discarded
+  - RPC skips staking vault share tokens so a `full` snapshot cannot overwrite the converted staked amount
+  - Snap initial fetches stamp `full` and zero-fill any still-missing visible assets so non-EVM pins survive; Snap balance events remain `merge`
 
 ## [16.1.1]
 
@@ -38,18 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- On the Accounts API v6 RPC poll path, skip staking vault share tokens so a `full` snapshot cannot overwrite the converted staked amount with a raw `balanceOf`
-- `addCustomAsset` on the Accounts API v6 path now force-fetches the token's chain with all visible pins, instead of scoping `customAssets` to the new token, so a `full` snapshot no longer drops other pinned balances until the next poll
-- Accounts API v6 RPC fallback retries failed chains in full (native, existing balances, pins, and default tracked assets from state) instead of scoping `request.customAssets` to individual tokens
-- Accounts API v6 `includeAssetIds` is built from natives, visible pins, and default tracked assets for the requested chains (not detected ERC-20 balances or a scoped `request.customAssets` list), so `updateMode: 'full'` can replace the chain slice
-- On the Accounts API v6 path, the Accounts API, Snap, RPC fallback, and RPC polling share the same native/pin/default/hidden visibility policy; hidden assets are not fetched and omitted balances are dropped on `full` (unhide force-fetches a new snapshot) ([#9651](https://github.com/MetaMask/core/pull/9651))
-- `RpcDataSource.fetch` on the Accounts API v6 path builds its asset list from the shared visibility policy (native, visible pins, default tracked assets) instead of the request's `customAssets` scope, so a force refresh picks up pinned tokens on RPC-only chains and when basic functionality is off instead of leaving them until the next poll ([#9651](https://github.com/MetaMask/core/pull/9651))
-- `RpcDataSource.fetch` and RPC subscribe balance updates stamp `updateMode: 'full'` on the Accounts API v6 path, so successful RPC chain snapshots replace state the same way as Accounts API v6 ([#9651](https://github.com/MetaMask/core/pull/9651))
-- `SnapDataSource.fetch` and subscription initial fetches stamp `updateMode: 'full'` on the Accounts API v6 path, request listed holdings plus expected visible assets from the snap, and zero-fill any still missing so a `full` replace cannot drop non-EVM pins; Snap balance events remain merge deltas
-- Treat a failed RPC `balanceOf` or an asset with unknown decimals as a chain failure on the Accounts API v6 path: discard that chain's snapshot and leave existing balances unchanged
-- Treat the `assetsAccountsApiV6` remote feature flag as enabled when it is `true`, instead of reading a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
-- Apply an Accounts API v6 `full` update as the complete asset list for the chains it covers, only carrying over visible assets the client asked for (natives, pins, default tracked) and staking positions; omitted hidden balances are dropped because unhide force-fetches a new snapshot ([#9651](https://github.com/MetaMask/core/pull/9651))
-- Apply Accounts API and RPC balance responses atomically per chain on the Accounts API v6 path: a chain that fails, or that v6 could not answer for every requested `includeAssetIds`, is reported in `errors`, contributes no balances, and leaves its existing state unchanged until the RPC fallback recovers it ([#9651](https://github.com/MetaMask/core/pull/9651))
 - `AccountActivityDataSource` now applies websocket balance amounts without writing `assetsInfo` ([#10410](https://github.com/MetaMask/core/pull/10410))
 - `AccountActivityDataSource` now requests `metadata` and `price` enrichment, so assets first seen in a websocket balance update get metadata and a spot price in the same pipeline pass instead of waiting for the next price poll ([#10410](https://github.com/MetaMask/core/pull/10410))
 - Seed `NATIVE_ASSETS` with Bitcoin mainnet (`bip122:000000000019d6689c085ae165831e93/slip44:0`) so `#getNativeAssetForChain` no longer falls back to a bogus `erc20:0x000…000` ID on Bitcoin mainnet ([#10410](https://github.com/MetaMask/core/pull/10410))

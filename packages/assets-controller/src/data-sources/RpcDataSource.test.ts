@@ -8,7 +8,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import {
   createMockMessengers,
   MockRootMessenger,
-  registerAssetsControllerStateMock,
   registerRpcDataSourceActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
@@ -167,14 +166,6 @@ async function withController<ReturnValue>(
 
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers();
   const defaultNetworkState = networkState ?? createMockNetworkState();
-
-  // TODO - code smell, why is our internal logic trying to call its own methods via messenger?
-  registerAssetsControllerStateMock(
-    assetsControllerMessenger,
-    actionHandlerOverrides?.['AssetsController:getState'] as
-      | (() => AssetsControllerState)
-      | undefined,
-  );
 
   if (actionHandlerOverrides) {
     for (const [action, handler] of Object.entries(actionHandlerOverrides)) {
@@ -671,7 +662,7 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('treats a failed balanceOf as a chain failure on the v6 path', async () => {
+    it('merges tokens that succeed when a balanceOf fails on the v6 path', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       await withController(
         { options: { isBalanceV6Enabled: (): boolean => true } },
@@ -697,15 +688,16 @@ describe('RpcDataSource', () => {
               }),
             );
           const response = await controller.fetch(createDataRequest());
-          expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe(
-            'RPC fetch failed',
-          );
-          expect(response.assetsBalance).toBeUndefined();
+          expect(response.errors).toBeUndefined();
+          expect(response.updateMode).toBe('merge');
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+          ).toStrictEqual({ amount: '1' });
         },
       );
     });
 
-    it('treats unresolved decimals as a chain failure on the v6 path', async () => {
+    it('merges tokens that resolve when other assets have no metadata on the v6 path', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
@@ -746,10 +738,14 @@ describe('RpcDataSource', () => {
               }),
             );
           const response = await controller.fetch(createDataRequest());
-          expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe(
-            'RPC fetch failed',
-          );
-          expect(response.assetsBalance).toBeUndefined();
+          expect(response.errors).toBeUndefined();
+          expect(response.updateMode).toBe('merge');
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+          ).toStrictEqual({ amount: '1' });
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[erc20AssetId],
+          ).toBeUndefined();
         },
       );
     });
@@ -2012,7 +2008,8 @@ describe('RpcDataSource', () => {
       );
     });
 
-    it('skips the v6 poll snapshot when a balanceOf failed', async () => {
+    it('merges the v6 poll snapshot when a balanceOf failed', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       let balanceUpdateCallback:
         | ((result: BalanceFetchResult) => void | Promise<void>)
         | null = null;
@@ -2036,7 +2033,7 @@ describe('RpcDataSource', () => {
             createBalanceFetchResult({
               balances: [
                 {
-                  assetId: 'eip155:1/slip44:60' as Caip19AssetId,
+                  assetId: nativeAssetId,
                   balance: '1000000000000000000',
                 } as BalanceFetchResult['balances'][0],
               ],
@@ -2048,10 +2045,73 @@ describe('RpcDataSource', () => {
         },
       );
 
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'merge',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '1' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
     });
 
-    it('skips the v6 poll snapshot when an asset has unknown decimals', async () => {
+    it('merges tokens that resolve on the v6 poll path when another asset has unknown decimals', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        { options: { isBalanceV6Enabled: (): boolean => true } },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+                {
+                  assetId: erc20AssetId,
+                  balance: '0',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'merge',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '1' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('skips the v6 poll snapshot when no asset can be converted', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
       let balanceUpdateCallback:
