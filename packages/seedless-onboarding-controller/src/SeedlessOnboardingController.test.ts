@@ -1424,7 +1424,7 @@ describe('SeedlessOnboardingController', () => {
             seed: stringToBytes('retry-password'),
           });
 
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValue();
+          const persistLocalKeySpy = jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValue();
 
           // The first attempt writes the remote metadata, then fails while
           // creating the vault. The retry must therefore write the metadata
@@ -1456,6 +1456,7 @@ describe('SeedlessOnboardingController', () => {
 
           expect(retryMockSecretDataAdd.isDone()).toBe(true);
           expect(createLocalKeySpy).toHaveBeenCalledTimes(2);
+          expect(persistLocalKeySpy).toHaveBeenCalledTimes(2);
           expect(controller.state.socialBackupsMetadata).toStrictEqual([
             {
               type: SecretType.Mnemonic,
