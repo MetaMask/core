@@ -288,9 +288,12 @@ const config = createConfig([
     },
   },
   {
-    // The UKYC test-token minter is a dev-only Node CLI, so it may use Node
-    // builtins and globals unlike the platform-agnostic package source.
-    files: ['packages/kyc-controller/scripts/**/*.ts'],
+    // Dev-only Node CLIs may use Node builtins and globals unlike the
+    // platform-agnostic package source.
+    files: [
+      'packages/kyc-controller/scripts/**/*.ts',
+      'packages/mfa-recovery-controller/scripts/**/*.ts',
+    ],
     rules: {
       'import-x/no-nodejs-modules': 'off',
       'no-restricted-globals': 'off',

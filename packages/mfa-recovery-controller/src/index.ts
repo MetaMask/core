@@ -20,6 +20,8 @@ export type {
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
 } from './MfaRecoveryController-method-action-types.js';
+export { CubistEscrowProvider } from './escrow-providers/cubist-escrow-provider.js';
+export type { CubistEscrowProviderOptions } from './escrow-providers/cubist-escrow-provider.js';
 export { IncompleteMutationError, MfaRecoveryError } from './errors.js';
 export {
   IDENTIFIER_AUTH_MODES,
