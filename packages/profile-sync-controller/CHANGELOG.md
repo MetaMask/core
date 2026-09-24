@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
+  - State and constant: `stepUpSessionExpiresAt` → `verificationSessionExpiresAt`, `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - Types: `ElevatedProfileToken` → `VerificationToken`, `GetElevatedTokenRequest` → `GetVerificationTokenRequest`, and `StepUp` becomes `Verification` in `BeginStepUpRequest`, `CompleteStepUpRequest`, `StepUpChallenge`, `StepUpProof` and `MfaStepUpAssertion`
+  - Error: `ElevatedTokenInvalidError` (`elevated_token_invalid`) → `VerificationTokenInvalidError` (`verification_token_invalid`)
+  - Trace spans: `MFA Step-Up Begin` / `Complete` → `MFA Verification Begin` / `Complete`
+- **BREAKING:** Accept MFA data as the server sends it ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `email_otp` credentials without an address are kept: `EnrolledCredential.email` is now optional
+  - Verification tokens are accepted with any `amr` method name and any `aal`: `claims.amr` is widened and `claims.aal` is removed, since the server enforces assurance levels
+- Let one verification cover a whole setup flow ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - The verification session lasts as long as its token, up to 15 minutes instead of 1
+  - Enrolling a credential no longer ends the session
+  - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
+
 ## [32.3.1]
 
 ### Changed
@@ -19,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#10374](https://github.com/MetaMask/core/pull/10374))
   - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
-  - `AuthenticationController.beginCredentialEnrollment` sends the elevated token while a step-up session is live, since enrolling additional credentials requires AAL2
+  - `AuthenticationController.beginCredentialEnrollment` sends the verification token while a step-up session is live, since enrolling additional credentials requires AAL2
   - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
 - Add `pairedIdentifierIds` to `UserProfile` in `srpSessionData`, set from the login response and, on the primary SRP session, from the SRP and social pairing responses, so clients can tell whether a profile has been socially paired ([#10394](https://github.com/MetaMask/core/pull/10394))
 
