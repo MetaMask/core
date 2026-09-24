@@ -66,11 +66,6 @@ import { getChainId } from './provider.js';
 import { determineTransactionType } from './transaction-type.js';
 import { validateBatchRequest } from './validation.js';
 
-// Matches `BaseController#update`'s callback. Immer's `WritableDraft` would be
-// the precise type, but importing it here puts `immer` in this package's
-// published declarations, which would force it to be a production dependency
-// for a type that never appears in the public API. The state type is already
-// mutable, so it is structurally equivalent for these call sites.
 type UpdateStateCallback = (
   callback: (
     state: TransactionControllerState,
