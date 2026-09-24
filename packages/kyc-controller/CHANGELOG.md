@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency
+- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency ([#10452](https://github.com/MetaMask/core/pull/10452))
 
 ### Changed
 
-- `KycController.startSession` now resolves email from a partner identity token after recording identity-sharing consent via `AuthenticatedUserStorageService:putIdentitySharingConsent`
-- `KycController.startSession` now treats the `email` param as a fallback if unable to resolve an email from the partner identity token (`EmailRequiredError` / HTTP 422)
+- `KycController.startSession` now resolves email from a partner identity token after recording identity-sharing consent via `AuthenticatedUserStorageService:putIdentitySharingConsent` ([#10452](https://github.com/MetaMask/core/pull/10452))
+- `KycController.startSession` now treats the `email` param as a fallback if unable to resolve an email from the partner identity token (`EmailRequiredError` / HTTP 422) ([#10452](https://github.com/MetaMask/core/pull/10452))
 - `KycService` GET endpoints now call `fetch` directly instead of `fetchQuery`, so read responses are no longer cached in the service `QueryClient` ([#10375](https://github.com/MetaMask/core/pull/10375))
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.1` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))

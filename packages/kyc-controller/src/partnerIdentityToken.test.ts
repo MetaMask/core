@@ -57,4 +57,12 @@ describe('isUnprocessableEntity', () => {
   it('returns false for an error without status 422', () => {
     expect(isUnprocessableEntity(new Error('token mint failed'))).toBe(false);
   });
+
+  it('returns false for a non-object thrown value', () => {
+    expect(isUnprocessableEntity('email_required')).toBe(false);
+  });
+
+  it('returns false for null', () => {
+    expect(isUnprocessableEntity(null)).toBe(false);
+  });
 });

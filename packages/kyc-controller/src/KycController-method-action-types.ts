@@ -11,7 +11,7 @@ import type { KycController } from './KycController.js';
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
- * @param params.email - Account email associated with the session.
+ * @param params.email - Fallback account email associated with the session if unable to resolve from partner identity token
  * @returns The current or newly created session status.
  */
 export type KycControllerStartSessionAction = {
