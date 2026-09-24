@@ -120,10 +120,8 @@ export type AnalyticsControllerState = {
 
   /**
    * Cached event-purpose configuration. Optional for backward compatibility.
-   *
-   * Phase 1 does not load this from a remote source. Until a later phase wires
-   * that up, classification uses the persisted config. Unlisted names are
-   * product-only.
+   * Loaded from ConfigRegistryController state during init. Unlisted events
+   * default to product-only.
    */
   eventsConfig?: AnalyticsEventsConfig;
 
@@ -1033,7 +1031,7 @@ export class AnalyticsController extends BaseController<
 
   /**
    * Load event-purpose configuration from ConfigRegistryController state.
-   * Updates in-memory purposes map and persisted state when a newer version is available.
+   * Updates in-memory purposes map and persisted state when the version differs.
    */
   async #fetchEventsConfig(): Promise<void> {
     let eventsConfigState;
