@@ -4,6 +4,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { ConfigRegistryControllerGetStateAction } from '@metamask/config-registry-controller';
 import type {
   GeolocationControllerGetGeolocationDataAction,
   GeolocationData,
@@ -388,7 +389,9 @@ export type AnalyticsControllerActions =
 /**
  * Actions from other messengers that {@link AnalyticsControllerMessenger} calls.
  */
-type AllowedActions = GeolocationControllerGetGeolocationDataAction;
+type AllowedActions =
+  | GeolocationControllerGetGeolocationDataAction
+  | ConfigRegistryControllerGetStateAction;
 
 /**
  * Event emitted when the state of the {@link AnalyticsController} changes.
@@ -1029,13 +1032,44 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Load event-purpose configuration.
-   *
-   * Phase 1 stub. Persisted configuration remains authoritative until a remote
-   * source is wired up.
+   * Load event-purpose configuration from ConfigRegistryController state.
+   * Updates in-memory purposes map and persisted state when a newer version is available.
    */
   async #fetchEventsConfig(): Promise<void> {
-    // Intentionally empty until an events-config source is wired up.
+    let eventsConfigState;
+    try {
+      eventsConfigState = this.messenger.call(
+        'ConfigRegistryController:getState',
+      );
+    } catch {
+      // ConfigRegistryController may not be registered in all environments.
+      return;
+    }
+
+    const remoteEventsConfig = eventsConfigState.configs.eventsConfig;
+    if (!remoteEventsConfig) {
+      return;
+    }
+
+    const candidate: AnalyticsEventsConfig = {
+      schemaVersion: remoteEventsConfig.schemaVersion,
+      version: remoteEventsConfig.version,
+      timestamp: remoteEventsConfig.timestamp,
+      events: remoteEventsConfig.events as Record<string, AnalyticsPurpose[]>,
+    };
+
+    if (
+      !isAnalyticsEventsConfig(candidate) ||
+      candidate.version === this.#eventsConfigVersion
+    ) {
+      return;
+    }
+
+    this.#eventPurposes = new Map(Object.entries(candidate.events));
+    this.#eventsConfigVersion = candidate.version;
+    this.update((state) => {
+      state.eventsConfig = candidate;
+    });
   }
 
   #purposesFromName(name: string): AnalyticsPurpose[] {

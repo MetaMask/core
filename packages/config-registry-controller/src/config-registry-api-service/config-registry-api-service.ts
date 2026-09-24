@@ -10,11 +10,17 @@ import type { ConfigRegistryApiServiceMethodActions } from './config-registry-ap
 import type {
   FetchConfigOptions,
   FetchConfigResult,
+  FetchEventsConfigResult,
   RegistryConfigApiResponse,
+  RegistryEventsConfigApiResponse,
 } from './types.js';
-import { validateRegistryConfigApiResponse } from './types.js';
+import {
+  validateRegistryConfigApiResponse,
+  validateRegistryEventsConfigApiResponse,
+} from './types.js';
 
-const ENDPOINT_PATH = '/config/networks';
+const NETWORKS_ENDPOINT_PATH = '/config/networks';
+const EVENTS_CONFIG_ENDPOINT_PATH = '/config/events-config';
 
 export enum ConfigRegistryApiEnv {
   DEV = 'dev',
@@ -30,7 +36,7 @@ export const serviceName = 'ConfigRegistryApiService';
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['fetchConfig'] as const;
+const MESSENGER_EXPOSED_METHODS = ['fetchConfig', 'fetchEventsConfig'] as const;
 
 /**
  * Actions that {@link ConfigRegistryApiService} exposes to other consumers.
@@ -69,11 +75,15 @@ export type ConfigRegistryApiServiceMessenger = Messenger<
  * Returns the base URL for the config registry API for the given environment.
  *
  * @param env - The environment to get the URL for.
- * @returns The base URL for the environment.
+ * @param endpointPath - The endpoint path to append.
+ * @returns The full URL for the endpoint.
  */
-function getConfigRegistryUrl(env: ConfigRegistryApiEnv): string {
+function getConfigRegistryUrl(
+  env: ConfigRegistryApiEnv,
+  endpointPath: string,
+): string {
   const envPrefix = env === ConfigRegistryApiEnv.PRD ? '' : `${env}-`;
-  return `https://client-config.${envPrefix}api.cx.metamask.io/v1${ENDPOINT_PATH}`;
+  return `https://client-config.${envPrefix}api.cx.metamask.io/v1${endpointPath}`;
 }
 
 export type ConfigRegistryApiServiceOptions = {
@@ -98,12 +108,17 @@ export class ConfigRegistryApiService {
 
   readonly #policy: ServicePolicy;
 
-  readonly #url: string;
+  readonly #networksUrl: string;
+
+  readonly #eventsConfigUrl: string;
 
   readonly #fetch: typeof fetch;
 
-  /** Cached response from the last successful fetch. Used when server returns 304. */
+  /** Cached response from the last successful networks fetch. Used when server returns 304. */
   #cachedResponse: RegistryConfigApiResponse | null = null;
+
+  /** Cached response from the last successful events-config fetch. Used when server returns 304. */
+  #cachedEventsConfigResponse: RegistryEventsConfigApiResponse | null = null;
 
   /**
    * Construct a Config Registry API Service.
@@ -122,7 +137,8 @@ export class ConfigRegistryApiService {
   }: ConfigRegistryApiServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
-    this.#url = getConfigRegistryUrl(env);
+    this.#networksUrl = getConfigRegistryUrl(env, NETWORKS_ENDPOINT_PATH);
+    this.#eventsConfigUrl = getConfigRegistryUrl(env, EVENTS_CONFIG_ENDPOINT_PATH);
     this.#fetch = customFetch;
 
     this.#policy = createServicePolicy(policyOptions);
@@ -199,7 +215,7 @@ export class ConfigRegistryApiService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const res = await this.#fetch(this.#url, {
+      const res = await this.#fetch(this.#networksUrl, {
         headers,
       });
 
@@ -232,6 +248,61 @@ export class ConfigRegistryApiService {
     validateRegistryConfigApiResponse(jsonData);
 
     this.#cachedResponse = jsonData;
+
+    return {
+      data: jsonData,
+      etag,
+      modified: true,
+    };
+  }
+
+  async fetchEventsConfig(
+    options: FetchConfigOptions = {},
+  ): Promise<FetchEventsConfigResult> {
+    const headers: HeadersInit = {
+      'Cache-Control': 'no-cache',
+    };
+
+    if (options.etag) {
+      headers['If-None-Match'] = options.etag;
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const res = await this.#fetch(this.#eventsConfigUrl, {
+        headers,
+      });
+
+      if (res.status === 304) {
+        return res;
+      }
+
+      if (!res.ok) {
+        throw new HttpError(
+          res.status,
+          `Failed to fetch events config: ${res.status} ${res.statusText}`,
+        );
+      }
+
+      return res;
+    });
+
+    if (response.status === 304) {
+      const etag = response.headers.get('ETag') ?? undefined;
+      return {
+        modified: false,
+        etag,
+        ...(this.#cachedEventsConfigResponse !== null && {
+          data: this.#cachedEventsConfigResponse,
+        }),
+      };
+    }
+
+    const etag = response.headers.get('ETag') ?? undefined;
+    const jsonData = await response.json();
+
+    validateRegistryEventsConfigApiResponse(jsonData);
+
+    this.#cachedEventsConfigResponse = jsonData;
 
     return {
       data: jsonData,
