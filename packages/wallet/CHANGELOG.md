@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.2]
+
 ### Changed
 
+- Bump `@metamask/seedless-onboarding-controller` from `11.0.0` to `11.0.1`
 - Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
@@ -282,7 +285,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.2...HEAD
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@14.0.2
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...@metamask/wallet@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.3...@metamask/wallet@13.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "14.0.1",
+  "version": "14.0.2",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
