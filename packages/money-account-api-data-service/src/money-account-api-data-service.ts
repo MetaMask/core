@@ -270,8 +270,12 @@ export class MoneyAccountApiDataService extends BaseDataService<
       await this.cancelQueries({ queryKey: [...queryKey] });
       await this.invalidateQueries({ queryKey: [...queryKey] });
       // Bypass fetchQuery: a minBlock-rejected body must not become the
-      // steady-state cache entry with a fresh dataUpdatedAt.
-      return await this.#fetchPositionsFromNetwork(normalizedAddress, true);
+      // steady-state cache entry with a fresh dataUpdatedAt. Still run through
+      // the service policy so transient failures retry and an open breaker
+      // can stop the request.
+      return await this.executeWithPolicy(async () => {
+        return await this.#fetchPositionsFromNetwork(normalizedAddress, true);
+      });
     }
 
     return this.fetchQuery({

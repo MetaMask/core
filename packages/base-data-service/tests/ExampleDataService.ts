@@ -165,6 +165,12 @@ export class ExampleDataService extends BaseDataService<
     return this.getAssets(assets);
   }
 
+  async executeThroughPolicy<TResult>(
+    fn: () => Promise<TResult>,
+  ): Promise<TResult> {
+    return this.executeWithPolicy(fn);
+  }
+
   async getActivity(
     address: string,
     page?: PageParam,

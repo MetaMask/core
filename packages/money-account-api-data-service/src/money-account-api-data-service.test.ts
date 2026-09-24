@@ -373,6 +373,41 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('retries a fresh fetchPositions request using the service policy', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .reply(500);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS, {
+        fresh: true,
+      });
+
+      expect(result).toStrictEqual(MOCK_POSITION_RESPONSE);
+      service.destroy();
+    });
+
+    it('throws HttpError after exhausting retries on a fresh fetchPositions request', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+
+      await expect(
+        service.fetchPositions(MOCK_ADDRESS, { fresh: true }),
+      ).rejects.toThrow(HttpError);
+      service.destroy();
+    });
+
     it('throws HttpError on non-2xx response', async () => {
       const { service } = createService(Env.DEV);
 

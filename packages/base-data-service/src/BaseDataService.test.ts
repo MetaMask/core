@@ -578,6 +578,13 @@ describe('BaseDataService', () => {
     ]);
   });
 
+  it('executes a callback through the service policy without using the query cache', async () => {
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+
+    expect(await service.executeThroughPolicy(async () => 'ok')).toBe('ok');
+  });
+
   describe('validation', () => {
     beforeAll(() => {
       jest.useRealTimers();

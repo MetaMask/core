@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - To use this, create a method in your data service class which takes whatever arguments you need, plus a optional final argument called `globalId`; then call `executeMutation` with a `mutationKey`, `globalId`, and `mutationFn`. See `ExampleDataService` in this package for an example.
   - A `MutationKey` type is also available.
 - Add protected `cancelQueries` so subclasses can abort in-flight reads before a forced refresh ([#10422](https://github.com/MetaMask/core/pull/10422))
+- Add protected `executeWithPolicy` so subclasses can run a request through the retry and circuit-breaker policy without writing through TanStack ([#10422](https://github.com/MetaMask/core/pull/10422))
 
 ### Changed
 

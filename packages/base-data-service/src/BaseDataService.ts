@@ -553,6 +553,23 @@ export class BaseDataService<
   }
 
   /**
+   * Execute a function through this service's retry and circuit-breaker policy
+   * without going through the query cache.
+   *
+   * Used by subclasses that still need retries and breaker protection for a
+   * request that must not write through TanStack (e.g. a freshness read whose
+   * body the caller may later reject).
+   *
+   * @param fn - The function to execute.
+   * @returns The function's result.
+   */
+  protected async executeWithPolicy<TResult>(
+    fn: () => Promise<TResult>,
+  ): Promise<TResult> {
+    return this.#policy.execute(fn);
+  }
+
+  /**
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
