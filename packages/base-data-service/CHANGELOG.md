@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - These kinds of requests are never retried, unlike queries.
   - To use this, create a method in your data service class which takes whatever arguments you need, plus a optional final argument called `globalId`; then call `executeMutation` with a `mutationKey`, `globalId`, and `mutationFn`. See `ExampleDataService` in this package for an example.
   - A `MutationKey` type is also available.
-- Add protected `cancelQueries` so subclasses can abort in-flight reads before a forced refresh ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add protected `cancelQueries` so subclasses can abort in-flight reads before a forced refresh ([#10422](https://github.com/MetaMask/core/pull/10422))
 
 ### Changed
 

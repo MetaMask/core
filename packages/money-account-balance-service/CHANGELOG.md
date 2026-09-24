@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Surface Money API freshness on `fetchBalanceWithFallback` results (`asOfBlock`, `asOfTimestamp`, `dataFreshness`, `indexerLagSeconds`, `musdBalanceUpdatedAt`) when `source` is `api` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Add optional `FetchBalanceWithFallbackOptions` (`minBlock`, `fresh`): when the API `as_of_block` is behind `minBlock`, throw `MoneyAccountBalanceStaleError` and fall back to RPC (without reporting as a defect); `minBlock` implies a cache-bypassing positions read, and a rejected body invalidates the positions query so the next steady-state poll cannot re-serve it; explicit `fresh` is also forwarded to `fetchPositions` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Export `MoneyAccountBalanceStaleError` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Permit `MoneyAccountApiDataService:invalidateQueries` on the balance-service messenger for post-stale cache busting ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Surface Money API freshness on `fetchBalanceWithFallback` results (`asOfBlock`, `asOfTimestamp`, `dataFreshness`, `indexerLagSeconds`, `musdBalanceUpdatedAt`) when `source` is `api` ([#10422](https://github.com/MetaMask/core/pull/10422))
+- Add optional `FetchBalanceWithFallbackOptions` (`minBlock`, `fresh`): when the API `as_of_block` is behind `minBlock`, throw `MoneyAccountBalanceStaleError` and fall back to RPC (without reporting as a defect); `minBlock` implies a cache-bypassing positions read, and a rejected body invalidates the positions query so the next steady-state poll cannot re-serve it; explicit `fresh` is also forwarded to `fetchPositions` ([#10422](https://github.com/MetaMask/core/pull/10422))
+- Export `MoneyAccountBalanceStaleError` ([#10422](https://github.com/MetaMask/core/pull/10422))
+- Permit `MoneyAccountApiDataService:invalidateQueries` on the balance-service messenger for post-stale cache busting ([#10422](https://github.com/MetaMask/core/pull/10422))
 
 ### Changed
 
