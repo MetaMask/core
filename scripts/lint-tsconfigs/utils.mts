@@ -1,6 +1,6 @@
 import { readJsonFile, readFile, fileExists } from '@metamask/utils/node';
 import * as commentJson from 'comment-json';
-import execa from 'execa';
+import { execa } from 'execa';
 import fs from 'fs';
 import type { FormatConfig } from 'oxfmt';
 import { format as oxfmtFormat } from 'oxfmt';

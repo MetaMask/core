@@ -15,7 +15,7 @@ import { EmailRequiredError, Platform } from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_MFA_CREDENTIALS_RESPONSE,
-  MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE,
+  MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -35,7 +35,8 @@ import {
 import {
   AuthenticationController,
   defaultState,
-  STEP_UP_SESSION_TTL_MS,
+  ENROLLMENT_MAX_SESSION_AGE_MS,
+  VERIFICATION_SESSION_TTL_MS,
 } from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
@@ -3006,7 +3007,7 @@ describe('MFA credential enrollment', () => {
   });
 });
 
-describe('MFA step-up verification', () => {
+describe('MFA credential verification', () => {
   const passkeyProof = {
     type: 'passkey',
     assertion: {
@@ -3041,14 +3042,14 @@ describe('MFA step-up verification', () => {
     mockEndpointMfaVerifyComplete();
     mockEndpointAccessToken({
       status: 200,
-      body: MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE,
+      body: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
     });
   }
 
-  async function completeStepUp(
+  async function completeCredentialVerification(
     controller: AuthenticationController,
   ): Promise<void> {
-    await controller.completeStepUp({
+    await controller.completeCredentialVerification({
       flowId: 'flow-id',
       proof: passkeyProof,
       reason: { operation: 'money.signTransaction' },
@@ -3060,7 +3061,7 @@ describe('MFA step-up verification', () => {
     const { controller } = createController();
 
     expect(
-      await controller.beginStepUp({
+      await controller.beginCredentialVerification({
         type: 'passkey',
         reason: { operation: 'money.signTransaction' },
       }),
@@ -3079,7 +3080,7 @@ describe('MFA step-up verification', () => {
       },
     });
     expect(
-      await controller.beginStepUp({
+      await controller.beginCredentialVerification({
         type: 'email_otp',
         reason: { operation: 'kalshi.deposit' },
       }),
@@ -3101,37 +3102,36 @@ describe('MFA step-up verification', () => {
     const { controller } = createController();
 
     await expect(
-      controller.beginStepUp({
+      controller.beginCredentialVerification({
         type: 'passkey',
         reason: { operation: 'money.signTransaction' },
       }),
     ).rejects.toMatchObject({ mfaCode: 'credential_not_enrolled' });
   });
 
-  it('opens and exposes an elevated session after AAL2 exchange', async () => {
+  it('opens and exposes a verification session after the token exchange', async () => {
     mockSuccessfulCompletion();
     const { controller, baseMessenger } = createController();
     const listener = jest.fn();
     baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
-    const token = await controller.completeStepUp({
+    const token = await controller.completeCredentialVerification({
       flowId: 'flow-id',
       proof: passkeyProof,
       reason: { operation: 'money.signTransaction' },
     });
 
     expect(token.accessToken).toBe(
-      MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE.access_token,
+      MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE.access_token,
     );
     expect(token.claims).toStrictEqual({
       sub: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
-      aal: 2,
       amr: ['passkey'],
       exp: 4102444800,
     });
-    expect(controller.getElevatedProfileToken()).toBe(token);
-    expect(controller.state.stepUpSessionExpiresAt).toBe(
-      token.obtainedAt + 60_000,
+    expect(controller.getVerificationToken()).toBe(token);
+    expect(controller.state.verificationSessionExpiresAt).toBe(
+      token.obtainedAt + VERIFICATION_SESSION_TTL_MS,
     );
     // Exactly one state write, and the token itself never enters state.
     expect(listener).toHaveBeenCalledTimes(1);
@@ -3141,14 +3141,14 @@ describe('MFA step-up verification', () => {
   it('clears the session idempotently without spurious state writes', async () => {
     mockSuccessfulCompletion();
     const { controller, baseMessenger } = createController();
-    await completeStepUp(controller);
+    await completeCredentialVerification(controller);
     const listener = jest.fn();
     baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
-    controller.clearStepUpSession();
-    controller.clearStepUpSession();
+    controller.clearVerificationSession();
+    controller.clearVerificationSession();
 
-    expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+    expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
@@ -3157,7 +3157,7 @@ describe('MFA step-up verification', () => {
     const listener = jest.fn();
     baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
-    controller.clearStepUpSession();
+    controller.clearVerificationSession();
     baseMessenger.publish('KeyringController:lock');
 
     expect(listener).not.toHaveBeenCalled();
@@ -3179,15 +3179,15 @@ describe('MFA step-up verification', () => {
     ) as unknown as TraceCallback;
     const { controller } = createController({ trace });
 
-    await controller.beginStepUp({
+    await controller.beginCredentialVerification({
       type: 'passkey',
       reason: { operation: 'money.signTransaction' },
     });
-    await completeStepUp(controller);
+    await completeCredentialVerification(controller);
 
     expect(requests.map(({ name }) => name)).toStrictEqual([
-      'MFA Step-Up Begin',
-      'MFA Step-Up Complete',
+      'MFA Verification Begin',
+      'MFA Verification Complete',
       'MFA Token Exchange',
     ]);
     expect(requests).toStrictEqual(
@@ -3209,21 +3209,19 @@ describe('MFA step-up verification', () => {
   it('honors caller freshness requirements without clearing the session', async () => {
     mockSuccessfulCompletion();
     const { controller } = createController();
-    await completeStepUp(controller);
+    await completeCredentialVerification(controller);
 
+    expect(controller.getVerificationToken({ maxSessionAgeMs: 0 })).toBeNull();
+    expect(controller.getVerificationToken()).not.toBeNull();
     expect(
-      controller.getElevatedProfileToken({ maxSessionAgeMs: 0 }),
-    ).toBeNull();
-    expect(controller.getElevatedProfileToken()).not.toBeNull();
-    expect(
-      controller.getElevatedProfileToken({ maxSessionAgeMs: 600_000 }),
+      controller.getVerificationToken({ maxSessionAgeMs: 600_000 }),
     ).not.toBeNull();
     expect(() =>
-      controller.getElevatedProfileToken({ maxSessionAgeMs: -1 }),
+      controller.getVerificationToken({ maxSessionAgeMs: -1 }),
     ).toThrow(/MFA\[invalid_request\]/u);
     // An invalid request is rejected before the session is touched.
-    expect(controller.getElevatedProfileToken()).not.toBeNull();
-    expect(controller.state.stepUpSessionExpiresAt).toBeDefined();
+    expect(controller.getVerificationToken()).not.toBeNull();
+    expect(controller.state.verificationSessionExpiresAt).toBeDefined();
   });
 
   it('hard-clears the session at the session TTL', async () => {
@@ -3237,7 +3235,7 @@ describe('MFA step-up verification', () => {
       )
       .mockResolvedValueOnce(
         new globalThis.Response(
-          JSON.stringify(MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE),
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
           { status: 200 },
         ),
       );
@@ -3245,19 +3243,19 @@ describe('MFA step-up verification', () => {
     jest.setSystemTime(new Date('2026-09-16T10:00:00Z'));
     try {
       const { controller } = createController();
-      await completeStepUp(controller);
+      await completeCredentialVerification(controller);
 
-      expect(controller.getElevatedProfileToken()).not.toBeNull();
-      jest.advanceTimersByTime(STEP_UP_SESSION_TTL_MS);
-      expect(controller.getElevatedProfileToken()).toBeNull();
-      expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+      expect(controller.getVerificationToken()).not.toBeNull();
+      jest.advanceTimersByTime(VERIFICATION_SESSION_TTL_MS);
+      expect(controller.getVerificationToken()).toBeNull();
+      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
     } finally {
       jest.useRealTimers();
       fetchSpy.mockRestore();
     }
   });
 
-  it('hard-clears the session when the elevated token expires first', async () => {
+  it('hard-clears the session when the verification token expires first', async () => {
     const now = new Date('2026-09-16T10:00:00Z');
     const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
     const payload = btoa(
@@ -3289,13 +3287,13 @@ describe('MFA step-up verification', () => {
     jest.setSystemTime(now);
     try {
       const { controller } = createController();
-      await completeStepUp(controller);
+      await completeCredentialVerification(controller);
 
-      expect(controller.state.stepUpSessionExpiresAt).toBe(
+      expect(controller.state.verificationSessionExpiresAt).toBe(
         now.getTime() + 1_000,
       );
       jest.advanceTimersByTime(1_000);
-      expect(controller.getElevatedProfileToken()).toBeNull();
+      expect(controller.getVerificationToken()).toBeNull();
     } finally {
       jest.useRealTimers();
       fetchSpy.mockRestore();
@@ -3314,7 +3312,7 @@ describe('MFA step-up verification', () => {
       )
       .mockResolvedValueOnce(
         new globalThis.Response(
-          JSON.stringify(MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE),
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
           { status: 200 },
         ),
       );
@@ -3322,11 +3320,11 @@ describe('MFA step-up verification', () => {
     jest.setSystemTime(now);
     try {
       const { controller } = createController();
-      await completeStepUp(controller);
+      await completeCredentialVerification(controller);
 
-      jest.setSystemTime(now.getTime() + STEP_UP_SESSION_TTL_MS + 1_000);
-      expect(controller.getElevatedProfileToken()).toBeNull();
-      expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+      jest.setSystemTime(now.getTime() + VERIFICATION_SESSION_TTL_MS + 1_000);
+      expect(controller.getVerificationToken()).toBeNull();
+      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
     } finally {
       jest.useRealTimers();
       fetchSpy.mockRestore();
@@ -3334,8 +3332,9 @@ describe('MFA step-up verification', () => {
   });
 
   /**
-   * Starts `completeStepUp`, ends the authenticated session while the
-   * verification request is still in flight, then lets the request succeed.
+   * Starts `completeCredentialVerification`, ends the authenticated session
+   * while the verification request is still in flight, then lets the request
+   * succeed.
    *
    * @param endSession - Ends the session mid-flight.
    * @returns The controller, once the completion has been rejected.
@@ -3362,7 +3361,7 @@ describe('MFA step-up verification', () => {
     );
     const { controller, baseMessenger } = createController();
     try {
-      const completion = controller.completeStepUp({
+      const completion = controller.completeCredentialVerification({
         flowId: 'flow-id',
         proof: passkeyProof,
         reason: { operation: 'money.signTransaction' },
@@ -3380,22 +3379,20 @@ describe('MFA step-up verification', () => {
         'the authenticated session ended',
       );
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
       return controller;
     } finally {
       fetchSpy.mockRestore();
     }
   }
 
-  it('cannot reopen an elevated session if the wallet locks during completion', async () => {
+  it('cannot reopen a verification session if the wallet locks during completion', async () => {
     const controller = await arrangeSessionEndDuringCompletion(
       (_controller, baseMessenger) =>
         baseMessenger.publish('KeyringController:lock'),
     );
 
-    expect(() => controller.getElevatedProfileToken()).toThrow(
-      'wallet is locked',
-    );
+    expect(() => controller.getVerificationToken()).toThrow('wallet is locked');
   });
 
   it.each([
@@ -3409,16 +3406,16 @@ describe('MFA step-up verification', () => {
       (controller: AuthenticationController): void => controller.clearState(),
     ],
   ])(
-    'leaves no elevated token retrievable when %s happens during completion',
+    'leaves no verification token retrievable when %s happens during completion',
     async (_name, endSession) => {
       const controller = await arrangeSessionEndDuringCompletion(endSession);
 
-      expect(controller.getElevatedProfileToken()).toBeNull();
+      expect(controller.getVerificationToken()).toBeNull();
     },
   );
 
   it.each([MOCK_ACCESS_JWT, 'not-a-jwt'])(
-    'rejects an exchanged token without valid AAL2 claims',
+    'rejects an exchanged token without valid verification claims',
     async (accessToken) => {
       mockEndpointMfaVerifyComplete();
       mockEndpointAccessToken({
@@ -3431,43 +3428,43 @@ describe('MFA step-up verification', () => {
       const { controller } = createController();
 
       await expect(
-        controller.completeStepUp({
+        controller.completeCredentialVerification({
           flowId: 'flow-id',
           proof: passkeyProof,
           reason: { operation: 'money.signTransaction' },
         }),
-      ).rejects.toMatchObject({ mfaCode: 'elevated_token_invalid' });
-      expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+      ).rejects.toMatchObject({ mfaCode: 'verification_token_invalid' });
+      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
     },
   );
 
-  it('clears the elevated session on lock, sign-out, and wallet reset', async () => {
+  it('clears the verification session on lock, sign-out, and wallet reset', async () => {
     mockSuccessfulCompletion();
     const first = createController();
-    await completeStepUp(first.controller);
+    await completeCredentialVerification(first.controller);
     first.baseMessenger.publish('KeyringController:lock');
-    expect(first.controller.state.stepUpSessionExpiresAt).toBeUndefined();
+    expect(first.controller.state.verificationSessionExpiresAt).toBeUndefined();
 
     cleanAllNock();
     mockSuccessfulCompletion();
     const second = createController();
-    await completeStepUp(second.controller);
+    await completeCredentialVerification(second.controller);
     second.controller.performSignOut();
-    expect(second.controller.getElevatedProfileToken()).toBeNull();
+    expect(second.controller.getVerificationToken()).toBeNull();
 
     cleanAllNock();
     mockSuccessfulCompletion();
     const third = createController();
-    await completeStepUp(third.controller);
+    await completeCredentialVerification(third.controller);
     third.controller.clearState();
-    expect(third.controller.getElevatedProfileToken()).toBeNull();
+    expect(third.controller.getVerificationToken()).toBeNull();
   });
 
-  it('clears the elevated session when authentication is rejected', async () => {
+  it('clears the verification session when authentication is rejected', async () => {
     mockSuccessfulCompletion();
     const { controller } = createController();
-    await completeStepUp(controller);
-    expect(controller.getElevatedProfileToken()).not.toBeNull();
+    await completeCredentialVerification(controller);
+    expect(controller.getVerificationToken()).not.toBeNull();
 
     mockEndpointMfaCredentials({
       status: 401,
@@ -3477,16 +3474,16 @@ describe('MFA step-up verification', () => {
       { mfaCode: 'authentication_required' },
     );
 
-    expect(controller.getElevatedProfileToken()).toBeNull();
-    expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+    expect(controller.getVerificationToken()).toBeNull();
+    expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
   });
 
-  it('sends the elevated token when beginning enrollment while a session is live', async () => {
+  it('sends the verification token when beginning enrollment while a session is live', async () => {
     mockSuccessfulCompletion();
     const { controller } = createController();
-    await completeStepUp(controller);
-    const elevated = controller.getElevatedProfileToken()?.accessToken;
-    expect(elevated).toBeDefined();
+    await completeCredentialVerification(controller);
+    const verificationToken = controller.getVerificationToken()?.accessToken;
+    expect(verificationToken).toBeDefined();
 
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
@@ -3504,7 +3501,7 @@ describe('MFA step-up verification', () => {
         new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
           'Authorization',
         ),
-      ).toBe(`Bearer ${elevated}`);
+      ).toBe(`Bearer ${verificationToken}`);
     } finally {
       fetchSpy.mockRestore();
     }
@@ -3552,12 +3549,114 @@ describe('MFA step-up verification', () => {
     ).rejects.toMatchObject({ mfaCode: 'aal2_required', status: 403 });
   });
 
-  it('clears an elevated session after successful enrollment', async () => {
+  /**
+   * Begins an email enrollment and returns the bearer token it was sent with.
+   *
+   * @param controller - Controller under test.
+   * @param maxSessionAgeMs - Optional enrollment session age limit.
+   * @returns The token from the `Authorization` header.
+   */
+  async function getEnrollmentBearer(
+    controller: AuthenticationController,
+    maxSessionAgeMs?: number,
+  ): Promise<string | undefined> {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+        ...(maxSessionAgeMs === undefined ? {} : { maxSessionAgeMs }),
+      });
+      return new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers)
+        .get('Authorization')
+        ?.replace('Bearer ', '');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  }
+
+  describe('enrollment session age', () => {
+    const sessionAgeMs = ENROLLMENT_MAX_SESSION_AGE_MS + 60_000;
+
+    async function arrangeAgedSession(): Promise<{
+      controller: AuthenticationController;
+      verificationToken: string;
+      base: string;
+    }> {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const token = controller.getVerificationToken();
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValue((token?.obtainedAt ?? 0) + sessionAgeMs);
+      return {
+        controller,
+        verificationToken: token?.accessToken as string,
+        base: base as string,
+      };
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('does not let a session older than the default limit authorize enrollment', async () => {
+      const { controller, base } = await arrangeAgedSession();
+
+      expect(await getEnrollmentBearer(controller)).toBe(base);
+      // Still available to consumers that accept its age.
+      expect(controller.getVerificationToken()).not.toBeNull();
+      expect(controller.state.verificationSessionExpiresAt).toBeDefined();
+    });
+
+    it('lets a caller-supplied age limit authorize enrollment with an older session', async () => {
+      const { controller, verificationToken } = await arrangeAgedSession();
+
+      expect(await getEnrollmentBearer(controller, sessionAgeMs + 1)).toBe(
+        verificationToken,
+      );
+    });
+
+    it('never uses the session when the age limit is zero', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+
+      expect(await getEnrollmentBearer(controller, 0)).toBe(base);
+    });
+
+    it('rejects an invalid age limit before any request', async () => {
+      const { controller } = createController();
+
+      await expect(
+        controller.beginCredentialEnrollment({
+          type: 'passkey',
+          reason: { operation: 'settings.addPasskey' },
+          maxSessionAgeMs: -1,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+    });
+  });
+
+  it('keeps the verification session after successful enrollment so chained enrollments reuse it', async () => {
     mockSuccessfulCompletion();
     mockEndpointMfaEnrollComplete();
     mockEndpointMfaCredentials();
     const { controller } = createController();
-    await completeStepUp(controller);
+    await completeCredentialVerification(controller);
+    const verificationToken = controller.getVerificationToken()?.accessToken;
 
     await controller.completeCredentialEnrollment({
       flowId: 'enrollment-flow',
@@ -3565,7 +3664,11 @@ describe('MFA step-up verification', () => {
       reason: { operation: 'settings.addEmail' },
     });
 
-    expect(controller.getElevatedProfileToken()).toBeNull();
+    expect(controller.getVerificationToken()?.accessToken).toBe(
+      verificationToken,
+    );
+    expect(controller.state.verificationSessionExpiresAt).toBeDefined();
+    expect(await getEnrollmentBearer(controller)).toBe(verificationToken);
   });
 });
 

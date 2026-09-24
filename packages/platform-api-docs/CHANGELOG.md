@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `execa` from `^5.0.0` to `^5.1.1` ([#10330](https://github.com/MetaMask/core/pull/10330))
+- Bump `execa` from `^5.0.0` to `^10.0.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332))
 
 ## [0.2.1]
 
