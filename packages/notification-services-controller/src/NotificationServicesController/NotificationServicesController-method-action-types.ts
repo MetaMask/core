@@ -95,16 +95,14 @@ export type NotificationServicesControllerDisableNotificationServicesAction = {
 };
 
 /**
- * Deletes on-chain triggers associated with a specific account/s.
- * This method performs several key operations:
- * 1. Validates Auth
- * 2. Deletes accounts
- * (note) We do not need to look through push notifications as we've deleted triggers
+ * Disables wallet-activity subscriptions for the given accounts.
  *
- * **Action** - When a user disables notifications for a given account in settings.
+ * This only writes the Trigger API. The device's FCM links stay in place,
+ * because those links deliver every notification source for an address.
  *
- * @param accounts - The account for which on-chain triggers are to be deleted.
- * @returns A promise that resolves to void or an object containing a success message.
+ * **Action** - When a user disables wallet activity for a given account.
+ *
+ * @param accounts - The accounts whose wallet-activity subscriptions are disabled.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */
 export type NotificationServicesControllerDisableAccountsAction = {
@@ -113,18 +111,14 @@ export type NotificationServicesControllerDisableAccountsAction = {
 };
 
 /**
- * Updates/Creates on-chain triggers for a specific account.
+ * Enables wallet-activity subscriptions for the given accounts.
  *
- * This method performs several key operations:
- * 1. Validates Auth & Storage
- * 2. Finds and creates any missing triggers associated with the account
- * 3. Enables any related push notifications
- * 4. Updates Storage to reflect new state.
+ * This only writes the Trigger API. Linking the device token is handled
+ * when the account is added or when notifications are enabled.
  *
- * **Action** - When a user enables notifications for an account
+ * **Action** - When a user enables wallet activity for an account.
  *
- * @param accounts - List of accounts you want to update.
- * @returns A promise that resolves to the updated user storage.
+ * @param accounts - List of accounts to subscribe.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */
 export type NotificationServicesControllerEnableAccountsAction = {
