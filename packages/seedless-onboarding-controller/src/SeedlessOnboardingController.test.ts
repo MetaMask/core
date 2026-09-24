@@ -1424,7 +1424,9 @@ describe('SeedlessOnboardingController', () => {
             seed: stringToBytes('retry-password'),
           });
 
-          const persistLocalKeySpy = jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValue();
+          const persistLocalKeySpy = jest
+            .spyOn(toprfClient, 'persistLocalKey')
+            .mockResolvedValue();
 
           // The first attempt writes the remote metadata, then fails while
           // creating the vault. The retry must therefore write the metadata
