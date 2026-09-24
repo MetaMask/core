@@ -983,6 +983,8 @@ export class AssetsController extends BaseController<
     this.#accountActivityDataSource = new AccountActivityDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
       onAssetsUpdate: (response, request): Promise<void> =>
         this.handleAssetsUpdate(
           response,
@@ -2403,15 +2405,14 @@ export class AssetsController extends BaseController<
    * @returns `true` when the v6 remote flag is on.
    */
   #isBalanceV6Enabled(): boolean {
-    return true;
-    // try {
-    //   const { remoteFeatureFlags } = this.messenger.call(
-    //     'RemoteFeatureFlagController:getState',
-    //   );
-    //   return remoteFeatureFlags?.assetsAccountsApiV6 === true;
-    // } catch {
-    //   return false;
-    // }
+    try {
+      const { remoteFeatureFlags } = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      return remoteFeatureFlags?.assetsAccountsApiV6 === true;
+    } catch {
+      return false;
+    }
   }
 
   // ============================================================================
