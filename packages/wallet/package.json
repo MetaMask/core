@@ -60,7 +60,7 @@
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/gas-fee-controller": "^27.0.0",
-    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.0",
     "@metamask/passkey-controller": "^4.1.0",
