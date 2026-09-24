@@ -2775,6 +2775,33 @@ export class KeyringController<
   }
 
   /**
+   * Take snapshots of the current keyrings, to roll back to.
+   *
+   * Each snapshot captures a keyring's serialized state (deep-cloned) and
+   * its position in the keyrings array.
+   *
+   * Unsupported keyrings are not part of a failed transaction: no
+   * transaction path can change them, so the rollback has nothing to undo
+   * for them. They are therefore not snapshotted, and are left untouched by
+   * the rollback; not being part of the snapshot, they could not be
+   * recovered if dropped.
+   *
+   * @returns The keyring snapshots.
+   */
+  async #getKeyringSnapshots(): Promise<KeyringSnapshot[]> {
+    const serializedKeyrings = await this.#getSerializedKeyrings({
+      includeUnsupported: false,
+    });
+
+    return serializedKeyrings.map((serialized, index) => {
+      // The serialized data is cloned, as keyrings are free to return
+      // aliased internal state from `serialize()`, which the transaction
+      // could otherwise mutate through the snapshot itself.
+      return { ...cloneDeep(serialized), index };
+    });
+  }
+
+  /**
    * Reconcile the keyrings in memory with a pre-transaction snapshot, touching
    * only the keyrings that the failed transaction changed.
    *
@@ -3589,16 +3616,7 @@ export class KeyringController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
-      // Unsupported keyrings are not part of a failed transaction, and are
-      // left untouched by the rollback. The serialized data is cloned, as
-      // keyrings are free to return aliased internal state from
-      // `serialize()`, which the transaction could then mutate through the
-      // snapshot itself.
-      const currentKeyringSnapshots = (
-        await this.#getSerializedKeyrings({
-          includeUnsupported: false,
-        })
-      ).map((serialized, index) => ({ ...cloneDeep(serialized), index }));
+      const currentKeyringSnapshots = await this.#getKeyringSnapshots();
       const currentEncryptionKey = cloneDeep(this.#encryptionKey);
 
       try {
