@@ -2,15 +2,18 @@ import type { Hex } from '@metamask/utils';
 
 import {
   CRYPTO_AUTH_METHODS,
+  isVaultShareToken,
   MoneyAccountFeature,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   ShieldFeature,
+  VAULT_NAMES,
 } from './types.js';
 import type {
   MoneyAccountEntitlements,
   ShieldEntitlements,
   StartCryptoSubscriptionRequest,
+  TokenPaymentInfo,
   UpdatePaymentMethodCryptoRequest,
 } from './types.js';
 
@@ -34,6 +37,14 @@ function assertUpdatePaymentMethodCryptoRequest(
   request: UpdatePaymentMethodCryptoRequest,
 ): UpdatePaymentMethodCryptoRequest {
   return request;
+}
+
+function assertTokenPaymentInfo(token: TokenPaymentInfo): TokenPaymentInfo {
+  return token;
+}
+
+function assertHex(value: Hex): Hex {
+  return value;
 }
 
 function assertMoneyAccountEntitlements(
@@ -197,6 +208,58 @@ describe('UpdatePaymentMethodCryptoRequest', () => {
     assertUpdatePaymentMethodCryptoRequest({
       ...sharedRequest,
       cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+    });
+
+    expect(true).toBe(true);
+  });
+});
+
+describe('isVaultShareToken', () => {
+  const sharedToken = {
+    symbol: 'pvmUSD',
+    address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316' as Hex,
+    decimals: 6,
+  };
+
+  it('identifies a vault share by its accountant address', () => {
+    const token: TokenPaymentInfo = {
+      ...sharedToken,
+      accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a' as Hex,
+      vault: VAULT_NAMES.premium,
+    };
+
+    expect(isVaultShareToken(token)).toBe(true);
+
+    if (isVaultShareToken(token)) {
+      // Narrowing makes `accountantAddress` non-optional.
+      assertHex(token.accountantAddress);
+    }
+  });
+
+  it('treats a token without an accountant address as spot', () => {
+    const token: TokenPaymentInfo = {
+      ...sharedToken,
+      conversionRate: { usd: '1.0' },
+    };
+
+    expect(isVaultShareToken(token)).toBe(false);
+  });
+
+  it('accepts a vault name the client does not know about', () => {
+    const token: TokenPaymentInfo = {
+      ...sharedToken,
+      accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a' as Hex,
+      vault: 'some-vault-shipped-after-this-release',
+    };
+
+    expect(isVaultShareToken(token)).toBe(true);
+  });
+
+  it('rejects a spot token carrying vault-only fields', () => {
+    // @ts-expect-error A vault name requires an accountant address.
+    assertTokenPaymentInfo({
+      ...sharedToken,
+      vault: VAULT_NAMES.base,
     });
 
     expect(true).toBe(true);
