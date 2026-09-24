@@ -106,6 +106,37 @@ describe('mapApiTransaction', () => {
     });
   });
 
+  it('maps an Arc USDC wrapper transfer to a Send activity with the native asset id', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsAnArcNativeUsdcTransfer,
+    );
+
+    expect(item).toMatchObject({
+      type: 'send',
+      chainId: 'eip155:5042',
+      data: {
+        token: {
+          direction: 'out',
+          amount: '1000000',
+          decimals: 6,
+          symbol: 'USDC',
+          assetType: 'native',
+          assetId: 'eip155:5042/slip44:5042',
+        },
+        fees: [
+          {
+            type: 'base',
+            amount: '21000',
+            decimals: 18,
+            symbol: 'USDC',
+            assetType: 'native',
+            assetId: 'eip155:5042/slip44:5042',
+          },
+        ],
+      },
+    });
+  });
+
   it('maps an approval without value transfers to an Approve spending cap activity with token metadata', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAnApprovalWithoutValueTransfers,
@@ -1058,6 +1089,69 @@ describe('mapApiTransaction', () => {
             assetType: 'native',
             symbol: 'ETH',
             assetId: 'eip155:42161/slip44:60',
+          },
+        ],
+      },
+    });
+  });
+
+  it('maps an Arc swap with the USDC wrapper as the native source token', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsAnArcSwapWithNativeUsdcSource,
+    );
+
+    expect(item).toMatchObject({
+      type: 'swap',
+      chainId: 'eip155:5042',
+      data: {
+        sourceToken: {
+          direction: 'out',
+          amount: '1000000',
+          decimals: 6,
+          symbol: 'USDC',
+          assetType: 'native',
+          assetId: 'eip155:5042/slip44:5042',
+        },
+        fees: [
+          {
+            type: 'base',
+            amount: '21000',
+            decimals: 18,
+            symbol: 'USDC',
+            assetType: 'native',
+            assetId: 'eip155:5042/slip44:5042',
+          },
+        ],
+      },
+    });
+  });
+
+  it('maps an Arc bridge withdraw with the USDC wrapper as the native source token', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs
+        .mapsAnArcBridgeWithdrawWithNativeUsdcSource,
+    );
+
+    expect(item).toMatchObject({
+      type: 'bridge',
+      chainId: 'eip155:5042',
+      data: {
+        sourceToken: {
+          direction: 'out',
+          amount: '1000000',
+          decimals: 6,
+          symbol: 'USDC',
+          assetType: 'native',
+          assetId: 'eip155:5042/slip44:5042',
+        },
+        fees: [
+          {
+            type: 'base',
+            amount: '21000',
+            decimals: 18,
+            symbol: 'USDC',
+            assetType: 'native',
+            assetId: 'eip155:5042/slip44:5042',
           },
         ],
       },
