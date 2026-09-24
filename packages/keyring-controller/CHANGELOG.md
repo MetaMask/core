@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KeyringTypes.watchOnly` for key-less, read-only accounts ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [28.1.0]
 
 ### Added

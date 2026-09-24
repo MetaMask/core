@@ -56,6 +56,7 @@ import {
   isMoneyKeyringType,
   isSnapKeyringType,
   isSnapKeyringV2Type,
+  isWatchOnlyKeyringType,
   keyringTypeToName,
 } from './utils.js';
 
@@ -851,14 +852,18 @@ export class AccountsController extends BaseController<
       id,
       address,
       options,
-      methods: [
-        EthMethod.PersonalSign,
-        EthMethod.Sign,
-        EthMethod.SignTransaction,
-        EthMethod.SignTypedDataV1,
-        EthMethod.SignTypedDataV3,
-        EthMethod.SignTypedDataV4,
-      ],
+      // Watch-only accounts have no key material, so they cannot sign.
+      methods:
+        isWatchOnlyKeyringType(keyring.type)
+          ? []
+          : [
+              EthMethod.PersonalSign,
+              EthMethod.Sign,
+              EthMethod.SignTransaction,
+              EthMethod.SignTypedDataV1,
+              EthMethod.SignTypedDataV3,
+              EthMethod.SignTypedDataV4,
+            ],
       scopes: [EthScope.Eoa],
       type: EthAccountType.Eoa,
       metadata,

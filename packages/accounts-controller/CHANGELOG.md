@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support watch-only keyring accounts ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `keyringTypeToName` names them `Watch-only` instead of throwing.
+  - Watch-only accounts expose no signing `methods`.
+  - Add `isWatchOnlyKeyringType` util.
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
