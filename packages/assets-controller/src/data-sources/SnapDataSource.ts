@@ -687,7 +687,7 @@ export class SnapDataSource extends AbstractDataSource<
         continue;
       }
 
-      accountBalances[assetId] = getZeroAssetBalance(assetId as Caip19AssetId);
+      accountBalances[assetId] = getZeroAssetBalance(assetId);
     }
   }
 

@@ -8,10 +8,8 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 
-import {
-  getDefaultAssetsControllerState,
-  type AssetsControllerMessenger,
-} from '../AssetsController.js';
+import { getDefaultAssetsControllerState } from '../AssetsController.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type {
   AssetsControllerState,
   ChainId,

@@ -306,16 +306,65 @@ flowchart TD
 Detected tokens omitted from a `full` payload are dropped — that is how an
 empty detected token leaves the list.
 
-| Situation | Result |
-| --------- | ------ |
-| One RPC `balanceOf` or decimals lookup fails, others succeed | Keep previous amount for the unread token; rest of the chain updates (`full`) |
-| RPC resolved nothing on the chain | No write for that chain; state unchanged until RpcFallback |
-| Detected ERC-20 successfully read as `0` (not native / pin / default tracked) | Omit from snapshot → `full` drops it |
-| Visible asset (native, pin, default tracked) at `0` | Write a zero row so `full` cannot drop it |
-| Hidden asset | Not fetched; dropped on `full` |
-| Staking vault omitted from the snapshot | Kept (`shouldKeepAsset`) |
-| Accounts API `full` omits a detected token | Dropped unless it is visible or staking |
-| `merge` event (detection, Account Activity, Snap balance event, staking) | Overlay only; nothing is removed |
+| Situation                                                                     | Result                                                                        |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| One RPC `balanceOf` or decimals lookup fails, others succeed                  | Keep previous amount for the unread token; rest of the chain updates (`full`) |
+| RPC resolved nothing on the chain                                             | No write for that chain; state unchanged until RpcFallback                    |
+| Detected ERC-20 successfully read as `0` (not native / pin / default tracked) | Omit from snapshot → `full` drops it                                          |
+| Visible asset (native, pin, default tracked) at `0`                           | Write a zero row so `full` cannot drop it                                     |
+| Hidden asset                                                                  | Not fetched; dropped on `full`                                                |
+| Staking vault omitted from the snapshot                                       | Kept (`shouldKeepAsset`)                                                      |
+| Accounts API `full` omits a detected token                                    | Dropped unless it is visible or staking                                       |
+| `merge` event (detection, Account Activity, Snap balance event, staking)      | Overlay only; nothing is removed                                              |
+| Snap `getAccountBalances` throws or returns `{}`                              | No write for that account; last-known amounts stay                            |
+| Snap returns some balances but omits a visible asset that already has a row   | Copy that row into the snapshot (`full`)                                      |
+| Snap omits a visible asset with no previous row                               | Seed a chain-specific zero (`getZeroAssetBalance`) so `full` cannot drop it   |
+
+## When v6 keeps a stale balance
+
+A `full` snapshot has three ways to treat an asset it did not freshly read:
+
+| Choice      | What the snapshot does                          | What the user sees                                                                                            |
+| ----------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Wipe        | Write `0` (or an empty Stellar metadata object) | The token is still listed, but the amount looks spent or gone                                                 |
+| Omit        | Leave it out of a `full` payload                | Detected tokens disappear from the list. Visible natives / pins / defaults survive only via `shouldKeepAsset` |
+| Carry stale | Copy the last good row into the snapshot        | The token stays listed at the last successful read; the next poll retries                                     |
+
+v6 chooses **carry stale** whenever a read failed but we already had an amount, and **omit the whole chain** (no write) when the source resolved nothing. It writes zero only when the source successfully reported zero, or when we must seed a visible asset that has never been seen.
+
+Wipe is worse than a slightly old number. `0` reads as “you have nothing”: send and swap use that amount, and a Snap or RPC outage looks like a drained account. Last-known-good is still an observation we actually made.
+
+Omit is worse on a `full` replace than it was on v5 `merge`. v5 overlaid whatever arrived and left the rest of state alone, so a missed token lingered. v6 replaces the covered chain slice: an omitted detected ERC-20 is dropped, so a single failed `balanceOf` would hide a token the user still holds. Copying the previous amount into the snapshot keeps that token on the list and still lets every other token on the chain update. Visible assets would survive omission through `shouldKeepAsset`, but putting the previous row in the snapshot makes the carry explicit and keeps Snap / RPC aligned with how the controller applies `full`.
+
+Doing nothing for the **entire chain** because one token failed is also worse. RPC would then skip a successful ETH read just because one ERC-20 timed out. Carry the unread token, write fresh amounts for the rest. Only when **every** requested read failed (RPC) or the Snap returned no balances at all do we leave the chain untouched — there is no partial snapshot we trust, so we do not cover that slice.
+
+### Snap v6: build the snapshot
+
+```mermaid
+flowchart TD
+  start["Snap v6 · one account"] --> fetchBalances{"getAccountBalances"}
+  fetchBalances -->|throws or empty map| skip["Contribute nothing for this account<br/>last-known amounts stay"]
+  fetchBalances -->|at least one balance| vis["For each omitted visible asset"]
+  vis --> prev{"Previous row in state?"}
+  prev -->|Yes| carry["Copy previous amount and metadata"]
+  prev -->|No| seed["Seed getZeroAssetBalance<br/>native vs token, Stellar-aware"]
+  carry --> full["Stamp updateMode: full"]
+  seed --> full
+```
+
+### Stale balance scenarios
+
+| Source       | What happened                                                                    | Stale?                                            | Why not wipe                                                                                                | Why not omit / no-op the chain                                                                                                                                 |
+| ------------ | -------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Snap         | `getAccountBalances` throws, or returns `{}`                                     | Yes — whole account left as last written          | A failed Snap is not “balance is 0”. Showing `0` on SOL / XLM / BTC looks like the wallet emptied           | There is no complete snapshot. Writing `full` with zeros or an empty slice would cover the chain and wipe it                                                   |
+| Snap         | Response lists some holdings but skips a pin / native / default we already track | Yes — that asset only                             | Same: omission is not a successful zero                                                                     | If we left it out, `full` would drop it or rely on `shouldKeepAsset`. Copying the row keeps the token listed while the rest of the Snap snapshot still updates |
+| Snap         | Same skip, but we have never stored that asset                                   | No — seed a typed zero                            | First paint of a visible asset must appear or `full` drops it. This is a seed, not a wipe of a known amount | n/a                                                                                                                                                            |
+| RPC          | One `balanceOf` or decimals lookup fails; others succeed; previous amount exists | Yes — that token only                             | A node timeout is not a zero read                                                                           | Omitting a detected ERC-20 from `full` removes it from the list. Failing the whole chain would also freeze tokens we did read                                  |
+| RPC          | Same failure, previous is `0` and the asset is not visible                       | No — omit, `full` drops it                        | An unheld detected token at 0 should leave the list, same as a successful zero read                         | n/a                                                                                                                                                            |
+| RPC          | Every requested asset on the chain failed                                        | Yes — whole chain, no write until RpcFallback     | Same as Snap empty / `{}`: we do not invent zeros                                                           | We also do not stamp `full` with an empty slice, which would cover the chain and wipe it                                                                       |
+| Accounts API | Unprocessed network or unresolved `includeAssetIds`                              | Yes — chain listed in `errors`, balances stripped | Incomplete API payload is not “those tokens are gone”                                                       | RpcFallback retries the chain from state instead of showing `0`                                                                                                |
+
+Successful zeros still win. Incoming always overwrites a kept row, so a real `0` from Snap, RPC, or Accounts API replaces stale. Stale is only for **failed or incomplete** reads.
 
 ## Failed chains
 
@@ -328,7 +377,8 @@ chain:
   `balanceOf` or unknown decimals does **not** fail the chain; the previous
   amount is carried so the snapshot stays complete. v5 still overlays only
   the tokens that succeeded (`merge`)
-- Snap: a snap that does not own the account is skipped; remaining chains stay
+- Snap: a thrown `getAccountBalances`, an empty map, or a snap that does not
+  own the account contributes nothing for that account; remaining chains stay
   on the request for the next middleware
 - `filterFailedChainBalances` strips balances on failed chains before state is
   written, so an empty failed chain cannot cover (and wipe) that slice
@@ -337,31 +387,31 @@ RpcFallback then retries only `errors` keys.
 
 ## Behavior differences at a glance
 
-| Concern                 | v5                                                                      | v6                                                                                                                                                                   |
-| ----------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts API endpoint   | `fetchV5MultiAccountBalances`                                           | `fetchV6MultiAccountBalances`                                                                                                                                        |
-| Fetch update mode       | `merge` for Accounts API, Snap, and RPC                                 | `full` for Accounts API, Snap, and RPC; RPC carries previous amounts for unread tokens                                                                                |
-| Subscribe update mode   | `merge` for every source                                                | `full` for Accounts API, Snap snapshots, and RPC (carry previous on unread tokens); `merge` for events (Snap, Account Activity, staking, detection)                   |
-| State writer            | `effectiveAccountBalancesV5`                                            | `effectiveAccountBalancesV6(updateMode)`                                                                                                                             |
-| Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `shouldKeepAsset`                                                                |
-| Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap fill from state-or-0 / RPC fetch list                                                                                                     |
-| Hidden assets           | Not sent to the endpoint                                                | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches)                                                                      |
-| Default tracked assets  | Survive only if already in state or returned                            | Always in visibility, so a `full` refresh keeps them at zero when unheld                                                                                             |
-| Token detection filter  | Drop unknown tokens when detection is off                               | Not applied; v6 snapshot is kept in full                                                                                                                             |
-| RPC token list          | Request `customAssets` + tracked balances                               | Visible natives, pins, and default tracked from state, plus already-tracked ERC-20s                                                                                  |
-| RPC pin supplement      | Extra `customAssetsOnly` poll                                           | None                                                                                                                                                                 |
-| Custom-asset graduation | Fast lane and live Accounts API / Account Activity                      | Never                                                                                                                                                                |
-| Failed chain            | Overlay whatever tokens succeeded                                       | Accounts API / Snap drop the chain; RPC drops only chains that resolved nothing, and carries previous amounts for unread tokens on a `full` snapshot                 |
+| Concern                 | v5                                                                      | v6                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts API endpoint   | `fetchV5MultiAccountBalances`                                           | `fetchV6MultiAccountBalances`                                                                                                                        |
+| Fetch update mode       | `merge` for Accounts API, Snap, and RPC                                 | `full` for Accounts API, Snap, and RPC; RPC carries previous amounts for unread tokens                                                               |
+| Subscribe update mode   | `merge` for every source                                                | `full` for Accounts API, Snap snapshots, and RPC (carry previous on unread tokens); `merge` for events (Snap, Account Activity, staking, detection)  |
+| State writer            | `effectiveAccountBalancesV5`                                            | `effectiveAccountBalancesV6(updateMode)`                                                                                                             |
+| Covered-chain replace   | `replaceCoveredChainBalances` on force refresh; restore custom + staked | `full` replaces the covered slice; keep visible natives/pins/defaults + staking via `shouldKeepAsset`                                                |
+| Pinned assets           | `request.customAssets` + merge restore                                  | Visibility → `includeAssetIds` / Snap fill from state-or-0 / RPC fetch list                                                                          |
+| Hidden assets           | Not sent to the endpoint                                                | `excludeAssetIds`; skipped by RPC and Snap; omitted balances dropped on `full` (unhide fetches)                                                      |
+| Default tracked assets  | Survive only if already in state or returned                            | Always in visibility, so a `full` refresh keeps them at zero when unheld                                                                             |
+| Token detection filter  | Drop unknown tokens when detection is off                               | Not applied; v6 snapshot is kept in full                                                                                                             |
+| RPC token list          | Request `customAssets` + tracked balances                               | Visible natives, pins, and default tracked from state, plus already-tracked ERC-20s                                                                  |
+| RPC pin supplement      | Extra `customAssetsOnly` poll                                           | None                                                                                                                                                 |
+| Custom-asset graduation | Fast lane and live Accounts API / Account Activity                      | Never                                                                                                                                                |
+| Failed chain            | Overlay whatever tokens succeeded                                       | Accounts API / Snap drop the chain; RPC drops only chains that resolved nothing, and carries previous amounts for unread tokens on a `full` snapshot |
 
 v6 `updateMode` by source:
 
-| Source           | Fetch / force refresh                               | Subscribe / live updates                                                                                   |
-| ---------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Accounts API     | `full`                                              | `full` (polls `fetch`)                                                                                     |
-| Snap             | `full`                                              | `merge`                                                                                                    |
-| RPC              | `full` (carry previous amount on unread tokens)     | `full` (carry previous amount on unread tokens); detection stays `merge`                                   |
-| Account Activity | n/a (event-only)                                    | `merge`                                                                                                    |
-| Staked balances  | `merge`                                             | `merge`                                                                                                    |
+| Source           | Fetch / force refresh                           | Subscribe / live updates                                                 |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------------------------ |
+| Accounts API     | `full`                                          | `full` (polls `fetch`)                                                   |
+| Snap             | `full`                                          | `merge`                                                                  |
+| RPC              | `full` (carry previous amount on unread tokens) | `full` (carry previous amount on unread tokens); detection stays `merge` |
+| Account Activity | n/a (event-only)                                | `merge`                                                                  |
+| Staked balances  | `merge`                                         | `merge`                                                                  |
 
 Fast-lane Accounts API `full` merged with staking `merge` still stamps `full`
 (`mergeDataResponses` promotes it). Staking rows that are present in that
