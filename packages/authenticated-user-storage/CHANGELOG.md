@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
+### Added
+
+- Add `getMarketingConsent` and `putMarketingConsent` methods to `AuthenticatedUserStorageService` for managing the authenticated user's marketing consent, along with corresponding messenger actions (`AuthenticatedUserStorageService:getMarketingConsent`, `AuthenticatedUserStorageService:putMarketingConsent`) and the `MarketingConsent` type ([#10390](https://github.com/MetaMask/core/pull/10390))
+  - `getMarketingConsent` returns the marketing consent object or `null` on 404, mirroring `getNotificationPreferences`.
+  - `putMarketingConsent` writes the full consent object and invalidates the `getMarketingConsent` cache on success.
+- Add `getIdentitySharingConsent` and `putIdentitySharingConsent` methods to `AuthenticatedUserStorageService` for recording per-audience identity-sharing consent, along with corresponding messenger actions (`AuthenticatedUserStorageService:getIdentitySharingConsent`, `AuthenticatedUserStorageService:putIdentitySharingConsent`) and the `IdentitySharingConsent` / `IdentitySharingConsentWrite` types ([#10396](https://github.com/MetaMask/core/pull/10396))
+  - `getIdentitySharingConsent` returns the granted-audience map or `null` on 404.
+  - `putIdentitySharingConsent` writes a single `{ audience, granted }` update (other audiences are unchanged) and invalidates the `getIdentitySharingConsent` cache on success.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
@@ -104,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...@metamask/authenticated-user-storage@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.2...@metamask/authenticated-user-storage@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.1...@metamask/authenticated-user-storage@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.0...@metamask/authenticated-user-storage@3.0.1

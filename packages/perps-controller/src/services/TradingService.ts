@@ -15,6 +15,7 @@ import {
 } from '../types/index.js';
 import type {
   PerpsProvider,
+  PerpsProviderType,
   OrderParams,
   OrderResult,
   EditOrderParams,
@@ -33,7 +34,10 @@ import type {
   PerpsFeeResolution,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
-import { isLimitExecutionOrderType } from '../utils/orderTypes.js';
+import {
+  isLimitExecutionOrderType,
+  SCALE_ORDER_COUNT,
+} from '../utils/orderTypes.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
 
@@ -600,7 +604,9 @@ export class TradingService {
       });
 
       // Calculate fee discount at execution time (fresh, secure)
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+        this.#resolveOrderNotionalUsd(params),
+      );
 
       this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
         feeDiscountBips: feeResolution?.discountBips,
@@ -774,20 +780,31 @@ export class TradingService {
    * @param options - The configuration options.
    * @param options.symbol - The trading pair symbol.
    * @param options.context - The service context for dependencies.
+   * @param options.provider - The provider the write will be submitted through,
+   * used to narrow the read to positions that route can reach. Omit for a
+   * read-only lookup that does not precede a write.
+   * @param options.providerId - Explicit route, when the caller supplied one.
    * @returns The result of the operation.
    */
   async #loadPositionData(options: {
     symbol: string;
     context: ServiceContext;
+    provider?: PerpsProvider;
+    providerId?: PerpsProviderType;
   }): Promise<Position | undefined> {
-    const { symbol, context } = options;
+    const { symbol, context, provider, providerId } = options;
 
     const positionLoadStart = this.#deps.performance.now();
     try {
       const positions = context.getPositions
         ? await context.getPositions()
         : [];
-      const position = positions.find((pos) => pos.symbol === symbol);
+      // Matching on symbol alone can pick another provider's position when two
+      // providers list the same market, so a routed write narrows first.
+      const candidates = provider
+        ? this.#positionsForWriteRoute({ positions, provider, providerId })
+        : positions;
+      const position = candidates.find((pos) => pos.symbol === symbol);
 
       this.#deps.tracer.setMeasurement(
         PerpsMeasurementName.PerpsGetPositionsOperation,
@@ -1164,15 +1181,279 @@ export class TradingService {
   }
 
   /**
-   * Calculate fee discount with performance measurement
-   * Uses controller dependencies injected via setControllerDependencies()
-   * Helper method for placeOrder orchestration
+   * Resolve the total USD notional a batch close will submit.
    *
-   * @returns The result of the operation.
+   * HyperLiquid takes one builder context for the whole batch, so the fee is
+   * resolved once against everything it closes rather than per position.
+   * Positions are read through the service context; when that read is
+   * unavailable or empty the notional is undefined, which the resolver reads as
+   * "no notional to blend against".
+   *
+   * @param options - The configuration options.
+   * @param options.params - Which positions the batch will close.
+   * @param options.provider - The provider that will submit the batch, and so
+   * the only one whose positions it can close.
+   * @returns The summed notional in USD, or undefined when it cannot be read.
    */
-  async #calculateFeeDiscountWithMeasurement(): Promise<
-    PerpsFeeResolution | undefined
-  > {
+  async #resolveBatchCloseNotionalUsd(options: {
+    params: ClosePositionsParams;
+    provider: PerpsProvider;
+  }): Promise<number | undefined> {
+    const { params, provider } = options;
+
+    try {
+      // Read through the provider that will actually submit the batch, then
+      // keep only what that route can close: an aggregating provider's
+      // `getPositions` still spans every active provider, so summing the rest
+      // would inflate the notional and shrink the waiver for positions this
+      // call never touches.
+      const positions = this.#positionsForWriteRoute({
+        positions: await provider.getPositions(),
+        provider,
+      });
+      // `closeAll`, or an omitted/empty symbol list, means every position.
+      // `closeAll` is checked first because the provider gives it precedence
+      // over a symbol list: pricing a filtered subset while the batch closes
+      // everything would resolve the fee against too small a notional and
+      // over-grant the waiver.
+      const selected =
+        params.closeAll !== true && params.symbols && params.symbols.length > 0
+          ? positions.filter((position) =>
+              params.symbols?.includes(position.symbol),
+            )
+          : positions;
+
+      const total = selected.reduce((sum, position) => {
+        const value = Math.abs(Number.parseFloat(position.positionValue));
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0);
+
+      return total > 0 ? total : undefined;
+    } catch (error) {
+      // Pricing the batch must never fail the close. Without a notional the
+      // resolver quotes the full waiver, which is what it did before.
+      this.#deps.debugLogger.log(
+        'TradingService: Could not price batch close for the fee resolver',
+        {
+          error: ensureError(
+            error,
+            'TradingService.resolveBatchCloseNotionalUsd',
+          ).message,
+        },
+      );
+      return undefined;
+    }
+  }
+
+  /**
+   * Keep only the positions a write through this route can actually touch.
+   *
+   * An aggregating provider reads positions from every active provider while a
+   * write goes to one, so pricing a close against the unfiltered list can bill
+   * against positions the call cannot close — and, when two providers list the
+   * same symbol, can price one provider's position for a write submitted to
+   * another. A provider that does not aggregate reports no write route and its
+   * positions are all its own.
+   *
+   * @param options - The configuration options.
+   * @param options.positions - Positions as read, possibly across providers.
+   * @param options.provider - The provider the write will be submitted through.
+   * @param options.providerId - Explicit route, when the caller supplied one.
+   * @returns The positions that route can reach.
+   */
+  #positionsForWriteRoute(options: {
+    positions: Position[];
+    provider: PerpsProvider;
+    providerId?: PerpsProviderType;
+  }): Position[] {
+    const { positions, provider, providerId } = options;
+    const route = provider.getWriteProviderId?.(providerId);
+    if (route === undefined) {
+      return positions;
+    }
+    // A position carries its provider only when an aggregator injected one;
+    // without that attribution there is nothing to filter on.
+    return positions.filter(
+      (position) =>
+        position.providerId === undefined || position.providerId === route,
+    );
+  }
+
+  /**
+   * The position's USD value per unit of size.
+   *
+   * Used to price a partial close, which names a size but usually no price.
+   *
+   * @param position - The loaded position, when one was found.
+   * @returns The per-unit price, or undefined when it cannot be derived.
+   */
+  #resolvePositionUnitPrice(
+    position: Position | undefined,
+  ): number | undefined {
+    if (!position) {
+      return undefined;
+    }
+    const value = Math.abs(Number.parseFloat(position.positionValue));
+    const size = Math.abs(Number.parseFloat(position.size));
+    if (!Number.isFinite(value) || !Number.isFinite(size) || size <= 0) {
+      return undefined;
+    }
+    return value / size;
+  }
+
+  /**
+   * Resolve an order's USD notional for the fee resolver.
+   *
+   * `usdAmount` is the hybrid model's source of truth and is preferred whenever
+   * the caller supplied it. Otherwise the notional is `size × price`, taking the
+   * best price available: an explicit limit price, then the caller's price
+   * snapshot, then the live market price it was quoted against.
+   *
+   * Returns undefined when no price is available rather than guessing. The
+   * resolver reads that as "no notional to blend against" and quotes the full
+   * waiver rate — the same answer it gave before the notional was threaded
+   * through, so an unpriceable order is no worse off than it was.
+   *
+   * @param params - The order-shaped parameters in scope at the call site.
+   * @param params.size - Order size in base units, when known.
+   * @param params.usdAmount - Order notional in USD, when the caller supplied it.
+   * @param params.price - Limit price, when the placement carries one.
+   * @param params.triggerPrice - Trigger level, for a placement that has no
+   * limit price of its own.
+   * @param params.currentPrice - Live market price the order was quoted against.
+   * @param params.priceAtCalculation - Price snapshot taken when size was derived.
+   * @param params.scaleMinPrice - Lowest rung of a Scale ladder, when the
+   * placement is one.
+   * @param params.scaleMaxPrice - Highest rung of a Scale ladder, when the
+   * placement is one.
+   * @param params.scaleNumOrders - Number of rungs in a Scale ladder, when
+   * the placement supplies it.
+   * @param params.scaleSkew - Optional linear size weighting across a Scale
+   * ladder. A value above 1 puts more size on the highest-price rungs.
+   * @returns The order notional in USD, or undefined when it cannot be priced.
+   */
+  #resolveOrderNotionalUsd(params: {
+    size?: string;
+    usdAmount?: string;
+    price?: string;
+    triggerPrice?: string;
+    currentPrice?: number;
+    priceAtCalculation?: number;
+    scaleMinPrice?: string;
+    scaleMaxPrice?: string;
+    scaleNumOrders?: number;
+    scaleSkew?: number;
+  }): number | undefined {
+    const usdAmount =
+      params.usdAmount === undefined
+        ? undefined
+        : Number.parseFloat(params.usdAmount);
+    if (
+      usdAmount !== undefined &&
+      Number.isFinite(usdAmount) &&
+      usdAmount > 0
+    ) {
+      return usdAmount;
+    }
+
+    const size =
+      params.size === undefined ? undefined : Number.parseFloat(params.size);
+    if (size === undefined || !Number.isFinite(size) || size <= 0) {
+      return undefined;
+    }
+
+    const limitPrice =
+      params.price === undefined ? undefined : Number.parseFloat(params.price);
+    // A trigger placement carries no limit price; the level it activates at is
+    // the only price it states, so it prices the order.
+    const triggerPrice =
+      params.triggerPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.triggerPrice);
+    // A Scale ladder states no single price. For an even ladder the midpoint
+    // is its average price, but a skew weights the rung sizes, so the midpoint
+    // is no longer the ladder's notional price. Use the same linear weights as
+    // `splitScaleSizes` when the caller supplies the rung count. The provider
+    // rounds each rung onto its venue size grid later; this is the equivalent
+    // weighted calculation before that bounded rounding, without making the
+    // service depend on provider-specific market metadata.
+    const scaleMinPrice =
+      params.scaleMinPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.scaleMinPrice);
+    const scaleMaxPrice =
+      params.scaleMaxPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.scaleMaxPrice);
+    const scaleWeightedPrice =
+      scaleMinPrice !== undefined &&
+      scaleMaxPrice !== undefined &&
+      Number.isFinite(scaleMinPrice) &&
+      Number.isFinite(scaleMaxPrice) &&
+      scaleMinPrice > 0 &&
+      scaleMaxPrice > 0
+        ? ((): number => {
+            const count = params.scaleNumOrders;
+            const skew = params.scaleSkew;
+            if (
+              count === undefined ||
+              !Number.isInteger(count) ||
+              count < SCALE_ORDER_COUNT.min ||
+              count > SCALE_ORDER_COUNT.max ||
+              (skew !== undefined && (!Number.isFinite(skew) || skew <= 0))
+            ) {
+              return (scaleMinPrice + scaleMaxPrice) / 2;
+            }
+
+            let weightedPrice = 0;
+            let weightSum = 0;
+            for (let index = 0; index < count; index++) {
+              const weight = 1 + (((skew ?? 1) - 1) * index) / (count - 1);
+              const price =
+                scaleMinPrice +
+                ((scaleMaxPrice - scaleMinPrice) * index) / (count - 1);
+              weightedPrice += price * weight;
+              weightSum += weight;
+            }
+            return weightedPrice / weightSum;
+          })()
+        : undefined;
+
+    const price = [
+      limitPrice,
+      triggerPrice,
+      scaleWeightedPrice,
+      params.priceAtCalculation,
+      params.currentPrice,
+    ]
+      .filter(
+        (candidate): candidate is number =>
+          candidate !== undefined &&
+          Number.isFinite(candidate) &&
+          candidate > 0,
+      )
+      .at(0);
+
+    return price === undefined ? undefined : size * price;
+  }
+
+  /**
+   * Resolve the fee discount for a submission, measuring the call.
+   *
+   * Uses controller dependencies injected via `setControllerDependencies()`;
+   * without them there is no resolver to ask and the caller pays the
+   * undiscounted fee. Helper method for the placement orchestration paths.
+   *
+   * @param orderNotionalUsd - The order's notional in USD, when it can be
+   * priced. This is what lets the subscription source resolve to a blended
+   * rate: omitting it resolves every bounded allowance as a full waiver,
+   * charging 0 bips on an order the preview quoted a blend for.
+   * @returns The resolved fee, or undefined when controller dependencies are
+   * unavailable.
+   */
+  async #calculateFeeDiscountWithMeasurement(
+    orderNotionalUsd?: number,
+  ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
       this.#deps.debugLogger.log(
@@ -1185,8 +1466,11 @@ export class TradingService {
 
     const orderExecutionFeeDiscountStartTime = this.#deps.performance.now();
 
-    // Calculate fee discount using messenger pattern (service handles controller access internally)
-    const resolution = await rewardsIntegrationService.resolveFee();
+    // The notional is what lets the subscription source resolve to a blended
+    // rate. Submitting without it would resolve every bounded allowance as a
+    // full waiver, charging 0 bips on an order the preview quoted a blend for.
+    const resolution =
+      await rewardsIntegrationService.resolveFee(orderNotionalUsd);
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -1203,6 +1487,8 @@ export class TradingService {
       {
         discountBips: resolution.discountBips,
         source: resolution.source,
+        orderNotionalUsd,
+        subscriptionWaiverKind: resolution.subscriptionWaiverKind,
         duration: `${orderExecutionFeeDiscountDuration.toFixed(0)}ms`,
       },
     );
@@ -1251,7 +1537,9 @@ export class TradingService {
       });
 
       // Calculate fee discount only if required dependencies are available
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+        this.#resolveOrderNotionalUsd(params.newOrder),
+      );
 
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
@@ -1754,6 +2042,8 @@ export class TradingService {
       position = await this.#loadPositionData({
         symbol: params.symbol,
         context,
+        provider,
+        providerId: params.providerId,
       });
 
       // Emit submitted event before the provider round-trip
@@ -1767,8 +2057,23 @@ export class TradingService {
         }),
       });
 
-      // Calculate fee discount with measurement
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
+      // Calculate fee discount with measurement. A full close commonly carries
+      // only a symbol, so `params` alone prices it as undefined and the resolver
+      // would quote a full waiver on an order the preview blended. The position
+      // loaded above is the authoritative notional for exactly that case.
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+        this.#resolveOrderNotionalUsd({
+          ...params,
+          // A partial close names a size but often no price; the position's own
+          // value per unit prices it. A full close names neither, and falls back
+          // to the whole position value below.
+          currentPrice:
+            params.currentPrice ?? this.#resolvePositionUnitPrice(position),
+        }) ??
+          this.#resolveOrderNotionalUsd({
+            usdAmount: position?.positionValue,
+          }),
+      );
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
@@ -1919,7 +2224,11 @@ export class TradingService {
 
       // Use batch close if provider supports it (provider handles filtering)
       if (provider.closePositions) {
-        const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
+        // The batch submits under one builder context, so its notional is the
+        // sum of the positions it will close, not any single one of them.
+        const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+          await this.#resolveBatchCloseNotionalUsd({ params, provider }),
+        );
 
         operationResult = await this.#withFeeDiscount({
           provider,
@@ -2127,8 +2436,54 @@ export class TradingService {
         ...this.#buildAttributionProperties(params.trackingData),
       });
 
-      // Get fee discount from rewards
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
+      // The batch shares one builder fee. Price each included trigger at its
+      // own level and size, then use the largest notional. An omitted size
+      // covers the absolute position size, including for short positions.
+      let positionPromise: Promise<Position | undefined> | undefined;
+      const getPosition = (): Promise<Position | undefined> =>
+        (positionPromise ??= params.position
+          ? Promise.resolve(params.position)
+          : this.#loadPositionData({
+              symbol: params.symbol,
+              context,
+              provider,
+              providerId: params.providerId,
+            }));
+
+      const triggerNotionalsUsd = await Promise.all(
+        [
+          { price: params.takeProfitPrice, size: params.takeProfitSize },
+          { price: params.stopLossPrice, size: params.stopLossSize },
+        ]
+          .filter(
+            (trigger): trigger is { price: string; size: string | undefined } =>
+              trigger.price !== undefined,
+          )
+          .map(async ({ price, size }) => {
+            const triggerSize = size ?? (await getPosition())?.size;
+            return this.#resolveOrderNotionalUsd({
+              size:
+                triggerSize === undefined
+                  ? undefined
+                  : Math.abs(Number.parseFloat(triggerSize)).toString(),
+              price,
+            });
+          }),
+      );
+
+      // A known sibling cannot stand in for a trigger whose size is unknown.
+      // Passing undefined withholds a bounded waiver for the entire batch.
+      const pricedTriggerNotionalsUsd = triggerNotionalsUsd.filter(
+        (notional): notional is number =>
+          notional !== undefined && Number.isFinite(notional) && notional > 0,
+      );
+      const tpslNotionalUsd =
+        pricedTriggerNotionalsUsd.length > 0 &&
+        pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
+          ? Math.max(...pricedTriggerNotionalsUsd)
+          : undefined;
+      const feeResolution =
+        await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
 
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
@@ -2436,7 +2791,15 @@ export class TradingService {
         ...this.#buildAttributionProperties(trackingData),
       });
 
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
+      // The flip order is 2x the position: one leg closes it, one opens the
+      // opposite. `orderParams` deliberately carries no price, so the notional
+      // comes from the position's own reported USD value.
+      const flipNotionalUsd = this.#resolveOrderNotionalUsd({
+        usdAmount: position.positionValue,
+      });
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+        flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
+      );
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await this.#withFeeDiscount({
         provider,

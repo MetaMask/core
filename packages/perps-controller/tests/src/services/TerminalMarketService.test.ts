@@ -9,7 +9,9 @@ const HUGE_FINITE_DECIMAL = `1${'0'.repeat(308)}`;
 const createSnapshotMarket = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
+  id: 'btc-hyperliquid-mainnet',
   symbol: 'BTC',
+  network: 'mainnet',
   provider: 'hyperliquid',
   dex: 'main',
   name: 'Bitcoin',
@@ -40,7 +42,7 @@ const createSnapshotMarket = (
 const createGlobalSnapshot = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
   provider: 'hyperliquid',
   network: 'mainnet',
   enabledDexes: ['main'],
@@ -531,7 +533,7 @@ describe('TerminalMarketService', () => {
       mockDeps.terminalApi = {
         ...mockDeps.terminalApi,
         globalSnapshotUrl:
-          'https://terminal.test-api.cx.metamask.io/v2/perpetuals',
+          'https://terminal.test-api.cx.metamask.io/v3/perpetuals',
       };
     });
 
@@ -549,6 +551,7 @@ describe('TerminalMarketService', () => {
       expect(result).toStrictEqual({
         markets: [
           {
+            id: 'btc-hyperliquid-mainnet',
             symbol: 'BTC',
             name: 'Bitcoin',
             description: 'Original cryptocurrency',
@@ -578,7 +581,7 @@ describe('TerminalMarketService', () => {
         expiresAt: SNAPSHOT_NOW + 28_000,
       });
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://terminal.test-api.cx.metamask.io/v2/perpetuals?provider=hyperliquid&network=mainnet&dexes=main',
+        'https://terminal.test-api.cx.metamask.io/v3/perpetuals?provider=hyperliquid&network=mainnet&dexes=main',
         expect.objectContaining({ method: 'GET' }),
       );
     });
@@ -599,7 +602,7 @@ describe('TerminalMarketService', () => {
       ).rejects.toThrow('Terminal global snapshot returned 503');
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://terminal.test-api.cx.metamask.io/v2/perpetuals?provider=hyperliquid&network=mainnet&dexes=main%2Cflx',
+        'https://terminal.test-api.cx.metamask.io/v3/perpetuals?provider=hyperliquid&network=mainnet&dexes=main%2Cflx',
         expect.objectContaining({ method: 'GET' }),
       );
     });
@@ -784,7 +787,8 @@ describe('TerminalMarketService', () => {
     });
 
     it.each([
-      ['version', { schemaVersion: 1 }],
+      ['version 1', { schemaVersion: 1 }],
+      ['version 2', { schemaVersion: 2 }],
       ['provider', { provider: 'other' }],
       ['network', { network: 'testnet' }],
       ['DEX set', { enabledDexes: ['main', 'xyz'] }],
@@ -869,6 +873,8 @@ describe('TerminalMarketService', () => {
       ],
       ['invalid open interest', [createSnapshotMarket({ openInterest: '-1' })]],
       ['empty non-null name', [createSnapshotMarket({ name: '' })]],
+      ['empty id', [createSnapshotMarket({ id: '' })]],
+      ['wrong network', [createSnapshotMarket({ network: 'testnet' })]],
     ])('rejects %s', async (_name, markets) => {
       const needsXyz = _name === 'missing requested DEX';
       jest.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -893,6 +899,109 @@ describe('TerminalMarketService', () => {
       ).rejects.toThrow('Terminal global snapshot');
     });
 
+    it('accepts HIP-3 markets whose provider is the Hyperliquid venue', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            enabledDexes: ['main', 'xyz'],
+            fingerprint:
+              'sha256:2680c000d74e6b46aaddfc5f944442d235961fcdf1d9063af15989285be39bb7',
+            markets: [
+              createSnapshotMarket(),
+              createSnapshotMarket({
+                id: 'xyz:aaoi-hyperliquid-mainnet',
+                symbol: 'xyz:AAOI',
+                provider: 'hyperliquid',
+                dex: 'xyz',
+                name: 'Applied Optoelectronics',
+                category: 'stocks',
+                maxLeverage: 10,
+                markPrice: '110',
+                price: '110',
+                midPrice: '110.1',
+                oraclePrice: '109.9',
+                change24h: '10',
+                changePercent24h: 10,
+                tags: ['memecoin'],
+              }),
+            ],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main', 'xyz'],
+      });
+
+      expect(result.markets).toHaveLength(2);
+      expect(result.markets[1]).toMatchObject({
+        id: 'xyz:aaoi-hyperliquid-mainnet',
+        symbol: 'xyz:AAOI',
+        isHip3: true,
+        marketSource: 'xyz',
+        marketType: 'stock',
+        tags: ['memecoin'],
+      });
+    });
+
+    it('rejects HIP-3 markets whose provider does not match the snapshot venue', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            enabledDexes: ['main', 'xyz'],
+            fingerprint:
+              'sha256:2680c000d74e6b46aaddfc5f944442d235961fcdf1d9063af15989285be39bb7',
+            markets: [
+              createSnapshotMarket(),
+              createSnapshotMarket({
+                id: 'xyz:aaoi-hyperliquid-mainnet',
+                symbol: 'xyz:AAOI',
+                provider: 'xyz',
+                dex: 'xyz',
+                name: 'Applied Optoelectronics',
+                category: 'stocks',
+                maxLeverage: 10,
+                markPrice: '110',
+                price: '110',
+                midPrice: '110.1',
+                oraclePrice: '109.9',
+                change24h: '10',
+                changePercent24h: 10,
+              }),
+            ],
+          }),
+        ),
+      );
+
+      await expect(
+        service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          enabledDexes: ['main', 'xyz'],
+        }),
+      ).rejects.toThrow('invalid provider');
+    });
+
+    it('maps id from the v3 snapshot market to PerpsMarketData', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [createSnapshotMarket({ id: 'btc-hyperliquid-mainnet' })],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+
+      expect(result.markets[0]?.id).toBe('btc-hyperliquid-mainnet');
+    });
+
     it('coalesces same-key requests and isolates different identities', async () => {
       const fetchSpy = jest
         .spyOn(globalThis, 'fetch')
@@ -903,6 +1012,7 @@ describe('TerminalMarketService', () => {
               network: 'testnet',
               fingerprint:
                 'sha256:0077720707e8b99ea78df074cdaa58522d331b47f7dcd9bd7cff6f706ffd44db',
+              markets: [createSnapshotMarket({ network: 'testnet' })],
             }),
           ),
         );

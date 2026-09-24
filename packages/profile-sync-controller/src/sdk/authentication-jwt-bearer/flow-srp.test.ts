@@ -23,6 +23,11 @@ const mockAuthorizeOIDC = jest.fn();
 const mockPairProfiles = jest.fn();
 const mockGetCustomerServiceToken = jest.fn();
 const mockGetPartnerIdentityToken = jest.fn();
+const mockMfaEnroll = jest.fn();
+const mockMfaEnrollComplete = jest.fn();
+const mockMfaVerify = jest.fn();
+const mockMfaVerifyComplete = jest.fn();
+const mockGetMfaCredentials = jest.fn();
 
 jest.mock('./services', () => ({
   authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
@@ -34,6 +39,17 @@ jest.mock('./services', () => ({
   getPartnerIdentityToken: (...args: unknown[]): unknown =>
     mockGetPartnerIdentityToken(...args),
   pairProfiles: (...args: unknown[]): unknown => mockPairProfiles(...args),
+}));
+
+jest.mock('./mfa/services', () => ({
+  mfaEnroll: (...args: unknown[]): unknown => mockMfaEnroll(...args),
+  mfaEnrollComplete: (...args: unknown[]): unknown =>
+    mockMfaEnrollComplete(...args),
+  mfaVerify: (...args: unknown[]): unknown => mockMfaVerify(...args),
+  mfaVerifyComplete: (...args: unknown[]): unknown =>
+    mockMfaVerifyComplete(...args),
+  getMfaCredentials: (...args: unknown[]): unknown =>
+    mockGetMfaCredentials(...args),
 }));
 
 // Mock computeIdentifierId
@@ -282,6 +298,277 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
       'access',
       ['email'],
       'kyc',
+    );
+  });
+});
+
+describe('SRP MFA methods', () => {
+  const accessToken = 'eyJhbGciOiJub25lIn0.eyJleHAiOjQxMDI0NDQ4MDB9.signature';
+  const config: AuthConfig & { type: AuthType.SRP } = {
+    type: AuthType.SRP,
+    env: Env.DEV,
+    platform: Platform.MOBILE,
+  };
+
+  function createAuth(): SRPJwtBearerAuth {
+    return new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse> => ({
+          token: {
+            accessToken,
+            expiresIn: 3600,
+            obtainedAt: Date.now(),
+          },
+          profile: {
+            profileId: 'profile-id',
+            canonicalProfileId: 'profile-id',
+            metaMetricsId: 'metametrics-id',
+            identifierId: 'identifier-id',
+          },
+        }),
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'identifier',
+        signMessage: async (): Promise<string> => 'signature',
+      },
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('begins passkey and email enrollment with the access token', async () => {
+    const auth = createAuth();
+    mockMfaEnroll
+      .mockResolvedValueOnce({
+        flowId: 'passkey-flow',
+        expiresAt: 1000,
+        publicKey: { challenge: 'challenge' },
+      })
+      .mockResolvedValueOnce({
+        flowId: 'email-flow',
+        expiresAt: 2000,
+      });
+
+    expect(await auth.beginMfaEnrollment('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'passkey-flow',
+    });
+    expect(
+      await auth.beginMfaEnrollment('email_otp', {
+        email: 'user@example.com',
+      }),
+    ).toStrictEqual({
+      type: 'email_otp',
+      flowId: 'email-flow',
+      expiresAt: 2000,
+    });
+    expect(mockMfaEnroll).toHaveBeenLastCalledWith(Env.DEV, accessToken, {
+      credential_type: 'email_otp',
+      identifier: 'user@example.com',
+    });
+  });
+
+  it('does not conflate email with entropySourceId', async () => {
+    const getLoginResponse = jest.fn(
+      async (): Promise<LoginResponse> => ({
+        token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
+        profile: {
+          profileId: 'profile-id',
+          canonicalProfileId: 'profile-id',
+          metaMetricsId: 'metametrics-id',
+          identifierId: 'identifier-id',
+        },
+      }),
+    );
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'identifier',
+        signMessage: async (): Promise<string> => 'signature',
+      },
+    });
+    mockMfaEnroll.mockResolvedValueOnce({ flowId: 'flow-id', expiresAt: 1000 });
+
+    await auth.beginMfaEnrollment('email_otp', {
+      email: 'user@example.com',
+      entropySourceId: 'secondary-source',
+    });
+
+    expect(getLoginResponse).toHaveBeenCalledWith('secondary-source');
+    expect(mockMfaEnroll).toHaveBeenCalledWith(Env.DEV, accessToken, {
+      credential_type: 'email_otp',
+      identifier: 'user@example.com',
+    });
+  });
+
+  it('rejects a passkey enrollment without creation data', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValue({
+      flowId: 'flow-id',
+      expiresAt: 1000,
+    });
+
+    await expect(auth.beginMfaEnrollment('passkey')).rejects.toMatchObject({
+      mfaCode: 'invalid_response',
+    });
+  });
+
+  it('uses a caller-supplied access token when beginning enrollment', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValueOnce({ flowId: 'flow-id', expiresAt: 1000 });
+
+    await auth.beginMfaEnrollment('email_otp', {
+      email: 'user@example.com',
+      accessToken: 'elevated-token',
+    });
+
+    expect(mockMfaEnroll).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'elevated-token',
+      expect.anything(),
+    );
+  });
+
+  it('completes both enrollment proof types', async () => {
+    const auth = createAuth();
+    mockMfaEnrollComplete.mockResolvedValue(undefined);
+    const attestation = {
+      id: 'id',
+      rawId: 'raw-id',
+      type: 'public-key',
+      response: {
+        attestationObject: 'attestation',
+        clientDataJSON: 'client-data',
+      },
+    } as const;
+
+    await auth.completeMfaEnrollment('flow-id', {
+      type: 'passkey',
+      attestation,
+    });
+    await auth.completeMfaEnrollment('flow-id', {
+      type: 'email_otp',
+      code: '123456',
+    });
+
+    expect(mockMfaEnrollComplete).toHaveBeenNthCalledWith(
+      1,
+      Env.DEV,
+      accessToken,
+      {
+        credential_type: 'passkey',
+        flow_id: 'flow-id',
+        passkey_attestation: attestation,
+      },
+    );
+    expect(mockMfaEnrollComplete).toHaveBeenNthCalledWith(
+      2,
+      Env.DEV,
+      accessToken,
+      {
+        credential_type: 'email_otp',
+        flow_id: 'flow-id',
+        otp_code: '123456',
+      },
+    );
+  });
+
+  it('begins passkey and email verification', async () => {
+    const auth = createAuth();
+    mockMfaVerify
+      .mockResolvedValueOnce({
+        flowId: 'passkey-flow',
+        expiresAt: 1000,
+        publicKey: { challenge: 'challenge' },
+      })
+      .mockResolvedValueOnce({
+        flowId: 'email-flow',
+        expiresAt: 2000,
+      });
+
+    expect(await auth.beginMfaVerification('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'passkey-flow',
+    });
+    expect(await auth.beginMfaVerification('email_otp')).toStrictEqual({
+      type: 'email_otp',
+      flowId: 'email-flow',
+      expiresAt: 2000,
+    });
+  });
+
+  it('rejects passkey verification without request data', async () => {
+    const auth = createAuth();
+    mockMfaVerify.mockResolvedValue({
+      flowId: 'flow-id',
+      expiresAt: 1000,
+    });
+
+    await expect(auth.beginMfaVerification('passkey')).rejects.toMatchObject({
+      mfaCode: 'invalid_response',
+    });
+  });
+
+  it('completes verification and lists credentials', async () => {
+    const auth = createAuth();
+    const completion = { token: 'assertion' };
+    mockMfaVerifyComplete.mockResolvedValue(completion);
+    mockGetMfaCredentials.mockResolvedValue([
+      { type: 'passkey', status: 'active' },
+    ]);
+
+    expect(
+      await auth.completeMfaVerification('flow-id', {
+        type: 'email_otp',
+        code: '123456',
+      }),
+    ).toBe(completion);
+    expect(await auth.getMfaCredentials()).toStrictEqual([
+      { type: 'passkey', status: 'active' },
+    ]);
+  });
+
+  it('forwards a passkey assertion and exchanges the resulting JWT', async () => {
+    const auth = createAuth();
+    const assertion = {
+      id: 'id',
+      rawId: 'raw-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    } as const;
+    mockMfaVerifyComplete.mockResolvedValue({ token: 'assertion-jwt' });
+    mockAuthorizeOIDC.mockResolvedValue({
+      accessToken: 'elevated-token',
+      expiresIn: 900,
+      obtainedAt: 1000,
+    });
+
+    await auth.completeMfaVerification('flow-id', {
+      type: 'passkey',
+      assertion,
+    });
+    expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
+      accessToken: 'elevated-token',
+    });
+    expect(mockMfaVerifyComplete).toHaveBeenCalledWith(Env.DEV, accessToken, {
+      credential_type: 'passkey',
+      flow_id: 'flow-id',
+      passkey_assertion: assertion,
+    });
+    expect(mockAuthorizeOIDC).toHaveBeenCalledWith(
+      'assertion-jwt',
+      Env.DEV,
+      Platform.MOBILE,
     );
   });
 });

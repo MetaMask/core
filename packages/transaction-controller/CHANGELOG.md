@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.0.0]
+
+### Changed
+
+- **BREAKING:** Restore metadata-driven sponsorship and signing in `TransactionController` instead of approval-time policy hooks ([#10420](https://github.com/MetaMask/core/pull/10420))
+  - Set `isGasFeeSponsored` in add-transaction options (or use simulation sponsorship) to sponsor a transaction; it again sets `isExternalSign` and skips local signing. `isExternalSign` again controls whether a nonce is reserved and whether a transaction is signed locally.
+  - `beforeSign` now runs only as part of the signing path, rather than before deciding whether to sign. Approval no longer refreshes sponsorship availability before making signing decisions.
+- **BREAKING:** Require the `hooks` object in `TransactionControllerOptions` again; pass `hooks: {}` if no hooks are needed ([#10420](https://github.com/MetaMask/core/pull/10420))
+- Reduce the cost of EIP-7702 capability checks by removing redundant contract signature verification ([#10397](https://github.com/MetaMask/core/pull/10397))
+  - Verification results are now memoized, so each configured contract is verified at most once rather than on every lookup.
+  - `getEIP7702UpgradeContractAddress` now stops verifying once an authentic contract is found, instead of verifying every contract configured for the chain.
+
+### Removed
+
+- **BREAKING:** Remove the `IsGasSponsoredHook` and `ShouldSignHook` exports, `hooks.isSponsored` and `hooks.shouldSign` options, and `TransactionMeta.isGasFeeSponsoredAvailable` ([#10420](https://github.com/MetaMask/core/pull/10420))
+  - Migrate consumers of these hooks to `isGasFeeSponsored` and `isExternalSign` transaction metadata, and do not read `isGasFeeSponsoredAvailable` from transaction metadata.
+
+## [71.0.0]
+
+### Added
+
+- Add `membershipSubscription` transaction type ([#10340](https://github.com/MetaMask/core/pull/10340))
+
+### Changed
+
+- **BREAKING:** Move sponsorship and signing decisions to optional approval-time `isSponsored` and `shouldSign` hooks ([#10109](https://github.com/MetaMask/core/pull/10109))
+  - The hooks default to non-sponsored and local signing when omitted. Sponsored transactions skip the `shouldSign` hook and local signing, while transactions that skip local signing retain an existing nonce and require a publish hook.
+  - `isGasFeeSponsored` and `isExternalSign` remain in the public types as deprecated compatibility properties but no longer control the transaction lifecycle; `isGasFeeSponsored` remains available as migration metadata.
+  - Add `TransactionMeta.isGasFeeSponsoredAvailable` and refresh it during approval preparation when simulation is enabled so sponsorship hooks receive current availability without overriding simulation preferences.
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+
 ## [70.1.0]
 
 ### Changed
@@ -2757,7 +2788,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...HEAD
+[72.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...@metamask/transaction-controller@72.0.0
+[71.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...@metamask/transaction-controller@71.0.0
 [70.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...@metamask/transaction-controller@70.1.0
 [70.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...@metamask/transaction-controller@70.0.1
 [70.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.1...@metamask/transaction-controller@70.0.0

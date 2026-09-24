@@ -24,12 +24,14 @@ import {
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
+  CommentEngagement,
   FeedResponse,
   FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
+  FetchTraderFeedOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
   FollowingResponse,
@@ -38,11 +40,13 @@ import type {
   LeaderboardResponse,
   Position,
   PositionsResponse,
+  ReactToCommentOptions,
+  RemoveCommentReactionOptions,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
-import { TradeStruct } from './social-types.js';
+import { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
 
 // ---------------------------------------------------------------------------
@@ -62,6 +66,16 @@ const ProfileSummaryStruct = structType({
   name: string(),
   imageUrl: optional(nullable(string())),
 });
+
+const FeedActorStruct = assign(
+  ProfileSummaryStruct,
+  structType({
+    winRate30d: optional(nullable(number())),
+    pnl30d: optional(nullable(number())),
+    tradeCount30d: optional(nullable(number())),
+    followerCount: optional(nullable(number())),
+  }),
+);
 
 const PositionStruct = structType({
   positionId: string(),
@@ -127,6 +141,7 @@ const TraderStatsStruct = structType({
   winRate30d: optional(nullable(number())),
   roiPercent30d: optional(nullable(number())),
   tradeCount30d: optional(nullable(number())),
+  volumeUsd30d: optional(nullable(number())),
   pnl7d: optional(nullable(number())),
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
@@ -143,6 +158,12 @@ const PerChainBreakdownStruct = structType({
   perChainVolume7d: optional(record(string(), number())),
 });
 
+const CopytradedAllTimeStruct = structType({
+  count: number(),
+  volumeUSD: number(),
+  distinctActors: number(),
+});
+
 const TraderProfileResponseStruct = structType({
   profile: TraderProfileStruct,
   stats: TraderStatsStruct,
@@ -150,6 +171,8 @@ const TraderProfileResponseStruct = structType({
   socialHandles: SocialHandlesStruct,
   followerCount: number(),
   followingCount: number(),
+  copytradedAllTime: CopytradedAllTimeStruct,
+  rankingTag: optional(nullable(enums(TRADER_RANKING_TAGS))),
 });
 
 const PositionsResponseStruct = structType({
@@ -161,11 +184,41 @@ const PositionsResponseStruct = structType({
 // A feed item is a position plus the trader who made the trade (`actor`) and
 // the item's creation timestamp. Reuses PositionStruct so the trade/position
 // fields stay in lockstep with the positions endpoints.
+const CommentReactionProfileStruct = structType({
+  id: string(),
+  name: string(),
+});
+
+const CommentReactionStruct = structType({
+  emotion: string(),
+  count: number(),
+  profiles: array(CommentReactionProfileStruct),
+});
+
+const CommentEngagementStruct = structType({
+  reactions: array(CommentReactionStruct),
+  userReaction: nullable(string()),
+  replyCount: optional(number()),
+});
+
+const AuthorCommentStruct = structType({
+  uid: string(),
+  text: string(),
+  timestamp: number(),
+  engagement: CommentEngagementStruct,
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
-    actor: ProfileSummaryStruct,
+    actor: FeedActorStruct,
     timestamp: number(),
+    authorComment: optional(nullable(AuthorCommentStruct)),
+    commentCount: optional(number()),
+    replyCount: optional(number()),
+    firstTradeAt: optional(nullable(number())),
+    holdTimeMs: optional(nullable(number())),
+    entryPriceUsd: optional(nullable(number())),
   }),
 );
 
@@ -210,6 +263,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchFollowing',
   'fetchPositionById',
   'fetchFeed',
+  'fetchTraderFeed',
+  'reactToComment',
+  'removeCommentReaction',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -561,6 +617,158 @@ export class SocialService extends BaseDataService<
     });
 
     return feedResponse;
+  }
+
+  /**
+   * Fetches a page of one trader's activity as feed items.
+   *
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/feed`. Unlike {@link fetchFeed},
+   * this is scoped to a single profile (open and closed positions in the feed)
+   * and does not accept `scope` or `chains`. Set `commentedOnly` to only return
+   * positions that carry an author comment.
+   *
+   * The route is public, but the Authorization header is still sent so the
+   * social-api can hydrate `authorComment.engagement.userReaction` for the
+   * signed-in viewer.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @param options.commentedOnly - When true, only positions with a comment.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchTraderFeed(
+    options: FetchTraderFeedOptions,
+  ): Promise<FeedResponse> {
+    const traderFeedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderFeed`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const { addressOrId, commentedOnly, limit, olderThan, newerThan } =
+          options;
+        const url = new URL(
+          `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/feed`,
+        );
+        if (commentedOnly === true) {
+          url.searchParams.append('commentedOnly', 'true');
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
+        );
+        const feedData = await response.json();
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData as FeedResponse;
+      },
+    });
+
+    return traderFeedResponse;
+  }
+
+  /**
+   * Adds or replaces the current user's reaction on a swap comment (Call).
+   *
+   * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
+   * user per comment: a later PUT replaces the previous emotion.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.emotion - Emoji or short code to store.
+   * @returns Refreshed per-emotion counts and the caller's `userReaction`.
+   */
+  async reactToComment(
+    options: ReactToCommentOptions,
+  ): Promise<CommentEngagement> {
+    const { commentId, emotion } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:reactToComment`, commentId, emotion],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/reaction`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emotion }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED,
+        );
+        const metrics = await response.json();
+        if (!is(metrics, CommentEngagementStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return metrics as CommentEngagement;
+      },
+    });
+  }
+
+  /**
+   * Removes the current user's reaction on a swap comment (Call).
+   *
+   * Calls `DELETE ${baseUrl}/swap-comment/${commentId}/reaction`. Idempotent
+   * when the caller has never reacted.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @returns Refreshed per-emotion counts and a null `userReaction`.
+   */
+  async removeCommentReaction(
+    options: RemoveCommentReactionOptions,
+  ): Promise<CommentEngagement> {
+    const { commentId } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:removeCommentReaction`, commentId],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/reaction`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED,
+        );
+        const metrics = await response.json();
+        if (!is(metrics, CommentEngagementStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
+          );
+        }
+        return metrics as CommentEngagement;
+      },
+    });
   }
 
   /**
