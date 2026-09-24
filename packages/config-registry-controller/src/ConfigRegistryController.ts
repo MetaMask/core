@@ -69,7 +69,7 @@ export type ConfigRegistryControllerState = {
   /**
    * HTTP entity tag (ETag) for the events-config endpoint cache validation.
    */
-  eventsConfigEtag: string | null;
+  eventsConfigEtag?: string | null;
 };
 
 const stateMetadata = {
