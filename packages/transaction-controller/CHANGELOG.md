@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reduce the cost of EIP-7702 capability checks by removing redundant contract signature verification ([#10397](https://github.com/MetaMask/core/pull/10397))
+  - Verification results are now memoized, so each configured contract is verified at most once rather than on every lookup.
+  - `getEIP7702UpgradeContractAddress` now stops verifying once an authentic contract is found, instead of verifying every contract configured for the chain.
+
 ## [71.0.0]
 
 ### Added
