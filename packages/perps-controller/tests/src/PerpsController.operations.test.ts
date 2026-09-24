@@ -825,6 +825,74 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('margin mode lock', () => {
+    it('returns the lock from the active provider', async () => {
+      mockProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'isolated',
+        reason: 'open_order',
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'isolated',
+        reason: 'open_order',
+      });
+      expect(mockProvider.getMarginModeLock).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+    });
+
+    it('reports not_implemented when the provider omits the optional hook', async () => {
+      mockProvider.getMarginModeLock = undefined;
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'not_implemented',
+      });
+    });
+
+    it('reports provider_unavailable when the provider read throws', async () => {
+      mockProvider.getMarginModeLock = jest
+        .fn()
+        .mockRejectedValue(new Error('offline'));
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('reports provider_unavailable while no provider is ready', async () => {
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Uninitialized,
+      );
+
+      await expect(
+        controller.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        reason: 'provider_unavailable',
+      });
+    });
+  });
+
   describe('order capabilities', () => {
     const setAggregatedProvider = (): AggregatedPerpsProvider => {
       const lighterProvider: PerpsProvider = {

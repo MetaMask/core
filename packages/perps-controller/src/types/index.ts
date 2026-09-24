@@ -1619,6 +1619,42 @@ export type GetOrderCapabilitiesParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Market and optional route whose current margin-mode lock is requested. */
+export type GetMarginModeLockParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  providerId?: PerpsProviderType;
+};
+
+/** What fixes the asset's margin mode on the venue. */
+export type MarginModeLockReason = 'position' | 'open_order';
+
+/** Reasons the current margin-mode lock cannot be reported. */
+export type MarginModeLockUnavailableReason =
+  | 'provider_unavailable'
+  | 'provider_not_found'
+  | 'provider_not_routable'
+  | 'not_implemented';
+
+/**
+ * Margin mode an asset is bound to on the venue. `locked` means an open
+ * position or resting order/TWAP fixes the mode, so orders in the other mode
+ * are rejected; `unlocked` means either mode is accepted.
+ */
+export type PerpsMarginModeLock =
+  | Readonly<{
+      status: 'locked';
+      providerId: PerpsProviderType;
+      marginMode: MarginMode;
+      reason: MarginModeLockReason;
+    }>
+  | Readonly<{ status: 'unlocked'; providerId: PerpsProviderType }>
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: MarginModeLockUnavailableReason;
+    }>;
+
 /** Inputs for a provider-normalized Scale price ladder preview. */
 export type GetScalePriceLadderParams = {
   /** Market symbol, including its provider route when applicable. */
@@ -1946,6 +1982,18 @@ export type PerpsProvider = {
   getOrderCapabilities?(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities>;
+
+  /**
+   * Return the margin mode the market is currently locked to by an open
+   * position or resting order. Providers may omit this hook; the controller
+   * then reports the lock as unavailable.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The current lock, or a typed unavailable result.
+   */
+  getMarginModeLock?(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock>;
 
   /**
    * Normalize a Scale ladder using the selected provider's venue rules.
