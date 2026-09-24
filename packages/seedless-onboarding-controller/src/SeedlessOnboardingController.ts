@@ -661,6 +661,7 @@ export class SeedlessOnboardingController<
           options: {
             keyringId,
           },
+          // Persist local backup state only after the full operation succeeds.
           skipStatePersist: true,
         });
 
@@ -680,6 +681,7 @@ export class SeedlessOnboardingController<
         // Mark migration as complete since this new backup was created with the new data format (dataType)
         this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
 
+        // Persist local backup state after all operations succeed.
         this.#filterDupesAndUpdateSocialBackupsMetadata({
           keyringId,
           data: seedPhrase,
@@ -1810,6 +1812,7 @@ export class SeedlessOnboardingController<
         };
       };
 
+      // Skip local persistence if `skipStatePersist` is true.
       if (skipStatePersist) {
         await persistMetadataFn();
       } else {
