@@ -5792,7 +5792,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    nanoid: "npm:^3.3.8"
+    nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.13"
@@ -7008,7 +7008,7 @@ __metadata:
     ethers: "npm:^6.17.0"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
-    nanoid: "npm:^3.3.8"
+    nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.13"
@@ -8342,7 +8342,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.21"
     jest: "npm:^30.4.2"
-    nanoid: "npm:^3.3.8"
+    nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.13"
@@ -8367,7 +8367,7 @@ __metadata:
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    nanoid: "npm:^3.3.8"
+    nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.13"
@@ -22405,12 +22405,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:^3.3.10, nanoid@npm:^3.3.12, nanoid@npm:^3.3.8":
-  version: 3.3.12
-  resolution: "nanoid@npm:3.3.12"
+"nanoid@npm:^3.3.10, nanoid@npm:^3.3.12, nanoid@npm:^3.3.19, nanoid@npm:^3.3.8":
+  version: 3.3.19
+  resolution: "nanoid@npm:3.3.19"
   bin:
     nanoid: bin/nanoid.cjs
-  checksum: 10/6eec280694e2088d18fb802b1e3bfc4578e27b665b7ecfbe36c7356612fea2f814277056e671e2a1529dff551588a652efdc0bfa39f8a3185bc2247be311872e
+  checksum: 10/a330adb28dad63eccb0a0c95a2a61353e84b7e067061fff94167803d94be8eef0f7b75cf2da1bece06e8b7afb892abbe52cf0ec33298c817a083eedccd7656e4
   languageName: node
   linkType: hard
 
