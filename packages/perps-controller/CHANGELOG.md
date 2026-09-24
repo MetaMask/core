@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.1]
+
+### Fixed
+
+- Accept Terminal v3 HIP-3 snapshot markets whose `provider` is the Hyperliquid venue while `dex` carries the HIP-3 DEX (for example `xyz`). ([#10429](https://github.com/MetaMask/core/pull/10429))
+  - Previous validation required `provider === dex` for non-`main` markets, which rejected the live Terminal payload (`provider: "hyperliquid"`, `dex: "xyz"`) and forced clients onto the Hyperliquid fallback without tags/`listedAt`.
+
+## [18.0.0]
+
 ### Added
 
 - Add optional `subscriptionWaiverKind` (`'full' | 'partial'`) and `subscriptionCoveredNotionalUsd` fields to `PerpsFeeResolution`, reporting how much of an order the subscription allowance covered. ([#10294](https://github.com/MetaMask/core/pull/10294))
@@ -14,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export the subscription fee-waiver helpers from the `utils` barrel, including `hasFeeReductionAppliedFlag` and `isSubscriptionProgramCloid` for decoding a marked client order ID, and add an exact `./utils` subpath export so the barrel is importable as `@metamask/perps-controller/utils`. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `chargesMetamaskBuilderFee` field to `FeeCalculationResult`, which reports whether a placement can carry a MetaMask builder fee at all. A `metamaskFeeRate` of `0` is otherwise ambiguous between a venue or order type that has no builder field and a fully waived fee. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `registerTradingAddress` hook to the injected `subscription` dependency, for registering the current HyperLiquid trading address (CAIP-10) against the subscription profile. The injected hook remains a fallback for clients that do not provide `SubscriptionController:registerAddress`. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Add optional `fillId` field to the `OrderFill` type, an opaque execution identifier (built from HyperLiquid `coin`, `time` and `tid`, or Lighter `tradeId`) so clients can tell apart two executions of one order that share `orderId`, `timestamp`, `size` and `price` ([#10384](https://github.com/MetaMask/core/pull/10384))
 
 ### Changed
 
@@ -1008,7 +1018,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Widen the intent metadata type union (used by `SendIntentParams`, intent responses, and the service-details `intentTypes` struct) to include `cash-deposit-premium`, `cash-withdrawal-premium`, and `cash-subscription`, alongside the existing `cash-deposit` and `cash-withdrawal` ([#10430](https://github.com/MetaMask/core/pull/10430))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
 
 ## [5.0.0]
 

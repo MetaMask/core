@@ -2367,8 +2367,9 @@ export class PerpsController extends BaseController<
     // is only used when explicitly enabled and selected.
     const isLighterEnabled = this.#isLighterProviderEnabled();
     if (isLighterEnabled) {
-      // NOTE: Keep the path in a variable so ts-bridge does not rewrite the
-      // import argument and strip the webpackIgnore magic comment in core dist.
+      // NOTE: Keep the path in a variable so bundlers that ignore the
+      // webpackIgnore magic comment (e.g. Metro) cannot statically resolve the
+      // import and pull the Lighter provider into the client bundle.
       const lighterModulePath = './providers/LighterProvider';
       this.#lighterRegistrationPromise = import(
         /* webpackIgnore: true */ lighterModulePath

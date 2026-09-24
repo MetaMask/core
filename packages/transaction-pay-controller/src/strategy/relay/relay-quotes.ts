@@ -2,10 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import {
-  hasTransactionType,
-  TransactionType,
-} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -60,6 +56,7 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token.js';
+import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import {
@@ -400,19 +397,19 @@ async function getSingleQuote(
       body.refundTo = effectiveRequest.refundTo;
     }
 
-    const hasTransactions = Boolean(body.txs?.length);
-    const requiresExactOutput =
-      hasTransactions ||
-      hasTransactionType(transaction, [
-        TransactionType.perpsDepositAndOrder,
-        TransactionType.predictDepositAndOrder,
-      ]);
+    const pricing = getQuotePricing({
+      hasCalls: Boolean(body.txs?.length),
+      sourceTokenAmount,
+      targetAmountMinimum,
+      transaction,
+    });
+
     const finalBody: RelayQuoteRequest = {
       ...body,
-      amount:
-        body.amount ??
-        (requiresExactOutput ? targetAmountMinimum : sourceTokenAmount),
-      tradeType: requiresExactOutput ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
+      // A step that bundled its own calls has already pinned the amount those
+      // calls consume, so it wins over the derived amount.
+      amount: body.amount ?? pricing.amount,
+      tradeType: pricing.tradeType,
     };
 
     log('Request body', finalBody);

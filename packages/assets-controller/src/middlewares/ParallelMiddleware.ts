@@ -1,4 +1,4 @@
-import pLimit from 'p-limit';
+import { Semaphore } from 'async-mutex';
 
 import type {
   ChainId,
@@ -170,13 +170,13 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
 
       const noopNext = async (ctx: typeof context): Promise<typeof context> =>
         ctx;
-      const limit = pLimit(BALANCE_CONCURRENCY);
+      const semaphore = new Semaphore(BALANCE_CONCURRENCY);
 
       // Round 1: partition chains (no overlap), run with limited concurrency
       const requests = partitionChainsBySource(context.request, sources);
       const round1Timed = await Promise.all(
         sources.map((source, i) =>
-          limit(async () => {
+          semaphore.runExclusive(async () => {
             const start = Date.now();
             const result = await source.assetsMiddleware(
               {
@@ -219,7 +219,7 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
         );
         const fallbackTimed = await Promise.all(
           sources.map((source, i) =>
-            limit(async () => {
+            semaphore.runExclusive(async () => {
               const start = Date.now();
               const result = await source.assetsMiddleware(
                 {
@@ -306,11 +306,11 @@ export function createParallelMiddleware(sources: AssetsDataSource[]): {
 
       const noopNext = async (ctx: typeof context): Promise<typeof context> =>
         ctx;
-      const limit = pLimit(CONCURRENCY);
+      const semaphore = new Semaphore(CONCURRENCY);
 
       const timedResults = await Promise.all(
         sources.map((source) =>
-          limit(async () => {
+          semaphore.runExclusive(async () => {
             const start = Date.now();
             const result = await source.assetsMiddleware(
               {
