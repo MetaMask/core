@@ -423,6 +423,59 @@ describe('RampsActivityService', () => {
     expect(mocks.subscribe).not.toHaveBeenCalled();
   });
 
+  it('subscribes once when connect reports CONNECTED before it resolves', async () => {
+    const { service, rootMessenger, mocks } = setupService();
+
+    // `BackendWebSocketService` only registers a channel after the subscribe
+    // round-trip completes, so model that delay rather than resolving instantly.
+    const registeredChannels = new Set<string>();
+    mocks.channelHasSubscription.mockImplementation((channel: string) =>
+      registeredChannels.has(channel),
+    );
+    mocks.subscribe.mockImplementation(
+      async ({ channels }: { channels: string[] }) => {
+        await flushPromises();
+        channels.forEach((channel) => registeredChannels.add(channel));
+      },
+    );
+
+    // The first `connect` publishes the CONNECTED state change before its own
+    // promise resolves, re-entering the service while `init` is still
+    // suspended. Later calls return early, as they do once already connected.
+    let hasConnected = false;
+    mocks.connect.mockImplementation(async () => {
+      if (hasConnected) {
+        return;
+      }
+      hasConnected = true;
+      rootMessenger.publish(
+        'BackendWebSocketService:connectionStateChanged',
+        CONNECTION_INFO,
+      );
+      await flushPromises();
+    });
+
+    await service.init();
+    await completeAsyncOperations();
+
+    expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('still runs later operations after one fails', async () => {
+    const { service, rootMessenger, mocks } = setupService();
+    mocks.findSubscriptionsByChannelPrefix.mockReturnValueOnce([
+      { unsubscribe: jest.fn().mockRejectedValue(new Error('unsubscribe')) },
+    ]);
+
+    await expect(service.init()).rejects.toThrow('unsubscribe');
+    expect(mocks.subscribe).not.toHaveBeenCalled();
+
+    rootMessenger.publish('KeyringController:unlock');
+    await completeAsyncOperations();
+
+    expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+  });
+
   it('skips subscribe while the WebSocket is disconnected', async () => {
     const { service, mocks } = setupService();
     mocks.getConnectionInfo.mockReturnValue({

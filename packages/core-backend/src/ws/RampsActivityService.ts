@@ -180,6 +180,16 @@ export class RampsActivityService {
 
   #isDestroyed = false;
 
+  /**
+   * Serializes subscription lifecycle work. `BackendWebSocketService:connect`
+   * publishes `connectionStateChanged` before its own promise resolves, so a
+   * connect driven by `init`, sign-in, or unlock re-enters this service while
+   * the original call is still suspended. Running one operation at a time keeps
+   * the `channelHasSubscription` check meaningful, because `subscribe` only
+   * registers the channel after a server round-trip.
+   */
+  #pendingOperation: Promise<void> = Promise.resolve();
+
   constructor({ messenger }: RampsActivityServiceOptions) {
     this.#messenger = messenger;
     this.#messenger.registerMethodActionHandlers(
@@ -234,7 +244,7 @@ export class RampsActivityService {
     });
 
     if (connectionInfo.state === WebSocketState.CONNECTED) {
-      await this.#subscribeToCurrentProfile();
+      await this.#enqueue(async () => await this.#subscribeToCurrentProfile());
     }
   }
 
@@ -251,8 +261,23 @@ export class RampsActivityService {
       return;
     }
 
-    await this.#unsubscribeAll();
-    await this.#subscribeToCurrentProfile();
+    await this.#enqueue(async () => {
+      await this.#unsubscribeAll();
+      await this.#subscribeToCurrentProfile();
+    });
+  }
+
+  /**
+   * Runs `operation` after every previously queued operation has settled.
+   *
+   * @param operation - The subscription lifecycle work to serialize.
+   */
+  async #enqueue(operation: () => Promise<void>): Promise<void> {
+    const result = this.#pendingOperation.then(operation);
+    // Track a non-rejecting promise so one failure cannot poison the queue,
+    // while still surfacing the error to this caller.
+    this.#pendingOperation = result.catch(() => undefined);
+    await result;
   }
 
   async #subscribeToCurrentProfile(): Promise<void> {
