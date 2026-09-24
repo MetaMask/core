@@ -10,8 +10,12 @@ on:
 permissions:
   contents: read
 
+env:
+  REPAIR_COMMIT_NAME: 'github-actions[bot]'
+  REPAIR_COMMIT_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com'
+
 concurrency:
-  group: repair-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -19,8 +23,6 @@ jobs:
     name: Check whether the head commit needs repairing
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     outputs:
       needed: ${{ steps.head-author.outputs.needed }}
     steps:
@@ -32,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           author="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.author.email')"
-          if [ "$author" = '41898282+github-actions[bot]@users.noreply.github.com' ]; then
+          if [ "$author" = "$REPAIR_COMMIT_EMAIL" ]; then
             echo 'The head commit is a repair, nothing to do.'
             echo 'needed=false' >> "$GITHUB_OUTPUT"
           else
@@ -69,8 +71,8 @@ jobs:
       # Deliberately not `metamask-ci[bot]`: that is the identity Renovate commits under, and Renovate only leaves a branch alone once it sees a commit from someone else.
       - name: Configure Git
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "$REPAIR_COMMIT_NAME"
+          git config user.email "$REPAIR_COMMIT_EMAIL"
 
       - name: Get merge base and starting commit
         id: refs
