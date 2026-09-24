@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement `getMarginModeLock` for Lighter, reporting the mode an open position binds to its market. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Add optional `supportedMarginModes` to ready order capabilities; HyperLiquid reports `['isolated', 'cross']` for main-DEX markets and `['isolated']` for HIP-3 or isolated-only assets, so clients stop inferring margin-mode support from the provider. ([#10414](https://github.com/MetaMask/core/pull/10414))
 
+## [18.0.1]
+
 ### Fixed
 
 - Accept Terminal v3 HIP-3 snapshot markets whose `provider` is the Hyperliquid venue while `dex` carries the HIP-3 DEX (for example `xyz`). ([#10429](https://github.com/MetaMask/core/pull/10429))
@@ -1022,7 +1024,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
