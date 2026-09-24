@@ -1488,6 +1488,25 @@ describe('LighterProvider', () => {
       expect(lock).toStrictEqual({ status: 'unlocked', providerId: 'lighter' });
     });
 
+    it.each([
+      ['no account', { code: 200, accounts: [] }],
+      ['no positions array', { code: 200, accounts: [{ ...ACCOUNT, positions: undefined }] }],
+    ])(
+      'reports unavailable when the account response has %s',
+      async (_case, response) => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue(response);
+
+        const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+        expect(lock).toStrictEqual({
+          status: 'unavailable',
+          providerId: 'lighter',
+          reason: 'provider_unavailable',
+        });
+      },
+    );
+
     it('reports unavailable when the account read fails', async () => {
       const infra = createMockInfrastructure();
       const { provider, clientInstance } = buildProvider({

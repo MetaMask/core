@@ -5231,26 +5231,38 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param symbol - Market symbol, including its DEX route when applicable.
    * @returns The locked mode and its cause, or null when nothing locks it.
-   * @throws When the target DEX positions cannot be read.
+   * @throws When the target DEX positions cannot be read, or when the
+   * selected account changes during the read.
    */
   async #readMarginModeLock(
     symbol: string,
   ): Promise<{ marginMode: MarginMode; reason: MarginModeLockReason } | null> {
     const { dex: dexName } = parseAssetName(symbol);
+    // Each venue read resolves the selected account on its own. Pin one
+    // account for the whole read so positions and orders from different
+    // accounts can never be combined.
+    const user = await this.#walletService.getUserAddressWithDefault();
+    const assertSameAccount = async (): Promise<void> => {
+      const current = await this.#walletService.getUserAddressWithDefault();
+      if (current.toLowerCase() !== user.toLowerCase()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+    };
     const { answered, positions } = await this.#queryDexPositions(dexName);
     if (!answered) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
+    await assertSameAccount();
     const position = positions.find((item) => item.symbol === symbol);
     if (position) {
       return { marginMode: position.leverage.type, reason: 'position' };
     }
-    const user = await this.#walletService.getUserAddressWithDefault();
     const infoClient = this.#clientService.getInfoClient();
     const [orders, twapHistory] = await Promise.all([
       this.#fetchOpenOrders({ dexName }),
       infoClient.twapHistory({ user }),
     ]);
+    await assertSameAccount();
     // Native TWAP schedules are absent from frontendOpenOrders before a slice
     // rests or fills. Read history directly: getTwapOrders can rebalance HIP-3
     // collateral, which must not run as part of pre-sign validation.

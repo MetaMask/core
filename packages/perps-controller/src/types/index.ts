@@ -1639,7 +1639,9 @@ export type MarginModeLockUnavailableReason =
 /**
  * Margin mode an asset is bound to on the venue. `locked` means an open
  * position or resting order/TWAP fixes the mode, so orders in the other mode
- * are rejected; `unlocked` means either mode is accepted.
+ * are rejected; `unlocked` means nothing currently fixes the mode. It does not
+ * mean the market supports Cross: use `supportedMarginModes` from
+ * `getOrderCapabilities` for that.
  */
 export type PerpsMarginModeLock =
   | Readonly<{

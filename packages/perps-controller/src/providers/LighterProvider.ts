@@ -7405,14 +7405,20 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param symbol - Market symbol.
    * @returns The position's wire margin mode, or null when flat.
-   * @throws When the account or its positions cannot be read.
+   * @throws When the account or its positions cannot be read, including an
+   * account response without the account or its positions array.
    */
   readonly #readPositionMarginMode = async (
     symbol: string,
   ): Promise<number | null> => {
     const accountIndex = await this.#ensureAccountIndex();
     const response = await this.#clientService.getAccountByIndex(accountIndex);
-    const row = response.accounts?.[0]?.positions?.find(
+    const positions = response.accounts?.[0]?.positions;
+    // A missing account or positions array is not proof of a flat account.
+    if (!Array.isArray(positions)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const row = positions.find(
       (position) =>
         position.symbol === symbol && parseFloat(position.position) !== 0,
     );
