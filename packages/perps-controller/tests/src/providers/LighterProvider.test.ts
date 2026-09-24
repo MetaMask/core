@@ -1433,6 +1433,82 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('getMarginModeLock', () => {
+    it('reports cross when an open position omits its margin mode', async () => {
+      const { provider } = buildProvider();
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'lighter',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+    });
+
+    it('reports isolated when the open position is isolated', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], marginMode: 1 }],
+          },
+        ],
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'lighter',
+        marginMode: 'isolated',
+        reason: 'position',
+      });
+    });
+
+    it.each([
+      ['no position row', 'ETH', ACCOUNT.positions],
+      [
+        'a zero-size position',
+        'BTC',
+        [{ ...ACCOUNT.positions[0], position: '0' }],
+      ],
+    ])('reports unlocked for %s', async (_case, symbol, positions) => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, positions }],
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol });
+
+      expect(lock).toStrictEqual({ status: 'unlocked', providerId: 'lighter' });
+    });
+
+    it('reports unavailable when the account read fails', async () => {
+      const infra = createMockInfrastructure();
+      const { provider, clientInstance } = buildProvider({
+        platformDependencies: infra,
+      });
+      clientInstance.getAccountByIndex.mockRejectedValue(new Error('down'));
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_unavailable',
+      });
+      expect(infra.debugLogger.log).toHaveBeenCalledWith(
+        '[LighterProvider] getMarginModeLock unavailable',
+        { symbol: 'BTC', error: 'down' },
+      );
+    });
+  });
+
   describe('placeOrder', () => {
     it.each(['cross', 'isolated'] as const)(
       'rejects explicit %s before signing',

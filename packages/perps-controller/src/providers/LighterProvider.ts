@@ -80,6 +80,7 @@ import type {
   GetAccountStateParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
+  GetMarginModeLockParams,
   GetMarketsParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -97,6 +98,7 @@ import type {
   OrderFill,
   OrderParams,
   OrderResult,
+  PerpsMarginModeLock,
   PerpsMarketData,
   PerpsPlatformDependencies,
   PerpsProvider,
@@ -4863,6 +4865,51 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Report the margin mode Lighter currently binds to a market. Only an
+   * open position locks the mode here: the venue refuses a mode change
+   * while a position is open. Resting orders are not treated as a lock.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The current lock, or unavailable when it cannot be read.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
+      const wireMarginMode = await this.#readPositionMarginMode(params.symbol);
+      this.#assertSession(generation);
+      if (wireMarginMode === null) {
+        return { status: 'unlocked', providerId: this.protocolId };
+      }
+      return {
+        status: 'locked',
+        providerId: this.protocolId,
+        marginMode:
+          wireMarginMode === LIGHTER_MARGIN_MODE_ISOLATED
+            ? 'isolated'
+            : 'cross',
+        reason: 'position',
+      };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] getMarginModeLock unavailable',
+        {
+          symbol: params.symbol,
+          error: ensureError(error, 'LighterProvider.getMarginModeLock')
+            .message,
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
   async getAccountState(
     _params?: GetAccountStateParams,
   ): Promise<AccountState> {
@@ -7341,21 +7388,35 @@ export class LighterProvider implements PerpsProvider {
     symbol: string,
   ): Promise<number> => {
     try {
-      const accountIndex = await this.#ensureAccountIndex();
-      const response =
-        await this.#clientService.getAccountByIndex(accountIndex);
-      const row = response.accounts?.[0]?.positions?.find(
-        (position) =>
-          position.symbol === symbol && parseFloat(position.position) !== 0,
-      );
-      if (row) {
-        return row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS;
+      const positionMarginMode = await this.#readPositionMarginMode(symbol);
+      if (positionMarginMode !== null) {
+        return positionMarginMode;
       }
     } catch {
       // Fall through: prefer isolated; a wrong guess surfaces as an
       // explicit venue rejection of the leverage update, never as state.
     }
     return LIGHTER_MARGIN_MODE_ISOLATED;
+  };
+
+  /**
+   * Wire margin mode of the open position on this market, if any. A missing
+   * `marginMode` field means the venue default, cross.
+   *
+   * @param symbol - Market symbol.
+   * @returns The position's wire margin mode, or null when flat.
+   * @throws When the account or its positions cannot be read.
+   */
+  readonly #readPositionMarginMode = async (
+    symbol: string,
+  ): Promise<number | null> => {
+    const accountIndex = await this.#ensureAccountIndex();
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    const row = response.accounts?.[0]?.positions?.find(
+      (position) =>
+        position.symbol === symbol && parseFloat(position.position) !== 0,
+    );
+    return row ? (row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS) : null;
   };
 
   /** Per-market margin fractions + last price from orderBookDetails. */

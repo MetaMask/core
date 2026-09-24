@@ -6776,6 +6776,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
       expect(Object.isFrozen(capabilities.supportedStrategies)).toBe(true);
@@ -6791,6 +6792,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
     });
 
@@ -6803,9 +6805,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
     });
+
+    it.each([
+      ['isolated-only', { onlyIsolated: true }],
+      ['strictIsolated', { marginMode: 'strictIsolated' }],
+      ['noCross', { marginMode: 'noCross' }],
+    ])(
+      'reports only isolated margin for a %s market',
+      async (_, restriction) => {
+        useStrategyClients({
+          info: {
+            meta: jest.fn().mockResolvedValue({
+              universe: [
+                { name: 'ETH', szDecimals: 4, maxLeverage: 50, ...restriction },
+              ],
+            }),
+          },
+        });
+
+        expect(
+          await provider.getOrderCapabilities({ symbol: 'ETH' }),
+        ).toStrictEqual({
+          status: 'ready',
+          providerId: 'hyperliquid',
+          supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedMarginModes: ['isolated'],
+        });
+      },
+    );
 
     it.each([
       ['the HIP-3 kill switch is off', { hip3Enabled: false }],
@@ -6887,6 +6918,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
     });
 
@@ -6996,6 +7028,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7011,6 +7044,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7082,6 +7116,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
 
       pendingSharedMeta.resolve({
@@ -7095,6 +7130,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7131,11 +7167,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedMarginModes: ['isolated', 'cross'],
         },
         {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedMarginModes: ['isolated', 'cross'],
         },
       ]);
     });
@@ -7225,6 +7263,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -7333,6 +7372,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -7382,6 +7422,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7411,6 +7452,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7447,6 +7489,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7662,6 +7705,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });

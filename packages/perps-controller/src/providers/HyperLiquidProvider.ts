@@ -1688,19 +1688,52 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return provider-owned strategy support for a routed market.
-   * HyperLiquid metadata has no per-market strategy flags. This provider
-   * advertises its implemented strategies uniformly after confirming the
-   * routed market exists.
+   * Return provider-owned strategy and margin-mode support for a routed
+   * market. HyperLiquid metadata has no per-market strategy flags. This
+   * provider advertises its implemented strategies uniformly after confirming
+   * the routed market exists; margin modes follow the market's metadata.
    *
    * @param params - Required market route context.
-   * @returns Supported strategy order types.
+   * @returns Supported strategy order types and margin modes.
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
     const result = await this.#getOrderCapabilityMarket(params.symbol);
-    return result.status === 'ready' ? HYPERLIQUID_ORDER_CAPABILITIES : result;
+    if (result.status === 'unavailable') {
+      return result;
+    }
+    const supportedMarginModes: readonly MarginMode[] = Object.freeze(
+      this.#isCrossMarginSupported(params.symbol, result.market)
+        ? ['isolated', 'cross']
+        : ['isolated'],
+    );
+    return Object.freeze({
+      ...HYPERLIQUID_ORDER_CAPABILITIES,
+      supportedMarginModes,
+    });
+  }
+
+  /**
+   * Whether the venue accepts Cross margin for a market. Both SDK
+   * `marginMode` values (strictIsolated and noCross) prohibit Cross, and any
+   * future restriction value is treated as unsupported until handled
+   * explicitly. HIP-3 collateral transfers still assume isolated margin, so
+   * Cross stays unavailable there until that account-mode-aware path is
+   * supported.
+   *
+   * @param symbol - Market symbol, including its DEX route when applicable.
+   * @param asset - Venue margin metadata for the market.
+   * @param asset.onlyIsolated - Whether the market only allows isolated margin.
+   * @param asset.marginMode - Venue margin-mode restriction, if any.
+   * @returns True when Cross margin orders are accepted.
+   */
+  #isCrossMarginSupported(
+    symbol: string,
+    asset: { onlyIsolated?: boolean; marginMode?: string },
+  ): boolean {
+    const { dex } = parseAssetName(symbol);
+    return !asset.onlyIsolated && !asset.marginMode && dex === null;
   }
 
   /**
@@ -5175,15 +5208,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (!Number.isInteger(params.leverage) || (params.leverage ?? 0) < 1) {
       throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
     }
-    const { dex: dexName } = parseAssetName(params.symbol);
-    // Both SDK marginMode values (strictIsolated and noCross) prohibit Cross.
-    // Treat any future restriction value as unsupported until handled explicitly.
     if (
       params.marginMode === 'cross' &&
-      (assetInfo.onlyIsolated || assetInfo.marginMode || dexName !== null)
+      !this.#isCrossMarginSupported(params.symbol, assetInfo)
     ) {
-      // HIP-3 collateral transfers still assume isolated margin. Keep Cross
-      // unavailable there until that account-mode-aware path is supported.
       throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
     }
     const lock = await this.#readMarginModeLock(params.symbol);

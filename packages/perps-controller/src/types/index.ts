@@ -1689,6 +1689,12 @@ type ReadyPerpsOrderCapabilities = Readonly<{
   status: 'ready';
   providerId: PerpsProviderType;
   supportedStrategies: readonly StrategyOrderType[];
+  /**
+   * Margin modes the market accepts for `OrderParams.marginMode`. Omitted
+   * means the provider does not report it, and clients should not offer an
+   * explicit margin mode.
+   */
+  supportedMarginModes?: readonly MarginMode[];
 }>;
 
 export type DirectProviderOrderCapabilities =
