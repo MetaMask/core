@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 - Export `getOperatorFeeFromReceipt` and `getLayer1FeeFromReceipt` helpers to derive L1 + operator fees from transaction receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 
+### Fixed
+
+- Refresh `transactionMeta.layer1GasFee` from the receipt on confirmation so Activity Details include Mantle operator fee (and OP Stack L1 fee) based on inclusion-time values rather than the pre-confirm estimate alone ([#9630](https://github.com/MetaMask/core/pull/9630))
+
 ## [72.0.0]
 
 ### Changed
@@ -128,23 +132,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Skip resimulation check when failing incomplete transactions at startup, preventing a crash when `isSimulationEnabled` depends on controllers not yet registered ([#9821](https://github.com/MetaMask/core/pull/9821))
-
-## [Unreleased]
-
-### Added
-
-- Add optional `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
-- Export `getOperatorFeeFromReceipt` and `getLayer1FeeFromReceipt` helpers to derive L1 + operator fees from transaction receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
-
-### Changed
-
-- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
-- Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-
-### Fixed
-
-- Refresh `transactionMeta.layer1GasFee` from the receipt on confirmation so Activity Details include Mantle operator fee (and OP Stack L1 fee) based on inclusion-time values rather than the pre-confirm estimate alone ([#9630](https://github.com/MetaMask/core/pull/9630))
 
 ## [69.5.1]
 
