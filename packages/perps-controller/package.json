@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "18.0.0",
+  "version": "18.0.1",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -91,8 +91,8 @@
     "@metamask/network-controller": "^37.0.0",
     "@metamask/profile-sync-controller": "^32.3.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/subscription-controller": "^9.1.0",
-    "@metamask/transaction-controller": "^71.0.0",
+    "@metamask/subscription-controller": "^10.0.0",
+    "@metamask/transaction-controller": "^72.0.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
