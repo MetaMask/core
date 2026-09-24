@@ -2851,17 +2851,7 @@ export class KeyringController<
 
       oldKeyringsById.delete(old.metadata.id);
 
-      let isUnchanged = false;
-      try {
-        isUnchanged =
-          JSON.stringify(await old.keyring.serialize()) ===
-          JSON.stringify(serialized.data);
-      } catch {
-        // If the keyring cannot be serialized anymore, treat it as changed so
-        // that it is rebuilt from its snapshot state.
-      }
-
-      if (isUnchanged) {
+      if (await this.#isKeyringUnchanged(old, serialized)) {
         // The transaction did not change the keyring: keep the old instance.
         newKeyrings.push(old);
         continue;
@@ -2883,6 +2873,31 @@ export class KeyringController<
     // abort the rollback nor mask the error of the failed transaction.
     for (const oldStaleKeyring of oldStaleKeyrings) {
       await this.#destroyKeyringIgnoringErrors(oldStaleKeyring);
+    }
+  }
+
+  /**
+   * Check whether the given old keyring entry's serialized state is unchanged
+   * relative to the given snapshot.
+   *
+   * A keyring that cannot be serialized anymore is treated as changed, so
+   * that it is rebuilt from its snapshot state.
+   *
+   * @param old - The old keyring entry to check.
+   * @param snapshot - The serialized snapshot to check against.
+   * @returns Whether the keyring is unchanged.
+   */
+  async #isKeyringUnchanged(
+    old: KeyringEntry,
+    snapshot: SerializedKeyring,
+  ): Promise<boolean> {
+    try {
+      return (
+        JSON.stringify(await old.keyring.serialize()) ===
+        JSON.stringify(snapshot.data)
+      );
+    } catch {
+      return false;
     }
   }
 
@@ -3492,14 +3507,7 @@ export class KeyringController<
       return true;
     }
 
-    try {
-      return (
-        JSON.stringify(await old.keyring.serialize()) !==
-        JSON.stringify(snapshot.serialized.data)
-      );
-    } catch {
-      return true;
-    }
+    return !(await this.#isKeyringUnchanged(old, snapshot.serialized));
   }
 
   /**
@@ -3547,17 +3555,7 @@ export class KeyringController<
       return;
     }
 
-    let isUnchanged = false;
-    try {
-      isUnchanged =
-        JSON.stringify(await old.keyring.serialize()) ===
-        JSON.stringify(snapshot.serialized.data);
-    } catch {
-      // If the keyring cannot be serialized anymore, treat it as changed so
-      // that it is rebuilt from its snapshot state.
-    }
-
-    if (isUnchanged) {
+    if (await this.#isKeyringUnchanged(old, snapshot.serialized)) {
       return;
     }
 
