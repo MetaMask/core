@@ -52,6 +52,7 @@ describe('LighterWalletService', () => {
 
     const buildMessengerService = (
       isUnlocked = true,
+      keyringType?: string,
     ): {
       service: LighterWalletService;
       messenger: ReturnType<typeof createMockMessenger>;
@@ -61,13 +62,16 @@ describe('LighterWalletService', () => {
         if (action === 'KeyringController:getState') {
           return { isUnlocked };
         }
+        const account = keyringType
+          ? { ...selectedAccount, metadata: { keyring: { type: keyringType } } }
+          : selectedAccount;
         if (action === 'AccountsController:getSelectedAccount') {
-          return selectedAccount;
+          return account;
         }
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
         ) {
-          return [selectedAccount];
+          return [account];
         }
         if (action === 'KeyringController:signPersonalMessage') {
           return Promise.resolve(FIXED_SIGNATURE);
@@ -91,6 +95,20 @@ describe('LighterWalletService', () => {
           from: HEADLESS_ADDRESS,
           data: expect.stringMatching(/^0x/u),
         }),
+      );
+    });
+
+    it('rejects watch-only accounts without calling the keyring', async () => {
+      const { service, messenger } = buildMessengerService(
+        true,
+        'Watch Only Keyring',
+      );
+      await expect(service.signPersonalMessage('nope')).rejects.toThrow(
+        'WATCH_ONLY_ACCOUNT',
+      );
+      expect(messenger.call).not.toHaveBeenCalledWith(
+        'KeyringController:signPersonalMessage',
+        expect.anything(),
       );
     });
 

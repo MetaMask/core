@@ -429,6 +429,7 @@ describe('HyperLiquidProvider', () => {
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
       isKeyringUnlocked: jest.fn().mockReturnValue(true),
       isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isSelectedWatchOnly: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {

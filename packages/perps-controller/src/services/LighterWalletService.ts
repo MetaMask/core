@@ -28,7 +28,10 @@ import type {
   LighterNetwork,
   LighterPersonalSigner,
 } from '../types/lighter-types.js';
-import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import {
+  getSelectedEvmAccountFromMessenger,
+  isSelectedEvmAccountWatchOnly,
+} from '../utils/accountUtils.js';
 
 export class LighterWalletService {
   #isTestnet: boolean;
@@ -91,6 +94,9 @@ export class LighterWalletService {
    */
   async signPersonalMessage(message: string): Promise<string> {
     if (this.#messenger) {
+      if (isSelectedEvmAccountWatchOnly(this.#messenger)) {
+        throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+      }
       const { isUnlocked } = this.#messenger.call('KeyringController:getState');
       if (!isUnlocked) {
         throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);

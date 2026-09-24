@@ -2577,9 +2577,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       // blocked when they try to trade. Software wallets can complete the
       // signing-backed migration during initial setup so the first trade sees
       // the unified balance. Hardware wallets remain deferred to action time to
-      // avoid repeated signing prompts while browsing.
+      // avoid repeated signing prompts while browsing. Watch-only accounts
+      // cannot sign at all, so they skip the migration.
       await this.#ensureUnifiedAccountEnabled({
-        allowUserSigning: !this.#walletService.isSelectedHardwareWallet(),
+        allowUserSigning:
+          !this.#walletService.isSelectedHardwareWallet() &&
+          !this.#walletService.isSelectedWatchOnly(),
       });
     })();
 
@@ -2707,6 +2710,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
   }): Promise<BuilderFeeSetupContext | undefined> {
+    // Watch-only accounts have no keys. Refuse here, before any signing, so the
+    // caller gets an explicit code instead of the SDK's generic signing error.
+    if (this.#walletService.isSelectedWatchOnly()) {
+      throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+    }
+
     // First ensure basic initialization is complete
     await this.#ensureReady();
 

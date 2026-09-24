@@ -95,6 +95,8 @@ export const PERPS_ERROR_CODES = {
   // Wallet/account errors
   NO_ACCOUNT_SELECTED: 'NO_ACCOUNT_SELECTED',
   KEYRING_LOCKED: 'KEYRING_LOCKED',
+  // Selected account is watch-only: it has no keys, so every write is refused.
+  WATCH_ONLY_ACCOUNT: 'WATCH_ONLY_ACCOUNT',
   INVALID_ADDRESS_FORMAT: 'INVALID_ADDRESS_FORMAT',
   // Wallet has no account on the exchange yet (HyperLiquid creates accounts
   // server-side on the first USDC credit). Actionable: the user must fund the

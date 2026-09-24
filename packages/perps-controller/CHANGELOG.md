@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Refuse writes for watch-only accounts before they reach the keyring ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Add the `WATCH_ONLY_ACCOUNT` error code and `HyperLiquidWalletService.isSelectedWatchOnly`.
+  - HyperLiquid trading entry points refuse with `WATCH_ONLY_ACCOUNT` before any signing.
+  - HyperLiquid typed-data signing and Lighter personal signing also throw `WATCH_ONLY_ACCOUNT` when the selected account belongs to the watch-only keyring.
+  - HyperLiquid initialization skips the signing-backed Unified Account migration for watch-only accounts.
+
 ## [18.0.1]
 
 ### Fixed
