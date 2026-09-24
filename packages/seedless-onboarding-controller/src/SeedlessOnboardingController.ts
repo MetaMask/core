@@ -653,7 +653,7 @@ export class SeedlessOnboardingController<
         });
       const performKeyCreationAndBackup = async (): Promise<void> => {
         // encrypt and store the secret data
-        await this.#encryptAndStoreSecretData({
+        const secretMetadata = await this.#encryptAndStoreSecretData({
           data: seedPhrase,
           dataType: EncAccountDataType.PrimarySrp,
           encKey,
@@ -661,6 +661,7 @@ export class SeedlessOnboardingController<
           options: {
             keyringId,
           },
+          skipStatePersist: true,
         });
 
         // store/persist the encryption key shares
@@ -678,6 +679,12 @@ export class SeedlessOnboardingController<
 
         // Mark migration as complete since this new backup was created with the new data format (dataType)
         this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+
+        this.#filterDupesAndUpdateSocialBackupsMetadata({
+          keyringId,
+          data: seedPhrase,
+          type: secretMetadata.type,
+        });
       };
 
       await this.#executeWithTokenRefresh(
@@ -1744,8 +1751,10 @@ export class SeedlessOnboardingController<
    * @param params.authKeyPair - The authentication key pair to store.
    * @param params.options - Optional options object.
    * @param params.options.keyringId - The keyring id of the backup keyring (required for SRP types).
+   * @param params.skipStatePersist - Whether to persist the backup state after
+   *   the remote metadata is stored. When true, the backup metadata is not persisted to the controller state.
    *
-   * @returns A promise that resolves to the success of the operation.
+   * @returns A promise that resolves to the backup metadata.
    */
   async #encryptAndStoreSecretData(params: {
     data: Uint8Array;
@@ -1755,8 +1764,16 @@ export class SeedlessOnboardingController<
     options?: {
       keyringId?: string;
     };
-  }): Promise<void> {
-    const { options, data, encKey, authKeyPair, dataType } = params;
+    skipStatePersist?: boolean;
+  }): Promise<SecretMetadata> {
+    const {
+      options,
+      data,
+      encKey,
+      authKeyPair,
+      dataType,
+      skipStatePersist = false,
+    } = params;
 
     const secretMetadata = new SecretMetadata(data, { dataType });
     const { type } = secretMetadata;
@@ -1764,7 +1781,7 @@ export class SeedlessOnboardingController<
     // before encrypting and create backup, we will check the state if the secret data is already backed up
     const backupState = this.getSecretDataBackupState(data, type);
     if (backupState) {
-      return;
+      return secretMetadata;
     }
 
     const secretData = secretMetadata.toBytes();
@@ -1777,7 +1794,7 @@ export class SeedlessOnboardingController<
     }
 
     try {
-      await this.#withPersistedSecretMetadataBackupsState(async () => {
+      const persistMetadataFn = async (): Promise<Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }> => {
         await this.toprfClient.addSecretDataItem({
           encKey,
           secretData,
@@ -1789,7 +1806,15 @@ export class SeedlessOnboardingController<
           data,
           type,
         };
-      });
+      };
+
+      if (skipStatePersist) {
+        await persistMetadataFn();
+      } else {
+        await this.#withPersistedSecretMetadataBackupsState(persistMetadataFn);
+      }
+
+      return secretMetadata;
     } catch (error) {
       if (this.#isAuthTokenError(error)) {
         throw error;

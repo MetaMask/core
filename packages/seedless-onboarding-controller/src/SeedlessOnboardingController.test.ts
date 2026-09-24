@@ -1470,6 +1470,7 @@ describe('SeedlessOnboardingController', () => {
             .mockResolvedValueOnce();
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
+          const retryMockSecretDataAdd = handleMockSecretDataAdd();
 
           const authenticateSpy = jest
             .spyOn(toprfClient, 'authenticate')
@@ -1486,6 +1487,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(retryMockSecretDataAdd.isDone()).toBe(true);
 
           // should call persistLocalKey twice and authenticate once
           expect(persistLocalKeySpy).toHaveBeenCalledTimes(2); // should call persistLocalKey twice for the first fail attempt due to invalid auth token error and the second attempt succeeds
@@ -1981,6 +1983,16 @@ describe('SeedlessOnboardingController', () => {
               hash: keccak256AndHexify(NEW_KEY_RING_1.seedPhrase),
             },
           ]);
+
+          // do not add a duplicate backup
+          await baseMessenger.call(
+            'SeedlessOnboardingController:addNewSecretData',
+            NEW_KEY_RING_1.seedPhrase,
+            EncAccountDataType.ImportedSrp,
+            {
+              keyringId: NEW_KEY_RING_1.id,
+            },
+          );
 
           // add another seed phrase backup
           const mockSecretDataAdd2 = handleMockSecretDataAdd();
@@ -6831,7 +6843,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
-            expect(addSecretDataItemSpy).toHaveBeenCalledTimes(1);
+            expect(addSecretDataItemSpy).toHaveBeenCalledTimes(2);
             expect(authenticateSpy).toHaveBeenCalled();
             // should call persistLocalKey twice, once for the first call and another from the refresh token
             expect(persistLocalKeySpy).toHaveBeenCalledTimes(2);
