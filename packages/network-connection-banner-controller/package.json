@@ -56,7 +56,7 @@
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.0",
-    "@metamask/network-enablement-controller": "^7.0.0",
+    "@metamask/network-enablement-controller": "^7.0.1",
     "@metamask/utils": "^12.0.0",
     "reselect": "^5.1.1"
   },
