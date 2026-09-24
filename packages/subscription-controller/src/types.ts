@@ -489,10 +489,7 @@ export const VAULT_NAMES = {
  * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
  * Neither `accountantAddress` nor `vault` is present on this variant.
  */
-export type SpotTokenPaymentInfo = TokenPaymentInfoBase & {
-  accountantAddress?: never;
-  vault?: never;
-};
+export type SpotTokenPaymentInfo = TokenPaymentInfoBase;
 
 /**
  * Yield-bearing vault share priced via an accountant rate.
@@ -531,7 +528,7 @@ export type TokenPaymentInfo = SpotTokenPaymentInfo | VaultTokenPaymentInfo;
 export function isVaultShareToken(
   token: TokenPaymentInfo,
 ): token is VaultTokenPaymentInfo {
-  return token.accountantAddress !== undefined;
+  return (token as VaultTokenPaymentInfo).accountantAddress !== undefined;
 }
 
 export type ChainPaymentInfo = {

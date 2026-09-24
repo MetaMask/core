@@ -1,9 +1,10 @@
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import {
   CRYPTO_AUTH_METHODS,
   isVaultShareToken,
   MoneyAccountFeature,
+  PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   ShieldFeature,
@@ -11,10 +12,12 @@ import {
 } from './types.js';
 import type {
   MoneyAccountEntitlements,
+  PricingResponse,
   ShieldEntitlements,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
   UpdatePaymentMethodCryptoRequest,
+  VaultTokenPaymentInfo,
 } from './types.js';
 
 const SHARED_CRYPTO_REQUEST = {
@@ -39,11 +42,17 @@ function assertUpdatePaymentMethodCryptoRequest(
   return request;
 }
 
-function assertTokenPaymentInfo(token: TokenPaymentInfo): TokenPaymentInfo {
+function assertVaultTokenPaymentInfo(
+  token: VaultTokenPaymentInfo,
+): VaultTokenPaymentInfo {
   return token;
 }
 
 function assertHex(value: Hex): Hex {
+  return value;
+}
+
+function assertJson<Type extends Json>(value: Type): Type {
   return value;
 }
 
@@ -255,13 +264,43 @@ describe('isVaultShareToken', () => {
     expect(isVaultShareToken(token)).toBe(true);
   });
 
-  it('rejects a spot token carrying vault-only fields', () => {
-    // @ts-expect-error A vault name requires an accountant address.
-    assertTokenPaymentInfo({
+  it('rejects a vault share that omits its accountant address', () => {
+    // @ts-expect-error A vault share requires an accountant address.
+    assertVaultTokenPaymentInfo({
       ...sharedToken,
       vault: VAULT_NAMES.base,
     });
 
     expect(true).toBe(true);
+  });
+});
+
+describe('pricing state serializability', () => {
+  it('keeps the persisted pricing response JSON-serializable', () => {
+    // `SubscriptionController` persists pricing, so its state must satisfy
+    // `Json`. Optional properties typed `never` silently break that.
+    const pricing: PricingResponse = {
+      products: [],
+      paymentMethods: [
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          chains: [
+            {
+              chainId: '0x1',
+              paymentAddress: '0x0000000000000000000000000000000000000001',
+              tokens: [
+                {
+                  symbol: 'USDC',
+                  address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                  decimals: 6,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(assertJson(pricing)).toBe(pricing);
   });
 });
