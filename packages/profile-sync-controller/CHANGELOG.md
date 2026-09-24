@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
 
+### Fixed
+
+- Rely on `@metamask/key-tree` crypto implementation for HMAC-SHA-512 instead of hardcoded `noble` implementation ([#10424](https://github.com/MetaMask/core/pull/10424))
+  - `@metamask/key-tree` uses WebCrypto API if available and fallback to `noble` otherwise.
+  - One note, we expect the platform to provide a fully-compliant WebCrypto (`crypto.subtle`) implementation for this to work (`@metamask/key-tree` detection is global and not "per crypto functions").
+
 ## [32.3.1]
 
 ### Changed
@@ -40,12 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add passkey and email OTP enrollment, verification, credential-list, and elevated-token exchange SDK methods ([#10265](https://github.com/MetaMask/core/pull/10265))
 - Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
 - Add `rampsOrders` to `USER_STORAGE_FEATURE_NAMES` ([#10227](https://github.com/MetaMask/core/pull/10227))
-
-### Fixed
-
-- Rely on `@metamask/key-tree` crypto implementation for HMAC-SHA-512 instead of hardcoded `noble` implementation ([#10424](https://github.com/MetaMask/core/pull/10424))
-  - `@metamask/key-tree` uses WebCrypto API if available and fallback to `noble` otherwise.
-  - One note, we expect the platform to provide a fully-compliant WebCrypto (`crypto.subtle`) implementation for this to work (`@metamask/key-tree` detection is global and not "per crypto functions").
 
 ## [32.1.1]
 
