@@ -378,19 +378,19 @@ type SessionState = {
 };
 
 /**
- * A snapshot of a single keyring entry, taken before a transaction that is
- * known to operate on that keyring only.
+ * A snapshot of a single keyring entry, taken before a transaction: its
+ * serialized state, and its position in the keyrings array at that time.
+ *
+ * Both rollback paths consume snapshots of this shape: the generic path
+ * walks an array of them (restoring positions implicitly, in order), while
+ * the scoped path restores the single operated keyring at its position.
  */
-type ScopedKeyringSnapshot = {
+type KeyringSnapshot = SerializedKeyring & {
   /**
    * The position of the keyring entry in the keyrings array when the
    * snapshot was taken.
    */
   index: number;
-  /**
-   * The serialized keyring.
-   */
-  serialized: SerializedKeyring;
 };
 
 export type EncryptionResultConstraint<SupportedKeyMetadata> = {
@@ -2798,10 +2798,10 @@ export class KeyringController<
    *
    * Must be called while the controller mutex is held.
    *
-   * @param snapshot - Serialized keyrings taken before the transaction
-   *   (without unsupported keyrings).
+   * @param snapshots - Snapshots of the keyrings taken before the
+   *   transaction (without unsupported keyrings).
    */
-  async #rollbackToSnapshot(snapshot: SerializedKeyring[]): Promise<void> {
+  async #rollbackToSnapshot(snapshots: KeyringSnapshot[]): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
     const oldKeyringsById = new Map(
@@ -2827,12 +2827,12 @@ export class KeyringController<
     // restored state.
     const oldStaleKeyrings: KeyringEntry[] = [];
 
-    for (const serialized of snapshot) {
+    for (const snapshot of snapshots) {
       // Snapshot keyrings derive from the keyrings in memory, so they always
       // carry metadata; a keyring without metadata has no old counterpart to
       // keep and is recreated with fresh metadata, mirroring
       // `#restoreKeyring`.
-      const old = oldKeyringsById.get(serialized.metadata?.id ?? '');
+      const old = oldKeyringsById.get(snapshot.metadata?.id ?? '');
 
       if (!old) {
         // The transaction removed this keyring from the keyrings array and
@@ -2842,7 +2842,7 @@ export class KeyringController<
         // changes are persisted. The instance is already destroyed, so the
         // only way back is to rebuild the keyring from its snapshot, at its
         // original position.
-        const newKeyring = await this.#recreateKeyringFromSnapshot(serialized);
+        const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
         if (newKeyring) {
           newKeyrings.push(newKeyring);
         }
@@ -2851,7 +2851,7 @@ export class KeyringController<
 
       oldKeyringsById.delete(old.metadata.id);
 
-      if (await this.#isKeyringUnchanged(old, serialized)) {
+      if (await this.#isKeyringUnchanged(old, snapshot)) {
         // The transaction did not change the keyring: keep the old instance.
         newKeyrings.push(old);
         continue;
@@ -2859,7 +2859,7 @@ export class KeyringController<
 
       // The transaction mutated the keyring: rebuild it in place.
       oldStaleKeyrings.push(old);
-      const newKeyring = await this.#recreateKeyringFromSnapshot(serialized);
+      const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
       if (newKeyring) {
         newKeyrings.push(newKeyring);
       }
@@ -2884,12 +2884,12 @@ export class KeyringController<
    * that it is rebuilt from its snapshot state.
    *
    * @param old - The old keyring entry to check.
-   * @param snapshot - The serialized snapshot to check against.
+   * @param snapshot - The keyring snapshot to check against.
    * @returns Whether the keyring is unchanged.
    */
   async #isKeyringUnchanged(
     old: KeyringEntry,
-    snapshot: SerializedKeyring,
+    snapshot: KeyringSnapshot,
   ): Promise<boolean> {
     try {
       return (
@@ -2902,24 +2902,24 @@ export class KeyringController<
   }
 
   /**
-   * Build a new keyring from a snapshot keyring, without updating the
+   * Build a new keyring from a keyring snapshot, without updating the
    * keyrings array.
    *
    * On failure, this mirrors the behavior of `#restoreKeyring`: the error is
    * logged and the serialized keyring is parked in the unsupported keyrings
    * array, leaving the keyring absent from the controller.
    *
-   * @param serialized - The snapshot keyring to recreate.
+   * @param snapshot - The keyring snapshot to recreate.
    * @returns The new keyring, or `undefined` if it could not be recreated.
    */
   async #recreateKeyringFromSnapshot(
-    serialized: SerializedKeyring,
+    snapshot: KeyringSnapshot,
   ): Promise<KeyringEntry | undefined> {
     try {
       const { keyring, keyringV2, metadata } = await this.#createKeyring(
-        serialized.type,
-        serialized.data,
-        serialized.metadata,
+        snapshot.type,
+        snapshot.data,
+        snapshot.metadata,
       );
 
       await this.#assertNoDuplicateAccounts([keyring]);
@@ -2927,7 +2927,14 @@ export class KeyringController<
       return { keyring, keyringV2, metadata };
     } catch (error) {
       console.error(error);
-      this.#unsupportedKeyrings.push(serialized);
+      // Only the serialized keyring is parked: the snapshot position is a
+      // transaction detail, and must not leak into the unsupported keyrings
+      // (and from there, the vault).
+      this.#unsupportedKeyrings.push({
+        type: snapshot.type,
+        data: snapshot.data,
+        metadata: snapshot.metadata,
+      });
       return undefined;
     }
   }
@@ -3438,14 +3445,12 @@ export class KeyringController<
       // keyrings are free to return aliased internal state from
       // `serialize()`, which the operation could then mutate through the
       // snapshot itself.
-      const snapshot: ScopedKeyringSnapshot | undefined = selected
+      const snapshot: KeyringSnapshot | undefined = selected
         ? {
             index: this.#keyrings.indexOf(entry),
-            serialized: {
-              type: entry.keyring.type,
-              data: cloneDeep(await entry.keyring.serialize()),
-              metadata: { ...entry.metadata },
-            },
+            type: entry.keyring.type,
+            data: cloneDeep(await entry.keyring.serialize()),
+            metadata: { ...entry.metadata },
           }
         : undefined;
 
@@ -3494,7 +3499,7 @@ export class KeyringController<
    */
   async #scopedKeyringHasChanged(
     entry: KeyringEntry,
-    snapshot: ScopedKeyringSnapshot | undefined,
+    snapshot: KeyringSnapshot | undefined,
   ): Promise<boolean> {
     // A keyring created by the transaction is always a change.
     if (!snapshot) {
@@ -3507,7 +3512,7 @@ export class KeyringController<
       return true;
     }
 
-    return !(await this.#isKeyringUnchanged(old, snapshot.serialized));
+    return !(await this.#isKeyringUnchanged(old, snapshot));
   }
 
   /**
@@ -3527,7 +3532,7 @@ export class KeyringController<
    */
   async #rollbackKeyringToScopedSnapshot(
     entry: KeyringEntry,
-    snapshot: ScopedKeyringSnapshot | undefined,
+    snapshot: KeyringSnapshot | undefined,
   ): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
@@ -3546,16 +3551,14 @@ export class KeyringController<
       // The transaction removed the keyring: rebuild it from its snapshot,
       // at its original position. Other keyrings cannot have shifted, as the
       // controller lock is held and only the operated keyring can change.
-      const newKeyring = await this.#recreateKeyringFromSnapshot(
-        snapshot.serialized,
-      );
+      const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
       if (newKeyring) {
         this.#keyrings.splice(snapshot.index, 0, newKeyring);
       }
       return;
     }
 
-    if (await this.#isKeyringUnchanged(old, snapshot.serialized)) {
+    if (await this.#isKeyringUnchanged(old, snapshot)) {
       return;
     }
 
@@ -3564,9 +3567,7 @@ export class KeyringController<
     // during recreation only sees reconciled keyrings.
     const index = this.#keyrings.indexOf(old);
     this.#keyrings.splice(index, 1);
-    const newKeyring = await this.#recreateKeyringFromSnapshot(
-      snapshot.serialized,
-    );
+    const newKeyring = await this.#recreateKeyringFromSnapshot(snapshot);
     if (newKeyring) {
       this.#keyrings.splice(index, 0, newKeyring);
     }
@@ -3589,11 +3590,11 @@ export class KeyringController<
       // keyrings are free to return aliased internal state from
       // `serialize()`, which the transaction could then mutate through the
       // snapshot itself.
-      const currentSerializedKeyrings = (
+      const currentKeyringSnapshots = (
         await this.#getSerializedKeyrings({
           includeUnsupported: false,
         })
-      ).map((serialized) => cloneDeep(serialized));
+      ).map((serialized, index) => ({ ...cloneDeep(serialized), index }));
       const currentEncryptionKey = cloneDeep(this.#encryptionKey);
 
       try {
@@ -3601,7 +3602,7 @@ export class KeyringController<
       } catch (error) {
         // Keyrings and encryption credentials are restored to their previous state
         this.#encryptionKey = currentEncryptionKey;
-        await this.#rollbackToSnapshot(currentSerializedKeyrings);
+        await this.#rollbackToSnapshot(currentKeyringSnapshots);
 
         throw error;
       }
