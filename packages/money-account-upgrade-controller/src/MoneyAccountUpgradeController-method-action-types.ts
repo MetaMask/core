@@ -23,8 +23,9 @@ import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeControl
  * including runs scheduled while waiting — waits for it to settle rather
  * than failing, so the upgrade always runs against the latest armed
  * config. Scheduling a bootstrap for a changed vault config disarms the
- * previous one, so it throws when no bootstrap has armed a config (feature
- * disabled or the last bootstrap failed) or when the wallet is locked.
+ * previous one (unless the change can only add the premium vault to it),
+ * so it throws when no bootstrap has armed a config (feature disabled or
+ * the last bootstrap failed) or when the wallet is locked.
  *
  * The armed config is re-checked before every step: if a sync disarms or
  * supersedes it while the sequence is running, the sequence aborts before

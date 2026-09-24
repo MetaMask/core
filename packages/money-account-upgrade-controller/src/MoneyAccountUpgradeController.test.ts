@@ -1116,13 +1116,8 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
     });
 
-    it('retries arming the premium vault on the next trigger, even though the vault config itself has not changed', async () => {
-      const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
-        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
-      });
-      makeAusAndChompWritable(mocks);
-      // First bootstrap: CHOMP has not rolled out vedaPremiumProtocol yet.
-      mocks.getServiceDetails.mockResolvedValueOnce({
+    describe('when the premium vault was dropped', () => {
+      const SERVICE_DETAILS_WITHOUT_PREMIUM = {
         ...MOCK_SERVICE_DETAILS_RESPONSE,
         chains: {
           [MOCK_CHAIN_ID]: {
@@ -1134,25 +1129,219 @@ describe('MoneyAccountUpgradeController', () => {
             },
           },
         },
+      };
+
+      it('arms the premium vault on a later trigger once CHOMP serves vedaPremiumProtocol, even though the flags did not change', async () => {
+        const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        makeAusAndChompWritable(mocks);
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+        clearMockCalls(mocks);
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        // Only the premium pair was missing.
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
       });
+
+      it('keeps the base vault armed when the re-fetch fails, and re-fetches again on the next trigger', async () => {
+        const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+        await triggerKeyringChange();
+        expect(mocks.onBootstrapError).toHaveBeenCalledWith(
+          new Error('CHOMP down'),
+        );
+
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+        clearMockCalls(mocks);
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps the base vault armed when the re-fetch is skipped', async () => {
+        const { controller, mocks, config, bootstrap, triggerKeyringChange } =
+          setup({ premiumVaultConfig: PREMIUM_VAULT_CONFIG });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        config.isEligible = false;
+        clearMockCalls(mocks);
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+        config.isEligible = true;
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not stack re-fetches while one is in flight', async () => {
+        const { rootMessenger, mocks, bootstrap } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValue(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        clearMockCalls(mocks);
+        for (let i = 0; i < 3; i++) {
+          rootMessenger.publish(
+            'KeyringController:stateChange',
+            {} as KeyringControllerState,
+            [],
+          );
+        }
+        await flushPromises();
+
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not abort an in-flight upgrade when a re-fetch still finds no premium protocol', async () => {
+        const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValue(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        let releaseAssociate: () => void = () => undefined;
+        mocks.associateAddress.mockImplementationOnce(
+          async () =>
+            new Promise((resolve) => {
+              releaseAssociate = (): void =>
+                resolve({
+                  profileId: 'profile-1',
+                  address: MOCK_ACCOUNT_ADDRESS,
+                  status: 'created',
+                });
+            }),
+        );
+        const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        await flushPromises();
+        expect(mocks.associateAddress).toHaveBeenCalled();
+
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
+        releaseAssociate();
+
+        expect(await upgrade).toBeUndefined();
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      });
+
+      it('stops re-fetching once the premium vault config is no longer served', async () => {
+        const { mocks, config, bootstrap, triggerFlagChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValue(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        config.premiumVaultConfig = undefined;
+        clearMockCalls(mocks);
+        await triggerFlagChange();
+        await triggerFlagChange();
+
+        expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+      });
+
+      it('does not arm a re-fetch that is superseded by a base vault change while in flight', async () => {
+        const {
+          controller,
+          mocks,
+          config,
+          bootstrap,
+          triggerFlagChange,
+          triggerKeyringChange,
+        } = setup({ premiumVaultConfig: PREMIUM_VAULT_CONFIG });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        let resolveRefetch: (value: unknown) => void = () => undefined;
+        mocks.getServiceDetails.mockImplementationOnce(
+          async () =>
+            new Promise((resolve) => {
+              resolveRefetch = resolve;
+            }),
+        );
+        await triggerKeyringChange();
+
+        config.vaultConfig = {
+          ...VAULT_CONFIG,
+          boringVault: MOCK_PREMIUM_BORING_VAULT_ADDRESS,
+        };
+        mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+        await triggerFlagChange();
+        resolveRefetch(MOCK_SERVICE_DETAILS_RESPONSE);
+        await flushPromises();
+
+        await expect(
+          controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+        ).rejects.toThrow('is not bootstrapped');
+      });
+
+      it('still disarms when the base vault changes', async () => {
+        const { controller, mocks, config, bootstrap, triggerFlagChange } =
+          setup({ premiumVaultConfig: PREMIUM_VAULT_CONFIG });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        config.vaultConfig = {
+          ...VAULT_CONFIG,
+          boringVault: MOCK_PREMIUM_BORING_VAULT_ADDRESS,
+        };
+        mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+        await triggerFlagChange();
+
+        await expect(
+          controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+        ).rejects.toThrow('is not bootstrapped');
+      });
+    });
+
+    it('disarms an armed premium vault while re-fetching for a changed premium vault config', async () => {
+      const { controller, mocks, config, bootstrap, triggerFlagChange } = setup(
+        { premiumVaultConfig: PREMIUM_VAULT_CONFIG },
+      );
       await bootstrap();
-      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
-      // Only the base pair could be signed; premium was not armed.
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
 
-      // CHOMP now serves vedaPremiumProtocol; the flags themselves never
-      // change, only some unrelated trigger (e.g. a keyring change) fires.
-      mocks.getServiceDetails.mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE);
-      clearMockCalls(mocks);
-      await triggerKeyringChange();
+      config.premiumVaultConfig = {
+        ...PREMIUM_VAULT_CONFIG,
+        boringVault: MOCK_BORING_VAULT_ADDRESS,
+      };
+      mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+      await triggerFlagChange();
 
-      // The sync re-fetched service details instead of treating the
-      // (flag-wise unchanged) vault config as already bootstrapped.
-      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
-
-      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
-      // Only the premium pair was missing; the base pair is already stored.
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('is not bootstrapped');
     });
   });
 

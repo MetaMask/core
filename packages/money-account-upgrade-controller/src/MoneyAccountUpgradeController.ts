@@ -237,7 +237,8 @@ export type MoneyAccountUpgradeControllerHooks = {
  * fetches CHOMP service details to get the upgrade config. We recheck points
  * 1–2 when awaiting in the bootstrap so a lock or an `isEnabled` will stop the process.
  *
- * The bootstrap re-runs whenever the vault config changes.
+ * The bootstrap re-runs whenever the vault config changes, and on every
+ * trigger while a served premium vault config could not be armed.
  * `isEnabled` going `false` disables the controller.
  */
 export class MoneyAccountUpgradeController extends BaseController<
@@ -268,16 +269,10 @@ export class MoneyAccountUpgradeController extends BaseController<
   #bootstrappedConfig?: BootstrapVaultConfig;
 
   /**
-   * Whether the last successful bootstrap ran against a vault config that
-   * requested a premium vault, but armed the base vault only because
-   * CHOMP's service details did not (yet) include a matching
-   * `vedaPremiumProtocol` for the chain. While this is `true`, `sync()`
-   * re-schedules a bootstrap for an otherwise-unchanged vault config instead
-   * of treating it as already bootstrapped, so a later `vedaPremiumProtocol`
-   * addition is picked up on the next feature-flag or keyring trigger
-   * without requiring the vault config itself to change.
+   * The vault config `#config` was armed from, with `premium` cleared if the
+   * premium vault was dropped for lack of a matching `vedaPremiumProtocol`.
    */
-  #premiumVaultPending = false;
+  #armedVaultConfig?: BootstrapVaultConfig;
 
   #missingConfigReported = false;
 
@@ -369,6 +364,7 @@ export class MoneyAccountUpgradeController extends BaseController<
         // armed while the feature was still enabled. Re-enabling re-runs the
         // bootstrap from scratch.
         this.#config = undefined;
+        this.#armedVaultConfig = undefined;
         this.#bootstrappedConfig = undefined;
         return;
       }
@@ -393,8 +389,7 @@ export class MoneyAccountUpgradeController extends BaseController<
 
       if (
         this.#bootstrappedConfig &&
-        areBootstrapVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig) &&
-        !this.#premiumVaultPending
+        areBootstrapVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig)
       ) {
         return;
       }
@@ -458,8 +453,19 @@ export class MoneyAccountUpgradeController extends BaseController<
     // Scheduling means the served vault config no longer matches whatever is
     // armed, so disarm now: until this run succeeds, `upgradeAccount` must
     // wait for it (or refuse if it fails) rather than sign delegations
-    // against the superseded vault.
-    this.#config = undefined;
+    // against the superseded vault. The one exception is an armed config
+    // without a premium vault for the same base vault config: it is still
+    // correct, and this run can only add the premium vault to it, so a
+    // skipped or failed run must not take the base vault down with it.
+    const armed = this.#armedVaultConfig;
+    if (
+      !armed ||
+      armed.premium ||
+      !areMoneyAccountVaultConfigsEqual(armed, vaultConfig)
+    ) {
+      this.#config = undefined;
+      this.#armedVaultConfig = undefined;
+    }
 
     const run = async (): Promise<void> => {
       // The gates were checked when this run was scheduled, but it may start
@@ -495,15 +501,16 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
-   * Forget a scheduled bootstrap that was skipped or failed, so the next
-   * trigger re-runs it — but only if no newer config has been scheduled
-   * meanwhile: a newer config supersedes this run, success or failure.
+   * Forget a scheduled bootstrap that was skipped or failed, falling back to
+   * whatever is still armed, so the next trigger re-runs it — but only if no
+   * newer config has been scheduled meanwhile: a newer config supersedes this
+   * run, success or failure.
    *
    * @param vaultConfig - The config the abandoned run was scheduled with.
    */
   #forget(vaultConfig: BootstrapVaultConfig): void {
     if (this.#bootstrappedConfig === vaultConfig) {
-      this.#bootstrappedConfig = undefined;
+      this.#bootstrappedConfig = this.#armedVaultConfig;
     }
   }
 
@@ -567,11 +574,8 @@ export class MoneyAccountUpgradeController extends BaseController<
 
     // `vedaPremiumProtocol` is not yet mandatory: until it is live for every
     // client, a premium vault config served without a matching protocol in
-    // the service details response is silently dropped rather than failing
-    // the whole bootstrap (which would also block the base vault). `sync()`
-    // re-checks `#premiumVaultPending` on every trigger, so this is retried
-    // (rather than treated as fully bootstrapped) until CHOMP starts
-    // returning `vedaPremiumProtocol` for the chain.
+    // the service details response is dropped rather than failing the whole
+    // bootstrap (which would also block the base vault).
     let premiumVault: UpgradeConfig['premiumVault'];
     if (premium && vedaPremiumProtocol) {
       premiumVault = {
@@ -587,9 +591,16 @@ export class MoneyAccountUpgradeController extends BaseController<
       return;
     }
 
-    this.#premiumVaultPending = Boolean(premium) && !premiumVault;
+    // Record what was actually armed. With the premium vault dropped, the
+    // served config no longer matches it, so every later sync re-fetches
+    // until CHOMP serves `vedaPremiumProtocol`.
+    this.#armedVaultConfig =
+      premium && !premiumVault
+        ? { ...vaultConfig, premium: undefined }
+        : vaultConfig;
+    this.#bootstrappedConfig = this.#armedVaultConfig;
 
-    this.#config = {
+    const config: UpgradeConfig & { chainId: Hex } = {
       chainId,
       delegateAddress: chain.autoDepositDelegate,
       musdTokenAddress: vedaProtocol.supportedTokens[0].tokenAddress,
@@ -601,6 +612,16 @@ export class MoneyAccountUpgradeController extends BaseController<
       valueLteEnforcer: contracts.ValueLteEnforcer,
       ...(premiumVault && { premiumVault }),
     };
+
+    // Keep the armed object when nothing changed: `#runSteps` treats a new
+    // object as a superseded config and would abort an in-flight upgrade.
+    if (
+      !this.#config ||
+      computeConfigFingerprint(this.#config) !==
+        computeConfigFingerprint(config)
+    ) {
+      this.#config = config;
+    }
   }
 
   /**
@@ -621,8 +642,9 @@ export class MoneyAccountUpgradeController extends BaseController<
    * including runs scheduled while waiting — waits for it to settle rather
    * than failing, so the upgrade always runs against the latest armed
    * config. Scheduling a bootstrap for a changed vault config disarms the
-   * previous one, so it throws when no bootstrap has armed a config (feature
-   * disabled or the last bootstrap failed) or when the wallet is locked.
+   * previous one (unless the change can only add the premium vault to it),
+   * so it throws when no bootstrap has armed a config (feature disabled or
+   * the last bootstrap failed) or when the wallet is locked.
    *
    * The armed config is re-checked before every step: if a sync disarms or
    * supersedes it while the sequence is running, the sequence aborts before
