@@ -2,18 +2,49 @@ name: Repair dependency upgrade pull requests
 
 on:
   pull_request:
-    # Deliberately not `synchronize`: this job pushes to the pull request branch, and reacting to its own push would loop.
     types:
       - opened
       - reopened
+      - synchronize
 
 permissions:
   contents: read
 
+# A rebase can push twice in quick succession. Only the newest head is worth repairing.
+concurrency:
+  group: repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
+  check:
+    name: Check whether the head commit needs repairing
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      needed: ${{ steps.head-author.outputs.needed }}
+    steps:
+      # This job pushes to the pull request branch, so without this it would react to its own push.
+      - name: Read the head commit author
+        id: head-author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          author="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.author.email')"
+          if [ "$author" = '41898282+github-actions[bot]@users.noreply.github.com' ]; then
+            echo 'The head commit is a repair, nothing to do.'
+            echo 'needed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'needed=true' >> "$GITHUB_OUTPUT"
+          fi
+
   repair:
     name: Repair constraints, lockfile and changelogs
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
+    needs: check
+    if: ${{ needs.check.outputs.needed == 'true' }}
     runs-on: ubuntu-latest
     environment: dependabot
     permissions:
