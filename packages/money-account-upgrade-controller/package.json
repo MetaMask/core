@@ -58,7 +58,7 @@
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/money-account-utils": "^2.0.0",
+    "@metamask/money-account-utils": "^2.0.1",
     "@metamask/network-controller": "^37.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/utils": "^12.0.0"
