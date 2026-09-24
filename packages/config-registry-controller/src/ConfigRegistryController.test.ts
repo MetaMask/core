@@ -935,7 +935,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('handles errors during events config fetch without affecting networks', async () => {
+    it('captures exception when events config fetch throws an Error', async () => {
       await withController(
         async ({
           controller,
@@ -968,7 +968,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('handles non-Error thrown during events config fetch', async () => {
+    it('captures exception when events config fetch throws a non-Error value', async () => {
       await withController(
         async ({ rootMessenger, mockRemoteFeatureFlagGetState }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
