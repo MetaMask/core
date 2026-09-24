@@ -684,9 +684,19 @@ export class NotificationServicesController extends BaseController<
           const promises: Promise<unknown>[] = [];
           if (accountsAdded.length > 0) {
             promises.push(this.enableAccounts(accountsAdded));
+            // The push link covers every notification source for an address,
+            // so it follows account ownership rather than the wallet-activity toggle.
+            promises.push(
+              this.#pushNotifications.addPushNotificationLinks(accountsAdded),
+            );
           }
           if (accountsRemoved.length > 0) {
             promises.push(this.disableAccounts(accountsRemoved));
+            promises.push(
+              this.#pushNotifications.deletePushNotificationLinks(
+                accountsRemoved,
+              ),
+            );
           }
           await Promise.allSettled(promises);
         },
@@ -912,21 +922,11 @@ export class NotificationServicesController extends BaseController<
         return;
       }
 
-      const { bearerToken } = await this.#getBearerToken();
-      const enabledAddresses = await getEnabledAccounts(
-        bearerToken,
-        accounts,
-        this.#env,
+      // The push link is this device's set of held addresses. Wallet-activity
+      // delivery stays gated by the Trigger API, so a disabled account remains linked.
+      await this.#registerPushNotifications(
+        accounts.map((address) => address.toLowerCase()),
       );
-
-      if (enabledAddresses === null) {
-        // "No addresses" unregisters the device, so an unreadable subscription
-        // list must not be treated as an empty one: leave the existing links
-        // alone until we can read the real state.
-        return;
-      }
-
-      await this.#registerPushNotifications(enabledAddresses);
     } catch {
       // Do nothing, failing silently.
     }
@@ -1064,8 +1064,7 @@ export class NotificationServicesController extends BaseController<
 
       if (accountsWithNotifications === null) {
         // An unreadable subscription list is not an empty one. Subscribing
-        // every account here would re-enable ones the user had turned off, and
-        // registering push for that guessed list would send activity for them,
+        // every account here would re-enable ones the user had turned off,
         // so fail and let the caller retry.
         throw new Error('Failed to read wallet-activity subscriptions');
       }
@@ -1100,8 +1099,12 @@ export class NotificationServicesController extends BaseController<
       }
 
       if (opts.registerPushNotifications ?? true) {
-        // Attempt FCM/device registration only; clients must request OS permission separately.
-        this.#registerPushNotifications(accountsWithNotifications).catch(() => {
+        // Link this device to every address it holds. Clients request OS
+        // permission separately, and wallet activity stays gated by the
+        // Trigger API subscriptions above.
+        this.#registerPushNotifications(
+          accounts.map((address) => address.toLowerCase()),
+        ).catch(() => {
           // Do Nothing
         });
       }
@@ -1184,16 +1187,14 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
-   * Deletes on-chain triggers associated with a specific account/s.
-   * This method performs several key operations:
-   * 1. Validates Auth
-   * 2. Deletes accounts
-   * (note) We do not need to look through push notifications as we've deleted triggers
+   * Disables wallet-activity subscriptions for the given accounts.
    *
-   * **Action** - When a user disables notifications for a given account in settings.
+   * This only writes the Trigger API. The device's FCM links stay in place,
+   * because those links deliver every notification source for an address.
    *
-   * @param accounts - The account for which on-chain triggers are to be deleted.
-   * @returns A promise that resolves to void or an object containing a success message.
+   * **Action** - When a user disables wallet activity for a given account.
+   *
+   * @param accounts - The accounts whose wallet-activity subscriptions are disabled.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
   public async disableAccounts(accounts: string[]): Promise<void> {
@@ -1206,8 +1207,6 @@ export class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: false })),
         this.#env,
       );
-
-      await this.#pushNotifications.deletePushNotificationLinks(accounts);
     } catch {
       throw new Error('Failed to delete OnChain triggers');
     } finally {
@@ -1216,18 +1215,14 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
-   * Updates/Creates on-chain triggers for a specific account.
+   * Enables wallet-activity subscriptions for the given accounts.
    *
-   * This method performs several key operations:
-   * 1. Validates Auth & Storage
-   * 2. Finds and creates any missing triggers associated with the account
-   * 3. Enables any related push notifications
-   * 4. Updates Storage to reflect new state.
+   * This only writes the Trigger API. Linking the device token is handled
+   * when the account is added or when notifications are enabled.
    *
-   * **Action** - When a user enables notifications for an account
+   * **Action** - When a user enables wallet activity for an account.
    *
-   * @param accounts - List of accounts you want to update.
-   * @returns A promise that resolves to the updated user storage.
+   * @param accounts - List of accounts to subscribe.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
   public async enableAccounts(accounts: string[]): Promise<void> {
@@ -1240,8 +1235,6 @@ export class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: true })),
         this.#env,
       );
-
-      await this.#pushNotifications.addPushNotificationLinks(accounts);
     } catch (error) {
       log.error('Failed to update OnChain triggers', error);
       throw new Error('Failed to update OnChain triggers');
