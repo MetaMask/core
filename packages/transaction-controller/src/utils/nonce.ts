@@ -23,8 +23,14 @@ export async function getNextNonce(
 ): Promise<[string | undefined, (() => void) | undefined]> {
   const {
     customNonceValue,
+    isExternalSign,
     txParams: { from, nonce: existingNonce },
   } = txMeta;
+
+  if (isExternalSign) {
+    log('Skipping nonce as signed externally');
+    return [undefined, undefined];
+  }
 
   const customNonce = customNonceValue ? toHex(customNonceValue) : undefined;
 

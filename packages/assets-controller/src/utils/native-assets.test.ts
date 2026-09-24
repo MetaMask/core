@@ -22,6 +22,10 @@ describe('buildNativeAssetsFromConstant', () => {
     for (const [chainId, assetId] of Object.entries(NATIVE_ASSETS)) {
       expect(result[chainId]).toBe(normalizeAssetId(assetId));
     }
+
+    expect(result['bip122:000000000019d6689c085ae165831e93']).toBe(
+      'bip122:000000000019d6689c085ae165831e93/slip44:0',
+    );
   });
 });
 

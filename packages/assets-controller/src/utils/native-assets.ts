@@ -14,10 +14,11 @@ type ChainIdNetworkEntry = {
 /**
  * Seed native CAIP-19 asset IDs, keyed by CAIP-2 chain ID.
  *
- * Covers Price API v3/spot-prices EVM natives plus the Solana, Stellar and
- * Tron natives this controller ingests. chainid.network only fills extra
- * `eip155` gaps, so without the non-EVM rows an account holding nothing on
- * those networks gets an empty list instead of SOL/XLM/TRX at 0.
+ * Covers Price API v3/spot-prices EVM natives plus the Bitcoin, Solana,
+ * Stellar and Tron natives this controller ingests. chainid.network only
+ * fills extra `eip155` gaps, so without the non-EVM rows an account holding
+ * nothing on those networks gets an empty list instead of BTC/SOL/XLM/TRX
+ * at 0.
  *
  * Price API v3/spot-prices chains only for EVM — verify support before adding:
  * https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
@@ -114,6 +115,8 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'eip155:1313161554': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   'eip155:1666600000': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
   'eip155:16661': 'eip155:16661/slip44:1111116661', // 0G Chain - Native symbol: 0G
+  'bip122:000000000019d6689c085ae165831e93':
+    'bip122:000000000019d6689c085ae165831e93/slip44:0', // Bitcoin Mainnet - Native symbol: BTC
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp':
     'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501', // Solana Mainnet - Native symbol: SOL
   'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z':
