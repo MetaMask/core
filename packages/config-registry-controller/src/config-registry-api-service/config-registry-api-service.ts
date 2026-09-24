@@ -138,7 +138,10 @@ export class ConfigRegistryApiService {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#networksUrl = getConfigRegistryUrl(env, NETWORKS_ENDPOINT_PATH);
-    this.#eventsConfigUrl = getConfigRegistryUrl(env, EVENTS_CONFIG_ENDPOINT_PATH);
+    this.#eventsConfigUrl = getConfigRegistryUrl(
+      env,
+      EVENTS_CONFIG_ENDPOINT_PATH,
+    );
     this.#fetch = customFetch;
 
     this.#policy = createServicePolicy(policyOptions);

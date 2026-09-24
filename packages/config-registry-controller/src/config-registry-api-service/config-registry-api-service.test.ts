@@ -511,9 +511,7 @@ describe('ConfigRegistryApiService - fetchEventsConfig', () => {
   });
 
   it('throws error on invalid response structure', async () => {
-    nock(UAT_ORIGIN)
-      .get(EVENTS_CONFIG_PATH)
-      .reply(200, { invalid: 'data' });
+    nock(UAT_ORIGIN).get(EVENTS_CONFIG_PATH).reply(200, { invalid: 'data' });
 
     const service = createService();
 

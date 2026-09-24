@@ -814,7 +814,11 @@ describe('ConfigRegistryController', () => {
       };
 
       await withController(
-        async ({ controller, rootMessenger, mockRemoteFeatureFlagGetState }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: { configRegistryApiEnabled: true },
             cacheTimestamp: Date.now(),
@@ -860,7 +864,11 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger, mockRemoteFeatureFlagGetState }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: { configRegistryApiEnabled: true },
             cacheTimestamp: Date.now(),
@@ -889,7 +897,11 @@ describe('ConfigRegistryController', () => {
 
     it('handles errors during events config fetch without affecting networks', async () => {
       await withController(
-        async ({ controller, rootMessenger, mockRemoteFeatureFlagGetState }) => {
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: { configRegistryApiEnabled: true },
             cacheTimestamp: Date.now(),
@@ -900,7 +912,9 @@ describe('ConfigRegistryController', () => {
           );
           rootMessenger.registerActionHandler(
             'ConfigRegistryApiService:fetchEventsConfig',
-            jest.fn().mockRejectedValue(new Error('Events config fetch failed')),
+            jest
+              .fn()
+              .mockRejectedValue(new Error('Events config fetch failed')),
           );
 
           rootMessenger.call('ConfigRegistryController:startPolling', null);

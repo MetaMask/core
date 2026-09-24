@@ -241,10 +241,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   }
 
   async _executePoll(_input: null): Promise<void> {
-    await Promise.all([
-      this.#fetchNetworksConfig(),
-      this.#fetchEventsConfig(),
-    ]);
+    await Promise.all([this.#fetchNetworksConfig(), this.#fetchEventsConfig()]);
   }
 
   async #fetchNetworksConfig(): Promise<void> {
