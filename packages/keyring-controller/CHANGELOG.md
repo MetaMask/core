@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [28.1.0]
-
-### Added
-
-- Add entropy ID selectors ([#10284](https://github.com/MetaMask/core/pull/10284))
-
 ### Changed
 
 - Changed `withKeyring` and `withKeyringV2` transactions to snapshot and diff only the operated keyring, instead of every keyring ([#10407](https://github.com/MetaMask/core/pull/10407))
@@ -22,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Keyrings that a failed operation did not touch now keep their in-memory instances: `destroy()` is no longer invoked on them, and references previously obtained (e.g. via `getKeyringsByType` or `getKeyringForAccount`) remain valid after a rollback.
   - Unsupported keyrings are no longer re-attempted when an operation rolls back.
   - A keyring that fails to destroy during a rollback no longer aborts it: the failure is logged, the rollback completes, and the error of the failed operation is still the one thrown.
+
+## [28.1.0]
+
+### Added
+
+- Add entropy ID selectors ([#10284](https://github.com/MetaMask/core/pull/10284))
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
 
