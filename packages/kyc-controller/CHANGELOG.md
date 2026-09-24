@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency
+
 ### Changed
 
 - `KycService` GET endpoints now call `fetch` directly instead of `fetchQuery`, so read responses are no longer cached in the service `QueryClient` ([#10375](https://github.com/MetaMask/core/pull/10375))
