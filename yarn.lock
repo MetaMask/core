@@ -6337,7 +6337,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
-    eth-chainlist: "npm:^0.0.795"
+    eth-chainlist: "npm:^0.0.840"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
@@ -17395,10 +17395,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-chainlist@npm:^0.0.795":
-  version: 0.0.795
-  resolution: "eth-chainlist@npm:0.0.795"
-  checksum: 10/1bdc634d107fd114c4b5567fba2003acc740c3e4e877dcc56db2b00071842003a2b918da1601c07451ae497291b63c923c89429d4f77dc41faf04cd186725a5e
+"eth-chainlist@npm:^0.0.840":
+  version: 0.0.840
+  resolution: "eth-chainlist@npm:0.0.840"
+  checksum: 10/b4511e61eec45432594cd18e07decd830e5100293340b307f21d02fd61a425612d070d5e295242507b50cd51e2a97e7fe7c4636c146646f28d7438884734b682
   languageName: node
   linkType: hard
 

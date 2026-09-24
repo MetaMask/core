@@ -57,7 +57,7 @@
     "@metamask/slip44": "^4.3.0",
     "@metamask/transaction-controller": "^72.0.0",
     "@metamask/utils": "^12.0.0",
-    "eth-chainlist": "^0.0.795"
+    "eth-chainlist": "^0.0.840"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.7.0",
