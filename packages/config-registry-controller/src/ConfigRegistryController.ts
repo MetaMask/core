@@ -43,7 +43,7 @@ export type ConfigRegistryControllerState = {
    */
   configs: {
     networks: Record<CaipChainId, RegistryNetworkConfig>;
-    eventsConfig: RegistryEventsConfig | null;
+    eventsConfig?: RegistryEventsConfig | null;
   };
   /**
    * Semantic version string of the configuration data from the API.

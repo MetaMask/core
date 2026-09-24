@@ -56,6 +56,12 @@ function registerDependencies(
     'ConfigRegistryApiService:fetchConfig',
     async () => ({ modified: false }),
   );
+  registerActionHandler(
+    rootMessenger,
+    'ConfigRegistryApiService',
+    'ConfigRegistryApiService:fetchEventsConfig',
+    async () => ({ modified: false }),
+  );
 }
 
 describe('configRegistryController', () => {
