@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - It rejects removal of the primary HD wallet.
   - We now need those new actions on the messenger `MultichainAccountService:removeMultichainAccountWallet`, `KeyringController:removeAccount` and `AccountsController:getAccounts`.
   - Also reports errors for non-entropy account wallet removal failures, matching the pattern used by `MultichainAccountService:removeMultichainAccountWallet`.
-- Name watch-only keyring wallets and account groups ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Name watch-only keyring wallets and account groups ([#10426](https://github.com/MetaMask/core/pull/10426))
 
 ### Changed
 
