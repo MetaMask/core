@@ -10,8 +10,12 @@ import type { MoneyAccountApiDataService } from './money-account-api-data-servic
  *
  * @param address - The user's Ethereum address.
  * @param options - Optional fetch options.
- * @param options.fresh - When true, busts the client cache and asks the
- * Money API to skip its Nest response cache (`Cache-Control: no-cache`).
+ * @param options.fresh - When true, cancels in-flight reads, invalidates the
+ * client cache, and fetches with `Cache-Control: no-cache` **without**
+ * writing through TanStack — so a caller that later rejects the body
+ * (e.g. `minBlock` freshness) cannot leave a warm pre-tx entry for the
+ * next steady-state poll. Asks the Money API to skip its Nest response
+ * cache when that server honors the header.
  * @returns The position response containing vault positions and an optional
  * `balance` summary (`null` when the API balance path is unavailable).
  */
