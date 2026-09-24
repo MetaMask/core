@@ -1,4 +1,5 @@
 import { bytesToHex } from '@metamask/utils';
+import { hmac as nobleHmac } from '@noble/hashes/hmac';
 
 import {
   deriveMessageSigningPrivateKey,
@@ -7,6 +8,38 @@ import {
   MESSAGE_SIGNING_SNAP_ID,
   signMessageWithMessageSigningKey,
 } from './message-signing.js';
+
+jest.mock('@noble/hashes/hmac', () => {
+  const actual = jest.requireActual('@noble/hashes/hmac');
+  return {
+    hmac: jest.fn(actual.hmac),
+  };
+});
+
+const actualNobleHmac =
+  jest.requireActual<typeof import('@noble/hashes/hmac')>(
+    '@noble/hashes/hmac',
+  ).hmac;
+
+/**
+ * Makes any call to noble's `hmac` throw, proving that SIP-6 derivation goes
+ * through Web Crypto instead of noble (including `@metamask/key-tree`'s
+ * internal noble fallback).
+ *
+ * @returns void.
+ */
+const forbidNobleHmac = (): void =>
+  jest.mocked(nobleHmac).mockImplementation(() => {
+    throw new Error('noble HMAC must not be used');
+  });
+
+/**
+ * Restores the real noble `hmac` for paths that legitimately use it.
+ *
+ * @returns void.
+ */
+const allowNobleHmac = (): void =>
+  jest.mocked(nobleHmac).mockImplementation(actualNobleHmac);
 
 // Same seed as `@metamask/snaps-utils` TEST_SECRET_RECOVERY_PHRASE_SEED_BYTES
 // (`test test test test test test test test test test test ball`).
@@ -44,6 +77,10 @@ const SIP6_VECTORS = [
 ] as const;
 
 describe('message-signing SIP-6 helpers', () => {
+  beforeEach(() => {
+    forbidNobleHmac();
+  });
+
   it('exports the message-signing snap ID used as SIP-6 input', () => {
     expect(MESSAGE_SIGNING_SNAP_ID).toBe('npm:@metamask/message-signing-snap');
   });
@@ -69,6 +106,10 @@ describe('message-signing SIP-6 helpers', () => {
   });
 
   it('signs metamask messages with a compact secp256k1 signature', async () => {
+    // `secp256k1.sign` computes RFC-6979 nonces with noble's `hmac`
+    // internally; secp256k1 signing stays on noble, so the poison is lifted
+    // for this test.
+    allowNobleHmac();
     const signature = await signMessageWithMessageSigningKey(
       'metamask:test',
       TEST_SEED,
@@ -91,28 +132,11 @@ describe('message-signing SIP-6 helpers', () => {
     expect(bytesToHex(withDefaultSalt)).toBe(bytesToHex(withExplicitEmptySalt));
   });
 
-  it('derives SIP-6 entropy when crypto.subtle exists without importKey', async () => {
-    const originalDescriptor = Object.getOwnPropertyDescriptor(
-      globalThis,
-      'crypto',
-    );
-    Object.defineProperty(globalThis, 'crypto', {
-      configurable: true,
-      value: { subtle: { digest: async () => new ArrayBuffer(0) } },
+  it('derives SIP-6 entropy without noble HMAC', async () => {
+    const privateKey = await deriveSip6PrivateKey({
+      seed: TEST_SEED,
+      input: 'foo',
     });
-
-    try {
-      const privateKey = await deriveSip6PrivateKey({
-        seed: TEST_SEED,
-        input: 'foo',
-      });
-      expect(bytesToHex(privateKey)).toBe(SIP6_VECTORS[0].entropy);
-    } finally {
-      if (originalDescriptor) {
-        Object.defineProperty(globalThis, 'crypto', originalDescriptor);
-      } else {
-        Reflect.deleteProperty(globalThis, 'crypto');
-      }
-    }
+    expect(bytesToHex(privateKey)).toBe(SIP6_VECTORS[0].entropy);
   });
 });

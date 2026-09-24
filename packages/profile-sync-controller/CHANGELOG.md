@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `rampsOrders` to `USER_STORAGE_FEATURE_NAMES` ([#10227](https://github.com/MetaMask/core/pull/10227))
 
+### Fixed
+
+- Rely on `@metamask/key-tree` crypto implementation for HMAC-SHA-512 instead of hardcoded `noble` implementation ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `@metamask/key-tree` uses WebCrypto API if available and fallback to `noble` otherwise.
+  - One note, we expect the platform to provide a fully-compliant WebCrypto (`crypto.subtle`) implementation for this to work (`@metamask/key-tree` detection is global and not "per crypto functions").
+
 ## [32.1.1]
 
 ### Changed

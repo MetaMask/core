@@ -18,6 +18,17 @@ class CustomTestEnvironment extends TestEnvironment {
     this.global.TextDecoder = TextDecoder;
     this.global.ArrayBuffer = ArrayBuffer;
     this.global.Uint8Array = Uint8Array;
+
+    // jsdom does not implement Web Crypto (its `crypto` global is a
+    // getter-only accessor returning an empty object), but the SIP-6
+    // derivation in `message-signing` relies on `crypto.subtle` (via
+    // `@metamask/key-tree`) being fully available.
+    if (!this.global.crypto?.subtle) {
+      Object.defineProperty(this.global, 'crypto', {
+        configurable: true,
+        value: require('node:crypto').webcrypto,
+      });
+    }
   }
 }
 
