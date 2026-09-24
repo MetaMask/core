@@ -45,6 +45,12 @@ describe('hmacSha256', () => {
       '0xb0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7',
     );
   });
+
+  it('throws if the key is empty', async () => {
+    await expect(
+      hmacSha256(new Uint8Array(0), new Uint8Array(0)),
+    ).rejects.toThrow('Key must not be empty');
+  });
 });
 
 describe('hmacSha384', () => {
@@ -81,6 +87,12 @@ describe('hmacSha384', () => {
       '0xafd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6',
     );
   });
+
+  it('throws if the key is empty', async () => {
+    await expect(
+      hmacSha384(new Uint8Array(0), new Uint8Array(0)),
+    ).rejects.toThrow('Key must not be empty');
+  });
 });
 
 describe('hmacSha512', () => {
@@ -116,5 +128,11 @@ describe('hmacSha512', () => {
     expect(bytesToHex(signature)).toBe(
       '0x87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854',
     );
+  });
+
+  it('throws if the key is empty', async () => {
+    await expect(
+      hmacSha512(new Uint8Array(0), new Uint8Array(0)),
+    ).rejects.toThrow('Key must not be empty');
   });
 });

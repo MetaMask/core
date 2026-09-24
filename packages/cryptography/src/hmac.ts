@@ -53,6 +53,10 @@ async function hmac(
   hash: 'SHA-256' | 'SHA-384' | 'SHA-512',
   data: BufferSource,
 ): Promise<Uint8Array> {
+  if (key.byteLength === 0) {
+    throw new Error('Key must not be empty');
+  }
+
   const subtleKey = await globalThis.crypto.subtle.importKey(
     'raw',
     key,
