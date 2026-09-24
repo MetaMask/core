@@ -76,7 +76,6 @@
     "eth-method-registry": "^4.0.0",
     "ethereum-cryptography": "^2.1.2",
     "fast-json-patch": "^3.1.1",
-    "immer": "^11.1.18",
     "lodash-es": "^4.17.21",
     "uuid": "^11.1.1"
   },
@@ -92,6 +91,7 @@
     "@types/node": "^22.13.14",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
+    "immer": "^11.1.18",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "nock": "^13.5.6",
