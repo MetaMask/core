@@ -16,6 +16,7 @@ import type { Messenger } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type {
   MoneyAccountApiDataServiceFetchPositionsAction,
+  MoneyAccountApiDataServiceInvalidateQueriesAction,
   PositionResponse,
 } from '@metamask/money-account-api-data-service';
 import type {
@@ -49,6 +50,7 @@ import {
   MoneyAccountBalanceFetchError,
   MoneyAccountBalanceUnavailableError,
   MoneyAccountBalanceValidationError,
+  MoneyAccountBalanceStaleError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
@@ -59,6 +61,7 @@ import { normalizeVaultApyResponse } from './requestNormalization.js';
 import type {
   CanonicalMoneyAccountBalanceResponse,
   ExchangeRateResponse,
+  FetchBalanceWithFallbackOptions,
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
@@ -211,7 +214,8 @@ type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction
-  | MoneyAccountApiDataServiceFetchPositionsAction;
+  | MoneyAccountApiDataServiceFetchPositionsAction
+  | MoneyAccountApiDataServiceInvalidateQueriesAction;
 
 /**
  * Published when {@link MoneyAccountBalanceService}'s cache is updated.
@@ -753,14 +757,18 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * Callers must not select a source. Provenance is returned on the result so
    * fallback is never silent. Malformed or unavailable source balances are
    * reported via the messenger's `captureException` before fallback.
+   * Stale API results (behind `options.minBlock`) also fall back to RPC when
+   * the policy allows, without being reported as defects.
    *
    * @param accountAddress - The Money account's Ethereum address.
+   * @param options - Optional freshness / cache-bypass controls (additive).
    * @returns Canonical balance amounts with source provenance.
    * @throws {@link MoneyAccountBalanceFetchError} when every eligible source
    * fails. Never returns a synthetic zero balance.
    */
   async fetchBalanceWithFallback(
     accountAddress: Hex,
+    options: FetchBalanceWithFallbackOptions = {},
   ): Promise<CanonicalMoneyAccountBalanceResponse> {
     const { primary, fallback } = resolveBalanceRouting(
       this.#balanceSourcePolicy,
@@ -768,7 +776,12 @@ export class MoneyAccountBalanceService extends BaseDataService<
     const errors: unknown[] = [];
 
     try {
-      return await this.#fetchBalanceFromSource(accountAddress, primary, false);
+      return await this.#fetchBalanceFromSource(
+        accountAddress,
+        primary,
+        false,
+        options,
+      );
     } catch (primaryError) {
       errors.push(primaryError);
       this.#reportBalanceSourceDefect(primaryError);
@@ -783,7 +796,12 @@ export class MoneyAccountBalanceService extends BaseDataService<
     }
 
     try {
-      return await this.#fetchBalanceFromSource(accountAddress, fallback, true);
+      return await this.#fetchBalanceFromSource(
+        accountAddress,
+        fallback,
+        true,
+        options,
+      );
     } catch (fallbackError) {
       errors.push(fallbackError);
       this.#reportBalanceSourceDefect(fallbackError);
@@ -799,6 +817,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
   /**
    * Reports high-severity balance source defects (malformed or unavailable
    * balances) to error monitoring without interrupting fallback.
+   * Stale API results are expected shortly after confirm and are not reported.
    *
    * @param error - Error thrown by a balance source attempt.
    */
@@ -817,15 +836,21 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param accountAddress - The Money account's Ethereum address.
    * @param source - Balance source to query.
    * @param usedFallback - Whether this attempt is a fallback after primary failure.
+   * @param options - Optional freshness / cache-bypass controls.
    * @returns Canonical balance result for the source.
    */
   async #fetchBalanceFromSource(
     accountAddress: Hex,
     source: BalanceSource,
     usedFallback: boolean,
+    options: FetchBalanceWithFallbackOptions,
   ): Promise<CanonicalMoneyAccountBalanceResponse> {
     if (source === 'api') {
-      return await this.#fetchBalanceFromApi(accountAddress, usedFallback);
+      return await this.#fetchBalanceFromApi(
+        accountAddress,
+        usedFallback,
+        options,
+      );
     }
     return await this.#fetchBalanceFromRpc(accountAddress, usedFallback);
   }
@@ -836,20 +861,65 @@ export class MoneyAccountBalanceService extends BaseDataService<
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @param usedFallback - Whether this attempt is a fallback.
+   * @param options - Optional freshness / cache-bypass controls.
    * @returns Canonical balance from the Money API.
    * @throws {@link MoneyAccountBalanceUnavailableError} when `balance` is null
    * or absent.
    * @throws {@link MoneyAccountBalanceValidationError} when amounts fail
    * semantic validation.
+   * @throws {@link MoneyAccountBalanceStaleError} when `options.minBlock` is
+   * set and the API `as_of_block` is still behind it.
    */
   async #fetchBalanceFromApi(
     accountAddress: Hex,
     usedFallback: boolean,
+    options: FetchBalanceWithFallbackOptions,
   ): Promise<CanonicalMoneyAccountBalanceResponse> {
-    const positions: PositionResponse = await this.messenger.call(
-      'MoneyAccountApiDataService:fetchPositions',
-      accountAddress,
-    );
+    // A minBlock check that rejects the body must not leave that body in the
+    // api-data-service TanStack cache. `fresh: true` bypasses cache writes;
+    // imply it whenever minBlock is set so a minBlock-only caller is safe.
+    const requestFresh =
+      options.fresh === true || options.minBlock !== undefined;
+
+    const positions: PositionResponse = requestFresh
+      ? await this.messenger.call(
+          'MoneyAccountApiDataService:fetchPositions',
+          accountAddress,
+          { fresh: true },
+        )
+      : await this.messenger.call(
+          'MoneyAccountApiDataService:fetchPositions',
+          accountAddress,
+        );
+
+    if (
+      options.minBlock !== undefined &&
+      positions.as_of_block < options.minBlock
+    ) {
+      // Belt-and-suspenders: mark any residual steady-state entry stale so a
+      // later non-fresh poll cannot serve the rejected pre-tx body via
+      // isStaleByTime.
+      try {
+        await this.messenger.call(
+          'MoneyAccountApiDataService:invalidateQueries',
+          {
+            queryKey: [
+              'MoneyAccountApiDataService:fetchPositions',
+              accountAddress.toLowerCase(),
+            ],
+          },
+        );
+      } catch (invalidateError) {
+        balanceLogger(
+          'Failed to invalidate positions cache after stale API balance',
+          { invalidateError },
+        );
+      }
+      throw new MoneyAccountBalanceStaleError(
+        positions.as_of_block,
+        options.minBlock,
+      );
+    }
 
     if (positions.balance === undefined || positions.balance === null) {
       throw new MoneyAccountBalanceUnavailableError(
@@ -868,6 +938,11 @@ export class MoneyAccountBalanceService extends BaseDataService<
       ...amounts,
       source: 'api',
       usedFallback,
+      asOfBlock: positions.as_of_block,
+      asOfTimestamp: positions.as_of_timestamp,
+      dataFreshness: positions.data_freshness,
+      indexerLagSeconds: positions.indexer_lag_seconds,
+      musdBalanceUpdatedAt: positions.balance.musd_balance_updated_at ?? null,
     };
   }
 

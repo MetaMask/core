@@ -213,6 +213,7 @@ function createService({
   captureException = jest.fn(),
   options = {},
   mockFetchPositions = jest.fn(),
+  mockInvalidateApiQueries = jest.fn().mockResolvedValue(undefined),
 }: {
   rffcFlags?: Record<string, Json>;
   callInit?: boolean;
@@ -221,6 +222,7 @@ function createService({
     ConstructorParameters<typeof MoneyAccountBalanceService>[0]
   >;
   mockFetchPositions?: jest.Mock;
+  mockInvalidateApiQueries?: jest.Mock;
 } = {}): {
   service: MoneyAccountBalanceService;
   rootMessenger: RootMessenger;
@@ -229,6 +231,7 @@ function createService({
   mockGetNetworkClient: jest.Mock;
   mockGetRFFCState: jest.Mock;
   mockFetchPositions: jest.Mock;
+  mockInvalidateApiQueries: jest.Mock;
   captureException: jest.Mock;
 } {
   const rootMessenger = createRootMessenger(captureException);
@@ -258,6 +261,10 @@ function createService({
     'MoneyAccountApiDataService:fetchPositions',
     mockFetchPositions,
   );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountApiDataService:invalidateQueries',
+    mockInvalidateApiQueries,
+  );
 
   rootMessenger.delegate({
     actions: [
@@ -265,6 +272,7 @@ function createService({
       'NetworkController:getNetworkClientById',
       'RemoteFeatureFlagController:getState',
       'MoneyAccountApiDataService:fetchPositions',
+      'MoneyAccountApiDataService:invalidateQueries',
     ],
 
     events: ['RemoteFeatureFlagController:stateChange'],
@@ -285,6 +293,7 @@ function createService({
     mockGetNetworkClient,
     mockGetRFFCState,
     mockFetchPositions,
+    mockInvalidateApiQueries,
     captureException,
   };
 }
@@ -1690,6 +1699,11 @@ describe('MoneyAccountBalanceService', () => {
         totalBalance: '1513529',
         source: 'api',
         usedFallback: false,
+        asOfBlock: 88976660,
+        asOfTimestamp: '2026-07-20T10:49:51Z',
+        dataFreshness: 'live',
+        indexerLagSeconds: 3,
+        musdBalanceUpdatedAt: null,
       });
       expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS);
     });
@@ -1891,7 +1905,132 @@ describe('MoneyAccountBalanceService', () => {
         totalBalance: '1513529',
         source: 'api',
         usedFallback: true,
+        asOfBlock: 88976660,
+        asOfTimestamp: '2026-07-20T10:49:51Z',
+        dataFreshness: 'live',
+        indexerLagSeconds: 3,
+        musdBalanceUpdatedAt: null,
       });
+    });
+
+    it('falls back to RPC when API as_of_block is behind minBlock', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const captureException = jest.fn();
+      const { service, mockInvalidateApiQueries } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result = await service.fetchBalanceWithFallback(
+        MOCK_ACCOUNT_ADDRESS,
+        { minBlock: MOCK_API_POSITIONS.as_of_block + 1 },
+      );
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).not.toHaveBeenCalled();
+      // minBlock implies a cache-bypassing positions read.
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS, {
+        fresh: true,
+      });
+      expect(mockInvalidateApiQueries).toHaveBeenCalledWith({
+        queryKey: [
+          'MoneyAccountApiDataService:fetchPositions',
+          MOCK_ACCOUNT_ADDRESS.toLowerCase(),
+        ],
+      });
+    });
+
+    it('accepts API balance when as_of_block meets minBlock', async () => {
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const { service, mockInvalidateApiQueries } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      const result = await service.fetchBalanceWithFallback(
+        MOCK_ACCOUNT_ADDRESS,
+        { minBlock: MOCK_API_POSITIONS.as_of_block },
+      );
+
+      expect(result.source).toBe('api');
+      expect(result.asOfBlock).toBe(MOCK_API_POSITIONS.as_of_block);
+      expect(result.usedFallback).toBe(false);
+      expect(mockInvalidateApiQueries).not.toHaveBeenCalled();
+    });
+
+    it('forwards fresh: true to fetchPositions', async () => {
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS, {
+        fresh: true,
+      });
+
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS, {
+        fresh: true,
+      });
+    });
+
+    it('maps musd_balance_updated_at through to musdBalanceUpdatedAt', async () => {
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          ...MOCK_API_BALANCE,
+          musd_balance_updated_at: '2026-07-20T10:49:51Z',
+        },
+      });
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.musdBalanceUpdatedAt).toBe('2026-07-20T10:49:51Z');
+    });
+
+    it('does not captureException when api-only rejects a stale minBlock read', async () => {
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
+      const captureException = jest.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api-only',
+        },
+        mockFetchPositions,
+        captureException,
+      });
+
+      await expect(
+        service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS, {
+          minBlock: MOCK_API_POSITIONS.as_of_block + 1,
+        }),
+      ).rejects.toBeInstanceOf(MoneyAccountBalanceFetchError);
+
+      expect(captureException).not.toHaveBeenCalled();
     });
 
     it('does not fall back when the flag is api-only', async () => {

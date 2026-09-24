@@ -6,6 +6,7 @@ export type {
   MoneyAccountApiDataServiceOptions,
   MoneyAccountApiDataServiceTraceCallback,
   MoneyAccountApiDataServiceTraceRequest,
+  MoneyAccountApiDataServiceInvalidateQueriesAction,
 } from './money-account-api-data-service.js';
 export type {
   MoneyAccountApiDataServiceFetchPositionsAction,
@@ -29,6 +30,7 @@ export type {
 export type {
   InterestWindow,
   InterestOptions,
+  FetchPositionsOptions,
   HistoryOptions,
   RateHistoryOptions,
 } from './types.js';

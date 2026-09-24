@@ -19,6 +19,7 @@ export type {
 export type {
   CanonicalMoneyAccountBalanceResponse,
   ExchangeRateResponse,
+  FetchBalanceWithFallbackOptions,
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
@@ -31,6 +32,7 @@ export {
 } from './constants.js';
 export {
   MoneyAccountBalanceFetchError,
+  MoneyAccountBalanceStaleError,
   MoneyAccountBalanceUnavailableError,
   MoneyAccountBalanceValidationError,
   VaultConfigNotAvailableError,

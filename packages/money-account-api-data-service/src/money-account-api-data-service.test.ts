@@ -327,6 +327,52 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('sends Cache-Control: no-cache and does not seed the steady-state cache when fresh', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      await service.fetchPositions(MOCK_ADDRESS);
+
+      const refreshed = {
+        ...MOCK_POSITION_RESPONSE,
+        as_of_block: 99999,
+        balance: {
+          ...MOCK_POSITION_BALANCE,
+          musd_balance: '99',
+          total_balance: '1513626',
+        },
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .reply(200, refreshed);
+
+      const freshResult = await service.fetchPositions(MOCK_ADDRESS, {
+        fresh: true,
+      });
+      expect(freshResult.as_of_block).toBe(99999);
+      expect(freshResult.balance?.musd_balance).toBe('99');
+
+      // Fresh bypasses TanStack writes and invalidates the prior entry, so the
+      // next steady-state read must hit the network again — not serve the
+      // fresh (or pre-fresh) body from cache.
+      const afterFresh = {
+        ...MOCK_POSITION_RESPONSE,
+        as_of_block: 100000,
+      };
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, afterFresh);
+
+      const steadyState = await service.fetchPositions(MOCK_ADDRESS);
+      expect(steadyState.as_of_block).toBe(100000);
+      service.destroy();
+    });
+
     it('throws HttpError on non-2xx response', async () => {
       const { service } = createService(Env.DEV);
 

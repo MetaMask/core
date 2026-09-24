@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `fresh` option to `fetchPositions` that cancels in-flight reads, invalidates the client cache, and fetches with `Cache-Control: no-cache` without writing through TanStack — so a rejected freshness read cannot seed the steady-state cache. Asks the Money API to skip its Nest response cache when the server honors the header ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Accept optional additive `musd_balance_updated_at` on the positions `balance` summary ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))

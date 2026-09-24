@@ -13,6 +13,19 @@ export type InterestOptions = {
 };
 
 /**
+ * Options for the `fetchPositions` method.
+ */
+export type FetchPositionsOptions = {
+  /**
+   * When true, bypass the client TanStack cache and send
+   * `Cache-Control: no-cache` so the Money API also skips its Nest
+   * response cache and refreshes the wallet mUSD balance on demand.
+   * Intended for post-transaction read-your-writes refreshes.
+   */
+  fresh?: boolean;
+};
+
+/**
  * Options for the `fetchHistory` method.
  */
 export type HistoryOptions = {
