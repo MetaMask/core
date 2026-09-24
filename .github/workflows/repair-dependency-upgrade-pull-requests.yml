@@ -11,6 +11,7 @@ permissions:
   contents: read
 
 env:
+  # Deliberately not `metamask-ci[bot]`: that is the identity Renovate commits under, and Renovate only leaves a branch alone once it sees a commit from someone else.
   REPAIR_COMMIT_NAME: 'github-actions[bot]'
   REPAIR_COMMIT_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com'
 
@@ -34,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           author="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.author.email')"
-          if [ "$author" = "$REPAIR_COMMIT_EMAIL" ]; then
+          if [[ "$author" == "$REPAIR_COMMIT_EMAIL" ]]; then
             echo 'The head commit is a repair, nothing to do.'
             echo 'needed=false' >> "$GITHUB_OUTPUT"
           else
@@ -68,7 +69,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Deliberately not `metamask-ci[bot]`: that is the identity Renovate commits under, and Renovate only leaves a branch alone once it sees a commit from someone else.
       - name: Configure Git
         run: |
           git config user.name "$REPAIR_COMMIT_NAME"
