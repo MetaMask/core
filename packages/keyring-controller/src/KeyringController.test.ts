@@ -6497,10 +6497,14 @@ describe('KeyringController', () => {
         const simpleKeyring = controller.getKeyringsByType(
           KeyringTypes.simple,
         )[0] as EthKeyring;
-        const destroy = jest.fn().mockRejectedValue(new Error('Cannot destroy'));
-        (simpleKeyring as {
-          destroy?: () => Promise<void>;
-        }).destroy = destroy;
+        const destroy = jest
+          .fn()
+          .mockRejectedValue(new Error('Cannot destroy'));
+        (
+          simpleKeyring as {
+            destroy?: () => Promise<void>;
+          }
+        ).destroy = destroy;
 
         // The operation drains the Simple keyring; the cleanup removes it,
         // but its destruction fails.
