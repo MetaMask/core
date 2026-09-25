@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-restricted-matchers */
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import { cleanAll } from 'nock';
 

@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-restricted-matchers */
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
