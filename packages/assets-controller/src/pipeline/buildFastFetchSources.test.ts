@@ -21,9 +21,6 @@ function buildSources(): FastFetchSources {
   return {
     accountsApiDataSource: stubBalanceSource('AccountsApiDataSource'),
     stakedBalanceDataSource: stubBalanceSource('StakedBalanceDataSource'),
-    customAssetGraduationMiddleware: stubSource(
-      'CustomAssetGraduationMiddleware',
-    ),
     rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
     detectionMiddleware: stubSource('DetectionMiddleware'),
     tokenDataSource: stubSource('TokenDataSource'),
@@ -34,12 +31,10 @@ function buildSources(): FastFetchSources {
 describe('buildFastFetchSources', () => {
   it.each([
     {
-      title:
-        'orders the lane balances → graduation → rpc fallback → detection → enrichment',
+      title: 'orders the lane balances → rpc fallback → detection → enrichment',
       isBasicFunctionality: true,
       expected: [
         'ParallelBalanceMiddleware',
-        'CustomAssetGraduationMiddleware',
         'RpcFallbackMiddleware',
         'DetectionMiddleware',
         'ParallelMiddleware',

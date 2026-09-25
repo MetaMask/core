@@ -21,6 +21,7 @@ import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
 import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
+import type { AssetsControllerStateInternal } from './types.js';
 
 /**
  * Integration coverage for `AssetsController` against the BNB Chain wallet
@@ -28,9 +29,9 @@ import type { AssetsControllerState } from './AssetsController.js';
  *
  * Boots the real controller, answers the same captured APIs as
  * `buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts`, and
- * asserts CDOGE never lands in persisted state.
- *
- * Integration Expectation - CDOGE is correctly filtered out of controller state.
+ * asserts CDOGE never lands in persisted state — unless the user imported it
+ * as a custom asset, in which case it must survive (see the custom-asset
+ * suite below).
  */
 
 type StateSurface = {
@@ -166,5 +167,43 @@ describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
     it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+  });
+});
+
+describe('AssetsController: BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+  afterEach(() => {
+    cleanAll();
+  });
+
+  function buildCustomAssetWalletState(): AssetsControllerStateInternal {
+    return buildEmptyAssetsState({
+      customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      assetsBalance: {
+        [BSC_SPAM_ACCOUNT_ID]: {
+          [CDOGE_ASSET_ID_CHECKSUM]: { amount: '0' },
+        },
+      },
+      assetsInfo: {
+        [CDOGE_ASSET_ID_CHECKSUM]: {
+          type: 'erc20',
+          symbol: 'CDOGE',
+          name: '$$$DOGECHAIN',
+          decimals: 9,
+        },
+      },
+    });
+  }
+
+  it('keeps the imported token in customAssets, balances and metadata', async () => {
+    const state = await fetchWallet(buildCustomAssetWalletState());
+
+    // Still registered as the user's custom asset...
+    expect(state.customAssets[BSC_SPAM_ACCOUNT_ID]).toContain(
+      CDOGE_ASSET_ID_CHECKSUM,
+    );
+    // ...still holding its (real, API-reported) balance...
+    expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+    // ...and still carrying metadata.
+    expect(METADATA.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
   });
 });

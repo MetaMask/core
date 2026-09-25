@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-enablement-controller` from `^7.0.0` to `^7.0.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
 - Bump `@metamask/phishing-controller` from `^18.1.0` to `^18.1.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
 
+### Removed
+
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` and its exports, so custom assets are never removed from `customAssets` automatically and keep their spam-filtering exemption instead of being auto-filtered out once upstream sources start reporting them ([#10335](https://github.com/MetaMask/core/pull/10335))
+
 ### Fixed
 
 - `AccountActivityDataSource` now applies websocket balance amounts without writing `assetsInfo` ([#10410](https://github.com/MetaMask/core/pull/10410))

@@ -38,8 +38,8 @@ export type RpcFallbackMiddlewareOptions = {
  *    `customAssets` so the balance fetcher includes them in its multicall.
  *
  * Place this immediately after `createParallelBalanceMiddleware` in the fast
- * pipeline, after `CustomAssetGraduationMiddleware` so the custom assets RPC
- * carries never trigger graduation.
+ * pipeline. Custom assets are never removed from `customAssets` — they must
+ * keep both their RPC supplemental polling and their spam-filter exemption.
  */
 export class RpcFallbackMiddleware {
   readonly name = CONTROLLER_NAME;

@@ -175,12 +175,12 @@ describe('pickRpcCustomAssetsSupplement', () => {
 
   describe('chain-namespace coverage', () => {
     it('picks non-EVM chains too — the helper is namespace-agnostic', () => {
-      // The graduation middleware only graduates EVM customAssets, but the
-      // supplemental RPC fetch is conceptually independent: any chain RPC
-      // can serve and the user has imported a token on, gets supplemented.
-      // Solana is a hypothetical future case; today RPC reports it inactive
-      // so this test exists to document the invariant rather than gate
-      // production behavior.
+      // Custom assets are never removed from `customAssets` automatically,
+      // but the supplemental RPC fetch is conceptually independent: any
+      // chain RPC can serve and the user has imported a token on, gets
+      // supplemented. Solana is a hypothetical future case; today RPC reports
+      // it inactive so this test exists to document the invariant rather than
+      // gate production behavior.
       const result = pickRpcCustomAssetsSupplement({
         accountIds: [ACCOUNT_A],
         customAssetsByAccount: {

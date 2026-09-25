@@ -393,6 +393,26 @@ describe('RpcFallbackMiddleware', () => {
       ).toStrictEqual({ amount: '9' });
     });
 
+    it('skips custom assets the response already reports a balance for', async () => {
+      const { source, middleware: rpcMw } = createMockRpcSource();
+      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const ctx = createContext(
+        createDataRequest(['eip155:1']),
+        {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
+          },
+        },
+        { customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] } },
+      );
+      const next = jest.fn(async (innerCtx) => innerCtx);
+
+      await mw.assetsMiddleware(ctx, next);
+
+      expect(rpcMw).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(ctx);
+    });
+
     it('fetches custom assets from state that the response left empty', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
       const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
