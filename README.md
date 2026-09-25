@@ -728,8 +728,8 @@ linkStyle default opacity:0.5
   transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
+  transaction_pay_controller --> accounts_controller;
   transaction_pay_controller --> assets_controller;
-  transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
