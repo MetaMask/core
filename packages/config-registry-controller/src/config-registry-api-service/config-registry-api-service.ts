@@ -108,6 +108,8 @@ export class ConfigRegistryApiService {
 
   readonly #policy: ServicePolicy;
 
+  readonly #eventsConfigPolicy: ServicePolicy;
+
   readonly #networksUrl: string;
 
   readonly #eventsConfigUrl: string;
@@ -145,6 +147,7 @@ export class ConfigRegistryApiService {
     this.#fetch = customFetch;
 
     this.#policy = createServicePolicy(policyOptions);
+    this.#eventsConfigPolicy = createServicePolicy(policyOptions);
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -270,7 +273,7 @@ export class ConfigRegistryApiService {
       headers['If-None-Match'] = options.etag;
     }
 
-    const response = await this.#policy.execute(async () => {
+    const response = await this.#eventsConfigPolicy.execute(async () => {
       const res = await this.#fetch(this.#eventsConfigUrl, {
         headers,
       });
