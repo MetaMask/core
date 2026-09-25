@@ -492,7 +492,7 @@ export class KycService extends BaseDataService<
       data,
       DisclaimersResponseStruct,
       'disclaimers',
-    ) as KycDisclaimer[];
+    );
   }
 
   /**

@@ -498,11 +498,11 @@ async function prependPostQuoteTransactions(
     );
   } else {
     prependedParams = {
-      data: transaction.txParams.data as Hex | undefined,
+      data: transaction.txParams.data,
       from: transaction.txParams.from,
       to: transaction.txParams.to,
-      value: transaction.txParams.value as Hex | undefined,
-    } as TransactionParams;
+      value: transaction.txParams.value,
+    };
   }
 
   // Ensure the prepended tx carries the same fee caps as the quote steps so
@@ -538,7 +538,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
     to: delegation.to,
     value: delegation.value,
   };

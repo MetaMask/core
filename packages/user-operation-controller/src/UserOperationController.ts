@@ -233,7 +233,7 @@ export class UserOperationController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+    this.hub = new EventEmitter();
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -375,7 +375,7 @@ export class UserOperationController extends BaseController<
           throw error;
         }
 
-        return undefined;
+        return;
       }
     })();
 

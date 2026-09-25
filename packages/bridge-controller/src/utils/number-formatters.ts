@@ -19,7 +19,7 @@ export const calcNormalizedTokenAmount = (
   base: number = 10,
 ) => {
   if (value === undefined || decimals === undefined || value === null) {
-    return undefined;
+    return;
   }
   const divisor = new BigNumber(base).pow(decimals ?? 0);
   return new BigNumber(value, base).div(divisor).toFixed();
@@ -39,7 +39,7 @@ export const calcAtomicTokenAmount = (
   base: number = 10,
 ) => {
   if (value === undefined || decimals === undefined || value === null) {
-    return undefined;
+    return;
   }
   const divisor = new BigNumber(base).pow(decimals);
   return new BigNumber(value, base).times(divisor).toFixed();

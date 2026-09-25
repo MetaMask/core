@@ -389,10 +389,7 @@ describe('MultichainAssetsController', () => {
   it('does not update state when new account added is EVM', async () => {
     const { controller, messenger } = setupController();
 
-    messenger.publish(
-      'AccountsController:accountAdded',
-      mockEthAccount as unknown as InternalAccount,
-    );
+    messenger.publish('AccountsController:accountAdded', mockEthAccount);
 
     await jestAdvanceTime({ duration: 1 });
 
@@ -420,10 +417,7 @@ describe('MultichainAssetsController', () => {
       .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
       .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
-    messenger.publish(
-      'AccountsController:accountAdded',
-      mockSolanaAccount as unknown as InternalAccount,
-    );
+    messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
     await jestAdvanceTime({ duration: 1 });
 
@@ -484,10 +478,7 @@ describe('MultichainAssetsController', () => {
       .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
       .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
-    messenger.publish(
-      'AccountsController:accountAdded',
-      mockSolanaAccount as unknown as InternalAccount,
-    );
+    messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
     await jestAdvanceTime({ duration: 1 });
 
@@ -542,10 +533,7 @@ describe('MultichainAssetsController', () => {
       .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
       .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
-    messenger.publish(
-      'AccountsController:accountAdded',
-      mockSolanaAccount as unknown as InternalAccount,
-    );
+    messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
     await jestAdvanceTime({ duration: 1 });
 
@@ -580,10 +568,7 @@ describe('MultichainAssetsController', () => {
       .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
     // Add a solana account first
-    messenger.publish(
-      'AccountsController:accountAdded',
-      mockSolanaAccount as unknown as InternalAccount,
-    );
+    messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
     await jestAdvanceTime({ duration: 1 });
 
@@ -628,10 +613,7 @@ describe('MultichainAssetsController', () => {
       .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
     // Add a solana account first
-    messenger.publish(
-      'AccountsController:accountAdded',
-      mockSolanaAccount as unknown as InternalAccount,
-    );
+    messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
     await jestAdvanceTime({ duration: 1 });
 
@@ -899,7 +881,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const assetToIgnore =
@@ -929,7 +911,7 @@ describe('MultichainAssetsController', () => {
           allIgnoredAssets: {
             [mockSolanaAccount.id]: [assetToIgnore],
           },
-        } as MultichainAssetsControllerState,
+        },
       });
 
       controller.ignoreAssets([assetToIgnore], mockSolanaAccount.id);
@@ -949,7 +931,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const assetToIgnore =
@@ -976,7 +958,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const assetToAdd =
@@ -1009,7 +991,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const result = await controller.addAssets(
@@ -1032,7 +1014,7 @@ describe('MultichainAssetsController', () => {
           allIgnoredAssets: {
             [mockSolanaAccount.id]: [assetToAdd],
           },
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const result = await controller.addAssets(
@@ -1056,7 +1038,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: {},
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const result = await controller.addAssets(
@@ -1076,7 +1058,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: {},
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const assetToAdd = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
@@ -1110,7 +1092,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const assetsToAdd: CaipAssetType[] = [
@@ -1141,7 +1123,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: {},
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const assetsFromDifferentChains: CaipAssetType[] = [
@@ -1166,7 +1148,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const result = await controller.addAssets([], mockSolanaAccount.id);
@@ -1186,7 +1168,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const eventListener = jest.fn();
@@ -1221,7 +1203,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const eventListener = jest.fn();
@@ -1255,7 +1237,7 @@ describe('MultichainAssetsController', () => {
               ignoredAsset3,
             ],
           },
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // Only add two of the three ignored assets
@@ -1289,7 +1271,7 @@ describe('MultichainAssetsController', () => {
           allIgnoredAssets: {
             [mockSolanaAccount.id]: [ignoredAsset],
           },
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // Simulate asset list update that includes both ignored and new assets
@@ -1326,7 +1308,7 @@ describe('MultichainAssetsController', () => {
           allIgnoredAssets: {
             [mockSolanaAccount.id]: [ignoredAsset],
           },
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // Simulate automatic asset detection trying to re-add ignored asset
@@ -1360,7 +1342,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: {},
           assetsMetadata: mockGetMetadataReturnValue.assets,
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
         mocks: {
           handleRequestReturnValue: [asset1, asset2],
         },
@@ -1398,7 +1380,7 @@ describe('MultichainAssetsController', () => {
               'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
             ],
           },
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // Simulate account removal
@@ -1446,10 +1428,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      messenger.publish(
-        'AccountsController:accountAdded',
-        mockSolanaAccount as unknown as InternalAccount,
-      );
+      messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
       await jestAdvanceTime({ duration: 1 });
 
@@ -1484,7 +1463,7 @@ describe('MultichainAssetsController', () => {
           },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       mockBulkScanTokens.mockResolvedValue({
@@ -1526,7 +1505,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       mockBulkScanTokens.mockRejectedValue(new Error('Scanning failed'));
@@ -1553,7 +1532,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // PhishingController returns {} when the API fails or times out
@@ -1582,7 +1561,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       messenger.publish('AccountsController:accountAssetListUpdated', {
@@ -1612,7 +1591,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // Only return result for knownToken, not unknownToken
@@ -1651,7 +1630,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       mockBulkScanTokens.mockResolvedValue({
@@ -1693,7 +1672,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockSolanaAccount.id]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       const result = await controller.addAssets(
@@ -1720,7 +1699,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       // Mark the last token in each batch as malicious to verify both batches are processed
@@ -1789,7 +1768,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       let callCount = 0;
@@ -1853,7 +1832,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [token] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       mockBulkScanTokens.mockResolvedValue({
@@ -1884,7 +1863,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [token] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       mockBulkScanTokens.mockRejectedValue(new Error('network error'));
@@ -1908,7 +1887,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [native] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       await jestAdvanceTime({ duration: 1 });
@@ -1931,7 +1910,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [notCaip] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       await jestAdvanceTime({ duration: 1 });
@@ -1951,7 +1930,7 @@ describe('MultichainAssetsController', () => {
           accountsAssets: { [mockAccountId]: [token] },
           assetsMetadata: {},
           allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
+        },
       });
 
       mockBulkScanTokens.mockResolvedValue({
@@ -2105,10 +2084,7 @@ describe('MultichainAssetsController', () => {
       deprecated = true;
       mockSnapHandleRequest.mockClear();
 
-      messenger.publish(
-        'AccountsController:accountAdded',
-        mockSolanaAccount as unknown as InternalAccount,
-      );
+      messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
       await jestAdvanceTime({ duration: 1 });
 

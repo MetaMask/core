@@ -305,7 +305,7 @@ describe('UserOperationController', () => {
       request: AddUserOperationRequest | TransactionParams,
       options: AddUserOperationOptions,
     ) {
-      return controller[method](request as TransactionParams, options);
+      return controller[method](request, options);
     }
 
     it('submits user operation to bundler', async () => {

@@ -496,7 +496,7 @@ describe('Balance Change Utils', () => {
           ...REQUEST_MOCK,
           txParams: {
             ...REQUEST_MOCK.txParams,
-            from: USER_ADDRESS_MOCK.toUpperCase() as Hex,
+            from: USER_ADDRESS_MOCK.toUpperCase(),
             maxFeePerGas: undefined,
             gasPrice: undefined,
           },
@@ -1231,7 +1231,7 @@ describe('Balance Change Utils', () => {
                 calls: [],
                 logs: [],
                 error: 'execution reverted',
-                output: data as Hex,
+                output: data,
               },
             },
           ],

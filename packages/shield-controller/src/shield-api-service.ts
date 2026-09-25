@@ -495,7 +495,7 @@ export class ShieldApiService extends BaseDataService<
     return {
       ...result,
       metrics: { latency: totalLatency },
-    } as GetCoverageResultResponse;
+    };
   }
 
   async #authHeaders(): Promise<Record<string, string>> {

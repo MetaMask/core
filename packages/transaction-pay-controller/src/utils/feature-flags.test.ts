@@ -334,7 +334,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(messenger, '0x1' as Hex, TOKEN_ADDRESS_MOCK);
+      const slippage = getSlippage(messenger, '0x1', TOKEN_ADDRESS_MOCK);
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -354,11 +354,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(
-        messenger,
-        CHAIN_ID_MOCK,
-        '0xabc123def456' as Hex,
-      );
+      const slippage = getSlippage(messenger, CHAIN_ID_MOCK, '0xabc123def456');
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -521,7 +517,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb' as Hex)).toBe(
+      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb')).toBe(
         CONTRACT_ADDRESS_MOCK,
       );
     });
@@ -952,7 +948,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(isChainExcludedFromInfura(messenger, '0xa' as Hex)).toBe(true);
+      expect(isChainExcludedFromInfura(messenger, '0xa')).toBe(true);
     });
   });
 

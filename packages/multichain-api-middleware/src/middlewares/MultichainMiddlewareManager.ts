@@ -134,7 +134,7 @@ export class MultichainMiddlewareManager {
       } else {
         return next();
       }
-      return undefined;
+      return;
     };
     middleware.destroy = this.removeMiddlewareByOriginAndTabId.bind(
       this,

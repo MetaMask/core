@@ -94,7 +94,7 @@ function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
         };
       }
 
-      return undefined;
+      return;
     }),
   } as unknown as jest.Mocked<TransactionControllerMessenger>;
 }
@@ -122,7 +122,7 @@ function mockFeatureFlags(
       };
     }
 
-    return undefined;
+    return;
   });
 }
 
@@ -189,7 +189,7 @@ describe('PendingTransactionTracker', () => {
         case 'eth_estimateGas':
           return estimateGasMock(...args);
         default:
-          return undefined;
+          return;
       }
     });
 
@@ -903,7 +903,7 @@ describe('PendingTransactionTracker', () => {
       transactionMeta = {
         ...TRANSACTION_SUBMITTED_MOCK,
         hash: '0x123',
-      } as TransactionMeta;
+      };
     });
 
     it('should update transaction status to confirmed if receipt status is success', async () => {
