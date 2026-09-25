@@ -384,7 +384,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     // refetches it in full rather than scoping the request via
     // `customAssets` — the RPC read re-derives the pin from state itself.
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.chainIds).toEqual([BSC_CHAIN_ID]);
+    expect(requests[0]?.chainIds).toStrictEqual([BSC_CHAIN_ID]);
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
       amount: '4321',
     });
