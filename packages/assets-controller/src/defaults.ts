@@ -20,6 +20,31 @@ import type {
 const MUSD_ADDRESS = '0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
 
 /**
+ * Lowercase form of {@link MUSD_ADDRESS}, for case-insensitive comparisons
+ * against asset IDs sourced from APIs that don't checksum (e.g. the Token
+ * API's V3 assets response). This is the single source of truth for "is
+ * this asset mUSD" — every spam/occurrence filter in this package must
+ * exempt mUSD chain-agnostically by address, not by enumerating chains in
+ * {@link DEFAULT_TRACKED_ASSETS_BY_CHAIN} (that map is a *seeding* registry
+ * for a handful of chains, not an exhaustive list of every chain mUSD is
+ * deployed to — using it as an exemption list left mUSD holdings on other
+ * chains exposed to the occurrence-floor spam filter).
+ */
+export const MUSD_ADDRESS_LOWERCASE = MUSD_ADDRESS.toLowerCase();
+
+/**
+ * Whether a CAIP-19 asset ID refers to MetaMask USD (mUSD), on any chain.
+ * Case-insensitive so it matches both checksummed (state) and lowercase
+ * (some API responses) asset ID forms.
+ *
+ * @param assetId - The CAIP-19 asset ID to check (or any string).
+ * @returns `true` if the asset ID's ERC-20 address is mUSD's.
+ */
+export function isMusdAssetId(assetId: string): boolean {
+  return assetId.toLowerCase().includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`);
+}
+
+/**
  * Hardcoded metadata for MetaMask USD. Pre-seeding this in default
  * state makes the token immediately renderable in the UI before any
  * on-chain balance has been fetched.
