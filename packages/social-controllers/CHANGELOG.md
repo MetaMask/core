@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0]
+
 ### Added
 
 - Add `createSwapComment` method to `SocialService` (and the `SocialService:createSwapComment` messenger action) to create an author Call (user post) on the caller's own swap. Calls `POST /swap-comments` with `commentText` and exactly one of `positionUid` or `tradeInFlight`, plus optional `source`. Returns `SwapCommentResponse` ([#10471](https://github.com/MetaMask/core/pull/10471))
@@ -218,7 +220,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.3.0...HEAD
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...@metamask/social-controllers@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...@metamask/social-controllers@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.2...@metamask/social-controllers@3.1.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.1...@metamask/social-controllers@3.0.2
