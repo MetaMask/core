@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `getAssetsState` and `getAssetVisibility` are required on Accounts API, Snap, and RPC data sources
     - `isBalanceV6Enabled` is required on `SnapDataSource`
     - `unhideAsset` is now async and force-fetches the asset's chain, matching `addCustomAsset`
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
 ### Fixed
 
