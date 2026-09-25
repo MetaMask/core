@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.0.0]
 
-### Uncategorized
-
-- docs(assets-controller): correct raw-vs-converted balance comments ([#10469](https://github.com/MetaMask/core/pull/10469))
-- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-
 ### Added
 
 - Add `getZeroNativeAssetBalance` and `getZeroTokenAssetBalance` so Stellar native zeros include spendable/reserve metadata and Stellar token zeros include empty trustline metadata. `getZeroAssetBalance` picks between them with `isNativeAssetId`
@@ -31,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `isBalanceV6Enabled` is required on `SnapDataSource`
     - `unhideAsset` is now async and force-fetches the asset's chain, matching `addCustomAsset`
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
 
 ### Fixed
 
