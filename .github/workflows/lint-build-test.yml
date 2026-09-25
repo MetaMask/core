@@ -134,8 +134,8 @@ jobs:
             exit 1
           fi
 
-  validate-changelog:
-    name: Validate changelog
+  validate-changelogs:
+    name: Validate changelogs
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
@@ -143,7 +143,6 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [24.x]
-        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -154,9 +153,13 @@ jobs:
           # Full history so `changelog:validate` can find the merge base with the
           # base branch to detect which packages are being released.
           fetch-depth: 0
-      - run: yarn workspace "$PACKAGE_NAME" changelog:validate
+      - name: Validate changelogs
         env:
-          PACKAGE_NAME: ${{ matrix.package-name }}
+          CHILD_WORKSPACE_PACKAGE_NAMES: ${{ needs.prepare.outputs.child-workspace-package-names }}
+        run: |
+          echo "$CHILD_WORKSPACE_PACKAGE_NAMES" | jq --raw-output '.[]' \
+            | parallel --group --halt never --jobs 8 \
+                'echo "Validating changelog for {}"; yarn workspace {} run changelog:validate'
       - name: Require clean working directory
         shell: bash
         run: |
