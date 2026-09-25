@@ -3109,7 +3109,7 @@ describe('MFA credential verification', () => {
     ).rejects.toMatchObject({ mfaCode: 'credential_not_enrolled' });
   });
 
-  it('opens and exposes a verification session after the token exchange', async () => {
+  it('opens a verification session after the token exchange without writing state', async () => {
     mockSuccessfulCompletion();
     const { controller, baseMessenger } = createController();
     const listener = jest.fn();
@@ -3130,26 +3130,19 @@ describe('MFA credential verification', () => {
       exp: 4102444800,
     });
     expect(controller.getVerificationToken()).toBe(token);
-    expect(controller.state.verificationSessionExpiresAt).toBe(
-      token.obtainedAt + VERIFICATION_SESSION_TTL_MS,
-    );
-    // Exactly one state write, and the token itself never enters state.
-    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).not.toHaveBeenCalled();
     expect(JSON.stringify(controller.state)).not.toContain(token.accessToken);
   });
 
-  it('clears the session idempotently without spurious state writes', async () => {
+  it('clears the session idempotently', async () => {
     mockSuccessfulCompletion();
-    const { controller, baseMessenger } = createController();
+    const { controller } = createController();
     await completeCredentialVerification(controller);
-    const listener = jest.fn();
-    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
     controller.clearVerificationSession();
     controller.clearVerificationSession();
 
-    expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
-    expect(listener).toHaveBeenCalledTimes(1);
+    expect(controller.getVerificationToken()).toBeNull();
   });
 
   it('does not write state when clearing a session that does not exist', () => {
@@ -3221,7 +3214,6 @@ describe('MFA credential verification', () => {
     ).toThrow(/MFA\[invalid_request\]/u);
     // An invalid request is rejected before the session is touched.
     expect(controller.getVerificationToken()).not.toBeNull();
-    expect(controller.state.verificationSessionExpiresAt).toBeDefined();
   });
 
   it('hard-clears the session at the session TTL', async () => {
@@ -3248,7 +3240,6 @@ describe('MFA credential verification', () => {
       expect(controller.getVerificationToken()).not.toBeNull();
       jest.advanceTimersByTime(VERIFICATION_SESSION_TTL_MS);
       expect(controller.getVerificationToken()).toBeNull();
-      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
     } finally {
       jest.useRealTimers();
       fetchSpy.mockRestore();
@@ -3289,10 +3280,9 @@ describe('MFA credential verification', () => {
       const { controller } = createController();
       await completeCredentialVerification(controller);
 
-      expect(controller.state.verificationSessionExpiresAt).toBe(
-        now.getTime() + 1_000,
-      );
-      jest.advanceTimersByTime(1_000);
+      jest.advanceTimersByTime(999);
+      expect(controller.getVerificationToken()).not.toBeNull();
+      jest.advanceTimersByTime(1);
       expect(controller.getVerificationToken()).toBeNull();
     } finally {
       jest.useRealTimers();
@@ -3300,7 +3290,7 @@ describe('MFA credential verification', () => {
     }
   });
 
-  it('clears stale state when the clock passes expiration before the timer runs', async () => {
+  it('drops the session when the clock passes expiration before the timer runs', async () => {
     const now = new Date('2026-09-16T10:00:00Z');
     const fetchSpy = jest
       .spyOn(globalThis, 'fetch')
@@ -3324,7 +3314,6 @@ describe('MFA credential verification', () => {
 
       jest.setSystemTime(now.getTime() + VERIFICATION_SESSION_TTL_MS + 1_000);
       expect(controller.getVerificationToken()).toBeNull();
-      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
     } finally {
       jest.useRealTimers();
       fetchSpy.mockRestore();
@@ -3379,7 +3368,6 @@ describe('MFA credential verification', () => {
         'the authenticated session ended',
       );
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
       return controller;
     } finally {
       fetchSpy.mockRestore();
@@ -3434,7 +3422,7 @@ describe('MFA credential verification', () => {
           reason: { operation: 'money.signTransaction' },
         }),
       ).rejects.toMatchObject({ mfaCode: 'verification_token_invalid' });
-      expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
+      expect(controller.getVerificationToken()).toBeNull();
     },
   );
 
@@ -3443,7 +3431,8 @@ describe('MFA credential verification', () => {
     const first = createController();
     await completeCredentialVerification(first.controller);
     first.baseMessenger.publish('KeyringController:lock');
-    expect(first.controller.state.verificationSessionExpiresAt).toBeUndefined();
+    first.baseMessenger.publish('KeyringController:unlock');
+    expect(first.controller.getVerificationToken()).toBeNull();
 
     cleanAllNock();
     mockSuccessfulCompletion();
@@ -3475,7 +3464,6 @@ describe('MFA credential verification', () => {
     );
 
     expect(controller.getVerificationToken()).toBeNull();
-    expect(controller.state.verificationSessionExpiresAt).toBeUndefined();
   });
 
   it('sends the verification token when beginning enrollment while a session is live', async () => {
@@ -3615,7 +3603,6 @@ describe('MFA credential verification', () => {
       expect(await getEnrollmentBearer(controller)).toBe(base);
       // Still available to consumers that accept its age.
       expect(controller.getVerificationToken()).not.toBeNull();
-      expect(controller.state.verificationSessionExpiresAt).toBeDefined();
     });
 
     it('lets a caller-supplied age limit authorize enrollment with an older session', async () => {
@@ -3667,7 +3654,6 @@ describe('MFA credential verification', () => {
     expect(controller.getVerificationToken()?.accessToken).toBe(
       verificationToken,
     );
-    expect(controller.state.verificationSessionExpiresAt).toBeDefined();
     expect(await getEnrollmentBearer(controller)).toBe(verificationToken);
   });
 });
