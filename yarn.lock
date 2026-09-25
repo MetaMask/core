@@ -5755,7 +5755,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/address": "npm:^5.7.0"
-    "@ethersproject/bignumber": "npm:^5.7.0"
+    "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
@@ -5995,7 +5995,7 @@ __metadata:
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
     "@ethersproject/address": "npm:^5.7.0"
-    "@ethersproject/bignumber": "npm:^5.7.0"
+    "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/constants": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
@@ -6590,7 +6590,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/earn-controller@workspace:packages/earn-controller"
   dependencies:
-    "@ethersproject/bignumber": "npm:^5.7.0"
+    "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/account-tree-controller": "npm:^11.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
