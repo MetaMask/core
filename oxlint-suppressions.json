@@ -1485,9 +1485,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 5
-    },
-    "unicorn/no-process-exit": {
-      "count": 1
     }
   },
   "packages/bitcoin-regtest-up/src/install.test.ts": {
@@ -2647,11 +2644,6 @@
       "count": 1
     }
   },
-  "packages/foundryup/src/cli.ts": {
-    "unicorn/no-process-exit": {
-      "count": 1
-    }
-  },
   "packages/foundryup/src/download.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -2866,9 +2858,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 5
-    },
-    "unicorn/no-process-exit": {
-      "count": 1
     }
   },
   "packages/java-tron-up/src/install.test.ts": {
