@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `address_alert_response_flagged_by` to address scan results, exposing the security-alert vendors that flagged an address ([#9921](https://github.com/MetaMask/core/pull/9921))
+
 ### Changed
 
 - Bump `@types/punycode` from `^2.1.0` to `^2.1.4` ([#10441](https://github.com/MetaMask/core/pull/10441))
