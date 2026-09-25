@@ -6619,7 +6619,7 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
     typescript-eslint: "npm:^8.48.0"
     uuid: "npm:^11.1.1"
-    yargs: "npm:^17.7.2"
+    yargs: "npm:^17.7.3"
   languageName: unknown
   linkType: soft
 
@@ -7218,7 +7218,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@types/unzipper": "npm:^0.10.10"
-    "@types/yargs": "npm:^17.0.32"
+    "@types/yargs": "npm:^17.0.35"
     "@types/yargs-parser": "npm:^21.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
@@ -7234,7 +7234,7 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
     unzipper: "npm:^0.12.3"
     yaml: "npm:^2.3.4"
-    yargs: "npm:^17.7.2"
+    yargs: "npm:^17.7.3"
     yargs-parser: "npm:^21.1.1"
   bin:
     mm-foundryup: ./dist/cli.js
@@ -7689,7 +7689,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/yargs": "npm:^17.0.32"
+    "@types/yargs": "npm:^17.0.35"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     execa: "npm:^10.0.1"
@@ -7700,7 +7700,7 @@ __metadata:
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
-    yargs: "npm:^17.7.2"
+    yargs: "npm:^17.7.3"
   peerDependencies:
     oxfmt: ^0.44.0
     prettier: ^3.0.0
@@ -8464,7 +8464,7 @@ __metadata:
     "@types/node": "npm:^22.13.14"
     "@types/npm-which": "npm:^3"
     "@types/react": "npm:^19.0.0"
-    "@types/yargs": "npm:^17.0.32"
+    "@types/yargs": "npm:^17.0.35"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     execa: "npm:^10.0.1"
@@ -8478,7 +8478,7 @@ __metadata:
     ts-morph: "npm:^28.0.0"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
-    yargs: "npm:^17.7.2"
+    yargs: "npm:^17.7.3"
   bin:
     platform-api-docs: ./dist/cli.js
   languageName: unknown
@@ -12388,7 +12388,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/yargs@npm:^17.0.32, @types/yargs@npm:^17.0.33, @types/yargs@npm:^17.0.8":
+"@types/yargs@npm:^17.0.33, @types/yargs@npm:^17.0.35, @types/yargs@npm:^17.0.8":
   version: 17.0.35
   resolution: "@types/yargs@npm:17.0.35"
   dependencies:
@@ -29047,7 +29047,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yargs@npm:17.7.2, yargs@npm:^17.0.1, yargs@npm:^17.7.1, yargs@npm:^17.7.2":
+"yargs@npm:17.7.2":
   version: 17.7.2
   resolution: "yargs@npm:17.7.2"
   dependencies:
@@ -29077,6 +29077,21 @@ __metadata:
     y18n: "npm:^4.0.0"
     yargs-parser: "npm:^13.1.2"
   checksum: 10/608ba2e62ac2c7c4572b9c6f7a2d3ef76e2deaad8c8082788ed29ae3ef33e9f68e087f07eb804ed5641de2bc4eab977405d3833b1d11ae8dbbaf5847584d96be
+  languageName: node
+  linkType: hard
+
+"yargs@npm:^17.0.1, yargs@npm:^17.7.1, yargs@npm:^17.7.2, yargs@npm:^17.7.3":
+  version: 17.7.3
+  resolution: "yargs@npm:17.7.3"
+  dependencies:
+    cliui: "npm:^8.0.1"
+    escalade: "npm:^3.1.1"
+    get-caller-file: "npm:^2.0.5"
+    require-directory: "npm:^2.1.1"
+    string-width: "npm:^4.2.3"
+    y18n: "npm:^5.0.5"
+    yargs-parser: "npm:^21.1.1"
+  checksum: 10/a3826798c03b159e139d0580a3b2733953889a9a1bac8e4e1ca7a1a249b55315b213c323a6a1dbdb305f6e59496a9eaa810742c87e34abcf1a0584d8f59212a1
   languageName: node
   linkType: hard
 

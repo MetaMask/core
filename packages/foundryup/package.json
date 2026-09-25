@@ -51,14 +51,14 @@
     "minipass": "^7.1.2",
     "tar": "^7.5.22",
     "unzipper": "^0.12.3",
-    "yargs": "^17.7.2",
+    "yargs": "^17.7.3",
     "yargs-parser": "^21.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@types/unzipper": "^0.10.10",
-    "@types/yargs": "^17.0.32",
+    "@types/yargs": "^17.0.35",
     "@types/yargs-parser": "^21.0.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
