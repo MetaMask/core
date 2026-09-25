@@ -1266,7 +1266,7 @@ describe('AnalyticsController', () => {
       rootMessenger.publish(
         'ConfigRegistryController:stateChanged',
         buildConfigRegistryState(updatedEventsConfig),
-        buildConfigRegistryState(initialEventsConfig),
+        [],
       );
 
       // Allow the async fetch callback to complete
@@ -1275,7 +1275,7 @@ describe('AnalyticsController', () => {
       expect(controller.state.eventsConfig).toStrictEqual(updatedEventsConfig);
     });
 
-    it('skips refresh when ConfigRegistryController state changes but eventsConfig is unchanged', async () => {
+    it('skips refresh when ConfigRegistryController state changes but eventsConfig version is unchanged', async () => {
       type TestEvents =
         | AnalyticsControllerEvents
         | ConfigRegistryControllerStateChangedEvent;
@@ -1320,17 +1320,16 @@ describe('AnalyticsController', () => {
       await controller.init();
       const callsAfterInit = getStateMock.mock.calls.length;
 
-      // Publish a state change where eventsConfig reference is the same
-      const state = buildConfigRegistryState(eventsConfig);
+      // Publish a state change with the same eventsConfig version
       rootMessenger.publish(
         'ConfigRegistryController:stateChanged',
-        state,
-        state,
+        buildConfigRegistryState(eventsConfig),
+        [],
       );
 
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // getState should not have been called again
+      // getState should not have been called again since version is unchanged
       expect(getStateMock).toHaveBeenCalledTimes(callsAfterInit);
     });
 

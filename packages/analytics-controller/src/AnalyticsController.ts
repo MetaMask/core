@@ -898,8 +898,11 @@ export class AnalyticsController extends BaseController<
     try {
       this.messenger.subscribe(
         'ConfigRegistryController:stateChanged',
-        (newState, prevState) => {
-          if (newState.configs.eventsConfig !== prevState.configs.eventsConfig) {
+        (newState) => {
+          if (
+            newState.configs.eventsConfig?.version !==
+            this.#eventsConfigVersion
+          ) {
             void this.#fetchEventsConfig();
           }
         },
