@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432))
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432), [#TBD](https://github.com/MetaMask/core/pull/TBD))
   - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
-  - State and constant: `stepUpSessionExpiresAt` → `verificationSessionExpiresAt`, `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - Constant: `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - State: `stepUpSessionExpiresAt` is removed; call `getVerificationToken()` to check for a live verification session
   - Types: `ElevatedProfileToken` → `VerificationToken`, `GetElevatedTokenRequest` → `GetVerificationTokenRequest`, and `StepUp` becomes `Verification` in `BeginStepUpRequest`, `CompleteStepUpRequest`, `StepUpChallenge`, `StepUpProof` and `MfaStepUpAssertion`
   - Error: `ElevatedTokenInvalidError` (`elevated_token_invalid`) → `VerificationTokenInvalidError` (`verification_token_invalid`)
   - Trace spans: `MFA Step-Up Begin` / `Complete` → `MFA Verification Begin` / `Complete`
