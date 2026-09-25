@@ -31,6 +31,7 @@ import type {
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
+  FetchTokenFeedOptions,
   FetchTraderFeedOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
@@ -264,6 +265,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchPositionById',
   'fetchFeed',
   'fetchTraderFeed',
+  'fetchTokenFeed',
   'reactToComment',
   'removeCommentReaction',
   'follow',
@@ -687,6 +689,75 @@ export class SocialService extends BaseDataService<
     });
 
     return traderFeedResponse;
+  }
+
+  /**
+   * Fetches a page of positions in one token, most recently traded first.
+   *
+   * Calls `GET ${baseUrl}/tokens/${chain}/${contractAddress}/feed`. Unlike
+   * {@link fetchFeed}, this is scoped to a single token and does not accept
+   * `scope` or `chains`. Omit `status` to include both open and recently
+   * closed positions.
+   *
+   * The route is public, but the Authorization header is still sent so the
+   * social-api can hydrate `authorComment.engagement.userReaction` for the
+   * signed-in viewer.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
+   * @param options.contractAddress - Token contract address.
+   * @param options.status - `open`, `closed`, or omit for both.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchTokenFeed(options: FetchTokenFeedOptions): Promise<FeedResponse> {
+    const tokenFeedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTokenFeed`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const { chain, contractAddress, status, limit, olderThan, newerThan } =
+          options;
+        const url = new URL(
+          `${this.#v1Url}/tokens/${encodeURIComponent(chain)}/${encodeURIComponent(contractAddress)}/feed`,
+        );
+        if (status) {
+          url.searchParams.append('status', status);
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
+        );
+        const feedData = (await response.json()) as unknown;
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData;
+      },
+    });
+
+    return tokenFeedResponse;
   }
 
   /**

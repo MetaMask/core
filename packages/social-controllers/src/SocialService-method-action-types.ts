@@ -150,6 +150,36 @@ export type SocialServiceFetchTraderFeedAction = {
 };
 
 /**
+ * Fetches a page of positions in one token, most recently traded first.
+ *
+ * Calls `GET ${baseUrl}/tokens/${chain}/${contractAddress}/feed`. Unlike
+ * {@link fetchFeed}, this is scoped to a single token and does not accept
+ * `scope` or `chains`. Omit `status` to include both open and recently
+ * closed positions.
+ *
+ * The route is public, but the Authorization header is still sent so the
+ * social-api can hydrate `authorComment.engagement.userReaction` for the
+ * signed-in viewer.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
+ * @param options.contractAddress - Token contract address.
+ * @param options.status - `open`, `closed`, or omit for both.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchTokenFeedAction = {
+  type: `SocialService:fetchTokenFeed`;
+  handler: SocialService['fetchTokenFeed'];
+};
+
+/**
  * Adds or replaces the current user's reaction on a swap comment (Call).
  *
  * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
@@ -274,6 +304,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
   | SocialServiceFetchTraderFeedAction
+  | SocialServiceFetchTokenFeedAction
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceFetchFollowingAction
