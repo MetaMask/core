@@ -7288,7 +7288,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.3.1"
-    ethereumjs-wallet: "npm:^1.0.1"
+    ethereumjs-wallet: "npm:^1.0.2"
     immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
@@ -17104,7 +17104,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethereumjs-wallet@npm:^1.0.1":
+"ethereumjs-wallet@npm:^1.0.2":
   version: 1.0.2
   resolution: "ethereumjs-wallet@npm:1.0.2"
   dependencies:
