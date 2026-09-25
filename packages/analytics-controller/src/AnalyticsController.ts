@@ -4,7 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { ConfigRegistryControllerGetStateAction } from '@metamask/config-registry-controller';
+import type {
+  ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
+} from '@metamask/config-registry-controller';
 import type {
   GeolocationControllerGetGeolocationDataAction,
   GeolocationData,
@@ -407,7 +410,7 @@ export type AnalyticsControllerEvents = AnalyticsControllerStateChangeEvent;
 /**
  * Events from other messengers that {@link AnalyticsControllerMessenger} subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = ConfigRegistryControllerStateChangedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -891,6 +894,19 @@ export class AnalyticsController extends BaseController<
     }
 
     await this.#fetchEventsConfig();
+
+    try {
+      this.messenger.subscribe(
+        'ConfigRegistryController:stateChanged',
+        (newState, prevState) => {
+          if (newState.configs.eventsConfig !== prevState.configs.eventsConfig) {
+            void this.#fetchEventsConfig();
+          }
+        },
+      );
+    } catch {
+      // ConfigRegistryController may not be registered in all environments.
+    }
 
     // Resolve geolocation only when the user is already opted in to product or
     // marketing analytics. For undecided or opted-out users it is deferred to

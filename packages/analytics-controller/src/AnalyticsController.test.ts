@@ -1,5 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import type { ConfigRegistryControllerGetStateAction } from '@metamask/config-registry-controller';
+import type {
+  ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
+} from '@metamask/config-registry-controller';
 import type {
   GeolocationControllerGetGeolocationDataAction,
   GeolocationData,
@@ -1204,6 +1207,166 @@ describe('AnalyticsController', () => {
 
       await expect(controller.init()).toBeFulfilled();
       expect(controller.state.eventsConfig).toBeUndefined();
+    });
+
+    it('refreshes events config when ConfigRegistryController state changes', async () => {
+      type TestEvents =
+        | AnalyticsControllerEvents
+        | ConfigRegistryControllerStateChangedEvent;
+
+      const initialEventsConfig = {
+        schemaVersion: '1.0.0',
+        version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+        timestamp: 1761829548000,
+        events: { OldEvent: ['product'] },
+      };
+
+      const updatedEventsConfig = {
+        schemaVersion: '1.0.0',
+        version: 'b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1',
+        timestamp: 1761829549000,
+        events: { NewEvent: ['marketing'] },
+      };
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        TestEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        TestEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      let currentEventsConfig: Record<string, unknown> | null =
+        initialEventsConfig;
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        () => buildConfigRegistryState(currentEventsConfig),
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        events: ['ConfigRegistryController:stateChanged'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await controller.init();
+      expect(controller.state.eventsConfig).toStrictEqual(initialEventsConfig);
+
+      currentEventsConfig = updatedEventsConfig;
+      rootMessenger.publish(
+        'ConfigRegistryController:stateChanged',
+        buildConfigRegistryState(updatedEventsConfig),
+        buildConfigRegistryState(initialEventsConfig),
+      );
+
+      // Allow the async fetch callback to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(controller.state.eventsConfig).toStrictEqual(updatedEventsConfig);
+    });
+
+    it('skips refresh when ConfigRegistryController state changes but eventsConfig is unchanged', async () => {
+      type TestEvents =
+        | AnalyticsControllerEvents
+        | ConfigRegistryControllerStateChangedEvent;
+
+      const eventsConfig = {
+        schemaVersion: '1.0.0',
+        version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+        timestamp: 1761829548000,
+        events: { SomeEvent: ['product'] },
+      };
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        TestEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        TestEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      const getStateMock = jest.fn(() => buildConfigRegistryState(eventsConfig));
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        getStateMock,
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        events: ['ConfigRegistryController:stateChanged'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await controller.init();
+      const callsAfterInit = getStateMock.mock.calls.length;
+
+      // Publish a state change where eventsConfig reference is the same
+      const state = buildConfigRegistryState(eventsConfig);
+      rootMessenger.publish(
+        'ConfigRegistryController:stateChanged',
+        state,
+        state,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // getState should not have been called again
+      expect(getStateMock).toHaveBeenCalledTimes(callsAfterInit);
+    });
+
+    it('proceeds gracefully when ConfigRegistryController subscribe throws', async () => {
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        () => buildConfigRegistryState(null),
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        messenger,
+      });
+
+      // ConfigRegistryController:stateChanged is not delegated, so subscribe
+      // will throw because the event is not in the messenger's allowed events.
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await expect(controller.init()).toBeFulfilled();
     });
   });
 
