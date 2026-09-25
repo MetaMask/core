@@ -473,14 +473,22 @@ export type FetchTraderFeedOptions = {
 export type TokenFeedStatus = 'open' | 'closed';
 
 /**
+ * Chain name accepted by `GET /v1/tokens/:chain/:contractAddress/feed`.
+ */
+export type TokenFeedChain =
+  | 'base'
+  | 'bsc'
+  | 'ethereum'
+  | 'hyperliquid'
+  | 'robinhood'
+  | 'solana';
+
+/**
  * Options for `GET /v1/tokens/:chain/:contractAddress/feed`.
  */
 export type FetchTokenFeedOptions = {
-  /**
-   * Chain name where the token is deployed (`base`, `bsc`, `ethereum`,
-   * `hyperliquid`, `robinhood`, or `solana`).
-   */
-  chain: string;
+  /** Chain name where the token is deployed. */
+  chain: TokenFeedChain;
   /** Token contract address. */
   contractAddress: string;
   /**

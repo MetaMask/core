@@ -81,6 +81,7 @@ export type {
   RemoveCommentReactionOptions,
   SocialControllerState,
   SocialHandles,
+  TokenFeedChain,
   TokenFeedStatus,
   Trade,
   TradeAction,

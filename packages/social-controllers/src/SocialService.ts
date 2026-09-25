@@ -708,7 +708,7 @@ export class SocialService extends BaseDataService<
    * `pagination.newerCursor` as `newerThan` to fetch newer items.
    *
    * @param options - Options bag.
-   * @param options.chain - Chain name where the token is deployed.
+   * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
    * @param options.contractAddress - Token contract address.
    * @param options.status - `open`, `closed`, or omit for both.
    * @param options.limit - Number of results per page.
