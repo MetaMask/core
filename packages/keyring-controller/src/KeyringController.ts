@@ -719,6 +719,36 @@ function assertIsEncryptionKeySet(
 }
 
 /**
+ * Parses the persisted encrypted-vault string from controller state.
+ *
+ * The vault string lives in persistent storage, which can be corrupted or
+ * tampered with, so a raw `JSON.parse` here would throw an untyped
+ * `SyntaxError` (or a `TypeError` on property access) instead of the
+ * documented `VaultError`. The parse is wrapped so every corruption path
+ * surfaces as `VaultError`, which callers and tests already handle.
+ *
+ * @param vault - The raw vault string from controller state.
+ * @returns The parsed vault object.
+ * @throws If the vault is missing or is not valid JSON.
+ */
+function parseVaultState(vault: string): { salt?: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(vault);
+  } catch {
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.VaultError,
+    );
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.VaultError,
+    );
+  }
+  return parsed as { salt?: string };
+}
+
+/**
  * Checks if the provided value is a serialized keyrings array.
  *
  * @param array - The value to check.
@@ -1089,7 +1119,7 @@ export class KeyringController<
       );
     }
 
-    const parsedEncryptedVault = JSON.parse(this.state.vault);
+    const parsedEncryptedVault = parseVaultState(this.state.vault);
     const salt = encryptionSalt ?? parsedEncryptedVault.salt;
 
     if (parsedEncryptedVault.salt !== salt) {
@@ -2590,7 +2620,7 @@ export class KeyringController<
     }
 
     const { vault } = this.state;
-    if (vault && JSON.parse(vault).salt !== keyDerivationSalt) {
+    if (vault && parseVaultState(vault).salt !== keyDerivationSalt) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.ExpiredCredentials,
       );
@@ -2765,7 +2795,7 @@ export class KeyringController<
           KeyringControllerErrorMessage.VaultError,
         );
       }
-      const parsedEncryptedVault = JSON.parse(this.state.vault);
+      const parsedEncryptedVault = parseVaultState(this.state.vault);
 
       if ('password' in credentials) {
         await this.#deriveAndSetEncryptionKey(credentials.password);

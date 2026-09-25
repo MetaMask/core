@@ -611,8 +611,11 @@ export class SignatureController extends BaseController<
     decodedPermission?: DecodedPermission;
   }): Promise<string> {
     log('Processing signature request', {
-      messageParams,
-      request,
+      // Never log full message contents: they may embed user data and, on
+      // some paths, sensitive signing material. The request id and origin
+      // are sufficient for tracing.
+      requestId: (request as { id?: string })?.id,
+      origin: messageParams?.origin ?? (request as { origin?: string })?.origin,
       type,
       version,
     });
@@ -662,7 +665,9 @@ export class SignatureController extends BaseController<
 
     switch (finalMetadata.status) {
       case SignatureRequestStatus.Signed:
-        log('Signature request finished', { id, signature });
+        // Never log the signature itself: signatures are authenticators and
+        // must not end up in persistent logs.
+        log('Signature request finished', { id });
         this.#addLog(type, version, SigningStage.Signed, finalMessageParams);
         resultCallbacks?.success(signature);
         return finalMetadata.rawSig as string;
@@ -744,7 +749,9 @@ export class SignatureController extends BaseController<
       state.signatureRequests[metadata.id] = metadata;
     });
 
-    log('Added signature request', metadata);
+    // Never log full request metadata: it embeds the message to be signed.
+    // The request id and type are sufficient for tracing.
+    log('Added signature request', { id: metadata.id, type: metadata.type });
 
     this.hub.emit('unapprovedMessage', {
       messageParams,
