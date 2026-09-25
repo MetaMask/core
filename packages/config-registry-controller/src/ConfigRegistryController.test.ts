@@ -912,7 +912,7 @@ describe('ConfigRegistryController', () => {
           );
           const eventsConfig = {
             schemaVersion: '1.0.0',
-            version: 'abc123',
+            version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
             timestamp: 1761829548000,
             events: { TestEvent: ['product'] },
           };
