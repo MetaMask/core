@@ -652,7 +652,7 @@ const withProcessMutex = async <Result>(
       if (processMutexTails.get(key) === settled) {
         processMutexTails.delete(key);
       }
-      return undefined;
+      return;
     })
     .catch(() => undefined);
   return await run;
@@ -5009,7 +5009,7 @@ export class LighterProvider implements PerpsProvider {
   async getCurrentAccountId(): Promise<CaipAccountId> {
     const address = this.#walletService.getUserAddress();
     const chainId = getLighterChainId(this.#clientService.network);
-    return `eip155:${chainId}:${address}` as CaipAccountId;
+    return `eip155:${chainId}:${address}`;
   }
 
   // ============================================================================
@@ -7534,6 +7534,8 @@ export class LighterProvider implements PerpsProvider {
       feeAmount: Number.isFinite(amount) ? amount * feeRate : 0,
       protocolFeeRate: feeRate,
       metamaskFeeRate: 0,
+      // Structurally zero on this venue, not a waiver applied to a real fee.
+      chargesMetamaskBuilderFee: false,
     };
   }
 
@@ -7717,7 +7719,7 @@ export class LighterProvider implements PerpsProvider {
         ) {
           this.#accountChannelsPromise = null;
         }
-        return undefined;
+        return;
       })
       .catch(() => undefined);
     this.#ensureStream();
@@ -7748,7 +7750,7 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     this.#wsWantedChannels.set(channel, { auth });
-    if (this.#priceWs && this.#priceWs.readyState === 1) {
+    if (this.#priceWs?.readyState === 1) {
       this.#sendSubscribe(channel, auth);
     }
   };
@@ -7823,11 +7825,11 @@ export class LighterProvider implements PerpsProvider {
                 generationAtOpen !== this.#sessionGeneration ||
                 !this.#wsWantedChannels.has(channel)
               ) {
-                return undefined;
+                return;
               }
               this.#wsWantedChannels.set(channel, { auth: freshToken });
               this.#sendSubscribe(channel, freshToken);
-              return undefined;
+              return;
             })
             .catch((error) => {
               this.#deps.debugLogger.log(
@@ -7970,15 +7972,15 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     if (type.includes('order_book')) {
-      this.#handleOrderBookMessage(type, message as LighterWsOrderBookMessage);
+      this.#handleOrderBookMessage(type, message);
       return;
     }
     if (type.includes('candle')) {
-      this.#handleCandleMessage(message as LighterWsCandleMessage);
+      this.#handleCandleMessage(message);
       return;
     }
     if (type.includes('account_all_trades')) {
-      this.#handleTradesMessage(message as LighterWsTradesMessage);
+      this.#handleTradesMessage(message);
       return;
     }
     if (type.includes('account_all_orders') && message.orders) {
@@ -8399,7 +8401,7 @@ export class LighterProvider implements PerpsProvider {
       .then(async (markets) => {
         const market = markets.get(params.symbol);
         if (this.#isDisconnected || !market || released) {
-          return undefined;
+          return;
         }
         seriesKey = `${market.marketId}:${resolution}`;
         // Seed with history so charts render immediately, then let the WS
@@ -8410,7 +8412,7 @@ export class LighterProvider implements PerpsProvider {
           limit: 120,
         });
         if (this.#isDisconnected || released) {
-          return undefined;
+          return;
         }
         const series = new Map<number, CandleStick>();
         for (const candle of seeded.candles) {
@@ -8426,7 +8428,7 @@ export class LighterProvider implements PerpsProvider {
         params.callback(seeded);
         this.#requestChannel(`candle/${market.marketId}/${resolution}`);
         this.#ensureStream();
-        return undefined;
+        return;
       })
       .catch((error: unknown) => {
         this.#deps.debugLogger.log('[LighterProvider] candle seed failed', {
@@ -8501,7 +8503,7 @@ export class LighterProvider implements PerpsProvider {
       .then((markets) => {
         const market = markets.get(params.symbol);
         if (this.#isDisconnected || !market || released) {
-          return undefined;
+          return;
         }
         marketId = market.marketId;
         let subscribers = this.#orderBookSubscribers.get(marketId);
@@ -8512,7 +8514,7 @@ export class LighterProvider implements PerpsProvider {
         subscribers.add(params);
         this.#requestChannel(`order_book/${marketId}`);
         this.#ensureStream();
-        return undefined;
+        return;
       })
       .catch((error: unknown) => {
         if (!this.#isDisconnected && !released) {
@@ -8603,10 +8605,9 @@ export class LighterProvider implements PerpsProvider {
     const bridge = LIGHTER_BRIDGE_CONFIG.mainnet;
     return [
       {
-        assetId:
-          `${bridge.chainId}/erc20:${bridge.usdcContract}/default` as AssetRoute['assetId'],
-        chainId: bridge.chainId as AssetRoute['chainId'],
-        contractAddress: bridge.bridgeContract as AssetRoute['contractAddress'],
+        assetId: `${bridge.chainId}/erc20:${bridge.usdcContract}/default`,
+        chainId: bridge.chainId,
+        contractAddress: bridge.bridgeContract,
         constraints: { minAmount },
       },
     ];

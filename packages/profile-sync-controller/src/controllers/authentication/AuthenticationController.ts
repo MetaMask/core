@@ -23,15 +23,16 @@ import {
   BeginEnrollmentRequestStruct,
   CompleteEnrollmentRequestStruct,
   assertValidMfaRequest,
-  BeginStepUpRequestStruct,
-  CompleteStepUpRequestStruct,
-  GetElevatedTokenRequestStruct,
-  parseElevatedTokenClaims,
+  BeginVerificationRequestStruct,
+  CompleteVerificationRequestStruct,
+  GetVerificationTokenRequestStruct,
+  parseVerificationTokenClaims,
 } from '../../sdk/authentication-jwt-bearer/mfa/schemas.js';
 import type {
   LoginIdentifierType,
   LoginResponse,
   ProfileAlias,
+  ProfileIdentifier,
   SRPInterface,
   SrpLoginTag,
   UserProfile,
@@ -42,11 +43,11 @@ import type {
   CompleteEnrollmentRequest,
   EnrolledCredential,
   EnrollmentChallenge,
-  BeginStepUpRequest,
-  CompleteStepUpRequest,
-  ElevatedProfileToken,
-  GetElevatedTokenRequest,
-  StepUpChallenge,
+  BeginVerificationRequest,
+  CompleteVerificationRequest,
+  VerificationToken,
+  GetVerificationTokenRequest,
+  VerificationChallenge,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
@@ -55,7 +56,7 @@ import {
   JwtBearerAuth,
   PairConflictError,
   getMfaErrorCode,
-  ElevatedTokenInvalidError,
+  VerificationTokenInvalidError,
 } from '../../sdk/index.js';
 import { decodeJwtPayload } from '../../sdk/utils/jwt.js';
 import { toErrorMessage } from '../../sdk/utils/to-error-message.js';
@@ -80,11 +81,6 @@ export type AuthenticationControllerState = {
    * assignable to the controller state type.
    */
   enrolledCredentials?: EnrolledCredential[];
-  /**
-   * Epoch-ms hard expiry of the in-memory elevated session, or undefined when
-   * none is open. Lets UI show "verified" state without holding the token.
-   */
-  stepUpSessionExpiresAt?: number;
   /**
    * Client gate for profile pairing. Defaults to `true` (fresh install /
    * upgrade), set to `false` after a successful `performSignIn` pair, set
@@ -137,7 +133,7 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   srpSessionData: {
-    // Remove access token from state logs
+    // Remove access token and paired identifiers from state logs
     includeInStateLogs: (srpSessionData) => {
       // Unreachable branch, included just to fix a type error for the case where this property is
       // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
@@ -151,9 +147,14 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
         (sanitizedSrpSessionData, [key, value]) => {
           const { accessToken: _unused, ...tokenWithoutAccessToken } =
             value.token;
+          const {
+            pairedIdentifierIds: _unusedPairedIdentifierIds,
+            ...profileWithoutPairedIdentifierIds
+          } = value.profile;
           sanitizedSrpSessionData[key] = {
             ...value,
             token: tokenWithoutAccessToken,
+            profile: profileWithoutPairedIdentifierIds,
           };
           return sanitizedSrpSessionData;
         },
@@ -176,21 +177,36 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
-  stepUpSessionExpiresAt: {
-    includeInStateLogs: false,
-    persist: false,
-    includeInDebugSnapshot: false,
-    usedInUi: true,
-  },
 };
 
 /**
- * Lifetime of an elevated session. Deliberately shorter than the
- * elevated token's own `exp` so a fresh ceremony is required per sensitive
- * action window, per the MFA phase-1 specification.
+ * Upper bound on a verification session's lifetime. The session also ends at
+ * the verification token's own `exp` (15 minutes today), whichever comes
+ * first, so this only matters if the server ever issues longer-lived tokens.
+ * Callers needing a fresher proof pass `maxSessionAgeMs` to
+ * `getVerificationToken`.
  */
-export const STEP_UP_SESSION_TTL_MS = 60_000;
+export const VERIFICATION_SESSION_TTL_MS = 15 * 60_000;
 
+/**
+ * Default maximum age of a verification session that may authorize enrolling a
+ * credential. A session opened for an unrelated operation must not be able to
+ * add a factor long after the fact, while a session proven moments ago (or
+ * during the same setup flow, via `maxSessionAgeMs`) may.
+ */
+export const ENROLLMENT_MAX_SESSION_AGE_MS = 2 * 60_000;
+
+/**
+ * Key of the only verification session held today. Sessions are keyed by token
+ * audience so audience-scoped tokens can be added without reshaping storage.
+ */
+const DEFAULT_AUDIENCE = '';
+
+type VerificationSession = {
+  token: VerificationToken;
+  expiresAt: number;
+  timer: ReturnType<typeof setTimeout>;
+};
 type ControllerConfig = {
   env: Env;
   /**
@@ -216,10 +232,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshEnrolledCredentials',
   'beginCredentialEnrollment',
   'completeCredentialEnrollment',
-  'beginStepUp',
-  'completeStepUp',
-  'getElevatedProfileToken',
-  'clearStepUpSession',
+  'beginCredentialVerification',
+  'completeCredentialVerification',
+  'getVerificationToken',
+  'clearVerificationSession',
 ] as const;
 
 export type Actions =
@@ -296,12 +312,12 @@ export class AuthenticationController extends BaseController<
    */
   #authSessionEpoch = 0;
 
-  #stepUpSession: {
-    token: ElevatedProfileToken;
-    expiresAt: number;
-  } | null = null;
-
-  #stepUpTimer: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * Verification sessions keyed by token audience. At most one session per
+   * audience; only `DEFAULT_AUDIENCE` is used until audience-scoped tokens
+   * exist.
+   */
+  readonly #verificationSessions = new Map<string, VerificationSession>();
 
   /**
    * Sequence number of the most recently started credentials refresh. Only
@@ -329,7 +345,7 @@ export class AuthenticationController extends BaseController<
       this.messenger.subscribe('KeyringController:lock', () => {
         this.#authSessionEpoch += 1;
         this.#isUnlocked = false;
-        this.clearStepUpSession();
+        this.clearVerificationSession();
       });
     },
   };
@@ -423,11 +439,17 @@ export class AuthenticationController extends BaseController<
       if (!state.srpSessionData) {
         state.srpSessionData = {};
       }
+      // The API omits `paired_identifier_ids` when it fails to load them, so
+      // keep the last known value rather than wiping it.
+      const pairedIdentifierIds =
+        loginResponse.profile.pairedIdentifierIds ??
+        state.srpSessionData[resolvedId]?.profile.pairedIdentifierIds;
       state.srpSessionData[resolvedId] = {
         ...loginResponse,
         profile: {
           ...loginResponse.profile,
           metaMetricsId,
+          ...(pairedIdentifierIds ? { pairedIdentifierIds } : {}),
         },
       };
     });
@@ -690,7 +712,7 @@ export class AuthenticationController extends BaseController<
     }
 
     try {
-      await this.#auth.pairSocialIdentifier(
+      const pairedIdentifierIds = await this.#auth.pairSocialIdentifier(
         {
           identifierType,
           socialJwt,
@@ -698,6 +720,7 @@ export class AuthenticationController extends BaseController<
         },
         primaryAccessToken,
       );
+      this.#setPrimaryPairedIdentifierIds(pairedIdentifierIds);
       this.#clearNeedsSocialPairing();
     } catch (error) {
       if (error instanceof PairConflictError) {
@@ -793,10 +816,32 @@ export class AuthenticationController extends BaseController<
     const primaryAccessToken = accessTokens[0]; // Associated with primary SRP.
     const {
       profileAliases,
-      profile: { canonicalProfileId },
+      profile: { canonicalProfileId, pairedIdentifierIds },
     } = await this.#auth.pairSrpProfiles(accessTokens, primaryAccessToken);
     this.#propagateCanonical(canonicalProfileId);
+    this.#setPrimaryPairedIdentifierIds(pairedIdentifierIds);
     return profileAliases;
+  }
+
+  /**
+   * Pair calls use the primary SRP's token, so their response only describes
+   * the primary's profile: secondaries skipped by the server are not in it.
+   *
+   * @param pairedIdentifierIds - Identifiers returned by the pair call, if any.
+   */
+  #setPrimaryPairedIdentifierIds(
+    pairedIdentifierIds: ProfileIdentifier[] | undefined,
+  ): void {
+    if (!pairedIdentifierIds) {
+      return;
+    }
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    this.update((state) => {
+      const entry = state.srpSessionData?.[primaryEntropySourceId];
+      if (entry?.profile) {
+        entry.profile.pairedIdentifierIds = pairedIdentifierIds;
+      }
+    });
   }
 
   #propagateCanonical(canonicalProfileId: string): void {
@@ -865,8 +910,9 @@ export class AuthenticationController extends BaseController<
             this.#setTraceAttribute(context, 'mfaErrorCode', mfaCode);
             if (mfaCode === 'authentication_required' && this.#isUnlocked) {
               this.#invalidateSrpSession(this.#getPrimaryEntropySourceId());
-              // An elevated session must not outlive a rejected base session.
-              this.clearStepUpSession();
+              // A verification session must not outlive a rejected base
+              // session.
+              this.clearVerificationSession();
             }
           }
           throw error;
@@ -946,6 +992,13 @@ export class AuthenticationController extends BaseController<
     const sessionEpoch = this.#authSessionEpoch;
     assertValidMfaRequest(request, BeginEnrollmentRequestStruct);
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    // The server requires AAL2 to add a credential once one that proves AAL2
+    // exists: send the verification token only while a recent enough session
+    // is live and let the server decide. An older session stays open for
+    // other consumers.
+    const accessToken = this.getVerificationToken({
+      maxSessionAgeMs: request.maxSessionAgeMs ?? ENROLLMENT_MAX_SESSION_AGE_MS,
+    })?.accessToken;
     const challenge = await this.#runMfaRequest(
       'MFA Enroll Begin',
       request.reason.operation,
@@ -954,6 +1007,7 @@ export class AuthenticationController extends BaseController<
         await this.#auth.beginMfaEnrollment(request.type, {
           email: request.email,
           entropySourceId: primaryEntropySourceId,
+          accessToken,
         }),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
@@ -1005,9 +1059,10 @@ export class AuthenticationController extends BaseController<
       }
       throw error;
     }
-    // The factor set changed: require a fresh ceremony against the new set.
-    this.clearStepUpSession();
 
+    // The verification session is deliberately kept: adding a factor does not
+    // weaken an earlier proof, and `beginCredentialEnrollment` already limits
+    // which sessions may add the next one.
     try {
       return await this.refreshEnrolledCredentials();
     } catch {
@@ -1020,20 +1075,20 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Begins step-up verification with an enrolled credential.
+   * Begins verification with an enrolled credential.
    *
    * @param request - Credential type and trace reason.
    * @returns A challenge for the client-owned ceremony.
    */
-  public async beginStepUp(
-    request: BeginStepUpRequest,
-  ): Promise<StepUpChallenge> {
-    this.#assertIsUnlocked('beginStepUp');
+  public async beginCredentialVerification(
+    request: BeginVerificationRequest,
+  ): Promise<VerificationChallenge> {
+    this.#assertIsUnlocked('beginCredentialVerification');
     const sessionEpoch = this.#authSessionEpoch;
-    assertValidMfaRequest(request, BeginStepUpRequestStruct);
+    assertValidMfaRequest(request, BeginVerificationRequestStruct);
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     const challenge = await this.#runMfaRequest(
-      'MFA Step-Up Begin',
+      'MFA Verification Begin',
       request.reason.operation,
       request.type,
       async () =>
@@ -1042,31 +1097,32 @@ export class AuthenticationController extends BaseController<
           primaryEntropySourceId,
         ),
     );
-    this.#assertAuthSessionEpoch(sessionEpoch, 'beginStepUp');
+    this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialVerification');
     return challenge;
   }
 
   /**
-   * Completes step-up verification and opens a short-lived elevated session.
+   * Completes verification and opens a short-lived verification session.
    *
-   * The AAL2 assertion returned by the MFA service is exchanged at Hydra for
-   * an elevated access token, whose claims are checked before the session
-   * opens. The token itself never enters controller state.
+   * The assertion returned by the MFA service is exchanged at Hydra for an
+   * access token. Its assurance level is not checked: the services receiving
+   * the token enforce their own requirements. The token itself never enters
+   * controller state.
    *
    * @param request - Flow identifier, platform or email proof, and trace reason.
-   * @returns The elevated profile access token.
+   * @returns The verification token.
    */
-  public async completeStepUp(
-    request: CompleteStepUpRequest,
-  ): Promise<ElevatedProfileToken> {
-    this.#assertIsUnlocked('completeStepUp');
+  public async completeCredentialVerification(
+    request: CompleteVerificationRequest,
+  ): Promise<VerificationToken> {
+    this.#assertIsUnlocked('completeCredentialVerification');
     const sessionEpoch = this.#authSessionEpoch;
-    assertValidMfaRequest(request, CompleteStepUpRequestStruct);
+    assertValidMfaRequest(request, CompleteVerificationRequestStruct);
     const { type } = request.proof;
     const { operation } = request.reason;
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     const assertion = await this.#runMfaRequest(
-      'MFA Step-Up Complete',
+      'MFA Verification Complete',
       operation,
       type,
       async () =>
@@ -1076,51 +1132,59 @@ export class AuthenticationController extends BaseController<
           primaryEntropySourceId,
         ),
     );
-    this.#assertAuthSessionEpoch(sessionEpoch, 'completeStepUp');
+    this.#assertAuthSessionEpoch(
+      sessionEpoch,
+      'completeCredentialVerification',
+    );
     const accessToken = await this.#runMfaRequest(
       'MFA Token Exchange',
       operation,
       type,
       async () => await this.#auth.exchangeMfaAssertion(assertion.token),
     );
-    this.#assertAuthSessionEpoch(sessionEpoch, 'completeStepUp');
+    this.#assertAuthSessionEpoch(
+      sessionEpoch,
+      'completeCredentialVerification',
+    );
 
     let decodedClaims: unknown;
     try {
       decodedClaims = decodeJwtPayload(accessToken.accessToken);
     } catch (error) {
-      throw new ElevatedTokenInvalidError(toErrorMessage(error));
+      throw new VerificationTokenInvalidError(toErrorMessage(error));
     }
-    const claims = parseElevatedTokenClaims(decodedClaims);
+    const claims = parseVerificationTokenClaims(decodedClaims);
     if (claims.exp * 1000 <= Date.now()) {
-      throw new ElevatedTokenInvalidError('Elevated token is expired');
+      throw new VerificationTokenInvalidError('Verification token is expired');
     }
 
-    const token: ElevatedProfileToken = { ...accessToken, claims };
-    this.#openStepUpSession(token);
+    const token: VerificationToken = { ...accessToken, claims };
+    this.#openVerificationSession(token);
     return token;
   }
 
   /**
-   * Returns the active elevated token when it meets the requested freshness.
+   * Returns the active verification token when it meets the requested
+   * freshness.
    *
    * @param request - Optional maximum session age in milliseconds, measured
    * from when the token was obtained. Zero always requires a new ceremony.
-   * @returns A live elevated token, or null when no reusable session exists.
+   * @returns A live verification token, or null when no reusable session
+   * exists.
    */
-  public getElevatedProfileToken(
-    request: GetElevatedTokenRequest = {},
-  ): ElevatedProfileToken | null {
-    this.#assertIsUnlocked('getElevatedProfileToken');
-    assertValidMfaRequest(request, GetElevatedTokenRequestStruct);
-    const session = this.#stepUpSession;
+  public getVerificationToken(
+    request: GetVerificationTokenRequest = {},
+  ): VerificationToken | null {
+    this.#assertIsUnlocked('getVerificationToken');
+    assertValidMfaRequest(request, GetVerificationTokenRequestStruct);
+    const session = this.#verificationSessions.get(DEFAULT_AUDIENCE);
     if (!session) {
       return null;
     }
     const now = Date.now();
     if (now >= session.expiresAt) {
       // The hard-expiry timer has not fired yet (e.g. a suspended tab).
-      this.clearStepUpSession();
+      this.#dropVerificationSession(DEFAULT_AUDIENCE);
       return null;
     }
     // `>=` so a zero max age always forces a fresh ceremony. Not cleared: the
@@ -1133,43 +1197,48 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Opens the elevated session. Its lifetime is the session TTL clamped to
+   * Opens the verification session. Its lifetime is the session TTL clamped to
    * the token's own `exp`, so the session never outlives the token.
    *
-   * @param token - The freshly exchanged elevated token.
+   * @param token - The freshly exchanged verification token.
    */
-  #openStepUpSession(token: ElevatedProfileToken): void {
-    this.clearStepUpSession();
+  #openVerificationSession(token: VerificationToken): void {
+    const audience = DEFAULT_AUDIENCE;
+    this.#dropVerificationSession(audience);
     const expiresAt = Math.min(
-      token.obtainedAt + STEP_UP_SESSION_TTL_MS,
+      token.obtainedAt + VERIFICATION_SESSION_TTL_MS,
       token.claims.exp * 1000,
     );
-    this.#stepUpSession = { token, expiresAt };
-    this.update((state) => {
-      state.stepUpSessionExpiresAt = expiresAt;
-    });
-    this.#stepUpTimer = setTimeout(
-      () => this.clearStepUpSession(),
+    const timer = setTimeout(
+      () => this.#dropVerificationSession(audience),
       Math.max(0, expiresAt - Date.now()),
     );
     // Never keep a Node process alive for the expiry timer (tests, tooling).
-    (this.#stepUpTimer as { unref?: () => void }).unref?.();
+    (timer as { unref?: () => void }).unref?.();
+    this.#verificationSessions.set(audience, { token, expiresAt, timer });
   }
 
   /**
-   * Clears the in-memory elevated session and its expiration timer.
+   * Drops one audience's verification session and its expiration timer.
+   *
+   * @param audience - Audience whose session to drop.
    */
-  public clearStepUpSession(): void {
-    if (this.#stepUpTimer !== undefined) {
-      clearTimeout(this.#stepUpTimer);
-      this.#stepUpTimer = undefined;
+  #dropVerificationSession(audience: string): void {
+    const session = this.#verificationSessions.get(audience);
+    if (session) {
+      clearTimeout(session.timer);
+      this.#verificationSessions.delete(audience);
     }
-    this.#stepUpSession = null;
-    if (this.state.stepUpSessionExpiresAt !== undefined) {
-      this.update((state) => {
-        state.stepUpSessionExpiresAt = undefined;
-      });
+  }
+
+  /**
+   * Clears every in-memory verification session and its expiration timer.
+   */
+  public clearVerificationSession(): void {
+    for (const { timer } of this.#verificationSessions.values()) {
+      clearTimeout(timer);
     }
+    this.#verificationSessions.clear();
   }
 
   /**
@@ -1192,7 +1261,7 @@ export class AuthenticationController extends BaseController<
 
   public performSignOut(): void {
     this.#authSessionEpoch += 1;
-    this.clearStepUpSession();
+    this.clearVerificationSession();
     this.#clearEnrolledCredentials();
     this.update((state) => {
       state.isSignedIn = false;
@@ -1207,7 +1276,7 @@ export class AuthenticationController extends BaseController<
   public clearState(): void {
     this.#profilePairingRequestEpoch += 1;
     this.#authSessionEpoch += 1;
-    this.clearStepUpSession();
+    this.clearVerificationSession();
     this.#clearEnrolledCredentials();
     this.update(() => ({ ...defaultState }));
   }

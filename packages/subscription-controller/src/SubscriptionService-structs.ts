@@ -3,10 +3,9 @@ import {
   boolean,
   enums,
   lazy,
-  literal,
+  never,
   nullable,
   number,
-  object,
   optional,
   string,
   type,
@@ -18,7 +17,9 @@ import { StrictHexStruct, CaipAccountIdStruct } from '@metamask/utils';
 import {
   CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
+  CRYPTO_PAYMENT_ERRORS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
@@ -55,10 +56,14 @@ const ProductEntitlementsStruct = type({
 });
 const RecurringIntervalStruct = enums(Object.values(RECURRING_INTERVALS));
 const SubscriptionStatusStruct = enums(Object.values(SUBSCRIPTION_STATUSES));
+const InvoicePaymentStatusStruct = enums(
+  Object.values(INVOICE_PAYMENT_STATUSES),
+);
 const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
 const CryptoPaymentMethodErrorStruct = enums(
   Object.values(CRYPTO_PAYMENT_METHOD_ERRORS),
 );
+const CryptoPaymentErrorStruct = enums(Object.values(CRYPTO_PAYMENT_ERRORS));
 
 const ProductStruct = type({
   name: ProductTypeStruct,
@@ -94,8 +99,8 @@ const SubscriptionPaymentMethodStruct = union([
 export const SubscriptionStruct = type({
   id: string(),
   products: array(ProductStruct),
-  currentPeriodStart: string(),
-  currentPeriodEnd: string(),
+  currentPeriodStart: optional(string()),
+  currentPeriodEnd: optional(string()),
   cancelAtPeriodEnd: optional(boolean()),
   status: SubscriptionStatusStruct,
   interval: RecurringIntervalStruct,
@@ -105,10 +110,18 @@ export const SubscriptionStruct = type({
   trialEnd: optional(string()),
   endDate: optional(string()),
   canceledAt: optional(string()),
-  cancelType: CancelTypeStruct,
+  cancelType: optional(CancelTypeStruct),
   inactiveAt: optional(string()),
-  isEligibleForSupport: boolean(),
+  isEligibleForSupport: optional(boolean()),
   billingCycles: optional(number()),
+  lastInvoice: optional(
+    type({
+      id: string(),
+      status: InvoicePaymentStatusStruct,
+      errorCode: optional(CryptoPaymentErrorStruct),
+      updatedAt: string(),
+    }),
+  ),
 });
 
 export const GetSubscriptionsResponseStruct = type({
@@ -196,27 +209,43 @@ const TokenPaymentInfoConversionRateStruct = type({
   usd: string(),
 });
 
+/**
+ * A settlement token, discriminated by the presence of `accountantAddress`.
+ *
+ * Both variants use `type` rather than `object` so that fields the API adds
+ * later pass through instead of failing the whole union — an exact struct here
+ * turns any additive pricing change into a hard `getPricing` failure. The
+ * mutually exclusive fields are still pinned with `optional(never())` on the
+ * spot variant, so a vault share cannot silently validate as a spot token and
+ * get valued at face value.
+ *
+ * `type` infers an index signature rather than a concrete shape, so the
+ * inferred struct type has to be widened through `unknown` before it can be
+ * pinned to `TokenPaymentInfo`. The declared type is the contract; the runtime
+ * checks above are what enforce it.
+ */
 const TokenPaymentInfoStruct: Struct<TokenPaymentInfo> = lazy(() =>
   union([
-    object({
+    type({
       symbol: string(),
       address: StrictHexStruct,
       decimals: number(),
       conversionRate: optional(TokenPaymentInfoConversionRateStruct),
-      isVaultShare: literal(true),
       accountantAddress: StrictHexStruct,
+      vault: optional(string()),
       sources: optional(array(TokenPaymentInfoStruct)),
     }),
-    object({
+    type({
       symbol: string(),
       address: StrictHexStruct,
       decimals: number(),
       conversionRate: optional(TokenPaymentInfoConversionRateStruct),
-      isVaultShare: optional(literal(false)),
+      accountantAddress: optional(never()),
+      vault: optional(never()),
       sources: optional(array(TokenPaymentInfoStruct)),
     }),
   ]),
-) as Struct<TokenPaymentInfo>;
+);
 
 const ChainPaymentInfoStruct = type({
   chainId: StrictHexStruct,
@@ -226,12 +255,22 @@ const ChainPaymentInfoStruct = type({
   isSponsorshipSupported: optional(boolean()),
 });
 
+/**
+ * A pricing payment-method row, discriminated by `type`.
+ *
+ * `type` rather than `object` for the same reason as
+ * {@link TokenPaymentInfoStruct}: new fields on a row must not fail the union.
+ * The crypto-only fields stay pinned with `optional(never())` on the card
+ * variant so a card row carrying `chains` is still rejected.
+ */
 const PricingPaymentMethodStruct = union([
-  object({
+  type({
     type: enums([PAYMENT_TYPES.byCard]),
     products: optional(array(ProductTypeStruct)),
+    cryptoAuthMethod: optional(never()),
+    chains: optional(never()),
   }),
-  object({
+  type({
     type: enums([PAYMENT_TYPES.byCrypto]),
     cryptoAuthMethod: optional(CryptoAuthMethodStruct),
     products: optional(array(ProductTypeStruct)),

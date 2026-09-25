@@ -419,6 +419,22 @@ describe('SRP MFA methods', () => {
     });
   });
 
+  it('uses a caller-supplied access token when beginning enrollment', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValueOnce({ flowId: 'flow-id', expiresAt: 1000 });
+
+    await auth.beginMfaEnrollment('email_otp', {
+      email: 'user@example.com',
+      accessToken: 'verification-token',
+    });
+
+    expect(mockMfaEnroll).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'verification-token',
+      expect.anything(),
+    );
+  });
+
   it('completes both enrollment proof types', async () => {
     const auth = createAuth();
     mockMfaEnrollComplete.mockResolvedValue(undefined);
@@ -532,7 +548,7 @@ describe('SRP MFA methods', () => {
     } as const;
     mockMfaVerifyComplete.mockResolvedValue({ token: 'assertion-jwt' });
     mockAuthorizeOIDC.mockResolvedValue({
-      accessToken: 'elevated-token',
+      accessToken: 'verification-token',
       expiresIn: 900,
       obtainedAt: 1000,
     });
@@ -542,7 +558,7 @@ describe('SRP MFA methods', () => {
       assertion,
     });
     expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
-      accessToken: 'elevated-token',
+      accessToken: 'verification-token',
     });
     expect(mockMfaVerifyComplete).toHaveBeenCalledWith(Env.DEV, accessToken, {
       credential_type: 'passkey',

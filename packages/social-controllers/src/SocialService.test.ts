@@ -304,6 +304,7 @@ describe('SocialService', () => {
         winRate30d: 0.75,
         roiPercent30d: 2.5,
         tradeCount30d: 42,
+        volumeUsd30d: 150000,
         pnl7d: 10000,
         winRate7d: 0.7,
         roiPercent7d: 1.2,
@@ -318,6 +319,11 @@ describe('SocialService', () => {
       socialHandles: mockSocialHandles,
       followerCount: 100,
       followingCount: 50,
+      copytradedAllTime: {
+        count: 12,
+        volumeUSD: 9800,
+        distinctActors: 4,
+      },
     };
 
     it('fetches trader profile from correct endpoint', async () => {
@@ -472,6 +478,26 @@ describe('SocialService', () => {
       expect(result.perChainBreakdown).toStrictEqual(
         withPerChain7d.perChainBreakdown,
       );
+    });
+
+    it('accepts and returns volumeUsd30d and copytradedAllTime', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.stats.volumeUsd30d).toBe(150000);
+      expect(result.copytradedAllTime).toStrictEqual({
+        count: 12,
+        volumeUSD: 9800,
+        distinctActors: 4,
+      });
     });
 
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
@@ -1131,6 +1157,326 @@ describe('SocialService', () => {
       expect(
         result.items[0]?.authorComment?.engagement.reactions,
       ).toStrictEqual([{ emotion: '🔥', count: 3, profiles: [] }]);
+    });
+
+    it('accepts feed-card stats and still accepts items that omit them', async () => {
+      const withStats = {
+        ...mockFeedItem,
+        actor: {
+          ...mockProfileSummary,
+          winRate30d: 0.61,
+          pnl30d: 1200,
+          tradeCount30d: 40,
+          followerCount: 12,
+        },
+        commentCount: 1,
+        replyCount: 3,
+        firstTradeAt: 1_699_999_000,
+        holdTimeMs: 28_800_000,
+        entryPriceUsd: 2500,
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [withStats],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.actor.winRate30d).toBe(0.61);
+      expect(result.items[0]?.actor.followerCount).toBe(12);
+      expect(result.items[0]?.commentCount).toBe(1);
+      expect(result.items[0]?.replyCount).toBe(3);
+      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
+      expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
+      expect(result.items[0]?.entryPriceUsd).toBe(2500);
+    });
+
+    // An open position has no final hold; the anchor is what the client
+    // counts from, so it has to survive validation on its own.
+    it('accepts an open position that sends only the hold anchor', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                ...mockFeedItem,
+                firstTradeAt: 1_699_999_000,
+                holdTimeMs: null,
+              },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
+      expect(result.items[0]?.holdTimeMs).toBeNull();
+    });
+  });
+
+  describe('fetchTraderFeed', () => {
+    const mockFeedItem = {
+      ...mockPosition,
+      actor: mockProfileSummary,
+      timestamp: 1700000000,
+    };
+
+    const mockFeedResponse = {
+      items: [mockFeedItem],
+      pagination: { olderCursor: 'older-cursor', newerCursor: 'newer-cursor' },
+    };
+
+    it('fetches the trader feed from the correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderFeed({ addressOrId: '0x1234' });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/traders/0x1234/feed`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('encodes the address in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFeed({ addressOrId: 'addr/with/slashes' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/addr%2Fwith%2Fslashes/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('appends commentedOnly, limit, and pagination cursors', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFeed({
+        addressOrId: '0x1234',
+        commentedOnly: true,
+        limit: 25,
+        olderThan: 'older-cursor',
+        newerThan: 'newer-cursor',
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain('/traders/0x1234/feed');
+      expect(calledUrl).toContain('commentedOnly=true');
+      expect(calledUrl).toContain('limit=25');
+      expect(calledUrl).toContain('olderThan=older-cursor');
+      expect(calledUrl).toContain('newerThan=newer-cursor');
+    });
+
+    it('omits commentedOnly when it is false or unset', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFeed({
+        addressOrId: '0x1234',
+        commentedOnly: false,
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).not.toContain('commentedOnly');
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFeed({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED}: 404`,
+      );
+    });
+
+    it('throws when the pagination shape is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [mockFeedItem],
+            pagination: { olderCursor: 123, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFeed({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('fetchTokenFeed', () => {
+    const mockFeedItem = {
+      ...mockPosition,
+      actor: mockProfileSummary,
+      timestamp: 1700000000,
+    };
+
+    const mockFeedResponse = {
+      items: [mockFeedItem],
+      pagination: { olderCursor: 'older-cursor', newerCursor: 'newer-cursor' },
+    };
+
+    it('fetches the token feed from the correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTokenFeed({
+        chain: 'base',
+        contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/tokens/base/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('encodes the chain and contract address in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTokenFeed({
+        chain: 'base',
+        contractAddress: 'addr/with/slashes',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/tokens/base/addr%2Fwith%2Fslashes/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('appends status, limit, and pagination cursors', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTokenFeed({
+        chain: 'solana',
+        contractAddress: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn',
+        status: 'open',
+        limit: 25,
+        olderThan: 'older-cursor',
+        newerThan: 'newer-cursor',
+      });
+
+      const expectedUrl = new URL(
+        `${V1_URL}/tokens/solana/pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn/feed`,
+      );
+      expectedUrl.searchParams.append('status', 'open');
+      expectedUrl.searchParams.append('limit', '25');
+      expectedUrl.searchParams.append('olderThan', 'older-cursor');
+      expectedUrl.searchParams.append('newerThan', 'newer-cursor');
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl.toString(), {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('omits status when it is unset', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTokenFeed({
+        chain: 'ethereum',
+        contractAddress: '0x0000000000000000000000000000000000000001',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/tokens/ethereum/0x0000000000000000000000000000000000000001/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTokenFeed({
+          chain: 'base',
+          contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED}: 400`,
+      );
+    });
+
+    it('throws when the pagination shape is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [mockFeedItem],
+            pagination: { olderCursor: 123, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTokenFeed({
+          chain: 'base',
+          contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+      );
     });
   });
 

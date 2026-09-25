@@ -1383,7 +1383,7 @@ describe('gas', () => {
       generateEIP7702BatchTransactionMock.mockReturnValue({
         to: TO_MOCK,
         data: DATA_MOCK,
-      } as BatchTransactionParams);
+      });
 
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -1451,7 +1451,7 @@ describe('gas', () => {
       generateEIP7702BatchTransactionMock.mockReturnValue({
         to: TO_MOCK,
         data: DATA_MOCK,
-      } as BatchTransactionParams);
+      });
 
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -1503,7 +1503,7 @@ describe('gas', () => {
       generateEIP7702BatchTransactionMock.mockReturnValue({
         to: TO_MOCK,
         data: DATA_MOCK,
-      } as BatchTransactionParams);
+      });
 
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -1541,7 +1541,7 @@ describe('gas', () => {
       generateEIP7702BatchTransactionMock.mockReturnValue({
         to: TO_MOCK,
         data: DATA_MOCK,
-      } as BatchTransactionParams);
+      });
 
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -1575,7 +1575,7 @@ describe('gas', () => {
       generateEIP7702BatchTransactionMock.mockReturnValue({
         to: TO_MOCK,
         data: DATA_MOCK,
-      } as BatchTransactionParams);
+      });
 
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },

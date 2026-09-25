@@ -10,6 +10,7 @@ import {
   MfaRateLimitedError,
   MfaUnavailableError,
   MfaVerificationFailedError,
+  StepUpRequiredError,
   TooManyAttemptsError,
 } from '../../errors.js';
 import {
@@ -226,12 +227,22 @@ describe('MFA services', () => {
         status: 'revoked',
       }),
     ).toBeNull();
+  });
+
+  it('keeps email credentials listed without an address', () => {
     expect(
       toEnrolledCredential({
         credential_type: 'email_otp',
-        status: 'pending',
+        status: 'active',
       }),
-    ).toBeNull();
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
+    expect(
+      toEnrolledCredential({
+        credential_type: 'email_otp',
+        status: 'active',
+        email: { verified: true },
+      }),
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
   });
 
   it('derives email verification from status when the server omits it', () => {
@@ -259,7 +270,9 @@ describe('MFA services', () => {
   it.each([
     ['credential_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['email_already_enrolled', CredentialAlreadyEnrolledError, 409],
+    ['email_socially_verified', CredentialAlreadyEnrolledError, 409],
     ['credential_not_enrolled', CredentialNotEnrolledError, 409],
+    ['aal2_required', StepUpRequiredError, 403],
     ['flow_expired', MfaFlowExpiredError, 400],
     ['invalid_flow', MfaFlowExpiredError, 400],
     ['mfa_identity_missing', MfaIdentityMissingError, 409],
@@ -321,6 +334,39 @@ describe('MFA services', () => {
       mfaCode: 'otp_resend_cooldown',
       retryAfterMs: undefined,
     });
+  });
+
+  it('prefers the retry_after_seconds field over the Retry-After header', async () => {
+    mockFetch.mockResolvedValueOnce(
+      response(
+        {
+          code: 'otp_resend_cooldown',
+          message: 'Wait before retrying',
+          retry_after_seconds: 42,
+        },
+        { status: 429, headers: { 'Retry-After': '5' } },
+      ),
+    );
+
+    await expect(
+      mfaVerify(Env.PRD, 'access-token', { credential_type: 'email_otp' }),
+    ).rejects.toMatchObject({
+      mfaCode: 'otp_resend_cooldown',
+      retryAfterMs: 42_000,
+    });
+  });
+
+  it('passes multi_primary_srp through with its status', async () => {
+    mockFetch.mockResolvedValueOnce(
+      response(
+        { code: 'multi_primary_srp', message: 'Enrollment blocked' },
+        { status: 403 },
+      ),
+    );
+
+    await expect(
+      mfaEnroll(Env.PRD, 'access-token', { credential_type: 'passkey' }),
+    ).rejects.toMatchObject({ mfaCode: 'multi_primary_srp', status: 403 });
   });
 
   it('maps code-less 429 and 502 responses by status', async () => {

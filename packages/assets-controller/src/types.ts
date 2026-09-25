@@ -274,7 +274,7 @@ export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
  * Balance data for fungible tokens (native, ERC20, SPL).
  */
 export type FungibleAssetBalance = {
-  /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
+  /** Converted balance amount (e.g., "1000" for 1000 USDC) */
   amount: string;
   /**
    * Network-specific balance fields, when the source provides them. Stellar
@@ -344,8 +344,10 @@ export type DataRequest = {
   dataTypes: DataType[];
   /**
    * Optional scoped CAIP-19 asset IDs for this fetch (not the full pin list).
-   * Used by RPC fallback recovery and the v5 force-update pin list. When
-   * omitted, v6 sources read pins from controller state.
+   * v5 force-update and v5 RPC fallback put pins here. v6 omits it: natives,
+   * pins, and default tracked assets are read from controller state as
+   * `includeAssetIds`; detected ERC-20 balances come back with the chain
+   * snapshot. RPC fallback additionally refetches existing balances.
    */
   customAssets?: Caip19AssetId[];
   /**
@@ -384,12 +386,6 @@ export type DataResponse = {
   assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
   /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
-  /**
-   * Pinned asset IDs the source could not resolve (asset-axis fallback).
-   * Unlike `errors` the chain succeeded — only these assets still need a
-   * downstream (RPC) fetch.
-   */
-  unprocessedCustomAssets?: Caip19AssetId[];
   /** Detected assets (assets that do not have metadata) */
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
@@ -413,9 +409,9 @@ export type DataResponse = {
  * - **full**: Response is the full set for covered chains (those present in
  *   `assetsBalance`). Assets in state on those chains but not in the response
  *   are cleared, including custom assets (Accounts API v6 returns pins via
- *   `includeAssetIds`). The only exception is {@link DataResponse.unprocessedCustomAssets}
- *   that RPC fallback also could not recover — those prior balances are kept
- *   until a later successful fetch. Use for Accounts API v6 snapshots.
+ *   `includeAssetIds`). A chain the source could not answer in full is reported
+ *   in `errors` and left out of `assetsBalance` entirely, so it is never
+ *   covered. Use for Accounts API v6 and RpcDataSource v6 snapshots.
  * - **merge**: Only assets present in the response are updated; nothing is
  *   removed, unless {@link DataResponse.replaceCoveredChainBalances} is set
  *   (Accounts API v5 force refresh). Metadata and prices from the response
@@ -473,11 +469,14 @@ export type MiddlewareDataSource = {
 };
 
 // ============================================================================
-// UNIFIED MIDDLEWARE TYPES
+// CONTROLLER STATE
 // ============================================================================
 
 /**
- * Internal state structure for AssetsController following normalized design.
+ * State structure for AssetsController following normalized design.
+ *
+ * All values must stay JSON-serializable. UI preferences (e.g. hidden) live in
+ * assetPreferences, not in metadata.
  *
  * Keys use CAIP identifiers:
  * - assetsInfo keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
@@ -488,7 +487,7 @@ export type MiddlewareDataSource = {
  * - customAssets inner values: CAIP-19 asset IDs array
  * - assetPreferences keys: CAIP-19 asset IDs
  */
-export type AssetsControllerStateInternal = {
+export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
   assetsInfo: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
@@ -503,6 +502,10 @@ export type AssetsControllerStateInternal = {
   selectedCurrency: SupportedCurrency;
 };
 
+// ============================================================================
+// UNIFIED MIDDLEWARE TYPES
+// ============================================================================
+
 /**
  * Base context for all middleware operations.
  * Contains the common interface shared by fetch and subscribe.
@@ -512,8 +515,6 @@ export type Context = {
   request: DataRequest;
   /** The response data (mutated by middlewares) */
   response: DataResponse;
-  /** Get current assets state */
-  getAssetsState: () => AssetsControllerStateInternal;
   /**
    * Optional breakdown of latency (ms) per data source, e.g. from parallel
    * middlewares. Keys are source names (often "MiddlewareName.SourceName").

@@ -28,13 +28,15 @@ import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   AssetsDataSource,
   Caip19AssetId,
   Context,
   DataRequest,
   DataResponse,
 } from '../types.js';
+import type { AssetVisibility } from '../utils/assetVisibility.js';
+import { getAssetVisibility } from '../utils/assetVisibility.js';
 import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 /**
@@ -90,7 +92,7 @@ const DETECTED_ASSETS: ResponseSurface = {
 };
 
 async function runPipeline(
-  state: AssetsControllerStateInternal,
+  state: AssetsControllerState,
   {
     rpcDataSource: rpcOverride,
     omitBalanceAssetIds = [],
@@ -125,7 +127,14 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     onActiveChainsUpdated: jest.fn(),
-    getAssetsState: (): AssetsControllerStateInternal => state,
+    getAssetsState: (): AssetsControllerState => state,
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
     isBalanceV6Enabled: (): boolean => true,
   });
 
@@ -136,13 +145,20 @@ async function runPipeline(
 
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
-    getAssetsState: (): AssetsControllerStateInternal => state,
+    getAssetsState: (): AssetsControllerState => state,
     onActiveChainsUpdated: jest.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const tokenDataSource = new TokenDataSource(assetsControllerMessenger, {
@@ -152,11 +168,13 @@ async function runPipeline(
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   const priceDataSource = new PriceDataSource({
     queryApiClient,
     getSelectedCurrency: (): 'usd' => 'usd',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   const { v6Balances } = mockBscSpamApisV6({
@@ -186,25 +204,28 @@ async function runPipeline(
             'The v6 lane never graduates custom assets - pins travel as includeAssetIds!',
           );
         },
+        getAssetsState: (): AssetsControllerState => state,
       }),
       rpcFallbackMiddleware: new RpcFallbackMiddleware({
         rpcDataSource: rpcOverride ?? rpcDataSource,
+        getAssetsState: (): AssetsControllerState => state,
         isBalanceV6Enabled: (): boolean => true,
       }),
-      detectionMiddleware: new DetectionMiddleware(),
+      detectionMiddleware: new DetectionMiddleware({
+        getAssetsState: (): AssetsControllerState => state,
+      }),
       tokenDataSource,
       priceDataSource,
     },
     // The v6 lane never runs custom-asset graduation: pins are sent to the
-    // endpoint as `includeAssetIds` and unresolved ones kept as
-    // `unprocessedCustomAssets`.
+    // endpoint as `includeAssetIds`, and an endpoint that cannot resolve one
+    // fails the whole chain so the RPC fallback recovers it.
     { isBasicFunctionality: true, includeCustomAssetGraduation: false },
   );
 
   const { response } = await executeAssetsPipeline({
     sources,
     request,
-    getAssetsState: (): AssetsControllerStateInternal => state,
   });
 
   accountsApiDataSource.destroy();
@@ -359,8 +380,11 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
       },
     );
 
+    // The unresolved pin fails the whole chain, so the v6 RPC fallback
+    // refetches it in full rather than scoping the request via
+    // `customAssets` — the RPC read re-derives the pin from state itself.
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.customAssets ?? []).toContain(CDOGE_ASSET_ID_CHECKSUM);
+    expect(requests[0]?.chainIds).toEqual([BSC_CHAIN_ID]);
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
       amount: '4321',
     });

@@ -1,6 +1,9 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
@@ -58,9 +61,9 @@ const TRANSACTION_META_MOCK = {
   time: 12345,
   txParams: {
     from: ORIGINAL_FROM_MOCK,
-    nonce: '0x7' as Hex,
-    to: '0x3333333333333333333333333333333333333333' as Hex,
-    value: '0x0' as Hex,
+    nonce: '0x7',
+    to: '0x3333333333333333333333333333333333333333',
+    value: '0x0',
   },
 } as TransactionMeta;
 
@@ -80,22 +83,22 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     decimals: 6,
     formatted: '1.23',
     raw: '1230000',
-    token: '0x5555555555555555555555555555555555555555' as Hex,
+    token: '0x5555555555555555555555555555555555555555',
   },
   output: {
     chainId: 1,
     decimals: 6,
     formatted: '1',
     raw: '1000000',
-    token: '0x6666666666666666666666666666666666666666' as Hex,
+    token: '0x6666666666666666666666666666666666666666',
   },
   provider: ServerProviderName.Relay,
   steps: [
     {
       type: 'transaction' as const,
       chainId: 137,
-      data: '0xstepdata' as Hex,
-      to: '0x4444444444444444444444444444444444444444' as Hex,
+      data: '0xstepdata',
+      to: '0x4444444444444444444444444444444444444444',
       value: '0x10',
     },
   ],
@@ -118,11 +121,11 @@ const QUOTE_MOCK = {
     from: QUOTE_FROM_MOCK,
     sourceBalanceRaw: '10000000',
     sourceChainId: SOURCE_CHAIN_ID_MOCK,
-    sourceTokenAddress: '0x5555555555555555555555555555555555555555' as Hex,
+    sourceTokenAddress: '0x5555555555555555555555555555555555555555',
     sourceTokenAmount: '1230000',
     targetAmountMinimum: '1000000',
-    targetChainId: '0x1' as Hex,
-    targetTokenAddress: '0x6666666666666666666666666666666666666666' as Hex,
+    targetChainId: '0x1',
+    targetTokenAddress: '0x6666666666666666666666666666666666666666',
   },
   sourceAmount: { fiat: '1', human: '1', raw: '1230000', usd: '1' },
   strategy: 'server',
@@ -371,7 +374,7 @@ describe('submitServerQuotes', () => {
         status: ServerStatus.Submitted,
       })
       .mockResolvedValueOnce({
-        sourceHash: '0xsecondsource' as Hex,
+        sourceHash: '0xsecondsource',
         status: ServerStatus.Confirmed,
         targetHash: TARGET_HASH_MOCK,
       });
@@ -397,12 +400,12 @@ describe('submitServerQuotes', () => {
     getControllerStateMock.mockReturnValue({
       transactionData: {},
       transactions: [],
-    } as never);
+    });
     getPaymentOverrideDataMock.mockResolvedValue({
       calls: [{ to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex }],
       recipient: undefined,
       authorizationList: undefined,
-    } as never);
+    });
 
     const req = {
       ...request,
@@ -457,10 +460,10 @@ describe('submitServerQuotes', () => {
       waitForTransactionConfirmedMock.mockResolvedValue(undefined);
       addTxMock.mockResolvedValue({
         result: Promise.resolve(SUBMITTED_TX_HASH_MOCK),
-      } as never);
+      });
       addTxBatchMock.mockResolvedValue({
         batchId: 'batch-id',
-      } as never);
+      });
     });
 
     const buildNonGaslessRequest = (
@@ -489,6 +492,20 @@ describe('submitServerQuotes', () => {
       expect(submitServerIntentMock).not.toHaveBeenCalled();
     });
 
+    it('passes the semantic type as an option rather than in the transaction params', async () => {
+      const singleStepRequest = buildNonGaslessRequest();
+      singleStepRequest.transaction.type = 'predictDeposit' as TransactionType;
+
+      await submitServerQuotes(singleStepRequest);
+
+      const [txParams, options] = addTxMock.mock.calls[0];
+
+      // `TransactionParams.type` is the EVM envelope type, so leaking the
+      // semantic type into it makes the controller reject the envelope.
+      expect(txParams).not.toHaveProperty('type');
+      expect(options).toMatchObject({ type: 'predictRelayDeposit' });
+    });
+
     it('uses addTransactionBatch when the quote has multiple steps', async () => {
       await submitServerQuotes(
         buildNonGaslessRequest({
@@ -497,8 +514,8 @@ describe('submitServerQuotes', () => {
             {
               type: 'transaction' as const,
               chainId: 137,
-              data: '0xseconddata' as Hex,
-              to: '0x9999999999999999999999999999999999999999' as Hex,
+              data: '0xseconddata',
+              to: '0x9999999999999999999999999999999999999999',
               value: '0x20',
             },
           ],
@@ -654,8 +671,8 @@ describe('submitServerQuotes', () => {
           {
             type: 'transaction' as const,
             chainId: 137,
-            data: '0xseconddata' as Hex,
-            to: '0x9999999999999999999999999999999999999999' as Hex,
+            data: '0xseconddata',
+            to: '0x9999999999999999999999999999999999999999',
             value: '0x20',
           },
         ],
@@ -698,7 +715,7 @@ describe('submitServerQuotes', () => {
     // our own beforeEach which runs after the outer one.
     beforeAll(() => {
       messenger.registerActionHandler(
-        'KeyringController:signTypedMessage' as never,
+        'KeyringController:signTypedMessage',
         signTypedMessageMock as never,
       );
     });
@@ -884,11 +901,11 @@ describe('submitServerQuotes', () => {
       jest.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
       addTxMock.mockResolvedValue({
         result: Promise.resolve('0xsubmitted' as Hex),
-      } as never);
+      });
       getControllerStateMock.mockReturnValue({
         transactionData: {},
         transactions: [],
-      } as never);
+      });
     });
 
     it('skips prepend when paymentOverride returns empty calls', async () => {
@@ -896,7 +913,7 @@ describe('submitServerQuotes', () => {
         calls: [],
         recipient: undefined,
         authorizationList: undefined,
-      } as never);
+      });
 
       await submitServerQuotes(
         buildRequest({
@@ -922,7 +939,7 @@ describe('submitServerQuotes', () => {
         calls: [overrideCall],
         recipient: undefined,
         authorizationList: undefined,
-      } as never);
+      });
 
       await submitServerQuotes(
         buildRequest({
@@ -1051,7 +1068,7 @@ describe('submitServerQuotes', () => {
         nestedTransactions: [
           {
             type: 'relayPerpsDeposit' as never,
-            to: '0x1111111111111111111111111111111111111111' as Hex,
+            to: '0x1111111111111111111111111111111111111111',
             data: '0x',
           },
         ],

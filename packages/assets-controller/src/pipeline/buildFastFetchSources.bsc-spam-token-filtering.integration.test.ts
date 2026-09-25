@@ -27,13 +27,15 @@ import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   AssetsDataSource,
   Caip19AssetId,
   Context,
   DataRequest,
   DataResponse,
 } from '../types.js';
+import type { AssetVisibility } from '../utils/assetVisibility.js';
+import { getAssetVisibility } from '../utils/assetVisibility.js';
 import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 /**
@@ -80,7 +82,7 @@ const DETECTED_ASSETS: ResponseSurface = {
 };
 
 async function runPipeline(
-  state: AssetsControllerStateInternal,
+  state: AssetsControllerState,
   {
     rpcDataSource: rpcOverride,
     omitBalanceAssetIds = [],
@@ -116,7 +118,14 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     onActiveChainsUpdated: jest.fn(),
-    getAssetsState: (): AssetsControllerStateInternal => state,
+    getAssetsState: (): AssetsControllerState => state,
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const stakedBalanceDataSource = new StakedBalanceDataSource({
@@ -126,13 +135,20 @@ async function runPipeline(
 
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
-    getAssetsState: (): AssetsControllerStateInternal => state,
+    getAssetsState: (): AssetsControllerState => state,
     onActiveChainsUpdated: jest.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const tokenDataSource = new TokenDataSource(assetsControllerMessenger, {
@@ -142,11 +158,13 @@ async function runPipeline(
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   const priceDataSource = new PriceDataSource({
     queryApiClient,
     getSelectedCurrency: (): 'usd' => 'usd',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   mockBscSpamApis({ omitBalanceAssetIds });
@@ -173,11 +191,15 @@ async function runPipeline(
             'Integration should not call graduation to remove assets!',
           );
         },
+        getAssetsState: (): AssetsControllerState => state,
       }),
       rpcFallbackMiddleware: new RpcFallbackMiddleware({
         rpcDataSource: rpcOverride ?? rpcDataSource,
+        getAssetsState: (): AssetsControllerState => state,
       }),
-      detectionMiddleware: new DetectionMiddleware(),
+      detectionMiddleware: new DetectionMiddleware({
+        getAssetsState: (): AssetsControllerState => state,
+      }),
       tokenDataSource,
       priceDataSource,
     },
@@ -187,7 +209,6 @@ async function runPipeline(
   const { response } = await executeAssetsPipeline({
     sources,
     request,
-    getAssetsState: (): AssetsControllerStateInternal => state,
   });
 
   accountsApiDataSource.destroy();

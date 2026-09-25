@@ -170,6 +170,15 @@ export type AnalyticsControllerState = {
    * This is only used when the event fragments feature is enabled.
    */
   eventFragments?: AnalyticsEventFragments;
+
+  /**
+   * Marketing campaign cookie ID set when the user arrives via a marketing
+   * campaign. Cleared automatically when the user calls
+   * {@link AnalyticsController.optOutOfMarketing} or
+   * {@link AnalyticsController.resetMarketingConsentDecision}. Optional for backward
+   * compatibility with persisted state that predates this field.
+   */
+  marketingCampaignCookieId?: string | null;
 };
 
 /**
@@ -267,6 +276,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
     consentDecisionMade: false,
     optedInToMarketing: false,
     marketingConsentDecisionMade: false,
+    marketingCampaignCookieId: null,
   };
 }
 
@@ -331,6 +341,12 @@ const analyticsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: false,
   },
+  marketingCampaignCookieId: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<AnalyticsControllerState>;
 
 // === MESSENGER ===
@@ -345,6 +361,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToMarketing',
   'optOutOfMarketing',
   'resetMarketingConsentDecision',
+  'setMarketingCampaignCookieId',
   'createEventFragment',
   'upsertEventFragment',
   'updateEventFragment',
@@ -1133,6 +1150,7 @@ export class AnalyticsController extends BaseController<
 
   #replaceQueue(field: AnalyticsQueue, nextQueue: Record<string, Json>): void {
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state[field] = nextQueue as never;
     });
   }
@@ -1273,10 +1291,11 @@ export class AnalyticsController extends BaseController<
   #enqueueEvent(queuedEvent: AnalyticsQueuedEvent): void {
     const eventQueue: Record<string, Json> = {
       ...(this.state.eventQueue ?? {}),
-      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+      [queuedEvent.messageId]: queuedEvent,
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventQueue = eventQueue as never;
     });
 
@@ -1371,7 +1390,7 @@ export class AnalyticsController extends BaseController<
 
       if (this.#hasAllowedPurpose(purposes)) {
         const refreshedEvent = this.#refreshQueuedEventConsent(queuedEvent);
-        remainingQueue[messageId] = refreshedEvent as unknown as Json;
+        remainingQueue[messageId] = refreshedEvent;
         eventsToSend.push(refreshedEvent);
       }
     }
@@ -1401,6 +1420,7 @@ export class AnalyticsController extends BaseController<
     const { [messageId]: _deletedEvent, ...eventQueue } = currentEventQueue;
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventQueue = eventQueue as never;
     });
   }
@@ -1464,15 +1484,13 @@ export class AnalyticsController extends BaseController<
 
       if (field === AnalyticsQueue.EventQueue) {
         if (isAllowed) {
-          nextQueue[messageId] = this.#refreshQueuedEventConsent(
-            queuedEvent,
-          ) as unknown as Json;
+          nextQueue[messageId] = this.#refreshQueuedEventConsent(queuedEvent);
         }
       }
 
       if (field === AnalyticsQueue.PreConsentEventQueue) {
         if (isAllowed || this.#hasUndecidedPurpose(purposes)) {
-          nextQueue[messageId] = queuedEvent as unknown as Json;
+          nextQueue[messageId] = queuedEvent;
         }
       }
     }
@@ -1488,10 +1506,11 @@ export class AnalyticsController extends BaseController<
   #enqueuePreConsentEvent(queuedEvent: AnalyticsQueuedEvent): void {
     const preConsentEventQueue: Record<string, Json> = {
       ...(this.state.preConsentEventQueue ?? {}),
-      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+      [queuedEvent.messageId]: queuedEvent,
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.preConsentEventQueue = preConsentEventQueue as never;
     });
   }
@@ -1546,6 +1565,7 @@ export class AnalyticsController extends BaseController<
 
     if (!this.#isPreConsentQueueEnabled) {
       this.update((state) => {
+        // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
         state.preConsentEventQueue = {} as never;
       });
       return;
@@ -1567,7 +1587,7 @@ export class AnalyticsController extends BaseController<
       if (this.#hasAllowedPurpose(purposes)) {
         replay.push(queuedEvent);
       } else if (this.#hasUndecidedPurpose(purposes)) {
-        keep[messageId] = queuedEvent as unknown as Json;
+        keep[messageId] = queuedEvent;
       }
     }
 
@@ -1660,6 +1680,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1704,6 +1725,7 @@ export class AnalyticsController extends BaseController<
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
 
@@ -1728,6 +1750,7 @@ export class AnalyticsController extends BaseController<
     const { [id]: _deletedFragment, ...eventFragments } = currentEventFragments;
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1754,6 +1777,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1780,7 +1804,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
-      state.eventFragments = {} as never;
+      state.eventFragments = {};
     });
   }
 
@@ -2289,6 +2313,7 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedInToMarketing = false;
       state.marketingConsentDecisionMade = true;
+      state.marketingCampaignCookieId = null;
     });
 
     this.#pruneAllForConsent();
@@ -2303,8 +2328,26 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedInToMarketing = false;
       state.marketingConsentDecisionMade = false;
+      state.marketingCampaignCookieId = null;
     });
 
     this.#pruneAllForConsent();
+  }
+
+  /**
+   * Set the marketing campaign cookie ID.
+   *
+   * Stores the ID of the marketing campaign cookie (e.g. a Google Analytics
+   * client ID) that was active when the user arrived. Pass `null` to clear it.
+   * The value is automatically cleared by {@link optOutOfMarketing} and
+   * {@link resetMarketingConsentDecision}.
+   *
+   * @param marketingCampaignCookieId - The marketing campaign cookie ID, or
+   * `null` to clear it.
+   */
+  setMarketingCampaignCookieId(marketingCampaignCookieId: string | null): void {
+    this.update((state) => {
+      state.marketingCampaignCookieId = marketingCampaignCookieId;
+    });
   }
 }

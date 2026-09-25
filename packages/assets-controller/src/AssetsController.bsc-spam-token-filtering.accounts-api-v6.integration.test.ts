@@ -22,7 +22,6 @@ import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
 import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
-import type { AssetsControllerStateInternal } from './types.js';
 
 /**
  * Integration coverage for `AssetsController` against the BNB Chain wallet
@@ -200,7 +199,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) impor
     cleanAll();
   });
 
-  function buildCustomAssetWalletState(): AssetsControllerStateInternal {
+  function buildCustomAssetWalletState(): AssetsControllerState {
     return buildEmptyAssetsState({
       customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
       assetsBalance: {
@@ -251,7 +250,7 @@ describe("AssetsController (Accounts API v6): 'full' update operation - stale tr
    *
    * @returns The seeded controller state.
    */
-  function buildStaleSpamWalletState(): AssetsControllerStateInternal {
+  function buildStaleSpamWalletState(): AssetsControllerState {
     return buildEmptyAssetsState({
       assetsBalance: {
         [BSC_SPAM_ACCOUNT_ID]: {

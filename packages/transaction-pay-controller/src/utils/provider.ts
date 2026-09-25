@@ -139,7 +139,7 @@ function getNetworkClient(
   return messenger.call(
     'NetworkController:getNetworkClientById',
     networkClientId,
-  ) as NetworkClient;
+  );
 }
 
 function throwWithRpcContext(

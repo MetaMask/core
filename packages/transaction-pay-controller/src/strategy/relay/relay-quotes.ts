@@ -2,10 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import {
-  hasTransactionType,
-  TransactionType,
-} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -60,6 +56,7 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token.js';
+import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import {
@@ -400,19 +397,19 @@ async function getSingleQuote(
       body.refundTo = effectiveRequest.refundTo;
     }
 
-    const hasTransactions = Boolean(body.txs?.length);
-    const requiresExactOutput =
-      hasTransactions ||
-      hasTransactionType(transaction, [
-        TransactionType.perpsDepositAndOrder,
-        TransactionType.predictDepositAndOrder,
-      ]);
+    const pricing = getQuotePricing({
+      hasCalls: Boolean(body.txs?.length),
+      sourceTokenAmount,
+      targetAmountMinimum,
+      transaction,
+    });
+
     const finalBody: RelayQuoteRequest = {
       ...body,
-      amount:
-        body.amount ??
-        (requiresExactOutput ? targetAmountMinimum : sourceTokenAmount),
-      tradeType: requiresExactOutput ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
+      // A step that bundled its own calls has already pinned the amount those
+      // calls consume, so it wins over the derived amount.
+      amount: body.amount ?? pricing.amount,
+      tradeType: pricing.tradeType,
     };
 
     log('Request body', finalBody);
@@ -1243,13 +1240,13 @@ function getOriginalTxGasParams(
 
   return {
     chainId: Number(transaction.chainId),
-    data: (txParams.data as Hex) ?? ('0x' as Hex),
+    data: (txParams.data as Hex) ?? '0x',
     from: txParams.from as Hex,
     gas: gas ? String(gas) : undefined,
     maxFeePerGas: '0',
     maxPriorityFeePerGas: '0',
     to,
-    value: (txParams.value as string) ?? '0',
+    value: txParams.value ?? '0',
   };
 }
 

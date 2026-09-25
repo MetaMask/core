@@ -21,7 +21,6 @@ import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
 import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
-import { AssetsControllerStateInternal } from './types.js';
 
 /**
  * Integration coverage for `AssetsController` against the BNB Chain wallet
@@ -193,7 +192,7 @@ describe("AssetsController (Accounts API v5): 'merge' update operation - stale t
    *
    * @returns The seeded controller state.
    */
-  function buildStaleSpamWalletState(): AssetsControllerStateInternal {
+  function buildStaleSpamWalletState(): AssetsControllerState {
     return buildEmptyAssetsState({
       assetsBalance: {
         [BSC_SPAM_ACCOUNT_ID]: {

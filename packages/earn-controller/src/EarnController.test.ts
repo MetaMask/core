@@ -779,7 +779,7 @@ describe('EarnController', () => {
           .fn()
           .mockResolvedValue(mockPooledStakingVaultApyAverages),
         getUserDailyRewards: jest.fn().mockResolvedValue(mockUserDailyRewards),
-      } as Partial<jest.Mocked<PooledStakingApiService>>,
+      },
       lending: {
         getMarkets: jest.fn().mockResolvedValue(mockLendingMarkets),
         getPositions: jest.fn().mockResolvedValue(mockLendingPositions),
@@ -789,7 +789,7 @@ describe('EarnController', () => {
         getHistoricMarketApys: jest
           .fn()
           .mockResolvedValue(mockLendingHistoricMarketApys),
-      } as Partial<jest.Mocked<LendingApiService>>,
+      },
     };
 
     EarnApiServiceMock.mockImplementation(
@@ -1312,7 +1312,7 @@ describe('EarnController', () => {
             getVaultApyAverages: jest.fn().mockImplementation(() => {
               throw new Error('API Error getVaultApyAverages');
             }),
-          } as Partial<jest.Mocked<PooledStakingApiService>>,
+          },
         };
 
         EarnApiServiceMock.mockImplementation(
@@ -2027,7 +2027,7 @@ describe('EarnController', () => {
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
         });
 
         expect(result).toStrictEqual(mockPositionHistory);
@@ -2054,7 +2054,7 @@ describe('EarnController', () => {
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
         });
 
         expect(result).toStrictEqual([]);
@@ -2069,7 +2069,7 @@ describe('EarnController', () => {
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
         });
 
         expect(result).toStrictEqual([]);
@@ -2107,7 +2107,7 @@ describe('EarnController', () => {
 
         const result = await controller.getLendingMarketDailyApysAndAverages({
           chainId: 1,
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
           marketId: 'market1',
         });
 
@@ -2123,7 +2123,7 @@ describe('EarnController', () => {
 
         const result = await controller.getLendingMarketDailyApysAndAverages({
           chainId: 2,
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
           marketId: 'market1',
         });
 

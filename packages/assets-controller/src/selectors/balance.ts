@@ -305,8 +305,7 @@ export function getInternalAccountsForGroup(
   type GroupWithAccounts = { accounts?: AccountId[] };
   const getGroups = (
     walletItem: (typeof wallets)[keyof typeof wallets],
-  ): Record<string, GroupWithAccounts> =>
-    (walletItem?.groups ?? {}) as Record<string, GroupWithAccounts>;
+  ): Record<string, GroupWithAccounts> => walletItem?.groups ?? {};
 
   for (const wallet of Object.values(wallets)) {
     const group = getGroups(wallet)[groupId];
@@ -340,8 +339,7 @@ function getAccountIdsInSameGroup(
   type GroupWithAccounts = { accounts?: AccountId[] };
   const getGroups = (
     walletItem: (typeof wallets)[keyof typeof wallets],
-  ): Record<string, GroupWithAccounts> =>
-    (walletItem?.groups ?? {}) as Record<string, GroupWithAccounts>;
+  ): Record<string, GroupWithAccounts> => walletItem?.groups ?? {};
 
   for (const wallet of Object.values(wallets)) {
     const group = getGroups(wallet)[groupId];
@@ -465,7 +463,7 @@ function aggregateBalances(
   const startTime = trace ? performance.now() : 0;
   const { assetsBalance, assetsInfo, assetPreferences, assetsPrice } = state;
 
-  const metadata = (assetsInfo ?? {}) as Record<Caip19AssetId, AssetMetadata>;
+  const metadata = assetsInfo;
 
   const hasPrices =
     Boolean(assetsPrice) &&
@@ -485,8 +483,7 @@ function aggregateBalances(
 
   for (const account of accountsToAggregate) {
     const accountId = account.id;
-    const accountBalances =
-      assetsBalance?.[accountId] ?? ({} as Record<Caip19AssetId, AssetBalance>);
+    const accountBalances = assetsBalance?.[accountId] ?? {};
 
     mergeBalancesIntoMap({
       out: merged,
