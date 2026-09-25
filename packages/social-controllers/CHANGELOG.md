@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.3.0]
 
-### Uncategorized
-
-- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-
 ### Added
 
 - Add `fetchTokenFeed` method to `SocialService` (and the `SocialService:fetchTokenFeed` messenger action) for one token's positions as feed items. Calls `GET /tokens/:chain/:contractAddress/feed`, where `chain` is `TokenFeedChain` (`base`, `bsc`, `ethereum`, `hyperliquid`, `robinhood`, or `solana`), with optional `status` (`open` or `closed`; omit for both), `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10458](https://github.com/MetaMask/core/pull/10458))
