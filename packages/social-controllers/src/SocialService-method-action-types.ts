@@ -121,6 +121,35 @@ export type SocialServiceFetchFeedAction = {
 };
 
 /**
+ * Fetches a page of one trader's activity as feed items.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/feed`. Unlike {@link fetchFeed},
+ * this is scoped to a single profile (open and closed positions in the feed)
+ * and does not accept `scope` or `chains`. Set `commentedOnly` to only return
+ * positions that carry an author comment.
+ *
+ * The route is public, but the Authorization header is still sent so the
+ * social-api can hydrate `authorComment.engagement.userReaction` for the
+ * signed-in viewer.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @param options.commentedOnly - When true, only positions with a comment.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchTraderFeedAction = {
+  type: `SocialService:fetchTraderFeed`;
+  handler: SocialService['fetchTraderFeed'];
+};
+
+/**
  * Adds or replaces the current user's reaction on a swap comment (Call).
  *
  * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
@@ -244,6 +273,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchFollowersAction
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
+  | SocialServiceFetchTraderFeedAction
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceFetchFollowingAction

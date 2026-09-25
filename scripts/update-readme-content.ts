@@ -1,6 +1,6 @@
 #!yarn tsx
 
-import execa from 'execa';
+import { execa } from 'execa';
 import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
