@@ -11,6 +11,7 @@ import {
   isNormalKeyringType,
   isSimpleKeyringType,
   isSnapKeyringV2Type,
+  isWatchOnlyKeyringType,
   keyringTypeToName,
 } from './utils.js';
 
@@ -27,6 +28,7 @@ describe('utils', () => {
       [KeyringTypes.snap, 'Snap Account'],
       [KeyringType.Snap, 'Snap Account'],
       [KeyringTypes.money, 'Money'],
+      [KeyringTypes.watchOnly, 'Watch-only'],
     ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
       expect(keyringTypeToName(keyringType)).toBe(expectedName);
     });
@@ -35,6 +37,16 @@ describe('utils', () => {
       expect(() => keyringTypeToName('unknown')).toThrow(
         'Unknown keyring unknown',
       );
+    });
+  });
+
+  describe('isWatchOnlyKeyringType', () => {
+    it('returns true for the watch-only keyring type', () => {
+      expect(isWatchOnlyKeyringType(KeyringTypes.watchOnly)).toBe(true);
+    });
+
+    it('returns false for other keyring types', () => {
+      expect(isWatchOnlyKeyringType(KeyringTypes.hd)).toBe(false);
     });
   });
 

@@ -32,6 +32,12 @@ describe('keyring', () => {
       },
     );
 
+    it('names the watch-only wallet', () => {
+      expect(getAccountWalletNameFromKeyringType(KeyringTypes.watchOnly)).toBe(
+        'Watch-only accounts',
+      );
+    });
+
     it('defaults to "Unknown" if keyring type is not known', () => {
       const name = getAccountWalletNameFromKeyringType(
         'Not A Keyring Type' as KeyringTypes,
@@ -143,6 +149,7 @@ describe('keyring', () => {
         [KeyringType.PrivateKey, 'Imported Account'],
         [KeyringType.Hd, 'Account'],
         [KeyringType.Snap, 'Snap Account'],
+        [KeyringTypes.watchOnly, 'Watch-only Account'],
         ['unknown', 'Unknown Account'],
       ])(
         'returns default name prefix for "$0" to be "$1"',

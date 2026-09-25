@@ -54,6 +54,9 @@ export function getAccountWalletNameFromKeyringType(
     case KeyringTypes.snap: {
       return 'Snap Wallet';
     }
+    case KeyringTypes.watchOnly: {
+      return 'Watch-only accounts';
+    }
     // ------------------------------------------------------------------------
     default: {
       return 'Unknown';
@@ -104,6 +107,9 @@ export function getAccountGroupPrefixFromKeyringType(
     case KeyringType.Snap:
     case KeyringTypes.snap: {
       return 'Snap Account';
+    }
+    case KeyringTypes.watchOnly: {
+      return 'Watch-only Account';
     }
     // ------------------------------------------------------------------------
     default: {

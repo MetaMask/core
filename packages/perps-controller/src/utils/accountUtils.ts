@@ -88,6 +88,26 @@ export function getSelectedEvmAccountDetailsFromMessenger(
   }
 }
 
+// Mirrors KeyringTypes.watchOnly from @metamask/keyring-controller. Inlined to
+// keep this package portable between mobile and the core monorepo.
+const WATCH_ONLY_KEYRING_TYPE = 'Watch Only Keyring';
+
+/**
+ * Check whether the selected EVM account belongs to the key-less watch-only
+ * keyring, which can read venue state but never sign.
+ *
+ * @param messenger - Messenger able to resolve the selected account.
+ * @returns True when the selected EVM account is watch-only.
+ */
+export function isSelectedEvmAccountWatchOnly(
+  messenger: SelectedEvmAccountMessenger,
+): boolean {
+  const account = getSelectedEvmAccountDetailsFromMessenger(messenger) as
+    | { metadata?: { keyring?: { type?: string } } }
+    | undefined;
+  return account?.metadata?.keyring?.type === WATCH_ONLY_KEYRING_TYPE;
+}
+
 export function getSelectedEvmAccountFromMessenger(
   messenger: SelectedEvmAccountMessenger,
 ): { address: string } | undefined {

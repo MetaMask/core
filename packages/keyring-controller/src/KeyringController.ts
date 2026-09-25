@@ -133,6 +133,11 @@ export enum KeyringTypes {
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
   money = 'Money Keyring',
+  // Key-less, read-only accounts. Added to this deprecated enum because the
+  // watch-only keyring has no V2 builder yet.
+  // TODO: Move to `KeyringType.WatchOnly` in `@metamask/keyring-api/v2`
+  // (MetaMask/accounts) once the keyring is accepted and gets a V2 builder.
+  watchOnly = 'Watch Only Keyring',
   /* eslint-enable @typescript-eslint/naming-convention */
 }
 

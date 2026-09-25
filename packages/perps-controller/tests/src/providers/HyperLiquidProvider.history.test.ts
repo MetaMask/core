@@ -429,6 +429,7 @@ describe('HyperLiquidProvider', () => {
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
       isKeyringUnlocked: jest.fn().mockReturnValue(true),
       isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isSelectedWatchOnly: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -2075,6 +2076,26 @@ describe('HyperLiquidProvider', () => {
           }),
         }),
       );
+    });
+
+    it('refuses watch-only accounts before any transfer', async () => {
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+
+      const result = await provider.transferBetweenDexs({
+        sourceDex: 'dex1',
+        destinationDex: 'dex2',
+        amount: '100',
+      });
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          success: false,
+          error: 'WATCH_ONLY_ACCOUNT',
+        }),
+      );
+      expect(
+        mockClientService.getExchangeClient().sendAsset,
+      ).not.toHaveBeenCalled();
     });
 
     it('transfers USDC between DEXs successfully', async () => {

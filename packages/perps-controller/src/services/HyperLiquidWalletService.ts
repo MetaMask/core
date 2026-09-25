@@ -15,6 +15,7 @@ import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import {
   getSelectedEvmAccountDetailsFromMessenger,
   getSelectedEvmAccountFromMessenger,
+  isSelectedEvmAccountWatchOnly,
 } from '../utils/accountUtils.js';
 
 // Mirrors KeyringTypes from @metamask/keyring-controller. Inlined to keep this
@@ -80,12 +81,24 @@ export class HyperLiquidWalletService {
   }
 
   /**
+   * Check whether the selected EVM account is watch-only.
+   *
+   * @returns True when the selected account has no keys and cannot sign.
+   */
+  public isSelectedWatchOnly(): boolean {
+    return isSelectedEvmAccountWatchOnly(this.#messenger);
+  }
+
+  /**
    * Sign typed data via DI keyring controller
    *
    * @param msgParams - The typed message parameters including data and sender address.
    * @returns The signature string.
    */
   async #signTypedMessage(msgParams: PerpsTypedMessageParams): Promise<string> {
+    if (this.isSelectedWatchOnly()) {
+      throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+    }
     if (!this.isKeyringUnlocked()) {
       throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
     }

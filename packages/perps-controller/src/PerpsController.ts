@@ -167,7 +167,10 @@ import {
   LastTransactionResult,
   TransactionStatus,
 } from './types/transactionTypes.js';
-import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import {
+  getSelectedEvmAccountFromMessenger,
+  isSelectedEvmAccountWatchOnly,
+} from './utils/accountUtils.js';
 import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
 import {
@@ -3190,6 +3193,12 @@ export class PerpsController extends BaseController<
   ): Promise<{ result: Promise<string> }> {
     const { amount, placeOrder } = params;
 
+    // Refuse before a pending deposit request is recorded or a transaction
+    // reaches TransactionController: a watch-only account cannot sign it.
+    if (isSelectedEvmAccountWatchOnly(this.messenger)) {
+      throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+    }
+
     let currentDepositId: string | undefined;
 
     try {
@@ -3697,6 +3706,11 @@ export class PerpsController extends BaseController<
    * @returns WithdrawResult with withdrawal ID and tracking info
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
+    // Refuse before a pending withdrawal request is published.
+    if (isSelectedEvmAccountWatchOnly(this.messenger)) {
+      return { success: false, error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT };
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
 
     return this.#accountService.withdraw({

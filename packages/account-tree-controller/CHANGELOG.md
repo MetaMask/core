@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Name watch-only keyring wallets and account groups ([#10426](https://github.com/MetaMask/core/pull/10426))
+
 ## [11.0.0]
 
 ### Added

@@ -432,6 +432,7 @@ describe('HyperLiquidProvider', () => {
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
       isKeyringUnlocked: jest.fn().mockReturnValue(true),
       isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isSelectedWatchOnly: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -1891,6 +1892,27 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockSubscriptionService.setUserAbstractionMode,
       ).toHaveBeenCalledWith(USER_ADDRESS, 'unifiedAccount');
+    });
+
+    it('defers migration on init for watch-only accounts', async () => {
+      // Arrange
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+      const mockExchangeClient = createMockExchangeClient();
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      // Act - init path
+      await provider.getMarketDataWithPrices();
+
+      // Assert - a key-less account never reaches a signing path while browsing
+      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
+      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
     });
 
     it.each(['dexAbstraction', 'default', 'disabled'] as const)(
