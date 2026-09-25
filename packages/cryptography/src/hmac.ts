@@ -1,4 +1,4 @@
-import type { HashFunction } from './types';
+import type { HashFunction } from './types.js';
 
 // https://datatracker.ietf.org/doc/html/rfc2104#section-3
 const MIN_KEY_LENGTH: Record<HashFunction, number> = {
