@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@types/punycode` from `^2.1.0` to `^2.1.4` ([#10441](https://github.com/MetaMask/core/pull/10441))
 - Bump `punycode` from `^2.1.1` to `^2.3.1` ([#10441](https://github.com/MetaMask/core/pull/10441))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
 ## [18.1.1]
 
