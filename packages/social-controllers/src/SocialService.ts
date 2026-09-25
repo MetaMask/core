@@ -894,10 +894,12 @@ export class SocialService extends BaseDataService<
     return await this.fetchQuery({
       queryKey: [
         `${this.name}:createSwapComment`,
-        commentText,
-        source,
-        positionUid,
-        tradeInFlight,
+        {
+          commentText,
+          source: source ?? null,
+          positionUid: positionUid ?? null,
+          tradeInFlight: tradeInFlight ?? null,
+        },
       ],
       staleTime: 0,
       queryFn: async () => {
@@ -917,7 +919,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED,
         );
-        const comment = await response.json();
+        const comment = (await response.json()) as unknown;
         if (!is(comment, SwapCommentResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
