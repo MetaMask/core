@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.0.3]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [27.0.2]
 
 ### Changed

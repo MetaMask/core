@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [16.1.2]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [16.1.1]
 
 ### Changed

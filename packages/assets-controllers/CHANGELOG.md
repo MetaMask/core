@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [112.0.4]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/multichain-account-service` from `^14.0.0` to `^14.1.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [112.0.3]
 
 ### Changed
