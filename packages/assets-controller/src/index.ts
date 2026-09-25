@@ -93,6 +93,7 @@ export type {
   DataRequest,
   DataResponse,
   AssetsUpdateMode,
+  AssetsLoadingStatus,
   // Middleware types
   Context,
   NextFunction,
@@ -198,6 +199,14 @@ export {
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance.js';
+
+export {
+  getAccountGroupLoadingStatus,
+  getAccountLoadingStatus,
+  getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountGroupLoading,
+  isAccountLoading,
+} from './selectors/loading.js';
 
 export type {
   AccountGroupBalance,
