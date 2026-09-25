@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0]
 
-### Uncategorized
-
-- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-
 ### Added
 
 - Add the persisted `providerFlowStatus` state field and `KycController:getProviderFlowStatus` messenger action to distinguish provider flows that were submitted, abandoned, or failed ([#10457](https://github.com/MetaMask/core/pull/10457))
@@ -22,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `KycController.launchProviderFlow` and its messenger action now return the durable provider-flow outcome instead of `void` ([#10457](https://github.com/MetaMask/core/pull/10457))
 - Treat a SumSub SDK `Failed` status as `failed` instead of `abandoned` ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
 
 ## [0.5.0]
 

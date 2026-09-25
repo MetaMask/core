@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.0.0]
 
-### Uncategorized
-
-- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-
 ### Changed
 
 - **BREAKING:** Add `providerFlowStatus` to `VbaOnboardingSnapshot` and require the `KycController:getProviderFlowStatus` messenger action ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
 
 ## [25.1.1]
 
