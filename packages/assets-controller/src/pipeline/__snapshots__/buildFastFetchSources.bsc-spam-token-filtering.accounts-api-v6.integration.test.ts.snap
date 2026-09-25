@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) first pass over a fresh wallet captures the full response as a golden record 1`] = `
+exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) first pass over a fresh wallet generates snapshot (source of truth) 1`] = `
 {
   "assetsBalance": {
     "b1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d": {
@@ -2273,7 +2273,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) importe
 }
 `;
 
-exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) second pass over the wallet the first pass left behind captures the full response as a golden record 1`] = `
+exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) second pass over the wallet the first pass left behind generates snapshot (source of truth) 1`] = `
 {
   "assetsBalance": {
     "b1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d": {

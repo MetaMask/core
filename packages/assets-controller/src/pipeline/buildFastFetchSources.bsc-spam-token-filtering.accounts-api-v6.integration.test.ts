@@ -304,7 +304,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
       expect(response.updateMode).toBe('full');
     });
 
-    it('captures the full response as a golden record', () => {
+    it('generates snapshot (source of truth)', () => {
       expect(withZeroedTimestamps(response)).toMatchSnapshot();
     });
   });
