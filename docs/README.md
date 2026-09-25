@@ -1,12 +1,13 @@
 # Contributor Documentation
 
-Hi! Welcome to the contributor documentation for the `core` monorepo.
+Hi! Welcome to the contributor documentation for the `core` monorepo. This is suited for humans and agents alike.
 
 ## Getting started
 
+- [Tech stack and file structure of this repo](./getting-started/architecture.md)
 - [Setting up your development environment](./getting-started/setting-up-your-environment.md)
+- [Recommended development workflow](./getting-started/general-development-workflow.md)
 - [Codeownership](./getting-started/codeownership.md)
-- [Code guidelines for this repo](#code-guidelines)
 
 ## Processes
 
@@ -27,5 +28,5 @@ Hi! Welcome to the contributor documentation for the `core` monorepo.
 
 - [General MetaMask code guidelines](https://github.com/MetaMask/contributor-docs)
 - [General guidelines for all packages](./code-guidelines/package-guidelines.md)
-- [Writing controllers](./code-guidelines/controller-guidelines.md)
-- [Writing data services](./code-guidelines/data-services.md)
+- [Guidelines for writing controllers](./code-guidelines/controller-guidelines.md)
+- [Guidelines for writing data services](./code-guidelines/data-services.md)
