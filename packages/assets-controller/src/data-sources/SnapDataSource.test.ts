@@ -8,8 +8,16 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 
+import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
-import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types.js';
+import type {
+  AssetsControllerState,
+  ChainId,
+  DataRequest,
+  Context,
+  Caip19AssetId,
+} from '../types.js';
+import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import type {
   SnapDataSourceOptions,
   AccountBalancesUpdatedEventPayload,
@@ -43,7 +51,11 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_SOL_ASSET =
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+const MOCK_SOL_PIN =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:So11111111111111111111111111111111111111112' as Caip19AssetId;
 const MOCK_STELLAR_ASSET = 'stellar:pubnet/slip44:148' as Caip19AssetId;
+const MOCK_STELLAR_PIN =
+  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
 const MOCK_BTC_ASSET =
   'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
 const MOCK_TRON_ASSET = 'tron:728126428/slip44:195' as Caip19AssetId;
@@ -107,7 +119,6 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsInfo: {} }),
     ...overrides,
   };
 }
@@ -161,16 +172,30 @@ function createMockHandleRequest(
   accountAssets: string[] = [],
   balances: Record<string, Balance> = {},
 ): jest.Mock {
-  return jest.fn().mockImplementation((params) => {
-    const { request } = params;
-    if (request?.method === 'keyring_listAccountAssets') {
-      return Promise.resolve(accountAssets);
-    }
-    if (request?.method === 'keyring_getAccountBalances') {
-      return Promise.resolve(balances);
-    }
-    return Promise.resolve(null);
-  });
+  return jest.fn(
+    (params: {
+      request?: { method?: string; params?: { assets?: string[] } };
+    }) => {
+      const { request } = params;
+      if (request?.method === 'keyring_listAccountAssets') {
+        return Promise.resolve(accountAssets);
+      }
+      if (request?.method === 'keyring_getAccountBalances') {
+        const requested = request.params?.assets;
+        if (!requested) {
+          return Promise.resolve(balances);
+        }
+        return Promise.resolve(
+          Object.fromEntries(
+            requested
+              .filter((assetId) => balances[assetId])
+              .map((assetId) => [assetId, balances[assetId]]),
+          ),
+        );
+      }
+      return Promise.resolve(null);
+    },
+  );
 }
 
 function setupController(
@@ -179,9 +204,22 @@ function setupController(
     accountAssets?: string[];
     balances?: Record<string, Balance>;
     configuredNetworks?: ChainId[];
+    isBalanceV6Enabled?: () => boolean;
+    getAssetVisibility?: GetAssetVisibility;
+    getAssetsState?: () => AssetsControllerState;
   } = {},
 ): SetupResult {
-  const { installedSnaps = {}, accountAssets = [], balances = {} } = options;
+  const {
+    installedSnaps = {},
+    accountAssets = [],
+    balances = {},
+    isBalanceV6Enabled = (): boolean => false,
+    getAssetVisibility = (): ReturnType<GetAssetVisibility> => ({
+      visibleAssetIds: [],
+      hiddenAssetIds: [],
+    }),
+    getAssetsState = getDefaultAssetsControllerState,
+  } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
     namespace: MOCK_ANY_NAMESPACE,
@@ -254,6 +292,9 @@ function setupController(
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     onActiveChainsUpdated: activeChainsUpdateHandler,
     onAssetsUpdate: assetsUpdateHandler,
+    isBalanceV6Enabled,
+    getAssetVisibility,
+    getAssetsState,
   };
 
   const controller = new SnapDataSource(controllerOptions);
@@ -526,6 +567,274 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
+  it('requests expected visible assets and zero-fills any the snap omitted', async () => {
+    const getAssetVisibility = jest.fn().mockReturnValue({
+      visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+      hiddenAssetIds: [],
+    });
+    const { controller, mockHandleRequest, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility,
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(getAssetVisibility).toHaveBeenCalledWith(
+      ['mock-account-id'],
+      [SOLANA_MAINNET],
+    );
+    expect(mockHandleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          method: 'keyring_getAccountBalances',
+          params: {
+            id: 'mock-account-id',
+            assets: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+          },
+        }),
+      }),
+    );
+    expect(response).toStrictEqual({
+      assetsBalance: {
+        'mock-account-id': {
+          [MOCK_SOL_ASSET]: { amount: '1000000000' },
+          [MOCK_SOL_PIN]: { amount: '0' },
+        },
+      },
+      assetsInfo: {},
+      updateMode: 'full',
+    });
+
+    cleanup();
+  });
+
+  it('seeds omitted Stellar visible tokens with empty trustline metadata', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
+      },
+      accountAssets: [MOCK_STELLAR_ASSET],
+      balances: {
+        [MOCK_STELLAR_ASSET]: { amount: '1000000000', unit: 'XLM' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_STELLAR_ASSET, MOCK_STELLAR_PIN],
+        hiddenAssetIds: [],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(
+      createDataRequest({
+        chainIds: [STELLAR_MAINNET],
+        accounts: [
+          createMockAccount({
+            metadata: {
+              name: 'Test Account',
+              keyring: { type: 'HD Key Tree' },
+              importTime: Date.now(),
+              lastSelected: Date.now(),
+              snap: {
+                id: STELLAR_SNAP_ID,
+                name: 'Stellar Snap',
+                enabled: true,
+              },
+            },
+          }),
+        ],
+      }),
+    );
+
+    expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+      [MOCK_STELLAR_ASSET]: { amount: '1000000000' },
+      [MOCK_STELLAR_PIN]: {
+        amount: '0',
+        metadata: {
+          authorized: false,
+          limit: '0',
+          sponsored: false,
+        },
+      },
+    });
+
+    cleanup();
+  });
+
+  it('does not zero-fill visible assets when the snap returns no balances', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {},
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+        hiddenAssetIds: [],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response).toStrictEqual({
+      assetsBalance: {},
+      assetsInfo: {},
+      updateMode: 'full',
+    });
+
+    cleanup();
+  });
+
+  it('does not write balances when getAccountBalances throws', async () => {
+    const { controller, mockHandleRequest, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET],
+        hiddenAssetIds: [],
+      }),
+    });
+    mockHandleRequest.mockImplementation(
+      (params: { request?: { method: string } }) => {
+        if (params.request?.method === 'keyring_listAccountAssets') {
+          return Promise.resolve([MOCK_SOL_ASSET]);
+        }
+        if (params.request?.method === 'keyring_getAccountBalances') {
+          return Promise.reject(new Error('snap failed'));
+        }
+        return Promise.resolve(null);
+      },
+    );
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response).toStrictEqual({
+      assetsBalance: {},
+      assetsInfo: {},
+      updateMode: 'full',
+    });
+
+    cleanup();
+  });
+
+  it('fills an omitted visible asset from current state when the snap left it out', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+        hiddenAssetIds: [],
+      }),
+      getAssetsState: () => ({
+        ...getDefaultAssetsControllerState(),
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_SOL_PIN]: { amount: '42' },
+          },
+        },
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+      [MOCK_SOL_ASSET]: { amount: '1000000000' },
+      [MOCK_SOL_PIN]: { amount: '42' },
+    });
+
+    cleanup();
+  });
+
+  it('uses the snap balance for a visible asset omitted from listAccountAssets', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+        [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+        hiddenAssetIds: [],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+      [MOCK_SOL_ASSET]: { amount: '1000000000' },
+      [MOCK_SOL_PIN]: { amount: '42' },
+    });
+
+    cleanup();
+  });
+
+  it('does not request hidden assets on the v6 snap fetch', async () => {
+    const { controller, mockHandleRequest, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+        [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET],
+        hiddenAssetIds: [MOCK_SOL_PIN],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(mockHandleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          method: 'keyring_getAccountBalances',
+          params: {
+            id: 'mock-account-id',
+            assets: [MOCK_SOL_ASSET],
+          },
+        }),
+      }),
+    );
+    expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
+      [MOCK_SOL_ASSET]: { amount: '1000000000' },
+    });
+
+    cleanup();
+  });
+
   it('fetch includes balance metadata when provided by the snap', async () => {
     const balanceMetadata = {
       spendable: '900000000',
@@ -631,8 +940,10 @@ describe('SnapDataSource', () => {
         installedSnaps: {
           [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         },
+        isBalanceV6Enabled: () => true,
       });
     await new Promise(process.nextTick);
+    assetsUpdateHandler.mockClear();
 
     triggerBalancesUpdated({
       balances: {
@@ -644,15 +955,15 @@ describe('SnapDataSource', () => {
 
     await new Promise(process.nextTick);
 
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetsBalance: {
-          'account-1': {
-            [MOCK_SOL_ASSET]: { amount: '1000000000' },
-          },
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+    expect(assetsUpdateHandler).toHaveBeenCalledWith({
+      updateMode: 'merge',
+      assetsBalance: {
+        'account-1': {
+          [MOCK_SOL_ASSET]: { amount: '1000000000' },
         },
-      }),
-    );
+      },
+    });
 
     cleanup();
   });
@@ -948,6 +1259,37 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
+  it('middleware forwards full update mode for v6 snapshots', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+      accountAssets: [MOCK_SOL_ASSET],
+      balances: {
+        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+      },
+      isBalanceV6Enabled: () => true,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [MOCK_SOL_ASSET],
+        hiddenAssetIds: [],
+      }),
+    });
+    await new Promise(process.nextTick);
+
+    const next = jest.fn().mockImplementation(async (context) => context);
+    const context = createMiddlewareContext();
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        response: expect.objectContaining({ updateMode: 'full' }),
+      }),
+    );
+
+    cleanup();
+  });
+
   it('middleware removes handled chains from next request', async () => {
     const { controller, cleanup } = setupController({
       installedSnaps: {
@@ -1072,6 +1414,12 @@ describe('SnapDataSource', () => {
       messenger: controllerMessenger as unknown as AssetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
       onAssetsUpdate: jest.fn(),
+      isBalanceV6Enabled: () => false,
+      getAssetVisibility: () => ({
+        visibleAssetIds: [],
+        hiddenAssetIds: [],
+      }),
+      getAssetsState: getDefaultAssetsControllerState,
     });
 
     await new Promise(process.nextTick);

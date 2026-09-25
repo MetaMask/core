@@ -28,9 +28,9 @@ import type { AssetsControllerState } from './AssetsController.js';
  *
  * Boots the real controller, answers the same captured APIs as
  * `buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts`, and
- * asserts CDOGE never lands in persisted state.
- *
- * Integration Expectation - CDOGE is correctly filtered out of controller state.
+ * asserts CDOGE never lands in persisted state — unless the user imported it
+ * as a custom asset, in which case it must survive (see the custom-asset
+ * suite below).
  */
 
 type StateSurface = {
@@ -63,14 +63,17 @@ async function withController<ReturnValue>(
   {
     state = buildEmptyAssetsState(),
     queryApiClient = createTestApiClient(),
+    remoteFeatureFlags = {},
   }: {
     state?: Partial<AssetsControllerState>;
     queryApiClient?: ApiPlatformClient;
+    remoteFeatureFlags?: Record<string, boolean>;
   },
   fn: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
-    registerCustomRootActions: registerBscSpamControllerActions,
+    registerCustomRootActions: (messenger) =>
+      registerBscSpamControllerActions(messenger, { remoteFeatureFlags }),
   });
 
   const controller = new AssetsController({
@@ -90,25 +93,31 @@ async function withController<ReturnValue>(
 
 async function fetchWallet(
   state: Partial<AssetsControllerState> = buildEmptyAssetsState(),
+  remoteFeatureFlags: Record<string, boolean> = {},
 ): Promise<AssetsControllerState> {
   const { accountsSupportedNetworks } = mockBscSpamApis();
 
-  return await withController({ state }, async ({ controller }) => {
-    // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
-    await waitFor(() => expect(accountsSupportedNetworks.isDone()).toBe(true));
+  return await withController(
+    { state, remoteFeatureFlags },
+    async ({ controller }) => {
+      // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
+      await waitFor(() =>
+        expect(accountsSupportedNetworks.isDone()).toBe(true),
+      );
 
-    await controller.getAssets([buildBscSpamAccount()], {
-      chainIds: [BSC_CHAIN_ID],
-      forceUpdate: true,
-    });
+      await controller.getAssets([buildBscSpamAccount()], {
+        chainIds: [BSC_CHAIN_ID],
+        forceUpdate: true,
+      });
 
-    // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
-    // and can still be writing. Let state settle so the assertions about CDOGE
-    // being absent cannot pass just because nothing has landed yet.
-    await waitUntilStable(() => controller.state);
+      // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
+      // and can still be writing. Let state settle so the assertions about CDOGE
+      // being absent cannot pass just because nothing has landed yet.
+      await waitUntilStable(() => controller.state);
 
-    return controller.state;
-  });
+      return controller.state;
+    },
+  );
 }
 
 const WALLET_PASSES = [
@@ -166,5 +175,42 @@ describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
     it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+  });
+});
+
+describe('AssetsController: BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+  afterEach(() => {
+    cleanAll();
+  });
+
+  function buildCustomAssetWalletState(): AssetsControllerState {
+    return buildEmptyAssetsState({
+      customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      assetsBalance: {
+        [BSC_SPAM_ACCOUNT_ID]: {
+          [CDOGE_ASSET_ID_CHECKSUM]: { amount: '0' },
+        },
+      },
+      assetsInfo: {
+        [CDOGE_ASSET_ID_CHECKSUM]: {
+          type: 'erc20',
+          symbol: 'CDOGE',
+          name: '$$$DOGECHAIN',
+          decimals: 9,
+        },
+      },
+    });
+  }
+
+  it('keeps the imported token in customAssets, balances and metadata', async () => {
+    const state = await fetchWallet(buildCustomAssetWalletState(), {
+      assetsAccountsApiV6: true,
+    });
+
+    expect(state.customAssets[BSC_SPAM_ACCOUNT_ID]).toContain(
+      CDOGE_ASSET_ID_CHECKSUM,
+    );
+    expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+    expect(METADATA.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
   });
 });
