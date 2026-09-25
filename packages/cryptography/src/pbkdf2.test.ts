@@ -13,9 +13,9 @@ const rfc7914Password = stringToBytes('passwd') as Uint8Array<ArrayBuffer>;
 const rfc7914Salt = stringToBytes('salt') as Uint8Array<ArrayBuffer>;
 
 // PBKDF2-HMAC-SHA-512 test vectors: P = "password", S = "salt", c = 1 and c = 2
-// https://github.com/Anti-weakpasswords/PBKDF2-Test-Vectors/releases
-const passlibPassword = stringToBytes('password') as Uint8Array<ArrayBuffer>;
-const passlibSalt = stringToBytes('salt') as Uint8Array<ArrayBuffer>;
+// https://github.com/python/cpython/blob/main/Lib/test/test_hashlib.py
+const cpythonPassword = stringToBytes('password') as Uint8Array<ArrayBuffer>;
+const cpythonSalt = stringToBytes('salt') as Uint8Array<ArrayBuffer>;
 
 describe('pbkdf2Sha256', () => {
   it('generates a key from a password and a salt using the provided derivation parameters', async () => {
@@ -121,8 +121,8 @@ describe('pbkdf2Sha512', () => {
     );
   });
 
-  it('matches passlib test case 1 (c=1)', async () => {
-    const key = await pbkdf2Sha512(passlibPassword, passlibSalt, 1, 64, {
+  it('matches CPython test case 1 (c=1)', async () => {
+    const key = await pbkdf2Sha512(cpythonPassword, cpythonSalt, 1, 64, {
       unsafeIterations: true,
     });
     expect(bytesToHex(key)).toBe(
@@ -130,8 +130,8 @@ describe('pbkdf2Sha512', () => {
     );
   });
 
-  it('matches passlib test case 2 (c=2)', async () => {
-    const key = await pbkdf2Sha512(passlibPassword, passlibSalt, 2, 64, {
+  it('matches CPython test case 2 (c=2)', async () => {
+    const key = await pbkdf2Sha512(cpythonPassword, cpythonSalt, 2, 64, {
       unsafeIterations: true,
     });
     expect(bytesToHex(key)).toBe(
