@@ -552,7 +552,7 @@ describe('BaseDataService', () => {
     // cancellation happens.
     const cancelledRequest = service
       .getAssets(MOCK_ASSETS)
-      .catch((error) => error);
+      .catch((error: unknown) => error);
     const refreshedAssets = await service.refreshAssets(MOCK_ASSETS);
 
     expect(await cancelledRequest).toBeInstanceOf(CancelledError);
@@ -586,7 +586,7 @@ describe('BaseDataService', () => {
 
     const cancelledRequest = service
       .getAssets(MOCK_ASSETS)
-      .catch((error) => error);
+      .catch((error: unknown) => error);
     await service.refreshAssets(MOCK_ASSETS, { silent: true });
 
     expect(cancelSpy).toHaveBeenCalledWith(
