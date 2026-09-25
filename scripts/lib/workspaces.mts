@@ -9,7 +9,7 @@ import {
 } from '@yarnpkg/core';
 import { ppath } from '@yarnpkg/fslib';
 import { parseSyml } from '@yarnpkg/parsers';
-import execa from 'execa';
+import { execa } from 'execa';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 

@@ -109,8 +109,12 @@ module.exports = defineConfig({
       // All packages must have a name.
       expectWorkspaceField(workspace, 'name');
 
-      // All workspaces must specify "type: module".
-      expectWorkspaceField(workspace, 'type', 'module');
+      // All workspaces must specify "type: module" (except for packages that
+      // exclusively deploy documentation using Docusaurus, because Docusaurus
+      // is not fully compatible with ESM projects).
+      if (!DOCSITE_PACKAGES.includes(workspace.ident)) {
+        expectWorkspaceField(workspace, 'type', 'module');
+      }
 
       if (isChildWorkspace) {
         // All non-root packages must have a name that matches its directory

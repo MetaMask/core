@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `eth-chainlist` from `^0.0.795` to `^0.0.840` ([#10438](https://github.com/MetaMask/core/pull/10438))
+
 ### Fixed
 
 - Resolve Arc USDC wrapper transfers as the native Arc asset ([#10425](https://github.com/MetaMask/core/pull/10425))

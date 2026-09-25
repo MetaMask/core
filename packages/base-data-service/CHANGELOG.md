@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
 
 ## [2.0.0]
 
