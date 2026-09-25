@@ -1,6 +1,7 @@
 import {
+  createAllowedCalldataTerms,
   createERC20TokenPeriodTransferTerms,
-  createValueLteTerms,
+  decodeAllowedCalldataTerms,
   decodeERC20TokenPeriodTransferTerms,
   hashDelegation,
   ROOT_AUTHORITY,
@@ -20,6 +21,10 @@ import {
 import type { PricingCryptoPaymentMethod, PricingResponse } from '../types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 import {
+  encodeTransferToCalldataPrefix,
+  TRANSFER_CALLDATA_PREFIX_START_INDEX,
+} from './caveats.js';
+import {
   SubscriptionDelegationService,
   serviceName,
 } from './SubscriptionDelegationService.js';
@@ -30,11 +35,14 @@ import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const PAYER = '0x5555555555555555555555555555555555555555' as Hex;
+const TREASURY = '0x8888888888888888888888888888888888888888' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const TOKEN_DECIMALS = 18;
 const SIGNATURE: Hex = `0x${'ab'.repeat(65)}`;
-const { ValueLteEnforcer: VALUE_LTE, ERC20PeriodTransferEnforcer: PERIOD } =
-  DELEGATOR_CONTRACTS['1.3.0'][1];
+const {
+  ERC20PeriodTransferEnforcer: PERIOD,
+  AllowedCalldataEnforcer: ALLOWED_CALLDATA,
+} = DELEGATOR_CONTRACTS['1.3.0'][1];
 
 const MONEY_ACCOUNT_VAULT_CONFIG = {
   chainId: CHAIN_ID,
@@ -65,7 +73,7 @@ const PRICING_DELEGATION_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   chains: [
     {
       chainId: CHAIN_ID,
-      paymentAddress: '0x2222222222222222222222222222222222222222' as Hex,
+      paymentAddress: TREASURY,
       delegateAddress: DELEGATE,
       tokens: [
         {
@@ -305,17 +313,20 @@ function buildStoredDelegation({
       authority: ROOT_AUTHORITY,
       caveats: [
         {
-          enforcer: VALUE_LTE,
-          terms: createValueLteTerms({ maxValue: 0n }),
-          args: '0x',
-        },
-        {
           enforcer: PERIOD,
           terms: createERC20TokenPeriodTransferTerms({
             tokenAddress: TOKEN,
             periodAmount,
             periodDuration,
             startDate,
+          }),
+          args: '0x',
+        },
+        {
+          enforcer: ALLOWED_CALLDATA,
+          terms: createAllowedCalldataTerms({
+            startIndex: TRANSFER_CALLDATA_PREFIX_START_INDEX,
+            value: encodeTransferToCalldataPrefix(TREASURY),
           }),
           args: '0x',
         },
@@ -376,11 +387,16 @@ describe('SubscriptionDelegationService', () => {
           delegate: DELEGATE,
           delegator: PAYER,
           caveats: [
-            expect.objectContaining({ enforcer: VALUE_LTE }),
             expect.objectContaining({ enforcer: PERIOD }),
+            expect.objectContaining({ enforcer: ALLOWED_CALLDATA }),
           ],
         }),
         chainId: CHAIN_ID,
+      });
+      const { caveats } = mocks.signDelegation.mock.calls[0][0].delegation;
+      expect(decodeAllowedCalldataTerms(caveats[1].terms)).toStrictEqual({
+        startIndex: 0,
+        value: `0xa9059cbb${'0'.repeat(24)}${TREASURY.slice(2)}`,
       });
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.createDelegation).toHaveBeenCalledWith({
@@ -486,6 +502,58 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
       expect(mocks.createDelegation).not.toHaveBeenCalled();
       expect(mocks.createIntents).not.toHaveBeenCalled();
+    });
+
+    it('creates a new delegation when the stored one pays a different treasury address', async () => {
+      const stored = buildStoredDelegation();
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        pricing: {
+          ...PRICING,
+          paymentMethods: [
+            {
+              ...PRICING_DELEGATION_PAYMENT_METHOD,
+              chains: [
+                {
+                  ...PRICING_DELEGATION_PAYMENT_METHOD.chains?.[0],
+                  paymentAddress:
+                    '0x9999999999999999999999999999999999999999' as Hex,
+                },
+              ],
+            },
+          ],
+        } as PricingResponse,
+      });
+
+      const result = await service.prepareDelegation(REQUEST);
+
+      expect(result.disposition).toBe('created');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects before signing when the pricing payment address is malformed', async () => {
+      const { service, mocks } = setup({
+        pricing: {
+          ...PRICING,
+          paymentMethods: [
+            {
+              ...PRICING_DELEGATION_PAYMENT_METHOD,
+              chains: [
+                {
+                  ...PRICING_DELEGATION_PAYMENT_METHOD.chains?.[0],
+                  paymentAddress: '0x1234' as Hex,
+                },
+              ],
+            },
+          ],
+        } as PricingResponse,
+      });
+
+      await expect(service.prepareDelegation(REQUEST)).rejects.toThrow(
+        SubscriptionDelegationServiceErrorMessage.InvalidRecipientAddress,
+      );
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createDelegation).not.toHaveBeenCalled();
     });
 
     it('reuses the matching stored delegation with the latest period startDate', async () => {

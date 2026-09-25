@@ -1,11 +1,16 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
+  createAllowedCalldataTerms,
   createERC20TokenPeriodTransferTerms,
   createValueLteTerms,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
 
+import {
+  encodeTransferToCalldataPrefix,
+  TRANSFER_CALLDATA_PREFIX_START_INDEX,
+} from './caveats.js';
 import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
@@ -18,6 +23,8 @@ const PERIOD = '0x2222222222222222222222222222222222222222' as Hex;
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const DELEGATOR = '0x5555555555555555555555555555555555555555' as Hex;
+const ALLOWED_CALLDATA = '0x7777777777777777777777777777777777777777' as Hex;
+const RECIPIENT = '0x8888888888888888888888888888888888888888' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const PERIOD_AMOUNT = 10n * 10n ** 18n;
 const PERIOD_DURATION = 28 * 86_400;
@@ -31,9 +38,10 @@ function buildEntry({
   periodAmount = PERIOD_AMOUNT,
   periodDuration = PERIOD_DURATION,
   startDate = 1_700_000_000,
-  valueLteEnforcer = VALUE_LTE,
   periodEnforcer = PERIOD,
-  maxValue = 0n,
+  allowedCalldataEnforcer = ALLOWED_CALLDATA,
+  recipient = RECIPIENT,
+  calldataStartIndex = TRANSFER_CALLDATA_PREFIX_START_INDEX,
 }: {
   type?: string;
   delegator?: Hex;
@@ -43,16 +51,12 @@ function buildEntry({
   periodAmount?: bigint;
   periodDuration?: number;
   startDate?: number;
-  valueLteEnforcer?: Hex;
   periodEnforcer?: Hex;
-  maxValue?: bigint;
+  allowedCalldataEnforcer?: Hex;
+  recipient?: Hex;
+  calldataStartIndex?: number;
 } = {}): DelegationResponse {
   const caveats = [
-    {
-      enforcer: valueLteEnforcer,
-      terms: createValueLteTerms({ maxValue }),
-      args: '0x' as Hex,
-    },
     {
       enforcer: periodEnforcer,
       terms: createERC20TokenPeriodTransferTerms({
@@ -60,6 +64,14 @@ function buildEntry({
         periodAmount,
         periodDuration,
         startDate,
+      }),
+      args: '0x' as Hex,
+    },
+    {
+      enforcer: allowedCalldataEnforcer,
+      terms: createAllowedCalldataTerms({
+        startIndex: calldataStartIndex,
+        value: encodeTransferToCalldataPrefix(recipient),
       }),
       args: '0x' as Hex,
     },
@@ -90,6 +102,7 @@ const NOW_SECONDS = 1_700_000_000;
 const expected = {
   delegatorAddress: DELEGATOR,
   delegateAddress: DELEGATE,
+  recipientAddress: RECIPIENT,
   chainId: CHAIN_ID,
   tokenAddress: TOKEN,
   periodAmount: PERIOD_AMOUNT,
@@ -97,8 +110,8 @@ const expected = {
   nowSeconds: NOW_SECONDS,
   isTrialDeferred: false,
   enforcers: {
-    valueLte: VALUE_LTE,
     erc20TokenPeriodTransfer: PERIOD,
+    allowedCalldata: ALLOWED_CALLDATA,
   },
 };
 
@@ -156,6 +169,7 @@ describe('makeMatchesSubscriptionDelegation', () => {
         buildEntry({
           delegator: upper(DELEGATOR),
           delegate: upper(DELEGATE),
+          recipient: upper(RECIPIENT),
           tokenAddress: upper(TOKEN),
           chainIdHex: upper(CHAIN_ID),
         }),
@@ -179,22 +193,45 @@ describe('makeMatchesSubscriptionDelegation', () => {
       { tokenAddress: '0x6666666666666666666666666666666666666666' as Hex },
     ],
     [
-      'valueLteEnforcer',
-      {
-        valueLteEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
-      },
-    ],
-    [
       'periodEnforcer',
       {
         periodEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
       },
     ],
+    [
+      'allowedCalldataEnforcer',
+      {
+        allowedCalldataEnforcer:
+          '0x6666666666666666666666666666666666666666' as Hex,
+      },
+    ],
+    [
+      'recipient',
+      { recipient: '0x6666666666666666666666666666666666666666' as Hex },
+    ],
+    ['calldataStartIndex', { calldataStartIndex: 4 }],
     ['periodAmount', { periodAmount: PERIOD_AMOUNT + 1n }],
     ['periodDuration', { periodDuration: PERIOD_DURATION + 1 }],
-    ['maxValue', { maxValue: 1n }],
   ] as const)('rejects mismatch on %s', (_label, overrides) => {
     expect(matches(buildEntry(overrides))).toBe(false);
+  });
+
+  it('rejects a legacy delegation without the recipient restriction', () => {
+    const entry = buildEntry();
+    entry.signedDelegation.caveats.pop();
+
+    expect(matches(entry)).toBe(false);
+  });
+
+  it('rejects a legacy delegation with an extra ValueLte caveat', () => {
+    const entry = buildEntry();
+    entry.signedDelegation.caveats.unshift({
+      enforcer: VALUE_LTE,
+      terms: createValueLteTerms({ maxValue: 0n }),
+      args: '0x',
+    });
+
+    expect(matches(entry)).toBe(false);
   });
 
   it('rejects a delegation with missing caveats', () => {
@@ -242,11 +279,11 @@ describe('pickLatestMatchingSubscriptionDelegation', () => {
 
   it('deprioritizes delegations whose period startDate cannot be read', () => {
     const withoutPeriodCaveat = buildEntry({ startDate: NOW_SECONDS + 86_400 });
-    withoutPeriodCaveat.signedDelegation.caveats.pop();
+    withoutPeriodCaveat.signedDelegation.caveats.splice(0, 1);
     withoutPeriodCaveat.metadata.delegationHash = `0x${'11'.repeat(32)}`;
 
     const malformedTerms = buildEntry({ startDate: NOW_SECONDS + 86_400 });
-    malformedTerms.signedDelegation.caveats[1].terms = '0x';
+    malformedTerms.signedDelegation.caveats[0].terms = '0x';
     malformedTerms.metadata.delegationHash = `0x${'22'.repeat(32)}`;
 
     const readable = buildEntry({ startDate: NOW_SECONDS - 86_400 });

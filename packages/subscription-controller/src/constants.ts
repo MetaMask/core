@@ -98,6 +98,7 @@ export enum SubscriptionDelegationServiceErrorMessage {
   MissingMoneyAccountVaultConfig = 'Money Account vault configuration is missing or invalid',
   DelegationContractsNotFound = 'Subscription delegation contracts were not found for the configured chain',
   PricingConfigurationNotFound = 'Subscription delegation pricing configuration was not found',
+  InvalidRecipientAddress = 'Subscription delegation recipient must be a valid 20-byte address',
   InsufficientBalance = 'Money Account balance is insufficient for the subscription funding requirement',
   ChompRejectedDelegation = 'CHOMP rejected the subscription delegation',
   ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',

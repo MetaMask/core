@@ -76,6 +76,6 @@ export type MoneyAccountBalanceCheckResult = {
  * Delegation Framework enforcers used by cash-subscription delegations.
  */
 export type SubscriptionDelegationEnforcers = {
-  valueLte: Hex;
   erc20TokenPeriodTransfer: Hex;
+  allowedCalldata: Hex;
 };

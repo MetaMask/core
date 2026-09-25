@@ -1,16 +1,21 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
+  decodeAllowedCalldataTerms,
   decodeERC20TokenPeriodTransferTerms,
-  decodeValueLteTerms,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
 
+import {
+  encodeTransferToCalldataPrefix,
+  TRANSFER_CALLDATA_PREFIX_START_INDEX,
+} from './caveats.js';
 import type { SubscriptionDelegationEnforcers } from './types.js';
 import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 export type SubscriptionDelegationFingerprint = {
   delegatorAddress: Hex;
   delegateAddress: Hex;
+  recipientAddress: Hex;
   chainId: Hex;
   tokenAddress: Hex;
   periodAmount: bigint;
@@ -79,27 +84,37 @@ export function makeMatchesSubscriptionDelegation(
       return false;
     }
 
+    // CHOMP requires exactly these two enforcers, so stored delegations with
+    // extra caveats (e.g. a legacy `ValueLte`) cannot be reused.
     const { caveats } = entry.signedDelegation;
-    if (caveats.length < 2) {
+    if (caveats.length !== 2) {
       return false;
     }
 
-    const valueLteCaveat = caveats.find((caveat) =>
-      equalsIgnoreCase(caveat.enforcer, expected.enforcers.valueLte),
-    );
     const periodCaveat = caveats.find((caveat) =>
       equalsIgnoreCase(
         caveat.enforcer,
         expected.enforcers.erc20TokenPeriodTransfer,
       ),
     );
-    if (!valueLteCaveat || !periodCaveat) {
+    const allowedCalldataCaveat = caveats.find((caveat) =>
+      equalsIgnoreCase(caveat.enforcer, expected.enforcers.allowedCalldata),
+    );
+    if (!periodCaveat || !allowedCalldataCaveat) {
       return false;
     }
 
     try {
-      const valueTerms = decodeValueLteTerms(valueLteCaveat.terms);
-      if (valueTerms.maxValue !== 0n) {
+      const calldataTerms = decodeAllowedCalldataTerms(
+        allowedCalldataCaveat.terms,
+      );
+      if (
+        calldataTerms.startIndex !== TRANSFER_CALLDATA_PREFIX_START_INDEX ||
+        !equalsIgnoreCase(
+          calldataTerms.value,
+          encodeTransferToCalldataPrefix(expected.recipientAddress),
+        )
+      ) {
         return false;
       }
 
