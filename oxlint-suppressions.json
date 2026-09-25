@@ -6676,7 +6676,7 @@
   },
   "packages/transaction-controller/src/utils/balance-changes.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 1
+      "count": 2
     },
     "typescript/no-unsafe-assignment": {
       "count": 3
