@@ -6462,7 +6462,7 @@ __metadata:
     "@metamask/skills": "npm:^0.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/lodash": "npm:^4.17.20"
+    "@types/lodash": "npm:^4.17.25"
     "@types/node": "npm:^22.13.14"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6812,7 +6812,7 @@ __metadata:
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/lodash": "npm:^4.17.20"
+    "@types/lodash": "npm:^4.17.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     ethers: "npm:^6.17.0"
@@ -9358,7 +9358,7 @@ __metadata:
     "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
-    "@types/lodash": "npm:^4.17.20"
+    "@types/lodash": "npm:^4.17.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     debug: "npm:^4.3.4"
     deepmerge: "npm:^4.3.1"
@@ -12043,7 +12043,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/lodash@npm:*, @types/lodash@npm:^4.17.20":
+"@types/lodash@npm:*, @types/lodash@npm:^4.17.20, @types/lodash@npm:^4.17.25":
   version: 4.17.25
   resolution: "@types/lodash@npm:4.17.25"
   checksum: 10/f786e05664439cc8d327fd97c62c060d81b3c4ed52127d01fbc926139e1a669c1554bf3cd0dbb43f8fcc7d9b5c6c23c543cc36de8dc815c9f289ea852b26ebd6
