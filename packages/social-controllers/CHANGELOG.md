@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
+
 ### Added
 
 - Add `fetchTraderFeed` method to `SocialService` (and the `SocialService:fetchTraderFeed` messenger action) for one trader's activity as feed items. Calls `GET /traders/:addressOrId/feed` with optional `commentedOnly`, `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10408](https://github.com/MetaMask/core/pull/10408))
