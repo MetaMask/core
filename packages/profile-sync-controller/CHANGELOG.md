@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432), [#TBD](https://github.com/MetaMask/core/pull/TBD))
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432), [#10460](https://github.com/MetaMask/core/pull/10460))
   - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
   - Constant: `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
   - State: `stepUpSessionExpiresAt` is removed; call `getVerificationToken()` to check for a live verification session
