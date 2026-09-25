@@ -297,7 +297,7 @@ export class ConfigRegistryApiService {
     }
 
     const etag = response.headers.get('ETag') ?? undefined;
-    const jsonData = await response.json();
+    const jsonData: unknown = await response.json();
 
     validateRegistryConfigApiResponse(jsonData);
 
@@ -352,7 +352,7 @@ export class ConfigRegistryApiService {
     }
 
     const etag = response.headers.get('ETag') ?? undefined;
-    const jsonData = await response.json();
+    const jsonData: unknown = await response.json();
 
     validateRegistryEventsConfigApiResponse(jsonData);
 

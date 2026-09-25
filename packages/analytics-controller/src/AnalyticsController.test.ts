@@ -1300,7 +1300,9 @@ describe('AnalyticsController', () => {
         typeof rootMessenger
       >({ namespace: 'AnalyticsController', parent: rootMessenger });
 
-      const getStateMock = jest.fn(() => buildConfigRegistryState(eventsConfig));
+      const getStateMock = jest.fn(() =>
+        buildConfigRegistryState(eventsConfig),
+      );
       rootMessenger.registerActionHandler(
         'ConfigRegistryController:getState',
         getStateMock,

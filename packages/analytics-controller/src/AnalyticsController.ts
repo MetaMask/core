@@ -900,10 +900,11 @@ export class AnalyticsController extends BaseController<
         'ConfigRegistryController:stateChanged',
         (newState) => {
           if (
-            newState.configs.eventsConfig?.version !==
-            this.#eventsConfigVersion
+            newState.configs.eventsConfig?.version !== this.#eventsConfigVersion
           ) {
-            void this.#fetchEventsConfig();
+            this.#fetchEventsConfig().catch(
+              /* istanbul ignore next */ () => undefined,
+            );
           }
         },
       );
