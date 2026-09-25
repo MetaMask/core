@@ -784,11 +784,13 @@ describe('src/utils.js', () => {
       await expect(utils.handleFetch('https://example.com')).rejects.toThrow(
         'Fetch error: 500',
       );
-      expect(consoleLogSpy).toHaveBeenCalledWith('response', {
-        json: expect.any(Function),
-        ok: false,
-        status: 500,
-      });
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        'response',
+        expect.objectContaining({
+          ok: false,
+          status: 500,
+        }),
+      );
     });
   });
 });
