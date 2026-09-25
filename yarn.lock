@@ -9502,7 +9502,7 @@ __metadata:
     jest: "npm:^30.4.2"
     jest-when: "npm:^4.0.3"
     lodash: "npm:^4.17.21"
-    pony-cause: "npm:^2.1.10"
+    pony-cause: "npm:^2.1.11"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
     stdio-mock: "npm:^1.2.0"
@@ -23737,7 +23737,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pony-cause@npm:^2.1.10, pony-cause@npm:^2.1.9":
+"pony-cause@npm:^2.1.10, pony-cause@npm:^2.1.11, pony-cause@npm:^2.1.9":
   version: 2.1.11
   resolution: "pony-cause@npm:2.1.11"
   checksum: 10/ed7d0bb6e3e69f753080bf736b71f40e6ae4c13ec0c8c473ff73345345c088819966fdd68a62ad7482d464bf41176cf9421f5f63715d1a4532005eedc099db55
