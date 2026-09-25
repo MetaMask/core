@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Treat `assetsAccountsApiV6` as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
 
+## [16.1.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [16.1.1]
 
 ### Changed
@@ -1094,7 +1101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.2...HEAD
+[16.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.1...@metamask/assets-controller@16.1.2
 [16.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...@metamask/assets-controller@16.1.1
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...@metamask/assets-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0

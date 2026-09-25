@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+
 ### Changed
 
-- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432))
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432), [#10460](https://github.com/MetaMask/core/pull/10460))
   - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
-  - State and constant: `stepUpSessionExpiresAt` → `verificationSessionExpiresAt`, `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - Constant: `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - State: `stepUpSessionExpiresAt` is removed; call `getVerificationToken()` to check for a live verification session
   - Types: `ElevatedProfileToken` → `VerificationToken`, `GetElevatedTokenRequest` → `GetVerificationTokenRequest`, and `StepUp` becomes `Verification` in `BeginStepUpRequest`, `CompleteStepUpRequest`, `StepUpChallenge`, `StepUpProof` and `MfaStepUpAssertion`
   - Error: `ElevatedTokenInvalidError` (`elevated_token_invalid`) → `VerificationTokenInvalidError` (`verification_token_invalid`)
   - Trace spans: `MFA Step-Up Begin` / `Complete` → `MFA Verification Begin` / `Complete`
@@ -1017,7 +1020,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
 [32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1
 [32.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...@metamask/profile-sync-controller@32.3.0
 [32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
