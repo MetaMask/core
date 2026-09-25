@@ -6553,16 +6553,16 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 143
+      "count": 141
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 109
+      "count": 108
     },
     "typescript/no-unsafe-member-access": {
-      "count": 109
+      "count": 108
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-station.test.ts": {
@@ -6713,19 +6713,19 @@
   },
   "packages/transaction-pay-controller/src/utils/token.test.ts": {
     "no-unused-vars": {
-      "count": 4
+      "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 33
+      "count": 56
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 52
+      "count": 55
     },
     "typescript/no-unsafe-member-access": {
-      "count": 52
+      "count": 55
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {
@@ -6738,16 +6738,16 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 20
+      "count": 16
     },
     "typescript/no-unsafe-assignment": {
       "count": 25
     },
     "typescript/no-unsafe-call": {
-      "count": 51
+      "count": 41
     },
     "typescript/no-unsafe-member-access": {
-      "count": 23
+      "count": 19
     }
   },
   "packages/transaction-pay-controller/src/utils/transaction.ts": {

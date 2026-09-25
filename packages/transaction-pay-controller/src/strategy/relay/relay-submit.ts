@@ -574,9 +574,9 @@ function normalizeParams(
 /**
  * Validate the source token balance is sufficient for the relay deposit.
  *
- * Reads the live balance from TokenBalancesController and compares it against
- * the quote's required source amount to prevent submitting transactions that
- * will revert on-chain due to insufficient balance.
+ * Reads the live balance from the network and compares it against the quote's
+ * required source amount to prevent submitting transactions that will revert
+ * on-chain due to insufficient balance.
  *
  * @param quote - Relay quote containing the required source amount.
  * @param messenger - Controller messenger.
