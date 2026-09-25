@@ -68,7 +68,7 @@
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "deepmerge": "^4.2.2",
+    "deepmerge": "^4.3.1",
     "immer": "^11.1.18",
     "jest": "^30.4.2",
     "nock": "^13.5.6",

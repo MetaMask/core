@@ -214,7 +214,7 @@ function getNativeBalanceChange(
   }
 
   const { txParams } = request;
-  const userAddress = txParams.from as Hex;
+  const userAddress = txParams.from.toLowerCase() as Hex;
   const { stateDiff } = transactionResponse;
   const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
   const newBalance = stateDiff?.post?.[userAddress]?.balance;
@@ -223,11 +223,88 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  return getSimulationBalanceChange(
+  const gasCost = isGasCostDeductedFromSender(
+    txParams,
     previousBalance,
     newBalance,
-    transactionResponse.gasCost,
-  );
+    stateDiff,
+  )
+    ? transactionResponse.gasCost
+    : undefined;
+
+  return getSimulationBalanceChange(previousBalance, newBalance, gasCost);
+}
+
+/**
+ * Determine whether the simulated gas cost was deducted from the sender.
+ *
+ * The gas cost is reported whether or not the simulation charged it, so it can
+ * only be added back to the new balance when the sender actually paid it:
+ *
+ * - The sender is only charged when the simulated transaction specifies a fee
+ * per gas.
+ * - If the sender lost exactly the transaction value, gas was not charged.
+ * - Some chains credit the fee recipient without debiting the sender, which is
+ * detectable because it increases the total native balance.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param previousBalance - Sender native balance before the simulation.
+ * @param newBalance - Sender native balance after the simulation.
+ * @param stateDiff - Native balances before and after the simulation.
+ * @returns Whether the gas cost was deducted from the sender.
+ */
+function isGasCostDeductedFromSender(
+  txParams: TransactionParams,
+  previousBalance: Hex,
+  newBalance: Hex,
+  stateDiff: SimulationResponseTransaction['stateDiff'],
+): boolean {
+  const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
+    | Hex
+    | undefined;
+
+  if (!feePerGas || hexToBN(feePerGas).isZero()) {
+    return false;
+  }
+
+  const extraLoss = hexToBN(previousBalance)
+    .sub(hexToBN(newBalance))
+    .sub(hexToBN(txParams.value ?? '0x0'));
+
+  if (extraLoss.isZero()) {
+    return false;
+  }
+
+  return !isNativeBalanceCreated(stateDiff);
+}
+
+/**
+ * Determine whether a state diff increases the total native balance.
+ *
+ * Executing a transaction cannot create native balance, so a positive total
+ * means the simulation credited an account without debiting another.
+ *
+ * @param stateDiff - Native balances before and after the simulation.
+ * @returns Whether the total native balance increased.
+ */
+function isNativeBalanceCreated(
+  stateDiff: SimulationResponseTransaction['stateDiff'],
+): boolean {
+  const previousState = stateDiff?.pre ?? {};
+  const newState = stateDiff?.post ?? {};
+  const addresses = new Set([
+    ...Object.keys(previousState),
+    ...Object.keys(newState),
+  ]);
+
+  const totalBalanceChange = [...addresses].reduce((total, address) => {
+    const previousBalance = previousState[address as Hex]?.balance ?? '0x0';
+    const newBalance = newState[address as Hex]?.balance ?? '0x0';
+
+    return total.add(hexToBN(newBalance).sub(hexToBN(previousBalance)));
+  }, new BN(0));
+
+  return totalBalanceChange.gt(new BN(0));
 }
 
 /**
