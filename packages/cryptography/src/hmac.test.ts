@@ -51,7 +51,9 @@ describe('hmacSha256', () => {
   it('throws if the key is shorter than 32 bytes', async () => {
     await expect(
       hmacSha256(new Uint8Array(31), new Uint8Array(0)),
-    ).rejects.toThrow('Key must be at least 32 bytes for HMAC-SHA-256');
+    ).rejects.toThrow(
+      'Unsafe key length: Key must be at least 32 bytes for HMAC-SHA-256. To bypass this check, set the `unsafeKeyLength` option to `true`.',
+    );
   });
 });
 
@@ -95,7 +97,9 @@ describe('hmacSha384', () => {
   it('throws if the key is shorter than 48 bytes', async () => {
     await expect(
       hmacSha384(new Uint8Array(47), new Uint8Array(0)),
-    ).rejects.toThrow('Key must be at least 48 bytes for HMAC-SHA-384');
+    ).rejects.toThrow(
+      'Unsafe key length: Key must be at least 48 bytes for HMAC-SHA-384. To bypass this check, set the `unsafeKeyLength` option to `true`.',
+    );
   });
 });
 
@@ -139,6 +143,8 @@ describe('hmacSha512', () => {
   it('throws if the key is shorter than 64 bytes', async () => {
     await expect(
       hmacSha512(new Uint8Array(63), new Uint8Array(0)),
-    ).rejects.toThrow('Key must be at least 64 bytes for HMAC-SHA-512');
+    ).rejects.toThrow(
+      'Unsafe key length: Key must be at least 64 bytes for HMAC-SHA-512. To bypass this check, set the `unsafeKeyLength` option to `true`.',
+    );
   });
 });
