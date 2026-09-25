@@ -117,6 +117,79 @@ describe('Token Utils', () => {
       });
     });
 
+    it('ignores a cached asset ID once the asset leaves state', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+      const assetsInfo = {
+        [assetId]: {
+          decimals: DECIMALS_MOCK,
+          name: SYMBOL_MOCK,
+          symbol: SYMBOL_MOCK,
+          type: 'erc20',
+        },
+      };
+
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toBeDefined();
+
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('resolves an asset that appears in state after a failed lookup', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+      });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toStrictEqual({
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
+    });
+
+    it('returns undefined when no asset matches the token address', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_2_MOCK)]: {
+            decimals: 18,
+            name: 'OTHER',
+            symbol: 'OTHER',
+            type: 'erc20',
+          },
+        },
+      });
+
+      const result = getTokenInfo(
+        messenger,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
     it('skips non-matching assets when searching by lowercase address', () => {
       const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
 

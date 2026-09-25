@@ -19,6 +19,14 @@ import { rpcRequest } from './provider.js';
 const log = createModuleLogger(projectLogger, 'token');
 
 /**
+ * Resolved CAIP-19 asset IDs, keyed by chain ID and lower-cased address.
+ *
+ * An asset ID is a static property of its chain and address, so one resolved
+ * from any state snapshot stays correct for the lifetime of the process.
+ */
+const assetIds = new Map<string, CaipAssetType>();
+
+/**
  * Check if two tokens are the same (same address and chain).
  *
  * @param token1 - First token identifier.
@@ -402,6 +410,45 @@ export function normalizeTokenAddress(
 }
 
 /**
+ * Locate an asset's key in `AssetsController` state, reusing a previously
+ * resolved identifier.
+ *
+ * A cached identifier is still confirmed against the given state, since an
+ * asset `AssetsController` has not indexed yet is unresolvable no matter how
+ * its identifier would be spelled. That check is a keyed read, so the cache
+ * saves the scan below without letting a stale identifier through.
+ *
+ * Only resolved identifiers are cached, so an asset missing at first lookup is
+ * retried and picked up once `AssetsController` indexes it.
+ *
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param chainId - Hex chain ID.
+ * @param tokenAddress - Token address, or the native token address.
+ * @returns The CAIP-19 asset ID as keyed in state, or undefined when the asset
+ * is absent.
+ */
+function getControllerAssetId(
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  chainId: Hex,
+  tokenAddress: Hex,
+): CaipAssetType | undefined {
+  const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+  const cached = assetIds.get(cacheKey);
+
+  if (cached && assetsInfo[cached]) {
+    return cached;
+  }
+
+  const assetId = resolveControllerAssetId(assetsInfo, chainId, tokenAddress);
+
+  if (assetId) {
+    assetIds.set(cacheKey, assetId);
+  }
+
+  return assetId;
+}
+
+/**
  * Locate an asset's key in `AssetsController` state.
  *
  * An ERC-20 identifier is fully derivable from the chain and address, so the
@@ -424,7 +471,7 @@ export function normalizeTokenAddress(
  * @returns The CAIP-19 asset ID as keyed in state, or undefined when the asset
  * is absent.
  */
-function getControllerAssetId(
+function resolveControllerAssetId(
   assetsInfo: AssetsControllerState['assetsInfo'],
   chainId: Hex,
   tokenAddress: Hex,
