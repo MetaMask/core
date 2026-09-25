@@ -571,9 +571,11 @@ export class RpcDataSource extends AbstractDataSource<
     });
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response, request)?.catch((error) => {
-        log('Failed to update assets', { error });
-      });
+      subscription
+        .onAssetsUpdate(response, request)
+        ?.catch((error: unknown) => {
+          log('Failed to update assets', { error });
+        });
     }
   }
 
@@ -684,9 +686,11 @@ export class RpcDataSource extends AbstractDataSource<
     });
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response, request)?.catch((error) => {
-        log('Failed to update assets', { error });
-      });
+      subscription
+        .onAssetsUpdate(response, request)
+        ?.catch((error: unknown) => {
+          log('Failed to update assets', { error });
+        });
     }
   }
 
@@ -761,9 +765,11 @@ export class RpcDataSource extends AbstractDataSource<
     };
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response, request)?.catch((error) => {
-        log('Failed to update detected assets', { error });
-      });
+      subscription
+        .onAssetsUpdate(response, request)
+        ?.catch((error: unknown) => {
+          log('Failed to update detected assets', { error });
+        });
     }
   }
 
@@ -794,7 +800,7 @@ export class RpcDataSource extends AbstractDataSource<
     }
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
     this.#refreshBalanceForChains([caipChainId], 'transactionConfirmed').catch(
-      (error) => {
+      (error: unknown) => {
         log('Failed to refresh balance after transaction confirmed', { error });
       },
     );

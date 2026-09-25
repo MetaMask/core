@@ -1,7 +1,6 @@
 import type { CaipAssetType } from '@metamask/utils';
 
 import { getDefaultTrackedAssetsForChain } from '../../../defaults.js';
-import type { ChainId as AssetsChainId } from '../../../types.js';
 import type { MulticallClient } from '../clients/index.js';
 import type {
   Address,
@@ -323,9 +322,7 @@ describe('BalanceFetcher', () => {
     });
 
     it('on the v6 path polls default tracked assets even when they have no assetsBalance entry', async () => {
-      const [mainnetMusd] = getDefaultTrackedAssetsForChain(
-        'eip155:1' as AssetsChainId,
-      );
+      const [mainnetMusd] = getDefaultTrackedAssetsForChain('eip155:1');
       const musdAddress = mainnetMusd.split(':').at(-1)?.toLowerCase() ?? '';
 
       const mockState: AssetsBalanceState = {

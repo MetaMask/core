@@ -22,7 +22,6 @@ import { getAssetVisibility } from '../utils/assetVisibility.js';
 import { normalizeAssetId } from '../utils/index.js';
 import { BalanceFetcher, TokenDetector } from './evm-rpc-services/index.js';
 import type {
-  Address,
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/index.js';
@@ -563,7 +562,9 @@ describe('RpcDataSource', () => {
     });
 
     it('returns empty balances when Multicall aggregate3 fails after retries', async () => {
-      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
       jest.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
 
       const mockCall = jest
@@ -573,7 +574,7 @@ describe('RpcDataSource', () => {
       const mockGetBalance = jest
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
-      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+      Web3Provider.mockImplementationOnce(() => ({
         call: mockCall,
         getBalance: mockGetBalance,
       }));
@@ -588,7 +589,9 @@ describe('RpcDataSource', () => {
 
     it('uses getBalance when Multicall aggregate3 fails after retries', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
-      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
       const mockCall = jest
         .fn()
         .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
@@ -597,7 +600,7 @@ describe('RpcDataSource', () => {
       const mockGetBalance = jest
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
-      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+      Web3Provider.mockImplementationOnce(() => ({
         call: mockCall,
         getBalance: mockGetBalance,
       }));
@@ -700,9 +703,7 @@ describe('RpcDataSource', () => {
                     timestamp: Date.now(),
                   },
                 ],
-                failedAddresses: [
-                  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Address,
-                ],
+                failedAddresses: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
               }),
             );
           const response = await controller.fetch(createDataRequest());
@@ -725,8 +726,10 @@ describe('RpcDataSource', () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
-      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
-      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
+      Web3Provider.mockImplementationOnce(() => ({
         getBalance: jest
           .fn()
           .mockResolvedValue({ toString: () => '1000000000000000000' }),
@@ -792,8 +795,10 @@ describe('RpcDataSource', () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
       const normalizedErc20Id = normalizeAssetId(erc20AssetId);
-      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
-      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
+      Web3Provider.mockImplementationOnce(() => ({
         getBalance: jest
           .fn()
           .mockResolvedValue({ toString: () => '1000000000000000000' }),
@@ -2159,9 +2164,7 @@ describe('RpcDataSource', () => {
                   balance: '1000000000000000000',
                 } as BalanceFetchResult['balances'][0],
               ],
-              failedAddresses: [
-                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Address,
-              ],
+              failedAddresses: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
             }),
           );
         },

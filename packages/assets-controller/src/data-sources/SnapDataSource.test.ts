@@ -172,26 +172,30 @@ function createMockHandleRequest(
   accountAssets: string[] = [],
   balances: Record<string, Balance> = {},
 ): jest.Mock {
-  return jest.fn().mockImplementation((params) => {
-    const { request } = params;
-    if (request?.method === 'keyring_listAccountAssets') {
-      return Promise.resolve(accountAssets);
-    }
-    if (request?.method === 'keyring_getAccountBalances') {
-      const requested = request.params?.assets as string[] | undefined;
-      if (!requested) {
-        return Promise.resolve(balances);
+  return jest.fn(
+    (params: {
+      request?: { method?: string; params?: { assets?: string[] } };
+    }) => {
+      const { request } = params;
+      if (request?.method === 'keyring_listAccountAssets') {
+        return Promise.resolve(accountAssets);
       }
-      return Promise.resolve(
-        Object.fromEntries(
-          requested
-            .filter((assetId) => balances[assetId])
-            .map((assetId) => [assetId, balances[assetId]]),
-        ),
-      );
-    }
-    return Promise.resolve(null);
-  });
+      if (request?.method === 'keyring_getAccountBalances') {
+        const requested = request.params?.assets;
+        if (!requested) {
+          return Promise.resolve(balances);
+        }
+        return Promise.resolve(
+          Object.fromEntries(
+            requested
+              .filter((assetId) => balances[assetId])
+              .map((assetId) => [assetId, balances[assetId]]),
+          ),
+        );
+      }
+      return Promise.resolve(null);
+    },
+  );
 }
 
 function setupController(

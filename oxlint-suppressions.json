@@ -407,19 +407,16 @@
       "count": 3
     },
     "typescript/no-unsafe-assignment": {
-      "count": 17
+      "count": 22
     },
     "typescript/no-unsafe-call": {
-      "count": 26
+      "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 19
     }
   },
   "packages/assets-controller/src/AssetsController.ts": {
-    "no-unused-vars": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 5
     }
@@ -472,10 +469,10 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 6
+      "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 8
+      "count": 14
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -493,19 +490,11 @@
     "id-length": {
       "count": 4
     },
-    "no-unused-vars": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 14
+      "count": 12
     },
     "typescript/no-unsafe-member-access": {
       "count": 15
-    }
-  },
-  "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 3
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
@@ -513,10 +502,13 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
@@ -613,26 +605,6 @@
   "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
-    }
-  },
-  "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 11
-    },
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 22
-    },
-    "typescript/no-unsafe-return": {
-      "count": 24
     }
   },
   "packages/assets-controller/src/migrations/healAssetsInfoMetadata.test.ts": {

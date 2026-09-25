@@ -3090,11 +3090,7 @@ export class AssetsController extends BaseController<
             const effectiveAccountBalances = effectiveAccountBalancesV6(
               previousBalances,
               accountBalances,
-              this.#getUndeletableAssetIds(
-                state as AssetsControllerState,
-                accountId,
-                accountBalances,
-              ),
+              this.#getUndeletableAssetIds(state, accountId, accountBalances),
               mode,
             );
 

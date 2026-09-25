@@ -60,7 +60,7 @@ export async function executeAssetsPipeline(
   const inclusive: number[] = [];
   const wrapped = middlewares.map(
     (middleware, i) =>
-      (async (ctx: FetchContext, next: FetchNextFunction): Promise<Context> => {
+      async (ctx: FetchContext, next: FetchNextFunction): Promise<Context> => {
         const start = performance.now();
         try {
           return await middleware(ctx, next);

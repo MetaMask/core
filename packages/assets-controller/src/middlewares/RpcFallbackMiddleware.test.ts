@@ -8,6 +8,8 @@ import type {
   Context,
   DataRequest,
   DataResponse,
+  Middleware,
+  NextFunction,
 } from '../types.js';
 import { RpcFallbackMiddleware } from './RpcFallbackMiddleware.js';
 
@@ -81,11 +83,15 @@ function createContext(
     assetPreferences: stateOverrides.assetPreferences ?? {},
     assetsPrice: {},
     selectedCurrency: 'usd',
-  } as AssetsControllerState;
+  };
   return {
     request,
     response,
   };
+}
+
+function createNext(): jest.MockedFunction<NextFunction> {
+  return jest.fn(async (innerCtx) => innerCtx);
 }
 
 function createFallback(
@@ -101,12 +107,14 @@ function createFallback(
 
 function createMockRpcSource(response: DataResponse = {}): {
   source: AssetsDataSource;
-  middleware: jest.Mock;
+  middleware: jest.MockedFunction<Middleware>;
 } {
-  const middleware = jest.fn(async (ctx, next) => {
-    ctx.response = response;
-    return next(ctx);
-  });
+  const middleware: jest.MockedFunction<Middleware> = jest.fn(
+    async (ctx, next) => {
+      ctx.response = response;
+      return next(ctx);
+    },
+  );
   const source: AssetsDataSource = {
     getName: () => 'RpcDataSource',
     get assetsMiddleware() {
@@ -129,7 +137,7 @@ describe('RpcFallbackMiddleware', () => {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
       },
     });
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -151,7 +159,7 @@ describe('RpcFallbackMiddleware', () => {
       },
       errors: { 'eip155:137': 'Unprocessed by Accounts API' },
     });
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -174,7 +182,7 @@ describe('RpcFallbackMiddleware', () => {
       },
       errors: { 'eip155:137': 'Unprocessed by Accounts API' },
     });
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -196,7 +204,7 @@ describe('RpcFallbackMiddleware', () => {
     const ctx = createContext(createDataRequest(['eip155:137']), {
       errors: { 'eip155:137': 'Fetch failed: oops' },
     });
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -210,7 +218,7 @@ describe('RpcFallbackMiddleware', () => {
     const ctx = createContext(createDataRequest(['eip155:137']), {
       errors: { 'eip155:137': 'Fetch failed: oops' },
     });
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -233,7 +241,7 @@ describe('RpcFallbackMiddleware', () => {
       },
       errors: { 'eip155:137': 'Unprocessed by Accounts API' },
     });
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -253,7 +261,7 @@ describe('RpcFallbackMiddleware', () => {
       },
       { errors: { 'eip155:1': 'something' } },
     );
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -281,7 +289,7 @@ describe('RpcFallbackMiddleware', () => {
         },
       },
     );
-    const next = jest.fn(async (innerCtx) => innerCtx);
+    const next = createNext();
 
     await mw.assetsMiddleware(ctx, next);
 
@@ -310,7 +318,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -336,7 +344,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -367,7 +375,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -404,7 +412,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -424,7 +432,7 @@ describe('RpcFallbackMiddleware', () => {
         {},
         { customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] } },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -447,7 +455,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -471,7 +479,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -490,7 +498,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -509,7 +517,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -528,7 +536,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -549,7 +557,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -588,7 +596,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -613,7 +621,7 @@ describe('RpcFallbackMiddleware', () => {
       const ctx = createContext(createDataRequest(['eip155:137']), {
         errors: { 'eip155:137': 'Unprocessed by Accounts API' },
       });
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -652,7 +660,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -686,7 +694,7 @@ describe('RpcFallbackMiddleware', () => {
         ],
       };
       const ctx = createContext(request, {}, { assetsBalance: stateBalances });
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -734,7 +742,7 @@ describe('RpcFallbackMiddleware', () => {
           customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_POLYGON] },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -757,7 +765,7 @@ describe('RpcFallbackMiddleware', () => {
           assetPreferences: { [MOCK_ERC20_POLYGON]: { hidden: true } },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -779,7 +787,7 @@ describe('RpcFallbackMiddleware', () => {
         },
         errors: { 'eip155:137': 'Unresolved includeAssetIds' },
       });
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -798,7 +806,7 @@ describe('RpcFallbackMiddleware', () => {
       const ctx = createContext(createDataRequest(['eip155:137']), {
         errors: { 'eip155:137': 'Unresolved includeAssetIds' },
       });
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -831,7 +839,7 @@ describe('RpcFallbackMiddleware', () => {
           },
         },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 
@@ -851,10 +859,10 @@ describe('RpcFallbackMiddleware', () => {
         {
           ...createDataRequest(['eip155:1']),
           dataTypes: ['metadata'],
-        } as DataRequest,
+        },
         { errors: { 'eip155:1': 'something' } },
       );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+      const next = createNext();
 
       await mw.assetsMiddleware(ctx, next);
 

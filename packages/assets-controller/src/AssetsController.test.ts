@@ -39,6 +39,7 @@ import type {
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
+  Middleware,
 } from './types.js';
 import {
   formatExchangeRatesForBridge,
@@ -106,9 +107,8 @@ const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 /** mUSD on mainnet — a controller-managed default tracked asset. */
-const [MOCK_DEFAULT_TRACKED_ASSET_ID] = getDefaultTrackedAssetsForChain(
-  'eip155:1' as ChainId,
-);
+const [MOCK_DEFAULT_TRACKED_ASSET_ID] =
+  getDefaultTrackedAssetsForChain('eip155:1');
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
@@ -117,14 +117,15 @@ const [MOCK_DEFAULT_TRACKED_ASSET_ID] = getDefaultTrackedAssetsForChain(
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
+type LifecyclePublish = (topic: string, payload?: unknown) => void;
+
 async function activateTracking(messenger: RootMessenger): Promise<void> {
-  (
-    messenger as unknown as {
-      publish: (topic: string, payload?: unknown) => void;
-    }
-  ).publish('ClientController:stateChanged', { isUiOpen: true });
+  (messenger as unknown as { publish: LifecyclePublish }).publish(
+    'ClientController:stateChanged',
+    { isUiOpen: true },
+  );
   messenger.publish('KeyringController:unlock');
-  (messenger.publish as CallableFunction)(
+  (messenger as unknown as { publish: LifecyclePublish }).publish(
     'AccountTreeController:initialized',
     {},
   );
@@ -533,7 +534,7 @@ describe('AssetsController', () => {
 
         // Action handlers should be registered
         expect(() => {
-          (messenger.call as CallableFunction)(
+          (messenger as unknown as { call: LifecyclePublish }).call(
             'AssetsController:getCustomAssets',
             MOCK_ACCOUNT_ID,
           );
@@ -1714,10 +1715,12 @@ describe('AssetsController', () => {
         'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
 
       const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
-        capturedCustomAssets.push(ctx.request.customAssets);
-        return next(ctx);
-      });
+      const accountsApiMiddleware: jest.MockedFunction<Middleware> = jest.fn(
+        async (ctx, next) => {
+          capturedCustomAssets.push(ctx.request.customAssets);
+          return next(ctx);
+        },
+      );
       const middlewareGetter = jest
         .spyOn(
           AccountsApiDataSource.prototype,
@@ -2006,13 +2009,15 @@ describe('AssetsController', () => {
           chainIds: ChainId[];
           customAssets: Caip19AssetId[] | undefined;
         }[] = [];
-        const rpcMiddleware = jest.fn(async (ctx, next) => {
-          rpcRequests.push({
-            chainIds: ctx.request.chainIds,
-            customAssets: ctx.request.customAssets,
-          });
-          return next(ctx);
-        });
+        const rpcMiddleware: jest.MockedFunction<Middleware> = jest.fn(
+          async (ctx, next) => {
+            rpcRequests.push({
+              chainIds: ctx.request.chainIds,
+              customAssets: ctx.request.customAssets,
+            });
+            return next(ctx);
+          },
+        );
         const rpcMiddlewareGetter = jest
           .spyOn(
             RpcDataSource.prototype,
@@ -2840,7 +2845,7 @@ describe('AssetsController', () => {
       // websocket does not take include/exclude lists.
       jest
         .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
-        .mockReturnValue(['eip155:1' as ChainId]);
+        .mockReturnValue(['eip155:1']);
       const wsSubscribeSpy = jest
         .spyOn(AccountActivityDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
@@ -3881,7 +3886,7 @@ describe('AssetsController', () => {
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
             {},
           );
@@ -4439,7 +4444,7 @@ describe('AssetsController', () => {
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
             {},
           );
@@ -4556,7 +4561,7 @@ describe('AssetsController', () => {
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
             {},
           );
@@ -4618,7 +4623,7 @@ describe('AssetsController', () => {
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
             {},
           );
@@ -4659,7 +4664,7 @@ describe('AssetsController', () => {
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
             {},
           );
@@ -4720,7 +4725,7 @@ describe('AssetsController', () => {
           // #runStartupRefresh(), whose forced getAssets() call is still
           // pending (it never resolves until we call resolveGetAssets below).
           messenger.publish('KeyringController:unlock');
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
             {},
           );
@@ -4814,7 +4819,7 @@ describe('AssetsController', () => {
         // Action handlers should be unregistered
         expect(() => {
           // The handler is unregistered, so calling it should throw
-          (messenger.call as CallableFunction)(
+          (messenger as unknown as { call: LifecyclePublish }).call(
             'AssetsController:getAssets',
             createMockInternalAccount(),
           );
@@ -4828,7 +4833,7 @@ describe('AssetsController', () => {
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -4870,7 +4875,9 @@ describe('AssetsController', () => {
           }),
         ]);
 
-        (controller.messenger.publish as CallableFunction)(
+        (
+          controller.messenger as unknown as { publish: LifecyclePublish }
+        ).publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -4908,7 +4915,9 @@ describe('AssetsController', () => {
           }),
         ]);
 
-        (controller.messenger.publish as CallableFunction)(
+        (
+          controller.messenger as unknown as { publish: LifecyclePublish }
+        ).publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -4938,7 +4947,7 @@ describe('AssetsController', () => {
 
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -4957,7 +4966,7 @@ describe('AssetsController', () => {
 
         await new Promise(process.nextTick);
 
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
@@ -4981,11 +4990,11 @@ describe('AssetsController', () => {
 
     it('refreshes assets when a network is added or removed', async () => {
       await withController(async ({ messenger }) => {
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkController:networkAdded',
           { chainId: '0x89' },
         );
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkController:networkRemoved',
           { chainId: '0x89' },
         );
@@ -5102,7 +5111,7 @@ describe('AssetsController', () => {
           }
         ).publish('ClientController:stateChanged', { isUiOpen: true });
         messenger.publish('KeyringController:unlock');
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:initialized',
           {},
         );
@@ -5112,7 +5121,7 @@ describe('AssetsController', () => {
         fetchV2SupportedNetworks.mockClear();
 
         selectedNetworkClientId = 'mainnet';
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
@@ -5147,7 +5156,7 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockClear();
 
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/1',
           'entropy:mock-keyring-id-1/0',
@@ -5164,7 +5173,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
           '',
           'entropy:mock-keyring-id-1/0',
@@ -5189,7 +5198,7 @@ describe('AssetsController', () => {
         messenger.publish('KeyringController:unlock');
         await flushPromises();
 
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           '',
@@ -5198,7 +5207,7 @@ describe('AssetsController', () => {
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:initialized',
           {},
         );
@@ -5219,7 +5228,7 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockClear();
 
-        (messenger.publish as CallableFunction)(
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           'entropy:mock-keyring-id-1/0',
@@ -5318,7 +5327,7 @@ describe('AssetsController', () => {
 
       // Intermediate tree mutations during init must not start tracking.
       getAccountsMock.mockReturnValue([createMockInternalAccount()]);
-      (messenger.publish as CallableFunction)(
+      (messenger as unknown as { publish: LifecyclePublish }).publish(
         'AccountTreeController:stateChange',
         {},
         [],
@@ -5328,7 +5337,7 @@ describe('AssetsController', () => {
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
       // Step 2: AccountTreeController.init() completes — tree is ready
-      (messenger.publish as CallableFunction)(
+      (messenger as unknown as { publish: LifecyclePublish }).publish(
         'AccountTreeController:initialized',
         {},
       );

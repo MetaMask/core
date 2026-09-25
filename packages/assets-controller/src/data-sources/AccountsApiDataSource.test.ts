@@ -1389,7 +1389,7 @@ describe('AccountsApiDataSource', () => {
       const solanaToken =
         `${solanaChain}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` as Caip19AssetId;
       const { controller, apiClient } = await setupController({
-        supportedChains: [1, solanaChain as unknown as number],
+        supportedChains: [1, solanaChain],
         remoteFeatureFlags: {
           assetsAccountsApiV6: true,
           [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
@@ -1422,7 +1422,7 @@ describe('AccountsApiDataSource', () => {
       const solanaToken =
         `${solanaChain}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` as Caip19AssetId;
       const { controller, apiClient } = await setupController({
-        supportedChains: [1, solanaChain as unknown as number],
+        supportedChains: [1, solanaChain],
         remoteFeatureFlags: {
           assetsAccountsApiV6: true,
           [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
