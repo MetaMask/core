@@ -139,7 +139,7 @@ function createMockInternalAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 type WithControllerOptions = {
@@ -1042,9 +1042,9 @@ describe('AssetsController', () => {
 
     it('throws when accountId is empty', async () => {
       await withController(({ controller }) => {
-        expect(() =>
-          controller.getAccountAssetByID('' as AccountId, MOCK_ASSET_ID),
-        ).toThrow('accountId must be a non-empty string');
+        expect(() => controller.getAccountAssetByID('', MOCK_ASSET_ID)).toThrow(
+          'accountId must be a non-empty string',
+        );
       });
     });
 
@@ -1181,7 +1181,7 @@ describe('AssetsController', () => {
     it('throws when accountId is empty', async () => {
       await withController(({ controller }) => {
         expect(() =>
-          controller.getAccountAssetsByIDs('' as AccountId, [MOCK_ASSET_ID]),
+          controller.getAccountAssetsByIDs('', [MOCK_ASSET_ID]),
         ).toThrow('accountId must be a non-empty string');
       });
     });
@@ -1309,7 +1309,7 @@ describe('AssetsController', () => {
     it('throws when accountId is empty', async () => {
       await withController(({ controller }) => {
         expect(() =>
-          controller.getAccountAssetsByScope('' as AccountId, 'eip155:1'),
+          controller.getAccountAssetsByScope('', 'eip155:1'),
         ).toThrow('accountId must be a non-empty string');
       });
     });
@@ -1383,7 +1383,7 @@ describe('AssetsController', () => {
               // Simulate Sentry/adapter failure after the span callback finishes.
               throw new Error('telemetry failed');
             }
-            return undefined;
+            return;
           },
         );
       const trace = traceMock as unknown as TraceCallback;
@@ -1783,10 +1783,10 @@ describe('AssetsController', () => {
           accountsWithSupportedChains: [
             {
               account: createMockInternalAccount(),
-              supportedChains: ['eip155:1' as ChainId],
+              supportedChains: ['eip155:1'],
             },
           ],
-          chainIds: ['eip155:1' as ChainId],
+          chainIds: ['eip155:1'],
           dataTypes: ['balance'],
         };
 
@@ -1846,7 +1846,7 @@ describe('AssetsController', () => {
               await fn({ id: 'parent' });
               throw new Error('telemetry failed');
             }
-            return undefined;
+            return;
           },
         );
       const trace = traceMock as unknown as TraceCallback;
@@ -3391,7 +3391,7 @@ describe('AssetsController', () => {
                 request.parentContext === undefined ? parentSpan : undefined,
               );
             }
-            return undefined;
+            return;
           },
         );
       const trace = traceMock as unknown as TraceCallback;
@@ -3766,7 +3766,7 @@ describe('AssetsController', () => {
             id: solanaAccountId,
             address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
             type: 'solana:data-account',
-            scopes: [solanaChainId as `${string}:${string}`],
+            scopes: [solanaChainId],
           }),
         ]);
 
@@ -3804,7 +3804,7 @@ describe('AssetsController', () => {
             id: stellarAccountId,
             address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
             type: 'stellar:data-account',
-            scopes: [stellarChainId as `${string}:${string}`],
+            scopes: [stellarChainId],
           }),
         ]);
 
@@ -3906,7 +3906,7 @@ describe('AssetsController', () => {
           [sepoliaHex]: { chainId: sepoliaHex },
           [mainnetHex]: { chainId: mainnetHex },
         } as NetworkState['networkConfigurationsByChainId'],
-        networksMetadata: {} as NetworkState['networksMetadata'],
+        networksMetadata: {},
         selectedNetworkClientId,
       });
 
@@ -3937,7 +3937,7 @@ describe('AssetsController', () => {
           enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
           nativeAssetIdentifiers: {
             'eip155:1': MOCK_NATIVE_ASSET_ID,
-            'eip155:11155111': 'eip155:11155111/slip44:60' as Caip19AssetId,
+            'eip155:11155111': 'eip155:11155111/slip44:60',
           },
         }),
       );
@@ -4168,8 +4168,7 @@ describe('AssetsController', () => {
         () => ({
           enabledNetworkMap: { eip155: { '1': true } },
           nativeAssetIdentifiers: {
-            'eip155:1':
-              'eip155:1/slip44:60' as `${string}:${string}/slip44:${number}`,
+            'eip155:1': 'eip155:1/slip44:60',
           },
         }),
       );

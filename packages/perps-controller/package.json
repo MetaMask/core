@@ -92,7 +92,7 @@
     "@metamask/profile-sync-controller": "^33.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/subscription-controller": "^10.0.1",
-    "@metamask/transaction-controller": "^72.0.0",
+    "@metamask/transaction-controller": "^72.0.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",

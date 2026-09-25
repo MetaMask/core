@@ -63,7 +63,7 @@ export async function executeAssetsPipeline(
   const inclusive: number[] = [];
   const wrapped = middlewares.map(
     (middleware, i) =>
-      (async (
+      async (
         ctx: FetchContext,
         next: FetchNextFunction,
       ): Promise<{
@@ -77,7 +77,7 @@ export async function executeAssetsPipeline(
         } finally {
           inclusive[i] = performance.now() - start;
         }
-      }) as Middleware,
+      },
   );
 
   const middlewareErrors: string[] = [];

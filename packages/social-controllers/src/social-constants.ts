@@ -38,6 +38,9 @@ export const SocialServiceErrorMessage = {
   FETCH_TRADER_FEED_FAILED: 'SocialService: Trader feed request failed',
   FETCH_TRADER_FEED_INVALID_RESPONSE:
     'SocialService: Trader feed returned invalid response',
+  FETCH_TOKEN_FEED_FAILED: 'SocialService: Token feed request failed',
+  FETCH_TOKEN_FEED_INVALID_RESPONSE:
+    'SocialService: Token feed returned invalid response',
   REACT_TO_COMMENT_FAILED: 'SocialService: Comment reaction request failed',
   REACT_TO_COMMENT_INVALID_RESPONSE:
     'SocialService: Comment reaction returned invalid response',

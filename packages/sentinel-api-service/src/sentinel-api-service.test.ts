@@ -625,7 +625,7 @@ describe('SentinelApiService', () => {
       await expect(
         service.submitRelayTransaction({
           ...MOCK_RELAY_REQUEST,
-          chainId: '0xa' as Hex,
+          chainId: '0xa',
         }),
       ).rejects.toThrow(SentinelChainNotSupportedError);
       service.destroy();
@@ -782,7 +782,7 @@ describe('SentinelApiService', () => {
       mockNetworks();
 
       await expect(
-        service.getSmartTransaction({ chainId: '0xa' as Hex, uuid: UUID }),
+        service.getSmartTransaction({ chainId: '0xa', uuid: UUID }),
       ).rejects.toThrow(SentinelChainNotSupportedError);
       service.destroy();
     });

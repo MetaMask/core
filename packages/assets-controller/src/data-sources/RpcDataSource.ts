@@ -303,11 +303,8 @@ export class RpcDataSource extends AbstractDataSource<
         // eslint-disable-next-line no-restricted-syntax
         const state = this.#messenger.call('AssetsController:getState');
         return {
-          assetsBalance: (state.assetsBalance ?? {}) as Record<
-            string,
-            Record<string, { amount: string }>
-          >,
-          customAssets: (state.customAssets ?? {}) as Record<string, string[]>,
+          assetsBalance: state.assetsBalance ?? {},
+          customAssets: state.customAssets ?? {},
         };
       },
     };

@@ -1,5 +1,3 @@
-#!yarn tsx
-
 import { execa } from 'execa';
 import fs from 'fs';
 import path from 'path';
@@ -62,7 +60,7 @@ async function main(): Promise<void> {
         'README content is out of date. Run `yarn readme-content:update` to update it.',
       );
       // `process` is a constant.
-      // eslint-disable-next-line require-atomic-updates
+      // oxlint-disable-next-line require-atomic-updates
       process.exitCode = 1;
     }
   } else {

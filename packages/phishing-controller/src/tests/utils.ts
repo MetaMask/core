@@ -58,9 +58,9 @@ export const createMockTokenBalanceChange = (
 ) => ({
   address,
   standard: options.standard ?? SimulationTokenStandard.erc20,
-  difference: options.difference ?? ('0xde0b6b3a7640000' as `0x${string}`),
-  previousBalance: options.previousBalance ?? ('0x0' as `0x${string}`),
-  newBalance: options.newBalance ?? ('0xde0b6b3a7640000' as `0x${string}`),
+  difference: options.difference ?? '0xde0b6b3a7640000',
+  previousBalance: options.previousBalance ?? '0x0',
+  newBalance: options.newBalance ?? '0xde0b6b3a7640000',
   isDecrease: options.isDecrease ?? false,
 });
 
@@ -90,9 +90,9 @@ export const createMockTransaction = (
     txParams: {
       from: TEST_ADDRESSES.FROM_ADDRESS,
       to: TEST_ADDRESSES.TO_ADDRESS,
-      value: '0x0' as `0x${string}`,
+      value: '0x0',
     },
-    chainId: '0x1' as `0x${string}`,
+    chainId: '0x1',
     id,
     networkClientId: 'mainnet',
     status: TransactionStatus.unapproved,

@@ -32,7 +32,7 @@ export const normalizeAssetId: ((assetId: Caip19AssetId) => Caip19AssetId) &
     parsed.assetNamespace === 'erc20'
   ) {
     const checksummedAddress = toChecksumAddress(parsed.assetReference);
-    return `${parsed.chainId}/${parsed.assetNamespace}:${checksummedAddress}` as Caip19AssetId;
+    return `${parsed.chainId}/${parsed.assetNamespace}:${checksummedAddress}`;
   }
 
   return assetId;

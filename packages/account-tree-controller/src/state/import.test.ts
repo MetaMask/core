@@ -83,7 +83,7 @@ const MNEMONIC_PAYLOAD = makeAccountTreePayload(
  * @returns context, mocks (per-action jest.fn()s), and the mutable walletsRef.
  */
 function setup({
-  wallets = {} as AccountTreeControllerState['accountTree']['wallets'],
+  wallets = {},
 }: {
   wallets?: AccountTreeControllerState['accountTree']['wallets'];
 } = {}): {
@@ -143,7 +143,7 @@ function setup({
             ...args,
           );
         default:
-          return undefined;
+          return;
       }
     }),
   } as unknown as AccountTreeControllerMessenger;

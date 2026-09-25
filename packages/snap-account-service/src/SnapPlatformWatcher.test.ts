@@ -67,7 +67,7 @@ function setup(
   );
   mocks.SnapController.getState.mockReturnValue({
     isReady: false,
-  } as SnapControllerState);
+  });
 
   const messenger = getMessenger(rootMessenger);
   const watcher = new SnapPlatformWatcher(messenger);

@@ -243,7 +243,7 @@ export async function isAtomicBatchSupported(
           };
         } catch (error) {
           log('Error checking atomic batch support', chainId, error);
-          return undefined;
+          return;
         }
       }),
     );
@@ -850,7 +850,7 @@ async function processTransactionWithHook(
     publishHook(transactionMeta, signedTransaction)
       .then((hookResult) => {
         onPublish?.(hookResult);
-        return undefined;
+        return;
       })
       .catch(() => {
         // Intentionally empty
