@@ -1,6 +1,6 @@
 # Releasing changes
 
-Have changes that you need to release? There are a few things to understand:
+## What to know
 
 - The responsibility of maintenance is not the only thing shared among multiple teams at MetaMask; releases are as well. That means **if you work on a team that has codeownership over a package, you are free to create a new release without needing the Wallet Framework team to do so.**
 - Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
@@ -8,13 +8,11 @@ Have changes that you need to release? There are a few things to understand:
 - The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
 - Breaking changes take special consideration. [Read the guide](./breaking-changes.md) on how to prepare and handle them effectively.
 
-Now for the process itself, you have two options: using our interactive UI (recommended for most users) or manual specification.
+## How to create a release
 
-### Option A: Interactive Mode (Recommended)
+### Option A: GUI
 
-This option provides a visual interface to streamline the release process:
-
-1. **Start the interactive release tool.**
+1. **Start the release tool.**
 
    On the `main` branch, run:
 
@@ -84,9 +82,7 @@ This option provides a visual interface to streamline the release process:
 
 > **Tip:** You can specify a different port if needed: `yarn create-release-branch -i -p 3001`
 
-### Option B: Manual Release Specification
-
-If you prefer more direct control over the release process:
+### Option B: CLI
 
 1. **Start by creating the release branch.**
 
