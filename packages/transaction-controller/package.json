@@ -56,7 +56,7 @@
     "@ethereumjs/util": "^9.1.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/wallet": "^5.7.0",
+    "@ethersproject/wallet": "^5.8.0",
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/approval-controller": "^10.0.0",
     "@metamask/base-controller": "^10.0.0",

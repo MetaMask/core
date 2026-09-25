@@ -3879,7 +3879,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/wallet@npm:^5.7.0":
+"@ethersproject/wallet@npm:^5.8.0":
   version: 5.8.0
   resolution: "@ethersproject/wallet@npm:5.8.0"
   dependencies:
@@ -9201,7 +9201,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
-    "@ethersproject/wallet": "npm:^5.7.0"
+    "@ethersproject/wallet": "npm:^5.8.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
