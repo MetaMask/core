@@ -949,7 +949,8 @@ export class SignatureController extends BaseController<
 
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
-      callback(state);
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
+      callback(state as unknown as SignatureControllerState);
 
       const unapprovedRequests = Object.values(state.signatureRequests).filter(
         (request) => request.status === SignatureRequestStatus.Unapproved,
