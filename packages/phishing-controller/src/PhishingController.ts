@@ -393,7 +393,7 @@ export type PhishingControllerState = {
  * tokenScanCacheMaxSize - Maximum number of entries in the token scan cache.
  * addressScanCacheTTL - Time to live in seconds for cached address scan results.
  * addressScanCacheMaxSize - Maximum number of entries in the address scan cache.
- * platform - Client emitting URL scans, reported via the `x-request-source` header.
+ * platform - Client used to attribute URL scans in the `x-request-source` header.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
@@ -548,9 +548,8 @@ export class PhishingController extends BaseController<
    * @param config.addressScanCacheMaxSize - Maximum number of entries in the address scan cache.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
-   * @param config.platform - Client emitting URL scans, reported via the
-   * `x-request-source` header. When omitted, URL scans report an unattributed
-   * sentinel instead.
+   * @param config.platform - Client used to attribute URL scans in the
+   * `x-request-source` header. When omitted, URL scans use the `unknown` value.
    */
   constructor({
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
@@ -1222,9 +1221,9 @@ export class PhishingController extends BaseController<
    * Only supports web URLs (`http:` / `https:`).
    *
    * @param url - The URL to scan.
-   * @param flow - The flow that caused this scan, reported via the
-   * `x-request-source` header. Callers should always supply this; omitting it
-   * reports the scan as unattributed.
+   * @param flow - Product flow used to attribute a network scan in the
+   * `x-request-source` header. If omitted, the header uses an unknown flow.
+   * Cached results do not make a network scan or emit a header.
    * @returns The phishing detection scan result.
    */
   async scanUrl(
@@ -1302,9 +1301,9 @@ export class PhishingController extends BaseController<
    * It also only supports web URLs.
    *
    * @param urls - The URLs to scan.
-   * @param flow - The flow that caused this scan, reported via the
-   * `x-request-source` header. Callers should always supply this; omitting it
-   * reports the scan as unattributed.
+   * @param flow - Product flow used to attribute a network scan in the
+   * `x-request-source` header. If omitted, the header uses an unknown flow.
+   * Cached results do not make a network scan or emit a header.
    * @returns A mapping of URLs to their phishing detection scan results and errors.
    */
   async bulkScanUrls(

@@ -1,21 +1,16 @@
 /**
- * Request header carrying the first-party flow that caused a scan.
- *
- * This is untrusted observability metadata. It must never be used for
- * authentication, authorization, or to bypass rate limits.
+ * HTTP header used to attribute a phishing-detection URL scan to a MetaMask
+ * client and product flow.
  */
 export const REQUEST_SOURCE_HEADER = 'x-request-source';
 
 /**
- * Emitted when the platform is not configured, so unattributed traffic is
- * measurable rather than indistinguishable from a client that predates the
- * header.
+ * Request-source value used when the client platform is unknown.
  */
 export const UNKNOWN_REQUEST_SOURCE = 'unknown';
 
 /**
- * The client emitting the scan. Supplied once, when the controller is
- * constructed, since a single instance only ever runs on one platform.
+ * MetaMask client that initiated a phishing-detection URL scan.
  */
 export enum RequestSourcePlatform {
   Extension = 'extension',
@@ -23,52 +18,41 @@ export enum RequestSourcePlatform {
 }
 
 /**
- * The flow that caused a scan. Supplied per call, since one controller serves
- * many flows.
- *
- * Values are bounded because the phishing detection service records them as a
- * Prometheus label and normalizes anything it does not recognise to
- * {@link UNKNOWN_REQUEST_SOURCE}.
+ * Product flow that initiated a phishing-detection URL scan.
  */
 export enum RequestSourceFlow {
   /**
-   * A connect prompt was shown, or an advanced permission was granted.
+   * A dapp requested account-access permission, such as via
+   * `eth_requestAccounts` or `wallet_requestPermissions`.
    */
   DappConnection = 'dapp-connection',
   /**
-   * Main-frame navigation in the mobile in-app browser.
+   * A main-frame navigation in the mobile in-app browser.
    */
   Browser = 'browser',
   /**
-   * Origin scan triggered by dapp RPC traffic rather than by a user action.
-   * High request count, low distinct-URL count, so the cache absorbs most of
-   * it.
-   *
-   * The trigger differs by client: Mobile scans on every EIP-1193 request
-   * carrying an origin, whereas Extension scans only when a connected origin
-   * reads its own connection state (`eth_accounts`, or `wallet_getSession` on
-   * the Multichain transport). Mobile volume is therefore expected to be much
-   * higher, and the two are not directly comparable.
+ * Dapp RPC traffic used as a trust signal.
    */
   RpcTrustSignals = 'rpc-trust-signals',
   /**
-   * A dapp-initiated transaction or signature raised a confirmation.
+   * A dapp request that opens a transaction, signature, or permission approval.
    */
   Confirmations = 'confirmations',
   /**
-   * The user opened the Reveal Secret Recovery Phrase screen, which scans the
-   * active tab's origin.
+   * A scan of the active dapp origin when the user opens the Secret Recovery
+   * Phrase reveal screen.
    */
   RevealSrp = 'reveal-srp',
   /**
-   * NFT metadata, image, and external URLs scanned when NFTs are added or
+   * NFT metadata, image, and external URLs scanned while NFTs are added or
    * auto-detected.
    */
   NftDetection = 'nft-detection',
 }
 
 /**
- * A composed `x-request-source` value.
+ * Valid {@link REQUEST_SOURCE_HEADER} value: a platform and flow, a platform
+ * with an unknown flow, or an unknown platform.
  */
 export type RequestSource =
   | `${RequestSourcePlatform}-${RequestSourceFlow}`
@@ -94,12 +78,11 @@ const isKnownFlow = (value?: string): value is RequestSourceFlow =>
   Object.values(RequestSourceFlow).includes(value as RequestSourceFlow);
 
 /**
- * Builds the `x-request-source` header value.
+ * Builds a value for {@link REQUEST_SOURCE_HEADER}.
  *
- * Both arguments are validated at runtime rather than trusted, because some
- * call sites are plain JavaScript and get no compile-time checking. An
- * unrecognised value degrades to a sentinel; it never throws, so attribution
- * cannot fail a scan.
+ * Returns {@link UNKNOWN_REQUEST_SOURCE} when `platform` is unknown, or a
+ * platform-specific unknown value when `flow` is unknown. This function never
+ * throws for an unrecognised input.
  *
  * @param platform - The client emitting the scan.
  * @param flow - The flow that caused the scan.
