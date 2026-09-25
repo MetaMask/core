@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [72.0.1]
 
-### Uncategorized
-
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
-
 ### Fixed
 
 - Only exclude the simulated gas cost from `nativeBalanceChange` when the sender was actually charged it ([#10343](https://github.com/MetaMask/core/pull/10343))
