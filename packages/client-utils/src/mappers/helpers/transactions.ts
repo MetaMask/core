@@ -52,6 +52,30 @@ function calculateNetworkFee(
   }
 }
 
+/**
+ * Adds L1 / operator fee onto an L2 network fee (decimal wei string).
+ * Uses `layer1GasFee` from TransactionMeta so activity fees stay aligned
+ * with the Accounts API response.
+ *
+ * @param networkFeeAmount - L2 network fee amount in decimal wei.
+ * @param layer1GasFee - Optional hex wei L1 + operator fee from TransactionMeta.
+ * @returns Combined fee amount in decimal wei, or the original L2 amount on failure.
+ */
+function addLayer1FeeToNetworkFeeAmount(
+  networkFeeAmount: string,
+  layer1GasFee: string | undefined,
+): string {
+  try {
+    if (!layer1GasFee) {
+      return networkFeeAmount;
+    }
+
+    return String(BigInt(networkFeeAmount) + BigInt(layer1GasFee));
+  } catch {
+    return networkFeeAmount;
+  }
+}
+
 function toNetworkFee(
   amount: string,
   chainId: CaipChainId,
@@ -133,6 +157,15 @@ export function getFees(
   return networkFee ? [networkFee] : undefined;
 }
 
+/**
+ * Builds the base network fee (in the chain's native token) for a local
+ * transaction from its receipt (`gasUsed × effectiveGasPrice`), plus any
+ * L1 / operator fee from `layer1GasFee`. Falls back to `txParams.gasPrice`
+ * while pending.
+ *
+ * @param transactionGroup - Transaction group with the primary transaction.
+ * @returns Activity fee list with a single base network fee, or undefined.
+ */
 export function getLocalTransactionFees(
   transactionGroup: Pick<TransactionGroup, 'primaryTransaction'> & {
     nativeAssetSymbol?: string;
@@ -145,15 +178,20 @@ export function getLocalTransactionFees(
     return undefined;
   }
 
-  const amount = calculateNetworkFee(
+  const l2Amount = calculateNetworkFee(
     primaryTransaction.txReceipt?.gasUsed,
     primaryTransaction.txReceipt?.effectiveGasPrice ??
       primaryTransaction.txParams?.gasPrice,
   );
 
-  if (!amount) {
+  if (!l2Amount) {
     return undefined;
   }
+
+  const amount = addLayer1FeeToNetworkFeeAmount(
+    l2Amount,
+    primaryTransaction.layer1GasFee,
+  );
 
   return [toNetworkFee(amount, chainId, nativeAssetSymbol)];
 }

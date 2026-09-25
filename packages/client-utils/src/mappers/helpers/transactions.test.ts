@@ -476,6 +476,59 @@ describe('transaction helpers', () => {
         },
       ]);
     });
+
+    it('adds layer1GasFee (L1 + operator) onto the L2 network fee', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            layer1GasFee: '0x5f5e100', // 100_000_000
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          // 21_000_000_000_000 + 100_000_000
+          amount: '21000100000000',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'MNT',
+          assetId:
+            'eip155:5000/erc20:0x0000000000000000000000000000000000000000',
+        },
+      ]);
+    });
+
+    it('ignores invalid layer1GasFee and keeps the L2 network fee', () => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            chainId: '0x1388',
+            layer1GasFee: 'not-a-hex',
+            txParams: {},
+            txReceipt: {
+              gasUsed: '0x5208',
+              effectiveGasPrice: '0x3b9aca00',
+            },
+          },
+        } as Parameters<typeof getLocalTransactionFees>[0]),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount: '21000000000000',
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'MNT',
+          assetId:
+            'eip155:5000/erc20:0x0000000000000000000000000000000000000000',
+        },
+      ]);
+    });
   });
 
   describe('getFees', () => {
