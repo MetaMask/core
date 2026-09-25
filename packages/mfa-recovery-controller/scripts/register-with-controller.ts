@@ -135,7 +135,8 @@ async function main(flags: Record<string, string>): Promise<void> {
   const recoverySecret = new Uint8Array(randomBytes(32));
   await controller.register(recoverySecret, [PASSKEY, OIDC]);
 
-  const recovered = await controller.getRecoverySecret(PASSKEY);
+  const identifierSession = await controller.authenticateIdentifier(PASSKEY);
+  const recovered = await controller.getRecoverySecret(identifierSession);
   const registeredSecret = bytesToHex(recoverySecret);
   const recoveredSecret = bytesToHex(recovered.recoverySecret);
 

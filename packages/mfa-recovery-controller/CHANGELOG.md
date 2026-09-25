@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `MfaRecoveryController` for replicating an MFA recovery secret across injected escrow replicas ([#10022](https://github.com/MetaMask/core/pull/10022))
-  - Public methods: `register`, `updateRecoverySecret`, `updateIdentifiers`, `getRecoverySecret`, `resume`, `abort`, and `getPhase`
+  - Public methods: `register`, `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`, `getRecoverySecret`, `resume`, `abort`, and `getPhase`
   - Inject `RecoveryAuthProvider`, `RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider[]`, and `PendingOperationEncryptor`
   - Persist only an encrypted `authorizing` / `writing` pending mutation (`idle` when `pendingOperation` is `null`)
   - `register` and `updateIdentifiers` require at least two distinct identifiers (`MIN_IDENTIFIERS`)
@@ -23,5 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AuthControllerToken.expiresAt` and `PoPChallenge.expiresAt` are Unix seconds
   - Mutations require idle pending state (`resume()` / `abort()` first). `abort()` drops `authorizing` only; `writing` must be finished with `resume()`
   - `CubistEscrowProvider` invokes Cubist escrow commands through `@cubist-labs/cubesigner-sdk` (`generateChallenge`, `applyMutation`, `getSecret` on `cubist_secret_escrow`) and verifies receipts with a pinned receipt public key
+  - `authenticateIdentifier` returns an in-memory `IdentifierSession` for key-bound recovery-secret reads
+
+### Changed
+
+- **BREAKING:** `getRecoverySecret` now accepts an `IdentifierSession` returned by `authenticateIdentifier` instead of an `Identifier`
 
 [Unreleased]: https://github.com/MetaMask/core/
