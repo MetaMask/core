@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `yaml` from `^2.3.4` to `^2.9.1` ([#10487](https://github.com/MetaMask/core/pull/10487))
+
 ## [2.0.0]
 
 ### Changed

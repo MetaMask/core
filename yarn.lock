@@ -7043,7 +7043,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     unzipper: "npm:^0.12.3"
-    yaml: "npm:^2.3.4"
+    yaml: "npm:^2.9.1"
     yargs: "npm:^17.7.3"
     yargs-parser: "npm:^21.1.1"
   bin:
@@ -7440,7 +7440,7 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
-    yaml: "npm:^2.3.4"
+    yaml: "npm:^2.9.1"
   languageName: unknown
   linkType: soft
 
@@ -28531,7 +28531,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yaml@npm:^2.2.2, yaml@npm:^2.3.4, yaml@npm:^2.9.1":
+"yaml@npm:^2.2.2, yaml@npm:^2.9.1":
   version: 2.9.1
   resolution: "yaml@npm:2.9.1"
   bin:
