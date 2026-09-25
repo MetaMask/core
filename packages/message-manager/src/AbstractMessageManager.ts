@@ -13,7 +13,6 @@ import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import type { Draft } from 'immer';
 import { v1 as random } from 'uuid';
 
 const stateMetadata = {
@@ -263,10 +262,7 @@ export abstract class AbstractMessageManager<
   protected saveMessageList(emitUpdateBadge = true) {
     this.update((state) => {
       state.unapprovedMessages =
-        this.getUnapprovedMessages() as unknown as Record<
-          string,
-          Draft<Message>
-        >;
+        this.getUnapprovedMessages() as unknown as typeof state.unapprovedMessages;
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {

@@ -47,6 +47,16 @@ export type KycControllerGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Returns the durable outcome of the identity-provider flow.
+ *
+ * @returns The latest provider-flow status.
+ */
+export type KycControllerGetProviderFlowStatusAction = {
+  type: `KycController:getProviderFlowStatus`;
+  handler: KycController['getProviderFlowStatus'];
+};
+
+/**
  * Returns the current session status and starts polling when it is not yet
  * terminal.
  *
@@ -170,7 +180,7 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
  * @param params - Optional SDK presentation options.
  * @param params.locale - BCP-47 locale for the SDK UI.
  * @param params.debug - Enables SDK debug logging.
- * @returns A promise that settles when the provider flow finishes.
+ * @returns The durable provider-flow outcome.
  */
 export type KycControllerLaunchProviderFlowAction = {
   type: `KycController:launchProviderFlow`;
@@ -185,6 +195,7 @@ export type KycControllerMethodActions =
   | KycControllerResetAction
   | KycControllerClearStateAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
   | KycControllerStartSessionStatusPollingAction
   | KycControllerFetchSessionDisclaimersAction

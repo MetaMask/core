@@ -3,6 +3,7 @@ export {
   getDefaultKycControllerState,
   getDefaultKycProviderDisclaimersAccepted,
   getDefaultKycVendorDisclaimersAccepted,
+  KYC_PROVIDER_FLOW_STATUSES,
   controllerName,
 } from './KycController.js';
 export type {
@@ -14,11 +15,13 @@ export type {
   KycControllerState,
   KycControllerStateChangeEvent,
   FetchSessionDisclaimersParams,
+  KycProviderFlowStatus,
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
   KycControllerHasCompletedVendorDisclaimersAction,
