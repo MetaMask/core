@@ -158,7 +158,7 @@ jobs:
           CHILD_WORKSPACE_PACKAGE_NAMES: ${{ needs.prepare.outputs.child-workspace-package-names }}
         run: |
           echo "$CHILD_WORKSPACE_PACKAGE_NAMES" | jq --raw-output '.[]' \
-            | parallel --group --halt never --jobs 4 \
+            | parallel --group --halt never --jobs 8 \
                 'echo "Validating changelog for {}"; yarn workspace {} run changelog:validate'
       - name: Require clean working directory
         shell: bash
