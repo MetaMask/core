@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `fresh` option to `fetchPositions` that cancels in-flight reads, fetches with a zero stale time, invalidates the result for subsequent reads, and sends `Cache-Control: no-cache` so the Money API skips its Nest response cache when supported ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Accept optional additive `musd_balance_updated_at` on the positions `balance` summary ([#10455](https://github.com/MetaMask/core/pull/10455))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))

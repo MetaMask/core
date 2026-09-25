@@ -42,6 +42,8 @@ export type PositionBalance = {
   musd_balance: string;
   vmusd_value_in_musd: string;
   total_balance: string;
+  /** ISO-8601 timestamp of the last wallet mUSD observation, when provided. */
+  musd_balance_updated_at?: string | null;
 };
 
 /**
