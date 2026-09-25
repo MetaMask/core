@@ -3,38 +3,6 @@ type WaitForOptions = {
   timeoutMs?: number;
 };
 
-/**
- * Testing Utility - withZeroedTimestamps. Returns a deep clone with every
- * `lastUpdated` value set to `0`, so pipeline responses and controller state
- * can be snapshotted deterministically: `PriceDataSource` stamps
- * `assetsPrice` entries with `Date.now()` at fetch time, while every other
- * field in the live-captured fixtures is static. Normalizing the value
- * after the fact (rather than mocking timers) keeps tests running on real
- * time.
- *
- * @param value - The response or state object to normalize.
- * @returns A plain deep clone with all `lastUpdated` timestamps zeroed.
- */
-export const withZeroedTimestamps = <Value>(value: Value): Value => {
-  if (Array.isArray(value)) {
-    const entries = value as unknown[];
-    return entries.map((entry) => withZeroedTimestamps(entry)) as Value;
-  }
-  if (value !== null && typeof value === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
-      result[key] =
-        key === 'lastUpdated' && typeof entry === 'number'
-          ? 0
-          : withZeroedTimestamps(entry);
-    }
-    return result as Value;
-  }
-  return value;
-};
-
 type WaitUntilStableOptions = WaitForOptions & {
   /** How long the snapshot has to stay unchanged before it counts as stable. */
   stableForMs?: number;
@@ -78,6 +46,38 @@ export const waitFor = async (
   throw new Error(
     `waitFor: timeout reached after ${timeoutMs}ms. Last assertion error: ${assertionDetail}`,
   );
+};
+
+/**
+ * Returns a plain deep clone of the given response or state object with
+ * all `lastUpdated` timestamps zeroed.
+ *
+ * The fast lane stamps `assetsPrice` entries with `Date.now()` at fetch
+ * time (`PriceDataSource`), which would otherwise make snapshots
+ * non-deterministic. Zeroing every `lastUpdated` key normalizes the value
+ * without resorting to mock timers.
+ *
+ * @param value - The response or state object to normalize.
+ * @returns A plain deep clone with all `lastUpdated` timestamps zeroed.
+ */
+export const withZeroedTimestamps = <Value>(value: Value): Value => {
+  if (Array.isArray(value)) {
+    const entries = value as unknown[];
+    return entries.map((entry) => withZeroedTimestamps(entry)) as Value;
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      result[key] =
+        key === 'lastUpdated' && typeof entry === 'number'
+          ? 0
+          : withZeroedTimestamps(entry);
+    }
+    return result as Value;
+  }
+  return value;
 };
 
 /**
