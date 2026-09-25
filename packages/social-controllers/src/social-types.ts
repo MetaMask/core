@@ -362,6 +362,64 @@ export type RemoveCommentReactionOptions = {
 };
 
 /**
+ * Identifies a swap that may not be indexed yet. Prefer {@link CreateSwapCommentOptions.positionUid}
+ * when the client already has a feed or positions `positionId`.
+ */
+export type TradeInFlight = {
+  transactionHash: string;
+  chain: string;
+  tokenAddress: string;
+};
+
+/**
+ * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
+ * or `tradeInFlight`; the social-api rejects a body that names both or neither.
+ */
+export type CreateSwapCommentOptions = {
+  commentText: string;
+  /** Free-form origin label stored on the comment. */
+  source?: string;
+  /**
+   * Position UUID (`positionId` / feed `itemId`). The comment attaches to that
+   * position's most recent trade, which must be the caller's own.
+   */
+  positionUid?: string;
+  /** Swap made seconds ago that may not have a position yet. */
+  tradeInFlight?: TradeInFlight;
+};
+
+/**
+ * Author profile on a swap-comment write response. Matches social-api
+ * `ProfileResponseV1`; extra fields from newer builds are allowed.
+ */
+export type SwapCommentAuthor = {
+  id: string;
+  name: string;
+  images?: {
+    raw: string | null;
+    xs: string | null;
+    sm: string | null;
+  };
+  addresses?: string[];
+  externalId?: string;
+};
+
+/**
+ * Response from `POST /v1/swap-comments`.
+ */
+export type SwapCommentResponse = {
+  uid: string;
+  transactionHash: string;
+  chain: string;
+  tokenAddress: string;
+  commentText: string;
+  author: SwapCommentAuthor;
+  timestamp: number;
+  isAppUserComment: boolean;
+  metrics: CommentEngagement;
+};
+
+/**
  * Cursor pagination for the feed. Pass `olderCursor` back as `olderThan` to
  * load older items (infinite scroll), and `newerCursor` as `newerThan` to
  * fetch newer items. `null` when there are no items in that direction.

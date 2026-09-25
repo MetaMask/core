@@ -25,6 +25,7 @@ import {
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
   CommentEngagement,
+  CreateSwapCommentOptions,
   FeedResponse,
   FetchFeedOptions,
   FetchFollowersOptions,
@@ -43,6 +44,7 @@ import type {
   PositionsResponse,
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
+  SwapCommentResponse,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
@@ -209,6 +211,32 @@ const AuthorCommentStruct = structType({
   engagement: CommentEngagementStruct,
 });
 
+const SwapCommentAuthorStruct = structType({
+  id: string(),
+  name: string(),
+  images: optional(
+    structType({
+      raw: nullable(string()),
+      xs: nullable(string()),
+      sm: nullable(string()),
+    }),
+  ),
+  addresses: optional(array(string())),
+  externalId: optional(string()),
+});
+
+const SwapCommentResponseStruct = structType({
+  uid: string(),
+  transactionHash: string(),
+  chain: string(),
+  tokenAddress: string(),
+  commentText: string(),
+  author: SwapCommentAuthorStruct,
+  timestamp: number(),
+  isAppUserComment: boolean(),
+  metrics: CommentEngagementStruct,
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
@@ -268,6 +296,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchTokenFeed',
   'reactToComment',
   'removeCommentReaction',
+  'createSwapComment',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -838,6 +867,63 @@ export class SocialService extends BaseDataService<
           );
         }
         return metrics;
+      },
+    });
+  }
+
+  /**
+   * Creates an author Call (user post) on one of the current user's swaps.
+   *
+   * Calls `POST ${baseUrl}/swap-comments`. Identify the swap with
+   * `positionUid` (the `positionId` of a feed item or position) or, for a
+   * trade too recent to be indexed, `tradeInFlight`. Provide exactly one of
+   * those two fields.
+   *
+   * @param options - Options bag.
+   * @param options.commentText - Message body of the post.
+   * @param options.source - Free-form origin label stored on the comment.
+   * @param options.positionUid - Position UUID (`positionId` / feed item id).
+   * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+   * @returns The created swap comment.
+   */
+  async createSwapComment(
+    options: CreateSwapCommentOptions,
+  ): Promise<SwapCommentResponse> {
+    const { commentText, source, positionUid, tradeInFlight } = options;
+
+    return await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createSwapComment`,
+        commentText,
+        source,
+        positionUid,
+        tradeInFlight,
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comments`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            commentText,
+            ...(source === undefined ? {} : { source }),
+            ...(positionUid === undefined ? {} : { positionUid }),
+            ...(tradeInFlight === undefined ? {} : { tradeInFlight }),
+          }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED,
+        );
+        const comment = await response.json();
+        if (!is(comment, SwapCommentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return comment;
       },
     });
   }
