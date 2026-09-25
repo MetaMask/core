@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-restricted-matchers */
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import { cleanAll } from 'nock';
 
@@ -196,10 +195,13 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
     it('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+  });
 
-    it('captures the full state as a golden record', () => {
-      expect(withZeroedTimestamps(state)).toMatchSnapshot();
-    });
+  it('generates snapshot (source of truth)', async () => {
+    const { state } = await fetchWallet();
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(state)).toMatchSnapshot();
   });
 });
 
@@ -243,14 +245,6 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) impor
     );
     expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
     expect(METADATA.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
-  });
-
-  it('captures the full state as a golden record', async () => {
-    const { state: goldenState } = await fetchWallet(
-      buildCustomAssetWalletState(),
-    );
-
-    expect(withZeroedTimestamps(goldenState)).toMatchSnapshot();
   });
 });
 
@@ -324,9 +318,5 @@ describe("AssetsController (Accounts API v6): 'full' update operation - stale tr
         expect(lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
       },
     );
-
-    it('captures the full state as a golden record', () => {
-      expect(withZeroedTimestamps(state)).toMatchSnapshot();
-    });
   });
 });

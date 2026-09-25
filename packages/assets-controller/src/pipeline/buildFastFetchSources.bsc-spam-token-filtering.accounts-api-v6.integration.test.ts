@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-restricted-matchers */
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
@@ -304,10 +303,13 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
     it('answers with an authoritative full snapshot', () => {
       expect(response.updateMode).toBe('full');
     });
+  });
 
-    it('generates snapshot (source of truth)', () => {
-      expect(withZeroedTimestamps(response)).toMatchSnapshot();
-    });
+  it('generates snapshot (source of truth)', async () => {
+    const { response } = await runPipeline(buildEmptyAssetsState());
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });
 
@@ -369,8 +371,6 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     // retry is queued) nor left to the legacy stale-asset sweep.
     expect(requests).toHaveLength(0);
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
-
-    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 
   it('re-reads the custom asset on RPC when the Accounts API cannot process the includeAssetIds', async () => {
@@ -396,7 +396,5 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
       amount: '4321',
     });
-
-    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });
