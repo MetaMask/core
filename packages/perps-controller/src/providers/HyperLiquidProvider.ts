@@ -13460,6 +13460,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     try {
+      // Refuse before the action-time Unified Account migration below, which
+      // would otherwise request a signature from a key-less account.
+      if (this.#walletService.isSelectedWatchOnly()) {
+        throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+      }
+
       this.#deps.debugLogger.log('HyperLiquidProvider: STARTING WITHDRAWAL', {
         params,
         timestamp: new Date().toISOString(),

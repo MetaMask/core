@@ -950,6 +950,27 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
     });
 
+    it('refuses withdrawal for watch-only accounts before any account setup', async () => {
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+
+      const result = await provider.withdraw({
+        amount: '1000',
+        destination: '0x1234567890123456789012345678901234567890' as Hex,
+        assetId:
+          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+      });
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({ success: false, error: 'WATCH_ONLY_ACCOUNT' }),
+      );
+      expect(exchangeClient.userSetAbstraction).not.toHaveBeenCalled();
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
     it('runs user-signed unified account migration before withdrawing for dexAbstraction users', async () => {
       const exchangeClient = createMockExchangeClient();
       mockClientService.getExchangeClient = jest
