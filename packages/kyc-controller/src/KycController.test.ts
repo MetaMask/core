@@ -1097,7 +1097,7 @@ function withController<ReturnValue>(
 
   const controller = new KycController({
     messenger,
-    sumsubLauncher: launcher as unknown as KycSumSubLauncher,
+    sumsubLauncher: launcher,
     ...options,
   });
 

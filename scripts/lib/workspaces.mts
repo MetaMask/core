@@ -9,7 +9,7 @@ import {
 } from '@yarnpkg/core';
 import { ppath } from '@yarnpkg/fslib';
 import { parseSyml } from '@yarnpkg/parsers';
-import execa from 'execa';
+import { execa } from 'execa';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -103,7 +103,7 @@ export async function getWorkspaceDependencies(
   );
 
   const packages = await Promise.all(
-    workspaces.map(({ location }) =>
+    workspaces.map(async ({ location }) =>
       readFile(join(ROOT_WORKSPACE, location, 'package.json'), {
         encoding: 'utf-8',
       }).then(JSON.parse),

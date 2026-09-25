@@ -232,7 +232,7 @@ function buildGroup(
   id: AccountGroupId,
   accounts: string[],
 ): AccountGroupObject {
-  return { id, accounts } as MockAccountGroup as AccountGroupObject;
+  return { id, accounts };
 }
 
 /**
@@ -402,8 +402,8 @@ function mockWithKeyringV2Unsafe(
             type: KeyringType.Snap,
             snapId,
             ...kr,
-          } as unknown,
-          { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
+          },
+          { id: `id-${snapId}`, name: 'snap' },
         ),
       );
       if (!entry) {
@@ -419,7 +419,7 @@ function mockWithKeyringV2Unsafe(
           hasAccount: () => true,
           ...kr,
         } as unknown as SnapKeyringV2,
-        metadata: { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
+        metadata: { id: `id-${snapId}`, name: 'snap' },
       });
     },
   );
@@ -459,9 +459,7 @@ async function setup({
 
   const mocks: Mocks = {
     SnapController: {
-      getState: jest
-        .fn()
-        .mockReturnValue({ isReady: snapIsReady } as SnapControllerState),
+      getState: jest.fn().mockReturnValue({ isReady: snapIsReady }),
       getRunnableSnaps: jest.fn().mockReturnValue(runnableSnaps),
       handleRequest: jest.fn(),
     },
@@ -852,7 +850,7 @@ describe('SnapAccountService', () => {
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
         resolved = true;
-        return undefined;
+        return;
       });
 
       await flushMicrotasks();
@@ -945,7 +943,7 @@ describe('SnapAccountService', () => {
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
         resolved = true;
-        return undefined;
+        return;
       });
 
       expect(resolved).toBe(false);
@@ -974,7 +972,7 @@ describe('SnapAccountService', () => {
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
         resolved = true;
-        return undefined;
+        return;
       });
 
       await flushMicrotasks();
@@ -1085,7 +1083,7 @@ describe('SnapAccountService', () => {
       const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
         method: SnapManageAccountsMethod.GetSelectedAccounts,
         params: {},
-      } as unknown as SnapMessage);
+      });
 
       expect(result).toStrictEqual([MOCK_ACCOUNTS[0]]);
       expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
@@ -1100,7 +1098,7 @@ describe('SnapAccountService', () => {
       const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
         method: SnapManageAccountsMethod.GetSelectedAccounts,
         params: {},
-      } as unknown as SnapMessage);
+      });
 
       expect(result).toStrictEqual([]);
     });
@@ -1121,7 +1119,7 @@ describe('SnapAccountService', () => {
       const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
         method: SnapManageAccountsMethod.GetSelectedAccounts,
         params: {},
-      } as unknown as SnapMessage);
+      });
 
       expect(result).toStrictEqual([]);
     });
@@ -1143,7 +1141,7 @@ describe('SnapAccountService', () => {
         service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
           method: SnapManageAccountsMethod.GetSelectedAccounts,
           params: {},
-        } as unknown as SnapMessage),
+        }),
       ).rejects.toThrow(error);
     });
 
@@ -1275,10 +1273,10 @@ describe('SnapAccountService', () => {
       async (method, event, key, payload) => {
         const { service, rootMessenger, mocks } = await setup({
           accounts: [
-            { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
+            { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID },
             {
               id: MOCK_UNOWNED_ACCOUNT_ID,
-              snapId: MOCK_OTHER_SNAP_ID as string,
+              snapId: MOCK_OTHER_SNAP_ID,
             },
             // An account with no Snap owner must be skipped when building the
             // cache (it is owned by nobody).
@@ -1293,7 +1291,7 @@ describe('SnapAccountService', () => {
         const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
           method,
           params: payload,
-        } as unknown as SnapMessage);
+        });
 
         expect(result).toBeNull();
         // Only the owned account survives the ownership filter.
@@ -1349,9 +1347,7 @@ describe('SnapAccountService', () => {
       'drops the whole %s update when no reported account is owned by the Snap (fail closed)',
       async (method, event, payload) => {
         const { service, rootMessenger } = await setup({
-          accounts: [
-            { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
-          ],
+          accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID }],
         });
         const listener = jest.fn();
         rootMessenger.subscribe(event, listener);
@@ -1359,7 +1355,7 @@ describe('SnapAccountService', () => {
         const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
           method,
           params: payload,
-        } as unknown as SnapMessage);
+        });
 
         expect(result).toBeNull();
         expect(listener).not.toHaveBeenCalled();

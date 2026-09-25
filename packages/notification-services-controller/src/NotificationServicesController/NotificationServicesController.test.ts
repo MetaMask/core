@@ -171,7 +171,7 @@ describe('NotificationServicesController', () => {
         'KeyringController:stateChange',
         {
           keyrings: [{ accounts }],
-        } as KeyringControllerState,
+        },
         [],
       );
     };
@@ -2870,7 +2870,7 @@ function arrangeFailureAuthAssertions(
 
     // unlikely, but in case it returns null
     noBearerToken: (): jest.Mock =>
-      mocks.mockGetBearerToken.mockResolvedValueOnce(null as unknown as string),
+      mocks.mockGetBearerToken.mockResolvedValueOnce(null),
 
     rejectedBearerToken: (): jest.Mock =>
       mocks.mockGetBearerToken.mockRejectedValueOnce(

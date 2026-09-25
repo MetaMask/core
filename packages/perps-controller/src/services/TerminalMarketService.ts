@@ -579,7 +579,7 @@ export class TerminalMarketService {
       ['iconUrl', market.iconUrl],
       ['category', market.category],
     ] as const) {
-      if (value !== null && value.length === 0) {
+      if (value?.length === 0) {
         throw invalid(field);
       }
     }

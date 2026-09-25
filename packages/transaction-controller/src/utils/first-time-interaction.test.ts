@@ -416,7 +416,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameContract: TransactionMeta = {
           ...mockTransactionMeta,
@@ -428,7 +428,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData
           .mockReturnValueOnce({
@@ -472,7 +472,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameRecipient: TransactionMeta = {
           ...mockTransactionMeta,
@@ -484,7 +484,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'transfer',
@@ -518,7 +518,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameContract: TransactionMeta = {
           ...mockTransactionMeta,
@@ -530,7 +530,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData
           .mockReturnValueOnce({
@@ -582,7 +582,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameRecipient: TransactionMeta = {
           ...mockTransactionMeta,
@@ -594,7 +594,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'safeTransferFrom',

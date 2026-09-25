@@ -44,7 +44,7 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_DATA_MOCK: TransactionData = {
   isLoading: false,
   paymentToken: {
-    address: '0x123' as Hex,
+    address: '0x123',
     balanceFiat: '123.45',
     balanceHuman: '1.23',
     balanceRaw: '2000000000000000000',
@@ -52,7 +52,7 @@ const TRANSACTION_DATA_MOCK: TransactionData = {
     chainId: '0x123',
     decimals: 6,
     symbol: 'ETH',
-  } as TransactionPaymentToken,
+  },
   sourceAmounts: [
     {
       sourceAmountRaw: '1000000000000000000',
@@ -64,7 +64,7 @@ const TRANSACTION_DATA_MOCK: TransactionData = {
 const TRANSACTION_META_MOCK = {
   id: TRANSACTION_ID_MOCK,
   status: TransactionStatus.unapproved,
-  txParams: { from: '0xabc' as Hex },
+  txParams: { from: '0xabc' },
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
@@ -469,11 +469,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -510,11 +510,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -561,11 +561,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -623,15 +623,15 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         if (name === TransactionPayStrategy.None) {
-          return thirdStrategy as never;
+          return thirdStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -676,11 +676,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -713,11 +713,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return unsupportedStrategy as never;
+          return unsupportedStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return supportedStrategy as never;
+          return supportedStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -749,11 +749,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return unsupportedStrategy as never;
+          return unsupportedStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return supportedStrategy as never;
+          return supportedStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -788,11 +788,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return unsupportedStrategy as never;
+          return unsupportedStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return supportedStrategy as never;
+          return supportedStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -833,11 +833,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return brokenStrategy as never;
+          return brokenStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return fallbackStrategy as never;
+          return fallbackStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -869,11 +869,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return emptyStrategy as never;
+          return emptyStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return fallbackStrategy as never;
+          return fallbackStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -899,7 +899,7 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Relay) {
-          return fallbackStrategy as never;
+          return fallbackStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -919,7 +919,7 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
-      getStrategyByNameMock.mockReturnValue(strategy as never);
+      getStrategyByNameMock.mockReturnValue(strategy);
 
       await run();
 
@@ -1028,7 +1028,7 @@ describe('Quotes Utils', () => {
             {
               ...TRANSACTION_DATA_MOCK.tokens?.[0],
               allowUnderMinimum: true,
-            } as TransactionPayRequiredToken,
+            },
           ],
         },
       });
@@ -1569,13 +1569,10 @@ describe('Quotes Utils', () => {
       it('keeps requests for different transactions independent', async () => {
         const OTHER_TRANSACTION_ID = '789-012';
 
-        getTransactionMock.mockImplementation(
-          (transactionId: string) =>
-            ({
-              ...TRANSACTION_META_MOCK,
-              id: transactionId,
-            }) as TransactionMeta,
-        );
+        getTransactionMock.mockImplementation((transactionId: string) => ({
+          ...TRANSACTION_META_MOCK,
+          id: transactionId,
+        }));
 
         const [resultA, resultB] = await Promise.all([
           run({ transactionId: TRANSACTION_ID_MOCK }),
@@ -1620,11 +1617,11 @@ describe('Quotes Utils', () => {
         ]);
         getStrategyByNameMock.mockImplementation((name) => {
           if (name === TransactionPayStrategy.Relay) {
-            return promotionStrategy as never;
+            return promotionStrategy;
           }
 
           if (name === TransactionPayStrategy.Across) {
-            return fallbackStrategy as never;
+            return fallbackStrategy;
           }
 
           throw new Error(`Unknown strategy: ${name}`);
@@ -1876,7 +1873,7 @@ describe('Quotes Utils', () => {
 
   describe('post-quote (withdrawal) flow', () => {
     const DESTINATION_TOKEN_MOCK: TransactionPaymentToken = {
-      address: '0xdef' as Hex,
+      address: '0xdef',
       balanceFiat: '100.00',
       balanceHuman: '1.00',
       balanceRaw: '1000000000000000000',
@@ -1909,7 +1906,7 @@ describe('Quotes Utils', () => {
           sourceChainId: SOURCE_TOKEN_MOCK.chainId,
           sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
           targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
-        } as TransactionPaySourceAmount,
+        },
       ],
       tokens: [SOURCE_TOKEN_MOCK],
     };
@@ -2071,7 +2068,7 @@ describe('Quotes Utils', () => {
             sourceAmountRaw: '10000000',
             // Missing sourceTokenAddress, sourceChainId, sourceBalanceRaw
             targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
-          } as TransactionPaySourceAmount,
+          },
         ],
       };
 

@@ -1201,6 +1201,7 @@ export class AnalyticsController extends BaseController<
 
   #replaceQueue(field: AnalyticsQueue, nextQueue: Record<string, Json>): void {
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state[field] = nextQueue as never;
     });
   }
@@ -1341,10 +1342,11 @@ export class AnalyticsController extends BaseController<
   #enqueueEvent(queuedEvent: AnalyticsQueuedEvent): void {
     const eventQueue: Record<string, Json> = {
       ...(this.state.eventQueue ?? {}),
-      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+      [queuedEvent.messageId]: queuedEvent,
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventQueue = eventQueue as never;
     });
 
@@ -1439,7 +1441,7 @@ export class AnalyticsController extends BaseController<
 
       if (this.#hasAllowedPurpose(purposes)) {
         const refreshedEvent = this.#refreshQueuedEventConsent(queuedEvent);
-        remainingQueue[messageId] = refreshedEvent as unknown as Json;
+        remainingQueue[messageId] = refreshedEvent;
         eventsToSend.push(refreshedEvent);
       }
     }
@@ -1469,6 +1471,7 @@ export class AnalyticsController extends BaseController<
     const { [messageId]: _deletedEvent, ...eventQueue } = currentEventQueue;
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventQueue = eventQueue as never;
     });
   }
@@ -1532,15 +1535,13 @@ export class AnalyticsController extends BaseController<
 
       if (field === AnalyticsQueue.EventQueue) {
         if (isAllowed) {
-          nextQueue[messageId] = this.#refreshQueuedEventConsent(
-            queuedEvent,
-          ) as unknown as Json;
+          nextQueue[messageId] = this.#refreshQueuedEventConsent(queuedEvent);
         }
       }
 
       if (field === AnalyticsQueue.PreConsentEventQueue) {
         if (isAllowed || this.#hasUndecidedPurpose(purposes)) {
-          nextQueue[messageId] = queuedEvent as unknown as Json;
+          nextQueue[messageId] = queuedEvent;
         }
       }
     }
@@ -1556,10 +1557,11 @@ export class AnalyticsController extends BaseController<
   #enqueuePreConsentEvent(queuedEvent: AnalyticsQueuedEvent): void {
     const preConsentEventQueue: Record<string, Json> = {
       ...(this.state.preConsentEventQueue ?? {}),
-      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+      [queuedEvent.messageId]: queuedEvent,
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.preConsentEventQueue = preConsentEventQueue as never;
     });
   }
@@ -1614,6 +1616,7 @@ export class AnalyticsController extends BaseController<
 
     if (!this.#isPreConsentQueueEnabled) {
       this.update((state) => {
+        // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
         state.preConsentEventQueue = {} as never;
       });
       return;
@@ -1635,7 +1638,7 @@ export class AnalyticsController extends BaseController<
       if (this.#hasAllowedPurpose(purposes)) {
         replay.push(queuedEvent);
       } else if (this.#hasUndecidedPurpose(purposes)) {
-        keep[messageId] = queuedEvent as unknown as Json;
+        keep[messageId] = queuedEvent;
       }
     }
 
@@ -1728,6 +1731,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1772,6 +1776,7 @@ export class AnalyticsController extends BaseController<
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
 
@@ -1796,6 +1801,7 @@ export class AnalyticsController extends BaseController<
     const { [id]: _deletedFragment, ...eventFragments } = currentEventFragments;
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1822,6 +1828,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1848,7 +1855,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
-      state.eventFragments = {} as never;
+      state.eventFragments = {};
     });
   }
 

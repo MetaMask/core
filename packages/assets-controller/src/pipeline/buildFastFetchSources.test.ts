@@ -6,7 +6,7 @@ import type { FastFetchSources } from './buildFastFetchSources.js';
 function stubSource(name: string): AssetsDataSource {
   return {
     getName: () => name,
-    assetsMiddleware: (async (ctx) => ctx) as Middleware,
+    assetsMiddleware: async (ctx) => ctx,
   };
 }
 

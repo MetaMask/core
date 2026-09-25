@@ -367,9 +367,9 @@ describe('JsonRpcServer', () => {
   it('does not cause an unhandled rejection when onError rejects asynchronously for a request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: (async (): Promise<never> => {
+      onError: async (): Promise<never> => {
         throw new Error('async onError failure');
-      }) as (error: unknown) => void,
+      },
     });
 
     const response = await server.handle({
@@ -392,9 +392,9 @@ describe('JsonRpcServer', () => {
   it('does not cause an unhandled rejection when onError rejects asynchronously for a notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: (async (): Promise<never> => {
+      onError: async (): Promise<never> => {
         throw new Error('async onError failure');
-      }) as (error: unknown) => void,
+      },
     });
 
     const response = await server.handle({

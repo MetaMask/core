@@ -167,7 +167,7 @@ export function areOrdersEqual(
 ): boolean {
   const normalizeOrder = (order: SyncRampsOrder | RampsOrder): RampsOrder => {
     const syncableOrder = stripPaymentDetailsForRemoteStorage(
-      stripSyncMetadata(order as SyncRampsOrder),
+      stripSyncMetadata(order),
     );
     return {
       ...syncableOrder,

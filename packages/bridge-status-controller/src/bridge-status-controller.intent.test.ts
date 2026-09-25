@@ -205,7 +205,7 @@ const createMessengerHarness = (
         case 'AccountsController:getAccountByAddress': {
           const addr = (args[0] as string) ?? '';
           if (addr.toLowerCase() !== accountAddress.toLowerCase()) {
-            return undefined;
+            return;
           }
 
           // REQUIRED so isHardwareWallet() doesn't throw
@@ -272,13 +272,13 @@ const createMessengerHarness = (
         case 'NetworkController:getNetworkClientById':
           return { configuration: { chainId: selectedChainId } };
         case 'BridgeController:trackUnifiedSwapBridgeEvent':
-          return undefined;
+          return;
         case 'GasFeeController:getState':
           return { gasFeeEstimates: {} };
         case 'KeyringController:signTypedMessage':
           return '0xtest-signature';
         default:
-          return undefined;
+          return;
       }
     }),
   };
@@ -315,7 +315,7 @@ const setup = (options?: {
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
     isQuoteStatusManagerEnabled: options?.isQuoteStatusManagerEnabled,
-    onQuoteStatusManagerError: options?.onQuoteStatusManagerError as any,
+    onQuoteStatusManagerError: options?.onQuoteStatusManagerError,
   });
 
   const startPollingSpy = jest
@@ -951,7 +951,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     // Use deprecated method to create history and start polling (so token exists in controller)
     controller.startPollingForBridgeTxStatus({
       accountAddress,
-      bridgeTxMeta: { id: 'bridgeToWipe1', hash: '0xsrc' } as TransactionMeta,
+      bridgeTxMeta: { id: 'bridgeToWipe1', hash: '0xsrc' },
       quoteResponse,
       slippagePercentage: 0,
       startTime: Date.now(),
