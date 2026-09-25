@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.3.2]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
@@ -1622,7 +1624,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.2...HEAD
+[76.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.1...@metamask/bridge-status-controller@76.3.2
 [76.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.0...@metamask/bridge-status-controller@76.3.1
 [76.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.2.0...@metamask/bridge-status-controller@76.3.0
 [76.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.1.0...@metamask/bridge-status-controller@76.2.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.2]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
@@ -959,7 +961,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...HEAD
+[29.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.1...@metamask/notification-services-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.0...@metamask/notification-services-controller@29.0.1
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.1...@metamask/notification-services-controller@29.0.0
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.0...@metamask/notification-services-controller@28.0.1

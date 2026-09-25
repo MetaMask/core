@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.1.0]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
@@ -662,7 +664,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...@metamask/multichain-account-service@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.2...@metamask/multichain-account-service@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.1...@metamask/multichain-account-service@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.0...@metamask/multichain-account-service@13.0.1

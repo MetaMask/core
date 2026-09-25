@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.2]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
@@ -542,7 +544,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.2...HEAD
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.1...@metamask/earn-controller@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.0...@metamask/earn-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.7...@metamask/earn-controller@13.0.0
 [12.2.7]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.6...@metamask/earn-controller@12.2.7

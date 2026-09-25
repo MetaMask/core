@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.0.4]
+
 ### Uncategorized
 
 - chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
@@ -3535,7 +3537,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...HEAD
+[112.0.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...@metamask/assets-controllers@112.0.4
 [112.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.2...@metamask/assets-controllers@112.0.3
 [112.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.1...@metamask/assets-controllers@112.0.2
 [112.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.0...@metamask/assets-controllers@112.0.1
