@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `tar` from `^7.4.3` to `^7.5.22` ([#10444](https://github.com/MetaMask/core/pull/10444))
+- Bump `unzipper` from `^0.12.3` to `^0.12.5` ([#10445](https://github.com/MetaMask/core/pull/10445))
 
 ## [2.0.0]
 
