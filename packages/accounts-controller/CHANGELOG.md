@@ -7,12 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `init` method and `AccountsController:init` messenger action ([#10191](https://github.com/MetaMask/core/pull/10191))
+  - Loads accounts from the current keyring state, intended to pair with `clearState` for wallet reset flows (`clearState` then `init`).
+  - Idempotent: subsequent calls before `clearState` are no-ops.
+  - Fires `AccountsController:accountsAdded` for accounts newly discovered during initialization.
+  - Fires `AccountsController:initialized` (with current state as payload) when initialization completes.
+- Add `AccountsController:initialized` event - fired by `init()` when the controller finishes its first full account sync ([#10191](https://github.com/MetaMask/core/pull/10191))
+- Add `AccountsController:uninitialized` event - fired by `clearState()` to signal that `init()` must be called again ([#10191](https://github.com/MetaMask/core/pull/10191))
+
 ### Changed
 
+- `clearState()` now resets the initialized flag and fires `AccountsController:uninitialized` ([#10191](https://github.com/MetaMask/core/pull/10191))
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+### Removed
+
+- **BREAKING:** Remove `updateAccounts` method and `AccountsController:updateAccounts` messenger action ([#10191](https://github.com/MetaMask/core/pull/10191))
+  - Use `AccountsController:init` instead, it performs the same full keyring sync and additionally fires lifecycle events.
 
 ## [40.0.0]
 

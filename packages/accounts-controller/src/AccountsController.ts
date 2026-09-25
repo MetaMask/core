@@ -94,7 +94,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setAccountNameAndSelectAccount',
   'listAccounts',
   'listMultichainAccounts',
-  'updateAccounts',
+  'init',
   'getSelectedAccount',
   'getSelectedMultichainAccount',
   'getAccountByAddress',
@@ -212,6 +212,16 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
   payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
 };
 
+export type AccountsControllerInitializedEvent = {
+  type: `${typeof controllerName}:initialized`;
+  payload: [AccountsControllerState];
+};
+
+export type AccountsControllerUninitializedEvent = {
+  type: `${typeof controllerName}:uninitialized`;
+  payload: [];
+};
+
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
@@ -238,7 +248,9 @@ export type AccountsControllerEvents =
   | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
   | AccountsControllerAccountTransactionsUpdatedEvent
-  | AccountsControllerAccountAssetListUpdatedEvent;
+  | AccountsControllerAccountAssetListUpdatedEvent
+  | AccountsControllerInitializedEvent
+  | AccountsControllerUninitializedEvent;
 
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
@@ -330,6 +342,8 @@ export class AccountsController extends BaseController<
   AccountsControllerState,
   AccountsControllerMessenger
 > {
+  #initialized = false;
+
   /**
    * Constructor for AccountsController.
    *
@@ -662,14 +676,70 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Updates the internal accounts list by retrieving normal and snap accounts,
-   * removing duplicates, and updating the metadata of each account.
+   * Initializes the controller by loading accounts from the current keyring
+   * state. Any accounts present in the keyrings but missing from the
+   * controller's state are added; existing accounts are preserved.
+   *
+   * Intended to be called after {@link clearState} to restore accounts from
+   * the keyrings (i.e. `clearState` then `init`), or on first startup.
    *
    * @deprecated This method is deprecated and will be removed in a future version.
    * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
-   * @returns A Promise that resolves when the accounts have been updated.
    */
-  async updateAccounts(): Promise<void> {
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+
+    this.#initialized = true;
+
+    // Only sync if the vault is already unlocked and populated. If it is not
+    // ready yet, we still mark the controller as initialized so that subsequent
+    // calls are no-ops. The `KeyringController:stateChange` subscription
+    // (handled by `#handleOnKeyringStateChange`) will fire `accountsAdded` and
+    // `accountsRemoved` once the vault is decrypted and keyrings are available.
+    if (this.#isVaultReady()) {
+      log('Initializing...');
+
+      const previousAccounts = this.state.internalAccounts.accounts;
+      this.#sync();
+
+      const addedAccounts = Object.values(
+        this.state.internalAccounts.accounts,
+      ).filter((account) => !previousAccounts[account.id]);
+
+      const removedAccountIds = Object.keys(previousAccounts).filter(
+        (id) => !this.state.internalAccounts.accounts[id],
+      );
+
+      if (addedAccounts.length > 0) {
+        this.messenger.publish(
+          'AccountsController:accountsAdded',
+          addedAccounts,
+        );
+      }
+
+      if (removedAccountIds.length > 0) {
+        this.messenger.publish(
+          'AccountsController:accountsRemoved',
+          removedAccountIds,
+        );
+      }
+
+      log('Initialized!');
+    }
+
+    this.messenger.publish('AccountsController:initialized', this.state);
+  }
+
+  #isVaultReady(): boolean {
+    const { isUnlocked, keyrings } = this.messenger.call(
+      'KeyringController:getState',
+    );
+    return isUnlocked && keyrings.length > 0;
+  }
+
+  #sync(): void {
     log('Synchronizing accounts with keyrings...');
 
     const keyringAccountIndexes = new Map<string, number>();
@@ -763,6 +833,9 @@ export class AccountsController extends BaseController<
    * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    */
   clearState(): void {
+    log('Clearing state');
+
+    this.#initialized = false;
     const removedIds = Object.keys(this.state.internalAccounts.accounts);
 
     this.update(() => {
@@ -775,6 +848,8 @@ export class AccountsController extends BaseController<
     if (removedIds.length > 0) {
       this.messenger.publish('AccountsController:accountsRemoved', removedIds);
     }
+
+    this.messenger.publish('AccountsController:uninitialized');
   }
 
   /**
