@@ -24,6 +24,7 @@ import {
   formatChainIdToCaip,
   getNativeAsset,
   resolveNativeAssetId,
+  resolveNativeAssetIdForTokenAddress,
 } from './caip.js';
 import { getKnownTokenMetadata } from './token-metadata.js';
 
@@ -440,11 +441,20 @@ export function getTokenAmountFromTransfer(
   const hasNftAmount = isNftTransfer && amount !== null && amount !== undefined;
 
   let assetId: string | undefined;
+  const nativeAssetIdForTokenAddress =
+    !isNative && !isNftTransfer
+      ? resolveNativeAssetIdForTokenAddress(chainId, transfer.contractAddress)
+      : undefined;
   if (isNative) {
     assetId = resolveNativeAssetId(chainId, symbol);
   } else if (!isNftTransfer) {
-    assetId = resolveAssetId(chainId, transfer.contractAddress);
+    assetId =
+      nativeAssetIdForTokenAddress ??
+      resolveAssetId(chainId, transfer.contractAddress);
   }
+  const tokenAssetType: AssetType | undefined = nativeAssetIdForTokenAddress
+    ? 'native'
+    : assetType;
 
   if (!symbol && !hasScaledAmount && !hasNftAmount && !assetId) {
     return undefined;
@@ -456,7 +466,7 @@ export function getTokenAmountFromTransfer(
     ...(decimals === undefined ? {} : { decimals }),
     ...(symbol ? { symbol } : {}),
     ...(assetId ? { assetId } : {}),
-    ...(assetType ? { assetType } : {}),
+    ...(tokenAssetType ? { assetType: tokenAssetType } : {}),
   };
 }
 

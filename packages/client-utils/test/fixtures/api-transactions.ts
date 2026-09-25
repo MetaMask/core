@@ -31,6 +31,8 @@ const addresses = {
   zeroValueSendRecipient: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
   arbitrumUsdt: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
   acrossExchangeRecipient: '0x7a70cb77a12fa2dc3fa1bc1dcbca4c79db71a289',
+  arcUsdcWrapper: '0x3600000000000000000000000000000000000000',
+  arcEurc: '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1',
 } as const;
 
 const transactions = {
@@ -1095,6 +1097,84 @@ const transactions = {
     readable: 'Swapped USDT for',
     readableExtended: 'Swapped 1.2 USDT for',
   },
+  mapsAnArcNativeUsdcTransfer: {
+    hash: '0xarcnativesend',
+    chainId: 5042,
+    timestamp: '2026-08-12T16:42:48.000Z',
+    isError: false,
+    transactionCategory: 'TRANSFER',
+    from: addresses.subjectAddress,
+    to: addresses.baseRecipientAddress,
+    value: '1000000',
+    valueTransfers: [
+      {
+        from: addresses.subjectAddress,
+        to: addresses.baseRecipientAddress,
+        transferType: 'erc20',
+        symbol: 'USDC',
+        amount: '1000000',
+        decimal: 6,
+        contractAddress: addresses.arcUsdcWrapper,
+      },
+    ],
+    gasUsed: 21000,
+    effectiveGasPrice: '1',
+  },
+  mapsAnArcSwapWithNativeUsdcSource: {
+    hash: '0xarcnativeswap',
+    chainId: 5042,
+    timestamp: '2026-08-12T16:42:48.000Z',
+    isError: false,
+    transactionCategory: 'EXCHANGE',
+    from: addresses.subjectAddress,
+    to: addresses.baseRecipientAddress,
+    value: '1000000',
+    valueTransfers: [
+      {
+        from: addresses.subjectAddress,
+        to: addresses.baseRecipientAddress,
+        transferType: 'erc20',
+        symbol: 'USDC',
+        amount: '1000000',
+        decimal: 6,
+        contractAddress: addresses.arcUsdcWrapper,
+      },
+      {
+        from: addresses.baseRecipientAddress,
+        to: addresses.subjectAddress,
+        transferType: 'erc20',
+        symbol: 'EURC',
+        amount: '920000',
+        decimal: 6,
+        contractAddress: addresses.arcEurc,
+      },
+    ],
+    gasUsed: 21000,
+    effectiveGasPrice: '1',
+  },
+  mapsAnArcBridgeWithdrawWithNativeUsdcSource: {
+    hash: '0xarcnativebridge',
+    chainId: 5042,
+    timestamp: '2026-08-12T16:42:48.000Z',
+    isError: false,
+    transactionCategory: 'BRIDGE_WITHDRAW',
+    from: addresses.subjectAddress,
+    to: addresses.baseRecipientAddress,
+    value: '1000000',
+    valueTransfers: [
+      {
+        from: addresses.subjectAddress,
+        to: addresses.baseRecipientAddress,
+        transferType: 'erc20',
+        symbol: 'USDC',
+        amount: '1000000',
+        decimal: 6,
+        contractAddress: addresses.arcUsdcWrapper,
+      },
+    ],
+    gasUsed: 21000,
+    effectiveGasPrice: '1',
+  },
 } as const satisfies Record<string, V1TransactionByHashResponse>;
 
 const mapArgs = {
@@ -1263,6 +1343,18 @@ const mapArgs = {
   mapsAnAcrossUsdtExchangeWithNativeFee: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnAcrossUsdtExchangeWithNativeFee,
+  },
+  mapsAnArcNativeUsdcTransfer: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAnArcNativeUsdcTransfer,
+  },
+  mapsAnArcSwapWithNativeUsdcSource: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAnArcSwapWithNativeUsdcSource,
+  },
+  mapsAnArcBridgeWithdrawWithNativeUsdcSource: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAnArcBridgeWithdrawWithNativeUsdcSource,
   },
 } as const;
 

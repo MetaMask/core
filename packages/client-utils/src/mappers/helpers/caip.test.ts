@@ -5,6 +5,7 @@ import {
   formatChainIdToCaip,
   getNativeAsset,
   resolveNativeAssetId,
+  resolveNativeAssetIdForTokenAddress,
 } from './caip.js';
 
 jest.mock('eth-chainlist', () => ({
@@ -122,6 +123,16 @@ describe('caip helpers', () => {
       );
     });
 
+    it('resolves Arc native USDC when chainlist omits slip44', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(resolveNativeAssetId('eip155:5042', undefined)).toBe(
+        'eip155:5042/slip44:5042',
+      );
+    });
+
     it('falls back to the zero-address erc20 form when symbol and chainlist both miss slip44', () => {
       mockGetChainById.mockReturnValue({
         nativeCurrency: { name: 'Chiliz', symbol: 'CHZ', decimals: 18 },
@@ -165,6 +176,39 @@ describe('caip helpers', () => {
     });
   });
 
+  describe('resolveNativeAssetIdForTokenAddress', () => {
+    it('resolves the Arc USDC wrapper address as the Arc native asset', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(
+        resolveNativeAssetIdForTokenAddress(
+          'eip155:5042',
+          '0x3600000000000000000000000000000000000000',
+        ),
+      ).toBe('eip155:5042/slip44:5042');
+    });
+
+    it('returns undefined for non-native-wrapper token addresses', () => {
+      expect(
+        resolveNativeAssetIdForTokenAddress(
+          'eip155:5042',
+          '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1',
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when the chain id cannot be normalized', () => {
+      expect(
+        resolveNativeAssetIdForTokenAddress(
+          '0xzzzz',
+          '0x3600000000000000000000000000000000000000',
+        ),
+      ).toBeUndefined();
+    });
+  });
+
   describe('getNativeAsset', () => {
     it('resolves native asset from chainlist slip44', () => {
       mockGetChainById.mockReturnValue({
@@ -188,6 +232,18 @@ describe('caip helpers', () => {
         symbol: 'ETH',
         decimals: 18,
         assetId: 'eip155:42161/slip44:60',
+      });
+    });
+
+    it('resolves Arc native USDC as the Arc native asset when chainlist omits slip44', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(getNativeAsset('eip155:5042')).toStrictEqual({
+        symbol: 'USDC',
+        decimals: 18,
+        assetId: 'eip155:5042/slip44:5042',
       });
     });
 
