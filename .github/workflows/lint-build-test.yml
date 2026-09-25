@@ -157,14 +157,9 @@ jobs:
         env:
           CHILD_WORKSPACE_PACKAGE_NAMES: ${{ needs.prepare.outputs.child-workspace-package-names }}
         run: |
-          EXIT_CODE=0
-          for package_name in $(echo "$CHILD_WORKSPACE_PACKAGE_NAMES" | jq --raw-output '.[]'); do
-            echo "Validating changelog for $package_name"
-            if ! yarn workspace "$package_name" run changelog:validate; then
-              EXIT_CODE=1
-            fi
-          done
-          exit "$EXIT_CODE"
+          echo "$CHILD_WORKSPACE_PACKAGE_NAMES" | jq --raw-output '.[]' \
+            | parallel --group --halt never --jobs 4 \
+                'echo "Validating changelog for {}"; yarn workspace {} run changelog:validate'
       - name: Require clean working directory
         shell: bash
         run: |
