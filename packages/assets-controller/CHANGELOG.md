@@ -26,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed outdated comments and README examples that described stored balances as raw rather than converted amounts ([#10469](https://github.com/MetaMask/core/pull/10469))
 - Treat `assetsAccountsApiV6` as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
 
 ## [16.1.2]
