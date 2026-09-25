@@ -67,7 +67,7 @@ export async function executeAssetsPipeline(
         } finally {
           inclusive[i] = performance.now() - start;
         }
-      }) as Middleware,
+      },
   );
 
   const middlewareErrors: string[] = [];

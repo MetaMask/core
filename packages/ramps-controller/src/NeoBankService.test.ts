@@ -35,7 +35,7 @@ function createService(options?: {
   canonicalProfileId?: string;
 }): NeoBankService {
   const rootMessenger = new Messenger({
-    namespace: MOCK_ANY_NAMESPACE as MockAnyNamespace,
+    namespace: MOCK_ANY_NAMESPACE,
   });
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',

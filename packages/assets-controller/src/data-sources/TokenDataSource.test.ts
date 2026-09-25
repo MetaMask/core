@@ -834,8 +834,7 @@ describe('TokenDataSource', () => {
     // Generate 120 distinct ERC-20 asset IDs to exceed the 50-item batch limit.
     const assetIds = Array.from(
       { length: 120 },
-      (_, i) =>
-        `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
+      (_, i) => `eip155:1/erc20:0x${String(i).padStart(40, '0')}`,
     );
     const assetsResponse = assetIds.map((id) => createMockAssetResponse(id));
 
@@ -1280,7 +1279,7 @@ describe('TokenDataSource', () => {
 
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
-      request: createDataRequest({ chainIds: ['eip155:143' as ChainId] }),
+      request: createDataRequest({ chainIds: ['eip155:143'] }),
       response: {
         detectedAssets: {
           'mock-account-id': [monadToken],
@@ -1310,7 +1309,7 @@ describe('TokenDataSource', () => {
 
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
-      request: createDataRequest({ chainIds: ['eip155:137' as ChainId] }),
+      request: createDataRequest({ chainIds: ['eip155:137'] }),
       response: {
         detectedAssets: {
           'mock-account-id': [polygonToken],

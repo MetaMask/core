@@ -28,9 +28,7 @@ export const ACCOUNT_TWO_ID = 'b0f1b8ba-3f18-4a1e-8c31-2b3ad9f6e771';
 export const ACCOUNT_TWO_ADDRESS = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984';
 
 /** mUSD on mainnet, pre-seeded into every wallet's `assetsInfo`. */
-export const [MAINNET_MUSD] = getDefaultTrackedAssetsForChain(
-  'eip155:1' as ChainId,
-);
+export const [MAINNET_MUSD] = getDefaultTrackedAssetsForChain('eip155:1');
 export const MAINNET_NATIVE = 'eip155:1/slip44:60' as Caip19AssetId;
 export const MAINNET_USDT =
   'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
@@ -360,7 +358,7 @@ export function buildManyTokensState(count: number): {
     const address = getChecksumAddress(
       `0x${(index + 1).toString(16).padStart(40, '0')}`,
     );
-    return `eip155:10/erc20:${address}` as Caip19AssetId;
+    return `eip155:10/erc20:${address}`;
   });
 
   return {

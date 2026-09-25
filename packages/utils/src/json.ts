@@ -230,7 +230,7 @@ export const JsonStruct = coerce(
       JSON.stringify(value, (propKey, propValue) => {
         // Strip __proto__ and constructor properties to prevent prototype pollution.
         if (propKey === '__proto__' || propKey === 'constructor') {
-          return undefined;
+          return;
         }
         return propValue;
       }),
@@ -471,7 +471,7 @@ export const JsonRpcFailureStruct = object({
   // declaration to the named `JsonRpcError`. Without it TypeScript inlines the
   // structure and leaks the unexported `ExactOptionalGuard` into the published
   // types.
-  error: JsonRpcErrorStruct as Struct<JsonRpcError>,
+  error: JsonRpcErrorStruct,
 });
 
 /**

@@ -369,7 +369,7 @@ export function createMockInternalAccount(
       ...metadata,
     },
     ...rest,
-  } as InternalAccount;
+  };
 }
 
 /**

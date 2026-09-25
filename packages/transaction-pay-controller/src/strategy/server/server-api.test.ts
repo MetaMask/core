@@ -19,14 +19,14 @@ const mockOkResponse = (body: unknown): jest.SpyInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => body,
-  } as Response);
+  });
 
 const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: false,
     status,
     json: async () => body,
-  } as Response);
+  });
 
 const BASE_URL_MOCK = 'https://proxy.test/server';
 
@@ -147,7 +147,7 @@ describe('server-api', () => {
         json: async () => {
           throw new Error('not json');
         },
-      } as unknown as Response);
+      });
 
       await expect(
         fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),

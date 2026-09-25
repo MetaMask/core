@@ -35,7 +35,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -52,7 +52,7 @@ function createDataRequest(
     })),
     dataTypes: ['balance'],
     ...rest,
-  } as DataRequest;
+  };
 }
 
 function createAssetsState(

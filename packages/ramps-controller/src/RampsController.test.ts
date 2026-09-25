@@ -3893,9 +3893,7 @@ describe('RampsController', () => {
         topTokens: [],
         allTokens: [],
       }));
-      const getProvidersSpy = jest.fn(
-        async () => ({ providers: [] }) as { providers: Provider[] },
-      );
+      const getProvidersSpy = jest.fn(async () => ({ providers: [] }));
 
       await withController(
         {
@@ -9971,13 +9969,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: 'canonical-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
         );
         rootMessenger.registerActionHandler(
           'NeoBankService:getCustomerByExternalId',
@@ -10014,13 +10011,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: 'canonical-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest
           .fn()
@@ -10078,13 +10074,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: '',
-              canonicalProfileId: '',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: '',
+            canonicalProfileId: '',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest.fn();
         rootMessenger.registerActionHandler(
@@ -10109,13 +10104,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: '',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: '',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest
           .fn()

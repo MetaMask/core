@@ -787,7 +787,7 @@ describe('GatorPermissionsController', () => {
               caveats: [],
               delegator: '0x1111111111111111111111111111111111111111',
               delegate: '0x2222222222222222222222222222222222222222',
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
             },
             metadata: buildMetadata(''),
           },
@@ -856,7 +856,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate: '0x1',
               delegator: '0x2',
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats: [],
             },
             metadata: buildMetadata(''),
@@ -892,7 +892,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate: delegatorAddressA,
               delegator: delegateAddressB,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata(''),
@@ -940,7 +940,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate: delegatorAddressA,
               delegator: delegateAddressB,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata(''),
@@ -1139,7 +1139,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate,
               delegator,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata('Test justification'),
@@ -1221,7 +1221,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate,
               delegator,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata('Test justification'),
@@ -1302,7 +1302,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate,
               delegator,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata('Test justification'),
@@ -1373,7 +1373,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate,
               delegator,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata('Test justification'),
@@ -1451,7 +1451,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate,
               delegator,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata('Test justification'),
@@ -1517,7 +1517,7 @@ describe('GatorPermissionsController', () => {
             delegation: {
               delegate,
               delegator,
-              authority: ROOT_AUTHORITY as Hex,
+              authority: ROOT_AUTHORITY,
               caveats,
             },
             metadata: buildMetadata('Test justification'),
@@ -1883,7 +1883,7 @@ describe('GatorPermissionsController', () => {
       expect(
         rootMessenger.call(
           'GatorPermissionsController:isPendingRevocation',
-          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef' as Hex,
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef',
         ),
       ).toBe(false);
     });

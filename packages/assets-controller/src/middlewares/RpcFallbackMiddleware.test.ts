@@ -38,7 +38,7 @@ function createMockAccount(id: string = MOCK_ACCOUNT_ID): InternalAccount {
       importTime: 0,
       lastSelected: 0,
     },
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -51,7 +51,7 @@ function createDataRequest(
       { account: createMockAccount(), supportedChains },
     ],
     dataTypes: ['balance'],
-  } as DataRequest;
+  };
 }
 
 type StateOverrides = {
@@ -250,7 +250,7 @@ describe('RpcFallbackMiddleware', () => {
       {
         ...createDataRequest(['eip155:1']),
         dataTypes: ['metadata'],
-      } as DataRequest,
+      },
       { errors: { 'eip155:1': 'something' } },
     );
     const next = jest.fn(async (innerCtx) => innerCtx);

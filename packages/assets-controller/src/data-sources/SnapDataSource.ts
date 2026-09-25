@@ -259,9 +259,8 @@ export class SnapDataSource extends AbstractDataSource<
     this.#getAssetsState = options.getAssetsState;
 
     // Bind handlers for cleanup in destroy()
-    this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
-      this,
-    ) as (payload: AccountBalancesUpdatedEventPayload) => void;
+    this.#handleSnapBalancesUpdatedBound =
+      this.#handleSnapBalancesUpdated.bind(this);
     this.#handlePermissionStateChangeBound =
       this.#discoverKeyringSnaps.bind(this);
 
@@ -530,10 +529,7 @@ export class SnapDataSource extends AbstractDataSource<
 
         // Step 2: Get balances for those specific assets
         const balances: Record<CaipAssetType, Balance> =
-          await client.getAccountBalances(
-            accountId,
-            accountAssets as CaipAssetType[],
-          );
+          await client.getAccountBalances(accountId, accountAssets);
 
         // Transform keyring response to DataResponse format
         if (balances && typeof balances === 'object' && results.assetsBalance) {

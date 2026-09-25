@@ -918,9 +918,7 @@ describe('MoneyAccountApiDataService', () => {
 
     it('traces non-Error rejections with the thrown value type', async () => {
       const { service } = createService(Env.DEV, { trace: mockTrace });
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockRejectedValue('network down' as never);
+      jest.spyOn(globalThis, 'fetch').mockRejectedValue('network down');
 
       await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toBe(
         'network down',

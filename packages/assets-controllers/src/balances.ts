@@ -628,9 +628,9 @@ export function calculateBalanceChangeForAllWallets(
   const aggregatedTotals = getAggregatedTotals(flatAccountChanges);
   const amountChange = aggregatedTotals.current - aggregatedTotals.previous;
   const percentChange =
-    aggregatedTotals.previous !== 0
-      ? (amountChange / aggregatedTotals.previous) * 100
-      : 0;
+    aggregatedTotals.previous === 0
+      ? 0
+      : (amountChange / aggregatedTotals.previous) * 100;
 
   return {
     period,
@@ -876,9 +876,9 @@ export function calculateBalanceChangeForAccountGroup(
 
   const amountChange = aggregatedTotals.current - aggregatedTotals.previous;
   const percentChange =
-    aggregatedTotals.previous !== 0
-      ? (amountChange / aggregatedTotals.previous) * 100
-      : 0;
+    aggregatedTotals.previous === 0
+      ? 0
+      : (amountChange / aggregatedTotals.previous) * 100;
 
   return {
     period,

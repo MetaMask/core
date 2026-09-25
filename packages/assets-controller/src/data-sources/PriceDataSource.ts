@@ -442,9 +442,7 @@ export class PriceDataSource {
             continue;
           }
 
-          for (const assetId of Object.keys(
-            accountBalances as Record<string, unknown>,
-          )) {
+          for (const assetId of Object.keys(accountBalances)) {
             // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
               try {

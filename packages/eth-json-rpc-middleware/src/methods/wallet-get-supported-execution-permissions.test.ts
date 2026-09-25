@@ -81,7 +81,7 @@ describe('wallet_getSupportedExecutionPermissions', () => {
       ['empty array', []],
       ['empty object', {}],
     ])('accepts params as %s', async (_description, params) => {
-      request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
+      request = { ...REQUEST_MOCK, params };
       expect(await callMethod()).toStrictEqual(RESULT_MOCK);
     });
 

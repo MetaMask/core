@@ -77,7 +77,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createMockApiClient(
@@ -445,7 +445,7 @@ describe('AccountsApiDataSource', () => {
   it('filters out migration networks from active chains when the migration FF is unset', async () => {
     const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
     const { controller, activeChainsUpdateHandler } = await setupController({
-      supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+      supportedChains: [1, SOLANA_CHAIN_ID],
     });
 
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
@@ -463,7 +463,7 @@ describe('AccountsApiDataSource', () => {
   it('filters out migration networks whose migration stage is Off', async () => {
     const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
     const { controller, activeChainsUpdateHandler } = await setupController({
-      supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+      supportedChains: [1, SOLANA_CHAIN_ID],
       remoteFeatureFlags: {
         [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
           stage: SnapsAssetsMigrationStage.Off,
@@ -501,7 +501,7 @@ describe('AccountsApiDataSource', () => {
     async ({ stage }) => {
       const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
       const { controller, activeChainsUpdateHandler } = await setupController({
-        supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+        supportedChains: [1, SOLANA_CHAIN_ID],
         remoteFeatureFlags: {
           [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: { stage },
         },
@@ -524,11 +524,7 @@ describe('AccountsApiDataSource', () => {
     const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
     const STELLAR_CHAIN_ID = 'stellar:pubnet';
     const { controller } = await setupController({
-      supportedChains: [
-        1,
-        SOLANA_CHAIN_ID as unknown as number,
-        STELLAR_CHAIN_ID as unknown as number,
-      ],
+      supportedChains: [1, SOLANA_CHAIN_ID, STELLAR_CHAIN_ID],
       remoteFeatureFlags: {
         [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
           stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
@@ -591,7 +587,7 @@ describe('AccountsApiDataSource', () => {
     { input: 'eip155:42161', expected: 'eip155:42161' },
   ])('converts chain ID $input to $expected', async ({ input, expected }) => {
     const { controller, activeChainsUpdateHandler } = await setupController({
-      supportedChains: [input as number],
+      supportedChains: [input],
     });
 
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
@@ -720,7 +716,7 @@ describe('AccountsApiDataSource', () => {
     };
 
     const { controller } = await setupController({
-      supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+      supportedChains: [1, STELLAR_CHAIN_ID],
       remoteFeatureFlags: {
         [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
           stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
@@ -980,7 +976,7 @@ describe('AccountsApiDataSource', () => {
       };
 
       const { controller } = await setupController({
-        supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+        supportedChains: [1, STELLAR_CHAIN_ID],
         remoteFeatureFlags: {
           assetsAccountsApiV6: true,
           [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {

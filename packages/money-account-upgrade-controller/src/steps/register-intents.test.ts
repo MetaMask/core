@@ -202,7 +202,7 @@ async function run(
     chainId: MOCK_CHAIN_ID,
     boringVaultAddress: MOCK_BORING_VAULT,
     delegateAddress: MOCK_DELEGATE,
-    delegatorImplAddress: '0x2222222222222222222222222222222222222222' as Hex,
+    delegatorImplAddress: '0x2222222222222222222222222222222222222222',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_MUSD,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,

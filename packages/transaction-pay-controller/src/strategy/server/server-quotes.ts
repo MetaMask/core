@@ -553,7 +553,7 @@ async function calculateSourceNetworkCost({
     firstStepData: {
       data: firstStep.data,
       to: firstStep.to,
-      value: firstStep.value as Hex,
+      value: firstStep.value,
     },
     messenger,
     request: {

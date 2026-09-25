@@ -1403,7 +1403,7 @@ async function phaseHistoryReads(result: PhaseResult): Promise<void> {
   });
   await provider.initialize();
 
-  const fills = await provider.getOrderFills({ limit: 20 } as never);
+  const fills = await provider.getOrderFills({ limit: 20 });
   check(
     result,
     'trade history returns fills with sane fields',

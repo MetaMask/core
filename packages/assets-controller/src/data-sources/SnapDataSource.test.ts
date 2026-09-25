@@ -277,7 +277,7 @@ function setupController(
     if (snapConfig?.chainIds) {
       return createMockPermissions(snapConfig.chainIds);
     }
-    return undefined;
+    return;
   });
   rootMessenger.registerActionHandler(
     'PermissionController:getPermissions',

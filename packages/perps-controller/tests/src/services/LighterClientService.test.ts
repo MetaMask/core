@@ -74,7 +74,7 @@ describe('LighterClientService', () => {
 
   beforeEach(() => {
     fetchMock = jest.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
   });
 
   describe('network resolution', () => {

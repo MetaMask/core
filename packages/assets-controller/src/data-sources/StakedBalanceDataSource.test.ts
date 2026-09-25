@@ -35,7 +35,7 @@ function createMockInternalAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -270,11 +270,11 @@ describe('StakedBalanceDataSource', () => {
     it('returns empty response for unsupported chain', async () => {
       await withController(async ({ controller }) => {
         const request = createDataRequest({
-          chainIds: ['eip155:999' as ChainId],
+          chainIds: ['eip155:999'],
           accountsWithSupportedChains: [
             {
               account: createMockInternalAccount(),
-              supportedChains: ['eip155:999' as ChainId],
+              supportedChains: ['eip155:999'],
             },
           ],
         });
