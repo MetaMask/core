@@ -55,7 +55,7 @@
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "deepmerge": "^4.2.2",
+    "deepmerge": "^4.3.1",
     "immer": "^9.0.21",
     "jest": "^30.4.2",
     "rimraf": "^6.1.3",
