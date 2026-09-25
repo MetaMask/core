@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
 - Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
 
+### Fixed
+
+- Rely on `@metamask/key-tree` crypto implementation for HMAC-SHA-512 instead of hardcoded `noble` implementation ([#10424](https://github.com/MetaMask/core/pull/10424))
+  - `@metamask/key-tree` uses WebCrypto API if available and fallback to `noble` otherwise.
+  - One note, we expect the platform to provide a fully-compliant WebCrypto (`crypto.subtle`) implementation for this to work (`@metamask/key-tree` detection is global and not "per crypto functions").
+
 ## [32.3.1]
 
 ### Changed
