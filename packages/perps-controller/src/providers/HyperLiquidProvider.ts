@@ -46,6 +46,7 @@ import {
   WITHDRAWAL_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
+import { PerpsControllerError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
@@ -4016,12 +4017,15 @@ export class HyperLiquidProvider implements PerpsProvider {
     // client can translate ("fund your account") instead of leaking the raw
     // exchange string to the UI and to failed-trade analytics.
     if (isHyperLiquidUserNotFoundError(error)) {
-      return new Error(PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND);
+      return new PerpsControllerError(
+        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      );
     }
 
     for (const [pattern, code] of Object.entries(this.#errorMappings)) {
       if (message.toLowerCase().includes(pattern.toLowerCase())) {
-        return new Error(code);
+        return new PerpsControllerError(code, code);
       }
     }
 

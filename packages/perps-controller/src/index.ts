@@ -421,6 +421,7 @@ export {
   calculateCandleCount,
 } from './constants/index.js';
 export { PERPS_EVENT_PROPERTY, PERPS_EVENT_VALUE } from './constants/index.js';
+export type { PerpsMaxSlippageSource } from './constants/index.js';
 export { DETAILED_ORDER_TYPES, isTPSLOrder } from './constants/index.js';
 export { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from './constants/index.js';
 export {
@@ -691,8 +692,9 @@ export {
 } from './utils/index.js';
 
 // Error codes (explicit named exports)
-export { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
+export { isPerpsErrorCode, PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 export type { PerpsErrorCode } from './perpsErrorCodes.js';
+export type { PerpsErrorDetails, PriceMovedErrorDetails } from './errors.js';
 
 // Selectors (explicit named exports)
 export {

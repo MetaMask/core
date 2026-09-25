@@ -6,6 +6,7 @@ import {
   MAX_ORDER_MARGIN_BUFFER,
   ORDER_SLIPPAGE_CONFIG,
 } from '../constants/perpsConfig.js';
+import { createPriceMovedError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import type { PerpsDebugLogger } from '../types/index.js';
@@ -617,11 +618,9 @@ export function calculateFinalPositionSize(
 
   let finalPositionSize: number;
 
-  // Validate price staleness whenever the caller supplied a calculation-time
-  // price. This runs before the sizing branches on purpose: a full close submits
-  // the exact live position size rather than a USD-derived one, and it must still
-  // be rejected when the price has moved past the caller's tolerance.
-  if (priceAtCalculation) {
+  // Only USD-derived sizing needs a snapshot guard. Exact-size orders retain
+  // venue-side slippage protection without depending on a calculation price.
+  if (priceAtCalculation && usdAmount) {
     const priceDeltaBps = Math.abs(
       ((currentPrice - priceAtCalculation) / priceAtCalculation) * 10000,
     );
@@ -629,10 +628,20 @@ export function calculateFinalPositionSize(
       maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps;
 
     if (priceDeltaBps > maxSlippageBpsValue) {
-      throw new Error(
-        `Price moved too much: ${priceDeltaBps.toFixed(0)} bps (max: ${maxSlippageBpsValue} bps). ` +
-          `Expected: ${priceAtCalculation.toFixed(2)}, Current: ${currentPrice.toFixed(2)}`,
-      );
+      throw createPriceMovedError({
+        expectedPrice: priceAtCalculation,
+        currentPrice,
+        formattedExpectedPrice: formatHyperLiquidPrice({
+          price: priceAtCalculation,
+          szDecimals,
+        }),
+        formattedCurrentPrice: formatHyperLiquidPrice({
+          price: currentPrice,
+          szDecimals,
+        }),
+        priceDeltaBps,
+        maxSlippageBps: maxSlippageBpsValue,
+      });
     }
 
     debugLogger?.log('Price validation passed:', {

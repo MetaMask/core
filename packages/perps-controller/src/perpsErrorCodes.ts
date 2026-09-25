@@ -126,6 +126,7 @@ export const PERPS_ERROR_CODES = {
   // Order execution errors
   ORDER_REJECTED: 'ORDER_REJECTED',
   SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',
+  PRICE_MOVED: 'PRICE_MOVED',
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   // Network/service errors
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
@@ -134,3 +135,16 @@ export const PERPS_ERROR_CODES = {
 
 export type PerpsErrorCode =
   (typeof PERPS_ERROR_CODES)[keyof typeof PERPS_ERROR_CODES];
+
+/**
+ * Checks whether a value is a known Perps error code.
+ *
+ * @param value - Value to classify.
+ * @returns Whether the value is a Perps error code.
+ */
+export function isPerpsErrorCode(value: unknown): value is PerpsErrorCode {
+  return (
+    typeof value === 'string' &&
+    Object.values(PERPS_ERROR_CODES).some((code) => code === value)
+  );
+}
