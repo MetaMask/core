@@ -283,7 +283,7 @@ describe('Fiat Utils', () => {
             type: 'erc20',
           },
         },
-      } as never);
+      });
     });
 
     it('returns on-chain ERC-20 amount and block number from receipt', async () => {
@@ -396,7 +396,7 @@ describe('Fiat Utils', () => {
     });
 
     it('throws when token info cannot be resolved for fallback', async () => {
-      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} } as never);
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
       await expect(
         resolveSourceAmountRaw({

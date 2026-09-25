@@ -508,4 +508,3 @@ function resolveControllerAssetId(
 
   return derivedAssetId;
 }
-

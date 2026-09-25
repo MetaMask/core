@@ -135,7 +135,7 @@ describe('Token Utils', () => {
             type: 'erc20',
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(
         messenger,
@@ -172,7 +172,7 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if token is not found', () => {
-      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} } as never);
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
       const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
 
@@ -191,7 +191,7 @@ describe('Token Utils', () => {
             type: 'native',
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(
         messenger,
@@ -219,7 +219,7 @@ describe('Token Utils', () => {
             type: 'native',
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(
         messenger,
@@ -234,7 +234,7 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if native token is missing from assets info', () => {
-      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} } as never);
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
       const result = getTokenInfo(
         messenger,
@@ -246,7 +246,7 @@ describe('Token Utils', () => {
     });
 
     it('does not consult the network controller for a missing native token', () => {
-      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} } as never);
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
       getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, CHAIN_ID_MOCK);
 
@@ -255,7 +255,7 @@ describe('Token Utils', () => {
     });
 
     it('resolves a native asset after missing metadata arrives', () => {
-      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} } as never);
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
       expect(
         getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38'),
       ).toBeUndefined();
@@ -267,7 +267,7 @@ describe('Token Utils', () => {
             type: 'native',
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38');
 
@@ -285,9 +285,13 @@ describe('Token Utils', () => {
             type: 'native',
           },
         },
-      } as never);
+      });
 
-      const result = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, CHAIN_ID_MOCK);
+      const result = getTokenInfo(
+        messenger,
+        NATIVE_TOKEN_ADDRESS,
+        CHAIN_ID_MOCK,
+      );
 
       expect(result).toBeUndefined();
     });
@@ -301,7 +305,7 @@ describe('Token Utils', () => {
             type: 'native',
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x64');
 
@@ -313,7 +317,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           'eip155:1/slip44:60': { decimals: 18, symbol: 'ETH', type: 'native' },
         },
-      } as never);
+      });
 
       expect(
         getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38'),
@@ -333,7 +337,7 @@ describe('Token Utils', () => {
       getAssetsControllerStateMock.mockReturnValue({
         assetsBalance: { [ACCOUNT_ID_MOCK]: {} },
         assetsInfo: {},
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -357,7 +361,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           [assetId]: { decimals: 6, symbol: 'TST' },
         },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -381,7 +385,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           [assetId]: { decimals: 6, symbol: 'TST' },
         },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -403,7 +407,7 @@ describe('Token Utils', () => {
           },
         },
         assetsInfo: {},
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -436,7 +440,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           [assetId]: { decimals: 6, symbol: 'TST' },
         },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -461,7 +465,7 @@ describe('Token Utils', () => {
             symbol: 'TST',
           },
         },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -485,7 +489,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           [assetId]: { decimals: 18, symbol: 'ETH', type: 'native' },
         },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -501,7 +505,7 @@ describe('Token Utils', () => {
       getAssetsControllerStateMock.mockReturnValue({
         assetsBalance: {},
         assetsInfo: {},
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -539,7 +543,7 @@ describe('Token Utils', () => {
           },
         },
         assetsInfo: { [assetId]: { decimals: 18, symbol: SYMBOL_MOCK } },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -560,7 +564,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           [assetId]: { decimals: 18, symbol: 'BNB', type: 'native' },
         },
-      } as never);
+      });
 
       const info = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38');
       const balance = getTokenBalance(
@@ -575,10 +579,7 @@ describe('Token Utils', () => {
     });
 
     it('returns zero for a native token if the chain has no native metadata', () => {
-      const erc20AssetId = buildAssetId(
-        CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK,
-      );
+      const erc20AssetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
 
       getAssetsControllerStateMock.mockReturnValue({
         assetsBalance: {
@@ -587,7 +588,7 @@ describe('Token Utils', () => {
         assetsInfo: {
           [erc20AssetId]: { decimals: 18, symbol: SYMBOL_MOCK, type: 'erc20' },
         },
-      } as never);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -605,7 +606,7 @@ describe('Token Utils', () => {
       getAssetsControllerStateMock.mockReturnValue({
         assetsInfo: {},
         assetsPrice: {},
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -635,7 +636,7 @@ describe('Token Utils', () => {
             usdPrice: 8,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -653,7 +654,7 @@ describe('Token Utils', () => {
       getAssetsControllerStateMock.mockReturnValue({
         assetsInfo: {},
         assetsPrice: {},
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -675,7 +676,7 @@ describe('Token Utils', () => {
             price: 6,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -701,7 +702,7 @@ describe('Token Utils', () => {
             usdPrice: 4,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -716,10 +717,7 @@ describe('Token Utils', () => {
     });
 
     it('returns fixed usd rate for stablecoins', () => {
-      const assetId = buildAssetId(
-        CHAIN_ID_POLYGON,
-        POLYGON_USDCE_ADDRESS,
-      );
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
 
       getAssetsControllerStateMock.mockReturnValue({
         assetsInfo: {},
@@ -731,7 +729,7 @@ describe('Token Utils', () => {
             usdPrice: 4,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -750,7 +748,7 @@ describe('Token Utils', () => {
         assetsInfo: {},
         assetsPrice: {},
         selectedCurrency: 'eur',
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -762,10 +760,7 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined for stablecoins with a non-fungible price entry', () => {
-      const assetId = buildAssetId(
-        CHAIN_ID_POLYGON,
-        POLYGON_USDCE_ADDRESS,
-      );
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
 
       getAssetsControllerStateMock.mockReturnValue({
         assetsInfo: {},
@@ -776,7 +771,7 @@ describe('Token Utils', () => {
             price: 3,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -804,7 +799,7 @@ describe('Token Utils', () => {
             usdPrice: 25,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -832,7 +827,7 @@ describe('Token Utils', () => {
             usdPrice: 3,
           },
         },
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,
@@ -847,7 +842,7 @@ describe('Token Utils', () => {
       getAssetsControllerStateMock.mockReturnValue({
         assetsInfo: {},
         assetsPrice: {},
-      } as never);
+      });
 
       const result = getTokenFiatRate(
         messenger,

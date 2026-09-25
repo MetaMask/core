@@ -367,7 +367,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish('AssetsController:stateChange', {} as never, []);
+      isolatedPublish('AssetsController:stateChange', {}, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
       expect(parseRequiredTokensMock).not.toHaveBeenCalled();
@@ -388,7 +388,7 @@ describe('Transaction Utils', () => {
           updateTransactionDataMock,
         );
 
-        isolatedPublish('AssetsController:stateChange', {} as never, []);
+        isolatedPublish('AssetsController:stateChange', {}, []);
 
         expect(updateTransactionDataMock).not.toHaveBeenCalled();
       },
@@ -407,7 +407,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish('AssetsController:stateChange', {} as never, []);
+      isolatedPublish('AssetsController:stateChange', {}, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
