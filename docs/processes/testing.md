@@ -8,7 +8,8 @@ If you need to customize the behavior of Jest for a package, see `jest.config.cj
 
 - Run `yarn workspace <workspaceName> run test` to run all tests for a package.
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` to run a test file within the context of a package.
-- Prefer the above two commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
+- Run `yarn test` to run tests for all packages in the monorepo.
+  - This command takes a long time, so prefer to run the individual package commands.
 
 > **Note**
 >

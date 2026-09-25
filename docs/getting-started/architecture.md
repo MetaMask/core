@@ -3,13 +3,11 @@
 ### Stack
 
 - **Yarn 4** for managing the monorepo
-- **TypeScript 5** for writing type-safe code
+- **TypeScript 7** for writing type-safe code
 - **Jest** for writing tests
-- **ESLint 9** and **Prettier** for linting and formatting code
-- **Babel** for compiling ESM code so that Jest can run it
+- **ESLint 9** and **Oxfmt** for linting and formatting code
 - **`@metamask/auto-changelog`** for writing and validating changelogs
 - **`@metamask/create-release-branch`**, **`MetaMask/action-publish-release`**, and **`MetaMask/action-npm-publish`** for creating and publishing releases
-- **TypeDoc** for generating API documentation
 
 ### Package structure
 
