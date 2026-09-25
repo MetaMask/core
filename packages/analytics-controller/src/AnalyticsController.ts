@@ -902,7 +902,9 @@ export class AnalyticsController extends BaseController<
           if (
             newState.configs.eventsConfig?.version !== this.#eventsConfigVersion
           ) {
-            this.#fetchEventsConfig().catch(() => undefined);
+            this.#fetchEventsConfig().catch(
+              /* istanbul ignore next */ () => undefined,
+            );
           }
         },
       );
