@@ -4,8 +4,7 @@
 
 If you need to customize the behavior of Oxlint, see `oxlint.config.ts` in the root.
 
-- Run `yarn lint:eslint` to run ESLint and show possible violations across the monorepo.
-  - Note that this runs `yarn build:only-clean` first, which deletes all `packages/*/dist` files. Run `yarn build` again if you need the built artifacts.
+- Run `yarn lint:oxlint` to run Oxlint and show possible violations across the monorepo.
 - Run `yarn lint:misc` to reformat all files across the repo.
 - Run `yarn changelog:validate` to check for formatting issues in changelogs.
 - Run `yarn lint` to lint all files and show possible problems to fix.
