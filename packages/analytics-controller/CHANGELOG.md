@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** `AnalyticsControllerMessenger` now requires `ConfigRegistryController:getState` in its `AllowedActions`; compositions must delegate this action from the root messenger ([#10448](https://github.com/MetaMask/core/pull/10448))
-- Wire up `#fetchEventsConfig` in `AnalyticsController.init` to read `eventsConfig` from `ConfigRegistryController:getState` and update in-memory event-purpose classification when the version differs; adds `@metamask/config-registry-controller` `^4.0.0` as a dependency ([#10448](https://github.com/MetaMask/core/pull/10448))
+- **BREAKING:** Wire up `#fetchEventsConfig` in `AnalyticsController.init` to read `eventsConfig` from `ConfigRegistryController:getState` and update in-memory event-purpose classification when the version differs; adds `@metamask/config-registry-controller` `^4.0.0` as a dependency and requires `ConfigRegistryController:getState` in `AnalyticsControllerMessenger`'s `AllowedActions` ([#10448](https://github.com/MetaMask/core/pull/10448))
 
 ## [3.2.0]
 
