@@ -82,5 +82,18 @@ export default createConfig({
         'node/no-process-env': 'off',
       },
     },
+
+    {
+      files: [
+        'packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts',
+        'packages/foundryup/src/cli.ts',
+        'packages/java-tron-up/src/bin/java-tron-up.ts',
+        'packages/messenger-cli/src/cli.ts',
+        'packages/platform-api-docs/src/cli.ts',
+      ],
+      rules: {
+        'n/hashbang': 'off',
+      },
+    },
   ],
 });

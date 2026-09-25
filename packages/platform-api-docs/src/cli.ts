@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
