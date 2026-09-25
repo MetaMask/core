@@ -153,15 +153,15 @@ export const mergeInternalScopes = (
   Object.entries(scopeB).forEach(([scopeString, rightScopeObject]) => {
     const internalScopeString = scopeString as keyof typeof scopeB;
     const leftRequiredScopeObject = resultScope[internalScopeString];
-    if (!leftRequiredScopeObject) {
-      resultScope[internalScopeString] = rightScopeObject;
-    } else {
+    if (leftRequiredScopeObject) {
       resultScope[internalScopeString] = {
         accounts: getUniqueArrayItems([
           ...leftRequiredScopeObject.accounts,
           ...rightScopeObject.accounts,
         ]),
       };
+    } else {
+      resultScope[internalScopeString] = rightScopeObject;
     }
   });
 

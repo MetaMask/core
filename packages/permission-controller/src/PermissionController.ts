@@ -1581,7 +1581,9 @@ export class PermissionController<
 
     this.#validatePermission(
       this.#getPermissionSpecification(permission.parentCapability),
+      /* oxlint-disable typescript/no-unnecessary-type-assertion */
       permission as PermissionConstraint,
+      /* oxlint-enable typescript/no-unnecessary-type-assertion */
       origin,
       validationFlags,
     );
@@ -1749,6 +1751,7 @@ export class PermissionController<
 
       // We have verified that the target exists, and reassign it to change its
       // type.
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       const targetName = requestedTarget as ExtractPermission<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification

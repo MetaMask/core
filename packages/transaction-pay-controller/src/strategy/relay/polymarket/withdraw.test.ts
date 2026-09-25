@@ -149,7 +149,7 @@ describe('Polymarket withdraw', () => {
     });
 
     it('throws when the Relay quote has no deposit step', async () => {
-      const quote = buildQuote({ steps: [] } as Partial<RelayQuote>);
+      const quote = buildQuote({ steps: [] });
 
       await expect(
         submitPolymarketWithdraw(quote, EOA_MOCK, messenger),
@@ -441,7 +441,7 @@ describe('Polymarket withdraw', () => {
     it('throws when the Relay quote has no deposit step', async () => {
       await expect(
         buildPolymarketDepositWalletSimulation(
-          buildQuote({ steps: [] } as Partial<RelayQuote>),
+          buildQuote({ steps: [] }),
           EOA_MOCK,
           messenger,
         ),

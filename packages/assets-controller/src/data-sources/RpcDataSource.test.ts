@@ -44,12 +44,12 @@ function createBalanceFetchResult(
   return {
     chainId: MOCK_CHAIN_ID_HEX,
     accountId: MOCK_ACCOUNT_ID,
-    accountAddress: MOCK_ADDRESS as Address,
+    accountAddress: MOCK_ADDRESS,
     timestamp: Date.now(),
     balances: [],
     failedAddresses: [],
     ...overrides,
-  } as BalanceFetchResult;
+  };
 }
 
 function createMockInternalAccount(
@@ -69,7 +69,7 @@ function createMockInternalAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -464,9 +464,7 @@ describe('RpcDataSource', () => {
 
     it('returns undefined for non-existent chain', async () => {
       await withController(({ controller }) => {
-        expect(
-          controller.getChainStatus('eip155:999' as ChainId),
-        ).toBeUndefined();
+        expect(controller.getChainStatus('eip155:999')).toBeUndefined();
       });
     });
   });
@@ -516,7 +514,7 @@ describe('RpcDataSource', () => {
           .mockResolvedValue({
             chainId: MOCK_CHAIN_ID_HEX,
             accountId: MOCK_ACCOUNT_ID,
-            accountAddress: MOCK_ADDRESS as Address,
+            accountAddress: MOCK_ADDRESS,
             timestamp: Date.now(),
             balances: [
               {
@@ -598,11 +596,11 @@ describe('RpcDataSource', () => {
     it('returns empty response when no active chains match', async () => {
       await withController(async ({ controller }) => {
         const request = createDataRequest({
-          chainIds: ['eip155:999' as ChainId],
+          chainIds: ['eip155:999'],
           accountsWithSupportedChains: [
             {
               account: createMockInternalAccount(),
-              supportedChains: ['eip155:999' as ChainId],
+              supportedChains: ['eip155:999'],
             },
           ],
         });
@@ -708,10 +706,10 @@ describe('RpcDataSource', () => {
             accountsWithSupportedChains: [
               {
                 account,
-                supportedChains: [MOCK_CHAIN_ID_CAIP, 'eip155:137' as ChainId],
+                supportedChains: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
               },
             ],
-            chainIds: [MOCK_CHAIN_ID_CAIP, 'eip155:137' as ChainId],
+            chainIds: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
             dataTypes: ['balance'],
           };
           const response = await controller.fetch(request);
@@ -768,10 +766,10 @@ describe('RpcDataSource', () => {
             accountsWithSupportedChains: [
               {
                 account,
-                supportedChains: [MOCK_CHAIN_ID_CAIP, 'eip155:137' as ChainId],
+                supportedChains: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
               },
             ],
-            chainIds: [MOCK_CHAIN_ID_CAIP, 'eip155:137' as ChainId],
+            chainIds: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
             dataTypes: ['balance'],
           };
           const response = await controller.fetch(request);
@@ -942,7 +940,7 @@ describe('RpcDataSource', () => {
         .mockResolvedValue({
           chainId: MOCK_CHAIN_ID_HEX,
           accountId: MOCK_ACCOUNT_ID,
-          accountAddress: MOCK_ADDRESS as Address,
+          accountAddress: MOCK_ADDRESS,
           detectedAssets: [
             {
               assetId,
@@ -982,7 +980,7 @@ describe('RpcDataSource', () => {
         .mockResolvedValue({
           chainId: MOCK_CHAIN_ID_HEX,
           accountId: MOCK_ACCOUNT_ID,
-          accountAddress: MOCK_ADDRESS as Address,
+          accountAddress: MOCK_ADDRESS,
           detectedAssets: [
             {
               assetId,
@@ -1021,7 +1019,7 @@ describe('RpcDataSource', () => {
       jest.spyOn(TokenDetector.prototype, 'detectTokens').mockResolvedValue({
         chainId: MOCK_CHAIN_ID_HEX,
         accountId: MOCK_ACCOUNT_ID,
-        accountAddress: MOCK_ADDRESS as Address,
+        accountAddress: MOCK_ADDRESS,
         detectedAssets: [],
         detectedBalances: [],
         zeroBalanceAddresses: [],
@@ -1057,7 +1055,7 @@ describe('RpcDataSource', () => {
     it('passes through when no supported chains', async () => {
       await withController(async ({ controller }) => {
         const context: Context = {
-          request: createDataRequest({ chainIds: ['eip155:999' as ChainId] }),
+          request: createDataRequest({ chainIds: ['eip155:999'] }),
           response: {},
           getAssetsState: jest.fn(),
         };
@@ -1347,7 +1345,7 @@ describe('RpcDataSource', () => {
             accountsWithSupportedChains: [
               {
                 account: createMockInternalAccount(),
-                supportedChains: ['eip155:137' as ChainId],
+                supportedChains: ['eip155:137'],
               },
             ],
             chainIds: [MOCK_CHAIN_ID_CAIP],
@@ -1854,7 +1852,7 @@ describe('RpcDataSource', () => {
         detectionUpdateCallback?.({
           chainId: MOCK_CHAIN_ID_HEX,
           accountId: MOCK_ACCOUNT_ID,
-          accountAddress: MOCK_ADDRESS as Address,
+          accountAddress: MOCK_ADDRESS,
           detectedAssets: [
             {
               assetId: 'eip155:1/erc20:0xabc' as Caip19AssetId,
@@ -1902,7 +1900,7 @@ describe('RpcDataSource', () => {
         detectionUpdateCallback?.({
           chainId: MOCK_CHAIN_ID_HEX,
           accountId: MOCK_ACCOUNT_ID,
-          accountAddress: MOCK_ADDRESS as Address,
+          accountAddress: MOCK_ADDRESS,
           detectedAssets: [
             {
               assetId,

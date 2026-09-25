@@ -3302,7 +3302,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (dex === null) {
         return entry === null;
       }
-      return entry !== null && entry.name === dex;
+      return entry?.name === dex;
     });
 
     if (perpDexIndex === -1) {
@@ -3865,7 +3865,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           if (dex === null) {
             return entry === null; // Main DEX
           }
-          return entry !== null && entry.name === dex;
+          return entry?.name === dex;
         });
 
         if (perpDexIndex === -1) {
@@ -8968,7 +8968,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             ? { limit: { tif: toSDKTimeInForce(params.newOrder.timeInForce) } }
             : { limit: { tif: 'FrontendMarket' } }, // True market order
         c: params.newOrder.clientOrderId
-          ? (params.newOrder.clientOrderId as Hex)
+          ? params.newOrder.clientOrderId
           : undefined,
       };
 
@@ -8985,9 +8985,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const exchangeClient = this.#clientService.getExchangeClient();
       const result = await exchangeClient.modify({
         oid:
-          typeof params.orderId === 'string'
-            ? (params.orderId as Hex)
-            : params.orderId,
+          typeof params.orderId === 'string' ? params.orderId : params.orderId,
         order: newOrder,
       });
 
@@ -12625,9 +12623,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     const dexParam = dex ?? '';
     let metaAndCtxs: [MetaResponse | null, PerpsAssetCtx[]] | null = null;
     try {
-      metaAndCtxs = (await infoClient.metaAndAssetCtxs(
+      metaAndCtxs = await infoClient.metaAndAssetCtxs(
         dexParam ? { dex: dexParam } : undefined,
-      )) as [MetaResponse | null, PerpsAssetCtx[]] | null;
+      );
     } catch (error) {
       return {
         dex,
@@ -13805,7 +13803,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         } else {
           unsubscribe = unsub;
         }
-        return undefined;
+        return;
       })
       .catch((error) => {
         this.#deps.logger.error(
@@ -13814,7 +13812,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             symbols: params.symbols,
           }),
         );
-        return undefined;
+        return;
       });
 
     return () => {

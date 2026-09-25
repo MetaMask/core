@@ -33,7 +33,7 @@ export function buildBscSpamAccount(
       lastSelected: 1_756_200_000_000,
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 /**

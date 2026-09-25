@@ -3587,12 +3587,12 @@ export class RampsController extends BaseController<
         (existing) => existing.id === account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(account as Draft<AutorampAccount>);
+        state.autoramps.push(account);
       } else {
         state.autoramps[idx] = {
           ...state.autoramps[idx],
           ...account,
-        } as Draft<AutorampAccount>;
+        };
       }
     });
 
@@ -4070,7 +4070,7 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === autorampId,
       );
       if (idx !== -1) {
-        state.autoramps[idx] = notified as Draft<AutorampAccount>;
+        state.autoramps[idx] = notified;
       }
     });
   }
@@ -4155,9 +4155,9 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === result.account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(result.account as Draft<AutorampAccount>);
+        state.autoramps.push(result.account);
       } else {
-        state.autoramps[idx] = result.account as Draft<AutorampAccount>;
+        state.autoramps[idx] = result.account;
       }
     });
 

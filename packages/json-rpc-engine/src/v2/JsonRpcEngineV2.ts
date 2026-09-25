@@ -499,7 +499,7 @@ export class JsonRpcEngineV2<
         ) {
           return middleware.destroy();
         }
-        return undefined;
+        return;
       }),
     );
     this.#middleware = [] as never;

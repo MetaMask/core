@@ -857,8 +857,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.update((state) => {
       if (state.lastSelectedPaymentMethod) {
         const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
-        state.lastSelectedPaymentMethod =
-          rest as typeof state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod = rest;
       }
     });
   }

@@ -103,7 +103,7 @@ export async function getWorkspaceDependencies(
   );
 
   const packages = await Promise.all(
-    workspaces.map(({ location }) =>
+    workspaces.map(async ({ location }) =>
       readFile(join(ROOT_WORKSPACE, location, 'package.json'), {
         encoding: 'utf-8',
       }).then(JSON.parse),

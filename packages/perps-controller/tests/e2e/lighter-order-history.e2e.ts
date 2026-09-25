@@ -153,7 +153,7 @@ root.delegate({
   messenger,
 });
 const controller = new PerpsController({
-  messenger: messenger as PerpsControllerMessenger,
+  messenger,
   state: { isTestnet: true, activeProvider: 'lighter' },
   clientConfig: {
     providerCredentials: {

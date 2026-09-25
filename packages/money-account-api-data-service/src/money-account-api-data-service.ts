@@ -281,7 +281,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            return validated as unknown as PositionResponse;
+            return validated;
           },
         );
       },
@@ -349,7 +349,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            return validated as unknown as InterestResponse;
+            return validated;
           },
         );
       },
@@ -434,7 +434,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
                 );
               }
 
-              return validated as unknown as HistoryResponse;
+              return validated;
             },
           );
         },
@@ -507,7 +507,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            return validated as unknown as RateHistoryResponse;
+            return validated;
           },
         );
       },

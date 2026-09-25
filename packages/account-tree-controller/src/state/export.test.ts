@@ -74,7 +74,7 @@ const MOCK_PRIVATE_KEY_WALLET_STATE = makeLocalKeyringWallet(
  * @returns context, mocks (per-action jest.fn()s), and the raw messenger mock.
  */
 function setup({
-  wallets = {} as AccountTreeControllerState['accountTree']['wallets'],
+  wallets = {},
   isUnlocked = true,
 }: {
   wallets?: AccountTreeControllerState['accountTree']['wallets'];
@@ -120,7 +120,7 @@ function setup({
         case 'AccountsController:getAccount':
           return mocks.AccountsController.getAccount(...args);
         default:
-          return undefined;
+          return;
       }
     }),
   } as unknown as AccountTreeControllerMessenger;
@@ -649,7 +649,7 @@ describe('exportState', () => {
           if (accountId === 'account-private-key-2') {
             return { id: 'account-private-key-2', address: '0xdef' };
           }
-          return undefined;
+          return;
         },
       );
 

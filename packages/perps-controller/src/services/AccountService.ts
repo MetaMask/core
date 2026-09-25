@@ -205,7 +205,7 @@ export class AccountService {
               const requestToUpdate =
                 state.withdrawalRequests[withdrawalRequestIndex];
               // Withdrawal is bridging (no txHash yet)
-              requestToUpdate.status = 'bridging' as TransactionStatus;
+              requestToUpdate.status = 'bridging';
               requestToUpdate.success = true;
               if (result.withdrawalId) {
                 requestToUpdate.withdrawalId = result.withdrawalId;

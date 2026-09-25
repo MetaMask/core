@@ -35,7 +35,7 @@ function createMockAccount(id = MOCK_ACCOUNT_ID): InternalAccount {
       importTime: 0,
       lastSelected: 0,
     },
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
@@ -49,7 +49,7 @@ function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
     })),
     dataTypes: ['balance'],
     ...overrides,
-  } as DataRequest;
+  };
 }
 
 function createAssetsState(
