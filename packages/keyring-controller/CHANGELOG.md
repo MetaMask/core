@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Changed `withKeyring` and `withKeyringV2` transactions to snapshot and diff only the operated keyring, instead of every keyring ([#10407](https://github.com/MetaMask/core/pull/10407))
+  - Untouched keyrings are no longer serialized during these operations, and keep their in-memory instances even when the operation fails.
+  - Operations passed to `withKeyring` and `withKeyringV2` must only mutate the keyring they are given: changes to other keyrings (e.g. through references obtained from deprecated direct-access methods) are neither persisted nor rolled back.
+- Changed `KeyringController` rollback to restore only the keyrings affected by a failed operation, instead of re-creating every keyring ([#10407](https://github.com/MetaMask/core/pull/10407))
+  - Keyrings that a failed operation did not touch now keep their in-memory instances: `destroy()` is no longer invoked on them, and references previously obtained (e.g. via `getKeyringsByType` or `getKeyringForAccount`) remain valid after a rollback.
+  - Unsupported keyrings are no longer re-attempted when an operation rolls back.
+  - A keyring that fails to destroy during a rollback no longer aborts it: the failure is logged, the rollback completes, and the error of the failed operation is still the one thrown.
+
 ## [28.1.0]
 
 ### Added
