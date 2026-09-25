@@ -30,6 +30,7 @@ export function getEmailFromPartnerIdentityToken(token: string): string {
 
   const ext = asRecord(payload)?.ext;
   const email = asRecord(ext)?.email;
+  // TODO check: email_verified: true too!
   if (typeof email !== 'string' || email.length === 0) {
     throw new Error(
       'KycController: partner identity token does not contain an email claim',
