@@ -2022,11 +2022,6 @@
       "count": 3
     }
   },
-  "packages/utils/src/errors.ts": {
-    "no-restricted-syntax": {
-      "count": 3
-    }
-  },
   "packages/utils/src/fs.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 20
@@ -2035,11 +2030,6 @@
   "packages/utils/src/hashing.test.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 9
-    }
-  },
-  "packages/utils/src/hashing.ts": {
-    "no-restricted-syntax": {
-      "count": 3
     }
   },
   "packages/utils/src/json.ts": {
