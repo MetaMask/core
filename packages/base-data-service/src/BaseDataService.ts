@@ -26,6 +26,7 @@ import {
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
+  QueryFilters,
   QueryFunction,
   WithRequired,
   dehydrate,
@@ -533,6 +534,22 @@ export class BaseDataService<
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#queryClient.invalidateQueries(filters, options);
+  }
+
+  /**
+   * Cancel in-flight queries serviced by this data service.
+   *
+   * Used by subclasses that need to abort a concurrent fetch before starting
+   * a forced refresh (e.g. `Cache-Control: no-cache` reads), so a slower
+   * non-fresh request cannot overwrite the result.
+   *
+   * @param filters - Optional filter for selecting specific queries.
+   * @returns Nothing.
+   */
+  protected async cancelQueries(
+    filters?: QueryFilters<QueryKey>,
+  ): Promise<void> {
+    await this.#queryClient.cancelQueries(filters);
   }
 
   /**
