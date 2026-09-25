@@ -1,3 +1,6 @@
+import type { DelegationResponse } from '@metamask/authenticated-user-storage';
+import type { IntentEntry } from '@metamask/chomp-api-service';
+import { createRedeemerTerms } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -47,6 +50,14 @@ const CHANGED_VAULT_CONFIG: MoneyAccountVaultConfig = {
   underlyingToken: '0x1111111111111111111111111111111111111111',
 };
 
+const MOCK_PREMIUM_BORING_VAULT_ADDRESS =
+  '0x6666666666666666666666666666666666666666' as Hex;
+
+const PREMIUM_VAULT_CONFIG = {
+  ...VAULT_CONFIG,
+  boringVault: MOCK_PREMIUM_BORING_VAULT_ADDRESS,
+};
+
 // CHOMP-API-derived values.
 const MOCK_DELEGATE_ADDRESS =
   '0x1111111111111111111111111111111111111111' as Hex;
@@ -54,6 +65,8 @@ const MOCK_MUSD_TOKEN_ADDRESS =
   '0x3333333333333333333333333333333333333333' as Hex;
 const MOCK_VEDA_VAULT_ADAPTER_ADDRESS =
   '0x4444444444444444444444444444444444444444' as Hex;
+const MOCK_PREMIUM_VEDA_VAULT_ADAPTER_ADDRESS =
+  '0x5555555555555555555555555555555555555555' as Hex;
 
 // Delegation Framework deployment for mainnet @ 1.3.0 — the controller resolves
 // these from `@metamask/delegation-deployments` rather than accepting them via
@@ -61,6 +74,131 @@ const MOCK_VEDA_VAULT_ADAPTER_ADDRESS =
 // drift if the deployment registry is bumped.
 const MAINNET_CONTRACTS =
   DELEGATOR_CONTRACTS['1.3.0'][hexToNumber(MOCK_CHAIN_ID)];
+
+const MOCK_MUSD_DELEGATION_HASH: Hex = `0x${'ee'.repeat(32)}`;
+const MOCK_VMUSD_DELEGATION_HASH: Hex = `0x${'ff'.repeat(32)}`;
+
+/**
+ * Builds a stored vault delegation from the account to CHOMP's delegate,
+ * redeemed by the base vault adapter.
+ *
+ * @param tokenAddress - The delegated token.
+ * @param delegationHash - The delegation hash.
+ * @returns A `DelegationResponse`.
+ */
+function storedDelegation(
+  tokenAddress: Hex,
+  delegationHash: Hex,
+): DelegationResponse {
+  return {
+    signedDelegation: {
+      delegate: MOCK_DELEGATE_ADDRESS,
+      delegator: MOCK_ACCOUNT_ADDRESS,
+      authority: `0x${'ff'.repeat(32)}`,
+      caveats: [
+        {
+          enforcer: MAINNET_CONTRACTS.RedeemerEnforcer,
+          terms: createRedeemerTerms({
+            redeemers: [MOCK_VEDA_VAULT_ADAPTER_ADDRESS],
+          }),
+          args: '0x',
+        },
+      ],
+      salt: `0x${'42'.repeat(32)}`,
+      signature: `0x${'cd'.repeat(65)}`,
+    },
+    metadata: {
+      delegationHash,
+      chainIdHex: MOCK_CHAIN_ID,
+      allowance: `0x${'f'.repeat(64)}`,
+      tokenSymbol: 'mUSD',
+      tokenAddress,
+      type: 'cash-deposit',
+    },
+  };
+}
+
+/**
+ * Builds a CHOMP intent for `delegationHash`.
+ *
+ * @param delegationHash - The delegation hash the intent references.
+ * @param status - The intent status.
+ * @returns An `IntentEntry`.
+ */
+function intent(
+  delegationHash: Hex,
+  status: IntentEntry['status'] = 'active',
+): IntentEntry {
+  return {
+    account: MOCK_ACCOUNT_ADDRESS,
+    delegationHash,
+    chainId: MOCK_CHAIN_ID,
+    status,
+    metadata: {
+      allowance: `0x${'f'.repeat(64)}`,
+      tokenAddress: MOCK_MUSD_TOKEN_ADDRESS,
+      tokenSymbol: 'mUSD',
+      type: 'cash-deposit',
+    },
+  };
+}
+
+/**
+ * Makes the storage and CHOMP mocks write through to in-memory lists, so
+ * what the steps write is visible to later reads.
+ *
+ * @param mocks - The mocks from `setup()`.
+ */
+function makeAusAndChompWritable(mocks: Mocks): void {
+  const delegations: DelegationResponse[] = [];
+  const intents: IntentEntry[] = [];
+  mocks.listDelegations.mockImplementation(async () => [...delegations]);
+  mocks.createDelegation.mockImplementation(
+    async (entry: DelegationResponse) => {
+      delegations.push(entry);
+    },
+  );
+  mocks.getIntentsByAddress.mockImplementation(async () => [...intents]);
+  mocks.createIntents.mockImplementation(
+    async (submitted: Omit<IntentEntry, 'status'>[]) => {
+      intents.push(
+        ...submitted.map((entry) => ({ ...entry, status: 'active' as const })),
+      );
+      return [];
+    },
+  );
+}
+
+/**
+ * Sets up the mocks for an account that is already associated, delegated
+ * on-chain, and has the base vault delegations with active intents.
+ *
+ * @param mocks - The mocks from `setup()`.
+ */
+function markBaseVaultReady(mocks: Mocks): void {
+  mocks.getAssociatedAddresses.mockResolvedValue([
+    { address: MOCK_ACCOUNT_ADDRESS },
+  ]);
+  mocks.providerRequest.mockImplementation(
+    async ({ method }: { method: string }) => {
+      if (method === 'eth_getCode') {
+        return `0xef0100${MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl.slice(2).toLowerCase()}`;
+      }
+      if (method === 'eth_getTransactionCount') {
+        return '0x0';
+      }
+      throw new Error(`Unexpected RPC method: ${method}`);
+    },
+  );
+  mocks.listDelegations.mockResolvedValue([
+    storedDelegation(MOCK_MUSD_TOKEN_ADDRESS, MOCK_MUSD_DELEGATION_HASH),
+    storedDelegation(MOCK_BORING_VAULT_ADDRESS, MOCK_VMUSD_DELEGATION_HASH),
+  ]);
+  mocks.getIntentsByAddress.mockResolvedValue([
+    intent(MOCK_MUSD_DELEGATION_HASH),
+    intent(MOCK_VMUSD_DELEGATION_HASH),
+  ]);
+}
 
 const MOCK_SERVICE_DETAILS_RESPONSE = {
   auth: { message: 'CHOMP Authentication' },
@@ -77,6 +215,23 @@ const MOCK_SERVICE_DETAILS_RESPONSE = {
           ],
           adapterAddress: MOCK_VEDA_VAULT_ADAPTER_ADDRESS,
           intentTypes: ['cash-deposit', 'cash-withdrawal'] as const,
+        },
+        vedaPremiumProtocol: {
+          supportedTokens: [
+            {
+              tokenAddress: MOCK_MUSD_TOKEN_ADDRESS,
+              tokenDecimals: 18,
+            },
+            {
+              tokenAddress: MOCK_PREMIUM_BORING_VAULT_ADDRESS,
+              tokenDecimals: 18,
+            },
+          ],
+          adapterAddress: MOCK_PREMIUM_VEDA_VAULT_ADAPTER_ADDRESS,
+          intentTypes: [
+            'cash-deposit-premium',
+            'cash-withdrawal-premium',
+          ] as const,
         },
       },
     },
@@ -128,6 +283,7 @@ type GateConfig = {
   hasHdKeyring: boolean;
   isEligible: boolean;
   vaultConfig: unknown;
+  premiumVaultConfig?: unknown;
 };
 
 function setup({
@@ -137,6 +293,7 @@ function setup({
   hasHdKeyring = true,
   isEligible = true,
   vaultConfig = VAULT_CONFIG,
+  premiumVaultConfig,
   withOptionalHooks = true,
 }: {
   state?: Partial<MoneyAccountUpgradeControllerState>;
@@ -145,6 +302,7 @@ function setup({
   hasHdKeyring?: boolean;
   isEligible?: boolean;
   vaultConfig?: unknown;
+  premiumVaultConfig?: unknown;
   withOptionalHooks?: boolean;
 } = {}): {
   controller: MoneyAccountUpgradeController;
@@ -162,6 +320,7 @@ function setup({
     hasHdKeyring,
     isEligible,
     vaultConfig,
+    premiumVaultConfig,
   };
 
   // 65-byte signature — r (32 bytes) + s (32 bytes) + v = 0x1c (28).
@@ -229,6 +388,7 @@ function setup({
       ({
         remoteFeatureFlags: {
           moneyAccountVaultConfig: config.vaultConfig,
+          moneyAccountPremiumVaultConfig: config.premiumVaultConfig,
         },
         cacheTimestamp: 0,
       }) as RemoteFeatureFlagControllerState,
@@ -928,6 +1088,261 @@ describe('MoneyAccountUpgradeController', () => {
         ),
       );
     });
+
+    it('arms the base vault only when a premium vault is configured but vedaPremiumProtocol is not found, without reporting an error', async () => {
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      mocks.getServiceDetails.mockResolvedValue({
+        ...MOCK_SERVICE_DETAILS_RESPONSE,
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            ...MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID],
+            protocol: {
+              vedaProtocol:
+                MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID].protocol
+                  .vedaProtocol,
+            },
+          },
+        },
+      });
+
+      await bootstrap();
+
+      expect(mocks.onBootstrapError).not.toHaveBeenCalled();
+
+      // Base vault delegations only — no premium pair.
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+    });
+
+    describe('when the premium vault was dropped', () => {
+      const SERVICE_DETAILS_WITHOUT_PREMIUM = {
+        ...MOCK_SERVICE_DETAILS_RESPONSE,
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            ...MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID],
+            protocol: {
+              vedaProtocol:
+                MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID].protocol
+                  .vedaProtocol,
+            },
+          },
+        },
+      };
+
+      it('arms the premium vault on a later trigger once CHOMP serves vedaPremiumProtocol, even though the flags did not change', async () => {
+        const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        makeAusAndChompWritable(mocks);
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+        clearMockCalls(mocks);
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        // Only the premium pair was missing.
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      });
+
+      it('keeps the base vault armed when the re-fetch fails, and re-fetches again on the next trigger', async () => {
+        const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+        await triggerKeyringChange();
+        expect(mocks.onBootstrapError).toHaveBeenCalledWith(
+          new Error('CHOMP down'),
+        );
+
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+        clearMockCalls(mocks);
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps the base vault armed when the re-fetch is skipped', async () => {
+        const { controller, mocks, config, bootstrap, triggerKeyringChange } =
+          setup({ premiumVaultConfig: PREMIUM_VAULT_CONFIG });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        config.isEligible = false;
+        clearMockCalls(mocks);
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+
+        config.isEligible = true;
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not stack re-fetches while one is in flight', async () => {
+        const { rootMessenger, mocks, bootstrap } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValue(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        clearMockCalls(mocks);
+        for (let i = 0; i < 3; i++) {
+          rootMessenger.publish(
+            'KeyringController:stateChange',
+            {} as KeyringControllerState,
+            [],
+          );
+        }
+        await flushPromises();
+
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not abort an in-flight upgrade when a re-fetch still finds no premium protocol', async () => {
+        const { controller, mocks, bootstrap, triggerKeyringChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValue(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        let releaseAssociate: () => void = () => undefined;
+        mocks.associateAddress.mockImplementationOnce(
+          async () =>
+            new Promise((resolve) => {
+              releaseAssociate = (): void =>
+                resolve({
+                  profileId: 'profile-1',
+                  address: MOCK_ACCOUNT_ADDRESS,
+                  status: 'created',
+                });
+            }),
+        );
+        const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+        await flushPromises();
+        expect(mocks.associateAddress).toHaveBeenCalled();
+
+        await triggerKeyringChange();
+        expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
+        releaseAssociate();
+
+        expect(await upgrade).toBeUndefined();
+        expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      });
+
+      it('stops re-fetching once the premium vault config is no longer served', async () => {
+        const { mocks, config, bootstrap, triggerFlagChange } = setup({
+          premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+        });
+        mocks.getServiceDetails.mockResolvedValue(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        config.premiumVaultConfig = undefined;
+        clearMockCalls(mocks);
+        await triggerFlagChange();
+        await triggerFlagChange();
+
+        expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+      });
+
+      it('does not arm a re-fetch that is superseded by a base vault change while in flight', async () => {
+        const {
+          controller,
+          mocks,
+          config,
+          bootstrap,
+          triggerFlagChange,
+          triggerKeyringChange,
+        } = setup({ premiumVaultConfig: PREMIUM_VAULT_CONFIG });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        let resolveRefetch: (value: unknown) => void = () => undefined;
+        mocks.getServiceDetails.mockImplementationOnce(
+          async () =>
+            new Promise((resolve) => {
+              resolveRefetch = resolve;
+            }),
+        );
+        await triggerKeyringChange();
+
+        config.vaultConfig = {
+          ...VAULT_CONFIG,
+          boringVault: MOCK_PREMIUM_BORING_VAULT_ADDRESS,
+        };
+        mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+        await triggerFlagChange();
+        resolveRefetch(MOCK_SERVICE_DETAILS_RESPONSE);
+        await flushPromises();
+
+        await expect(
+          controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+        ).rejects.toThrow('is not bootstrapped');
+      });
+
+      it('still disarms when the base vault changes', async () => {
+        const { controller, mocks, config, bootstrap, triggerFlagChange } =
+          setup({ premiumVaultConfig: PREMIUM_VAULT_CONFIG });
+        mocks.getServiceDetails.mockResolvedValueOnce(
+          SERVICE_DETAILS_WITHOUT_PREMIUM,
+        );
+        await bootstrap();
+
+        config.vaultConfig = {
+          ...VAULT_CONFIG,
+          boringVault: MOCK_PREMIUM_BORING_VAULT_ADDRESS,
+        };
+        mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+        await triggerFlagChange();
+
+        await expect(
+          controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+        ).rejects.toThrow('is not bootstrapped');
+      });
+    });
+
+    it('disarms an armed premium vault while re-fetching for a changed premium vault config', async () => {
+      const { controller, mocks, config, bootstrap, triggerFlagChange } = setup(
+        { premiumVaultConfig: PREMIUM_VAULT_CONFIG },
+      );
+      await bootstrap();
+
+      config.premiumVaultConfig = {
+        ...PREMIUM_VAULT_CONFIG,
+        boringVault: MOCK_BORING_VAULT_ADDRESS,
+      };
+      mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP down'));
+      await triggerFlagChange();
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('is not bootstrapped');
+    });
   });
 
   describe('upgradeAccount', () => {
@@ -1105,7 +1520,7 @@ describe('MoneyAccountUpgradeController', () => {
       await expect(
         controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow(
-        'MoneyAccountUpgradeController is not bootstrapped: upgradeAccount() requires the feature flag on, the wallet unlocked, and a successful bootstrap',
+        'MoneyAccountUpgradeController is not bootstrapped: this action requires the feature flag on, the wallet unlocked, and a successful bootstrap',
       );
       expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
 
@@ -1209,6 +1624,73 @@ describe('MoneyAccountUpgradeController', () => {
       expect(
         allCaveatTerms.some((terms) =>
           terms.includes(MOCK_BORING_VAULT_ADDRESS.toLowerCase().slice(2)),
+        ),
+      ).toBe(true);
+    });
+
+    it('ignores a premium vault config served for another chain', async () => {
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: { ...PREMIUM_VAULT_CONFIG, chainId: '0x8f' },
+      });
+      await bootstrap();
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+    });
+
+    it('re-bootstraps and re-runs the upgrade when the premium vault config is first served', async () => {
+      const { controller, config, mocks, bootstrap, triggerFlagChange } =
+        setup();
+      await bootstrap();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      config.premiumVaultConfig = PREMIUM_VAULT_CONFIG;
+      clearMockCalls(mocks);
+      await triggerFlagChange();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      expect(mocks.signDelegation).toHaveBeenCalled();
+    });
+
+    it('does not re-bootstrap when the same premium vault config is served again', async () => {
+      const { mocks, bootstrap, triggerFlagChange } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      await bootstrap();
+      clearMockCalls(mocks);
+
+      await triggerFlagChange();
+
+      expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+    });
+
+    it('also arms the premium vault when the premium vault config is served, signing delegations for both vaults', async () => {
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      await bootstrap();
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      // Two delegations for the base vault, two for the premium vault.
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(4);
+      const allCaveatTerms = mocks.verifyDelegation.mock.calls
+        .flatMap(([{ signedDelegation }]) => signedDelegation.caveats)
+        .map((caveat) => caveat.terms.toLowerCase());
+      expect(
+        allCaveatTerms.some((terms) =>
+          terms.includes(
+            MOCK_PREMIUM_BORING_VAULT_ADDRESS.toLowerCase().slice(2),
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        allCaveatTerms.some((terms) =>
+          terms.includes(
+            MOCK_PREMIUM_VEDA_VAULT_ADAPTER_ADDRESS.toLowerCase().slice(2),
+          ),
         ),
       ).toBe(true);
     });
@@ -1437,6 +1919,126 @@ describe('MoneyAccountUpgradeController', () => {
         controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS]
           .configFingerprint,
       ).not.toBe(originalFingerprint);
+    });
+  });
+
+  describe('ensureDelegationsReadiness', () => {
+    it('throws when no bootstrap has been scheduled', async () => {
+      const { controller } = setup({ isEnabled: false });
+      controller.init();
+
+      await expect(
+        controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+    });
+
+    it('throws while the wallet is locked', async () => {
+      const { controller, bootstrap } = setup({ isUnlocked: false });
+      await bootstrap();
+
+      await expect(
+        controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+    });
+
+    it('signs and registers nothing for a fully ready account', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      markBaseVaultReady(mocks);
+
+      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createIntents).not.toHaveBeenCalled();
+    });
+
+    it('signs the missing delegations and registers their intents for an account with none', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      makeAusAndChompWritable(mocks);
+
+      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+      const [submitted] = mocks.createIntents.mock.calls[0] as [
+        { metadata: { type: string } }[],
+      ];
+      expect(submitted.map((entry) => entry.metadata.type)).toStrictEqual([
+        'cash-deposit',
+        'cash-withdrawal',
+      ]);
+    });
+
+    it('does not trust a recorded fingerprint: a revoked intent is re-registered', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      markBaseVaultReady(mocks);
+      // Record an upgrade first, as `upgradeAccount` would.
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+      // The withdrawal intent was revoked after that; the fingerprint alone
+      // would not catch it.
+      mocks.getIntentsByAddress.mockResolvedValue([
+        intent(MOCK_MUSD_DELEGATION_HASH),
+        intent(MOCK_VMUSD_DELEGATION_HASH, 'revoked'),
+      ]);
+
+      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+
+      // Only the revoked withdrawal intent needed re-registering.
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+      const [submitted] = mocks.createIntents.mock.calls[0] as [
+        { delegationHash: Hex }[],
+      ];
+      expect(submitted).toHaveLength(1);
+      expect(submitted[0].delegationHash).toBe(MOCK_VMUSD_DELEGATION_HASH);
+    });
+
+    it('signs and registers the premium pair alongside an already-ready base pair', async () => {
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      await bootstrap();
+      markBaseVaultReady(mocks);
+      makeAusAndChompWritable(mocks);
+      // Seed AUS/CHOMP with the already-ready base delegations and intents so
+      // only the premium pair is missing.
+      mocks.listDelegations.mockResolvedValueOnce([
+        storedDelegation(MOCK_MUSD_TOKEN_ADDRESS, MOCK_MUSD_DELEGATION_HASH),
+        storedDelegation(MOCK_BORING_VAULT_ADDRESS, MOCK_VMUSD_DELEGATION_HASH),
+      ]);
+
+      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+
+      // Only the two premium delegations needed signing.
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+    });
+
+    it('wraps a step failure in a MoneyAccountUpgradeStepError', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
+
+      await expect(
+        controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('Money Account upgrade failed at step');
+    });
+
+    it('is callable via the messenger', async () => {
+      const { rootMessenger, mocks, bootstrap } = setup();
+      await bootstrap();
+      markBaseVaultReady(mocks);
+
+      const result = await rootMessenger.call(
+        'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(result).toBeUndefined();
     });
   });
 });

@@ -34,6 +34,7 @@ import type {
   AssociateAddressParams,
   AssociateAddressResponse,
   ProfileAddressEntry,
+  ChompIntentType,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   UpgradeEntry,
@@ -46,6 +47,14 @@ import type {
   VerifyDelegationParams,
   VerifyDelegationResponse,
 } from './types.js';
+
+const CHOMP_INTENT_TYPES: ChompIntentType[] = [
+  'cash-deposit',
+  'cash-withdrawal',
+  'cash-deposit-premium',
+  'cash-withdrawal-premium',
+  'cash-subscription',
+];
 
 // === GENERAL ===
 
@@ -200,7 +209,7 @@ const SendIntentResponseArrayStruct = array(
       allowance: StrictHexStruct,
       tokenSymbol: string(),
       tokenAddress: StrictHexStruct,
-      type: enums(['cash-deposit', 'cash-withdrawal']),
+      type: enums(CHOMP_INTENT_TYPES),
     }),
     createdAt: string(),
   }),
@@ -216,7 +225,7 @@ const IntentEntryArrayStruct = array(
       allowance: StrictHexStruct,
       tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
-      type: enums(['cash-deposit', 'cash-withdrawal']),
+      type: enums(CHOMP_INTENT_TYPES),
     }),
   }),
 );
@@ -233,7 +242,7 @@ const ServiceDetailsProtocolStruct = type({
     }),
   ),
   adapterAddress: StrictHexStruct,
-  intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
+  intentTypes: array(enums(CHOMP_INTENT_TYPES)),
 });
 
 const ServiceDetailsResponseStruct = type({
@@ -244,7 +253,10 @@ const ServiceDetailsResponseStruct = type({
     StrictHexStruct,
     type({
       autoDepositDelegate: StrictHexStruct,
-      protocol: record(string(), ServiceDetailsProtocolStruct),
+      protocol: type({
+        vedaProtocol: ServiceDetailsProtocolStruct,
+        vedaPremiumProtocol: optional(ServiceDetailsProtocolStruct),
+      }),
     }),
   ),
 });
