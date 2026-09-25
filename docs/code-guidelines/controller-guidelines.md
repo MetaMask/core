@@ -9,6 +9,10 @@ Controllers are foundational pieces within MetaMask's architecture:
 - They act as a communication layer between service layers (blockchains, internal or external APIs, etc.).
 - They allow the application to be divided into logical modules which can be maintained by different teams within the company.
 
+## Follow the examples
+
+Use `SampleGasPricesController` and `SamplePetnamesController` in the `sample-controllers` package as examples for implementation and tests.
+
 ## Use the latest version of `BaseController` for controllers
 
 All controllers should inherit from `BaseController` from the `@metamask/base-controller` package. This provides a few benefits:

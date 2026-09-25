@@ -6,16 +6,25 @@ As you make changes to packages, make sure to update their changelogs in the sam
 
 We will offer more guidance here in the future, but in general:
 
-- Place new entries under the "Unreleased" section.
-- Place changes into categories. Consult the ["Keep a Changelog"](https://keepachangelog.com/en/1.1.0/#how) specification for the list.
-- Highlight breaking changes by prefixing them with `**BREAKING:**`.
-- Omit non-consumer facing changes from the changelog.
-- Do not simply reuse the commit message, but describe exact changes to the API or usable surface area of the project.
-- Use a list nested under a changelog entry to enumerate more details about a change if need be.
-- Include links to pull request(s) that introduced each change. (Most likely, this is the very same pull request in which you are updating the changelog.)
-- Combine like changes from multiple pull requests into a single changelog entry if necessary.
-- Split disparate changes from the same pull request into multiple entries if necessary.
-- Omit reverted changes from the changelog.
+- When updating changelogs, follow the ["Keep a Changelog"](https://keepachangelog.com/) specification:
+  - When releasing a new version, ensure that there is a header for the version linked to the corresponding tag on GitHub.
+  - Always ensure there is an Unreleased section above any version section. It may be empty.
+  - Within each version section or within Unreleased, place changelog entries into one of the following categories (note: categories must be listed in this order):
+    - Added
+    - Changed
+    - Deprecated
+    - Removed
+    - Fixed
+    - Security
+- Within a category section, follow these guidelines:
+  - Highlight breaking changes by prefixing them with `**BREAKING:**`. List breaking changes above non-breaking changes in the same category section. A change is breaking if it removes, renames, or changes the signature of any public export (function, type, class, constant), or changes default behavior that consumers rely on.
+  - Omit non-consumer facing changes and reverted changes from the changelog.
+  - Use a nested list to add more details about the change if it would help engineers. For breaking changes in particular, highlight steps engineers need to take to adapt to the changes.
+  - Each changelog entry should be followed by links to the pull request(s) that introduced the change. If a pull request is not available yet, use a placeholder.
+  - Do not simply reuse the PR title in the entry, but describe exact changes to the API or usable surface area of the project.
+  - When there are multiple upgrades to the same package in the same release, combine them into a single entry.
+  - Each changelog entry should describe one kind of change; if an entry describes too many things, split it up.
+- After updating a changelog, run `yarn changelog:validate` and fix any errors reported.
 
 ## Generating changelog entries for dependency bumps
 
