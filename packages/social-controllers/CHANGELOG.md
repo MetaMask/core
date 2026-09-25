@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `fetchTokenFeed` method to `SocialService` (and the `SocialService:fetchTokenFeed` messenger action) for one token's positions as feed items. Calls `GET /tokens/:chain/:contractAddress/feed` with optional `status` (`open` or `closed`; omit for both), `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation
+- Add `fetchTokenFeed` method to `SocialService` (and the `SocialService:fetchTokenFeed` messenger action) for one token's positions as feed items. Calls `GET /tokens/:chain/:contractAddress/feed` with optional `status` (`open` or `closed`; omit for both), `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10458](https://github.com/MetaMask/core/pull/10458))
 - Add `fetchTraderFeed` method to `SocialService` (and the `SocialService:fetchTraderFeed` messenger action) for one trader's activity as feed items. Calls `GET /traders/:addressOrId/feed` with optional `commentedOnly`, `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10408](https://github.com/MetaMask/core/pull/10408))
 - Add optional `volumeUsd30d` on `TraderStats` and required `copytradedAllTime` (`count`, `volumeUSD`, `distinctActors`) on `TraderProfileResponse` for the trader stats sheet ([#10389](https://github.com/MetaMask/core/pull/10389))
 
