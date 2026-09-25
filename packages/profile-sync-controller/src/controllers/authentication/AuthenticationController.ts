@@ -82,11 +82,6 @@ export type AuthenticationControllerState = {
    */
   enrolledCredentials?: EnrolledCredential[];
   /**
-   * Epoch-ms hard expiry of the in-memory verification session, or undefined
-   * when none is open. Lets UI show "verified" state without holding the token.
-   */
-  verificationSessionExpiresAt?: number;
-  /**
    * Client gate for profile pairing. Defaults to `true` (fresh install /
    * upgrade), set to `false` after a successful `performSignIn` pair, set
    * back to `true` via `requestProfilePairing()` when the SRP set changes,
@@ -178,12 +173,6 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
         status,
         ...(enrolledAt === undefined ? {} : { enrolledAt }),
       })) ?? null,
-    persist: false,
-    includeInDebugSnapshot: false,
-    usedInUi: true,
-  },
-  verificationSessionExpiresAt: {
-    includeInStateLogs: false,
     persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
@@ -1227,14 +1216,10 @@ export class AuthenticationController extends BaseController<
     // Never keep a Node process alive for the expiry timer (tests, tooling).
     (timer as { unref?: () => void }).unref?.();
     this.#verificationSessions.set(audience, { token, expiresAt, timer });
-    this.update((state) => {
-      state.verificationSessionExpiresAt = expiresAt;
-    });
   }
 
   /**
    * Drops one audience's verification session and its expiration timer.
-   * `verificationSessionExpiresAt` mirrors the default audience only.
    *
    * @param audience - Audience whose session to drop.
    */
@@ -1243,14 +1228,6 @@ export class AuthenticationController extends BaseController<
     if (session) {
       clearTimeout(session.timer);
       this.#verificationSessions.delete(audience);
-    }
-    if (
-      audience === DEFAULT_AUDIENCE &&
-      this.state.verificationSessionExpiresAt !== undefined
-    ) {
-      this.update((state) => {
-        state.verificationSessionExpiresAt = undefined;
-      });
     }
   }
 
@@ -1262,11 +1239,6 @@ export class AuthenticationController extends BaseController<
       clearTimeout(timer);
     }
     this.#verificationSessions.clear();
-    if (this.state.verificationSessionExpiresAt !== undefined) {
-      this.update((state) => {
-        state.verificationSessionExpiresAt = undefined;
-      });
-    }
   }
 
   /**
