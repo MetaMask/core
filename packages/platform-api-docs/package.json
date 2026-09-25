@@ -57,7 +57,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ts-morph": "^28.0.0",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.3"
   },
   "devDependencies": {
     "@jest/globals": "^30.4.1",
@@ -66,7 +66,7 @@
     "@types/node": "^22.13.14",
     "@types/npm-which": "^3",
     "@types/react": "^19.0.0",
-    "@types/yargs": "^17.0.32",
+    "@types/yargs": "^17.0.35",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
