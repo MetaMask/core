@@ -243,8 +243,11 @@ async function withController<ReturnValue>(
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
+    // Mirrors AssetsController.#getNativeAssetForChain: registered natives
+    // from the map, zero-address ERC-20 fallback for unregistered EVM chains.
     getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
-      defaultNativeAssetMap[chainId],
+      defaultNativeAssetMap[chainId] ??
+      (`${chainId}/erc20:0x0000000000000000000000000000000000000000` as Caip19AssetId),
     getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' => {
       const isNative =
         Object.values(defaultNativeAssetMap).some(
@@ -1214,6 +1217,63 @@ describe('RpcDataSource', () => {
           expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
             [nativeAsset]: { amount: '1' },
             [pinnedAsset]: { amount: '0' },
+          });
+          expect(response.updateMode).toBe('full');
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('still emits a v6 snapshot when every read resolved to an omitted zero', async () => {
+      const nativeAsset = `${MOCK_CHAIN_ID_CAIP}/slip44:60` as Caip19AssetId;
+      const detectedAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      // Only the detected token resolves — at zero — so nothing is written.
+      // The zero read is still a success: the snapshot must go out so the
+      // `full` write can drop the stale detected token from state.
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(
+          createBalanceFetchResult({
+            balances: [
+              { assetId: detectedAsset, balance: '0' },
+            ] as BalanceFetchResult['balances'],
+            failedAddresses: ['0x0000000000000000000000000000000000000000'],
+          }),
+        );
+
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [detectedAsset]: {
+                  type: 'erc20' as const,
+                  symbol: 'DAI',
+                  name: 'Dai',
+                  decimals: 18,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [nativeAsset]: { amount: '2' },
+                  [detectedAsset]: { amount: '3' },
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+
+          // The unreadable native keeps its previous amount; the detected
+          // token is omitted so the `full` write drops it.
+          expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
+            [nativeAsset]: { amount: '2' },
           });
           expect(response.updateMode).toBe('full');
         },
@@ -2322,6 +2382,79 @@ describe('RpcDataSource', () => {
       );
     });
 
+    it('still emits a v6 poll snapshot when every read resolved to an omitted zero', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const detectedAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [detectedAssetId]: {
+                  type: 'erc20' as const,
+                  symbol: 'DAI',
+                  name: 'Dai',
+                  decimals: 18,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [nativeAssetId]: { amount: '2' },
+                  [detectedAssetId]: { amount: '3' },
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          // The only read that resolved is a zero for a detected token, which
+          // is deliberately left out of the snapshot. The update must still
+          // publish so the `full` write drops the stale token from state.
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: detectedAssetId,
+                  balance: '0',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'full',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '2' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
     it('keeps a zero balance for a pinned asset on the v6 poll snapshot', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       const pinnedAssetId =
@@ -2414,12 +2547,14 @@ describe('RpcDataSource', () => {
             isUpdate: false,
             onAssetsUpdate,
           });
+          // Non-zero, so the token is not omitted as an unheld invisible
+          // zero; its decimals are unknown, so it cannot be converted.
           await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
                   assetId: erc20AssetId,
-                  balance: '0',
+                  balance: '500',
                 } as BalanceFetchResult['balances'][0],
               ],
             }),

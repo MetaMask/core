@@ -3341,6 +3341,55 @@ describe('AssetsController', () => {
       );
     });
 
+    it('drops an unknown-native fallback row a full update omits', async () => {
+      // A chain absent from the native asset map resolves its native to the
+      // zero-address ERC-20 fallback. That fabricated ID must never be
+      // undeletable: a full snapshot covering the chain that omits it drops
+      // the row instead of shielding it forever.
+      const unknownChainNativeId =
+        'eip155:999999/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
+      const unknownChainTokenId =
+        'eip155:999999/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [unknownChainNativeId]: { amount: '5' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          state: initialState,
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              updateMode: 'full',
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [unknownChainTokenId]: { amount: '1' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              unknownChainNativeId
+            ],
+          ).toBeUndefined();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              unknownChainTokenId
+            ],
+          ).toStrictEqual({ amount: '1' });
+        },
+      );
+    });
+
     it('keeps a known native balance a full update omits', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {

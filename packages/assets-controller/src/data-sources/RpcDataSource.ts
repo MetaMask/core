@@ -129,7 +129,7 @@ export type RpcDataSourceOptions = {
     previousChains: ChainId[],
   ) => void;
   /** Resolves CAIP-2 chain ID to CAIP-19 native asset ID from the cached native asset map. */
-  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
+  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId | undefined;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -229,7 +229,9 @@ export class RpcDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
-  readonly #getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
+  readonly #getNativeAssetForChain: (
+    chainId: ChainId,
+  ) => Caip19AssetId | undefined;
 
   readonly #timeout: number;
 
@@ -645,7 +647,7 @@ export class RpcDataSource extends AbstractDataSource<
       handledAssetKeys.add(balance.assetId.toLowerCase());
     }
 
-    if (Object.keys(newBalances).length === 0) {
+    if (handledAssetKeys.size === 0) {
       return;
     }
 
@@ -1272,11 +1274,6 @@ export class RpcDataSource extends AbstractDataSource<
             assetsToFetch,
           );
 
-          const ingestedBefore = this.#countAccountChainBalances(
-            assetsBalance,
-            accountId,
-            chainId,
-          );
           const handledAssetKeys = await this.#ingestFetchedBalances(
             result,
             accountId,
@@ -1296,11 +1293,7 @@ export class RpcDataSource extends AbstractDataSource<
             continue;
           }
 
-          const ingestedAny =
-            this.#countAccountChainBalances(assetsBalance, accountId, chainId) >
-            ingestedBefore;
-
-          if (!ingestedAny) {
+          if (handledAssetKeys.size === 0) {
             // Nothing at all resolved, so there is no trustworthy slice to
             // write. Leave the chain to the RPC fallback.
             if (!failedChains.includes(chainId)) {
@@ -1558,17 +1551,6 @@ export class RpcDataSource extends AbstractDataSource<
     }
   }
 
-  #countAccountChainBalances(
-    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>,
-    accountId: string,
-    chainId: ChainId,
-  ): number {
-    const prefix = `${chainId}/`;
-    return Object.keys(assetsBalance[accountId] ?? {}).filter((assetId) =>
-      assetId.startsWith(prefix),
-    ).length;
-  }
-
   #recordFetchChainFailure({
     address,
     chainId,
@@ -1584,7 +1566,7 @@ export class RpcDataSource extends AbstractDataSource<
     chainId: ChainId;
     error: unknown;
     accountId: string;
-    nativeAssetId: Caip19AssetId;
+    nativeAssetId: Caip19AssetId | undefined;
     shouldSkipNative: boolean;
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
     assetsInfo: Record<Caip19AssetId, AssetMetadata>;
@@ -1594,19 +1576,22 @@ export class RpcDataSource extends AbstractDataSource<
 
     assetsBalance[accountId] ??= {};
 
-    if (!shouldSkipNative) {
-      assetsBalance[accountId][nativeAssetId] = { amount: '0' };
-    }
-    const existingNativeMeta = this.#getExistingAssetsMetadata()[nativeAssetId];
-    if (!this.#hasValidDecimals(existingNativeMeta)) {
-      const chainStatus = this.#chainStatuses[chainId];
-      if (chainStatus) {
-        assetsInfo[nativeAssetId] = {
-          type: 'native',
-          symbol: chainStatus.nativeCurrency,
-          name: chainStatus.nativeCurrency,
-          decimals: 18,
-        };
+    if (nativeAssetId) {
+      if (!shouldSkipNative) {
+        assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+      }
+      const existingNativeMeta =
+        this.#getExistingAssetsMetadata()[nativeAssetId];
+      if (!this.#hasValidDecimals(existingNativeMeta)) {
+        const chainStatus = this.#chainStatuses[chainId];
+        if (chainStatus) {
+          assetsInfo[nativeAssetId] = {
+            type: 'native',
+            symbol: chainStatus.nativeCurrency,
+            name: chainStatus.nativeCurrency,
+            decimals: 18,
+          };
+        }
       }
     }
 
@@ -2001,10 +1986,11 @@ export class RpcDataSource extends AbstractDataSource<
   ): AssetFetchEntry[] {
     const assetsToFetch: AssetFetchEntry[] = [];
 
-    if (!shouldSkipNative) {
+    const nativeAssetId = this.#getNativeAssetForChain(chainId);
+    if (!shouldSkipNative && nativeAssetId) {
       // Build a single AssetFetchEntry[] for native + custom ERC-20s
       assetsToFetch.push({
-        assetId: this.#getNativeAssetForChain(chainId),
+        assetId: nativeAssetId,
         address: ZERO_ADDRESS,
       });
     }

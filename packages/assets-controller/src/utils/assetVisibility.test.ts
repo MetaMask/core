@@ -114,6 +114,24 @@ describe('getAssetVisibility', () => {
     expect(result.hiddenAssetIds).toStrictEqual([normalizeAssetId(PIN)]);
   });
 
+  it('skips the native for a chain whose native ID cannot be resolved', () => {
+    const state = createState({
+      customAssets: { account1: [PIN] },
+    });
+
+    const result = getAssetVisibility({
+      state,
+      accountIds: ['account1'],
+      chainIds: [MAINNET],
+      getNativeAssetForChain: () => undefined,
+    });
+
+    expect(result.visibleAssetIds).toStrictEqual([
+      MAINNET_DEFAULT,
+      normalizeAssetId(PIN),
+    ]);
+  });
+
   it('skips malformed and staking-position pins', () => {
     const state = createState({
       customAssets: {

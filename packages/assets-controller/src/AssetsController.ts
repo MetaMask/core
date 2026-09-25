@@ -150,7 +150,10 @@ import type {
 } from './types.js';
 import type { AssetVisibility } from './utils/assetVisibility.js';
 import { getAssetVisibility } from './utils/assetVisibility.js';
-import { ZERO_ADDRESS } from './utils/constants.js';
+import {
+  UNKNOWN_EVM_NATIVE_ASSET_REFERENCE,
+  ZERO_ADDRESS,
+} from './utils/constants.js';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
   normalizeAmountString,
@@ -1015,7 +1018,7 @@ export class AssetsController extends BaseController<
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetVisibility: this.#getAssetVisibility.bind(this),
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
+      getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
         this.#getNativeAssetForChain(chainId),
       // Share the API platform's TanStack Query client so the RPC token
       // detector caches/dedupes its top-token-list fetches alongside the rest
@@ -2600,17 +2603,25 @@ export class AssetsController extends BaseController<
 
   /**
    * Canonical native CAIP-19 ID for a chain. Uses the native asset map when
-   * the chain is registered; otherwise falls back to the zero-address ERC-20
-   * encoding used for EVM natives without a SLIP-44 id.
+   * the chain is registered. An unregistered EVM chain falls back to the
+   * zero-address ERC-20 encoding used for EVM natives without a SLIP-44 id;
+   * an unregistered non-EVM chain resolves no native at all — fabricating an
+   * `erc20:` asset on a non-EVM namespace would produce an ID no data source
+   * ever writes.
    *
    * @param chainId - CAIP-2 chain ID.
-   * @returns The native asset ID for the chain.
+   * @returns The native asset ID for the chain, or `undefined` when the
+   * chain is unregistered and non-EVM.
    */
-  #getNativeAssetForChain(chainId: ChainId): Caip19AssetId {
-    return (
-      this.#getNativeAssetMap()[chainId] ??
-      (`${chainId}/erc20:${ZERO_ADDRESS}` as Caip19AssetId)
-    );
+  #getNativeAssetForChain(chainId: ChainId): Caip19AssetId | undefined {
+    const registered = this.#getNativeAssetMap()[chainId];
+    if (registered) {
+      return registered;
+    }
+    if (parseCaipChainId(chainId).namespace === KnownCaipNamespace.Eip155) {
+      return `${chainId}/${UNKNOWN_EVM_NATIVE_ASSET_REFERENCE}` as Caip19AssetId;
+    }
+    return undefined;
   }
 
   #getAssetVisibility(
@@ -2655,8 +2666,9 @@ export class AssetsController extends BaseController<
       state,
       accountIds: [accountId],
       chainIds: coveredChainIds,
-      getNativeAssetForChain: (chainId) =>
-        this.#getNativeAssetForChain(chainId),
+      // Registered natives only: the unknown-native fallback is a fabricated
+      // ID, so it must never shield a row from a `full` replace.
+      getNativeAssetForChain: (chainId) => this.#getNativeAssetMap()[chainId],
     });
 
     return new Set(visibleAssetIds.map((assetId) => assetId.toLowerCase()));
@@ -3090,7 +3102,11 @@ export class AssetsController extends BaseController<
             const effectiveAccountBalances = effectiveAccountBalancesV6(
               previousBalances,
               accountBalances,
-              this.#getUndeletableAssetIds(state, accountId, accountBalances),
+              this.#getUndeletableAssetIds(
+                state as unknown as AssetsControllerState,
+                accountId,
+                accountBalances,
+              ),
               mode,
             );
 

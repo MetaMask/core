@@ -27,7 +27,7 @@ export type GetAssetVisibilityOptions = {
   state: AssetsControllerState;
   accountIds: AccountId[];
   chainIds: ChainId[];
-  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
+  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId | undefined;
 };
 
 /**
@@ -40,7 +40,8 @@ export type GetAssetVisibilityOptions = {
  * @param options.state - Current AssetsController state.
  * @param options.accountIds - Accounts whose pins should be included.
  * @param options.chainIds - Chains to scope native, default, and hidden IDs.
- * @param options.getNativeAssetForChain - Resolves each chain's native ID.
+ * @param options.getNativeAssetForChain - Resolves each chain's native ID;
+ * returns `undefined` when the chain has no resolvable native.
  * @returns Deduplicated, normalized visible and hidden asset IDs.
  */
 export function getAssetVisibility({
@@ -68,7 +69,10 @@ export function getAssetVisibility({
   for (const chainId of chainIds) {
     try {
       if (!shouldSkipNativeForCaipChainId(chainId)) {
-        addVisible(normalizeAssetId(getNativeAssetForChain(chainId)));
+        const nativeAssetId = getNativeAssetForChain(chainId);
+        if (nativeAssetId) {
+          addVisible(normalizeAssetId(nativeAssetId));
+        }
       }
     } catch {
       // A missing native mapping must not prevent other visible assets.
