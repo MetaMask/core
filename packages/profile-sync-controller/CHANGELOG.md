@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.0.0]
 
-### Uncategorized
-
-- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
-
 ### Changed
 
 - **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432))

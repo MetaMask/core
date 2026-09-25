@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.3]
 
-### Uncategorized
-
-- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
-
 ### Changed
 
 - Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
