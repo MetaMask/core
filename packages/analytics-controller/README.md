@@ -34,7 +34,7 @@ The AnalyticsController provides a unified interface for tracking analytics even
 3. **Subscribe to state changes**: Persist changes to isolated storage
 4. **Persist to isolated storage**: Keep analytics settings separate from main state (protects against state corruption)
 
-`eventsConfig.events` maps event names to one or both `AnalyticsPurpose` values (`product` and `marketing`). Unlisted names default to product-only. Phase 1 uses the config already persisted in state. Loading it from config registry will be added later.
+`eventsConfig.events` maps event names to one or both `AnalyticsPurpose` values (`product` and `marketing`). Unlisted names default to product-only. The config is loaded from `ConfigRegistryController` state during `init` and refreshed automatically when `ConfigRegistryController` state changes.
 
 Each `track` and `view` payload is emitted once when at least one eligible purpose is opted in. A dual-purpose event is still emitted once when both consents are enabled. Its allowed purposes are stamped using Segment's consent context:
 

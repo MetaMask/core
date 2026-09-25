@@ -190,7 +190,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
-   *   `ConfigRegistryApiService:fetchConfig` action handler registered
+   *   `ConfigRegistryApiService:fetchConfig` and
+   *   `ConfigRegistryApiService:fetchEventsConfig` action handlers registered
    *   (e.g. by instantiating {@link ConfigRegistryApiService} with the same
    *   messenger).
    * @param options.state - Initial state.
