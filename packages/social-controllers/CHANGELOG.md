@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+
 ### Added
 
 - Add `fetchTraderFeed` method to `SocialService` (and the `SocialService:fetchTraderFeed` messenger action) for one trader's activity as feed items. Calls `GET /traders/:addressOrId/feed` with optional `commentedOnly`, `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10408](https://github.com/MetaMask/core/pull/10408))
@@ -14,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^32.3.1` ([#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^33.0.0` ([#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
 
 ## [3.1.0]
 
@@ -211,7 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...@metamask/social-controllers@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.2...@metamask/social-controllers@3.1.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.1...@metamask/social-controllers@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.0...@metamask/social-controllers@3.0.1

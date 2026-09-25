@@ -227,12 +227,22 @@ describe('MFA services', () => {
         status: 'revoked',
       }),
     ).toBeNull();
+  });
+
+  it('keeps email credentials listed without an address', () => {
     expect(
       toEnrolledCredential({
         credential_type: 'email_otp',
-        status: 'pending',
+        status: 'active',
       }),
-    ).toBeNull();
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
+    expect(
+      toEnrolledCredential({
+        credential_type: 'email_otp',
+        status: 'active',
+        email: { verified: true },
+      }),
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
   });
 
   it('derives email verification from status when the server omits it', () => {
