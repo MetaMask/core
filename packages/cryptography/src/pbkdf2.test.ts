@@ -45,9 +45,17 @@ describe('pbkdf2Sha256', () => {
   });
 
   it('matches RFC 7914 test case 1', async () => {
-    const key = await pbkdf2Sha256(rfc7914Password, rfc7914Salt, 1, 64);
+    const key = await pbkdf2Sha256(rfc7914Password, rfc7914Salt, 1, 64, {
+      unsafeIterations: true,
+    });
     expect(bytesToHex(key)).toBe(
       '0x55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc49ca9cccf179b645991664b39d77ef317c71b845b1e30bd509112041d3a19783',
+    );
+  });
+
+  it('throws if the number of iterations is below the recommended minimum', async () => {
+    await expect(pbkdf2Sha256(password, salt, 599_999, 256)).rejects.toThrow(
+      'Iterations must be at least 600000 for PBKDF2-SHA-256.',
     );
   });
 });
@@ -76,6 +84,12 @@ describe('pbkdf2Sha384', () => {
     );
     expect(bytesToHex(key)).toBe(
       '0x64a93fc358bbe86bf7dd04820614b3e1c9389479726fc2720c60883bc10a21315301407562fae64c895a069d26e341b919901ecafdd1663deab6614c0d40812b2301628102c9899f0b33c388118129e69ff28337dba7002119c017c2f38c131c4021e67516da7ef113c20b72eed3839bef447b5b83f5379c9d171aaeb731eb5877bb77e50a83081ce8250da6ce07f0f1d824f9cabbb27804220a60bd862eed9acd41ec20132b7b29a8a178078c8ecd8b2fa4538e5d0115a07f081fe01d8514eb32693ee7dc08efd3db25dce599eaee84234e50af55de999c0bfda4e9c17cdea02bdf70d339dd572afcc899d08f493e94f7bcd143e4634e9e5d5715321bdef0c46d5d53869f97264b87176f047b09465c7da6096dbeaadc367f9c4bcc9ee0f2e9ffab1896e46ffcde0a951173299da6e9f6bce34487bc282297f870c62a5530f98729db627498bc483478b630edc054f6bcf1d3be0799e2e2fbca0b251c08b556f252f4f8318adbf6206a26789440cf43601b9ce7bb9514970dd73bd7f8bb44fc',
+    );
+  });
+
+  it('throws if the number of iterations is below the recommended minimum', async () => {
+    await expect(pbkdf2Sha384(password, salt, 219_999, 384)).rejects.toThrow(
+      'Iterations must be at least 220000 for PBKDF2-SHA-384.',
     );
   });
 });
@@ -108,16 +122,26 @@ describe('pbkdf2Sha512', () => {
   });
 
   it('matches passlib test case 1 (c=1)', async () => {
-    const key = await pbkdf2Sha512(passlibPassword, passlibSalt, 1, 64);
+    const key = await pbkdf2Sha512(passlibPassword, passlibSalt, 1, 64, {
+      unsafeIterations: true,
+    });
     expect(bytesToHex(key)).toBe(
       '0x867f70cf1ade02cff3752599a3a53dc4af34c7a669815ae5d513554e1c8cf252c02d470a285a0501bad999bfe943c08f050235d7d68b1da55e63f73b60a57fce',
     );
   });
 
   it('matches passlib test case 2 (c=2)', async () => {
-    const key = await pbkdf2Sha512(passlibPassword, passlibSalt, 2, 64);
+    const key = await pbkdf2Sha512(passlibPassword, passlibSalt, 2, 64, {
+      unsafeIterations: true,
+    });
     expect(bytesToHex(key)).toBe(
       '0xe1d9c16aa681708a45f5c7c4e215ceb66e011a2e9f0040713f18aefdb866d53cf76cab2868a39b9f7840edce4fef5a82be67335c77a6068e04112754f27ccf4e',
+    );
+  });
+
+  it('throws if the number of iterations is below the recommended minimum', async () => {
+    await expect(pbkdf2Sha512(password, salt, 219_999, 512)).rejects.toThrow(
+      'Iterations must be at least 220000 for PBKDF2-SHA-512.',
     );
   });
 });

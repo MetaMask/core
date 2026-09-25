@@ -1,3 +1,24 @@
+// https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+const MIN_ITERATIONS: Record<'SHA-256' | 'SHA-384' | 'SHA-512', number> = {
+  'SHA-256': 600_000,
+  // SHA-384 is not explicitly listed by OWASP; using the SHA-512 value since
+  // both variants use 64-bit words internally.
+  'SHA-384': 220_000,
+  'SHA-512': 220_000,
+};
+
+/**
+ * Options for the PBKDF2 functions.
+ */
+export type Pbkdf2Options = {
+  /**
+   * If `true`, the iteration count check is skipped. Disabling this check
+   * reduces the computational cost of brute-force attacks against the derived
+   * key.
+   */
+  unsafeIterations?: boolean;
+};
+
 /**
  * Compute the PBKDF2 of the given password, salt, iterations, and key length.
  * The hash function used is SHA-256.
@@ -6,6 +27,7 @@
  * @param salt - The salt to use.
  * @param iterations - The number of iterations.
  * @param keyLength - The desired key length in bytes.
+ * @param options - Additional configuration options.
  * @returns The PBKDF2 of the password.
  */
 export async function pbkdf2Sha256(
@@ -13,8 +35,9 @@ export async function pbkdf2Sha256(
   salt: BufferSource,
   iterations: number,
   keyLength: number,
+  options?: Pbkdf2Options,
 ): Promise<Uint8Array> {
-  return pbkdf2(password, salt, 'SHA-256', iterations, keyLength);
+  return pbkdf2(password, salt, 'SHA-256', iterations, keyLength, options);
 }
 
 /**
@@ -25,6 +48,7 @@ export async function pbkdf2Sha256(
  * @param salt - The salt to use.
  * @param iterations - The number of iterations.
  * @param keyLength - The desired key length in bytes.
+ * @param options - Additional configuration options.
  * @returns The PBKDF2 of the password.
  */
 export async function pbkdf2Sha384(
@@ -32,8 +56,9 @@ export async function pbkdf2Sha384(
   salt: BufferSource,
   iterations: number,
   keyLength: number,
+  options?: Pbkdf2Options,
 ): Promise<Uint8Array> {
-  return pbkdf2(password, salt, 'SHA-384', iterations, keyLength);
+  return pbkdf2(password, salt, 'SHA-384', iterations, keyLength, options);
 }
 
 /**
@@ -44,6 +69,7 @@ export async function pbkdf2Sha384(
  * @param salt - The salt to use.
  * @param iterations - The number of iterations.
  * @param keyLength - The desired key length in bytes.
+ * @param options - Additional configuration options.
  * @returns The PBKDF2 of the password.
  */
 export async function pbkdf2Sha512(
@@ -51,8 +77,9 @@ export async function pbkdf2Sha512(
   salt: BufferSource,
   iterations: number,
   keyLength: number,
+  options?: Pbkdf2Options,
 ): Promise<Uint8Array> {
-  return pbkdf2(password, salt, 'SHA-512', iterations, keyLength);
+  return pbkdf2(password, salt, 'SHA-512', iterations, keyLength, options);
 }
 
 /**
@@ -63,6 +90,7 @@ export async function pbkdf2Sha512(
  * @param hash - The hashing function to use.
  * @param iterations - The number of iterations.
  * @param keyLength - The desired key length in bytes.
+ * @param options - Additional options.
  * @returns The PBKDF2 of the password.
  */
 async function pbkdf2(
@@ -71,7 +99,14 @@ async function pbkdf2(
   hash: 'SHA-256' | 'SHA-384' | 'SHA-512',
   iterations: number,
   keyLength: number,
+  options?: Pbkdf2Options,
 ): Promise<Uint8Array> {
+  if (!options?.unsafeIterations && iterations < MIN_ITERATIONS[hash]) {
+    throw new Error(
+      `Iterations must be at least ${MIN_ITERATIONS[hash]} for PBKDF2-${hash}.`,
+    );
+  }
+
   const key = await globalThis.crypto.subtle.importKey(
     'raw',
     password,
