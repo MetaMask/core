@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Changed
 
 - **BREAKING:** Add `providerFlowStatus` to `VbaOnboardingSnapshot` and require the `KycController:getProviderFlowStatus` messenger action ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
 
 ## [25.1.1]
 
@@ -658,7 +661,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...@metamask/ramps-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.0...@metamask/ramps-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.0.0...@metamask/ramps-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...@metamask/ramps-controller@25.0.0
