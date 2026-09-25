@@ -747,13 +747,13 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
         );
-        const feedData = await response.json();
+        const feedData = (await response.json()) as unknown;
         if (!is(feedData, FeedResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
           );
         }
-        return feedData as FeedResponse;
+        return feedData;
       },
     });
 

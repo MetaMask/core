@@ -1410,14 +1410,16 @@ describe('SocialService', () => {
         newerThan: 'newer-cursor',
       });
 
-      const calledUrl = mockFetch.mock.calls[0][0] as string;
-      expect(calledUrl).toContain(
-        '/tokens/solana/pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn/feed',
+      const expectedUrl = new URL(
+        `${V1_URL}/tokens/solana/pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn/feed`,
       );
-      expect(calledUrl).toContain('status=open');
-      expect(calledUrl).toContain('limit=25');
-      expect(calledUrl).toContain('olderThan=older-cursor');
-      expect(calledUrl).toContain('newerThan=newer-cursor');
+      expectedUrl.searchParams.append('status', 'open');
+      expectedUrl.searchParams.append('limit', '25');
+      expectedUrl.searchParams.append('olderThan', 'older-cursor');
+      expectedUrl.searchParams.append('newerThan', 'newer-cursor');
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl.toString(), {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('omits status when it is unset', async () => {
@@ -1433,8 +1435,10 @@ describe('SocialService', () => {
         contractAddress: '0x0000000000000000000000000000000000000001',
       });
 
-      const calledUrl = mockFetch.mock.calls[0][0] as string;
-      expect(calledUrl).not.toContain('status=');
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/tokens/ethereum/0x0000000000000000000000000000000000000001/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
     });
 
     it('throws HttpError on non-ok response', async () => {
