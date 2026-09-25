@@ -49,7 +49,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethersproject/address": "^5.7.0",
+    "@ethersproject/address": "^5.8.0",
     "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/constants": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
