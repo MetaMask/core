@@ -466,6 +466,36 @@ export type FetchTraderFeedOptions = {
   newerThan?: string;
 };
 
+/**
+ * Position status filter for a token feed.
+ * Omit to return both open and recently closed positions.
+ */
+export type TokenFeedStatus = 'open' | 'closed';
+
+/**
+ * Options for `GET /v1/tokens/:chain/:contractAddress/feed`.
+ */
+export type FetchTokenFeedOptions = {
+  /**
+   * Chain name where the token is deployed (`base`, `bsc`, `ethereum`,
+   * `hyperliquid`, `robinhood`, or `solana`).
+   */
+  chain: string;
+  /** Token contract address. */
+  contractAddress: string;
+  /**
+   * Only open or only closed positions. Omit for both. Closed positions are
+   * limited to the API's recent lookback.
+   */
+  status?: TokenFeedStatus;
+  /** Number of results to return (1–100). Server default is 25. */
+  limit?: number;
+  /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
+  olderThan?: string;
+  /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
+  newerThan?: string;
+};
+
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,

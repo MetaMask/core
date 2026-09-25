@@ -1342,6 +1342,140 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchTokenFeed', () => {
+    const mockFeedItem = {
+      ...mockPosition,
+      actor: mockProfileSummary,
+      timestamp: 1700000000,
+    };
+
+    const mockFeedResponse = {
+      items: [mockFeedItem],
+      pagination: { olderCursor: 'older-cursor', newerCursor: 'newer-cursor' },
+    };
+
+    it('fetches the token feed from the correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTokenFeed({
+        chain: 'base',
+        contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/tokens/base/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('encodes the chain and contract address in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTokenFeed({
+        chain: 'base',
+        contractAddress: 'addr/with/slashes',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/tokens/base/addr%2Fwith%2Fslashes/feed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('appends status, limit, and pagination cursors', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTokenFeed({
+        chain: 'solana',
+        contractAddress: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn',
+        status: 'open',
+        limit: 25,
+        olderThan: 'older-cursor',
+        newerThan: 'newer-cursor',
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain(
+        '/tokens/solana/pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn/feed',
+      );
+      expect(calledUrl).toContain('status=open');
+      expect(calledUrl).toContain('limit=25');
+      expect(calledUrl).toContain('olderThan=older-cursor');
+      expect(calledUrl).toContain('newerThan=newer-cursor');
+    });
+
+    it('omits status when it is unset', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchTokenFeed({
+        chain: 'ethereum',
+        contractAddress: '0x0000000000000000000000000000000000000001',
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).not.toContain('status=');
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTokenFeed({
+          chain: 'base',
+          contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED}: 400`,
+      );
+    });
+
+    it('throws when the pagination shape is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [mockFeedItem],
+            pagination: { olderCursor: 123, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTokenFeed({
+          chain: 'base',
+          contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+      );
+    });
+  });
+
   describe('fetchFollowing', () => {
     const mockFollowingResponse = {
       following: [mockProfileSummary],
