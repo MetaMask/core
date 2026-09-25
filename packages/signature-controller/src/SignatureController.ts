@@ -966,11 +966,11 @@ export class SignatureController extends BaseController<
         SignatureRequestType.TypedSign,
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.unapprovedPersonalMsgs = personalSignMessages;
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion, typescript/no-explicit-any, typescript/no-unsafe-assignment
+      state.unapprovedPersonalMsgs = personalSignMessages as any;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.unapprovedTypedMessages = typedSignMessages;
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion, typescript/no-explicit-any, typescript/no-unsafe-assignment
+      state.unapprovedTypedMessages = typedSignMessages as any;
 
       state.unapprovedPersonalMsgCount =
         Object.values(personalSignMessages).length;
