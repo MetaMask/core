@@ -721,9 +721,14 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result).toStrictEqual(
-        expect.objectContaining({ success: false, error: 'WATCH_ONLY_ACCOUNT' }),
+        expect.objectContaining({
+          success: false,
+          error: 'WATCH_ONLY_ACCOUNT',
+        }),
       );
-      expect(mockClientService.getExchangeClient().order).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
     it('handles order placement errors', async () => {
@@ -4063,6 +4068,21 @@ describe('HyperLiquidProvider', () => {
       mockClientService.getExchangeClient = jest
         .fn()
         .mockReturnValue(createMockExchangeClient({ updateIsolatedMargin }));
+    });
+
+    it('refuses watch-only accounts before any margin update', async () => {
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '1',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT,
+      });
+      expect(updateIsolatedMargin).not.toHaveBeenCalled();
     });
 
     it('uses the live per-DEX side instead of the frozen aggregate side', async () => {

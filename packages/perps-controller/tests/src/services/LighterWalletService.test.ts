@@ -34,6 +34,11 @@ describe('LighterWalletService', () => {
       expect(signer).toHaveBeenCalledWith('hello');
     });
 
+    it('never reports the injected signer as watch-only', () => {
+      const { service } = buildService();
+      expect(service.isSelectedWatchOnly()).toBe(false);
+    });
+
     it('exposes and toggles testnet mode', () => {
       const { service } = buildService();
       expect(service.isTestnetMode()).toBe(true);
@@ -98,6 +103,16 @@ describe('LighterWalletService', () => {
       );
     });
 
+    it('reports whether the selected account is watch-only', () => {
+      expect(buildMessengerService().service.isSelectedWatchOnly()).toBe(false);
+      expect(
+        buildMessengerService(
+          true,
+          'Watch Only Keyring',
+        ).service.isSelectedWatchOnly(),
+      ).toBe(true);
+    });
+
     it('rejects watch-only accounts without calling the keyring', async () => {
       const { service, messenger } = buildMessengerService(
         true,
@@ -106,9 +121,8 @@ describe('LighterWalletService', () => {
       await expect(service.signPersonalMessage('nope')).rejects.toThrow(
         'WATCH_ONLY_ACCOUNT',
       );
-      expect(messenger.call).not.toHaveBeenCalledWith(
+      expect(messenger.call.mock.calls.map(([action]) => action)).not.toContain(
         'KeyringController:signPersonalMessage',
-        expect.anything(),
       );
     });
 

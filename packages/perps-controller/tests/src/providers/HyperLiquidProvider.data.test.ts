@@ -965,7 +965,10 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result).toStrictEqual(
-        expect.objectContaining({ success: false, error: 'WATCH_ONLY_ACCOUNT' }),
+        expect.objectContaining({
+          success: false,
+          error: 'WATCH_ONLY_ACCOUNT',
+        }),
       );
       expect(exchangeClient.userSetAbstraction).not.toHaveBeenCalled();
       expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
@@ -1076,6 +1079,19 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.isReadyToTrade();
 
       expect(result.ready).toBe(true);
+    });
+
+    it('reports watch-only accounts as not ready to trade', async () => {
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+
+      const result = await provider.isReadyToTrade();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        walletConnected: true,
+        networkSupported: true,
+        error: 'WATCH_ONLY_ACCOUNT',
+      });
     });
 
     it('handles readiness check errors', async () => {

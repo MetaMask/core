@@ -2078,6 +2078,26 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('refuses watch-only accounts before any transfer', async () => {
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+
+      const result = await provider.transferBetweenDexs({
+        sourceDex: 'dex1',
+        destinationDex: 'dex2',
+        amount: '100',
+      });
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          success: false,
+          error: 'WATCH_ONLY_ACCOUNT',
+        }),
+      );
+      expect(
+        mockClientService.getExchangeClient().sendAsset,
+      ).not.toHaveBeenCalled();
+    });
+
     it('transfers USDC between DEXs successfully', async () => {
       // Arrange
       const transferParams = {

@@ -2209,6 +2209,44 @@ describe('PerpsController', () => {
       );
     });
 
+    it.each([false, true])(
+      'refuses watch-only accounts before preparing a transaction (placeOrder: %s)',
+      async (placeOrder) => {
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        const defaultCall = depositMockCall.getMockImplementation();
+        depositMockCall.mockImplementation(
+          (action: string, ...args: unknown[]) =>
+            action === 'AccountsController:getSelectedAccount'
+              ? {
+                  address: '0x1234567890123456789012345678901234567890',
+                  type: 'eip155:eoa',
+                  metadata: { keyring: { type: 'Watch Only Keyring' } },
+                }
+              : defaultCall?.(action, ...args),
+        );
+
+        await expect(
+          depositController.depositWithConfirmation({
+            amount: '100',
+            placeOrder,
+          }),
+        ).rejects.toThrow('WATCH_ONLY_ACCOUNT');
+
+        expect(
+          mockDepositServiceInstance.prepareTransaction,
+        ).not.toHaveBeenCalled();
+        expect(depositMockCall).not.toHaveBeenCalledWith(
+          'TransactionController:addTransaction',
+          expect.anything(),
+          expect.anything(),
+        );
+        expect(depositController.state.depositRequests).toStrictEqual([]);
+      },
+    );
+
     it('throws error when controller not initialized', async () => {
       depositController.testSetInitialized(false);
 

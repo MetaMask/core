@@ -4760,6 +4760,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(cancel).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the Chase session running when a watch-only account cancels', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } satisfies OrderParams);
+      const sessionsBefore = await provider.getChaseOrders();
+      mockWalletService.isSelectedWatchOnly.mockReturnValue(true);
+
+      expect(
+        await provider.cancelOrder({
+          orderId: placed.orderId,
+          symbol: 'ETH',
+          orderType: 'chase',
+        }),
+      ).toStrictEqual({
+        success: false,
+        orderId: placed.orderId,
+        error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT,
+      });
+      expect(
+        await provider.cancelOrders([{ orderId: '55', symbol: 'ETH' }]),
+      ).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [
+          {
+            orderId: '55',
+            symbol: 'ETH',
+            success: false,
+            error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT,
+          },
+        ],
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(sessionsBefore).toHaveLength(1);
+      expect(await provider.getChaseOrders()).toStrictEqual(sessionsBefore);
+    });
+
     it('stops the owning session when its child is cancelled directly', async () => {
       useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
