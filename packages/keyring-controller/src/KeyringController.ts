@@ -669,7 +669,7 @@ const hdKeyringV2Builder: KeyringV2Builder = Object.assign(
       legacyKeyring: keyring as HdKeyring,
       entropySource: metadata.id,
     }),
-  { type: KeyringTypes.hd as string },
+  { type: KeyringTypes.hd },
 );
 
 const simpleKeyringV2Builder: KeyringV2Builder = Object.assign(
@@ -682,7 +682,7 @@ const simpleKeyringV2Builder: KeyringV2Builder = Object.assign(
       // keyring packages depend on v12.
       legacyKeyring: keyring as SimpleKeyring,
     }),
-  { type: KeyringTypes.simple as string },
+  { type: KeyringTypes.simple },
 );
 
 const defaultKeyringV2Builders: KeyringV2Builder[] = [
@@ -2030,7 +2030,7 @@ export class KeyringController<
       () => this.#selectKeyringEntry({ v2: false, selector }),
       async () => {
         if (!options.createIfMissing || !('type' in selector)) {
-          return undefined;
+          return;
         }
         const newKeyring = (await this.#newKeyring(
           selector.type,

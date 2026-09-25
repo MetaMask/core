@@ -3406,9 +3406,6 @@
     }
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 5
-    },
     "typescript/no-unsafe-argument": {
       "count": 1
     },
@@ -3429,9 +3426,6 @@
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 2
-    },
     "typescript/no-unsafe-argument": {
       "count": 8
     },
