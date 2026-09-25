@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getZeroNativeAssetBalance` and `getZeroTokenAssetBalance` so Stellar native zeros include spendable/reserve metadata and Stellar token zeros include empty trustline metadata. `getZeroAssetBalance` picks between them with `isNativeAssetId`
+
+### Changed
+
+- **BREAKING:** Split asset fetching into two paths behind `assetsAccountsApiV6` ([#9651](https://github.com/MetaMask/core/pull/9651))
+  - **Architecture:** The v5 path keeps production behavior — the API decides the returned set, and results are merged. The v6 path has the client declare the visible set (`includeAssetIds` / `excludeAssetIds`) and write an authoritative `full` snapshot for covered chains. Visibility is computed from controller state and shared by Accounts API, Snap, RPC, and RPC fallback. The flag is read only in `AssetsController` and injected as `isBalanceV6Enabled`. Hide/unhide re-evaluates live subscriptions so the next poll uses the new set.
+  - **Why this is breaking:**
+    - `'update'` is removed from `AssetsUpdateMode`; use `'full'` or `'merge'`
+    - `getAssets` no longer accepts `updateMode`; the data source sets it on the response
+    - `getAssetsState` is removed from pipeline `Context`, `SubscriptionRequest`, and `PriceDataSource.fetch`; inject it on data-source and middleware constructors instead
+    - `getAssetsState` and `getAssetVisibility` are required on Accounts API, Snap, and RPC data sources
+    - `isBalanceV6Enabled` is required on `SnapDataSource`
+    - `unhideAsset` is now async and force-fetches the asset's chain, matching `addCustomAsset`
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+
+### Fixed
+
+- Treat `assetsAccountsApiV6` as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
+
 ## [16.1.2]
 
 ### Changed

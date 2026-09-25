@@ -106,7 +106,7 @@ jest.mock('@nktkas/hyperliquid', () => {
 
     constructor(options: Record<string, unknown>) {
       this.options = options;
-      state.transports.push(this as unknown as MockTransport);
+      state.transports.push(this);
     }
   }
 

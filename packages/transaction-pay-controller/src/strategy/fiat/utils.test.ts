@@ -266,7 +266,7 @@ describe('Fiat Utils', () => {
       getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
       getNetworkClientByIdMock.mockReturnValue({
         provider: PROVIDER_MOCK,
-      } as never);
+      });
 
       resolveRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
@@ -291,7 +291,7 @@ describe('Fiat Utils', () => {
         allTokensStale: {},
         allIgnoredTokens: {},
         allDetectedTokens: {},
-      } as never);
+      });
     });
 
     it('returns on-chain ERC-20 amount and block number from receipt', async () => {
@@ -409,7 +409,7 @@ describe('Fiat Utils', () => {
         allTokensStale: {},
         allIgnoredTokens: {},
         allDetectedTokens: {},
-      } as never);
+      });
 
       await expect(
         resolveSourceAmountRaw({

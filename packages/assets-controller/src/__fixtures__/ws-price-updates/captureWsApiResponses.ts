@@ -79,6 +79,13 @@ async function writeFixture(
   );
 }
 
+/** Base URLs for the services the capture script reads. */
+const SERVICE_BASE_URLS: Record<'accounts' | 'tokens' | 'price', string> = {
+  accounts: API_URLS.ACCOUNTS,
+  tokens: API_URLS.TOKENS,
+  price: API_URLS.PRICES,
+};
+
 /**
  * Capture a service's `/v2/supportedNetworks` manifest.
  *
@@ -87,9 +94,9 @@ async function writeFixture(
 async function captureSupportedNetworks(
   service: 'accounts' | 'tokens' | 'price',
 ): Promise<void> {
-  const baseUrl =
-    API_URLS[service === 'price' ? 'PRICES' : service.toUpperCase()];
-  const networks = await fetchJson(`${baseUrl}/v2/supportedNetworks`);
+  const networks = await fetchJson(
+    `${SERVICE_BASE_URLS[service]}/v2/supportedNetworks`,
+  );
   await writeFixture(
     `${service}-api/v2-supportedNetworks.ts`,
     `${service}V2SupportedNetworks`,

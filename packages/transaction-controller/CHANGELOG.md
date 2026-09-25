@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.0.1]
+
+### Fixed
+
+- Only exclude the simulated gas cost from `nativeBalanceChange` when the sender was actually charged it ([#10343](https://github.com/MetaMask/core/pull/10343))
+  - Previously the gas cost was always added back to the sender's new balance, which reported an incoming native balance change for outgoing transactions when the simulation did not charge the sender, such as when the transaction has no fee per gas or the chain credits the fee recipient without debiting the sender.
+  - Gas is also left in the balance when the sender lost exactly the transaction value, which is how Arc simulations report native sends.
+
 ## [72.0.0]
 
 ### Changed
@@ -2788,7 +2796,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...HEAD
+[72.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...@metamask/transaction-controller@72.0.1
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...@metamask/transaction-controller@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...@metamask/transaction-controller@71.0.0
 [70.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...@metamask/transaction-controller@70.1.0

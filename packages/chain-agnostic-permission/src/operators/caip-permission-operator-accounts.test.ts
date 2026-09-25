@@ -471,7 +471,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
           },
-        } as InternalScopesObject,
+        },
         optionalScopes: {
           'eip155:5': {
             accounts: [
@@ -482,7 +482,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
           wallet: {
             accounts: [],
           },
-        } as InternalScopesObject,
+        },
         sessionProperties: {},
         isMultichainOrigin: false,
       };
@@ -502,10 +502,10 @@ describe('CAIP-25 eth_accounts adapters', () => {
       const caveatValue: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': { accounts: [] },
-        } as InternalScopesObject,
+        },
         optionalScopes: {
           'eip155:5': { accounts: [] },
-        } as InternalScopesObject,
+        },
         sessionProperties: {},
         isMultichainOrigin: false,
       };
@@ -516,8 +516,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
 
     it('returns an empty array if both required and optional scopes are empty', () => {
       const caveatValue: Caip25CaveatValue = {
-        requiredScopes: {} as InternalScopesObject,
-        optionalScopes: {} as InternalScopesObject,
+        requiredScopes: {},
+        optionalScopes: {},
         sessionProperties: {},
         isMultichainOrigin: false,
       };
@@ -535,12 +535,12 @@ describe('CAIP-25 eth_accounts adapters', () => {
           'eip155:5': {
             accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
           },
-        } as InternalScopesObject,
+        },
         optionalScopes: {
           'eip155:5': {
             accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
           },
-        } as InternalScopesObject,
+        },
         sessionProperties: {},
         isMultichainOrigin: false,
       };

@@ -16,18 +16,14 @@ import type {
 // CONSTANTS
 // =============================================================================
 
-const TEST_ACCOUNT: Address =
-  '0x1234567890123456789012345678901234567890' as Address;
+const TEST_ACCOUNT: Address = '0x1234567890123456789012345678901234567890';
 const TEST_ACCOUNT_ID = 'test-account-uuid';
-const TEST_TOKEN_1: Address =
-  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-const TEST_TOKEN_2: Address =
-  '0xdAC17F958D2ee523a2206206994597C13D831ec7' as Address;
-const TEST_TOKEN_3: Address =
-  '0x6B175474E89094C44Da98b954EescdeCB5e6cF8dA' as Address;
+const TEST_TOKEN_1: Address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const TEST_TOKEN_2: Address = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+const TEST_TOKEN_3: Address = '0x6B175474E89094C44Da98b954EescdeCB5e6cF8dA';
 
-const MAINNET_CHAIN_ID: ChainId = '0x1' as ChainId;
-const POLYGON_CHAIN_ID: ChainId = '0x89' as ChainId;
+const MAINNET_CHAIN_ID: ChainId = '0x1';
+const POLYGON_CHAIN_ID: ChainId = '0x89';
 
 // =============================================================================
 // MOCK HELPERS

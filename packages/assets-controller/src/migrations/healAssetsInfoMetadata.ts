@@ -17,7 +17,7 @@ import type {
   AccountId,
   Caip19AssetId,
   FungibleAssetMetadata,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 
@@ -48,7 +48,7 @@ import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
  * reads. Never mutated.
  */
 export type CurrentAssetsState = Pick<
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   'assetsInfo' | 'assetsBalance' | 'customAssets' | 'assetPreferences'
 >;
 
@@ -101,7 +101,7 @@ const log = createModuleLogger(projectLogger, 'tempHealAssetsInfoMetadata');
 
 export type TempHealAssetsInfoMetadataOptions = {
   /** Current `AssetsController` state the healing patch is computed against. */
-  state: AssetsControllerStateInternal;
+  state: AssetsControllerState;
   /**
    * Host-provided getter for the untrusted legacy state root (see
    * `AssetsControllerOptions.tempMigrateAssetsInfoMetadataAssets3346`).
@@ -125,7 +125,7 @@ export function tempHealAssetsInfoMetadata({
   state,
   getMigrationState,
   captureException,
-}: TempHealAssetsInfoMetadataOptions): AssetsControllerStateInternal {
+}: TempHealAssetsInfoMetadataOptions): AssetsControllerState {
   const reportError = (error: unknown): void => {
     log('Failed to heal assetsInfo metadata', error);
     captureException?.(
@@ -553,7 +553,7 @@ function buildErc20AssetId(
 function readPath(root: unknown, path: string[]): unknown {
   return path.reduce<unknown>((cursor, key) => {
     if (!isObject(cursor) || !hasProperty(cursor, key)) {
-      return undefined;
+      return;
     }
     return cursor[key];
   }, root);
@@ -617,7 +617,7 @@ const DEFAULT_OCCURRENCE_FLOOR = 3;
 export type SpamTokensApiClient = Pick<ApiPlatformClient, 'tokens' | 'token'>;
 
 export type CleanSpamAssetsState = Pick<
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   'assetsInfo' | 'assetsBalance' | 'assetsPrice' | 'customAssets'
 >;
 

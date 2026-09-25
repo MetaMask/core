@@ -263,7 +263,7 @@ export const selectMarketFilterPreferences = (
 
     // Handle other simple legacy strings (e.g., 'volume', 'openInterest', etc.)
     return {
-      optionId: pref as SortOptionId,
+      optionId: pref,
       direction: MARKET_SORTING_CONFIG.DefaultDirection,
     };
   }

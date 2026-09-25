@@ -18,6 +18,7 @@ export type {
   VbaAutorampStatus,
   VbaKycStatus,
   VbaOnboardingSnapshot,
+  VbaProviderFlowStatus,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -86,6 +87,7 @@ export {
   RampsController,
   VBA_AUTORAMP_STATUSES,
   VBA_KYC_STATUSES,
+  VBA_PROVIDER_FLOW_STATUSES,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "72.0.0",
+  "version": "72.0.1",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "Ethereum",
@@ -90,8 +90,8 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.13.14",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "deepmerge": "^4.2.2",
-    "immer": "^9.0.21",
+    "deepmerge": "^4.3.1",
+    "immer": "^11.1.18",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "nock": "^13.5.6",

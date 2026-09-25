@@ -38,7 +38,7 @@ const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
  * Note that this cannot be a command line flag: `yarn constraints` is a Yarn
  * builtin and rejects any option other than `--fix` and `--json`.
  */
-// eslint-disable-next-line n/no-process-env
+// oxlint-disable-next-line n/no-process-env
 const ALIGN_DEPENDENCY_RANGES = process.env.ALIGN_DEPENDENCY_RANGES === 'true';
 
 /**
@@ -479,7 +479,7 @@ async function workspaceFileExists(workspace, path) {
  * @param {string} fieldName - The field to check.
  * @param {unknown} [expectedValue] - The value to check.
  */
-function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
+function expectWorkspaceField(workspace, fieldName, expectedValue) {
   const fieldValue = get(workspace.manifest, fieldName);
 
   if (expectedValue !== undefined && expectedValue !== null) {
@@ -504,11 +504,7 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
  * @param {string} fieldName - The field to check.
  * @param {unknown} expectedValue - The value that should be contained in the array.
  */
-function expectWorkspaceArrayField(
-  workspace,
-  fieldName,
-  expectedValue = undefined,
-) {
+function expectWorkspaceArrayField(workspace, fieldName, expectedValue) {
   let fieldValue = get(workspace.manifest, fieldName);
 
   if (expectedValue) {

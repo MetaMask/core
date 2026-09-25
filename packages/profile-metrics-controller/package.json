@@ -61,7 +61,7 @@
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.0.0",
+    "@metamask/transaction-controller": "^72.0.1",
     "@metamask/utils": "^12.0.0",
     "async-mutex": "^0.5.0",
     "uuid": "^11.1.1"
@@ -71,7 +71,7 @@
     "@metamask/keyring-internal-api": "^12.0.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "deepmerge": "^4.2.2",
+    "deepmerge": "^4.3.1",
     "jest": "^30.4.2",
     "nock": "^13.5.6",
     "rimraf": "^6.1.3",

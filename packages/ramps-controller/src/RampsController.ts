@@ -246,6 +246,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
   'KycController:getSessionStatusForVendor',
+  'KycController:getProviderFlowStatus',
   'KycController:refreshSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
@@ -298,6 +299,11 @@ export type KycControllerGetSessionStatusForVendorAction = {
 export type KycControllerRefreshSessionStatusAction = {
   type: 'KycController:refreshSessionStatus';
   handler: () => KycControllerSessionStatus;
+};
+
+export type KycControllerGetProviderFlowStatusAction = {
+  type: 'KycController:getProviderFlowStatus';
+  handler: () => VbaProviderFlowStatus;
 };
 
 export type KycControllerHasCompletedVendorDisclaimersAction = {
@@ -356,6 +362,15 @@ export const VBA_KYC_STATUSES = [
 
 export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
 
+export const VBA_PROVIDER_FLOW_STATUSES = [
+  'not_started',
+  'submitted',
+  'abandoned',
+  'failed',
+] as const;
+
+export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
+
 /**
  * Autoramp setup progress after KYC has been approved.
  * `'in_progress'` is reserved for hosts that observe an in-flight hydrate;
@@ -379,6 +394,7 @@ export type VbaOnboardingSnapshot = {
   sessionExists: boolean;
   vendorDisclaimersComplete: boolean;
   sessionDisclaimersComplete: boolean;
+  providerFlowStatus: VbaProviderFlowStatus;
   /** Overall KYC session outcome used to decide whether autoramp setup can run. */
   kycStatus: VbaKycStatus;
   autorampStatus: VbaAutorampStatus;
@@ -388,6 +404,7 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
   sessionExists: false,
   vendorDisclaimersComplete: false,
   sessionDisclaimersComplete: false,
+  providerFlowStatus: 'not_started',
   kycStatus: 'none',
   autorampStatus: 'not_ready',
 };
@@ -936,6 +953,7 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
@@ -3587,12 +3605,12 @@ export class RampsController extends BaseController<
         (existing) => existing.id === account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(account as Draft<AutorampAccount>);
+        state.autoramps.push(account);
       } else {
         state.autoramps[idx] = {
           ...state.autoramps[idx],
           ...account,
-        } as Draft<AutorampAccount>;
+        };
       }
     });
 
@@ -3950,11 +3968,15 @@ export class RampsController extends BaseController<
     const sessionDisclaimersComplete = await this.messenger.call(
       'KycController:hasCompletedSessionDisclaimers',
     );
+    const providerFlowStatus = this.messenger.call(
+      'KycController:getProviderFlowStatus',
+    );
 
     const snapshot: VbaOnboardingSnapshot = {
       sessionExists: true,
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
+      providerFlowStatus,
       kycStatus: toVbaKycStatus(session.finalStatus),
       autorampStatus: 'not_ready',
     };
@@ -4070,7 +4092,7 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === autorampId,
       );
       if (idx !== -1) {
-        state.autoramps[idx] = notified as Draft<AutorampAccount>;
+        state.autoramps[idx] = notified;
       }
     });
   }
@@ -4155,9 +4177,9 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === result.account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(result.account as Draft<AutorampAccount>);
+        state.autoramps.push(result.account);
       } else {
-        state.autoramps[idx] = result.account as Draft<AutorampAccount>;
+        state.autoramps[idx] = result.account;
       }
     });
 

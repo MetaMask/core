@@ -687,7 +687,7 @@ export class GatorPermissionsController extends BaseController<
         throw new GatorPermissionsFetchError({
           message:
             'Failed to refresh permissions list after successful revocation',
-          cause: error as Error,
+          cause: error,
         });
       }
 

@@ -30,7 +30,7 @@ import {
   buildManyTokensState,
   buildSpamWalletState,
 } from '../__fixtures__/spamWalletState.js';
-import type { AssetsControllerStateInternal, Caip19AssetId } from '../types.js';
+import type { AssetsControllerState, Caip19AssetId } from '../types.js';
 import type {
   CleanSpamAssetsState,
   CurrentAssetsState,
@@ -544,7 +544,7 @@ describe('tempHealAssetsInfoMetadata', () => {
    */
   function buildFullState(
     overrides: Partial<CurrentAssetsState> = {},
-  ): AssetsControllerStateInternal {
+  ): AssetsControllerState {
     return {
       assetsInfo: {},
       assetsBalance: {},
@@ -632,7 +632,7 @@ describe('tempHealAssetsInfoMetadata', () => {
     const state = buildFullState();
     const captureException = jest.fn();
 
-    let healedState: AssetsControllerStateInternal | undefined;
+    let healedState: AssetsControllerState | undefined;
     expect(() => {
       healedState = tempHealAssetsInfoMetadata({
         state,

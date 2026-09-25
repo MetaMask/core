@@ -1,4 +1,3 @@
-import type { Caip19AssetId } from '@metamask/utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
@@ -32,7 +31,13 @@ import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
-import type { AccountId, DataRequest, DataResponse } from '../types.js';
+import type {
+  AccountId,
+  AssetsControllerState,
+  Caip19AssetId,
+  DataRequest,
+  DataResponse,
+} from '../types.js';
 import { buildWsUpdateSources } from './buildWsUpdateSources.js';
 import { executeAssetsPipeline } from './executeAssetsPipeline.js';
 
@@ -80,11 +85,13 @@ async function runWsUpdatePass({
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   const priceDataSource = new PriceDataSource({
     queryApiClient,
     getSelectedCurrency: (): 'usd' => 'usd',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   const sources = buildWsUpdateSources(
@@ -96,8 +103,11 @@ async function runWsUpdatePass({
             'Websocket pass should not graduate custom assets away!',
           );
         },
+        getAssetsState: (): AssetsControllerState => state,
       }),
-      detectionMiddleware: new DetectionMiddleware(),
+      detectionMiddleware: new DetectionMiddleware({
+        getAssetsState: (): AssetsControllerState => state,
+      }),
       tokenDataSource,
       priceDataSource,
     },
@@ -116,7 +126,6 @@ async function runWsUpdatePass({
         sources,
         request,
         initialResponse: response,
-        getAssetsState: () => state,
       });
       captured = { response: enriched, request };
     },

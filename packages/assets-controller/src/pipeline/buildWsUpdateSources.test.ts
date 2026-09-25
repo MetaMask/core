@@ -1,18 +1,18 @@
-import type { AssetsDataSource, Middleware } from '../types.js';
+import type { AssetsDataSource } from '../types.js';
 import { buildWsUpdateSources } from './buildWsUpdateSources.js';
 import type { WsUpdateSources } from './buildWsUpdateSources.js';
 
 function stubSource(name: string): AssetsDataSource {
   return {
     getName: () => name,
-    assetsMiddleware: (async (ctx) => ctx) as Middleware,
+    assetsMiddleware: async (ctx) => ctx,
   };
 }
 
 function stubTokenSource(name: string): WsUpdateSources['tokenDataSource'] {
   return {
     ...stubSource(name),
-    occurrenceFilterMiddleware: (async (ctx) => ctx) as Middleware,
+    occurrenceFilterMiddleware: async (ctx) => ctx,
   };
 }
 

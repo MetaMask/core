@@ -177,7 +177,7 @@ export async function updateQuotes(
     const totals = calculateTotals({
       fiatPaymentAmount: fiatPayment?.amountFiat,
       messenger,
-      quotes: executableQuotes as TransactionPayQuote<unknown>[],
+      quotes: executableQuotes,
       tokens,
       transaction,
     });
@@ -189,7 +189,7 @@ export async function updateQuotes(
       selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
       hasQuotes: executableQuotes.length > 0,
       isPostQuote,
-      messenger: messenger as never,
+      messenger,
       paymentToken,
       strategy: executableQuotes[0]?.strategy,
       totals,
@@ -197,6 +197,7 @@ export async function updateQuotes(
     });
 
     updateTransactionData(transactionId, (data) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       data.quotes = quotes as never;
       data.quoteError = error;
       data.quotesLastUpdated = Date.now();
@@ -262,7 +263,7 @@ function syncTransaction({
   updateTransaction(
     {
       transactionId,
-      messenger: messenger as never,
+      messenger,
       note: 'Update transaction pay data',
     },
     (tx: TransactionMeta) => {
