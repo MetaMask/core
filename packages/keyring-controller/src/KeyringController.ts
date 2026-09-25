@@ -2027,7 +2027,7 @@ export class KeyringController<
       () => this.#selectKeyringEntry({ v2: false, selector }),
       async () => {
         if (!options.createIfMissing || !('type' in selector)) {
-          return undefined;
+          return;
         }
         const newKeyring = (await this.#newKeyring(
           selector.type,

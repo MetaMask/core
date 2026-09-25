@@ -5828,7 +5828,13 @@ describe('KeyringController', () => {
      * @returns The serialized keyrings persisted in the vault.
      */
     function parseVaultEntries(vault: string): SerializedKeyring[] {
-      return JSON.parse(JSON.parse(vault).data).value;
+      // No need for IV and salt here, just the plain decrypted data.
+      const vaultObject = JSON.parse(vault) as { data: string };
+      // The vault data contains a JSON string with a `value` property holding the serialized keyrings.
+      const vaultEntries = JSON.parse(vaultObject.data) as {
+        value: SerializedKeyring[];
+      };
+      return vaultEntries.value;
     }
 
     it('replaces only the operated keyring instance, keeping untouched keyring instances in place', async () => {
@@ -6113,7 +6119,6 @@ describe('KeyringController', () => {
               if (privateKeys.length > 0) {
                 throw new Error('Cannot deserialize the keyring');
               }
-              return undefined;
             });
           const encryptSpy = jest
             .spyOn(encryptor, 'encryptWithKey')
@@ -6612,7 +6617,6 @@ describe('KeyringController', () => {
               if (privateKeys.length > 0) {
                 throw new Error('Cannot deserialize the keyring');
               }
-              return undefined;
             });
           jest
             .spyOn(encryptor, 'encryptWithKey')
