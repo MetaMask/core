@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
+### Fixed
+
+- Fixed outdated comments and README examples that described stored balances as raw rather than converted amounts ([#10469](https://github.com/MetaMask/core/pull/10469))
+
 ## [16.1.2]
 
 ### Changed
