@@ -8838,7 +8838,7 @@ __metadata:
   resolution: "@metamask/smart-transactions-controller@workspace:packages/smart-transactions-controller"
   dependencies:
     "@babel/runtime": "npm:^7.23.9"
-    "@ethersproject/bytes": "npm:^5.7.0"
+    "@ethersproject/bytes": "npm:^5.8.0"
     "@ethersproject/keccak256": "npm:^5.8.0"
     "@ethersproject/transactions": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
