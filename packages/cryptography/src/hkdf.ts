@@ -79,7 +79,7 @@ async function hkdf(
     ['deriveBits'],
   );
 
-  const result = await globalThis.crypto.subtle.deriveBits(
+  const derivedBits = await globalThis.crypto.subtle.deriveBits(
     {
       name: 'HKDF',
       hash,
@@ -90,5 +90,5 @@ async function hkdf(
     keyLength * 8,
   );
 
-  return new Uint8Array(result);
+  return new Uint8Array(derivedBits);
 }
