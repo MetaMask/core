@@ -55,6 +55,14 @@ describe('hmacSha256', () => {
       'Unsafe key length: Key must be at least 32 bytes for HMAC-SHA-256. To bypass this check, set the `unsafeKeyLength` option to `true`.',
     );
   });
+
+  it('throws if the key is empty', async () => {
+    await expect(
+      hmacSha256(new Uint8Array(0), new Uint8Array(0)),
+    ).rejects.toThrow(
+      'Unsafe key length: Key must not be zero bytes for HMAC-SHA-256.',
+    );
+  });
 });
 
 describe('hmacSha384', () => {
@@ -101,6 +109,14 @@ describe('hmacSha384', () => {
       'Unsafe key length: Key must be at least 48 bytes for HMAC-SHA-384. To bypass this check, set the `unsafeKeyLength` option to `true`.',
     );
   });
+
+  it('throws if the key is empty', async () => {
+    await expect(
+      hmacSha384(new Uint8Array(0), new Uint8Array(0)),
+    ).rejects.toThrow(
+      'Unsafe key length: Key must not be zero bytes for HMAC-SHA-384.',
+    );
+  });
 });
 
 describe('hmacSha512', () => {
@@ -145,6 +161,14 @@ describe('hmacSha512', () => {
       hmacSha512(new Uint8Array(63), new Uint8Array(0)),
     ).rejects.toThrow(
       'Unsafe key length: Key must be at least 64 bytes for HMAC-SHA-512. To bypass this check, set the `unsafeKeyLength` option to `true`.',
+    );
+  });
+
+  it('throws if the key is empty', async () => {
+    await expect(
+      hmacSha512(new Uint8Array(0), new Uint8Array(0)),
+    ).rejects.toThrow(
+      'Unsafe key length: Key must not be zero bytes for HMAC-SHA-512.',
     );
   });
 });

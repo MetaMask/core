@@ -1,7 +1,7 @@
-export type HashingFunction = 'SHA-256' | 'SHA-384' | 'SHA-512';
+import type { HashFunction } from './types';
 
 // https://datatracker.ietf.org/doc/html/rfc2104#section-3
-const MIN_KEY_LENGTH: Record<HashingFunction, number> = {
+const MIN_KEY_LENGTH: Record<HashFunction, number> = {
   'SHA-256': 32,
   'SHA-384': 48,
   'SHA-512': 64,
@@ -74,10 +74,16 @@ export async function hmacSha512(
  */
 async function hmac(
   key: BufferSource,
-  hash: HashingFunction,
+  hash: HashFunction,
   data: BufferSource,
   options: HmacOptions = {},
 ): Promise<Uint8Array> {
+  if (key.byteLength === 0) {
+    throw new Error(
+      `Unsafe key length: Key must not be zero bytes for HMAC-${hash}.`,
+    );
+  }
+
   if (!options.unsafeKeyLength && key.byteLength < MIN_KEY_LENGTH[hash]) {
     throw new Error(
       `Unsafe key length: Key must be at least ${MIN_KEY_LENGTH[hash]} bytes for HMAC-${hash}. To bypass this check, set the \`unsafeKeyLength\` option to \`true\`.`,
