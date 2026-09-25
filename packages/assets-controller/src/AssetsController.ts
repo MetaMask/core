@@ -4227,10 +4227,6 @@ export class AssetsController extends BaseController<
         const updateStart = performance.now();
         const pipelineRequest = this.#getUpdatePipelineRequest(request);
         const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
-
-        // Websocket updates run their own composed lane (graduation →
-        // occurrence filtering → detection → enrichment) so it can be built and
-        // driven without booting the controller; see `buildWsUpdateSources`.
         const enrichmentSources: AssetsDataSource[] =
           sourceId === 'AccountActivityDataSource'
             ? buildWsUpdateSources(
@@ -4244,8 +4240,6 @@ export class AssetsController extends BaseController<
                 { isBasicFunctionality: this.#isBasicFunctionality() },
               )
             : [
-                // AccountsApiDataSource: graduate custom assets before the RPC
-                // fallback; Snap and RPC updates go straight to detection.
                 ...(shouldRunRpcFallback
                   ? [
                       this.#customAssetGraduationMiddleware,

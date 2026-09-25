@@ -2,22 +2,9 @@ import { API_URLS } from '@metamask/core-backend';
 import { writeFile } from '@metamask/utils/node';
 
 /**
- * Captures the API responses the websocket-update pipeline asks for, verbatim,
- * into this directory. Re-run with:
- *
- * ```sh
- * node --experimental-strip-types packages/assets-controller/src/__fixtures__/ws-price-updates/captureWsApiResponses.ts
- * ```
- *
- * The captures are what the AccountActivity (websocket) update pass requests:
- * occurrence floors (spam filtering of websocket airdrops), Tokens API metadata
- * for the assets the event surfaced, and Price API spot prices — the same pass
- * `AssetsController.handleAssetsUpdate` runs after a
- * `AccountActivityService:balanceUpdated` event, plus the supported-networks
- * manifests each API serves.
- *
- * The asset IDs mirror `../wallet.ts` (kept inline so the script runs with
- * plain `node --experimental-strip-types`, which does not remap `.js` imports).
+ * Capture the API responses the websocket-update pipeline asks for, verbatim,
+ * into this directory. Re-run with
+ * `node --experimental-strip-types <this file>`.
  */
 
 const OUT_DIR = `${import.meta.dirname}/api-responses`;
