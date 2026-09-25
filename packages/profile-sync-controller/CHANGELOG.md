@@ -30,7 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enrolling a credential no longer ends the session
   - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
 - Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
-- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
 
 ## [32.3.1]
 
