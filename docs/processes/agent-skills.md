@@ -1,4 +1,4 @@
-## Agent skills
+# Agent skills
 
 This repo can install MetaMask agent skills for Claude, Cursor, and Codex/OpenAI. `yarn setup` keeps the public [`MetaMask/skills`](https://github.com/MetaMask/skills) cache available through the shared `@metamask/skills` CLI. Run `yarn skills` any time to install or refresh the gitignored generated skills under `.claude/skills/`, `.cursor/rules/`, and `.agents/skills/`.
 

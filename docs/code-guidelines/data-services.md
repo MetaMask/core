@@ -6,7 +6,7 @@ A **data service** is a pattern for making interactions with an external API (fe
 
 ## Tutorial
 
-We've written a [tutorial](./packages/wallet-framework-docs/content/data-services/writing-data-services) which walks you through writing a data service and discusses various use cases.
+We've written a [tutorial](../../packages/wallet-framework-docs/content/data-services/writing-data-services/) which walks you through writing a data service and discusses various use cases.
 
 ## Guidelines
 

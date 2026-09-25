@@ -82,7 +82,7 @@
 
 > **Tip:** You can specify a different port if needed: `yarn create-release-branch -i -p 3001`
 
-## Option B: CLI
+### Option B: CLI
 
 1. **Start by creating the release branch.**
 
