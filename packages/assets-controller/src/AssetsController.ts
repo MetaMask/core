@@ -126,6 +126,7 @@ import {
 } from './migrations/healAssetsInfoMetadata.js';
 import {
   buildFastFetchSources,
+  buildWsUpdateSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
 import type {
@@ -3812,42 +3813,42 @@ export class AssetsController extends BaseController<
         // them. RPC already fetches custom assets on purpose, and Snap handles
         // non-EVM chains the rule does not apply to, so skip the middleware for
         // those.
-        const shouldGraduateCustomAssets =
-          sourceId === 'AccountsApiDataSource' ||
-          sourceId === 'AccountActivityDataSource';
-
-        // Websocket updates can carry brand-new spam airdrops: enrich them
-        // with Token API occurrences and drop below-floor tokens BEFORE
-        // detection, so spam is never detected, enriched, priced or persisted.
-        const shouldFilterOccurrences =
-          sourceId === 'AccountActivityDataSource' &&
-          this.#isBasicFunctionality();
-
         const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
-        const enrichmentSources: AssetsDataSource[] = [
-          ...(shouldGraduateCustomAssets
-            ? [this.#customAssetGraduationMiddleware]
-            : []),
-          ...(shouldFilterOccurrences
-            ? [
+
+        // Websocket updates run their own composed lane (graduation →
+        // occurrence filtering → detection → enrichment) so it can be built and
+        // driven without booting the controller; see `buildWsUpdateSources`.
+        const enrichmentSources: AssetsDataSource[] =
+          sourceId === 'AccountActivityDataSource'
+            ? buildWsUpdateSources(
                 {
-                  getName: () => 'OccurrenceFloorFilter',
-                  assetsMiddleware:
-                    this.#tokenDataSource.occurrenceFilterMiddleware,
+                  customAssetGraduationMiddleware:
+                    this.#customAssetGraduationMiddleware,
+                  detectionMiddleware: this.#detectionMiddleware,
+                  tokenDataSource: this.#tokenDataSource,
+                  priceDataSource: this.#priceDataSource,
                 },
-              ]
-            : []),
-          ...(shouldRunRpcFallback ? [this.#rpcFallbackMiddleware] : []),
-          this.#detectionMiddleware,
-        ];
-        if (this.#isBasicFunctionality()) {
-          enrichmentSources.push(
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          );
-        }
+                { isBasicFunctionality: this.#isBasicFunctionality() },
+              )
+            : [
+                // AccountsApiDataSource: graduate custom assets before the RPC
+                // fallback; Snap and RPC updates go straight to detection.
+                ...(shouldRunRpcFallback
+                  ? [
+                      this.#customAssetGraduationMiddleware,
+                      this.#rpcFallbackMiddleware,
+                    ]
+                  : []),
+                this.#detectionMiddleware,
+                ...(this.#isBasicFunctionality()
+                  ? [
+                      createParallelMiddleware([
+                        this.#tokenDataSource,
+                        this.#priceDataSource,
+                      ]),
+                    ]
+                  : []),
+              ];
 
         const { response: enrichedResponse } = await this.#executeMiddlewares({
           sources: enrichmentSources,
