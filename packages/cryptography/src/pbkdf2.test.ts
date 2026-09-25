@@ -55,7 +55,7 @@ describe('pbkdf2Sha256', () => {
 
   it('throws if the number of iterations is below the recommended minimum', async () => {
     await expect(pbkdf2Sha256(password, salt, 599_999, 256)).rejects.toThrow(
-      'Iterations must be at least 600000 for PBKDF2-SHA-256.',
+      'Unsafe number of iterations: Iterations must be at least 600000 for PBKDF2-SHA-256. To bypass this check, set the `unsafeIterations` option to `true`.',
     );
   });
 });
@@ -89,7 +89,7 @@ describe('pbkdf2Sha384', () => {
 
   it('throws if the number of iterations is below the recommended minimum', async () => {
     await expect(pbkdf2Sha384(password, salt, 219_999, 384)).rejects.toThrow(
-      'Iterations must be at least 220000 for PBKDF2-SHA-384.',
+      'Unsafe number of iterations: Iterations must be at least 220000 for PBKDF2-SHA-384. To bypass this check, set the `unsafeIterations` option to `true`.',
     );
   });
 });
@@ -141,7 +141,7 @@ describe('pbkdf2Sha512', () => {
 
   it('throws if the number of iterations is below the recommended minimum', async () => {
     await expect(pbkdf2Sha512(password, salt, 219_999, 512)).rejects.toThrow(
-      'Iterations must be at least 220000 for PBKDF2-SHA-512.',
+      'Unsafe number of iterations: Iterations must be at least 220000 for PBKDF2-SHA-512. To bypass this check, set the `unsafeIterations` option to `true`.',
     );
   });
 });

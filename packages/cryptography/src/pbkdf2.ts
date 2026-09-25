@@ -105,7 +105,7 @@ async function pbkdf2(
 ): Promise<Uint8Array> {
   if (!options?.unsafeIterations && iterations < MIN_ITERATIONS[hash]) {
     throw new Error(
-      `Iterations must be at least ${MIN_ITERATIONS[hash]} for PBKDF2-${hash}.`,
+      `Unsafe number of iterations: Iterations must be at least ${MIN_ITERATIONS[hash]} for PBKDF2-${hash}. To bypass this check, set the \`unsafeIterations\` option to \`true\`.`,
     );
   }
 
