@@ -766,6 +766,41 @@ describe('KycController', () => {
       );
     });
 
+    it('records failure when SumSub reports that it could not run', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Failed' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports Failed through a status change', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'Failed');
+              return { status: 'Ready' };
+            },
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
     it('marks the session pending and starts polling once the SDK completes', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('retry') } } },

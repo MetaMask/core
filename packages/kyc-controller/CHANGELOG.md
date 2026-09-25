@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `KycController.launchProviderFlow` and its messenger action now return the durable provider-flow outcome instead of `void` ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Treat a SumSub SDK `Failed` status as `failed` instead of `abandoned` ([#10457](https://github.com/MetaMask/core/pull/10457))
 
 ## [0.5.0]
 

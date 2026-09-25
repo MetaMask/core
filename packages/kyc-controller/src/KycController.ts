@@ -19,7 +19,10 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
-import { isSumSubFlowCompleted } from './providers/sumsub.js';
+import {
+  isSumSubFlowCompleted,
+  isSumSubFlowFailed,
+} from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import {
   areSessionDisclaimersCompleted,
@@ -923,10 +926,12 @@ export class KycController extends BaseController<
         sessionId,
       );
 
-      // Track whether the SDK ever reported a successful completion. A resolved
-      // `launch` alone does not imply success — the applicant may have
-      // abandoned the flow or the SDK may have reported a non-success outcome.
+      // Track whether the SDK ever reported a successful completion or its own
+      // failure. A resolved `launch` alone does not imply success — the
+      // applicant may have abandoned the flow, or the SDK may have reported
+      // that it could not run.
       let reachedCompletion = false;
+      let sdkFailed = false;
 
       const result = await this.#sumsubLauncher.launch({
         applicantAccessToken,
@@ -941,6 +946,9 @@ export class KycController extends BaseController<
           if (isSumSubFlowCompleted(next)) {
             reachedCompletion = true;
           }
+          if (isSumSubFlowFailed(next)) {
+            sdkFailed = true;
+          }
         },
         locale: params?.locale ?? 'en',
         debug: params?.debug ?? false,
@@ -949,9 +957,17 @@ export class KycController extends BaseController<
       // Some native SDKs resolve with their final status without first
       // delivering the corresponding state-change callback.
       reachedCompletion ||= isSumSubFlowCompleted(result.status);
+      sdkFailed ||= isSumSubFlowFailed(result.status);
 
       const currentSessionStatus = this.state.sessionStatus;
       if (currentSessionStatus?.id !== sessionId) {
+        return 'failed';
+      }
+
+      if (sdkFailed) {
+        this.update((state) => {
+          state.providerFlowStatus = 'failed';
+        });
         return 'failed';
       }
 
