@@ -393,6 +393,24 @@ type KeyringSnapshot = SerializedKeyring & {
   index: number;
 };
 
+/**
+ * Snapshots of the session's keyring state, taken before a transaction:
+ * one snapshot per keyring, plus the unsupported keyrings.
+ *
+ * Unsupported keyrings hold no keyring instances, so they are plain data,
+ * captured and restored wholesale, without snapshots of their own.
+ */
+type KeyringSnapshots = {
+  /**
+   * One snapshot per keyring.
+   */
+  keyrings: KeyringSnapshot[];
+  /**
+   * The unsupported keyrings, captured wholesale.
+   */
+  unsupportedKeyrings: SerializedKeyring[];
+};
+
 export type EncryptionResultConstraint<SupportedKeyMetadata> = {
   salt?: string;
   keyMetadata?: SupportedKeyMetadata;
@@ -2777,28 +2795,27 @@ export class KeyringController<
   /**
    * Take snapshots of the current keyrings, to roll back to.
    *
-   * Each snapshot captures a keyring's serialized state (deep-cloned) and
-   * its position in the keyrings array.
-   *
-   * Unsupported keyrings are not part of a failed transaction: no
-   * transaction path can change them, so the rollback has nothing to undo
-   * for them. They are therefore not snapshotted, and are left untouched by
-   * the rollback; not being part of the snapshot, they could not be
-   * recovered if dropped.
+   * Each keyring snapshot captures the keyring's serialized state
+   * (deep-cloned) and its position in the keyrings array. Unsupported
+   * keyrings hold no keyring instances, so they are captured wholesale, as
+   * plain data.
    *
    * @returns The keyring snapshots.
    */
-  async #getKeyringSnapshots(): Promise<KeyringSnapshot[]> {
+  async #getKeyringSnapshots(): Promise<KeyringSnapshots> {
     const serializedKeyrings = await this.#getSerializedKeyrings({
       includeUnsupported: false,
     });
 
-    return serializedKeyrings.map((serialized, index) => {
-      // The serialized data is cloned, as keyrings are free to return
-      // aliased internal state from `serialize()`, which the transaction
-      // could otherwise mutate through the snapshot itself.
-      return { ...cloneDeep(serialized), index };
-    });
+    return {
+      keyrings: serializedKeyrings.map((serialized, index) => {
+        // The serialized data is cloned, as keyrings are free to return
+        // aliased internal state from `serialize()`, which the transaction
+        // could otherwise mutate through the snapshot itself.
+        return { ...cloneDeep(serialized), index };
+      }),
+      unsupportedKeyrings: cloneDeep(this.#unsupportedKeyrings),
+    };
   }
 
   /**
@@ -2817,18 +2834,17 @@ export class KeyringController<
    * instead of thrown, so that the rollback always completes with the fully
    * reconciled keyrings and preserves the error of the failed transaction.
    *
-   * Unsupported keyrings are outside this reconciliation: no transaction
-   * path can change them, so the rollback has nothing to undo for them. Not
-   * being part of the snapshot, they could not be recovered if dropped. The
-   * only interaction is additive: keyrings that the rollback itself fails to
-   * recreate are parked among them.
+   * Unsupported keyrings are outside this reconciliation: they hold no
+   * keyring instances, so there is nothing to rebuild. They are plain data,
+   * and are restored wholesale by this method, before the walk. The only
+   * interaction with the walk is additive: keyrings that the rollback itself
+   * fails to recreate are parked among them.
    *
    * Must be called while the controller mutex is held.
    *
-   * @param snapshots - Snapshots of the keyrings taken before the
-   *   transaction (without unsupported keyrings).
+   * @param snapshots - The keyring snapshots taken before the transaction.
    */
-  async #rollbackKeyrings(snapshots: KeyringSnapshot[]): Promise<void> {
+  async #rollbackKeyrings(snapshots: KeyringSnapshots): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
     const oldKeyringsById = new Map(
@@ -2836,6 +2852,15 @@ export class KeyringController<
         (oldKeyring) => [oldKeyring.metadata.id, oldKeyring] as const,
       ),
     );
+
+    // Unsupported keyrings are plain data (no keyring instances), so they
+    // are restored wholesale instead of rebuilt. Restoring them before the
+    // walk undoes any parking performed by the failed transaction, while
+    // keyrings whose recreation fails during the walk are parked on top of
+    // the restored ones. Whole-wallet transactions (e.g. `setLocked`,
+    // `createNewVaultAnd*` and the unlock flows) clear them; without this
+    // restore, a later vault update would permanently drop them.
+    this.#unsupportedKeyrings = snapshots.unsupportedKeyrings;
 
     // The new keyrings array is built by walking the snapshot, and becomes
     // the controller's keyrings as it is built, so that duplicate account
@@ -2854,7 +2879,7 @@ export class KeyringController<
     // restored state.
     const oldStaleKeyrings: KeyringEntry[] = [];
 
-    for (const snapshot of snapshots) {
+    for (const snapshot of snapshots.keyrings) {
       // Snapshot keyrings derive from the keyrings in memory, so they always
       // carry metadata; a keyring without metadata has no old counterpart to
       // keep and is recreated with fresh metadata, mirroring

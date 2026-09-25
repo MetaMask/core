@@ -6056,6 +6056,54 @@ describe('KeyringController', () => {
       }
     });
 
+    it('restores unsupported keyrings wiped by a failed whole-wallet transaction', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: MockKeyring.type,
+                data: { foo: 'bar' },
+                metadata: { id: 'mock-keyring', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller, encryptor }) => {
+          // The Mock keyring has no registered builder and is parked as
+          // unsupported when unlocking.
+          await controller.submitPassword(password);
+          expect(controller.state.keyrings).toHaveLength(1);
+
+          const encryptSpy = jest
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockRejectedValue(new Error('Encryption failed'));
+
+          // The transaction clears every keyring (including the parked
+          // unsupported one), then fails when the changes are persisted.
+          await expect(
+            controller.createNewVaultAndRestore('new password', uint8ArraySeed),
+          ).rejects.toThrow('Encryption failed');
+
+          // The keyrings are restored, including the unsupported one: a
+          // subsequent successful persist keeps it in the vault, instead of
+          // permanently dropping it.
+          expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(
+            1,
+          );
+          encryptSpy.mockRestore();
+          await controller.addNewAccount();
+          const vaultEntries = parseVaultEntries(
+            controller.state.vault as string,
+          );
+          expect(vaultEntries).toHaveLength(2);
+          expect(vaultEntries[1].type).toBe(MockKeyring.type);
+        },
+      );
+    });
+
     it('parks keyrings as unsupported when their recreation fails, without failing the rollback', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       try {
