@@ -159,6 +159,47 @@ describe('UKYC localUserSecret', () => {
 
       expect(result).toHaveLength(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
     });
+
+    it('logs timing for load, generate, persist, and reload stages', async () => {
+      const logSpy = jest.spyOn(console, 'log');
+      const { store } = makeStore(null);
+
+      try {
+        await getOrCreateLocalUserSecret(store);
+
+        const timingMessages = logSpy.mock.calls
+          .map(([message]) => message)
+          .filter(
+            (message): message is string =>
+              typeof message === 'string' &&
+              message.startsWith(
+                '[KycController] #getOrCreateLocalUserSecret ',
+              ),
+          );
+
+        expect(timingMessages).toStrictEqual(
+          expect.arrayContaining([
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret loadExisting: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret generate: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret persist: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret reloadAfterPersist: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret total: \d+\.\d{2}ms$/u,
+            ),
+          ]),
+        );
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
   });
 
   describe('hasLocalUserSecret', () => {
