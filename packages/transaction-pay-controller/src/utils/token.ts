@@ -19,19 +19,6 @@ import { rpcRequest } from './provider.js';
 const log = createModuleLogger(projectLogger, 'token');
 
 /**
- * Resolved CAIP-19 asset IDs, scoped to the metadata snapshot they were read
- * from and keyed within it by chain ID and lower-cased token address.
- *
- * Keying on the snapshot means the cache invalidates itself whenever
- * `AssetsController` publishes new metadata, so an asset that was missing when
- * first looked up is resolved again once it appears.
- */
-const assetIdsByMetadata = new WeakMap<
-  AssetsControllerState['assetsInfo'],
-  Map<string, CaipAssetType | undefined>
->();
-
-/**
  * Check if two tokens are the same (same address and chain).
  *
  * @param token1 - First token identifier.
@@ -84,9 +71,11 @@ export function getTokenBalance(
   );
   const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
 
-  const amount = assetId
-    ? assetsBalance[accountId]?.[assetId]?.amount
-    : undefined;
+  if (!assetId) {
+    return '0';
+  }
+
+  const amount = assetsBalance[accountId]?.[assetId]?.amount;
 
   if (amount === undefined) {
     return '0';
@@ -94,14 +83,12 @@ export function getTokenBalance(
 
   // AssetsController stores human-readable decimal amounts, whereas callers of
   // this function expect raw base units. Shift by the token decimals to convert.
-  const decimals = getTokenInfo(messenger, tokenAddress, chainId)?.decimals;
-
-  if (decimals === undefined) {
-    return '0';
-  }
+  // The asset ID resolved above is a key of `assetsInfo`, so its metadata is
+  // read from the snapshot already in hand rather than re-fetched.
+  const { decimals } = assetsInfo[assetId];
 
   return new BigNumber(amount)
-    .shiftedBy(decimals)
+    .shiftedBy(Number(decimals))
     .toFixed(0, BigNumber.ROUND_DOWN);
 }
 
@@ -415,10 +402,21 @@ export function normalizeTokenAddress(
 }
 
 /**
- * Resolve the exact key an asset is stored under in `AssetsController` state.
+ * Locate an asset's key in `AssetsController` state.
  *
- * Results are memoised per metadata snapshot, so the lookup below runs at most
- * once per token per snapshot.
+ * An ERC-20 identifier is fully derivable from the chain and address, so the
+ * derived form is tried against state first — client-selected tokens are
+ * already checksummed and hit immediately. Only addresses in another case, such
+ * as those recovered from transaction calldata, fall through to a
+ * case-insensitive search, which avoids paying for a checksum on the hot path.
+ *
+ * A native identifier cannot be derived, because MetaMask keys natives
+ * inconsistently across chains — `slip44:`, `erc20:` with the zero address, or
+ * a chain-specific sentinel address — so the chain's sole entry of type
+ * `native` is searched for instead.
+ *
+ * An asset absent from state is unresolvable rather than assumed, so a derived
+ * identifier state cannot confirm is never returned.
  *
  * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
  * @param chainId - Hex chain ID.
@@ -427,53 +425,6 @@ export function normalizeTokenAddress(
  * is absent.
  */
 function getControllerAssetId(
-  assetsInfo: AssetsControllerState['assetsInfo'],
-  chainId: Hex,
-  tokenAddress: Hex,
-): CaipAssetType | undefined {
-  let assetIds = assetIdsByMetadata.get(assetsInfo);
-
-  if (!assetIds) {
-    assetIds = new Map();
-    assetIdsByMetadata.set(assetsInfo, assetIds);
-  }
-
-  const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
-
-  if (assetIds.has(cacheKey)) {
-    return assetIds.get(cacheKey);
-  }
-
-  const assetId = resolveControllerAssetId(assetsInfo, chainId, tokenAddress);
-
-  assetIds.set(cacheKey, assetId);
-
-  return assetId;
-}
-
-/**
- * Locate an asset's key in `AssetsController` state.
- *
- * An ERC-20 identifier is fully derivable from the chain and address, so the
- * derived form is tried against state first — client-selected tokens are
- * already checksummed and hit immediately. Only addresses in another case, such
- * as those recovered from transaction calldata, fall through to a
- * case-insensitive search, which avoids paying for a checksum on the hot path.
- * The derived identifier is returned even when state has no matching entry, so
- * that balance and price lookups keyed by it still resolve.
- *
- * A native identifier cannot be derived, because MetaMask keys natives
- * inconsistently across chains — `slip44:`, `erc20:` with the zero address, or
- * a chain-specific sentinel address — so the chain's sole entry of type
- * `native` is searched for instead.
- *
- * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
- * @param chainId - Hex chain ID.
- * @param tokenAddress - Token address, or the native token address.
- * @returns The CAIP-19 asset ID, or undefined for a native asset absent from
- * state.
- */
-function resolveControllerAssetId(
   assetsInfo: AssetsControllerState['assetsInfo'],
   chainId: Hex,
   tokenAddress: Hex,
@@ -506,5 +457,5 @@ function resolveControllerAssetId(
     }
   }
 
-  return derivedAssetId;
+  return undefined;
 }

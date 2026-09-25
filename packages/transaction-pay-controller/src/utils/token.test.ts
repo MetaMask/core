@@ -349,6 +349,26 @@ describe('Token Utils', () => {
       expect(result).toBe('0');
     });
 
+    it('returns zero when the asset has no balance for the account', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: { [ACCOUNT_ID_MOCK]: {} },
+        assetsInfo: {
+          [assetId]: { decimals: 6, symbol: 'TST', type: 'erc20' },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('0');
+    });
+
     it('finds a token balance using a lowercase address', () => {
       const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
 
@@ -720,7 +740,13 @@ describe('Token Utils', () => {
       const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
 
       getAssetsControllerStateMock.mockReturnValue({
-        assetsInfo: {},
+        assetsInfo: {
+          [assetId]: {
+            decimals: 6,
+            symbol: 'USDC.e',
+            type: 'erc20',
+          },
+        },
         assetsPrice: {
           [assetId]: {
             assetPriceType: 'fungible',

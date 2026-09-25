@@ -6716,16 +6716,16 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 50
+      "count": 51
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 49
+      "count": 50
     },
     "typescript/no-unsafe-member-access": {
-      "count": 49
+      "count": 50
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {
