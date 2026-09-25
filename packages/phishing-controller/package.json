@@ -57,7 +57,7 @@
     "@metamask/transaction-controller": "^72.0.1",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.4",
-    "ethereum-cryptography": "^2.1.2",
+    "ethereum-cryptography": "^2.2.1",
     "fastest-levenshtein": "^1.0.16",
     "punycode": "^2.3.1"
   },
