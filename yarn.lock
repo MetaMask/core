@@ -7217,7 +7217,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
-    "@types/unzipper": "npm:^0.10.10"
+    "@types/unzipper": "npm:^0.10.11"
     "@types/yargs": "npm:^17.0.32"
     "@types/yargs-parser": "npm:^21.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7232,7 +7232,7 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
-    unzipper: "npm:^0.12.3"
+    unzipper: "npm:^0.12.5"
     yaml: "npm:^2.3.4"
     yargs: "npm:^17.7.2"
     yargs-parser: "npm:^21.1.1"
@@ -12338,7 +12338,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/unzipper@npm:^0.10.10":
+"@types/unzipper@npm:^0.10.11":
   version: 0.10.11
   resolution: "@types/unzipper@npm:0.10.11"
   dependencies:
@@ -18232,6 +18232,17 @@ __metadata:
   version: 1.0.0
   resolution: "fs-constants@npm:1.0.0"
   checksum: 10/18f5b718371816155849475ac36c7d0b24d39a11d91348cfcb308b4494824413e03572c403c86d3a260e049465518c4f0d5bd00f0371cdfcad6d4f30a85b350d
+  languageName: node
+  linkType: hard
+
+"fs-extra@npm:11.3.1":
+  version: 11.3.1
+  resolution: "fs-extra@npm:11.3.1"
+  dependencies:
+    graceful-fs: "npm:^4.2.0"
+    jsonfile: "npm:^6.0.1"
+    universalify: "npm:^2.0.0"
+  checksum: 10/2b893213411b1da11f9b061ccb0bcff4d6dd66fe90aa8f5b1616219a5e7ca659da869f454ebd8e94aa21c58342730fb43a2e5c98b5c6c5124f0c54a4633f64b0
   languageName: node
   linkType: hard
 
@@ -27813,16 +27824,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unzipper@npm:^0.12.3":
-  version: 0.12.3
-  resolution: "unzipper@npm:0.12.3"
+"unzipper@npm:^0.12.5":
+  version: 0.12.5
+  resolution: "unzipper@npm:0.12.5"
   dependencies:
     bluebird: "npm:~3.7.2"
     duplexer2: "npm:~0.1.4"
-    fs-extra: "npm:^11.2.0"
+    fs-extra: "npm:11.3.1"
     graceful-fs: "npm:^4.2.2"
     node-int64: "npm:^0.4.0"
-  checksum: 10/b210c421308e1913e01b54faad4ae79e758c674311892414a0697acacba9f82fa0051b677faa77e62fab422eef928c858f2d5cda9ddb47a2f3db95b0e9b36359
+  checksum: 10/5d28fbbba5371e1a401386762ec61b123807848648ff685f1b80d36302641bc9421bf12e21ca86460c5da84a827924356fc48f0463304887f15aaca1f2ac6fac
   languageName: node
   linkType: hard
 
