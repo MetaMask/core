@@ -18,8 +18,8 @@ export const UNKNOWN_REQUEST_SOURCE = 'unknown';
  * constructed, since a single instance only ever runs on one platform.
  */
 export enum RequestSourcePlatform {
-  Extension = 'Extension',
-  Mobile = 'Mobile',
+  Extension = 'extension',
+  Mobile = 'mobile',
 }
 
 /**
