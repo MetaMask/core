@@ -222,7 +222,7 @@ If no merger exists for a caveat that must be merged, the request will fail.
 
 ## Examples
 
-In addition to the below examples, the [`PermissionController` unit tests](./PermissionController.test.ts) show how to set up the controller.
+In addition to the below examples, the [`PermissionController` unit tests](./src/PermissionController.test.ts) show how to set up the controller.
 
 ### Construction
 
