@@ -96,6 +96,20 @@ export type EcPublicJwk = {
 };
 
 /**
+ * Result of first-factor identifier authentication, consumed by
+ * `getRecoverySecret`.
+ *
+ * The private keys are ephemeral and must only be kept in memory.
+ */
+export type IdentifierSession = {
+  token: KeyBoundIdentifierToken;
+  proofPrivateKey: string;
+  requestId: string;
+  ephemeralPrivateKey: string;
+  pkE: EcPublicJwk;
+};
+
+/**
  * Recovery secret wrapped to one escrow wrap key for transit.
  * `ciphertext` is unprefixed hex of `nonce || ChaCha20-Poly1305(ciphertext+tag)`.
  */

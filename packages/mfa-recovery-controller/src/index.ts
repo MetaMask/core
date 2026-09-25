@@ -13,6 +13,7 @@ export type {
 } from './MfaRecoveryController.js';
 export type {
   MfaRecoveryControllerAbortAction,
+  MfaRecoveryControllerAuthenticateIdentifierAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
@@ -32,6 +33,7 @@ export type {
   EncryptedPendingOperation,
   Identifier,
   IdentifierAuthorization,
+  IdentifierSession,
   Mutation,
   MutationPayload,
   MutationReceipt,

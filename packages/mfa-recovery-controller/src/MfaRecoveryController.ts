@@ -26,9 +26,11 @@ import {
 } from './escrow-utils.js';
 import {
   authorizeKeyBoundIdentifier,
+  authorizeWithKeyBoundToken,
   countDistinctIdentifiers,
   getIdentifierAuthMode,
   MIN_IDENTIFIERS,
+  requestKeyBoundIdentifierToken,
 } from './identifier-auth.js';
 import type { AuthorizedEscrow } from './identifier-auth.js';
 import type { MfaRecoveryControllerMethodActions } from './MfaRecoveryController-method-action-types.js';
@@ -42,6 +44,7 @@ import type {
   AuthControllerToken,
   EcPublicJwk,
   Identifier,
+  IdentifierSession,
   Mutation,
   MutationPayload,
   MutationReceipt,
@@ -66,6 +69,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
+  'authenticateIdentifier',
   'getRecoverySecret',
   'resume',
   'abort',
@@ -316,24 +320,64 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
+   * Authenticates an identifier for a subsequent recovery-secret read.
+   *
+   * @param identifier - Identifier to authenticate.
+   * @returns Ephemeral session data required by {@link getRecoverySecret}.
+   */
+  async authenticateIdentifier(
+    identifier: Identifier,
+  ): Promise<IdentifierSession> {
+    this.#assertKnownIdentifierTypes([identifier]);
+    const requestId = randomId();
+    const ephemeral = generateSigningKey();
+    const pkE = JSON.parse(ephemeral.publicKey) as EcPublicJwk;
+    const requestHash = hash({
+      operation: 'getRecoverySecret',
+      requestId,
+      pkE,
+    });
+    const { token, proofPrivateKey } =
+      await requestKeyBoundIdentifierToken({
+        identifier,
+        requestHash,
+        identifierAuthProvider: this.#identifierAuthProvider,
+      });
+    return {
+      token,
+      proofPrivateKey,
+      requestId,
+      ephemeralPrivateKey: ephemeral.privateKey,
+      pkE,
+    };
+  }
+
+  /**
    * Reads the recovery secret from available escrows and returns the highest
    * consistent version. `epoch` is the current recovery version and is required
    * by later mutations. Does not wait for a pending mutation to be repaired.
    *
-   * @param identifier - Identifier used to authorize the read.
+   * @param session - Identifier authentication session used to authorize the
+   * read.
    * @returns Recovered secret bytes and the selected epoch.
    */
-  async getRecoverySecret(identifier: Identifier): Promise<RecoveredSecret> {
+  async getRecoverySecret(
+    session: IdentifierSession,
+  ): Promise<RecoveredSecret> {
     return await this.#withLock(async () => {
-      this.#assertKnownIdentifierTypes([identifier]);
-      const requestId = randomId();
-      const ephemeral = generateSigningKey();
-      const pkE = JSON.parse(ephemeral.publicKey) as EcPublicJwk;
+      const { token, requestId, pkE } = session;
+      this.#assertKnownIdentifierTypes([token.identifier]);
       const requestHash = hash({
         operation: 'getRecoverySecret',
         requestId,
         pkE,
       });
+      if (token.requestHash !== requestHash) {
+        throw new MfaRecoveryError(
+          'Invalid identifier session',
+          'invalid_identifier_session',
+        );
+      }
       const available = await this.#getAvailableEscrows();
       if (available.length === 0) {
         throw new MfaRecoveryError(
@@ -341,10 +385,10 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const authorizedEscrows = await this.#authorizeIdentifier({
+      const authorizedEscrows = await authorizeWithKeyBoundToken({
         escrows: available,
-        identifier,
-        requestHash,
+        token,
+        proofPrivateKey: session.proofPrivateKey,
       });
       const results = await Promise.allSettled(
         authorizedEscrows.map(async ({ escrow, authorization }) => {
@@ -362,7 +406,7 @@ export class MfaRecoveryController extends BaseController<
           return {
             escrowId: escrow.id,
             recoverySecret: decryptFromPublic(
-              ephemeral.privateKey,
+              session.ephemeralPrivateKey,
               escrow.wrapPublicKey,
               response.recoverySecret.ciphertext,
             ),

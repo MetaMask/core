@@ -5,6 +5,7 @@ import type {
   Identifier,
   IdentifierAuthMode,
   IdentifierAuthorization,
+  KeyBoundIdentifierToken,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
 } from './types.js';
@@ -47,8 +48,85 @@ export type AuthorizedEscrow = {
 };
 
 /**
- * Authorizes an identifier with each escrow that successfully provides a
- * challenge.
+ * Requests a key-bound identifier token and returns the private key used to
+ * prove possession of it.
+ *
+ * @param params - Identifier authorization parameters.
+ * @param params.identifier - Identifier to authenticate.
+ * @param params.requestHash - Request hash bound to the authorization.
+ * @param params.identifierAuthProvider - Provider for key-bound assertions.
+ * @returns Key-bound identifier token and its proof private key.
+ */
+export async function requestKeyBoundIdentifierToken({
+  identifier,
+  requestHash,
+  identifierAuthProvider,
+}: {
+  identifier: Identifier;
+  requestHash: string;
+  identifierAuthProvider: RecoveryIdentifierAuthProvider;
+}): Promise<{ token: KeyBoundIdentifierToken; proofPrivateKey: string }> {
+  const proofKey = generateSigningKey();
+  const token = await identifierAuthProvider.getKeyBoundIdentifierToken({
+    identifier,
+    proofPublicKey: proofKey.publicKey,
+    requestHash,
+  });
+  return { token, proofPrivateKey: proofKey.privateKey };
+}
+
+/**
+ * Authorizes a key-bound identifier with each escrow that successfully
+ * provides a challenge.
+ *
+ * @param params - Key-bound authorization parameters.
+ * @param params.escrows - Escrows to authorize.
+ * @param params.token - Key-bound identifier token.
+ * @param params.proofPrivateKey - Private key for proving token possession.
+ * @returns Successful escrow authorizations.
+ */
+export async function authorizeWithKeyBoundToken({
+  escrows,
+  token,
+  proofPrivateKey,
+}: {
+  escrows: RecoveryEscrowProvider[];
+  token: KeyBoundIdentifierToken;
+  proofPrivateKey: string;
+}): Promise<AuthorizedEscrow[]> {
+  const challengeResults = await Promise.allSettled(
+    escrows.map((escrow) => escrow.generateChallenge()),
+  );
+  const challenges = challengeResults.flatMap((result, index) =>
+    isFulfilledResult(result)
+      ? [{ escrow: escrows[index], challenge: result.value }]
+      : [],
+  );
+  const authorizationResults = await Promise.allSettled(
+    challenges.map(async ({ escrow, challenge }) => {
+      const message = hash([token, challenge.id, token.requestHash]);
+      return {
+        escrow,
+        authorization: {
+          kind: 'key-bound' as const,
+          token,
+          proof: {
+            challengeId: challenge.id,
+            requestHash: token.requestHash,
+            signature: sign(proofPrivateKey, message),
+          },
+        },
+      };
+    }),
+  );
+  return authorizationResults
+    .filter(isFulfilledResult)
+    .map((result) => result.value);
+}
+
+/**
+ * Requests and authorizes a key-bound identifier with each escrow that
+ * successfully provides a challenge.
  *
  * @param params - Identifier authorization parameters.
  * @param params.escrows - Escrows to authorize.
@@ -68,40 +146,16 @@ export async function authorizeKeyBoundIdentifier({
   requestHash: string;
   identifierAuthProvider: RecoveryIdentifierAuthProvider;
 }): Promise<AuthorizedEscrow[]> {
-  const proofKey = generateSigningKey();
-  const token = await identifierAuthProvider.getKeyBoundIdentifierToken({
+  const { token, proofPrivateKey } = await requestKeyBoundIdentifierToken({
     identifier,
-    proofPublicKey: proofKey.publicKey,
     requestHash,
+    identifierAuthProvider,
   });
-  const challengeResults = await Promise.allSettled(
-    escrows.map((escrow) => escrow.generateChallenge()),
-  );
-  const challenges = challengeResults.flatMap((result, index) =>
-    isFulfilledResult(result)
-      ? [{ escrow: escrows[index], challenge: result.value }]
-      : [],
-  );
-  const authorizationResults = await Promise.allSettled(
-    challenges.map(async ({ escrow, challenge }) => {
-      const message = hash([token, challenge.id, requestHash]);
-      return {
-        escrow,
-        authorization: {
-          kind: 'key-bound' as const,
-          token,
-          proof: {
-            challengeId: challenge.id,
-            requestHash,
-            signature: sign(proofKey.privateKey, message),
-          },
-        },
-      };
-    }),
-  );
-  return authorizationResults
-    .filter(isFulfilledResult)
-    .map((result) => result.value);
+  return await authorizeWithKeyBoundToken({
+    escrows,
+    token,
+    proofPrivateKey,
+  });
 }
 
 /**
