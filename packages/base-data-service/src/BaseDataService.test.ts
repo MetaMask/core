@@ -9,7 +9,7 @@ import {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
-import { CancelledError, hashKey } from '@tanstack/query-core';
+import { CancelledError, hashKey, QueryClient } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
 
@@ -576,6 +576,25 @@ describe('BaseDataService', () => {
         symbol: 'ETH',
       },
     ]);
+  });
+
+  it('forwards cancel options when cancelling in-flight queries', async () => {
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const cancelSpy = jest.spyOn(QueryClient.prototype, 'cancelQueries');
+    mockAssets();
+
+    const cancelledRequest = service
+      .getAssets(MOCK_ASSETS)
+      .catch((error) => error);
+    await service.refreshAssets(MOCK_ASSETS, { silent: true });
+
+    expect(cancelSpy).toHaveBeenCalledWith(
+      { queryKey: ['ExampleDataService:getAssets', MOCK_ASSETS] },
+      { silent: true },
+    );
+    expect(await cancelledRequest).toBeInstanceOf(CancelledError);
+    cancelSpy.mockRestore();
   });
 
   describe('validation', () => {

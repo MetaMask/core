@@ -19,6 +19,7 @@ import {
   inMilliseconds,
   Json,
 } from '@metamask/utils';
+import type { CancelOptions } from '@tanstack/query-core';
 import { ConstantBackoff } from 'cockatiel';
 
 import {
@@ -155,12 +156,18 @@ export class ExampleDataService extends BaseDataService<
     });
   }
 
-  async refreshAssets(assets: string[]): Promise<GetAssetsResponse> {
+  async refreshAssets(
+    assets: string[],
+    cancelOptions?: CancelOptions,
+  ): Promise<GetAssetsResponse> {
     // Cancel any in-flight fetch so that its response cannot win the shared
     // query key after the refresh completes.
-    await this.cancelQueries({
-      queryKey: [`${this.name}:getAssets`, assets],
-    });
+    await this.cancelQueries(
+      {
+        queryKey: [`${this.name}:getAssets`, assets],
+      },
+      cancelOptions,
+    );
 
     return this.getAssets(assets);
   }
