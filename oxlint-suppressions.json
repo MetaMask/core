@@ -380,7 +380,7 @@
       "count": 2
     },
     "typescript/no-unnecessary-type-assertion": {
-      "count": 16
+      "count": 6
     }
   },
   "packages/analytics-data-regulation-controller/jest.config.cjs": {
@@ -434,9 +434,6 @@
     "typescript/explicit-function-return-type": {
       "count": 4
     },
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-return": {
       "count": 2
     },
@@ -479,7 +476,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 8
+      "count": 4
     },
     "typescript/no-unsafe-assignment": {
       "count": 5
@@ -517,7 +514,7 @@
   },
   "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/AccountActivityDataSource.test.ts": {
@@ -558,7 +555,7 @@
   },
   "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 2
+      "count": 1
     },
     "typescript/no-unsafe-assignment": {
       "count": 8
@@ -631,9 +628,6 @@
     }
   },
   "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 2
     }
@@ -643,7 +637,7 @@
       "count": 4
     },
     "typescript/no-unnecessary-type-assertion": {
-      "count": 3
+      "count": 2
     },
     "typescript/no-unsafe-member-access": {
       "count": 3
@@ -714,7 +708,7 @@
   },
   "packages/assets-controller/src/defaults.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 11
+      "count": 10
     }
   },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
@@ -816,15 +810,7 @@
     }
   },
   "packages/assets-controller/src/utils/native-assets.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/utils/normalizeAssetId.ts": {
-    "typescript/no-unnecessary-type-assertion": {
       "count": 1
     }
   },
@@ -1567,9 +1553,6 @@
     }
   },
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 7
     },
@@ -2103,7 +2086,7 @@
   },
   "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 10
+      "count": 9
     },
     "typescript/no-unsafe-assignment": {
       "count": 12
@@ -2379,11 +2362,6 @@
     },
     "typescript/no-unsafe-return": {
       "count": 9
-    }
-  },
-  "packages/chomp-api-service/src/types.ts": {
-    "id-length": {
-      "count": 6
     }
   },
   "packages/claims-controller/jest.config.cjs": {
@@ -2790,9 +2768,6 @@
   "packages/eip-5792-middleware/src/methods/wallet_sendCalls.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
-    },
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 3
     }
   },
   "packages/eip-5792-middleware/src/utils.test.ts": {
@@ -2906,16 +2881,6 @@
     }
   },
   "packages/eth-json-rpc-middleware/src/methods/wallet-get-supported-execution-permissions.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    }
-  },
-  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
     }
@@ -3538,11 +3503,6 @@
       "count": 10
     }
   },
-  "packages/kyc-controller/src/ukyc/jwtChain.ts": {
-    "id-length": {
-      "count": 2
-    }
-  },
   "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
@@ -3993,11 +3953,6 @@
   },
   "packages/money-account-upgrade-controller/src/steps/eip-7702-authorization.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 5
-    }
-  },
-  "packages/money-account-upgrade-controller/src/steps/eip-7702-authorization.ts": {
-    "id-length": {
       "count": 3
     }
   },
@@ -4210,11 +4165,6 @@
       "count": 1
     }
   },
-  "packages/multichain-api-middleware/src/handlers/index.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    }
-  },
   "packages/multichain-api-middleware/src/handlers/wallet-createSession.test.ts": {
     "id-denylist": {
       "count": 1
@@ -4346,11 +4296,6 @@
   "packages/multichain-network-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
-    }
-  },
-  "packages/multichain-network-controller/src/MultichainNetworkService/MultichainNetworkService.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 2
     }
   },
   "packages/multichain-transactions-controller/jest.config.cjs": {
@@ -4843,7 +4788,7 @@
   },
   "packages/permission-controller/src/PermissionController.test.ts": {
     "id-length": {
-      "count": 4
+      "count": 3
     },
     "typescript/no-unsafe-argument": {
       "count": 3
@@ -4902,7 +4847,7 @@
   },
   "packages/perps-controller/src/PerpsController.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 9
+      "count": 5
     },
     "typescript/no-unsafe-argument": {
       "count": 3
@@ -4917,11 +4862,8 @@
     }
   },
   "packages/perps-controller/src/providers/HyperLiquidProvider.ts": {
-    "id-length": {
-      "count": 3
-    },
     "typescript/no-unnecessary-type-assertion": {
-      "count": 3
+      "count": 2
     },
     "typescript/no-unsafe-assignment": {
       "count": 2
@@ -4938,7 +4880,7 @@
   },
   "packages/perps-controller/src/providers/LighterProvider.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 7
+      "count": 5
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
@@ -4955,15 +4897,7 @@
       "count": 1
     }
   },
-  "packages/perps-controller/src/services/AccountService.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/src/services/AggregatedOrderBookConnection.ts": {
-    "id-length": {
-      "count": 1
-    },
     "unicorn/no-useless-undefined": {
       "count": 2
     }
@@ -4995,11 +4929,6 @@
   "packages/perps-controller/src/services/TerminalMarketService.ts": {
     "typescript/prefer-optional-chain": {
       "count": 1
-    }
-  },
-  "packages/perps-controller/src/types/lighter-types.ts": {
-    "id-length": {
-      "count": 8
     }
   },
   "packages/perps-controller/src/utils/errorUtils.ts": {
@@ -5056,9 +4985,6 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-orders.test.ts": {
-    "id-length": {
-      "count": 11
-    },
     "typescript/no-unnecessary-type-assertion": {
       "count": 26
     },
@@ -5105,9 +5031,6 @@
     }
   },
   "packages/perps-controller/tests/src/services/AggregatedOrderBookConnection.test.ts": {
-    "id-length": {
-      "count": 1
-    },
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
     },
@@ -5530,11 +5453,6 @@
       "count": 3
     }
   },
-  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/types.ts": {
-    "id-length": {
-      "count": 5
-    }
-  },
   "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/utils.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 3
@@ -5749,7 +5667,7 @@
   },
   "packages/profile-sync-controller/src/shared/encryption/encryption.ts": {
     "id-length": {
-      "count": 16
+      "count": 9
     },
     "typescript/explicit-function-return-type": {
       "count": 2
@@ -5873,9 +5791,6 @@
     }
   },
   "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
-    "id-length": {
-      "count": 3
-    },
     "typescript/no-unsafe-assignment": {
       "count": 5
     },
@@ -5887,11 +5802,6 @@
     },
     "typescript/no-unsafe-return": {
       "count": 13
-    }
-  },
-  "packages/ramps-controller/src/order-syncing/types.ts": {
-    "id-length": {
-      "count": 1
     }
   },
   "packages/ramps-controller/src/order-syncing/utils.ts": {
@@ -5988,9 +5898,6 @@
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 1
     },
@@ -6078,11 +5985,6 @@
   },
   "packages/sentinel-api-service/src/sentinel-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 2
-    }
-  },
-  "packages/sentinel-api-service/src/types.ts": {
-    "id-length": {
       "count": 2
     }
   },
@@ -6769,7 +6671,7 @@
   },
   "packages/transaction-controller/src/types.ts": {
     "id-length": {
-      "count": 7
+      "count": 2
     }
   },
   "packages/transaction-controller/src/utils/balance-changes.test.ts": {
@@ -6822,11 +6724,6 @@
   },
   "packages/transaction-controller/src/utils/batch.ts": {
     "unicorn/no-useless-undefined": {
-      "count": 2
-    }
-  },
-  "packages/transaction-controller/src/utils/eip7702.ts": {
-    "id-length": {
       "count": 2
     }
   },
@@ -7313,7 +7210,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 236
+      "count": 235
     },
     "typescript/no-unsafe-assignment": {
       "count": 269
@@ -7344,7 +7241,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 19
+      "count": 17
     },
     "typescript/no-unsafe-argument": {
       "count": 14
@@ -7360,9 +7257,6 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.ts": {
-    "id-length": {
-      "count": 2
-    },
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
     }
@@ -7386,7 +7280,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
@@ -7409,11 +7303,6 @@
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/relay/types.ts": {
-    "id-length": {
-      "count": 4
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-api.test.ts": {
@@ -7469,11 +7358,6 @@
   "packages/transaction-pay-controller/src/strategy/server/server-submit.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/server/types.ts": {
-    "id-length": {
-      "count": 4
     }
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
@@ -7599,7 +7483,7 @@
   },
   "packages/transaction-pay-controller/src/utils/quotes.ts": {
     "typescript/no-unnecessary-type-assertion": {
-      "count": 4
+      "count": 3
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -8054,7 +7938,7 @@
   },
   "packages/utils/src/json.tst.ts": {
     "id-length": {
-      "count": 2
+      "count": 1
     },
     "typescript/no-explicit-any": {
       "count": 1
@@ -8087,11 +7971,6 @@
   "packages/utils/src/misc.tst.ts": {
     "typescript/no-explicit-any": {
       "count": 1
-    }
-  },
-  "packages/utils/src/transaction-types.ts": {
-    "id-length": {
-      "count": 2
     }
   },
   "packages/utils/src/unitsConversion.test.ts": {
