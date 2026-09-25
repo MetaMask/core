@@ -1,6 +1,11 @@
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
-import type { AccountId, Caip19AssetId, Middleware } from '../types.js';
+import type {
+  AccountId,
+  AssetsControllerState,
+  Caip19AssetId,
+  Middleware,
+} from '../types.js';
 import { normalizeAssetId } from '../utils/index.js';
 
 // ============================================================================
@@ -31,12 +36,25 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
  *
  * Usage:
  * ```typescript
- * const detectionMiddleware = new DetectionMiddleware();
+ * const detectionMiddleware = new DetectionMiddleware({
+ *   getAssetsState: () => this.state,
+ * });
  * const middleware = detectionMiddleware.assetsMiddleware;
  * ```
  */
+export type DetectionMiddlewareOptions = {
+  /** Current AssetsController state. Used to distinguish newly detected assets. */
+  getAssetsState: () => AssetsControllerState;
+};
+
 export class DetectionMiddleware {
   readonly name = CONTROLLER_NAME;
+
+  readonly #getAssetsState: () => AssetsControllerState;
+
+  constructor(options: DetectionMiddlewareOptions) {
+    this.#getAssetsState = options.getAssetsState;
+  }
 
   getName(): string {
     return this.name;
@@ -61,7 +79,7 @@ export class DetectionMiddleware {
       const { request, response } = ctx;
 
       // Get state for custom assets, existing balances, and existing metadata
-      const state = ctx.getAssetsState();
+      const state = this.#getAssetsState();
       const {
         customAssets: stateCustomAssets,
         assetsBalance: stateAssetsBalance,

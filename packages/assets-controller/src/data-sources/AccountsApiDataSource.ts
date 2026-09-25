@@ -8,6 +8,7 @@ import type { Json } from '@metamask/utils';
 import {
   isCaipChainId,
   KnownCaipNamespace,
+  parseCaipAssetType,
   toCaipChainId,
 } from '@metamask/utils';
 
@@ -20,8 +21,10 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
+import type { GetAssetVisibility } from '../utils/assetVisibility.js';
+import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
 import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import {
   getMigrationStages,
@@ -50,9 +53,9 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // Allowed actions that AccountsApiDataSource can call. Balances are fetched via
 // ApiPlatformClient directly (no BackendApiClient actions needed); the messenger
-// is used to read the Accounts API v6 balances feature flag and to subscribe to
-// `RemoteFeatureFlagController:stateChange` (see constructor) so migration flag
-// changes refresh the active chains.
+// is used to subscribe to `RemoteFeatureFlagController:stateChange` (see
+// constructor) so migration flag changes refresh the active chains, and to
+// read those flags when listing active chains.
 export type AccountsApiDataSourceAllowedActions =
   RemoteFeatureFlagControllerGetStateAction;
 
@@ -96,7 +99,7 @@ export type AccountsApiDataSourceConfig = {
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
   /**
    * The AssetsController messenger (shared by all data sources). Used to read
-   * the `assetsAccountsApiV6` remote feature flag.
+   * Snaps → AssetsController migration flags and subscribe to flag changes.
    */
   messenger: AssetsControllerMessenger;
   /** ApiPlatformClient for API calls with caching */
@@ -107,6 +110,19 @@ export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /**
+   * Whether to use the Accounts API v6 balances endpoint (and `includeAssetIds`).
+   * Injected by AssetsController so the flag is read in one place. Defaults to
+   * `false` (v5). Read on demand, not cached.
+   */
+  isBalanceV6Enabled?: () => boolean;
+  /**
+   * Current AssetsController state. Used for v6 include/exclude asset IDs and
+   * for filtering when token detection is off.
+   */
+  getAssetsState: () => AssetsControllerState;
+  /** Returns shared visible/hidden assets for an account/chain scope. */
+  getAssetVisibility: GetAssetVisibility;
   state?: Partial<AccountsApiDataSourceState>;
 };
 
@@ -182,7 +198,7 @@ function caipChainIdToChainId(chainIdStr: string): ChainId {
  */
 export function filterResponseToKnownAssets(
   response: DataResponse,
-  assetsState: AssetsControllerStateInternal,
+  assetsState: AssetsControllerState,
 ): DataResponse {
   if (!response.assetsBalance) {
     return response;
@@ -252,14 +268,18 @@ export class AccountsApiDataSource extends AbstractDataSource<
   /** Shared AssetsController messenger, used to read remote feature flags. */
   readonly #messenger: AssetsControllerMessenger;
 
+  /** Injected by AssetsController; `true` when the v6 balances endpoint should be used. */
+  readonly #isBalanceV6Enabled: () => boolean;
+
+  readonly #getAssetsState: () => AssetsControllerState;
+
+  readonly #getAssetVisibility: GetAssetVisibility;
+
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
-
-  /** State accessor from subscriptions (for filtering when tokenDetectionEnabled is false) */
-  #getAssetsState?: () => AssetsControllerStateInternal;
 
   constructor(options: AccountsApiDataSourceOptions) {
     super(CONTROLLER_NAME, {
@@ -273,6 +293,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#messenger = options.messenger;
+    this.#isBalanceV6Enabled =
+      options.isBalanceV6Enabled ?? ((): boolean => false);
+    this.#getAssetsState = options.getAssetsState;
+    this.#getAssetVisibility = options.getAssetVisibility;
     this.#apiClient = options.queryApiClient;
 
     // The Snaps → AssetsController migration flags gate which migration networks
@@ -307,35 +331,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
       log('Failed to refresh active chains after feature flag change', {
         error,
       });
-    }
-  }
-
-  /**
-   * Whether the Accounts API v6 balances endpoint is enabled, read from the
-   * RemoteFeatureFlagController (`assetsAccountsApiV6`). Read on demand (per
-   * fetch) rather than cached so the value can be toggled at runtime, and behaves
-   * the same across clients (extension, mobile). Defaults to `false` when the
-   * flag is unset or the controller is unavailable.
-   *
-   * The flag is a LaunchDarkly JSON variation shaped `{ value: boolean }` (same
-   * shape as `backendWebSocketConnection`), so the nested `value` is read rather
-   * than treating the flag as a plain boolean.
-   *
-   * @returns `true` when the v6 balances endpoint should be used.
-   */
-  #isBalanceV6Enabled(): boolean {
-    try {
-      const { remoteFeatureFlags } = this.#messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      const flag = remoteFeatureFlags?.assetsAccountsApiV6;
-      return (
-        typeof flag === 'object' &&
-        flag !== null &&
-        Boolean((flag as { value?: unknown }).value)
-      );
-    } catch {
-      return false;
     }
   }
 
@@ -422,57 +417,44 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async fetch(request: DataRequest): Promise<DataResponse> {
-    let response: DataResponse = {};
+    if (this.#isBalanceV6Enabled()) {
+      return this.#fetchV6(request);
+    }
 
-    // Filter to only chains supported by Accounts API
-    const supportedChains = new Set(this.state.activeChains);
-    const chainsToFetch = request.chainIds.filter((chainId) =>
-      supportedChains.has(chainId),
-    );
+    return this.#fetchV5(request);
+  }
+
+  /**
+   * v5 fetch. Unchanged from the pre-v6 handler; delete the v6 sibling first
+   * if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param request - The data request.
+   * @returns Balances stamped `merge`, plus errors for chains the API could
+   * not process.
+   */
+  async #fetchV5(request: DataRequest): Promise<DataResponse> {
+    let response: DataResponse = {};
+    const chainsToFetch = this.#getChainsToFetch(request);
 
     if (chainsToFetch.length === 0) {
-      // Mark unsupported chains as errors so they pass to next middleware
-      for (const chainId of request.chainIds) {
-        if (!supportedChains.has(chainId)) {
-          response.errors = response.errors ?? {};
-          response.errors[chainId] = 'Chain not supported by Accounts API';
-        }
-      }
+      this.#markUnsupportedChains(response, request);
       return response;
     }
 
     try {
-      // Build CAIP-10 account IDs (e.g., "eip155:1:0x1234...")
-      // Use pre-computed supportedChains per account from the request
-      const accountIds = request.accountsWithSupportedChains.flatMap(
-        ({ account, supportedChains: accountChains }) =>
-          chainsToFetch
-            .filter((chainId) => accountChains.includes(chainId))
-            .map((chainId) => `${chainId}:${account.address}`),
-      );
+      const accountIds = this.#buildAccountIds(request, chainsToFetch);
 
       // Skip API call if no valid account-chain combinations
       if (accountIds.length === 0) {
         return response;
       }
 
-      const fetchOptions =
-        request.forceUpdate || request.bypassServerCache
-          ? {
-              staleTime: 0,
-              gcTime: 0,
-              // Also defeats the API's server-side cache (via a random
-              // bypassServerCache query param) so a post-transaction refresh cannot
-              // be answered with a pre-transaction snapshot.
-              ...(request.bypassServerCache ? { bypassServerCache: true } : {}),
-            }
-          : undefined;
-
-      // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
-      // read here (not cached) so a runtime toggle can revert v6 -> v5.
-      const { unprocessedNetworks, assetsBalance } = this.#isBalanceV6Enabled()
-        ? await this.#fetchV6Balances(accountIds, fetchOptions, request)
-        : await this.#fetchV5Balances(accountIds, fetchOptions, request);
+      const { unprocessedNetworks, assetsBalance } =
+        await this.#fetchV5Balances(
+          accountIds,
+          this.#buildFetchOptions(request),
+          request,
+        );
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (unprocessedNetworks.length > 0) {
@@ -489,30 +471,191 @@ export class AccountsApiDataSource extends AbstractDataSource<
       response.assetsBalance = assetsBalance;
       response.updateMode = 'merge';
     } catch (error) {
-      log('Fetch FAILED', { error, chains: chainsToFetch });
-
-      // On error, mark all chains as errors so they can be handled by next middleware
-      response.errors = response.errors ?? {};
-      for (const chainId of chainsToFetch) {
-        response.errors[chainId] =
-          `Fetch failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
+      this.#markFetchFailure(response, chainsToFetch, error);
     }
 
-    // Mark unsupported chains as errors so they pass to next middleware
+    this.#markUnsupportedChains(response, request);
+
+    // When token detection is disabled, filter out tokens not already in state
+    if (!this.#tokenDetectionEnabled()) {
+      response = filterResponseToKnownAssets(response, this.#getAssetsState());
+    }
+
+    return response;
+  }
+
+  /**
+   * v6 fetch. Reads visibility from state, sends it as `includeAssetIds` /
+   * `excludeAssetIds`, and stamps `full`. A chain the API left unprocessed, or
+   * answered without every requested `includeAssetId`, is reported in `errors`
+   * and contributes no balances, so the RPC fallback can recover it.
+   *
+   * @param request - The data request.
+   * @returns An authoritative snapshot for the chains that succeeded.
+   */
+  async #fetchV6(request: DataRequest): Promise<DataResponse> {
+    const response: DataResponse = {};
+    const chainsToFetch = this.#getChainsToFetch(request);
+
+    if (chainsToFetch.length === 0) {
+      this.#markUnsupportedChains(response, request);
+      return response;
+    }
+
+    try {
+      const accountIds = this.#buildAccountIds(request, chainsToFetch);
+
+      if (accountIds.length === 0) {
+        return response;
+      }
+
+      const { visibleAssetIds, hiddenAssetIds } = this.#getAssetVisibility(
+        request.accountsWithSupportedChains.map(({ account }) => account.id),
+        chainsToFetch,
+      );
+
+      const { unprocessedNetworks, unprocessedIncludeAssetIds, assetsBalance } =
+        await this.#fetchV6Balances(
+          accountIds,
+          this.#buildFetchOptions(request),
+          request,
+          visibleAssetIds.length > 0 ? visibleAssetIds : undefined,
+          hiddenAssetIds.length > 0 ? hiddenAssetIds : undefined,
+        );
+      response.updateMode = 'full';
+
+      const unprocessedChainIds = unprocessedNetworks.map(caipChainIdToChainId);
+      // Chains answered without every requested `includeAssetIds`. The
+      // snapshot is incomplete, so the chain counts as failed rather than
+      // silently dropping the assets it left out.
+      const incompleteChainIds = this.#getChainIdsForAssetIds(
+        unprocessedIncludeAssetIds,
+      );
+      const failedChainIds = new Set<ChainId>([
+        ...unprocessedChainIds,
+        ...incompleteChainIds,
+      ]);
+
+      // Errors hand these chains to the next middleware (the RPC fallback).
+      if (failedChainIds.size > 0) {
+        response.errors = response.errors ?? {};
+        for (const chainId of unprocessedChainIds) {
+          response.errors[chainId] = 'Unprocessed by Accounts API';
+        }
+        for (const chainId of incompleteChainIds) {
+          response.errors[chainId] ??= 'Unresolved includeAssetIds';
+        }
+      }
+
+      // A failed chain contributes nothing, so its balances stay as they are.
+      response.assetsBalance = filterFailedChainBalances(
+        assetsBalance,
+        failedChainIds,
+      );
+    } catch (error) {
+      this.#markFetchFailure(response, chainsToFetch, error);
+    }
+
+    this.#markUnsupportedChains(response, request);
+
+    return response;
+  }
+
+  /**
+   * Requested chains the Accounts API currently supports.
+   *
+   * @param request - The data request being fetched.
+   * @returns The subset of `request.chainIds` this source can answer.
+   */
+  #getChainsToFetch(request: DataRequest): ChainId[] {
+    const supportedChains = new Set(this.state.activeChains);
+    return request.chainIds.filter((chainId) => supportedChains.has(chainId));
+  }
+
+  /**
+   * Mark unsupported chains as errors so they pass to next middleware.
+   *
+   * @param response - Response being built; mutated in place.
+   * @param request - The data request being fetched.
+   */
+  #markUnsupportedChains(response: DataResponse, request: DataRequest): void {
+    const supportedChains = new Set(this.state.activeChains);
     for (const chainId of request.chainIds) {
       if (!supportedChains.has(chainId)) {
         response.errors = response.errors ?? {};
         response.errors[chainId] = 'Chain not supported by Accounts API';
       }
     }
+  }
 
-    // When token detection is disabled, filter out tokens not already in state
-    if (!this.#tokenDetectionEnabled() && this.#getAssetsState) {
-      response = filterResponseToKnownAssets(response, this.#getAssetsState());
+  /**
+   * Build CAIP-10 account IDs (e.g., "eip155:1:0x1234...") from the
+   * pre-computed supportedChains per account on the request.
+   *
+   * @param request - The data request being fetched.
+   * @param chainsToFetch - Chains this source will ask the API for.
+   * @returns One CAIP-10 ID per account-chain combination.
+   */
+  #buildAccountIds(request: DataRequest, chainsToFetch: ChainId[]): string[] {
+    return request.accountsWithSupportedChains.flatMap(
+      ({ account, supportedChains: accountChains }) =>
+        chainsToFetch
+          .filter((chainId) => accountChains.includes(chainId))
+          .map((chainId) => `${chainId}:${account.address}`),
+    );
+  }
+
+  #buildFetchOptions(
+    request: DataRequest,
+  ):
+    | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
+    | undefined {
+    if (!request.forceUpdate && !request.bypassServerCache) {
+      return undefined;
     }
 
-    return response;
+    return {
+      staleTime: 0,
+      gcTime: 0,
+      // Also defeats the API's server-side cache (via a random
+      // bypassServerCache query param) so a post-transaction refresh cannot
+      // be answered with a pre-transaction snapshot.
+      ...(request.bypassServerCache ? { bypassServerCache: true } : {}),
+    };
+  }
+
+  /**
+   * On error, mark all chains as errors so the next middleware handles them.
+   *
+   * @param response - Response being built; mutated in place.
+   * @param chainsToFetch - Chains the failed request covered.
+   * @param error - The thrown error.
+   */
+  #markFetchFailure(
+    response: DataResponse,
+    chainsToFetch: ChainId[],
+    error: unknown,
+  ): void {
+    log('Fetch FAILED', { error, chains: chainsToFetch });
+
+    response.errors = response.errors ?? {};
+    for (const chainId of chainsToFetch) {
+      response.errors[chainId] =
+        `Fetch failed: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  #getChainIdsForAssetIds(assetIds: string[]): Set<ChainId> {
+    const chainIds = new Set<ChainId>();
+    for (const assetId of assetIds) {
+      try {
+        chainIds.add(parseCaipAssetType(assetId as Caip19AssetId).chainId);
+      } catch {
+        // An unparseable ID cannot be attributed to a chain, so it cannot
+        // invalidate one either.
+      }
+    }
+    return chainIds;
   }
 
   /**
@@ -531,6 +674,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
+    unprocessedIncludeAssetIds: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   }> {
     const apiResponse = await fetchWithTimeout(
@@ -550,6 +694,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     return {
       unprocessedNetworks: apiResponse.unprocessedNetworks,
+      // v5 has no `includeAssetIds` support.
+      unprocessedIncludeAssetIds: [],
       assetsBalance,
     };
   }
@@ -560,7 +706,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
    * @param fetchOptions - Cache/fetch options (e.g. force update settings).
    * @param request - The original data request containing accounts to map.
-   * @returns Unprocessed networks and processed asset balances by account.
+   * @param includeAssetIds - Pinned asset IDs the backend must always return.
+   * @param excludeAssetIds - Hidden asset IDs the backend must drop.
+   * @returns Unprocessed networks, unprocessed pinned assets, and processed
+   * asset balances by account.
    */
   async #fetchV6Balances(
     accountIds: string[],
@@ -568,15 +717,26 @@ export class AccountsApiDataSource extends AbstractDataSource<
       | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
       | undefined,
     request: DataRequest,
+    includeAssetIds: Caip19AssetId[] | undefined,
+    excludeAssetIds: Caip19AssetId[] | undefined,
   ): Promise<{
     unprocessedNetworks: string[];
+    unprocessedIncludeAssetIds: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   }> {
+    const params =
+      includeAssetIds || excludeAssetIds
+        ? {
+            ...(includeAssetIds && { includeAssetIds }),
+            ...(excludeAssetIds && { excludeAssetIds }),
+          }
+        : undefined;
+
     const apiResponse = await fetchWithTimeout(
       () =>
         this.#apiClient.accounts.fetchV6MultiAccountBalances(
           accountIds,
-          undefined,
+          params,
           fetchOptions,
         ),
       this.#fetchTimeoutMs,
@@ -589,6 +749,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     return {
       unprocessedNetworks: apiResponse.unprocessedNetworks,
+      unprocessedIncludeAssetIds: apiResponse.unprocessedIncludeAssetIds,
       assetsBalance,
     };
   }
@@ -759,77 +920,145 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
-    return async (context, next) => {
-      const { request } = context;
+    if (this.#isBalanceV6Enabled()) {
+      return this.#assetsMiddlewareV6;
+    }
 
-      // Price/metadata-only requests must not hit the Accounts API.
-      if (!request.dataTypes.includes('balance')) {
-        return next(context);
+    return this.#assetsMiddlewareV5;
+  }
+
+  readonly #assetsMiddlewareV5: Middleware = async (context, next) => {
+    const { request } = context;
+
+    // Price/metadata-only requests must not hit the Accounts API.
+    if (!request.dataTypes.includes('balance')) {
+      return next(context);
+    }
+
+    // If no chains requested, skip to next middleware
+    if (request.chainIds.length === 0) {
+      return next(context);
+    }
+
+    let successfullyHandledChains: ChainId[] = [];
+
+    try {
+      const response = await this.fetch(request);
+
+      // Merge response into context
+      if (response.assetsBalance) {
+        context.response.assetsBalance ??= {};
+        for (const [accountId, accountBalances] of Object.entries(
+          response.assetsBalance,
+        )) {
+          context.response.assetsBalance[accountId] = {
+            ...context.response.assetsBalance[accountId],
+            ...accountBalances,
+          };
+        }
       }
 
-      // If no chains requested, skip to next middleware
-      if (request.chainIds.length === 0) {
-        return next(context);
-      }
+      // Determine successfully handled chains (exclude unprocessed/error chains)
+      const unprocessedChains = new Set(Object.keys(response.errors ?? {}));
+      successfullyHandledChains = request.chainIds.filter(
+        (chainId) => !unprocessedChains.has(chainId),
+      );
 
-      let successfullyHandledChains: ChainId[] = [];
-
-      try {
-        const response = await this.fetch(request);
-
-        // Merge response into context
-        if (response.assetsBalance) {
-          context.response.assetsBalance ??= {};
-          for (const [accountId, accountBalances] of Object.entries(
-            response.assetsBalance,
-          )) {
-            context.response.assetsBalance[accountId] = {
-              ...context.response.assetsBalance[accountId],
-              ...accountBalances,
-            };
-          }
-        }
-
-        // Determine successfully handled chains (exclude unprocessed/error chains)
-        const unprocessedChains = new Set(Object.keys(response.errors ?? {}));
-        successfullyHandledChains = request.chainIds.filter(
-          (chainId) => !unprocessedChains.has(chainId),
-        );
-
-        // When token detection is off and we filtered out all balance data (e.g. new
-        // account with empty state), do not claim any chain as handled so that RPC
-        // middleware can still process them and fetch native balances (ETH, MATIC, etc.).
-        if (
-          !this.#tokenDetectionEnabled() &&
-          (!response.assetsBalance ||
-            Object.keys(response.assetsBalance).length === 0)
-        ) {
-          successfullyHandledChains = [];
-        }
-      } catch (error) {
-        log('Middleware fetch failed', { error });
+      // When token detection is off and we filtered out all balance data (e.g. new
+      // account with empty state), do not claim any chain as handled so that RPC
+      // middleware can still process them and fetch native balances (ETH, MATIC, etc.).
+      if (
+        !this.#tokenDetectionEnabled() &&
+        (!response.assetsBalance ||
+          Object.keys(response.assetsBalance).length === 0)
+      ) {
         successfullyHandledChains = [];
       }
+    } catch (error) {
+      log('Middleware fetch failed', { error });
+      successfullyHandledChains = [];
+    }
 
-      // Remove successfully handled chains from request for next middleware
-      if (successfullyHandledChains.length > 0) {
-        const remainingChains = request.chainIds.filter(
-          (chainId) => !successfullyHandledChains.includes(chainId),
-        );
+    // Remove successfully handled chains from request for next middleware
+    if (successfullyHandledChains.length > 0) {
+      const remainingChains = request.chainIds.filter(
+        (chainId) => !successfullyHandledChains.includes(chainId),
+      );
 
-        return next({
-          ...context,
-          request: {
-            ...request,
-            chainIds: remainingChains,
-          },
-        });
+      return next({
+        ...context,
+        request: {
+          ...request,
+          chainIds: remainingChains,
+        },
+      });
+    }
+
+    // No chains handled - pass context unchanged
+    return next(context);
+  };
+
+  readonly #assetsMiddlewareV6: Middleware = async (context, next) => {
+    const { request } = context;
+
+    // Price/metadata-only requests must not hit the Accounts API.
+    if (!request.dataTypes.includes('balance')) {
+      return next(context);
+    }
+
+    // If no chains requested, skip to next middleware
+    if (request.chainIds.length === 0) {
+      return next(context);
+    }
+
+    let remainingChains = request.chainIds;
+
+    try {
+      const response = await this.fetch(request);
+
+      // Merge response into context
+      if (response.assetsBalance) {
+        context.response.assetsBalance ??= {};
+        for (const [accountId, accountBalances] of Object.entries(
+          response.assetsBalance,
+        )) {
+          context.response.assetsBalance[accountId] = {
+            ...context.response.assetsBalance[accountId],
+            ...accountBalances,
+          };
+        }
       }
 
-      // No chains handled - pass context unchanged
-      return next(context);
-    };
-  }
+      context.response = {
+        ...context.response,
+        updateMode: 'full',
+      };
+
+      const errors = response.errors ?? {};
+      remainingChains = request.chainIds.filter((chainId) => errors[chainId]);
+
+      // Remaining chains are exactly the failed ones; RPC fallback retries them.
+      if (remainingChains.length > 0) {
+        context.response.errors = {
+          ...context.response.errors,
+          ...Object.fromEntries(
+            remainingChains.map((chainId) => [chainId, errors[chainId]]),
+          ),
+        };
+      }
+    } catch (error) {
+      log('Middleware fetch failed', { error });
+      remainingChains = request.chainIds;
+    }
+
+    return next({
+      ...context,
+      request: {
+        ...request,
+        chainIds: remainingChains,
+      },
+    });
+  };
 
   // ============================================================================
   // SUBSCRIBE
@@ -838,11 +1067,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate, skipInitialFetch } =
       subscriptionRequest;
-
-    // Store state accessor for filtering when tokenDetectionEnabled is false
-    if (subscriptionRequest.getAssetsState) {
-      this.#getAssetsState = subscriptionRequest.getAssetsState;
-    }
 
     // Try all requested chains - API will handle unsupported ones via unprocessedNetworks
     const chainsToSubscribe = request.chainIds;
