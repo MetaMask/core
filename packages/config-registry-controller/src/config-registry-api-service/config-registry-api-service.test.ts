@@ -391,6 +391,93 @@ describe('ConfigRegistryApiService', () => {
     });
   });
 
+  describe('onEventsConfigRetry', () => {
+    it('registers and returns a disposable', () => {
+      const service = createService();
+      const listener = jest.fn();
+      const disposable = service.onEventsConfigRetry(listener);
+      expect(disposable).toHaveProperty('dispose');
+      expect(typeof disposable.dispose).toBe('function');
+    });
+  });
+
+  describe('onEventsConfigBreak', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('registers and calls onEventsConfigBreak handler', async () => {
+      const maximumConsecutiveFailures = 3;
+      const retries = 0;
+
+      for (let i = 0; i < maximumConsecutiveFailures; i++) {
+        nock(UAT_ORIGIN)
+          .get(EVENTS_CONFIG_PATH)
+          .replyWithError('Network error');
+      }
+
+      const onBreakHandler = jest.fn();
+      const service = createService({
+        policyOptions: {
+          maxRetries: retries,
+          maxConsecutiveFailures: maximumConsecutiveFailures,
+          circuitBreakDuration: 10000,
+        },
+      });
+
+      service.onEventsConfigBreak(onBreakHandler);
+      service.onEventsConfigRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+
+      for (let i = 0; i < maximumConsecutiveFailures; i++) {
+        await expect(service.fetchEventsConfig()).rejects.toMatchObject(
+          expect.objectContaining({ message: expect.any(String) }),
+        );
+      }
+
+      const finalPromise = service.fetchEventsConfig();
+      await expect(finalPromise).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
+      expect(onBreakHandler).toHaveBeenCalled();
+    });
+  });
+
+  describe('onEventsConfigDegraded', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('calls onEventsConfigDegraded handler when events-config endpoint becomes degraded', async () => {
+      const degradedThreshold = 2000;
+      nock(UAT_ORIGIN)
+        .get(EVENTS_CONFIG_PATH)
+        .reply(200, () => {
+          jest.advanceTimersByTime(degradedThreshold + 100);
+          return MOCK_EVENTS_CONFIG_RESPONSE;
+        });
+
+      const service = createService({
+        policyOptions: { degradedThreshold, maxRetries: 0 },
+      });
+      const onDegradedHandler = jest.fn();
+      service.onEventsConfigDegraded(onDegradedHandler);
+
+      await service.fetchEventsConfig();
+
+      expect(onDegradedHandler).toHaveBeenCalled();
+    });
+  });
+
   describe('custom fetch function', () => {
     it('uses custom fetch function when provided', async () => {
       const customFetch = jest.fn().mockResolvedValue(

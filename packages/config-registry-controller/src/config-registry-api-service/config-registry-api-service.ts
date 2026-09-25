@@ -209,6 +209,54 @@ export class ConfigRegistryApiService {
     return this.#policy.onDegraded(...args);
   }
 
+  /**
+   * Registers a handler that will be called after an events-config request
+   * returns a non-500 response, causing a retry. Primarily useful in tests
+   * where timers are being mocked.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
+  onEventsConfigRetry(
+    listener: Parameters<ServicePolicy['onRetry']>[0],
+  ): IDisposable {
+    return this.#eventsConfigPolicy.onRetry(listener);
+  }
+
+  /**
+   * Registers a handler that will be called after a set number of retry rounds
+   * prove that requests to the events-config endpoint consistently return a 5xx
+   * response.
+   *
+   * @param args - The arguments passed to the underlying policy's onBreak
+   * method (e.g. the listener to be called).
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
+  onEventsConfigBreak(
+    ...args: Parameters<ServicePolicy['onBreak']>
+  ): ReturnType<ServicePolicy['onBreak']> {
+    return this.#eventsConfigPolicy.onBreak(...args);
+  }
+
+  /**
+   * Registers a handler that will be called when the events-config endpoint is
+   * degraded (repeated failures or slow responses).
+   *
+   * @param args - The arguments passed to the underlying policy's onDegraded
+   * method (e.g. the listener to be called).
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   */
+  onEventsConfigDegraded(
+    ...args: Parameters<ServicePolicy['onDegraded']>
+  ): ReturnType<ServicePolicy['onDegraded']> {
+    return this.#eventsConfigPolicy.onDegraded(...args);
+  }
+
   async fetchConfig(
     options: FetchConfigOptions = {},
   ): Promise<FetchConfigResult> {
