@@ -7685,7 +7685,7 @@ __metadata:
   resolution: "@metamask/money-account-utils@workspace:packages/money-account-utils"
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
-    "@ethersproject/abstract-provider": "npm:^5.7.0"
+    "@ethersproject/abstract-provider": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/transaction-controller": "npm:^72.0.1"
