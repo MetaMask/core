@@ -219,7 +219,8 @@ export type SocialServiceRemoveCommentReactionAction = {
  * those two fields.
  *
  * @param options - Options bag.
- * @param options.commentText - Message body of the post.
+ * @param options.commentText - Message body of the post. May include a
+ * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
  * @param options.source - Free-form origin label stored on the comment.
  * @param options.positionUid - Position UUID (`positionId` / feed item id).
  * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.

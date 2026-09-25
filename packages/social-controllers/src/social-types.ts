@@ -376,6 +376,10 @@ export type TradeInFlight = {
  * or `tradeInFlight`; the social-api rejects a body that names both or neither.
  */
 export type CreateSwapCommentOptions = {
+  /**
+   * Message body of the post. May include a `https://static.klipy.com/...gif`
+   * file URL (the social-api allowlists that host); other links are rejected.
+   */
   commentText: string;
   /** Free-form origin label stored on the comment. */
   source?: string;

@@ -1816,6 +1816,40 @@ describe('SocialService', () => {
       });
     });
 
+    it('sends a static.klipy.com gif file url inside commentText', async () => {
+      const gifUrl =
+        'https://static.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/um0L4dFH.gif';
+      const commentText = `Loading up here\n${gifUrl}`;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () =>
+          Promise.resolve({
+            ...mockSwapCommentResponse,
+            commentText,
+          }),
+      });
+
+      const service = createService();
+
+      await service.createSwapComment({
+        commentText,
+        positionUid: 'position-1',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentText,
+          positionUid: 'position-1',
+        }),
+      });
+    });
+
     it('sends tradeInFlight when the swap is not indexed yet', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
