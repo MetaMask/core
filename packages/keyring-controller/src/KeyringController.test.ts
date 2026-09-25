@@ -6090,9 +6090,7 @@ describe('KeyringController', () => {
           // The keyrings are restored, including the unsupported one: a
           // subsequent successful persist keeps it in the vault, instead of
           // permanently dropping it.
-          expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(
-            1,
-          );
+          expect(controller.getKeyringsByType(KeyringTypes.hd)).toHaveLength(1);
           encryptSpy.mockRestore();
           await controller.addNewAccount();
           const vaultEntries = parseVaultEntries(
