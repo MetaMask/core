@@ -1,7 +1,7 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type {
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   Caip19AssetId,
   Context,
   DataRequest,
@@ -54,24 +54,20 @@ function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
 
 function createAssetsState(
   customAssets: Record<string, Caip19AssetId[]> = {},
-): AssetsControllerStateInternal {
+): AssetsControllerState {
   return {
     assetsInfo: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets,
     assetPreferences: {},
-  } as AssetsControllerStateInternal;
+  } as AssetsControllerState;
 }
 
-function createContext(
-  overrides?: Partial<Context>,
-  customAssets: Record<string, Caip19AssetId[]> = {},
-): Context {
+function createContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue(createAssetsState(customAssets)),
     ...overrides,
   };
 }
@@ -90,8 +86,10 @@ function setup(
   const middleware = new CustomAssetGraduationMiddleware({
     getSelectedAccountId,
     removeCustomAsset,
+    getAssetsState: (): AssetsControllerState =>
+      createAssetsState(customAssets),
   });
-  const context = createContext({}, customAssets);
+  const context = createContext();
   return { middleware, context, removeCustomAsset, getSelectedAccountId };
 }
 

@@ -4,7 +4,7 @@ import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   AssetMetadata,
   AssetPrice,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   Caip19AssetId,
   ChainId,
 } from '../types.js';
@@ -286,8 +286,8 @@ export const SPAM_WALLET_BALANCES = {
  * @returns Full internal controller state.
  */
 export function buildSpamWalletState(
-  overrides: Partial<AssetsControllerStateInternal> = {},
-): AssetsControllerStateInternal {
+  overrides: Partial<AssetsControllerState> = {},
+): AssetsControllerState {
   return {
     assetsInfo: { ...SPAM_WALLET_ASSETS_INFO },
     assetsBalance: structuredClone(SPAM_WALLET_BALANCES),
@@ -308,7 +308,7 @@ export function buildSpamWalletState(
  *
  * @returns Full internal controller state.
  */
-export function buildLowercasedSpamWalletState(): AssetsControllerStateInternal {
+export function buildLowercasedSpamWalletState(): AssetsControllerState {
   const state = buildSpamWalletState();
 
   return {
@@ -352,7 +352,7 @@ function lowercaseKeys<Value>(
  */
 export function buildManyTokensState(count: number): {
   assetIds: Caip19AssetId[];
-  state: AssetsControllerStateInternal;
+  state: AssetsControllerState;
 } {
   const assetIds = Array.from({ length: count }, (_, index) => {
     const address = getChecksumAddress(

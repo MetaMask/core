@@ -7,7 +7,6 @@ export {
 export {
   BalanceFetcher,
   type BalanceFetcherConfig,
-  type BalanceFetcherMessenger,
   type BalancePollingInput,
   type OnBalanceUpdateCallback,
 } from './BalanceFetcher.js';

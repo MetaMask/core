@@ -21,12 +21,15 @@ import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
+  AssetsControllerState,
   ChainId,
   Caip19AssetId,
   DataRequest,
   DataResponse,
   Middleware,
 } from '../types.js';
+import type { GetAssetVisibility } from '../utils/assetVisibility.js';
+import { getZeroAssetBalance } from '../utils/getZeroAssetBalance.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
@@ -173,6 +176,15 @@ export type SnapDataSourceOptions = {
    * controller currently has an active subscription for the chain.
    */
   onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  /** Whether authoritative v6 balance snapshots are enabled. */
+  isBalanceV6Enabled: () => boolean;
+  /** Resolves native, pinned, default, and hidden assets for a request scope. */
+  getAssetVisibility: GetAssetVisibility;
+  /**
+   * Current AssetsController state. Used to keep the last-known amount when
+   * a v6 snap snapshot omits a visible asset.
+   */
+  getAssetsState: () => AssetsControllerState;
   /** Configured networks to support (defaults to all snap networks) */
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
@@ -217,6 +229,12 @@ export class SnapDataSource extends AbstractDataSource<
 
   readonly #onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 
+  readonly #isBalanceV6Enabled: () => boolean;
+
+  readonly #getAssetVisibility: GetAssetVisibility;
+
+  readonly #getAssetsState: () => AssetsControllerState;
+
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
     payload: AccountBalancesUpdatedEventPayload,
@@ -236,6 +254,9 @@ export class SnapDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#onAssetsUpdate = options.onAssetsUpdate;
+    this.#isBalanceV6Enabled = options.isBalanceV6Enabled;
+    this.#getAssetVisibility = options.getAssetVisibility;
+    this.#getAssetsState = options.getAssetsState;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound =
@@ -452,6 +473,22 @@ export class SnapDataSource extends AbstractDataSource<
     if (!request?.chainIds?.length) {
       return {};
     }
+
+    if (this.#isBalanceV6Enabled()) {
+      return this.#fetchV6(request);
+    }
+
+    return this.#fetchV5(request);
+  }
+
+  /**
+   * v5 fetch. Unchanged from the pre-v6 handler; delete the v6 sibling first
+   * if `assetsAccountsApiV6` is rolled back.
+   *
+   * @param request - The data request.
+   * @returns Overlay (`merge`) balances from the snap keyring.
+   */
+  async #fetchV5(request: DataRequest): Promise<DataResponse> {
     if (!request?.accountsWithSupportedChains?.length) {
       return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
@@ -515,6 +552,188 @@ export class SnapDataSource extends AbstractDataSource<
     return results;
   }
 
+  /**
+   * v6 fetch: a complete snapshot of the requested account-chain slices.
+   * Listed holdings and expected visible assets (native, pin, default
+   * tracked) are requested together. Hidden assets are left out entirely.
+   * Delete with the rest of the v6 path if `assetsAccountsApiV6` is rolled
+   * back.
+   *
+   * @param request - The data request.
+   * @returns Authoritative (`full`) balances for the requested slices.
+   */
+  async #fetchV6(request: DataRequest): Promise<DataResponse> {
+    if (!request?.accountsWithSupportedChains?.length) {
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
+    }
+
+    const results: DataResponse = {
+      assetsBalance: {},
+      assetsInfo: {},
+      updateMode: 'full',
+    };
+
+    // Fetch balances for each account using its snap ID from metadata
+    for (const { account } of request.accountsWithSupportedChains) {
+      // Skip accounts without snap metadata (non-snap accounts)
+      const snapId = account.metadata.snap?.id;
+      if (!snapId) {
+        continue;
+      }
+
+      // Skip accounts whose snap doesn't support any of the requested chains
+      const supportedChainIds = request.chainIds.filter(
+        (chainId) => this.state.chainToSnap[chainId] === snapId,
+      );
+      if (supportedChainIds.length === 0) {
+        continue;
+      }
+
+      const accountId = account.id;
+      try {
+        const client = this.#getKeyringClient(snapId);
+        const { visibleAssetIds, hiddenAssetIds } = this.#getAssetVisibility(
+          [accountId],
+          supportedChainIds,
+        );
+
+        // Step 1: Get the list of assets for this account
+        const accountAssets = await client.listAccountAssets(accountId);
+        const assetsToFetch = this.#selectAssetsToFetchV6(
+          accountAssets ?? [],
+          visibleAssetIds,
+          supportedChainIds,
+          hiddenAssetIds,
+        );
+
+        // Step 2: Get balances for those specific assets. An empty map is a
+        // failed fetch (or nothing to ask for), not a zero snapshot. Leave
+        // this account out so `full` cannot replace last-known amounts with 0.
+        const balances: Record<CaipAssetType, Balance> = assetsToFetch.length
+          ? await client.getAccountBalances(accountId, assetsToFetch)
+          : {};
+        if (
+          !balances ||
+          typeof balances !== 'object' ||
+          Object.keys(balances).length === 0
+        ) {
+          continue;
+        }
+
+        // Transform keyring response to DataResponse format
+        const accountBalances: Record<string, AssetBalance> = {};
+        for (const [assetId, balance] of Object.entries(balances)) {
+          accountBalances[assetId] = {
+            amount: balance.amount,
+            ...(balance.metadata ? { metadata: balance.metadata } : {}),
+          };
+        }
+
+        // Step 3: Guard against an incomplete snap response. A `full` replace
+        // would drop any expected visible asset that was requested but omitted.
+        // Keep the last-known amount when we have one; otherwise seed 0.
+        this.#fillOmittedVisibleAssets(
+          accountId,
+          visibleAssetIds,
+          accountBalances,
+        );
+
+        if (results.assetsBalance) {
+          results.assetsBalance[accountId] = accountBalances;
+        }
+      } catch {
+        // Snap failed or the account does not belong to this snap. Contribute
+        // nothing so previous balances stay in state.
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Put every omitted visible asset on the snapshot so `full` cannot drop it.
+   * Reuse the amount already in state when one exists; otherwise seed `0`.
+   *
+   * @param accountId - Account whose balances were fetched.
+   * @param visibleAssetIds - Native, pin, and default tracked IDs for this scope.
+   * @param accountBalances - Snapshot being built, mutated in place.
+   */
+  #fillOmittedVisibleAssets(
+    accountId: string,
+    visibleAssetIds: Caip19AssetId[],
+    accountBalances: Record<string, AssetBalance>,
+  ): void {
+    const previousByKey = new Map(
+      Object.entries(this.#getAssetsState().assetsBalance[accountId] ?? {}).map(
+        ([assetId, balance]) => [assetId.toLowerCase(), balance],
+      ),
+    );
+    const presentKeys = new Set(
+      Object.keys(accountBalances).map((assetId) => assetId.toLowerCase()),
+    );
+
+    for (const assetId of visibleAssetIds) {
+      if (presentKeys.has(assetId.toLowerCase())) {
+        continue;
+      }
+
+      const previous = previousByKey.get(assetId.toLowerCase());
+      if (previous) {
+        accountBalances[assetId] = { ...previous };
+        continue;
+      }
+
+      accountBalances[assetId] = getZeroAssetBalance(assetId);
+    }
+  }
+
+  /**
+   * Union the snap's listed holdings with expected visible assets (native,
+   * pin, default tracked), limited to the requested chains. Hidden assets
+   * are dropped so they are neither fetched nor written back to state.
+   *
+   * @param accountAssets - Asset IDs the snap listed for the account.
+   * @param visibleAssetIds - Native, pin, and default tracked IDs for this scope.
+   * @param supportedChainIds - Chains this snap was asked about.
+   * @param hiddenAssetIds - Asset IDs the user hid in this scope.
+   * @returns Asset IDs to request balances for.
+   */
+  #selectAssetsToFetchV6(
+    accountAssets: string[],
+    visibleAssetIds: Caip19AssetId[],
+    supportedChainIds: ChainId[],
+    hiddenAssetIds: Caip19AssetId[],
+  ): CaipAssetType[] {
+    const supportedChains = new Set(supportedChainIds);
+    const hidden = new Set(
+      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
+    );
+    const assetsToFetch = new Map<string, CaipAssetType>();
+
+    for (const assetId of [...accountAssets, ...visibleAssetIds]) {
+      const normalizedAssetId = assetId.toLowerCase();
+      if (
+        assetsToFetch.has(normalizedAssetId) ||
+        hidden.has(normalizedAssetId)
+      ) {
+        continue;
+      }
+
+      try {
+        if (!supportedChains.has(extractChainFromAssetId(assetId))) {
+          continue;
+        }
+      } catch {
+        // Skip unparseable asset IDs
+        continue;
+      }
+
+      assetsToFetch.set(normalizedAssetId, assetId as CaipAssetType);
+    }
+
+    return Array.from(assetsToFetch.values());
+  }
+
   // ============================================================================
   // MIDDLEWARE
   // ============================================================================
@@ -575,6 +794,12 @@ export class SnapDataSource extends AbstractDataSource<
           context.response.assetsPrice = {
             ...context.response.assetsPrice,
             ...response.assetsPrice,
+          };
+        }
+        if (response.updateMode) {
+          context.response = {
+            ...context.response,
+            updateMode: response.updateMode,
           };
         }
 
