@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@ethersproject/address": "^5.7.0",
-    "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/constants": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
