@@ -2156,11 +2156,6 @@
       "count": 1
     }
   },
-  "packages/config-registry-controller/src/config-registry-api-service/config-registry-api-service.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 9
-    }
-  },
   "packages/connectivity-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1

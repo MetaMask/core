@@ -224,9 +224,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -235,9 +233,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -248,9 +244,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -263,9 +257,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -360,15 +352,11 @@ describe('ConfigRegistryApiService', () => {
       });
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        await expect(service.fetchConfig()).rejects.toMatchObject(
-          expect.objectContaining({ message: expect.any(String) }),
-        );
+        await expect(service.fetchConfig()).rejects.toThrow(Error);
       }
 
       const finalPromise = service.fetchConfig();
-      await expect(finalPromise).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(finalPromise).rejects.toThrow(Error);
       expect(onBreakHandler).toHaveBeenCalled();
     });
   });
@@ -447,15 +435,11 @@ describe('ConfigRegistryApiService', () => {
       });
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        await expect(service.fetchEventsConfig()).rejects.toMatchObject(
-          expect.objectContaining({ message: expect.any(String) }),
-        );
+        await expect(service.fetchEventsConfig()).rejects.toThrow(Error);
       }
 
       const finalPromise = service.fetchEventsConfig();
-      await expect(finalPromise).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(finalPromise).rejects.toThrow(Error);
       expect(onBreakHandler).toHaveBeenCalled();
     });
   });
@@ -602,9 +586,7 @@ describe('ConfigRegistryApiService - fetchEventsConfig', () => {
 
     const service = createService();
 
-    await expect(service.fetchEventsConfig()).rejects.toMatchObject(
-      expect.objectContaining({ message: expect.any(String) }),
-    );
+    await expect(service.fetchEventsConfig()).rejects.toThrow(Error);
   });
 
   it('throws error on HTTP error status', async () => {
