@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
-    "@ethersproject/bytes": "^5.7.0",
+    "@ethersproject/bytes": "^5.8.0",
     "@ethersproject/keccak256": "^5.8.0",
     "@ethersproject/transactions": "^5.7.0",
     "@metamask/base-controller": "^10.0.0",

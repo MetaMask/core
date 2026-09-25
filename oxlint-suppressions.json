@@ -4344,9 +4344,6 @@
     }
   },
   "packages/permission-controller/src/PermissionController.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     }

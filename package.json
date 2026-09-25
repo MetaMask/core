@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1290.0.0",
+  "version": "1291.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -79,7 +79,7 @@
     "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^12.0.0",
     "@types/jest": "^30.0.0",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.25",
     "@types/node": "^22.13.14",
     "@types/semver": "^7.8.0",
     "@typescript/native": "npm:typescript@^7.0.2",

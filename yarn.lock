@@ -5495,7 +5495,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     ethereum-cryptography: "npm:^2.1.2"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     rimraf: "npm:^6.1.3"
@@ -5696,7 +5696,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/assets-controller@npm:^16.1.2, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^17.0.0, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
@@ -5755,7 +5755,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/address": "npm:^5.7.0"
-    "@ethersproject/bignumber": "npm:^5.7.0"
+    "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
@@ -5805,7 +5805,7 @@ __metadata:
     bitcoin-address-validation: "npm:^2.2.3"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
@@ -5918,7 +5918,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
@@ -5990,17 +5990,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^81.3.2, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^81.3.3, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
     "@ethersproject/address": "npm:^5.7.0"
-    "@ethersproject/bignumber": "npm:^5.7.0"
+    "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/constants": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/assets-controller": "npm:^16.1.2"
+    "@metamask/assets-controller": "npm:^17.0.0"
     "@metamask/assets-controllers": "npm:^112.0.4"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -6045,7 +6045,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
-    "@metamask/bridge-controller": "npm:^81.3.2"
+    "@metamask/bridge-controller": "npm:^81.3.3"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/gas-fee-controller": "npm:^27.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
@@ -6264,7 +6264,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
@@ -6462,7 +6462,7 @@ __metadata:
     "@metamask/skills": "npm:^0.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/lodash": "npm:^4.17.20"
+    "@types/lodash": "npm:^4.17.25"
     "@types/node": "npm:^22.13.14"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6590,7 +6590,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/earn-controller@workspace:packages/earn-controller"
   dependencies:
-    "@ethersproject/bignumber": "npm:^5.7.0"
+    "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/account-tree-controller": "npm:^11.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -6812,7 +6812,7 @@ __metadata:
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/lodash": "npm:^4.17.20"
+    "@types/lodash": "npm:^4.17.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     ethers: "npm:^6.17.0"
@@ -7289,7 +7289,7 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.3.1"
     ethereumjs-wallet: "npm:^1.0.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     rimraf: "npm:^6.1.3"
@@ -7547,7 +7547,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
@@ -7685,7 +7685,7 @@ __metadata:
   resolution: "@metamask/money-account-utils@workspace:packages/money-account-utils"
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
-    "@ethersproject/abstract-provider": "npm:^5.7.0"
+    "@ethersproject/abstract-provider": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/transaction-controller": "npm:^72.0.1"
@@ -7803,7 +7803,7 @@ __metadata:
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     nock: "npm:^13.5.6"
@@ -7836,7 +7836,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.12"
@@ -7929,7 +7929,7 @@ __metadata:
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.3.1"
     fast-deep-equal: "npm:^3.1.3"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     jest-when: "npm:^4.0.3"
@@ -8203,7 +8203,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
@@ -8464,7 +8464,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     ethers: "npm:^6.17.0"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     loglevel: "npm:^1.8.1"
@@ -8713,7 +8713,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
@@ -8838,7 +8838,7 @@ __metadata:
   resolution: "@metamask/smart-transactions-controller@workspace:packages/smart-transactions-controller"
   dependencies:
     "@babel/runtime": "npm:^7.23.9"
-    "@ethersproject/bytes": "npm:^5.7.0"
+    "@ethersproject/bytes": "npm:^5.8.0"
     "@ethersproject/keccak256": "npm:^5.8.0"
     "@ethersproject/transactions": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -9231,7 +9231,7 @@ __metadata:
     eth-method-registry: "npm:^4.0.0"
     ethereum-cryptography: "npm:^2.1.2"
     fast-json-patch: "npm:^3.1.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     lodash-es: "npm:^4.17.21"
@@ -9256,7 +9256,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/assets-controller": "npm:^16.1.2"
+    "@metamask/assets-controller": "npm:^17.0.0"
     "@metamask/assets-controllers": "npm:^112.0.4"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -9276,7 +9276,7 @@ __metadata:
     bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     rimraf: "npm:^6.1.3"
@@ -9311,7 +9311,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.17.21"
     rimraf: "npm:^6.1.3"
@@ -9358,7 +9358,7 @@ __metadata:
     "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
-    "@types/lodash": "npm:^4.17.20"
+    "@types/lodash": "npm:^4.17.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     debug: "npm:^4.3.4"
     deepmerge: "npm:^4.3.1"
@@ -9422,7 +9422,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     better-sqlite3: "npm:^12.9.0"
     deepmerge: "npm:^4.3.1"
-    immer: "npm:^9.0.21"
+    immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     jest-environment-node: "npm:^30.4.1"
     nock: "npm:^13.5.6"
@@ -12043,7 +12043,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/lodash@npm:*, @types/lodash@npm:^4.17.20":
+"@types/lodash@npm:*, @types/lodash@npm:^4.17.20, @types/lodash@npm:^4.17.25":
   version: 4.17.25
   resolution: "@types/lodash@npm:4.17.25"
   checksum: 10/f786e05664439cc8d327fd97c62c060d81b3c4ed52127d01fbc926139e1a669c1554bf3cd0dbb43f8fcc7d9b5c6c23c543cc36de8dc815c9f289ea852b26ebd6
@@ -18872,6 +18872,13 @@ __metadata:
   version: 3.3.0
   resolution: "immediate@npm:3.3.0"
   checksum: 10/39aefd16e7d423a0435f12ed47e45cc18fbb5825fea56d573805f68a056ab5727a16ea79893d35db565f9de14a224bfabffa5e5e2c422117c5fa24428ac0aa69
+  languageName: node
+  linkType: hard
+
+"immer@npm:^11.1.18":
+  version: 11.1.18
+  resolution: "immer@npm:11.1.18"
+  checksum: 10/5693c081651aac9ed27dd004e825cfae6c1d0ff6c0e3e1ef15a9938a489e6099893c2e98e270cc30a7633a6cc84f4750a8d37ce73e93aefb104e8a26999e70de
   languageName: node
   linkType: hard
 

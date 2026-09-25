@@ -63,7 +63,7 @@
     "@noble/hashes": "^1.8.0",
     "@scure/base": "^1.2.6",
     "@types/debug": "^4.1.7",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.25",
     "debug": "^4.3.4",
     "lodash": "^4.17.21",
     "pony-cause": "^2.1.11",

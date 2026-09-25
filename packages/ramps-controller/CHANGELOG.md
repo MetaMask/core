@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Add `providerFlowStatus` to `VbaOnboardingSnapshot` and require the `KycController:getProviderFlowStatus` messenger action ([#10457](https://github.com/MetaMask/core/pull/10457))
+
 ## [25.1.1]
 
 ### Changed
