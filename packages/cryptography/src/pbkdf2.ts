@@ -1,5 +1,7 @@
+import type { HashFunction } from './types.js';
+
 // https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
-const MIN_ITERATIONS: Record<'SHA-256' | 'SHA-384' | 'SHA-512', number> = {
+const MIN_ITERATIONS: Record<HashFunction, number> = {
   'SHA-256': 600_000,
   // SHA-384 is not explicitly listed by OWASP; using the SHA-512 value since
   // both variants use 64-bit words internally.
@@ -96,7 +98,7 @@ export async function pbkdf2Sha512(
 async function pbkdf2(
   password: BufferSource,
   salt: BufferSource,
-  hash: 'SHA-256' | 'SHA-384' | 'SHA-512',
+  hash: HashFunction,
   iterations: number,
   keyLength: number,
   options?: Pbkdf2Options,
