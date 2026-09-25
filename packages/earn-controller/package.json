@@ -1,6 +1,6 @@
 {
   "name": "@metamask/earn-controller",
-  "version": "13.0.0",
+  "version": "13.0.2",
   "description": "Manages state for earning features and coordinates interactions between staking services, SDK integrations, and other controllers to enable users to participate in various earning opportunities",
   "keywords": [
     "Ethereum",
@@ -50,9 +50,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^10.0.1",
+    "@metamask/account-tree-controller": "^11.0.0",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-api": "^24.0.0",
@@ -63,14 +63,14 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
-    "@metamask/transaction-controller": "^71.0.0",
+    "@metamask/transaction-controller": "^72.0.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "deepmerge": "^4.2.2",
+    "deepmerge": "^4.3.1",
     "jest": "^30.4.2",
     "rimraf": "^6.1.3",
     "ts-jest": "^29.4.12",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"

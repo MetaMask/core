@@ -104,6 +104,21 @@ describe('nonce', () => {
 
       expect(releaseLock).toHaveBeenCalledTimes(1);
     });
+
+    it('returns undefined if transaction is signed externally', async () => {
+      const transactionMeta = {
+        ...TRANSACTION_META_MOCK,
+        isExternalSign: true,
+      };
+
+      const [nonce, releaseLock] = await getNextNonce(
+        transactionMeta,
+        jest.fn(),
+      );
+
+      expect(nonce).toBeUndefined();
+      expect(releaseLock).toBeUndefined();
+    });
   });
 
   describe('getAndFormatTransactionsForNonceTracker', () => {
@@ -241,11 +256,11 @@ describe('nonce', () => {
             nonce: '0x1',
             authorizationList: [
               {
-                address: '0xabc' as Hex,
+                address: '0xabc',
                 nonce: '0x2',
               },
               {
-                address: '0xdef' as Hex,
+                address: '0xdef',
                 nonce: '0x3',
               },
             ],
@@ -340,7 +355,7 @@ describe('nonce', () => {
             nonce: '0x5',
             authorizationList: [
               {
-                address: '0xabc' as Hex,
+                address: '0xabc',
                 chainId: '0x1',
                 nonce: '0x6',
                 r: '0x0',

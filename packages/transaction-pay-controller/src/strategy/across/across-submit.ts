@@ -531,7 +531,7 @@ function buildOriginalTransaction(
       gas: gasLimit === undefined ? undefined : toHex(gasLimit),
       to: transaction.txParams.to,
       value: transaction.txParams.value,
-    } as TransactionParams,
+    },
     type: getOriginalTransactionType(transaction),
   };
 }
@@ -581,7 +581,7 @@ function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
     case undefined:
       return TransactionType.perpsAcrossDeposit;
     default:
-      return transaction.type as TransactionType;
+      return transaction.type;
   }
 }
 

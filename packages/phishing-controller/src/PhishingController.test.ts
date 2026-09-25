@@ -4587,7 +4587,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: CONFIRMED_TX_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -4656,7 +4656,7 @@ describe('Address poisoning detection', () => {
         txParams: {
           from: TEST_ADDRESSES.FROM_ADDRESS,
           to: TOKEN_CONTRACT,
-          value: '0x0' as `0x${string}`,
+          value: '0x0',
           data: transferData,
         },
       },
@@ -4701,8 +4701,8 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: TOKEN_CONTRACT,
-        value: '0x0' as `0x${string}`,
-        data: '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+        value: '0x0',
+        data: '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
       },
     });
 
@@ -4738,7 +4738,7 @@ describe('Address poisoning detection', () => {
         txParams: {
           from: TEST_ADDRESSES.FROM_ADDRESS,
           to: SWAP_CONTRACT,
-          value: '0x0' as `0x${string}`,
+          value: '0x0',
         },
       },
     );
@@ -4780,7 +4780,7 @@ describe('Address poisoning detection', () => {
         txParams: {
           from: TEST_ADDRESSES.FROM_ADDRESS,
           to: '0x1',
-          value: '0x0' as `0x${string}`,
+          value: '0x0',
         },
       },
     );
@@ -4811,7 +4811,7 @@ describe('Address poisoning detection', () => {
             txParams: {
               from: TEST_ADDRESSES.FROM_ADDRESS,
               to: ADDRESS_BOOK_RECIPIENT,
-              value: '0x0' as `0x${string}`,
+              value: '0x0',
             },
           }),
         ],
@@ -4881,7 +4881,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -4916,7 +4916,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const updatedTransaction = createMockTransaction('confirmed-tx', [], {
@@ -4925,7 +4925,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: CONFIRMED_TX_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({
@@ -4977,7 +4977,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
@@ -4986,7 +4986,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const updatedFirstTransaction = createMockTransaction(
@@ -4998,7 +4998,7 @@ describe('Address poisoning detection', () => {
         txParams: {
           from: TEST_ADDRESSES.FROM_ADDRESS,
           to: CONFIRMED_TX_RECIPIENT,
-          value: '0x0' as `0x${string}`,
+          value: '0x0',
         },
       },
     );
@@ -5091,7 +5091,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -5125,7 +5125,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -5153,7 +5153,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({
@@ -5194,7 +5194,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({
@@ -5236,7 +5236,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
@@ -5245,7 +5245,7 @@ describe('Address poisoning detection', () => {
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({

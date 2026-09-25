@@ -444,7 +444,7 @@ async function processReleasePr({
  */
 async function main(): Promise<void> {
   // GitHub Actions provides the token via the environment for this workflow.
-  // eslint-disable-next-line n/no-process-env
+  // oxlint-disable-next-line n/no-process-env
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     core.setFailed('GITHUB_TOKEN is required');

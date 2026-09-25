@@ -14,6 +14,7 @@ import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
   AssetMetadata,
+  AssetsControllerState,
   Middleware,
   FungibleAssetMetadata,
   DataResponse,
@@ -71,6 +72,8 @@ export type TokenDataSourceOptions = {
    * fires, the batch rejects so metadata enrichment proceeds without it.
    */
   fetchTimeoutMs?: number;
+  /** Current AssetsController state. Used to skip already-known metadata and custom assets. */
+  getAssetsState: () => AssetsControllerState;
 };
 
 /**
@@ -226,6 +229,8 @@ export class TokenDataSource {
 
   readonly #fetchTimeoutMs: number;
 
+  readonly #getAssetsState: () => AssetsControllerState;
+
   constructor(
     messenger: AssetsControllerMessenger,
     options: TokenDataSourceOptions,
@@ -235,6 +240,7 @@ export class TokenDataSource {
     this.#getNativeAssetIds = options.getNativeAssetIds;
     this.#getAssetType = options.getAssetType;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.#getAssetsState = options.getAssetsState;
   }
 
   /**
@@ -406,7 +412,7 @@ export class TokenDataSource {
         assetsBalance: stateBalances,
         assetsInfo: stateMetadata,
         customAssets,
-      } = ctx.getAssetsState();
+      } = this.#getAssetsState();
 
       const customAssetIds = new Set(
         Object.values(customAssets ?? {})
@@ -538,7 +544,8 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata, customAssets } =
+        this.#getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
       // Newly detected asset IDs (lowercase) — subject to spam filtering.
       const detectedAssetIds = new Set<string>();

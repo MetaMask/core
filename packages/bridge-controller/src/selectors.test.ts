@@ -129,7 +129,7 @@ describe('Bridge Selectors', () => {
         {
           ...mockExchangeRateSources,
           currencyRates: {},
-        } as unknown as BridgeAppState,
+        },
         formatAddressToAssetId('789', SolScope.Mainnet),
       );
       expect(result).toStrictEqual({
@@ -143,7 +143,7 @@ describe('Bridge Selectors', () => {
         {
           ...mockExchangeRateSources,
           currencyRates: undefined,
-        } as unknown as BridgeAppState,
+        },
         formatAddressToAssetId('789', SolScope.Mainnet),
       );
       expect(result).toStrictEqual({
@@ -228,7 +228,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-        } as unknown as BridgeAppState,
+        },
         formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
       );
       expect(result).toStrictEqual({});
@@ -245,7 +245,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-        } as unknown as BridgeAppState,
+        },
         formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
       );
       expect(result).toStrictEqual({});
@@ -271,7 +271,7 @@ describe('Bridge Selectors', () => {
         {
           ...mockExchangeRateSources,
           marketData: undefined,
-        } as unknown as BridgeAppState,
+        },
         formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
       );
       expect(result).toStrictEqual({});
@@ -2533,7 +2533,7 @@ describe('Bridge Selectors', () => {
         },
         batchSellTradesLoadingStatus: RequestStatus.FETCHED,
         batchSellTrades: mockBatchSellTrades,
-      } as unknown as BridgeAppState);
+      });
 
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`
         {

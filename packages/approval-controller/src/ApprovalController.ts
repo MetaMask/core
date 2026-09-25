@@ -707,7 +707,9 @@ export class ApprovalController extends BaseController<
 
     this.update((draftState) => {
       draftState.pendingApprovals[opts.id].requestState =
+        /* oxlint-disable typescript/no-unnecessary-type-assertion */
         opts.requestState as never;
+      /* oxlint-enable typescript/no-unnecessary-type-assertion */
     });
   }
 

@@ -1,6 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AssetsControllerStateInternal } from '../../types.js';
+import type { AssetsControllerState } from '../../types.js';
 import {
   BSC_CHAIN_ID,
   BSC_SPAM_ACCOUNT_ID,
@@ -33,7 +33,7 @@ export function buildBscSpamAccount(
       lastSelected: 1_756_200_000_000,
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 /**
@@ -44,8 +44,8 @@ export function buildBscSpamAccount(
  * @returns The starting state.
  */
 export function buildEmptyAssetsState(
-  overrides?: Partial<AssetsControllerStateInternal>,
-): AssetsControllerStateInternal {
+  overrides?: Partial<AssetsControllerState>,
+): AssetsControllerState {
   return {
     assetsInfo: {},
     assetsBalance: {},

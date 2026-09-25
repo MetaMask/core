@@ -1525,7 +1525,112 @@ describe('SubscriptionService', () => {
       expect(result).toStrictEqual(mockPricingResponse);
     });
 
+    /**
+     * Builds a pricing response carrying a single crypto chain whose only
+     * settlement token is `token`.
+     *
+     * @param token - The settlement token to put on the chain.
+     * @returns The pricing response body.
+     */
+    const pricingResponseWithToken = (
+      token: Record<string, unknown>,
+    ): Record<string, unknown> => ({
+      products: [],
+      paymentMethods: [
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          chains: [{ ...mockCryptoChain, tokens: [token] }],
+        },
+      ],
+    });
+
     it('rejects vault share tokens that omit accountantAddress', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: pricingResponseWithToken({
+            symbol: 'pvmUSD',
+            address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+            decimals: 6,
+            vault: 'premium',
+          }),
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
+    });
+
+    it('accepts vault share tokens identified by accountantAddress alone', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      const token = {
+        symbol: 'pvmUSD',
+        address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+        decimals: 6,
+        accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+        vault: 'premium',
+      };
+      fetchMock.mockResolvedValue(
+        createMockResponse({ jsonData: pricingResponseWithToken(token) }),
+      );
+
+      const result = await service.getPricing();
+
+      expect(result.paymentMethods[0]).toStrictEqual({
+        type: PAYMENT_TYPES.byCrypto,
+        chains: [{ ...mockCryptoChain, tokens: [token] }],
+      });
+    });
+
+    it('accepts vault names the client does not know about', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: pricingResponseWithToken({
+            symbol: 'pvmUSD',
+            address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+            decimals: 6,
+            accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+            vault: 'some-vault-shipped-after-this-release',
+          }),
+        }),
+      );
+
+      const result = await service.getPricing();
+
+      expect(result.paymentMethods[0]).toMatchObject({
+        chains: [
+          { tokens: [{ vault: 'some-vault-shipped-after-this-release' }] },
+        ],
+      });
+    });
+
+    it('accepts settlement tokens carrying fields added by a later API release', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: pricingResponseWithToken({
+            ...mockSpotToken,
+            aFieldThisClientHasNeverHeardOf: 'value',
+          }),
+        }),
+      );
+
+      const result = await service.getPricing();
+
+      expect(result.paymentMethods[0]).toMatchObject({
+        chains: [{ tokens: [mockSpotToken] }],
+      });
+    });
+
+    it('accepts payment method rows carrying fields added by a later API release', async () => {
       const fetchMock = jest.fn();
       const { service } = createService({ fetchMock });
 
@@ -1535,27 +1640,19 @@ describe('SubscriptionService', () => {
             products: [],
             paymentMethods: [
               {
-                type: PAYMENT_TYPES.byCrypto,
-                chains: [
-                  {
-                    ...mockCryptoChain,
-                    tokens: [
-                      {
-                        symbol: 'pvmUSD',
-                        address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
-                        decimals: 6,
-                        isVaultShare: true,
-                      },
-                    ],
-                  },
-                ],
+                type: PAYMENT_TYPES.byCard,
+                aFieldThisClientHasNeverHeardOf: 'value',
               },
             ],
           },
         }),
       );
 
-      await expect(service.getPricing()).rejects.toThrow(/union/u);
+      const result = await service.getPricing();
+
+      expect(result.paymentMethods[0]).toMatchObject({
+        type: PAYMENT_TYPES.byCard,
+      });
     });
 
     it('rejects card payment methods that include crypto-only fields', async () => {
@@ -2177,9 +2274,9 @@ describe('SubscriptionService', () => {
                   symbol: 'pvmUSD',
                   address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
                   decimals: 6,
-                  isVaultShare: true,
                   accountantAddress:
                     '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+                  vault: 'premium',
                   sources: [
                     {
                       symbol: 'mUSD',

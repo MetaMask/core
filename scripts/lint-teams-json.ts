@@ -1,5 +1,5 @@
 import { readJsonFile } from '@metamask/utils/node';
-import execa from 'execa';
+import { execa } from 'execa';
 import path from 'path';
 
 type Workspace = {

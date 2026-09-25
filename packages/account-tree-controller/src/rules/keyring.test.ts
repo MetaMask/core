@@ -25,9 +25,7 @@ describe('keyring', () => {
     it.each([...Object.values(KeyringTypes), ...Object.values(KeyringType)])(
       'computes wallet name from: %s',
       (type) => {
-        const name = getAccountWalletNameFromKeyringType(
-          type as KeyringTypes | KeyringType,
-        );
+        const name = getAccountWalletNameFromKeyringType(type);
 
         expect(name).toBeDefined();
         expect(name.length).toBeGreaterThan(0);

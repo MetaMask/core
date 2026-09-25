@@ -57,7 +57,7 @@
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
     "klona": "^2.0.6",
-    "safe-stable-stringify": "^2.4.3"
+    "safe-stable-stringify": "^2.5.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
@@ -65,11 +65,11 @@
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deep-freeze-strict": "^1.1.1",
-    "deepmerge": "^4.2.2",
+    "deepmerge": "^4.3.1",
     "jest": "^30.4.2",
     "rimraf": "^6.1.3",
     "ts-jest": "^29.4.12",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typedoc": "^0.25.13",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },

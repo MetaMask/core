@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@types/lodash` from `^4.14.191` to `^4.17.20` ([#10169](https://github.com/MetaMask/core/pull/10169))
+- Bump `@types/lodash` from `^4.14.191` to `^4.17.25` ([#10169](https://github.com/MetaMask/core/pull/10169), [#10435](https://github.com/MetaMask/core/pull/10435))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `nanoid` from `^3.3.8` to `^3.3.19` ([#10439](https://github.com/MetaMask/core/pull/10439))
 
 ## [7.0.0]
 
