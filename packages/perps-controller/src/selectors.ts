@@ -17,6 +17,7 @@ import type {
 } from './constants/perpsConfig.js';
 import type { PerpsControllerState } from './PerpsController.js';
 import type {
+  MarginMode,
   OrderDirection,
   OrderType,
   PerpsSelectedPaymentToken,
@@ -361,5 +362,30 @@ export const selectOrderBookGrouping = createSelector(
   (isTestnet, configs, coin): number | undefined => {
     const network = isTestnet ? 'testnet' : 'mainnet';
     return configs?.[network]?.[coin]?.orderBookGrouping;
+  },
+);
+
+/**
+ * Select the saved margin mode for a specific market on the current network.
+ *
+ * Usage: selectMarginMode(state, coin)
+ *
+ * @param state - The perps controller state.
+ * @param coin - The market coin symbol.
+ * @returns The saved margin mode, or undefined.
+ */
+export const selectMarginMode = createSelector(
+  [
+    (state: PerpsControllerState): boolean | undefined => state?.isTestnet,
+    (
+      state: PerpsControllerState,
+      _coin: string,
+    ): PerpsControllerState['tradeConfigurations'] | undefined =>
+      state?.tradeConfigurations,
+    (_state: PerpsControllerState, coin: string): string => coin,
+  ],
+  (isTestnet, configs, coin): MarginMode | undefined => {
+    const network = isTestnet ? 'testnet' : 'mainnet';
+    return configs?.[network]?.[coin]?.marginMode;
   },
 );
