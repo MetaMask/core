@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): bump `immer` to `v11` ([#10382](https://github.com/MetaMask/core/pull/10382))
-
 ## [72.0.1]
 
 ### Fixed
