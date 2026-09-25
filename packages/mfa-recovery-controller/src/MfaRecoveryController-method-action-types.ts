@@ -43,11 +43,23 @@ export type MfaRecoveryControllerUpdateIdentifiersAction = {
 };
 
 /**
+ * Authenticates an identifier for a subsequent recovery-secret read.
+ *
+ * @param identifier - Identifier to authenticate.
+ * @returns Ephemeral session data required by {@link getRecoverySecret}.
+ */
+export type MfaRecoveryControllerAuthenticateIdentifierAction = {
+  type: `MfaRecoveryController:authenticateIdentifier`;
+  handler: MfaRecoveryController['authenticateIdentifier'];
+};
+
+/**
  * Reads the recovery secret from available escrows and returns the highest
  * consistent version. `epoch` is the current recovery version and is required
  * by later mutations. Does not wait for a pending mutation to be repaired.
  *
- * @param identifier - Identifier used to authorize the read.
+ * @param session - Identifier authentication session used to authorize the
+ * read.
  * @returns Recovered secret bytes and the selected epoch.
  */
 export type MfaRecoveryControllerGetRecoverySecretAction = {
@@ -86,6 +98,7 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction
+  | MfaRecoveryControllerAuthenticateIdentifierAction
   | MfaRecoveryControllerGetRecoverySecretAction
   | MfaRecoveryControllerResumeAction
   | MfaRecoveryControllerAbortAction
