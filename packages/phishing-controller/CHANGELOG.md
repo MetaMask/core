@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add request-source attribution to dapp-scanning URL scans, emitted as an `x-request-source` header ([#10357](https://github.com/MetaMask/core/pull/10357))
+  - Add an optional `platform` constructor option and an optional `flow` parameter to `scanUrl` and `bulkScanUrls`. The header value is composed as `<platform>-<flow>`.
+  - Export the `RequestSourcePlatform` and `RequestSourceFlow` enums, the `RequestSource` type, the `REQUEST_SOURCE_HEADER` and `UNKNOWN_REQUEST_SOURCE` constants, and the `buildRequestSource` helper.
+  - `RequestSourcePlatform` is `Extension` or `Mobile`. `RequestSourceFlow` is one of `dapp-connection`, `browser`, `rpc-trust-signals`, `confirmations`, `reveal-srp`, or `nft-detection`.
+  - Both values are validated at runtime, since some consumers call these methods from untyped JavaScript. An unrecognised or absent value degrades to a sentinel (`<platform>-unknown`, or `unknown` when no platform is configured) and never throws, so attribution cannot fail a scan.
+  - The header is untrusted observability metadata and must not be used for authentication, authorization, or rate-limit decisions.
+  - Only the dapp-scanning endpoints (`v2/scan`, `bulk-scan`) are covered. The Security Alerts endpoints used by `scanAddress`, `bulkScanTokens`, and `getApprovals` are unchanged.
+
 ### Changed
 
 - Bump `@types/punycode` from `^2.1.0` to `^2.1.4` ([#10441](https://github.com/MetaMask/core/pull/10441))

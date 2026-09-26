@@ -33,7 +33,10 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import {
+  RecommendedAction,
+  RequestSourceFlow,
+} from '@metamask/phishing-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
@@ -5287,6 +5290,29 @@ describe('NftController', () => {
       expect(safeNft?.externalLink).toBe('http://legitimate-domain.com');
     });
 
+    it('should attribute URL scans to the NFT detection flow', async () => {
+      const mockBulkScanUrls = jest.fn().mockResolvedValue({ results: {} });
+
+      const { nftController } = setupController({
+        bulkScanUrlsMock: mockBulkScanUrls,
+      });
+
+      await nftController.addNft('0xsafe', '1', 'mainnet', {
+        nftMetadata: {
+          name: 'Safe NFT',
+          description: 'NFT with safe links',
+          image: 'http://safe-site.com/image.png',
+          standard: ERC721,
+        },
+        userAddress: OWNER_ADDRESS,
+      });
+
+      expect(mockBulkScanUrls).toHaveBeenCalledWith(
+        expect.any(Array),
+        RequestSourceFlow.NftDetection,
+      );
+    });
+
     it('should handle errors during phishing detection when adding NFTs', async () => {
       const mockBulkScanUrls = jest
         .fn()
@@ -5472,9 +5498,10 @@ describe('NftController', () => {
       });
 
       // Verify only HTTP(S) URLs were sent for scanning
-      expect(mockBulkScanUrls).toHaveBeenCalledWith([
-        'https://secure-site.com',
-      ]);
+      expect(mockBulkScanUrls).toHaveBeenCalledWith(
+        ['https://secure-site.com'],
+        RequestSourceFlow.NftDetection,
+      );
 
       const storedNft =
         nftController.state.allNfts[OWNER_ADDRESS][ChainId.mainnet][0];
@@ -5605,9 +5632,10 @@ describe('NftController', () => {
       });
 
       // Should not throw error
-      expect(mockBulkScanUrls).toHaveBeenCalledWith([
-        'http://image.com/image.png',
-      ]);
+      expect(mockBulkScanUrls).toHaveBeenCalledWith(
+        ['http://image.com/image.png'],
+        RequestSourceFlow.NftDetection,
+      );
     });
   });
 
