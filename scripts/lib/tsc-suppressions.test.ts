@@ -282,7 +282,7 @@ describe('readSuppressions', () => {
     await withinSandbox(async (sandbox) => {
       // A directory can be opened but not read as a file.
       await expect(readSuppressions(sandbox.directoryPath)).rejects.toThrow(
-        expect.anything(),
+        Error,
       );
     });
   });
