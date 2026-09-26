@@ -59,7 +59,7 @@
     "@metamask/transaction-controller": "^72.0.1",
     "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.89.0",
-    "cockatiel": "^3.2.1"
+    "cockatiel": "^4.0.0"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",

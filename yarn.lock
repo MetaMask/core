@@ -5953,7 +5953,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
-    cockatiel: "npm:^3.2.1"
+    cockatiel: "npm:^4.0.0"
     deepmerge: "npm:^4.3.1"
     fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^30.4.2"
@@ -6393,7 +6393,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.5"
-    cockatiel: "npm:^3.2.1"
+    cockatiel: "npm:^4.0.0"
     deepmerge: "npm:^4.3.1"
     eth-ens-namehash: "npm:^2.0.8"
     fast-deep-equal: "npm:^3.1.3"
@@ -6428,7 +6428,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    cockatiel: "npm:^3.2.1"
+    cockatiel: "npm:^4.0.0"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
@@ -6472,6 +6472,7 @@ __metadata:
     "@yarnpkg/parsers": "npm:^3.0.3"
     "@yarnpkg/types": "npm:^4.0.0"
     bats: "npm:^1.13.0"
+    cockatiel: "npm:^4.0.0"
     comment-json: "npm:^4.5.1"
     eslint-plugin-n: "npm:^18.3.0"
     execa: "npm:^10.0.1"
@@ -7925,7 +7926,7 @@ __metadata:
     "@types/lodash-es": "npm:^4.17.12"
     "@types/node-fetch": "npm:^2.6.12"
     "@typescript/native": "npm:typescript@^7.0.2"
-    cockatiel: "npm:^3.2.1"
+    cockatiel: "npm:^4.0.0"
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.3.1"
     fast-deep-equal: "npm:^3.1.3"
@@ -8771,7 +8772,7 @@ __metadata:
     "@tanstack/query-core": "npm:^5.89.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    cockatiel: "npm:^3.2.1"
+    cockatiel: "npm:^4.0.0"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
@@ -15265,10 +15266,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cockatiel@npm:^3.1.2, cockatiel@npm:^3.2.1":
+"cockatiel@npm:^3.1.2":
   version: 3.2.1
   resolution: "cockatiel@npm:3.2.1"
   checksum: 10/b022d588dc1e31db59a17527b89acd6ed52c6d8761402afe112c7688af8836363e260ebf71b6f07c7edd69e62047adbf9fc1b3ffcb9081b7a0a751e6018773a6
+  languageName: node
+  linkType: hard
+
+"cockatiel@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "cockatiel@npm:4.0.0"
+  checksum: 10/443bc255c19e2fb318296aff1a45c0db3c461d62f88ad4acb33db22db8880844eeab0c30c2e653d4efc5f7f0b3c2eec105514896d14c0aaa8f78dd33c790f2f9
   languageName: node
   linkType: hard
 

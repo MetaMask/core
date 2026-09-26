@@ -7440,6 +7440,11 @@
       "count": 2
     }
   },
+  "tests/cockatiel.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "tests/helpers.ts": {
     "id-length": {
       "count": 1

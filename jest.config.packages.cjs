@@ -99,6 +99,11 @@ module.exports = {
     // CommonJS, where the reverse is true, so they are pointed back at
     // `lodash`. The two have the same API.
     '^lodash-es$': require.resolve('lodash'),
+    // `cockatiel` is ESM only, and the tests compile to CommonJS, where it can
+    // only be `require`d on Node 24.9+. This shim hands out the namespace that
+    // `tests/setupCockatiel.mjs` loads through Jest's ESM loader instead, which
+    // also works on Node 22.
+    '^cockatiel$': '<rootDir>/../../tests/cockatiel.cjs',
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -149,7 +154,10 @@ module.exports = {
   setupFiles: ['../../tests/setup.ts'],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
-  setupFilesAfterEnv: ['../../tests/setupAfterEnv/index.ts'],
+  setupFilesAfterEnv: [
+    '../../tests/setupCockatiel.mjs',
+    '../../tests/setupAfterEnv/index.ts',
+  ],
 
   // The number of seconds after which a test is considered as slow and reported as such in the results.
   // slowTestThreshold: 5,

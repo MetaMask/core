@@ -89,6 +89,7 @@
     "@yarnpkg/parsers": "^3.0.3",
     "@yarnpkg/types": "^4.0.0",
     "bats": "^1.13.0",
+    "cockatiel": "^4.0.0",
     "comment-json": "^4.5.1",
     "eslint-plugin-n": "^18.3.0",
     "execa": "^10.0.1",

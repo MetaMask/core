@@ -69,7 +69,7 @@ export class PollingWithCockatielPolicy {
     this.#requestEntry.delete(requestId);
   }
 
-  #shouldRetry(error: Error): boolean {
+  #shouldRetry(error: unknown): boolean {
     if (error instanceof HttpError) {
       // Note: we don't retry on 5xx errors, only on 4xx errors.
       // but we won't retry on 400 coz it means that the request body is invalid.

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `cockatiel` from `^3.2.1` to `^4.0.0` ([#10381](https://github.com/MetaMask/core/pull/10381))
 
 ## [7.0.3]
 
