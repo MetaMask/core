@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eip-5792-middleware",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Implements the JSON-RPC methods for sending multiple calls from the user's wallet, and checking their status, as referenced in EIP-5792",
   "keywords": [
     "Ethereum",
@@ -51,23 +51,23 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/preferences-controller": "^24.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^70.1.0",
+    "@metamask/transaction-controller": "^72.0.1",
     "@metamask/utils": "^12.0.0",
-    "lodash-es": "^4.17.21",
+    "lodash-es": "^4.18.1",
     "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
-    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/keyring-controller": "^28.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "deepmerge": "^4.2.2",
+    "deepmerge": "^4.3.1",
     "jest": "^30.4.2",
     "klona": "^2.0.6",
-    "rimraf": "^5.0.10",
+    "rimraf": "^6.1.3",
     "ts-jest": "^29.4.12",
-    "tsx": "^4.20.5",
+    "tsx": "^4.23.15",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"

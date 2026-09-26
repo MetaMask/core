@@ -124,7 +124,7 @@ describe('provider utils', () => {
       await expect(
         rpcRequest({
           messenger: messengerMock,
-          networkClientId: 'networkClientIdA' as NetworkClientId,
+          networkClientId: 'networkClientIdA',
           method: 'eth_getBalance',
           params: ['0x123', 'latest'],
         }),
@@ -141,7 +141,7 @@ describe('provider utils', () => {
       await expect(
         rpcRequest({
           messenger: messengerMock,
-          networkClientId: 'infuraNetworkClientId' as NetworkClientId,
+          networkClientId: 'infuraNetworkClientId',
           method: 'eth_getBalance',
           params: ['0x123', 'latest'],
         }),
@@ -160,7 +160,7 @@ describe('provider utils', () => {
       await expect(
         rpcRequest({
           messenger: messengerMock,
-          networkClientId: 'networkClientIdA' as NetworkClientId,
+          networkClientId: 'networkClientIdA',
           method: 'eth_getBalance',
           params: ['0x123', 'latest'],
         }),
@@ -175,7 +175,7 @@ describe('provider utils', () => {
 
       const result = await rpcRequest({
         messenger: messengerMock,
-        networkClientId: 'networkClientIdA' as NetworkClientId,
+        networkClientId: 'networkClientIdA',
         method: 'eth_blockNumber',
       });
 

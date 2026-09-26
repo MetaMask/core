@@ -50,7 +50,7 @@ export function getSwapsContractAddress(chainId: Hex): string {
  */
 function getClientIdHeader(clientId?: string) {
   if (!clientId) {
-    return undefined;
+    return;
   }
   return {
     'X-Client-Id': clientId,

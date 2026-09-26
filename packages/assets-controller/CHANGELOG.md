@@ -9,10 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [17.0.0]
+
+### Added
+
+- Add `getZeroNativeAssetBalance` and `getZeroTokenAssetBalance` so Stellar native zeros include spendable/reserve metadata and Stellar token zeros include empty trustline metadata. `getZeroAssetBalance` picks between them with `isNativeAssetId`
+
+### Changed
+
+- **BREAKING:** Split asset fetching into two paths behind `assetsAccountsApiV6` ([#9651](https://github.com/MetaMask/core/pull/9651))
+  - **Architecture:** The v5 path keeps production behavior — the API decides the returned set, and results are merged. The v6 path has the client declare the visible set (`includeAssetIds` / `excludeAssetIds`) and write an authoritative `full` snapshot for covered chains. Visibility is computed from controller state and shared by Accounts API, Snap, RPC, and RPC fallback. The flag is read only in `AssetsController` and injected as `isBalanceV6Enabled`. Hide/unhide re-evaluates live subscriptions so the next poll uses the new set.
+  - **Why this is breaking:**
+    - `'update'` is removed from `AssetsUpdateMode`; use `'full'` or `'merge'`
+    - `getAssets` no longer accepts `updateMode`; the data source sets it on the response
+    - `getAssetsState` is removed from pipeline `Context`, `SubscriptionRequest`, and `PriceDataSource.fetch`; inject it on data-source and middleware constructors instead
+    - `getAssetsState` and `getAssetVisibility` are required on Accounts API, Snap, and RPC data sources
+    - `isBalanceV6Enabled` is required on `SnapDataSource`
+    - `unhideAsset` is now async and force-fetches the asset's chain, matching `addCustomAsset`
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
 ### Fixed
 
+- Treat `assetsAccountsApiV6` as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
+
+## [16.1.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [16.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^72.0.0` ([#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/assets-controllers` from `^112.0.2` to `^112.0.3` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/network-enablement-controller` from `^7.0.0` to `^7.0.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/phishing-controller` from `^18.1.0` to `^18.1.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+
+### Fixed
+
+- `AccountActivityDataSource` now applies websocket balance amounts without writing `assetsInfo` ([#10410](https://github.com/MetaMask/core/pull/10410))
+- `AccountActivityDataSource` now requests `metadata` and `price` enrichment, so assets first seen in a websocket balance update get metadata and a spot price in the same pipeline pass instead of waiting for the next price poll ([#10410](https://github.com/MetaMask/core/pull/10410))
+- Seed `NATIVE_ASSETS` with Bitcoin mainnet (`bip122:000000000019d6689c085ae165831e93/slip44:0`) so `#getNativeAssetForChain` no longer falls back to a bogus `erc20:0x000…000` ID on Bitcoin mainnet ([#10410](https://github.com/MetaMask/core/pull/10410))
 - Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
 - `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
 
@@ -1065,7 +1108,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.2...@metamask/assets-controller@17.0.0
+[16.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.1...@metamask/assets-controller@16.1.2
+[16.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...@metamask/assets-controller@16.1.1
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...@metamask/assets-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...@metamask/assets-controller@15.1.0

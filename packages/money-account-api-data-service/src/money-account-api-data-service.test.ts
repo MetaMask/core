@@ -327,6 +327,87 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('sends Cache-Control: no-cache and invalidates the cached result when fresh', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      await service.fetchPositions(MOCK_ADDRESS);
+
+      const refreshed = {
+        ...MOCK_POSITION_RESPONSE,
+        as_of_block: 99999,
+        balance: {
+          ...MOCK_POSITION_BALANCE,
+          musd_balance: '99',
+          total_balance: '1513626',
+        },
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .reply(200, refreshed);
+
+      const freshResult = await service.fetchPositions(MOCK_ADDRESS, {
+        fresh: true,
+      });
+      expect(freshResult.as_of_block).toBe(99999);
+      expect(freshResult.balance?.musd_balance).toBe('99');
+
+      // The fresh result is invalidated after it is returned, so the next
+      // steady-state read must hit the network again rather than serve a
+      // pre-transaction body.
+      const afterFresh = {
+        ...MOCK_POSITION_RESPONSE,
+        as_of_block: 100000,
+      };
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, afterFresh);
+
+      const steadyState = await service.fetchPositions(MOCK_ADDRESS);
+      expect(steadyState.as_of_block).toBe(100000);
+      service.destroy();
+    });
+
+    it('retries a fresh fetchPositions request using the service policy', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .reply(500);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .reply(200, MOCK_POSITION_RESPONSE);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS, {
+        fresh: true,
+      });
+
+      expect(result).toStrictEqual(MOCK_POSITION_RESPONSE);
+      service.destroy();
+    });
+
+    it('throws HttpError after exhausting retries on a fresh fetchPositions request', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .matchHeader('cache-control', 'no-cache')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+
+      await expect(
+        service.fetchPositions(MOCK_ADDRESS, { fresh: true }),
+      ).rejects.toThrow(HttpError);
+      service.destroy();
+    });
+
     it('throws HttpError on non-2xx response', async () => {
       const { service } = createService(Env.DEV);
 
@@ -918,9 +999,7 @@ describe('MoneyAccountApiDataService', () => {
 
     it('traces non-Error rejections with the thrown value type', async () => {
       const { service } = createService(Env.DEV, { trace: mockTrace });
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockRejectedValue('network down' as never);
+      jest.spyOn(globalThis, 'fetch').mockRejectedValue('network down');
 
       await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toBe(
         'network down',

@@ -40,6 +40,7 @@ import type {
   HistoryOptions,
   InterestOptions,
   RateHistoryOptions,
+  FetchPositionsOptions,
 } from './types.js';
 
 // === GENERAL ===
@@ -242,50 +243,98 @@ export class MoneyAccountApiDataService extends BaseDataService<
    * Fetches the current vault positions for a given user address.
    *
    * @param address - The user's Ethereum address.
+   * @param options - Optional fetch options.
+   * @param options.fresh - When true, cancels in-flight reads, fetches with a
+   * zero stale time, invalidates the result for subsequent reads, and asks the
+   * Money API to skip its Nest response cache with `Cache-Control: no-cache`.
    * @returns The position response containing vault positions and an optional
    * `balance` summary (`null` when the API balance path is unavailable).
    */
-  async fetchPositions(address: string): Promise<PositionResponse> {
-    const url = new URL(
-      `/v1/positions/${address.toLowerCase()}`,
-      this.#baseUrl,
-    );
+  async fetchPositions(
+    address: string,
+    { fresh = false }: FetchPositionsOptions = {},
+  ): Promise<PositionResponse> {
+    const normalizedAddress = address.toLowerCase();
+    const queryKey = [
+      `${this.name}:fetchPositions`,
+      normalizedAddress,
+    ] as const;
 
-    return this.fetchQuery({
-      queryKey: [`${this.name}:fetchPositions`, address.toLowerCase()],
-      staleTime: DEFAULT_STALE_TIME_MS,
+    if (fresh) {
+      // Cancel any in-flight non-fresh fetch so it cannot win the shared
+      // queryKey and re-seed a response that omitted Cache-Control: no-cache.
+      await this.cancelQueries({ queryKey: [...queryKey] });
+    }
+
+    const result = await this.fetchQuery({
+      queryKey: [...queryKey],
+      staleTime: fresh ? 0 : DEFAULT_STALE_TIME_MS,
       queryFn: async () => {
-        return this.#traceNetworkRequest(
-          {
-            name: TRACES.POSITIONS_API,
-            data: { operation: 'fetchPositions' },
-          },
-          async () => {
-            const response = await fetch(url, {
-              headers: await this.#getRequestHeaders(),
-            });
-
-            if (!response.ok) {
-              throw new HttpError(
-                response.status,
-                `Money Account API positions request failed with status '${response.status}'`,
-              );
-            }
-
-            const json: Json = await response.json();
-
-            const [error, validated] = validate(json, PositionResponseStruct);
-            if (error) {
-              throw new MoneyAccountApiResponseValidationError(
-                `Malformed response from positions endpoint: ${error.message}`,
-              );
-            }
-
-            return validated as unknown as PositionResponse;
-          },
-        );
+        return this.#fetchPositionsFromNetwork(normalizedAddress, fresh);
       },
     });
+
+    if (fresh) {
+      // The balance service may reject this body using minBlock. Keep it
+      // available to this caller, but do not let a later steady-state request
+      // treat it as warm merely because that request has a non-zero staleTime.
+      await this.invalidateQueries({
+        queryKey: [...queryKey],
+        refetchType: 'none',
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Performs the HTTP GET for `/v1/positions/:address`.
+   *
+   * @param normalizedAddress - Lowercased account address.
+   * @param fresh - When true, send `Cache-Control: no-cache`.
+   * @returns Validated positions response.
+   */
+  async #fetchPositionsFromNetwork(
+    normalizedAddress: string,
+    fresh: boolean,
+  ): Promise<PositionResponse> {
+    const url = new URL(`/v1/positions/${normalizedAddress}`, this.#baseUrl);
+
+    return this.#traceNetworkRequest(
+      {
+        name: TRACES.POSITIONS_API,
+        data: {
+          operation: 'fetchPositions',
+          ...(fresh ? { fresh: true } : {}),
+        },
+      },
+      async () => {
+        const headers = {
+          ...(await this.#getRequestHeaders()),
+          ...(fresh ? { 'Cache-Control': 'no-cache' } : {}),
+        };
+
+        const response = await fetch(url, { headers });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Money Account API positions request failed with status '${response.status}'`,
+          );
+        }
+
+        const json: Json = await response.json();
+
+        const [error, validated] = validate(json, PositionResponseStruct);
+        if (error) {
+          throw new MoneyAccountApiResponseValidationError(
+            `Malformed response from positions endpoint: ${error.message}`,
+          );
+        }
+
+        return validated;
+      },
+    );
   }
 
   /**
@@ -349,7 +398,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            return validated as unknown as InterestResponse;
+            return validated;
           },
         );
       },
@@ -434,7 +483,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
                 );
               }
 
-              return validated as unknown as HistoryResponse;
+              return validated;
             },
           );
         },
@@ -507,7 +556,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            return validated as unknown as RateHistoryResponse;
+            return validated;
           },
         );
       },

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `ethereumjs-wallet` from `^1.0.1` to `^1.0.2` ([#10486](https://github.com/MetaMask/core/pull/10486))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [28.1.0]
+
+### Added
+
+- Add entropy ID selectors ([#10284](https://github.com/MetaMask/core/pull/10284))
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
 
@@ -1076,7 +1088,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...HEAD
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...@metamask/keyring-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.1...@metamask/keyring-controller@28.0.0
 [27.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.0...@metamask/keyring-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...@metamask/keyring-controller@27.1.0

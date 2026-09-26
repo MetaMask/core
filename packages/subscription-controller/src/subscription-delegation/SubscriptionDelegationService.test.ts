@@ -65,7 +65,7 @@ const PRICING_DELEGATION_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   chains: [
     {
       chainId: CHAIN_ID,
-      paymentAddress: '0x2222222222222222222222222222222222222222' as Hex,
+      paymentAddress: '0x2222222222222222222222222222222222222222',
       delegateAddress: DELEGATE,
       tokens: [
         {
@@ -488,6 +488,78 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.createIntents).not.toHaveBeenCalled();
     });
 
+    it('reuses the matching stored delegation with the latest period startDate', async () => {
+      const older = buildStoredDelegation({
+        delegationHash: `0x${'11'.repeat(32)}`,
+        startDate: 1_700_000_000,
+      });
+      const newer = buildStoredDelegation({
+        delegationHash: `0x${'22'.repeat(32)}`,
+        startDate: 1_700_086_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [older, newer],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: newer.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: newer.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation(REQUEST);
+
+      expect(result).toStrictEqual({
+        delegationHash: newer.metadata.delegationHash,
+        disposition: 'reused',
+      });
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createDelegation).not.toHaveBeenCalled();
+    });
+
+    it('creates and registers a replacement when forceNew is requested', async () => {
+      const stored = buildStoredDelegation();
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation(
+        {
+          ...REQUEST,
+        },
+        true,
+      );
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            delegationHash: result.delegationHash,
+          }),
+        }),
+      );
+      expect(mocks.createIntents).toHaveBeenCalledWith([
+        expect.objectContaining({
+          delegationHash: result.delegationHash,
+        }),
+      ]);
+    });
+
     it('reuses a matching delegation and registers an intent when missing', async () => {
       const stored = buildStoredDelegation();
       const { service, mocks } = setup({
@@ -824,7 +896,7 @@ describe('SubscriptionDelegationService', () => {
               chains: [],
             },
           ],
-        } as PricingResponse,
+        },
       ],
       [
         'delegate address',

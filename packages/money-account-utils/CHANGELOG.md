@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@ethersproject/abstract-provider` from `^5.7.0` to `^5.8.0` ([#10477](https://github.com/MetaMask/core/pull/10477))
+
+## [2.0.1]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^72.0.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
 
 ## [2.0.0]
 
@@ -63,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guards: `isMusdToken`, `isMusdTokenOnChain`, `isMusdOnMoneyAccountChain`
 - Add `getTokenDisplaySymbol`, ported from MetaMask Mobile, which canonicalises the registry symbol of the mUSD token to its branded casing (`MUSD` → `mUSD`) and passes all other symbols through unchanged ([#9397](https://github.com/MetaMask/core/pull/9397))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.0...@metamask/money-account-utils@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.2.0...@metamask/money-account-utils@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.1.0...@metamask/money-account-utils@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.0.0...@metamask/money-account-utils@1.1.0

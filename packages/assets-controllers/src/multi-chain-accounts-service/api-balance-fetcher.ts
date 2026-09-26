@@ -464,7 +464,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
           results.push({
             success: true,
             value: new BN('0'),
-            account: address as ChecksumAddress,
+            account: address,
             token: ZERO_ADDRESS,
             chainId,
           });

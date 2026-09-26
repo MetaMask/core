@@ -437,7 +437,7 @@ async function normalizeQuote(
     sourceAmount,
     targetAmount,
     strategy: TransactionPayStrategy.Across,
-  } as TransactionPayQuote<AcrossQuote>;
+  };
 }
 
 function getFiatRates(

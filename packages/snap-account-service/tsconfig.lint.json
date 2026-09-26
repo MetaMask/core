@@ -13,6 +13,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.lint.json"
     }
   ]
 }

@@ -29,6 +29,7 @@ export type {
 export type {
   InterestWindow,
   InterestOptions,
+  FetchPositionsOptions,
   HistoryOptions,
   RateHistoryOptions,
 } from './types.js';

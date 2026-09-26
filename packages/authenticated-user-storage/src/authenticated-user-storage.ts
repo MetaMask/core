@@ -17,12 +17,18 @@ import type {
   ClientType,
   DelegationResponse,
   DelegationSubmission,
+  IdentitySharingConsent,
+  IdentitySharingConsentWrite,
+  MarketingConsent,
   NotificationPreferences,
 } from './types.js';
 import {
   assertAssetsWatchlistBlob,
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
+  assertIdentitySharingConsent,
+  assertIdentitySharingConsentForWrite,
+  assertMarketingConsent,
   assertNotificationPreferences,
 } from './validators.js';
 
@@ -52,6 +58,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'revokeDelegation',
   'getNotificationPreferences',
   'putNotificationPreferences',
+  'getMarketingConsent',
+  'putMarketingConsent',
+  'getIdentitySharingConsent',
+  'putIdentitySharingConsent',
   'getAssetsWatchlist',
   'setAssetsWatchlist',
 ] as const;
@@ -345,6 +355,171 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
     await this.invalidateQueries({
       queryKey: [`${this.name}:getNotificationPreferences`],
+    });
+  }
+
+  /**
+   * Returns the marketing consent for the authenticated user.
+   *
+   * @returns The marketing consent object, or `null` if none has been
+   * set (404).
+   */
+  async getMarketingConsent(): Promise<MarketingConsent | null> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/marketing-consent`;
+
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getMarketingConsent`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to get marketing consent: ${response.status}`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    assertMarketingConsent(data);
+    return data;
+  }
+
+  /**
+   * Creates or updates the marketing consent for the authenticated user.
+   *
+   * @param consent - The full marketing consent object.
+   * @param clientType - Optional client type header.
+   */
+  async putMarketingConsent(
+    consent: MarketingConsent,
+    clientType?: ClientType,
+  ): Promise<void> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/marketing-consent`;
+
+    await this.fetchQuery({
+      queryKey: [
+        `${this.name}:putMarketingConsent`,
+        consent as unknown as Json,
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(consent),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to put marketing consent: ${response.status}`,
+          );
+        }
+
+        return null;
+      },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getMarketingConsent`],
+    });
+  }
+
+  /**
+   * Returns the identity-sharing consent for the authenticated user.
+   *
+   * @returns The granted-audience map, or `null` if none has been set (404).
+   */
+  async getIdentitySharingConsent(): Promise<IdentitySharingConsent | null> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/identity-sharing-consent`;
+
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getIdentitySharingConsent`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to get identity-sharing consent: ${response.status}`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    assertIdentitySharingConsent(data);
+    return data;
+  }
+
+  /**
+   * Grants or revokes identity-sharing consent for a single audience.
+   * Other audiences on the profile are left unchanged.
+   *
+   * @param write - The audience and whether it is granted.
+   * @param clientType - Optional client type header.
+   * @throws A `StructError` from `@metamask/superstruct` if `write` is
+   * invalid; an `HttpError` from `@metamask/controller-utils` if the API
+   * responds with a non-2xx status.
+   */
+  async putIdentitySharingConsent(
+    write: IdentitySharingConsentWrite,
+    clientType?: ClientType,
+  ): Promise<void> {
+    assertIdentitySharingConsentForWrite(write);
+
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/identity-sharing-consent`;
+
+    await this.fetchQuery({
+      queryKey: [
+        `${this.name}:putIdentitySharingConsent`,
+        write as unknown as Json,
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(write),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to put identity-sharing consent: ${response.status}`,
+          );
+        }
+
+        return null;
+      },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getIdentitySharingConsent`],
     });
   }
 

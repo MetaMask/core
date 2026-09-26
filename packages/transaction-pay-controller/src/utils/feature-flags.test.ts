@@ -334,7 +334,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(messenger, '0x1' as Hex, TOKEN_ADDRESS_MOCK);
+      const slippage = getSlippage(messenger, '0x1', TOKEN_ADDRESS_MOCK);
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -354,11 +354,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(
-        messenger,
-        CHAIN_ID_MOCK,
-        '0xabc123def456' as Hex,
-      );
+      const slippage = getSlippage(messenger, CHAIN_ID_MOCK, '0xabc123def456');
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -521,7 +517,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb' as Hex)).toBe(
+      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb')).toBe(
         CONTRACT_ADDRESS_MOCK,
       );
     });
@@ -952,7 +948,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(isChainExcludedFromInfura(messenger, '0xa' as Hex)).toBe(true);
+      expect(isChainExcludedFromInfura(messenger, '0xa')).toBe(true);
     });
   });
 
@@ -1113,11 +1109,50 @@ describe('Feature Flags Utils', () => {
 
       expect(config.server).toStrictEqual({
         enabled: false,
+        enabledTransactionTypes: [],
         baseUrl: DEFAULT_SERVER_BASE_URL,
         pollingInterval: 2000,
         pollingTimeout: undefined,
       });
     });
+
+    it.each([
+      ['the flag is absent', undefined, []],
+      ['the flag is not an array', 'perpsDeposit', []],
+      [
+        'the flag lists known types',
+        ['perpsDeposit', 'perpsWithdraw'],
+        [TransactionType.perpsDeposit, TransactionType.perpsWithdraw],
+      ],
+      [
+        'the flag lists unknown types',
+        ['perpsDeposit', 'notATransactionType'],
+        [TransactionType.perpsDeposit],
+      ],
+      [
+        'the flag lists duplicates',
+        ['perpsDeposit', 'perpsDeposit'],
+        [TransactionType.perpsDeposit],
+      ],
+    ])(
+      'returns enabled transaction types when %s',
+      (_name, enabledTransactionTypes, expected) => {
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay_extended: {
+              payStrategies: {
+                server: { enabledTransactionTypes },
+              },
+            },
+          },
+        });
+
+        expect(
+          getPayStrategiesConfig(messenger).server.enabledTransactionTypes,
+        ).toStrictEqual(expected);
+      },
+    );
 
     it('returns enabled: true when the flag enables server', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({

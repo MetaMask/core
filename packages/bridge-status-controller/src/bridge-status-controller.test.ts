@@ -183,14 +183,14 @@ const MockStatusResponse = {
     destChainId = 10,
   } = {}): StatusResponse => ({
     status: 'FAILED' as StatusTypes,
-    bridge: 'debridge' as BridgeId,
+    bridge: 'debridge',
     srcChain: {
       chainId: srcChainId,
       txHash: srcTxHash,
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
+        assetId: `eip155:${srcChainId}/slip44:60`,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -314,7 +314,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   bridgeTxMeta: {
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
-  } as TransactionMeta,
+  },
   quoteResponse: {
     ...{
       quote: getMockQuote({ srcChainId, destChainId }),
@@ -1927,7 +1927,7 @@ describe('BridgeStatusController', () => {
                     type: transactionType,
                     status: transactionStatus,
                     id: transactionId,
-                  } as TransactionMeta,
+                  },
                 },
               );
               await flushPromises();
@@ -5613,17 +5613,17 @@ describe('BridgeStatusController', () => {
               ...baseHistoryItem,
               actionId: 'pre-submission-action-id',
               txMetaId: undefined,
-            } as BridgeHistoryItem,
+            },
             'action-id-for-tracking': {
               ...baseHistoryItem,
               actionId: 'action-id-for-tracking',
               txMetaId: undefined,
-            } as BridgeHistoryItem,
+            },
             'action-id-for-rejection': {
               ...baseHistoryItem,
               actionId: 'action-id-for-rejection',
               txMetaId: undefined,
-            } as BridgeHistoryItem,
+            },
           },
         },
       });
@@ -6137,7 +6137,7 @@ describe('BridgeStatusController', () => {
               chainId: CHAIN_IDS.ARBITRUM,
               networkClientId: 'eth-id',
               time: Date.now(),
-              txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+              txParams: { from: '0xaccount1' },
               type: TransactionType.bridge,
               status: TransactionStatus.failed,
               id: 'bridgeTxMetaId1',
@@ -6931,7 +6931,7 @@ describe('BridgeStatusController', () => {
         );
         rootMessenger.registerActionHandler(
           'AuthenticationController:getBearerToken',
-          (async () => 'auth-token') as never,
+          async () => 'auth-token',
         );
       };
 
@@ -7107,7 +7107,7 @@ describe('BridgeStatusController', () => {
           if (action === 'AccountsController:getAccountByAddress') {
             return mockSelectedAccount;
           }
-          return undefined;
+          return;
         });
 
       it('reports SUBMITTED for every quote in the batch under the shared tx hash', async () => {
@@ -7225,7 +7225,7 @@ describe('BridgeStatusController', () => {
                   id: BATCH_TX_META_ID,
                   hash: BATCH_SRC_TX_HASH,
                   nestedTransactions: [{ type: TransactionType.swap }],
-                } as unknown as TransactionMeta,
+                },
               },
             );
 
@@ -7396,7 +7396,7 @@ describe('BridgeStatusController', () => {
           if (action === 'AuthenticationController:getBearerToken') {
             return Promise.resolve('auth-token');
           }
-          return undefined;
+          return;
         });
 
       it.each([
@@ -7510,7 +7510,7 @@ describe('BridgeStatusController', () => {
         if (actionType === 'AuthenticationController:getBearerToken') {
           return Promise.resolve('auth-token');
         }
-        return undefined;
+        return;
       });
 
     const getSeedHistoryItem = ({

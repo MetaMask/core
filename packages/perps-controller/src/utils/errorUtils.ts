@@ -73,7 +73,7 @@ export function ensureError(error: unknown, context?: string): Error {
   }
   return new Error(
     typeof error === 'object' && error !== null && hasProperty(error, 'message')
-      ? String((error as { message: unknown }).message)
+      ? String(error.message)
       : 'Unknown error',
   );
 }

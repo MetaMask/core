@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [14.1.0]
+
 ### Added
 
 - Add `Bip44AccountProvider.deleteAccounts` ([#10263](https://github.com/MetaMask/core/pull/10263))
@@ -20,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/account-api` from `^2.0.0` to `^2.1.0` ([#10263](https://github.com/MetaMask/core/pull/10263))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/snap-account-service` from `^3.0.0` to `^4.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
 
 ### Fixed
 
@@ -648,7 +656,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...@metamask/multichain-account-service@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.2...@metamask/multichain-account-service@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.1...@metamask/multichain-account-service@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.0...@metamask/multichain-account-service@13.0.1

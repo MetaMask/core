@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [11.0.0]
+
 ### Added
 
 - **BREAKING:** Add `AccountTreeController:removeAccountWallet` ([#10253](https://github.com/MetaMask/core/pull/10253))
@@ -17,8 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.2.0` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^33.0.0` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/multichain-account-service` from `^14.0.0` to `^14.1.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
 
 ## [10.0.1]
 
@@ -729,7 +737,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.1...@metamask/account-tree-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.0...@metamask/account-tree-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@9.0.0...@metamask/account-tree-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...@metamask/account-tree-controller@9.0.0

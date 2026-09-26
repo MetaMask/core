@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+
+## [33.0.0]
+
+### Changed
+
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432), [#10460](https://github.com/MetaMask/core/pull/10460))
+  - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
+  - Constant: `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - State: `stepUpSessionExpiresAt` is removed; call `getVerificationToken()` to check for a live verification session
+  - Types: `ElevatedProfileToken` → `VerificationToken`, `GetElevatedTokenRequest` → `GetVerificationTokenRequest`, and `StepUp` becomes `Verification` in `BeginStepUpRequest`, `CompleteStepUpRequest`, `StepUpChallenge`, `StepUpProof` and `MfaStepUpAssertion`
+  - Error: `ElevatedTokenInvalidError` (`elevated_token_invalid`) → `VerificationTokenInvalidError` (`verification_token_invalid`)
+  - Trace spans: `MFA Step-Up Begin` / `Complete` → `MFA Verification Begin` / `Complete`
+- **BREAKING:** Accept MFA data as the server sends it ([#10432](https://github.com/MetaMask/core/pull/10432))
+  - `email_otp` credentials without an address are kept: `EnrolledCredential.email` is now optional
+  - Verification tokens are accepted with any `amr` method name and any `aal`: `claims.amr` is widened and `claims.aal` is removed, since the server enforces assurance levels
+- Let one verification cover a whole setup flow ([#10432](https://github.com/MetaMask/core/pull/10432))
+  - The verification session lasts as long as its token, up to 15 minutes instead of 1
+  - Enrolling a credential no longer ends the session
+  - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+
+## [32.3.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+## [32.3.0]
+
+### Added
+
+- Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#10374](https://github.com/MetaMask/core/pull/10374))
+  - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
+  - `AuthenticationController.beginCredentialEnrollment` sends the verification token while a step-up session is live, since enrolling additional credentials requires AAL2
+  - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
+- Add `pairedIdentifierIds` to `UserProfile` in `srpSessionData`, set from the login response and, on the primary SRP session, from the SRP and social pairing responses, so clients can tell whether a profile has been socially paired ([#10394](https://github.com/MetaMask/core/pull/10394))
+
+### Changed
+
 - Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
 
 ## [32.2.0]
@@ -984,7 +1024,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
+[32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1
+[32.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...@metamask/profile-sync-controller@32.3.0
 [32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...@metamask/profile-sync-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0

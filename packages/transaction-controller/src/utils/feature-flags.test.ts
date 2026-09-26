@@ -334,6 +334,27 @@ describe('Feature Flags Utils', () => {
         ),
       ).toStrictEqual(ADDRESS_2_MOCK);
     });
+
+    it('does not validate remaining contracts once an authentic contract is found', () => {
+      mockFeatureFlags({
+        [FeatureFlag.EIP7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [
+              { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
+        },
+      });
+
+      getEIP7702UpgradeContractAddress(
+        CHAIN_ID_MOCK,
+        controllerMessenger,
+        PUBLIC_KEY_MOCK,
+      );
+
+      expect(isValidSignatureMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('getBatchSizeLimit', () => {
