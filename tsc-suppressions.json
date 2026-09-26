@@ -1,0 +1,1412 @@
+{
+  "packages/account-tree-controller/src/AccountTreeController.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2305": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 2
+    },
+    "TS2345": {
+      "count": 3
+    },
+    "TS2353": {
+      "count": 1
+    },
+    "TS2532": {
+      "count": 3
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.test.ts": {
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/rule.test.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/rules/entropy.test.ts": {
+    "TS2322": {
+      "count": 6
+    }
+  },
+  "packages/account-tree-controller/src/rules/keyring.test.ts": {
+    "TS2741": {
+      "count": 4
+    }
+  },
+  "packages/account-tree-controller/src/rules/snap.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/state/export.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 1
+    },
+    "TS2537": {
+      "count": 1
+    },
+    "TS2578": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/state/roundtrip.test.ts": {
+    "TS2345": {
+      "count": 4
+    }
+  },
+  "packages/account-tree-controller/src/state/snapshot.test.ts": {
+    "TS2532": {
+      "count": 5
+    }
+  },
+  "packages/account-tree-controller/src/state/tests/helpers.ts": {
+    "TS2322": {
+      "count": 3
+    }
+  },
+  "packages/account-tree-controller/src/state/utils.test.ts": {
+    "TS2775": {
+      "count": 4
+    }
+  },
+  "packages/accounts-controller/src/AccountsController.test.ts": {
+    "TS2322": {
+      "count": 3
+    },
+    "TS2353": {
+      "count": 2
+    }
+  },
+  "packages/analytics-controller/src/AnalyticsController.test.ts": {
+    "TS2741": {
+      "count": 6
+    }
+  },
+  "packages/approval-controller/src/ApprovalController.test.ts": {
+    "TS6307": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
+    "TS2724": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/AssetsController.test.ts": {
+    "TS2322": {
+      "count": 12
+    },
+    "TS2339": {
+      "count": 3
+    },
+    "TS2345": {
+      "count": 2
+    },
+    "TS2352": {
+      "count": 2
+    },
+    "TS2445": {
+      "count": 2
+    },
+    "TS2493": {
+      "count": 1
+    },
+    "TS2532": {
+      "count": 1
+    },
+    "TS2554": {
+      "count": 10
+    },
+    "TS2739": {
+      "count": 4
+    },
+    "TS2820": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/AccountActivityDataSource.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/AccountsApiDataSource.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
+    "TS2339": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
+    "TS2353": {
+      "count": 8
+    }
+  },
+  "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
+    "TS2353": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/TokenDataSource.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
+    "TS2554": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
+    "TS2418": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
+    "TS18048": {
+      "count": 5
+    },
+    "TS2532": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/selectors/balance.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/assetVisibility.test.ts": {
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/formatExchangeRatesForBridge.test.ts": {
+    "TS2339": {
+      "count": 10
+    }
+  },
+  "packages/assets-controller/src/utils/native-assets.test.ts": {
+    "TS7053": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/AccountTrackerController.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/AssetsContractController.test.ts": {
+    "TS4094": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/AssetsContractControllerWithNetworkClientId.test.ts": {
+    "TS2307": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/build-defi-balances-query.test.ts": {
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/group-defi-positions-v6.test.ts": {
+    "TS2322": {
+      "count": 14
+    }
+  },
+  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.test.ts": {
+    "TS2353": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/NftController.test.ts": {
+    "TS2353": {
+      "count": 2
+    },
+    "TS2614": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/NftDetectionController.test.ts": {
+    "TS2345": {
+      "count": 3
+    },
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
+    "TS7031": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/selectors/token-selectors.test.ts": {
+    "TS2353": {
+      "count": 2
+    },
+    "TS7006": {
+      "count": 12
+    }
+  },
+  "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
+    "TS2591": {
+      "count": 3
+    }
+  },
+  "packages/bitcoin-regtest-up/src/install.test.ts": {
+    "TS2503": {
+      "count": 1
+    },
+    "TS2591": {
+      "count": 11
+    }
+  },
+  "packages/bitcoin-regtest-up/src/install.ts": {
+    "TS2591": {
+      "count": 7
+    }
+  },
+  "packages/bridge-controller/src/bridge-controller.sse.batch.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS2769": {
+      "count": 1
+    },
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/bridge-controller.sse.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 3
+    },
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/bridge-controller.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/coercers/quote-response-v1-to-v2.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/selectors.test.ts": {
+    "TS2339": {
+      "count": 4
+    },
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/feature-flags.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/fetch.test.ts": {
+    "TS2698": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/tests/mock-sse.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
+    "TS2307": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2353": {
+      "count": 2
+    }
+  },
+  "packages/bridge-status-controller/test/mock-batch-sell-erc20-erc20.ts": {
+    "TS2315": {
+      "count": 1
+    }
+  },
+  "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {
+    "TS2353": {
+      "count": 10
+    }
+  },
+  "packages/client-utils/src/mappers/api-transaction-mapper.test.ts": {
+    "TS2345": {
+      "count": 40
+    },
+    "TS2739": {
+      "count": 3
+    },
+    "TS2740": {
+      "count": 8
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
+  "packages/client-utils/src/mappers/helpers/transactions.test.ts": {
+    "TS2322": {
+      "count": 9
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS2352": {
+      "count": 12
+    },
+    "TS2739": {
+      "count": 3
+    },
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/client-utils/test/fixtures/api-transactions.ts": {
+    "TS2322": {
+      "count": 10
+    },
+    "TS2353": {
+      "count": 7
+    },
+    "TS2739": {
+      "count": 23
+    },
+    "TS2740": {
+      "count": 7
+    },
+    "TS2741": {
+      "count": 17
+    }
+  },
+  "packages/core-backend/src/api/accounts/client.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 1
+    },
+    "TS2339": {
+      "count": 3
+    },
+    "TS2349": {
+      "count": 1
+    },
+    "TS2722": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/api/prices/client.test.ts": {
+    "TS2349": {
+      "count": 6
+    }
+  },
+  "packages/core-backend/src/api/tokens/client.test.ts": {
+    "TS2349": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/cryptography/src/hkdf.test.ts": {
+    "TS2345": {
+      "count": 20
+    }
+  },
+  "packages/cryptography/src/hmac.test.ts": {
+    "TS2345": {
+      "count": 12
+    }
+  },
+  "packages/cryptography/src/sha.test.ts": {
+    "TS2345": {
+      "count": 3
+    }
+  },
+  "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
+    "TS2322": {
+      "count": 34
+    }
+  },
+  "packages/java-tron-up/src/bin/java-tron-up.ts": {
+    "TS2591": {
+      "count": 3
+    }
+  },
+  "packages/java-tron-up/src/install.test.ts": {
+    "TS2503": {
+      "count": 1
+    },
+    "TS2591": {
+      "count": 9
+    }
+  },
+  "packages/java-tron-up/src/install.ts": {
+    "TS2591": {
+      "count": 8
+    }
+  },
+  "packages/json-rpc-engine/src/v2/compatibility-utils.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2578": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/JsonRpcEngineV2.test.ts": {
+    "TS2769": {
+      "count": 1
+    },
+    "TS7031": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-middleware-stream/src/index.test.ts": {
+    "TS2351": {
+      "count": 1
+    }
+  },
+  "packages/keyring-controller/src/KeyringController.test.ts": {
+    "TS2307": {
+      "count": 1
+    }
+  },
+  "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
+    "TS2741": {
+      "count": 3
+    }
+  },
+  "packages/money-account-api-data-service/src/money-account-api-data-service.test.ts": {
+    "TS2322": {
+      "count": 7
+    }
+  },
+  "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
+    "TS18048": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/MultichainAccountWallet.test.ts": {
+    "TS18048": {
+      "count": 3
+    }
+  },
+  "packages/multichain-account-service/src/providers/BtcAccountProvider.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2740": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/EvmAccountProvider.test.ts": {
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/SnapAccountProvider.test.ts": {
+    "TS18048": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/SolAccountProvider.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2740": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/TrxAccountProvider.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2740": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2740": {
+      "count": 1
+    }
+  },
+  "packages/multichain-network-controller/src/MultichainNetworkController/MultichainNetworkController.test.ts": {
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/network-connection-banner-controller/src/NetworkConnectionBannerController.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/src/rpc-service/rpc-service.test.ts": {
+    "TS2578": {
+      "count": 1
+    },
+    "TS2769": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/tests/network-client/block-hash-in-response.ts": {
+    "TS2339": {
+      "count": 4
+    },
+    "TS2554": {
+      "count": 4
+    }
+  },
+  "packages/network-controller/tests/network-client/no-block-param.ts": {
+    "TS2339": {
+      "count": 4
+    },
+    "TS2554": {
+      "count": 4
+    }
+  },
+  "packages/network-controller/tests/NetworkController.test.ts": {
+    "TS2339": {
+      "count": 3
+    }
+  },
+  "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
+    "TS2769": {
+      "count": 3
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
+    "TS2739": {
+      "count": 3
+    }
+  },
+  "packages/passkey-controller/tests/mocks/passkey-controller-messenger.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/e2e/lighter.e2e.ts": {
+    "TS2322": {
+      "count": 3
+    },
+    "TS2345": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/tests/helpers/advancedOrders.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/helpers/serviceMocks.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/aggregation/SubscriptionMultiplexer.test.ts": {
+    "TS2741": {
+      "count": 10
+    }
+  },
+  "packages/perps-controller/tests/src/PerpsController.lifecycle.test.ts": {
+    "TS2339": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 4
+    }
+  },
+  "packages/perps-controller/tests/src/PerpsController.operations.test.ts": {
+    "TS2304": {
+      "count": 3
+    },
+    "TS2322": {
+      "count": 2
+    },
+    "TS2769": {
+      "count": 6
+    }
+  },
+  "packages/perps-controller/tests/src/PerpsController.providers-cache.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 1
+    },
+    "TS2339": {
+      "count": 6
+    },
+    "TS2739": {
+      "count": 3
+    },
+    "TS7006": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/tests/src/PerpsController.state.test.ts": {
+    "TS18046": {
+      "count": 1
+    },
+    "TS2339": {
+      "count": 1
+    },
+    "TS2554": {
+      "count": 1
+    },
+    "TS7005": {
+      "count": 189
+    },
+    "TS7006": {
+      "count": 29
+    },
+    "TS7019": {
+      "count": 1
+    },
+    "TS7034": {
+      "count": 6
+    }
+  },
+  "packages/perps-controller/tests/src/providers/AggregatedPerpsProvider.test.ts": {
+    "TS18048": {
+      "count": 8
+    },
+    "TS2304": {
+      "count": 1
+    },
+    "TS2339": {
+      "count": 15
+    },
+    "TS2345": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.advanced-orders.test.ts": {
+    "TS2740": {
+      "count": 6
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.builder-fees.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.error-handling.test.ts": {
+    "TS2322": {
+      "count": 10
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS2353": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 6
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-orders.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 35
+    },
+    "TS2339": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 3
+    },
+    "TS7006": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.trading.test.ts": {
+    "TS2339": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
+    "TS2322": {
+      "count": 5
+    },
+    "TS2339": {
+      "count": 1
+    },
+    "TS2739": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/services/HyperLiquidClientService.test.ts": {
+    "TS2339": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/services/HyperLiquidSubscriptionService.cache.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/services/HyperLiquidSubscriptionService.streams.test.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/services/LighterWalletService.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/services/MarketDataService.test.ts": {
+    "TS2339": {
+      "count": 8
+    }
+  },
+  "packages/perps-controller/tests/src/services/TerminalMarketService.test.ts": {
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/services/TradingService.test.ts": {
+    "TS2339": {
+      "count": 3
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/utils/hyperLiquidOrderBookProcessor.test.ts": {
+    "TS2741": {
+      "count": 10
+    }
+  },
+  "packages/perps-controller/tests/src/utils/lighterAdapter.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/utils/orderCalculations.advanced-orders.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 7
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
+    "TS2769": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/mfa/services.test.ts": {
+    "TS18046": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/shared/utils/message-signing.test.ts": {
+    "TS2339": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/NeoBankService.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/NeoBankService.ts": {
+    "TS6307": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
+    "TS2352": {
+      "count": 3
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/utils.test.ts": {
+    "TS2352": {
+      "count": 1
+    },
+    "TS2353": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/RampsController.order-syncing.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2739": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/RampsController.test.ts": {
+    "TS2345": {
+      "count": 3
+    }
+  },
+  "packages/ramps-controller/src/selectors.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/TransakService.test.ts": {
+    "TS2739": {
+      "count": 16
+    },
+    "TS2740": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/wallet-registration-service.test.ts": {
+    "TS2352": {
+      "count": 3
+    }
+  },
+  "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/shield-controller/src/ShieldController.test.ts": {
+    "TS2578": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/src/SnapAccountService.test.ts": {
+    "TS2339": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 1
+    }
+  },
+  "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/src/SnapTracker.test.ts": {
+    "TS2322": {
+      "count": 8
+    }
+  },
+  "packages/solana-test-validator-up/src/bin/solana-test-validator-up.ts": {
+    "TS2591": {
+      "count": 3
+    }
+  },
+  "packages/solana-test-validator-up/src/install.test.ts": {
+    "TS2503": {
+      "count": 1
+    },
+    "TS2591": {
+      "count": 9
+    }
+  },
+  "packages/solana-test-validator-up/src/install.ts": {
+    "TS2591": {
+      "count": 7
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionController.test.ts": {
+    "TS2352": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    },
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionService.test.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/DefaultGasFeeFlow.test.ts": {
+    "TS2353": {
+      "count": 4
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/MantleLayer1GasFeeFlow.test.ts": {
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.test.ts": {
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/helpers/PendingTransactionTracker.test.ts": {
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/TransactionController.test.ts": {
+    "TS2322": {
+      "count": 6
+    },
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
+    "TS2344": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/batch.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/gas.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2769": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/recipient.test.ts": {
+    "TS2345": {
+      "count": 6
+    }
+  },
+  "packages/transaction-controller/src/utils/utils.test.ts": {
+    "TS2739": {
+      "count": 4
+    }
+  },
+  "packages/transaction-controller/src/utils/validation.test.ts": {
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/helpers/QuoteRefresher.test.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-quotes.test.ts": {
+    "TS2339": {
+      "count": 3
+    },
+    "TS2739": {
+      "count": 11
+    },
+    "TS2741": {
+      "count": 73
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-submit.test.ts": {
+    "TS18048": {
+      "count": 4
+    },
+    "TS2741": {
+      "count": 9
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/AcrossStrategy.test.ts": {
+    "TS2352": {
+      "count": 5
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-quotes.test.ts": {
+    "TS2304": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-submit.test.ts": {
+    "TS2352": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 5
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/FiatStrategy.test.ts": {
+    "TS2739": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.test.ts": {
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-api.test.ts": {
+    "TS2741": {
+      "count": 2
+    },
+    "TS2820": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2352": {
+      "count": 2
+    },
+    "TS2739": {
+      "count": 2
+    },
+    "TS2741": {
+      "count": 168
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.test.ts": {
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
+    "TS2322": {
+      "count": 3
+    },
+    "TS2339": {
+      "count": 6
+    },
+    "TS2345": {
+      "count": 13
+    },
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
+    "TS2352": {
+      "count": 4
+    },
+    "TS2835": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/RelayBridge.test.ts": {
+    "TS2739": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/RelayStrategy.test.ts": {
+    "TS2352": {
+      "count": 4
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "TS2741": {
+      "count": 32
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
+    "TS2339": {
+      "count": 3
+    },
+    "TS2353": {
+      "count": 2
+    },
+    "TS7006": {
+      "count": 1
+    },
+    "TS7031": {
+      "count": 6
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/ServerStrategy.test.ts": {
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/ma-vault-deposit.test.ts": {
+    "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/provider.test.ts": {
+    "TS2353": {
+      "count": 1
+    },
+    "TS7006": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/validation.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2739": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/call.test.ts": {
+    "TS2345": {
+      "count": 12
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/list.test.ts": {
+    "TS2345": {
+      "count": 14
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/purge.test.ts": {
+    "TS2345": {
+      "count": 7
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/start.test.ts": {
+    "TS2345": {
+      "count": 4
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/status.test.ts": {
+    "TS2345": {
+      "count": 10
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/stop.test.ts": {
+    "TS2345": {
+      "count": 5
+    }
+  },
+  "packages/wallet-cli/src/commands/wallet/send.test.ts": {
+    "TS2345": {
+      "count": 18
+    }
+  },
+  "packages/wallet-cli/src/commands/wallet/unlock.test.ts": {
+    "TS2345": {
+      "count": 20
+    }
+  },
+  "packages/wallet-cli/src/daemon/daemon-client.test.ts": {
+    "TS2339": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/daemon/rpc-socket-server.test.ts": {
+    "TS2322": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/persistence/persistence.test.ts": {
+    "TS2314": {
+      "count": 1
+    },
+    "TS2578": {
+      "count": 1
+    }
+  },
+  "packages/wallet-framework-docs/content/data-services/writing-data-services/01-getting-started/orders-service.ts": {
+    "TS1479": {
+      "count": 1
+    },
+    "TS1541": {
+      "count": 3
+    },
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/wallet-framework-docs/content/data-services/writing-data-services/02-read-only-requests/orders-service.test.ts": {
+    "TS1479": {
+      "count": 2
+    },
+    "TS1541": {
+      "count": 1
+    }
+  },
+  "packages/wallet-framework-docs/content/data-services/writing-data-services/02-read-only-requests/orders-service.ts": {
+    "TS1479": {
+      "count": 3
+    },
+    "TS1541": {
+      "count": 3
+    },
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/claims-controller/claims-controller.test.ts": {
+    "TS2353": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/config-registry-controller/config-registry-controller.test.ts": {
+    "TS2739": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/gas-fee-controller/gas-fee-controller.test.ts": {
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/shield-controller/shield-controller.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS2352": {
+      "count": 1
+    },
+    "TS2551": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/subscription-controller/subscription-controller.test.ts": {
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/transaction-controller/transaction-controller.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
+    "TS2739": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/Wallet.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
+    "TS2352": {
+      "count": 1
+    },
+    "TS2740": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    },
+    "TS2769": {
+      "count": 1
+    }
+  }
+}
