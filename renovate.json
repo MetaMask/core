@@ -27,6 +27,31 @@
         "@lavamoat/**"
       ],
       "minimumReleaseAge": null
+    },
+    {
+      "description": "Scopes whose packages release together but which are missing from Renovate's monorepo data. Without a group each package gets its own pull request and they all conflict over the same manifests and changelogs.",
+      "matchPackageNames": ["@ethersproject/**"],
+      "groupName": "ethersproject"
+    },
+    {
+      "matchPackageNames": ["@types/**"],
+      "groupName": "DefinitelyTyped"
+    },
+    {
+      "matchPackageNames": ["@ethereumjs/**"],
+      "groupName": "ethereumjs"
+    },
+    {
+      "matchPackageNames": ["@noble/**"],
+      "groupName": "noble"
+    },
+    {
+      "matchPackageNames": ["@yarnpkg/**"],
+      "groupName": "yarnpkg"
+    },
+    {
+      "matchPackageNames": ["@docusaurus/**"],
+      "groupName": "docusaurus"
     }
   ]
 }
