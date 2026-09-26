@@ -10,8 +10,10 @@ import path from 'path';
 import {
   buildSuppressions,
   compareErrorsToSuppressions,
+  findAddedSuppressions,
   findFilelessDiagnostics,
   parseTscOutput,
+  printAddedSuppressions,
   printReport,
   readSuppressions,
   writeSuppressions,
@@ -250,6 +252,106 @@ describe('compareErrorsToSuppressions', () => {
     });
 
     expect(report.didPass).toBe(true);
+  });
+});
+
+describe('findAddedSuppressions', () => {
+  it('flags a file that the baseline does not suppress at all', () => {
+    const added = findAddedSuppressions({
+      current: { 'a.ts': { TS2322: { count: 1 } } },
+      base: {},
+    });
+
+    expect(added).toStrictEqual([
+      { filePath: 'a.ts', code: 'TS2322', count: 1, baseCount: 0 },
+    ]);
+  });
+
+  it('flags a code that the baseline does not suppress within a file it does', () => {
+    const added = findAddedSuppressions({
+      current: { 'a.ts': { TS2322: { count: 1 }, TS7005: { count: 1 } } },
+      base: { 'a.ts': { TS2322: { count: 1 } } },
+    });
+
+    expect(added).toStrictEqual([
+      { filePath: 'a.ts', code: 'TS7005', count: 1, baseCount: 0 },
+    ]);
+  });
+
+  it('flags a count that has grown', () => {
+    const added = findAddedSuppressions({
+      current: { 'a.ts': { TS2322: { count: 3 } } },
+      base: { 'a.ts': { TS2322: { count: 2 } } },
+    });
+
+    expect(added).toStrictEqual([
+      { filePath: 'a.ts', code: 'TS2322', count: 3, baseCount: 2 },
+    ]);
+  });
+
+  it('allows a count that is unchanged', () => {
+    expect(
+      findAddedSuppressions({
+        current: { 'a.ts': { TS2322: { count: 2 } } },
+        base: { 'a.ts': { TS2322: { count: 2 } } },
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it('allows a count that has shrunk', () => {
+    expect(
+      findAddedSuppressions({
+        current: { 'a.ts': { TS2322: { count: 1 } } },
+        base: { 'a.ts': { TS2322: { count: 5 } } },
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it('allows a code or a file to disappear entirely', () => {
+    expect(
+      findAddedSuppressions({
+        current: {},
+        base: { 'a.ts': { TS2322: { count: 5 }, TS7005: { count: 1 } } },
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it('reports every addition, not just the first', () => {
+    const added = findAddedSuppressions({
+      current: {
+        'a.ts': { TS2322: { count: 1 } },
+        'b.ts': { TS7005: { count: 2 } },
+      },
+      base: {},
+    });
+
+    expect(added).toHaveLength(2);
+  });
+});
+
+describe('printAddedSuppressions', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'log').mockReturnValue(undefined);
+  });
+
+  it('announces success when nothing was added', () => {
+    printAddedSuppressions([]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      '✅ No type errors have been added to the suppressions file. Good job!',
+    );
+  });
+
+  it('prints each addition and how to resolve it', () => {
+    printAddedSuppressions([
+      { filePath: 'a.ts', code: 'TS2322', count: 3, baseCount: 2 },
+    ]);
+
+    const output = jest.mocked(console.log).mock.calls.flat().join('\n');
+    expect(output).toContain('a.ts');
+    expect(output).toContain('TS2322');
+    expect(output).toContain('3');
+    expect(output).toContain('2');
   });
 });
 

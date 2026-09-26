@@ -166,6 +166,36 @@ jobs:
             exit 1
           fi
 
+  lint-tsc-ratchet:
+    name: Lint (lint:tsc:ratchet)
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: ${{ matrix.node-version }}
+          # Full history so the merge base with the base branch can be found.
+          fetch-depth: 0
+      - name: Run yarn lint:tsc:ratchet
+        shell: bash
+        run: |
+          yarn lint:tsc:ratchet --base "origin/${BASE_REF#refs/heads/}"
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
   validate-changelog-diffs:
     name: Validate changelog diffs
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
