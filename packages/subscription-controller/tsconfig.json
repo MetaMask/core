@@ -1,5 +1,14 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    /**
+     * This package's tests run under Vitest, which does not enable globals,
+     * so the repo-wide `types: ["jest"]` in `tsconfig.base.json` must not
+     * apply here. This override can go away once every package has moved to
+     * Vitest and that line is removed.
+     */
+    "types": []
+  },
   "references": [
     {
       "path": "../authenticated-user-storage"

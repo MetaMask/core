@@ -1,4 +1,5 @@
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
+import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_MAX_SIGNATURE_ADDRESSES,

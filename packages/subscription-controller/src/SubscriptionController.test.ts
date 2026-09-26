@@ -11,8 +11,10 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { jestAdvanceTime } from '../../../tests/vitest/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
   CANCELLATION_REASONS,
@@ -355,12 +357,12 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
 }): {
   rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
-  mockPerformSignOut: jest.Mock;
+  mockPerformSignOut: Mock;
 } {
   const { rootMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
-  const mockPerformSignOut = jest.fn();
+  const mockPerformSignOut = vi.fn();
   rootMessenger.registerActionHandler(
     'AuthenticationController:performSignOut',
     mockPerformSignOut,
@@ -375,49 +377,49 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
 
 function registerMockSubscriptionService(rootMessenger: RootMessenger): {
   mockService: {
-    getSubscriptions: jest.Mock;
-    getBenefits: jest.Mock;
-    cancelSubscription: jest.Mock;
-    unCancelSubscription: jest.Mock;
-    startSubscriptionWithCard: jest.Mock;
-    getPricing: jest.Mock;
-    startSubscriptionWithCrypto: jest.Mock;
-    updatePaymentMethodCard: jest.Mock;
-    updatePaymentMethodCrypto: jest.Mock;
-    getBillingPortalUrl: jest.Mock;
-    getSubscriptionsEligibilities: jest.Mock;
-    submitUserEvent: jest.Mock;
-    submitSponsorshipIntents: jest.Mock;
-    assignUserToCohort: jest.Mock;
-    linkRewards: jest.Mock;
+    getSubscriptions: Mock;
+    getBenefits: Mock;
+    cancelSubscription: Mock;
+    unCancelSubscription: Mock;
+    startSubscriptionWithCard: Mock;
+    getPricing: Mock;
+    startSubscriptionWithCrypto: Mock;
+    updatePaymentMethodCard: Mock;
+    updatePaymentMethodCrypto: Mock;
+    getBillingPortalUrl: Mock;
+    getSubscriptionsEligibilities: Mock;
+    submitUserEvent: Mock;
+    submitSponsorshipIntents: Mock;
+    assignUserToCohort: Mock;
+    linkRewards: Mock;
   };
-  mockGetSubscriptions: jest.Mock;
-  mockGetBenefits: jest.Mock;
-  mockCancelSubscription: jest.Mock;
-  mockUnCancelSubscription: jest.Mock;
-  mockStartSubscriptionWithCard: jest.Mock;
-  mockGetPricing: jest.Mock;
-  mockStartSubscriptionWithCrypto: jest.Mock;
-  mockUpdatePaymentMethodCard: jest.Mock;
-  mockUpdatePaymentMethodCrypto: jest.Mock;
-  mockSubmitSponsorshipIntents: jest.Mock;
-  mockAssignUserToCohort: jest.Mock;
+  mockGetSubscriptions: Mock;
+  mockGetBenefits: Mock;
+  mockCancelSubscription: Mock;
+  mockUnCancelSubscription: Mock;
+  mockStartSubscriptionWithCard: Mock;
+  mockGetPricing: Mock;
+  mockStartSubscriptionWithCrypto: Mock;
+  mockUpdatePaymentMethodCard: Mock;
+  mockUpdatePaymentMethodCrypto: Mock;
+  mockSubmitSponsorshipIntents: Mock;
+  mockAssignUserToCohort: Mock;
 } {
-  const mockGetSubscriptions = jest.fn().mockImplementation();
-  const mockGetBenefits = jest.fn();
-  const mockCancelSubscription = jest.fn();
-  const mockUnCancelSubscription = jest.fn();
-  const mockStartSubscriptionWithCard = jest.fn();
-  const mockGetPricing = jest.fn();
-  const mockStartSubscriptionWithCrypto = jest.fn();
-  const mockUpdatePaymentMethodCard = jest.fn();
-  const mockUpdatePaymentMethodCrypto = jest.fn();
-  const mockGetBillingPortalUrl = jest.fn();
-  const mockGetSubscriptionsEligibilities = jest.fn();
-  const mockSubmitUserEvent = jest.fn();
-  const mockSubmitSponsorshipIntents = jest.fn();
-  const mockAssignUserToCohort = jest.fn();
-  const mockLinkRewards = jest.fn();
+  const mockGetSubscriptions = vi.fn().mockImplementation(() => undefined);
+  const mockGetBenefits = vi.fn();
+  const mockCancelSubscription = vi.fn();
+  const mockUnCancelSubscription = vi.fn();
+  const mockStartSubscriptionWithCard = vi.fn();
+  const mockGetPricing = vi.fn();
+  const mockStartSubscriptionWithCrypto = vi.fn();
+  const mockUpdatePaymentMethodCard = vi.fn();
+  const mockUpdatePaymentMethodCrypto = vi.fn();
+  const mockGetBillingPortalUrl = vi.fn();
+  const mockGetSubscriptionsEligibilities = vi.fn();
+  const mockSubmitUserEvent = vi.fn();
+  const mockSubmitSponsorshipIntents = vi.fn();
+  const mockAssignUserToCohort = vi.fn();
+  const mockLinkRewards = vi.fn();
 
   rootMessenger.registerActionHandler(
     'SubscriptionService:getSubscriptions',
@@ -525,7 +527,7 @@ type WithControllerCallback<ReturnValue> = (params: {
   mockService: ReturnType<
     typeof registerMockSubscriptionService
   >['mockService'];
-  mockPerformSignOut: jest.Mock;
+  mockPerformSignOut: Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -1543,7 +1545,7 @@ describe('SubscriptionController', () => {
             rewardAccountId: mockRewardAccountId,
           });
 
-          const stateChangeListener = jest.fn();
+          const stateChangeListener = vi.fn();
           rootMessenger.subscribe(
             'SubscriptionController:stateChange',
             stateChangeListener,
@@ -2839,7 +2841,7 @@ describe('SubscriptionController', () => {
             });
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
-          const triggerAccessTokenRefreshSpy = jest.spyOn(
+          const triggerAccessTokenRefreshSpy = vi.spyOn(
             controller,
             'triggerAccessTokenRefresh',
           );
@@ -3384,16 +3386,16 @@ describe('SubscriptionController', () => {
 
   describe('startPolling', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should call getSubscriptions with the correct interval', async () => {
       await withController(async ({ controller }) => {
-        const getSubscriptionsSpy = jest.spyOn(controller, 'getSubscriptions');
+        const getSubscriptionsSpy = vi.spyOn(controller, 'getSubscriptions');
         controller.startPolling({});
         await jestAdvanceTime({ duration: 0 });
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
@@ -3405,7 +3407,7 @@ describe('SubscriptionController', () => {
         mockService.getSubscriptions.mockResolvedValue(
           MOCK_GET_SUBSCRIPTIONS_RESPONSE,
         );
-        const triggerAccessTokenRefreshSpy = jest.spyOn(
+        const triggerAccessTokenRefreshSpy = vi.spyOn(
           controller,
           'triggerAccessTokenRefresh',
         );
@@ -4477,7 +4479,7 @@ describe('SubscriptionController', () => {
   describe('submitUserEvent', () => {
     it('should submit user event successfully', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
-        const submitUserEventSpy = jest
+        const submitUserEventSpy = vi
           .spyOn(mockService, 'submitUserEvent')
           .mockResolvedValue(undefined);
 
@@ -4497,7 +4499,7 @@ describe('SubscriptionController', () => {
 
     it('should submit user event with cohort successfully', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
-        const submitUserEventSpy = jest
+        const submitUserEventSpy = vi
           .spyOn(mockService, 'submitUserEvent')
           .mockResolvedValue(undefined);
 
@@ -4536,7 +4538,7 @@ describe('SubscriptionController', () => {
   describe('assignUserToCohort', () => {
     it('should assign user to cohort successfully', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
-        const assignUserToCohortSpy = jest
+        const assignUserToCohortSpy = vi
           .spyOn(mockService, 'assignUserToCohort')
           .mockResolvedValue(undefined);
 
@@ -4853,7 +4855,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
-          const submitSponsorshipIntentsSpy = jest
+          const submitSponsorshipIntentsSpy = vi
             .spyOn(mockService, 'submitSponsorshipIntents')
             .mockResolvedValue(undefined);
 
@@ -6016,7 +6018,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
-          const linkRewardsSpy = jest
+          const linkRewardsSpy = vi
             .spyOn(mockService, 'linkRewards')
             .mockResolvedValue({
               success: true,

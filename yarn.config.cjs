@@ -11,9 +11,10 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
+const { existsSync } = require('fs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
-const { basename, resolve } = require('path');
+const { basename, join, resolve } = require('path');
 const semver = require('semver');
 const { inspect } = require('util');
 
@@ -687,40 +688,52 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
 }
 
 /**
+ * The test scripts a workspace is expected to define, keyed by test runner.
+ *
+ * Packages are migrating from Jest to Vitest one at a time; a package is
+ * considered migrated when it has a `vitest.config.mts`. Both sets use the same
+ * script names, so the monorepo's `foreach` orchestration does not care which
+ * runner a given package uses.
+ */
+const TEST_SCRIPTS_BY_RUNNER = {
+  jest: {
+    run: 'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    clean: 'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    verbose: 'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    watch: 'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+  },
+  vitest: {
+    run: 'vitest run --reporter=dot',
+    clean: 'vitest run --no-cache',
+    verbose: 'vitest run --reporter=verbose',
+    watch: 'vitest watch',
+  },
+};
+
+/**
  * Expect that the workspace has scripts for running tests.
  *
  * If the workspace has a `test:types` script (i.e. it runs type tests in
- * addition to Jest tests), it must have scripts that run both Jest and the type
- * tests, otherwise just Jest.
+ * addition to unit tests), it must have scripts that run both the unit tests and
+ * the type tests, otherwise just the unit tests.
  *
- * It must also provide scripts that allow Jest to be run in silent mode, clean
- * mode, verbose mode, and watch mode.
+ * It must also provide scripts that allow the tests to be run in silent mode,
+ * clean mode, verbose mode, and watch mode.
  *
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectTestScripts(workspace) {
-  expectWorkspaceField(
-    workspace,
-    'scripts.test:watch',
-    'NODE_OPTIONS=--experimental-vm-modules jest --watch',
-  );
+  const runner = existsSync(join(__dirname, workspace.cwd, 'vitest.config.mts'))
+    ? 'vitest'
+    : 'jest';
+  const scripts = TEST_SCRIPTS_BY_RUNNER[runner];
+
+  expectWorkspaceField(workspace, 'scripts.test:watch', scripts.watch);
 
   if (workspace.manifest.scripts['test:types'] === undefined) {
-    expectWorkspaceField(
-      workspace,
-      'scripts.test',
-      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-    );
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:clean',
-      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-    );
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:verbose',
-      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-    );
+    expectWorkspaceField(workspace, 'scripts.test', scripts.run);
+    expectWorkspaceField(workspace, 'scripts.test:clean', scripts.clean);
+    expectWorkspaceField(workspace, 'scripts.test:verbose', scripts.verbose);
   } else {
     expectWorkspaceField(
       workspace,
@@ -737,20 +750,12 @@ function expectTestScripts(workspace) {
       'scripts.test:verbose',
       'yarn test:unit:verbose && yarn test:types',
     );
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:unit',
-      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-    );
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:unit:clean',
-      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-    );
+    expectWorkspaceField(workspace, 'scripts.test:unit', scripts.run);
+    expectWorkspaceField(workspace, 'scripts.test:unit:clean', scripts.clean);
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:verbose',
-      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      scripts.verbose,
     );
   }
 }

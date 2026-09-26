@@ -6,6 +6,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { create } from '@metamask/superstruct';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   CANCELLATION_REASONS,
@@ -188,14 +190,14 @@ type RootMessenger = Messenger<
 
 type MockServiceContext = {
   service: SubscriptionService;
-  fetchMock: jest.Mock;
-  captureExceptionMock: jest.Mock;
+  fetchMock: Mock;
+  captureExceptionMock: Mock;
   env: Env;
   testUrl: string;
   rootMessenger: RootMessenger;
   messenger: SubscriptionServiceMessenger;
-  getBearerToken: jest.Mock;
-  getSessionProfile: jest.Mock;
+  getBearerToken: Mock;
+  getSessionProfile: Mock;
 };
 
 function createRootMessenger(): RootMessenger {
@@ -205,15 +207,15 @@ function createRootMessenger(): RootMessenger {
 function createService({
   env = Env.DEV,
   fetchMock,
-  captureExceptionMock = jest.fn(),
-  getBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
-  getSessionProfile = jest.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
+  captureExceptionMock = vi.fn(),
+  getBearerToken = vi.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
+  getSessionProfile = vi.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
 }: {
   env?: Env;
-  fetchMock: jest.Mock;
-  captureExceptionMock?: jest.Mock;
-  getBearerToken?: jest.Mock;
-  getSessionProfile?: jest.Mock;
+  fetchMock: Mock;
+  captureExceptionMock?: Mock;
+  getBearerToken?: Mock;
+  getSessionProfile?: Mock;
 }): MockServiceContext {
   const rootMessenger = createRootMessenger();
   rootMessenger.registerActionHandler(
@@ -266,12 +268,12 @@ function withMockSubscriptionService(
   fn: (params: MockServiceContext) => Promise<void>,
   options: {
     env?: Env;
-    getBearerToken?: jest.Mock;
-    getSessionProfile?: jest.Mock;
+    getBearerToken?: Mock;
+    getSessionProfile?: Mock;
   } = {},
 ): Promise<void> {
-  const fetchMock = jest.fn();
-  const captureExceptionMock = jest.fn();
+  const fetchMock = vi.fn();
+  const captureExceptionMock = vi.fn();
   const context = createService({
     env: options.env ?? Env.DEV,
     fetchMock,
@@ -304,8 +306,8 @@ function createMockResponse({
       get: (key: string) =>
         key.toLowerCase() === 'content-type' ? contentType : null,
     },
-    json: jest.fn().mockResolvedValue(jsonData),
-    text: jest.fn().mockResolvedValue(textData),
+    json: vi.fn().mockResolvedValue(jsonData),
+    text: vi.fn().mockResolvedValue(textData),
   } as unknown as Response;
 }
 
@@ -321,30 +323,30 @@ function getTestUrl(env: Env): string {
 
 describe('SubscriptionService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('constructor', () => {
     it('should create instance with valid config', () => {
-      const { service } = createService({ fetchMock: jest.fn() });
+      const { service } = createService({ fetchMock: vi.fn() });
 
       expect(service).toBeInstanceOf(SubscriptionService);
     });
 
     it('should create instance with different environments', () => {
       expect(
-        () => createService({ env: Env.DEV, fetchMock: jest.fn() }).service,
+        () => createService({ env: Env.DEV, fetchMock: vi.fn() }).service,
       ).not.toThrow();
       expect(
-        () => createService({ env: Env.UAT, fetchMock: jest.fn() }).service,
+        () => createService({ env: Env.UAT, fetchMock: vi.fn() }).service,
       ).not.toThrow();
       expect(
-        () => createService({ env: Env.PRD, fetchMock: jest.fn() }).service,
+        () => createService({ env: Env.PRD, fetchMock: vi.fn() }).service,
       ).not.toThrow();
     });
 
     it('defaults fetchFunction to globalThis.fetch when omitted', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         createMockResponse({
           jsonData: {
             customerId: 'cus_1',
@@ -392,7 +394,7 @@ describe('SubscriptionService', () => {
     });
 
     it('defaults env to PRD when omitted', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const rootMessenger = createRootMessenger();
       rootMessenger.registerActionHandler(
         'AuthenticationController:getBearerToken',
@@ -561,7 +563,7 @@ describe('SubscriptionService', () => {
           expect(fetchMock).not.toHaveBeenCalled();
         },
         {
-          getBearerToken: jest
+          getBearerToken: vi
             .fn()
             .mockRejectedValue(new Error('Wallet is locked')),
         },
@@ -992,8 +994,8 @@ describe('SubscriptionService', () => {
     });
 
     it('should throw when URL construction fails', async () => {
-      const fetchMock = jest.fn();
-      const captureExceptionMock = jest.fn();
+      const fetchMock = vi.fn();
+      const captureExceptionMock = vi.fn();
       const { service } = createService({
         env: 'invalid' as Env,
         fetchMock,
@@ -1014,10 +1016,10 @@ describe('SubscriptionService', () => {
     });
 
     it('should capture non-Error URL construction failures', async () => {
-      const fetchMock = jest.fn();
-      const captureExceptionMock = jest.fn();
+      const fetchMock = vi.fn();
+      const captureExceptionMock = vi.fn();
       const { service } = createService({ fetchMock, captureExceptionMock });
-      const getEnvUrlsSpy = jest
+      const getEnvUrlsSpy = vi
         .spyOn(constants, 'getEnvUrls')
         .mockImplementation(() => {
           // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -1131,7 +1133,7 @@ describe('SubscriptionService', () => {
           );
         },
         {
-          getBearerToken: jest.fn().mockRejectedValue('string error'),
+          getBearerToken: vi.fn().mockRejectedValue('string error'),
         },
       );
 
@@ -1147,7 +1149,7 @@ describe('SubscriptionService', () => {
           );
         },
         {
-          getBearerToken: jest
+          getBearerToken: vi
             .fn()
             .mockRejectedValue(new Error('Wallet is locked')),
         },
@@ -1236,7 +1238,7 @@ describe('SubscriptionService', () => {
 
     it('should not include cancellation feedback in the query key', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        const fetchQuerySpy = jest
+        const fetchQuerySpy = vi
           .spyOn(
             service as unknown as {
               fetchQuery: SubscriptionService['fetchQuery'];
@@ -1349,7 +1351,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should start subscription without trial', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
       const request: StartSubscriptionRequest = {
         products: [PRODUCT_TYPES.SHIELD],
@@ -1367,7 +1369,7 @@ describe('SubscriptionService', () => {
     });
 
     it('throws when products array is empty', async () => {
-      const { service } = createService({ fetchMock: jest.fn() });
+      const { service } = createService({ fetchMock: vi.fn() });
       const request: StartSubscriptionRequest = {
         products: [],
         isTrialRequested: true,
@@ -1419,7 +1421,7 @@ describe('SubscriptionService', () => {
     });
 
     it('throws when products array is empty', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
       const request: StartCryptoSubscriptionRequest = {
         ...MOCK_CRYPTO_REQUEST,
@@ -1473,7 +1475,7 @@ describe('SubscriptionService', () => {
           delegationHash?: string;
         },
       ) => {
-        const fetchMock = jest.fn();
+        const fetchMock = vi.fn();
         const { service } = createService({ fetchMock });
         const { rawTransaction: _rawTransaction, ...base } =
           MOCK_CRYPTO_REQUEST;
@@ -1513,7 +1515,7 @@ describe('SubscriptionService', () => {
     };
 
     it('should fetch pricing successfully', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       fetchMock.mockResolvedValue(
@@ -1545,7 +1547,7 @@ describe('SubscriptionService', () => {
     });
 
     it('rejects vault share tokens that omit accountantAddress', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       fetchMock.mockResolvedValue(
@@ -1563,7 +1565,7 @@ describe('SubscriptionService', () => {
     });
 
     it('accepts vault share tokens identified by accountantAddress alone', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       const token = {
@@ -1586,7 +1588,7 @@ describe('SubscriptionService', () => {
     });
 
     it('accepts vault names the client does not know about', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       fetchMock.mockResolvedValue(
@@ -1611,7 +1613,7 @@ describe('SubscriptionService', () => {
     });
 
     it('accepts settlement tokens carrying fields added by a later API release', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       fetchMock.mockResolvedValue(
@@ -1631,7 +1633,7 @@ describe('SubscriptionService', () => {
     });
 
     it('accepts payment method rows carrying fields added by a later API release', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       fetchMock.mockResolvedValue(
@@ -1656,7 +1658,7 @@ describe('SubscriptionService', () => {
     });
 
     it('rejects card payment methods that include crypto-only fields', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
 
       fetchMock.mockResolvedValue(
@@ -2156,7 +2158,7 @@ describe('SubscriptionService', () => {
 
   describe('retry policy', () => {
     it('retries 429 responses up to the default retry limit', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       let attempts = 0;
       fetchMock.mockImplementation(async () => {
         attempts += 1;
@@ -2175,7 +2177,7 @@ describe('SubscriptionService', () => {
     });
 
     it('does not duplicate query parameters on retry', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       let attempts = 0;
       fetchMock.mockImplementation(async () => {
         attempts += 1;
@@ -2413,17 +2415,15 @@ describe('SubscriptionService', () => {
 
   describe('error handling', () => {
     it('rethrows SubscriptionServiceError thrown by fetchQuery without wrapping', async () => {
-      const fetchMock = jest.fn();
+      const fetchMock = vi.fn();
       const { service } = createService({ fetchMock });
       const authError = new SubscriptionServiceError('auth failed');
-      jest
-        .spyOn(
-          service as unknown as {
-            fetchQuery: SubscriptionService['fetchQuery'];
-          },
-          'fetchQuery',
-        )
-        .mockRejectedValue(authError);
+      vi.spyOn(
+        service as unknown as {
+          fetchQuery: SubscriptionService['fetchQuery'];
+        },
+        'fetchQuery',
+      ).mockRejectedValue(authError);
 
       await expect(service.getSubscriptions()).rejects.toBe(authError);
     });

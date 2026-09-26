@@ -1,0 +1,142 @@
+/**
+ * Custom matcher implementations, shared by the Jest and Vitest setup files.
+ *
+ * This module only defines the matchers; registering them with `expect.extend`
+ * is the job of `tests/setupAfterEnv/matchers.ts` (Jest) and
+ * `tests/vitest/setup-after-env.ts` (Vitest), because `expect` is a global under
+ * Jest but an explicit import under Vitest.
+ */
+
+type MatcherResult = {
+  message: () => string;
+  pass: boolean;
+};
+
+const UNRESOLVED = Symbol('timedOut');
+// Store this in case it gets stubbed later
+const originalSetTimeout = global.setTimeout;
+const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
+
+/**
+ * Produces a sort of dummy promise which can be used in conjunction with a
+ * "real" promise to determine whether the "real" promise was ever resolved. If
+ * the promise that is produced by this function resolves first, then the other
+ * one must be unresolved.
+ *
+ * @param duration - How long to wait before resolving the promise returned by
+ * this function.
+ * @returns A promise that resolves to a symbol.
+ */
+const treatUnresolvedAfter = async (
+  duration: number,
+): Promise<typeof UNRESOLVED> => {
+  return new Promise((resolve) => {
+    originalSetTimeout(resolve, duration, UNRESOLVED);
+  });
+};
+
+export const matchers = {
+  /**
+   * Tests that the given promise is fulfilled within a certain amount of time
+   * (which is the default time that tests wait before timing out as configured
+   * in the test runner's configuration file).
+   *
+   * Inspired by <https://stackoverflow.com/a/68409467/260771>.
+   *
+   * @param promise - The promise to test.
+   * @returns The result of the matcher.
+   */
+  async toBeFulfilled(
+    this: { isNot?: boolean },
+    // TODO: Replace `any` with type
+    // oxlint-disable-next-line typescript/no-explicit-any
+    promise: Promise<any>,
+  ): Promise<MatcherResult> {
+    if (this.isNot === true) {
+      throw new Error(
+        "Using `.not.toBeFulfilled(...)` is not supported. Use `.rejects` to test the promise's rejection value instead.",
+      );
+    }
+
+    // TODO: Replace `any` with type
+    // oxlint-disable-next-line typescript/no-explicit-any
+    let rejectionValue: any = UNRESOLVED;
+    try {
+      await promise;
+    } catch (error) {
+      rejectionValue = error;
+    }
+
+    if (rejectionValue !== UNRESOLVED) {
+      return {
+        message: (): string =>
+          `Expected promise to be fulfilled, but it was rejected with ${rejectionValue}.`,
+        pass: false,
+      };
+    }
+
+    return {
+      message: (): string =>
+        'This message should not be displayed as it is for the negative case, which will never happen.',
+      pass: true,
+    };
+  },
+
+  /**
+   * Tests that the given promise is never fulfilled or rejected past a certain
+   * amount of time (which is the default time that tests wait before timing out
+   * as configured in the test runner's configuration file).
+   *
+   * Inspired by <https://stackoverflow.com/a/68409467/260771>.
+   *
+   * @param promise - The promise to test.
+   * @returns The result of the matcher.
+   */
+  async toNeverResolve(
+    this: { isNot?: boolean },
+    // TODO: Replace `any` with type
+    // oxlint-disable-next-line typescript/no-explicit-any
+    promise: Promise<any>,
+  ): Promise<MatcherResult> {
+    if (this.isNot === true) {
+      throw new Error(
+        'Using `.not.toNeverResolve(...)` is not supported. ' +
+          'You probably want to either `await` the promise and test its ' +
+          'resolution value or use `.rejects` to test its rejection value instead.',
+      );
+    }
+
+    // TODO: Replace `any` with type
+    // oxlint-disable-next-line typescript/no-explicit-any
+    let resolutionValue: any;
+    // TODO: Replace `any` with type
+    // oxlint-disable-next-line typescript/no-explicit-any
+    let rejectionValue: any;
+    try {
+      // oxlint-disable-next-line typescript/no-unsafe-assignment
+      resolutionValue = await Promise.race([
+        promise,
+        treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
+      ]);
+    } catch (error) {
+      rejectionValue = error;
+    }
+
+    return resolutionValue === UNRESOLVED
+      ? {
+          message: (): string =>
+            `Expected promise to resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it did not`,
+          pass: true,
+        }
+      : {
+          message: (): string => {
+            return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
+              rejectionValue
+                ? `was rejected with ${rejectionValue}`
+                : `resolved with ${resolutionValue}`
+            }`;
+          },
+          pass: false,
+        };
+  },
+};

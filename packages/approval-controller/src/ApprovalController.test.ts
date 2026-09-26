@@ -1,16 +1,17 @@
-/* eslint-disable jest/expect-expect */
-
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+/* eslint-disable jest/expect-expect */
 import type {
   MessengerActions,
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
+import { JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -33,7 +34,7 @@ import {
   NoApprovalFlowsError,
 } from './errors.js';
 
-jest.mock('nanoid');
+vi.mock('nanoid');
 
 type AllActions = MessengerActions<ApprovalControllerMessenger>;
 
@@ -41,7 +42,7 @@ type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const nanoidMock = jest.mocked(nanoid);
+const nanoidMock = vi.mocked(nanoid);
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
@@ -87,10 +88,7 @@ const controllerName = 'ApprovalController';
  * @returns The ID collision error.
  */
 function getIdCollisionError(id: string) {
-  return getError(
-    `Approval request with id '${id}' already exists.`,
-    errorCodes.rpc.internal,
-  );
+  return getError(`Approval request with id '${id}' already exists.`);
 }
 
 /**
@@ -102,7 +100,7 @@ function getIdCollisionError(id: string) {
  */
 function getOriginTypeCollisionError(origin: string, type = TYPE) {
   const message = `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
-  return getError(message, errorCodes.rpc.resourceUnavailable);
+  return getError(message);
 }
 
 /**
@@ -111,7 +109,7 @@ function getOriginTypeCollisionError(origin: string, type = TYPE) {
  * @returns An invalid ID error.
  */
 function getInvalidIdError() {
-  return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
+  return getError('Must specify non-empty string id.');
 }
 
 /**
@@ -157,10 +155,7 @@ function getInvalidHasTypeError() {
  * @returns The invalid origin error.
  */
 function getInvalidOriginError() {
-  return getError(
-    'Must specify non-empty string origin.',
-    errorCodes.rpc.internal,
-  );
+  return getError('Must specify non-empty string origin.');
 }
 
 /**
@@ -169,10 +164,7 @@ function getInvalidOriginError() {
  * @returns The invalid request data error.
  */
 function getInvalidRequestDataError() {
-  return getError(
-    'Request data must be a plain object if specified.',
-    errorCodes.rpc.internal,
-  );
+  return getError('Request data must be a plain object if specified.');
 }
 
 /**
@@ -181,20 +173,16 @@ function getInvalidRequestDataError() {
  * @returns The invalid request data error.
  */
 function getInvalidRequestStateError() {
-  return getError(
-    'Request state must be a plain object if specified.',
-    errorCodes.rpc.internal,
-  );
+  return getError('Request state must be a plain object if specified.');
 }
 
 /**
  * Get an invalid type error.
  *
- * @param code - The error code.
  * @returns The invalid type error.
  */
-function getInvalidTypeError(code: number) {
-  return getError('Must specify non-empty string type.', code);
+function getInvalidTypeError() {
+  return getError('Must specify non-empty string type.');
 }
 
 /**
@@ -216,23 +204,19 @@ function getApprovalCountParamsError() {
 }
 
 /**
- * Get an error.
+ * Get the message of an expected error.
+ *
+ * Jest's `toThrow` only ever compared the `message` of an expected error object,
+ * so the error codes these helpers used to pass were never actually asserted.
+ * Vitest compares a thrown value strictly, including its constructor, which a
+ * plain object can never match, so these helpers now return the message alone -
+ * which is what was being checked all along.
  *
  * @param message - The error message.
- * @param code - The error code.
- * @returns An Error.
+ * @returns The error message.
  */
-function getError(message: string, code?: number) {
-  const err = {
-    name: 'Error',
-    message,
-  } as { name: string; message: string; code?: number };
-
-  if (code !== undefined) {
-    err.code = code;
-  }
-
-  return err;
+function getError(message: string) {
+  return message;
 }
 
 /**
@@ -260,13 +244,13 @@ function getMessengers() {
 
 describe('approval controller', () => {
   let approvalController: ApprovalController;
-  let showApprovalRequest: jest.Mock;
+  let showApprovalRequest: Mock;
 
   beforeEach(() => {
     nanoidMock.mockReturnValue('TestId');
-    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(global.console, 'info').mockImplementation(() => undefined);
 
-    showApprovalRequest = jest.fn();
+    showApprovalRequest = vi.fn();
 
     approvalController = new ApprovalController({
       messenger: getMessengers().approvalControllerMessenger,
@@ -300,7 +284,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: {},
         } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+      ).toThrow(getInvalidTypeError());
 
       expect(() =>
         approvalController.add({
@@ -308,7 +292,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: '',
         } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+      ).toThrow(getInvalidTypeError());
 
       expect(() =>
         approvalController.add({
@@ -1237,7 +1221,7 @@ describe('approval controller', () => {
     });
 
     it('deletes existing entries', async () => {
-      const rejectSpy = jest.spyOn(approvalController, 'rejectRequest');
+      const rejectSpy = vi.spyOn(approvalController, 'rejectRequest');
 
       approvalController
         .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })

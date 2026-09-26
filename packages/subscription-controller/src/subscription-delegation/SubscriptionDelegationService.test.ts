@@ -9,6 +9,8 @@ import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
 import {
@@ -119,15 +121,15 @@ const INSUFFICIENT_BALANCE = {
 };
 
 type Mocks = {
-  listDelegations: jest.Mock;
-  createDelegation: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock;
-  getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
-  getRemoteFeatureFlagState: jest.Mock;
-  fetchBalanceWithFallback: jest.Mock;
-  getPricing: jest.Mock;
+  listDelegations: Mock;
+  createDelegation: Mock;
+  signDelegation: Mock;
+  verifyDelegation: Mock;
+  getIntentsByAddress: Mock;
+  createIntents: Mock;
+  getRemoteFeatureFlagState: Mock;
+  fetchBalanceWithFallback: Mock;
+  getPricing: Mock;
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -142,10 +144,10 @@ function setup(
   } = {},
 ) {
   const mocks: Mocks = {
-    listDelegations: jest.fn().mockResolvedValue(options.listDelegations ?? []),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
-    signDelegation: jest.fn().mockResolvedValue(SIGNATURE),
-    verifyDelegation: jest
+    listDelegations: vi.fn().mockResolvedValue(options.listDelegations ?? []),
+    createDelegation: vi.fn().mockResolvedValue(undefined),
+    signDelegation: vi.fn().mockResolvedValue(SIGNATURE),
+    verifyDelegation: vi
       .fn()
       .mockImplementation(async ({ signedDelegation }) => {
         if (options.verify) {
@@ -157,16 +159,16 @@ function setup(
         });
         return { valid: true, delegationHash };
       }),
-    getIntentsByAddress: jest.fn().mockResolvedValue(options.intents ?? []),
-    createIntents: jest.fn().mockResolvedValue([]),
-    getRemoteFeatureFlagState: jest.fn().mockReturnValue({
+    getIntentsByAddress: vi.fn().mockResolvedValue(options.intents ?? []),
+    createIntents: vi.fn().mockResolvedValue([]),
+    getRemoteFeatureFlagState: vi.fn().mockReturnValue({
       remoteFeatureFlags: options.remoteFeatureFlags ?? REMOTE_FEATURE_FLAGS,
       cacheTimestamp: 0,
     }),
-    fetchBalanceWithFallback: jest
+    fetchBalanceWithFallback: vi
       .fn()
       .mockResolvedValue(options.balance ?? SUFFICIENT_BALANCE),
-    getPricing: jest.fn().mockResolvedValue(options.pricing ?? PRICING),
+    getPricing: vi.fn().mockResolvedValue(options.pricing ?? PRICING),
   };
 
   type AllowedActions =
@@ -425,8 +427,8 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it('offsets the period startDate by pricing trialPeriodDays when trial is requested', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
 
       try {
         const { service, mocks } = setup();
@@ -440,13 +442,13 @@ describe('SubscriptionDelegationService', () => {
           Math.floor(Date.now() / 1000) + PRICE.trialPeriodDays * 86_400,
         );
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('does not apply pricing trialPeriodDays when trial is not requested', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
 
       try {
         const { service, mocks } = setup();
@@ -457,7 +459,7 @@ describe('SubscriptionDelegationService', () => {
           Math.floor(Date.now() / 1000),
         );
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 

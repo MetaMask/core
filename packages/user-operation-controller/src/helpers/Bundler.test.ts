@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { UserOperation } from '../types.js';
 import { Bundler } from './Bundler.js';
 
@@ -50,7 +52,7 @@ describe('Bundler', () => {
        * @param jsonResponse - The JSON response to return.
        */
       function mockJsonResponse(jsonResponse: Record<string, unknown>) {
-        jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+        vi.spyOn(global, 'fetch').mockResolvedValueOnce({
           json: () => Promise.resolve(jsonResponse),
         } as Response);
       }
