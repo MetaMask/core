@@ -53,7 +53,7 @@
     "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/constants": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
+    "@ethersproject/providers": "^5.8.0",
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/assets-controller": "^17.0.0",
     "@metamask/assets-controllers": "^112.0.4",
