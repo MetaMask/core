@@ -1433,6 +1433,7 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: Object.freeze(['twap', 'scale', 'chase']),
+        supportedMarginModes: Object.freeze(['isolated', 'cross']),
       });
       mockHLProvider.getOrderCapabilities.mockResolvedValue(capabilities);
 
@@ -1551,6 +1552,98 @@ describe('AggregatedPerpsProvider', () => {
       });
       expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
         '[AggregatedPerpsProvider] Order capabilities unavailable',
+        { providerId: 'hyperliquid', error: 'offline' },
+      );
+    });
+
+    it('gets the margin mode lock from the routed provider', async () => {
+      mockLighterProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+        status: 'locked',
+        providerId: 'lighter',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'locked',
+        providerId: 'lighter',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+      expect(mockLighterProvider.getMarginModeLock).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'lighter',
+      });
+    });
+
+    it('reports a margin mode lock route that is not registered', async () => {
+      const providerWithoutLighter = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(
+        providerWithoutLighter.getMarginModeLock({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_found',
+      });
+    });
+
+    it('reports not_implemented when the routed provider has no margin mode lock hook', async () => {
+      mockHLProvider.getMarginModeLock = undefined;
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'not_implemented',
+      });
+    });
+
+    it('rejects a margin mode lock attributed to a different provider', async () => {
+      mockLighterProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+        status: 'unlocked',
+        providerId: 'hyperliquid',
+      });
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_routable',
+      });
+    });
+
+    it('reports unavailable when the routed margin mode lock read throws', async () => {
+      mockHLProvider.getMarginModeLock = jest
+        .fn()
+        .mockRejectedValue(new Error('offline'));
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        '[AggregatedPerpsProvider] Margin mode lock unavailable',
         { providerId: 'hyperliquid', error: 'offline' },
       );
     });

@@ -99,6 +99,19 @@ export type PerpsControllerGetOrderCapabilitiesAction = {
 };
 
 /**
+ * Get the margin mode the market is currently locked to by an open
+ * position or resting order, through the active provider route used by
+ * order placement. Never throws; failures report an unavailable status.
+ *
+ * @param params - Market and optional provider route.
+ * @returns The provider-reported margin-mode lock.
+ */
+export type PerpsControllerGetMarginModeLockAction = {
+  type: `PerpsController:getMarginModeLock`;
+  handler: PerpsController['getMarginModeLock'];
+};
+
+/**
  * Build a Scale price ladder using the active provider's venue rules.
  *
  * @param params - Market, ladder bounds, count, and optional explicit route.
@@ -1362,6 +1375,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
+  | PerpsControllerGetMarginModeLockAction
   | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction

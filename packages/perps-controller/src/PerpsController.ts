@@ -95,6 +95,7 @@ import type {
   GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -109,6 +110,7 @@ import type {
   MarketInfo,
   Order,
   OrderCapabilitiesUnavailableReason,
+  MarginModeLockUnavailableReason,
   OrderDirection,
   OrderFill,
   OrderParams,
@@ -116,6 +118,7 @@ import type {
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsMarginModeLock,
   PerpsScalePriceLadder,
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
@@ -930,6 +933,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOrderBookGrouping',
   'getOrderBookPreferences',
   'getOrderCapabilities',
+  'getMarginModeLock',
   'getScalePriceLadder',
   'getOrderFills',
   'getOrders',
@@ -2796,6 +2800,75 @@ export class PerpsController extends BaseController<
         resolvedProviderId,
       );
     }
+  }
+
+  /**
+   * Get the margin mode the market is currently locked to by an open
+   * position or resting order, through the active provider route used by
+   * order placement. Never throws; failures report an unavailable status.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The provider-reported margin-mode lock.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    let activeProvider: PerpsProvider;
+    try {
+      activeProvider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin mode lock unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginModeLock').message,
+      });
+      return this.#getUnavailableMarginModeLock(
+        'provider_unavailable',
+        params.providerId,
+      );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableMarginModeLock(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getMarginModeLock) {
+      return this.#getUnavailableMarginModeLock(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    try {
+      const lock = await activeProvider.getMarginModeLock(params);
+      if (
+        lock.status === 'unavailable' &&
+        lock.providerId === undefined &&
+        resolvedProviderId !== undefined
+      ) {
+        return { ...lock, providerId: resolvedProviderId };
+      }
+      return lock;
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin mode lock unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginModeLock').message,
+      });
+      return this.#getUnavailableMarginModeLock(
+        'provider_unavailable',
+        resolvedProviderId,
+      );
+    }
+  }
+
+  #getUnavailableMarginModeLock(
+    reason: MarginModeLockUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsMarginModeLock {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
   }
 
   /**

@@ -1975,7 +1975,7 @@ describe('PerpsController', () => {
       expect(controller.testGetProviders().has('hyperliquid')).toBe(true);
       expect(mockMessenger.registerMethodActionHandlers).toHaveBeenCalledWith(
         controller,
-        expect.arrayContaining(['getOrderCapabilities']),
+        expect.arrayContaining(['getOrderCapabilities', 'getMarginModeLock']),
       );
     });
 
