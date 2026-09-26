@@ -4,6 +4,7 @@
   "dependencyDashboard": true,
   "dependencyDashboardApproval": true,
   "minimumReleaseAge": "3 days",
+  "osvVulnerabilityAlerts": true,
   "postUpdateOptions": ["yarnDedupeHighest"],
   "rangeStrategy": "bump",
   "skipInstalls": false,
