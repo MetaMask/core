@@ -9,7 +9,10 @@ import type {
   ConfigRegistryApiServiceMessenger,
   ConfigRegistryApiServiceOptions,
 } from './config-registry-api-service.js';
-import type { RegistryConfigApiResponse } from './types.js';
+import type {
+  RegistryConfigApiResponse,
+  RegistryEventsConfigApiResponse,
+} from './types.js';
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {
@@ -27,6 +30,7 @@ function createService(
 }
 
 const CONFIG_PATH = '/v1/config/networks';
+const EVENTS_CONFIG_PATH = '/v1/config/events-config';
 const UAT_ORIGIN = 'https://client-config.uat-api.cx.metamask.io';
 const DEV_ORIGIN = 'https://client-config.dev-api.cx.metamask.io';
 const PRD_ORIGIN = 'https://client-config.api.cx.metamask.io';
@@ -36,6 +40,18 @@ const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
     version: '"24952800ba9dafbc5e2c91f57f386d28"',
     timestamp: 1761829548000,
     chains: [createMockNetworkConfig()],
+  },
+};
+
+const MOCK_EVENTS_CONFIG_RESPONSE: RegistryEventsConfigApiResponse = {
+  data: {
+    schemaVersion: '1.0.0',
+    version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+    timestamp: 1761829548000,
+    events: {
+      TestEvent: ['product'],
+      MarketingEvent: ['marketing'],
+    },
   },
 };
 
@@ -208,9 +224,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -219,9 +233,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -232,9 +244,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -247,9 +257,7 @@ describe('ConfigRegistryApiService', () => {
 
       const service = createService();
 
-      await expect(service.fetchConfig()).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(service.fetchConfig()).rejects.toThrow(Error);
       expect(scope.isDone()).toBe(true);
     });
 
@@ -344,15 +352,11 @@ describe('ConfigRegistryApiService', () => {
       });
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        await expect(service.fetchConfig()).rejects.toMatchObject(
-          expect.objectContaining({ message: expect.any(String) }),
-        );
+        await expect(service.fetchConfig()).rejects.toThrow(Error);
       }
 
       const finalPromise = service.fetchConfig();
-      await expect(finalPromise).rejects.toMatchObject(
-        expect.objectContaining({ message: expect.any(String) }),
-      );
+      await expect(finalPromise).rejects.toThrow(Error);
       expect(onBreakHandler).toHaveBeenCalled();
     });
   });
@@ -387,6 +391,89 @@ describe('ConfigRegistryApiService', () => {
     });
   });
 
+  describe('onEventsConfigRetry', () => {
+    it('registers and returns a disposable', () => {
+      const service = createService();
+      const listener = jest.fn();
+      const disposable = service.onEventsConfigRetry(listener);
+      expect(disposable).toHaveProperty('dispose');
+      expect(typeof disposable.dispose).toBe('function');
+    });
+  });
+
+  describe('onEventsConfigBreak', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('registers and calls onEventsConfigBreak handler', async () => {
+      const maximumConsecutiveFailures = 3;
+      const retries = 0;
+
+      for (let i = 0; i < maximumConsecutiveFailures; i++) {
+        nock(UAT_ORIGIN)
+          .get(EVENTS_CONFIG_PATH)
+          .replyWithError('Network error');
+      }
+
+      const onBreakHandler = jest.fn();
+      const service = createService({
+        policyOptions: {
+          maxRetries: retries,
+          maxConsecutiveFailures: maximumConsecutiveFailures,
+          circuitBreakDuration: 10000,
+        },
+      });
+
+      service.onEventsConfigBreak(onBreakHandler);
+      service.onEventsConfigRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+
+      for (let i = 0; i < maximumConsecutiveFailures; i++) {
+        await expect(service.fetchEventsConfig()).rejects.toThrow(Error);
+      }
+
+      const finalPromise = service.fetchEventsConfig();
+      await expect(finalPromise).rejects.toThrow(Error);
+      expect(onBreakHandler).toHaveBeenCalled();
+    });
+  });
+
+  describe('onEventsConfigDegraded', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('calls onEventsConfigDegraded handler when events-config endpoint becomes degraded', async () => {
+      const degradedThreshold = 2000;
+      nock(UAT_ORIGIN)
+        .get(EVENTS_CONFIG_PATH)
+        .reply(200, () => {
+          jest.advanceTimersByTime(degradedThreshold + 100);
+          return MOCK_EVENTS_CONFIG_RESPONSE;
+        });
+
+      const service = createService({
+        policyOptions: { degradedThreshold, maxRetries: 0 },
+      });
+      const onDegradedHandler = jest.fn();
+      service.onEventsConfigDegraded(onDegradedHandler);
+
+      await service.fetchEventsConfig();
+
+      expect(onDegradedHandler).toHaveBeenCalled();
+    });
+  });
+
   describe('custom fetch function', () => {
     it('uses custom fetch function when provided', async () => {
       const customFetch = jest.fn().mockResolvedValue(
@@ -406,5 +493,115 @@ describe('ConfigRegistryApiService', () => {
       expect(customFetch).toHaveBeenCalled();
       expect(result).toMatchObject({ modified: true, data: MOCK_API_RESPONSE });
     });
+  });
+});
+
+describe('ConfigRegistryApiService - fetchEventsConfig', () => {
+  describe('URL by env', () => {
+    it('uses UAT URL when env is UAT', async () => {
+      const scope = nock(UAT_ORIGIN)
+        .get(EVENTS_CONFIG_PATH)
+        .reply(200, MOCK_EVENTS_CONFIG_RESPONSE);
+
+      const service = createService({ env: ConfigRegistryApiEnv.UAT });
+      await service.fetchEventsConfig();
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('uses DEV URL when env is DEV', async () => {
+      const scope = nock(DEV_ORIGIN)
+        .get(EVENTS_CONFIG_PATH)
+        .reply(200, MOCK_EVENTS_CONFIG_RESPONSE);
+
+      const service = createService({ env: ConfigRegistryApiEnv.DEV });
+      await service.fetchEventsConfig();
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('uses PRD URL when env is PRD', async () => {
+      const scope = nock(PRD_ORIGIN)
+        .get(EVENTS_CONFIG_PATH)
+        .reply(200, MOCK_EVENTS_CONFIG_RESPONSE);
+
+      const service = createService({ env: ConfigRegistryApiEnv.PRD });
+      await service.fetchEventsConfig();
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+
+  it('fetches events config from API successfully', async () => {
+    const scope = nock(UAT_ORIGIN)
+      .get(EVENTS_CONFIG_PATH)
+      .reply(200, MOCK_EVENTS_CONFIG_RESPONSE, {
+        ETag: '"events-etag-123"',
+      });
+
+    const service = createService();
+    const result = await service.fetchEventsConfig();
+
+    expect(result).toMatchObject({
+      modified: true,
+      etag: '"events-etag-123"',
+      data: MOCK_EVENTS_CONFIG_RESPONSE,
+    });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('handles 304 Not Modified response', async () => {
+    const etag = '"events-etag-123"';
+    nock(UAT_ORIGIN)
+      .get(EVENTS_CONFIG_PATH)
+      .matchHeader('If-None-Match', etag)
+      .reply(304);
+
+    const service = createService();
+    const result = await service.fetchEventsConfig({ etag });
+
+    expect(result.modified).toBe(false);
+    expect(result.data).toBeUndefined();
+  });
+
+  it('returns cached data when 304 is received and service has prior successful response', async () => {
+    const etag = '"events-etag-123"';
+    nock(UAT_ORIGIN)
+      .get(EVENTS_CONFIG_PATH)
+      .reply(200, MOCK_EVENTS_CONFIG_RESPONSE, { ETag: etag });
+
+    const service = createService();
+    await service.fetchEventsConfig();
+
+    nock(UAT_ORIGIN)
+      .get(EVENTS_CONFIG_PATH)
+      .matchHeader('If-None-Match', etag)
+      .reply(304);
+
+    const result = await service.fetchEventsConfig({ etag });
+
+    expect(result.modified).toBe(false);
+    expect(result.data).toStrictEqual(MOCK_EVENTS_CONFIG_RESPONSE);
+  });
+
+  it('throws error on invalid response structure', async () => {
+    nock(UAT_ORIGIN).get(EVENTS_CONFIG_PATH).reply(200, { invalid: 'data' });
+
+    const service = createService();
+
+    await expect(service.fetchEventsConfig()).rejects.toThrow(Error);
+  });
+
+  it('throws error on HTTP error status', async () => {
+    nock(UAT_ORIGIN)
+      .get(EVENTS_CONFIG_PATH)
+      .reply(500, 'Internal Server Error');
+
+    const service = createService({
+      policyOptions: { maxRetries: 0 },
+    });
+
+    await expect(service.fetchEventsConfig()).rejects.toMatchObject(
+      expect.objectContaining({
+        message: 'Failed to fetch events config: 500 Internal Server Error',
+      }),
+    );
   });
 });

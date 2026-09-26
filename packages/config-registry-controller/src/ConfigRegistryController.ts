@@ -14,8 +14,14 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import { CaipChainId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
-import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types.js';
-import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
+import type {
+  ConfigRegistryApiServiceFetchConfigAction,
+  ConfigRegistryApiServiceFetchEventsConfigAction,
+} from './config-registry-api-service/config-registry-api-service-method-action-types.js';
+import type {
+  RegistryEventsConfig,
+  RegistryNetworkConfig,
+} from './config-registry-api-service/types.js';
 import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types.js';
 
 const controllerName = 'ConfigRegistryController';
@@ -32,12 +38,12 @@ const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
  */
 export type ConfigRegistryControllerState = {
   /**
-   * Network configurations organized by chain ID.
-   * Stores the full API response including isFeatured, isTestnet, etc.
-   * Use selectors (e.g. selectFeaturedNetworks) to filter when needed.
+   * Configurations fetched from the config registry API.
+   * Stores network configs and events config.
    */
   configs: {
     networks: Record<CaipChainId, RegistryNetworkConfig>;
+    eventsConfig?: RegistryEventsConfig | null;
   };
   /**
    * Semantic version string of the configuration data from the API.
@@ -60,6 +66,10 @@ export type ConfigRegistryControllerState = {
    * indicating the schema/version of the configuration data itself.
    */
   etag: string | null;
+  /**
+   * HTTP entity tag (ETag) for the events-config endpoint cache validation.
+   */
+  eventsConfigEtag?: string | null;
 };
 
 const stateMetadata = {
@@ -82,6 +92,12 @@ const stateMetadata = {
     usedInUi: false,
   },
   etag: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  eventsConfigEtag: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -131,7 +147,8 @@ export type ConfigRegistryControllerActions =
 type AllowedActions =
   | KeyringControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
-  | ConfigRegistryApiServiceFetchConfigAction;
+  | ConfigRegistryApiServiceFetchConfigAction
+  | ConfigRegistryApiServiceFetchEventsConfigAction;
 
 /**
  * Events that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
@@ -173,7 +190,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
-   *   `ConfigRegistryApiService:fetchConfig` action handler registered
+   *   `ConfigRegistryApiService:fetchConfig` and
+   *   `ConfigRegistryApiService:fetchEventsConfig` action handlers registered
    *   (e.g. by instantiating {@link ConfigRegistryApiService} with the same
    *   messenger).
    * @param options.state - Initial state.
@@ -193,10 +211,12 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       state: {
         configs: {
           networks: state.configs?.networks ?? { ...fallbackConfig },
+          eventsConfig: state.configs?.eventsConfig ?? null,
         },
         version: state.version ?? null,
         lastFetched: state.lastFetched ?? null,
         etag: state.etag ?? null,
+        eventsConfigEtag: state.eventsConfigEtag ?? null,
       },
     });
 
@@ -222,6 +242,10 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   }
 
   async _executePoll(_input: null): Promise<void> {
+    await Promise.all([this.#fetchNetworksConfig(), this.#fetchEventsConfig()]);
+  }
+
+  async #fetchNetworksConfig(): Promise<void> {
     try {
       const result = await this.messenger.call(
         'ConfigRegistryApiService:fetchConfig',
@@ -253,6 +277,36 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
         state.etag = result.etag ?? null;
+      });
+    } catch (error) {
+      const errorInstance =
+        error instanceof Error ? error : new Error(String(error));
+
+      this.messenger.captureException?.(errorInstance);
+    }
+  }
+
+  async #fetchEventsConfig(): Promise<void> {
+    try {
+      const result = await this.messenger.call(
+        'ConfigRegistryApiService:fetchEventsConfig',
+        {
+          etag: this.state.eventsConfigEtag ?? undefined,
+        },
+      );
+
+      if (!result.modified) {
+        if (result.etag !== undefined) {
+          this.update((state) => {
+            state.eventsConfigEtag = result.etag as string;
+          });
+        }
+        return;
+      }
+
+      this.update((state) => {
+        state.configs.eventsConfig = result.data.data;
+        state.eventsConfigEtag = result.etag ?? null;
       });
     } catch (error) {
       const errorInstance =

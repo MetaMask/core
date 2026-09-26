@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire up `#fetchEventsConfig` in `AnalyticsController.init` to read `eventsConfig` from `ConfigRegistryController:getState` and update in-memory event-purpose classification when the version differs; subscribes to `ConfigRegistryController:stateChanged` for within-session refresh; adds `@metamask/config-registry-controller` `^4.0.0` as a dependency and requires `ConfigRegistryController:getState` in `AnalyticsControllerMessenger`'s `AllowedActions` and `ConfigRegistryController:stateChanged` in its `AllowedEvents` ([#10448](https://github.com/MetaMask/core/pull/10448))
+
 ## [3.2.0]
 
 ### Added

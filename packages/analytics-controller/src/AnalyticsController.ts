@@ -5,6 +5,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
+  ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
+} from '@metamask/config-registry-controller';
+import type {
   GeolocationControllerGetGeolocationDataAction,
   GeolocationData,
 } from '@metamask/geolocation-controller';
@@ -119,10 +123,8 @@ export type AnalyticsControllerState = {
 
   /**
    * Cached event-purpose configuration. Optional for backward compatibility.
-   *
-   * Phase 1 does not load this from a remote source. Until a later phase wires
-   * that up, classification uses the persisted config. Unlisted names are
-   * product-only.
+   * Loaded from ConfigRegistryController state during init. Unlisted events
+   * default to product-only.
    */
   eventsConfig?: AnalyticsEventsConfig;
 
@@ -388,7 +390,9 @@ export type AnalyticsControllerActions =
 /**
  * Actions from other messengers that {@link AnalyticsControllerMessenger} calls.
  */
-type AllowedActions = GeolocationControllerGetGeolocationDataAction;
+type AllowedActions =
+  | GeolocationControllerGetGeolocationDataAction
+  | ConfigRegistryControllerGetStateAction;
 
 /**
  * Event emitted when the state of the {@link AnalyticsController} changes.
@@ -406,7 +410,7 @@ export type AnalyticsControllerEvents = AnalyticsControllerStateChangeEvent;
 /**
  * Events from other messengers that {@link AnalyticsControllerMessenger} subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = ConfigRegistryControllerStateChangedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -738,9 +742,9 @@ export class AnalyticsController extends BaseController<
   /**
    * In-memory event-purpose lookup from persisted state.
    */
-  readonly #eventPurposes: Map<string, AnalyticsPurpose[]>;
+  #eventPurposes: Map<string, AnalyticsPurpose[]>;
 
-  readonly #eventsConfigVersion: string | undefined;
+  #eventsConfigVersion: string | undefined;
 
   /**
    * The in-flight (or settled) initialization promise. Set on the first
@@ -891,6 +895,23 @@ export class AnalyticsController extends BaseController<
 
     await this.#fetchEventsConfig();
 
+    try {
+      this.messenger.subscribe(
+        'ConfigRegistryController:stateChanged',
+        (newState) => {
+          if (
+            newState.configs.eventsConfig?.version !== this.#eventsConfigVersion
+          ) {
+            this.#fetchEventsConfig().catch(
+              /* istanbul ignore next */ () => undefined,
+            );
+          }
+        },
+      );
+    } catch {
+      // ConfigRegistryController may not be registered in all environments.
+    }
+
     // Resolve geolocation only when the user is already opted in to product or
     // marketing analytics. For undecided or opted-out users it is deferred to
     // {@link optIn} / {@link optInToMarketing}. Awaited so that an already-opted-in
@@ -1029,13 +1050,44 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Load event-purpose configuration.
-   *
-   * Phase 1 stub. Persisted configuration remains authoritative until a remote
-   * source is wired up.
+   * Load event-purpose configuration from ConfigRegistryController state.
+   * Updates in-memory purposes map and persisted state when the version differs.
    */
   async #fetchEventsConfig(): Promise<void> {
-    // Intentionally empty until an events-config source is wired up.
+    let eventsConfigState;
+    try {
+      eventsConfigState = this.messenger.call(
+        'ConfigRegistryController:getState',
+      );
+    } catch {
+      // ConfigRegistryController may not be registered in all environments.
+      return;
+    }
+
+    const remoteEventsConfig = eventsConfigState.configs.eventsConfig;
+    if (!remoteEventsConfig) {
+      return;
+    }
+
+    const candidate: AnalyticsEventsConfig = {
+      schemaVersion: remoteEventsConfig.schemaVersion,
+      version: remoteEventsConfig.version,
+      timestamp: remoteEventsConfig.timestamp,
+      events: remoteEventsConfig.events as Record<string, AnalyticsPurpose[]>,
+    };
+
+    if (
+      !isAnalyticsEventsConfig(candidate) ||
+      candidate.version === this.#eventsConfigVersion
+    ) {
+      return;
+    }
+
+    this.#eventPurposes = new Map(Object.entries(candidate.events));
+    this.#eventsConfigVersion = candidate.version;
+    this.update((state) => {
+      state.eventsConfig = candidate;
+    });
   }
 
   #purposesFromName(name: string): AnalyticsPurpose[] {
