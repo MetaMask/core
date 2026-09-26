@@ -1284,7 +1284,7 @@
   },
   "packages/network-controller/src/rpc-service/rpc-service.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/network-enablement-controller/src/NetworkEnablementController.ts": {

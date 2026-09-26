@@ -9,7 +9,12 @@ import {
   handleWhen,
 } from '@metamask/controller-utils';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
-import { Duration, getErrorMessage, hasProperty } from '@metamask/utils';
+import {
+  Duration,
+  getErrorMessage,
+  hasProperty,
+  isObject,
+} from '@metamask/utils';
 import type {
   Json,
   JsonRpcParams,
@@ -231,9 +236,10 @@ export function isJsonParseError(error: unknown): boolean {
  * @param error - The error object to test.
  * @returns True if the error has an httpStatus of 502, 503, or 504.
  */
-export function isHttpServerError(error: Error): boolean {
+export function isHttpServerError(error: unknown): boolean {
   return (
-    'httpStatus' in error &&
+    isObject(error) &&
+    hasProperty(error, 'httpStatus') &&
     (error.httpStatus === 502 ||
       error.httpStatus === 503 ||
       error.httpStatus === 504)
@@ -246,8 +252,10 @@ export function isHttpServerError(error: Error): boolean {
  * @param error - The error object to test.
  * @returns True if the error code is `ETIMEDOUT`.
  */
-export function isTimeoutError(error: Error): boolean {
-  return hasProperty(error, 'code') && error.code === 'ETIMEDOUT';
+export function isTimeoutError(error: unknown): boolean {
+  return (
+    isObject(error) && hasProperty(error, 'code') && error.code === 'ETIMEDOUT'
+  );
 }
 
 /**
@@ -256,8 +264,10 @@ export function isTimeoutError(error: Error): boolean {
  * @param error - The error object to test.
  * @returns True if the error code is `ECONNRESET`.
  */
-export function isConnectionResetError(error: Error): boolean {
-  return hasProperty(error, 'code') && error.code === 'ECONNRESET';
+export function isConnectionResetError(error: unknown): boolean {
+  return (
+    isObject(error) && hasProperty(error, 'code') && error.code === 'ECONNRESET'
+  );
 }
 
 /**

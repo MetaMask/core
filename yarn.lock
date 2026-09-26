@@ -6611,6 +6611,7 @@ __metadata:
     "@yarnpkg/parsers": "npm:^3.0.3"
     "@yarnpkg/types": "npm:^4.0.0"
     bats: "npm:^1.13.0"
+    cockatiel: "npm:^4.0.0"
     comment-json: "npm:^4.5.1"
     eslint: "npm:^9.39.1"
     eslint-config-prettier: "npm:^9.1.0"
