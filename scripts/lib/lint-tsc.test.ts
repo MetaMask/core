@@ -4,8 +4,7 @@ import { jest } from '@jest/globals';
 // with `jest.unstable_mockModule` and the modules under test are imported
 // dynamically afterwards.
 jest.unstable_mockModule('execa', () => ({
-  __esModule: true,
-  default: jest.fn(),
+  execa: jest.fn(),
 }));
 
 jest.unstable_mockModule('./tsc-suppressions.js', () => ({
@@ -18,7 +17,7 @@ jest.unstable_mockModule('./tsc-suppressions.js', () => ({
   printReport: jest.fn(),
 }));
 
-const { default: execa } = await import('execa');
+const { execa } = await import('execa');
 const tscSuppressions = await import('./tsc-suppressions.js');
 const { lintTsc } = await import('./lint-tsc.js');
 
