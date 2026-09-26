@@ -1,7 +1,8 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import { cleanAll } from 'nock';
 
-import { mockBscSpamApis } from './__fixtures__/bsc-spam-token/api-responses/index.js';
+import { mockBscSpamApisV6 } from './__fixtures__/bsc-spam-token/api-responses/index.js';
+import type { V6BalancesMock } from './__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
   buildEmptyAssetsState,
@@ -18,20 +19,31 @@ import {
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
-import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
+import {
+  waitFor,
+  waitUntilStable,
+  withZeroedTimestamps,
+} from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 
 /**
  * Integration coverage for `AssetsController` against the BNB Chain wallet
- * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report.
+ * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report, on the Accounts API
+ * **v6** balances endpoint, enabled the way the rollout does it: the
+ * `assetsAccountsApiV6` remote feature flag.
  *
- * Boots the real controller, answers the same captured APIs as
- * `buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts`, and
- * asserts CDOGE never lands in persisted state — unless the user imported it
- * as a custom asset, in which case it must survive (see the custom-asset
- * suite below).
+ * Boots the real controller, answers the same live-captured v6 APIs as
+ * `buildFastFetchSources.bsc-spam-token-filtering.accounts-api-v6.integration.test.ts`,
+ * and asserts CDOGE never lands in persisted state. On v6 the backend omits
+ * the Malicious CDOGE row server-side, so nothing client-side may resurrect
+ * it (RPC fallback, detection, prices) — unless the user imported it as a
+ * custom asset, in which case the pin travels as `includeAssetIds` and the
+ * row must survive (see the custom-asset suite below).
  */
+
+/** The flag set that turns the Accounts API v6 balances endpoint on. */
+const ACCOUNTS_API_V6_FLAGS = { assetsAccountsApiV6: true } as const;
 
 type StateSurface = {
   surface: string;
@@ -63,7 +75,7 @@ async function withController<ReturnValue>(
   {
     state = buildEmptyAssetsState(),
     queryApiClient = createTestApiClient(),
-    remoteFeatureFlags = {},
+    remoteFeatureFlags = ACCOUNTS_API_V6_FLAGS,
   }: {
     state?: Partial<AssetsControllerState>;
     queryApiClient?: ApiPlatformClient;
@@ -93,11 +105,11 @@ async function withController<ReturnValue>(
 
 async function fetchWallet(
   state: Partial<AssetsControllerState> = buildEmptyAssetsState(),
-  remoteFeatureFlags: Record<string, boolean> = {},
-): Promise<AssetsControllerState> {
-  const { accountsSupportedNetworks } = mockBscSpamApis();
+  remoteFeatureFlags: Record<string, boolean> = ACCOUNTS_API_V6_FLAGS,
+): Promise<{ state: AssetsControllerState; v6Balances: V6BalancesMock }> {
+  const { accountsSupportedNetworks, v6Balances } = mockBscSpamApisV6();
 
-  return await withController(
+  const stateAfter = await withController(
     { state, remoteFeatureFlags },
     async ({ controller }) => {
       // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
@@ -118,17 +130,20 @@ async function fetchWallet(
       return controller.state;
     },
   );
+
+  return { state: stateAfter, v6Balances };
 }
 
 const WALLET_PASSES = [
   {
     pass: 'first pass over a fresh wallet',
-    run: (): Promise<AssetsControllerState> => fetchWallet(),
+    run: async (): Promise<AssetsControllerState> =>
+      (await fetchWallet()).state,
   },
   {
     pass: 'second pass over the wallet the first pass left behind',
     run: async (): Promise<AssetsControllerState> => {
-      const firstPass = await fetchWallet();
+      const firstPass = (await fetchWallet()).state;
       cleanAll();
 
       const secondPass = await fetchWallet(
@@ -138,12 +153,12 @@ const WALLET_PASSES = [
           assetsPrice: firstPass.assetsPrice,
         }),
       );
-      return secondPass;
+      return secondPass.state;
     },
   },
 ];
 
-describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
+describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
     cleanAll();
   });
@@ -170,25 +185,93 @@ describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
       },
     );
 
-    // Same gap as the pipeline suite: prices are not occurrence-filtered.
-    // Unlock cleanup eventually strips them; this flags the hole. (The v6
-    // suite does not share this gap: the backend omits Malicious rows before
-    // they can reach the price lane.)
-    it.failing('keeps the spam token out of prices', () => {
+    // Unlike the v5 suite, this is not `it.failing`!
+    // On v6 the backend omits the Malicious row, so the token is
+    // never in `assetsBalance` or `detectedAssets` at any pipeline stage and
+    // no price is ever fetched for it.
+    //
+    // Note we still need the unlock cleanup (`cleanSpamAssets`) to
+    // eventually clean up any remaining spam asset price entries.
+    it('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
+    });
+
+    // Golden-record catch-all: the targeted assertions above only pin
+    // CDOGE/BNB. This snapshot pins the whole persisted state, so any
+    // unexpected asset sneaking in, any captured asset dropping out, or any
+    // field-level drift (fast lane or slow lane) shows up as a reviewable
+    // diff. Volatile price timestamps are zeroed so the record is
+    // deterministic.
+    it('captures the full state as a golden record', () => {
+      expect(withZeroedTimestamps(state)).toMatchSnapshot();
     });
   });
 });
 
-describe("AssetsController (Accounts API v5): 'merge' update operation - stale tracked spam token already in state", () => {
+describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+  afterEach(() => {
+    cleanAll();
+  });
+
+  function buildCustomAssetWalletState(): AssetsControllerState {
+    return buildEmptyAssetsState({
+      customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      assetsBalance: {
+        [BSC_SPAM_ACCOUNT_ID]: {
+          [CDOGE_ASSET_ID_CHECKSUM]: { amount: '0' },
+        },
+      },
+      assetsInfo: {
+        [CDOGE_ASSET_ID_CHECKSUM]: {
+          type: 'erc20',
+          symbol: 'CDOGE',
+          name: '$$$DOGECHAIN',
+          decimals: 9,
+        },
+      },
+    });
+  }
+
+  it('keeps the imported token in customAssets, balances and metadata', async () => {
+    const { state, v6Balances } = await fetchWallet(
+      buildCustomAssetWalletState(),
+    );
+
+    // The pin must reach the endpoint as `includeAssetIds`, which is what
+    // makes the backend answer the Malicious row at all.
+    expect(v6Balances.requestedIncludeAssetIds.flat()).toContain(
+      CDOGE_ASSET_ID_CHECKSUM,
+    );
+
+    expect(state.customAssets[BSC_SPAM_ACCOUNT_ID]).toContain(
+      CDOGE_ASSET_ID_CHECKSUM,
+    );
+    expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+    expect(METADATA.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+  });
+
+  // Golden-record catch-all for the custom-asset flow: the full state
+  // incl. the backend-answered Malicious row and its price, with volatile
+  // price timestamps zeroed for determinism.
+  it('captures the full state as a golden record', async () => {
+    const { state: goldenState } = await fetchWallet(
+      buildCustomAssetWalletState(),
+    );
+
+    expect(withZeroedTimestamps(goldenState)).toMatchSnapshot();
+  });
+});
+
+describe("AssetsController (Accounts API v6): 'full' update operation - stale tracked spam token already in state", () => {
   afterEach(() => {
     cleanAll();
   });
 
   /**
    * State as a wallet would have it after the spam token snuck in through an
-   * older fetch: a tracked CDOGE balance with metadata and a price, but NOT a
-   * custom-asset pin.
+   * older (v5-era) fetch: a tracked CDOGE balance with metadata and a price,
+   * but NOT a custom-asset pin. Mirrors the seed the v5 suite uses to show
+   * the opposite outcome.
    *
    * @returns The seeded controller state.
    */
@@ -218,22 +301,19 @@ describe("AssetsController (Accounts API v5): 'merge' update operation - stale t
     });
   }
 
-  describe('fetching the wallet on the v5 lane', () => {
+  describe('fetching the wallet on the v6 lane', () => {
     let state: AssetsControllerState;
 
     beforeAll(async () => {
-      state = await fetchWallet(buildStaleSpamWalletState());
+      state = (await fetchWallet(buildStaleSpamWalletState())).state;
     });
 
-    // The v5 never wipes stale scam balances. It only gets wiped on unlock cleanup process.
-    // The v5 lane answers with `updateMode: 'merge'`;
-    // We only ever filter out *newly detected assets*
-    // Holdings already in state are exempt, so the API's fresh CDOGE row lands in the response
-    // and overwrites the seed.
-    //
-    // A spam token that got into state is therefore never removed by the v5 lane.
-    // Accounts API v6 suite performs a `updateMode: 'full'` operation which wipes the same seed via its full snapshot.
-    it.failing('wipes the stale balance', () => {
+    // The v6 lane answers an authoritative snapshot (`updateMode: 'full'`):
+    // balances on the chains the snapshot covers are replaced wholesale, and
+    // the backend omitted the Malicious CDOGE row — so the seeded balance is
+    // dropped, not merged over. The v5 suite shows the opposite outcome from
+    // the same seed.
+    it('wipes the stale balance', () => {
       expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
 
@@ -244,12 +324,20 @@ describe("AssetsController (Accounts API v5): 'merge' update operation - stale t
     });
 
     // Prices and metadata are append-only in state updates, so the stale
-    // price and metadata linger until the unlock cleanup strips them
+    // price and metadata linger until the unlock cleanup strips them —
+    // the v6 snapshot cleans balances, not prices.
     it.each([METADATA, PRICES])(
       '$surface - stale entry lingers',
       ({ lookUp }) => {
         expect(lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
       },
     );
+
+    // Golden record of the full update over a stale v5-era wallet: the
+    // authoritative snapshot wiped the seeded balance, everything else
+    // lingers append-only.
+    it('captures the full state as a golden record', () => {
+      expect(withZeroedTimestamps(state)).toMatchSnapshot();
+    });
   });
 });

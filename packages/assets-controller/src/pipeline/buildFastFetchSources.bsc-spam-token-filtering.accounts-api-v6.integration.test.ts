@@ -1,7 +1,8 @@
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
-import { mockBscSpamApis } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
+import { mockBscSpamApisV6 } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
+import type { V6BalancesMock } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
   buildEmptyAssetsState,
@@ -17,6 +18,7 @@ import {
 } from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
+import { withZeroedTimestamps } from '../__fixtures__/test-utils.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
@@ -40,11 +42,20 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 /**
  * Integration coverage for the fast fetch lane against the BNB Chain wallet
- * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report.
+ * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report, on the Accounts API
+ * **v6** balances endpoint (`assetsAccountsApiV6` on).
  *
- * Executes the real fast-lane pipeline against realistic APIs.
+ * Executes the real fast-lane pipeline against the live-captured v6 APIs. The
+ * v6 endpoint classifies every balance row and omits `Malicious` rows unless
+ * they are requested through `includeAssetIds` — so the CDOGE spam filtering
+ * the v5 suite performs client-side (occurrence floors) happens server-side
+ * here before the token ever reaches the pipeline.
  *
- * Integration Expectation - CDOGE is correctly filtered out.
+ * Integration Expectation - CDOGE never reaches balances, metadata,
+ * detection or prices, and the response is an authoritative snapshot
+ * (`updateMode: 'full'`), unless the user imported it as a custom asset, in
+ * which case the pin travels as `includeAssetIds` and the row (flagged
+ * `Malicious`) must survive.
  */
 
 type ResponseSurface = {
@@ -86,24 +97,23 @@ async function runPipeline(
   {
     rpcDataSource: rpcOverride,
     omitBalanceAssetIds = [],
-    includeCustomAssetGraduation = true,
+    unprocessedIncludeAssetIds = [],
   }: {
     rpcDataSource?: AssetsDataSource;
     omitBalanceAssetIds?: string[];
-    includeCustomAssetGraduation?: boolean;
+    unprocessedIncludeAssetIds?: string[];
   } = {},
-): Promise<DataResponse> {
+): Promise<{ response: DataResponse; v6Balances: V6BalancesMock }> {
   const { assetsControllerMessenger } = createMockMessengers({
     registerCustomRootActions: (rootMessenger) => {
-      // Note - this may change as we add feature flags to the controller/pipeline
-      // e.g. Accounts API v6
+      // v6 integration flag
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
         (): {
-          remoteFeatureFlags: Record<string, never>;
+          remoteFeatureFlags: Record<string, boolean>;
           cacheTimestamp: number;
         } => ({
-          remoteFeatureFlags: {},
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
           cacheTimestamp: 0,
         }),
       );
@@ -126,6 +136,7 @@ async function runPipeline(
         chainIds,
         getNativeAssetForChain: () => BNB_ASSET_ID,
       }),
+    isBalanceV6Enabled: (): boolean => true,
   });
 
   const stakedBalanceDataSource = new StakedBalanceDataSource({
@@ -167,7 +178,10 @@ async function runPipeline(
     getAssetsState: (): AssetsControllerState => state,
   });
 
-  mockBscSpamApis({ omitBalanceAssetIds });
+  const { v6Balances } = mockBscSpamApisV6({
+    omitBalanceAssetIds,
+    unprocessedIncludeAssetIds,
+  });
 
   await accountsApiDataSource.refreshActiveChains();
 
@@ -188,7 +202,7 @@ async function runPipeline(
         getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
         removeCustomAsset: (): void => {
           throw new Error(
-            'Integration should not call graduation to remove assets!',
+            'The v6 lane never graduates custom assets - pins travel as includeAssetIds!',
           );
         },
         getAssetsState: (): AssetsControllerState => state,
@@ -196,6 +210,7 @@ async function runPipeline(
       rpcFallbackMiddleware: new RpcFallbackMiddleware({
         rpcDataSource: rpcOverride ?? rpcDataSource,
         getAssetsState: (): AssetsControllerState => state,
+        isBalanceV6Enabled: (): boolean => true,
       }),
       detectionMiddleware: new DetectionMiddleware({
         getAssetsState: (): AssetsControllerState => state,
@@ -203,7 +218,10 @@ async function runPipeline(
       tokenDataSource,
       priceDataSource,
     },
-    { isBasicFunctionality: true, includeCustomAssetGraduation },
+    // The v6 lane never runs custom-asset graduation: pins are sent to the
+    // endpoint as `includeAssetIds`, and an endpoint that cannot resolve one
+    // fails the whole chain so the RPC fallback recovers it.
+    { isBasicFunctionality: true, includeCustomAssetGraduation: false },
   );
 
   const { response } = await executeAssetsPipeline({
@@ -216,14 +234,14 @@ async function runPipeline(
   rpcDataSource.destroy();
   queryApiClient.clear();
 
-  return response;
+  return { response, v6Balances };
 }
 
 const WALLET_PASSES = [
   {
     pass: 'first pass over a fresh wallet',
     run: async (): Promise<DataResponse> =>
-      runPipeline(buildEmptyAssetsState()),
+      (await runPipeline(buildEmptyAssetsState())).response,
   },
   {
     pass: 'second pass over the wallet the first pass left behind',
@@ -231,18 +249,20 @@ const WALLET_PASSES = [
       const firstPass = await runPipeline(buildEmptyAssetsState());
       cleanAll();
 
-      return runPipeline(
-        buildEmptyAssetsState({
-          assetsBalance: firstPass.assetsBalance,
-          assetsInfo: firstPass.assetsInfo,
-          assetsPrice: firstPass.assetsPrice,
-        }),
-      );
+      return (
+        await runPipeline(
+          buildEmptyAssetsState({
+            assetsBalance: firstPass.response.assetsBalance,
+            assetsInfo: firstPass.response.assetsInfo,
+            assetsPrice: firstPass.response.assetsPrice,
+          }),
+        )
+      ).response;
     },
   },
 ];
 
-describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
+describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
     cleanAll();
   });
@@ -268,28 +288,37 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       },
     );
 
-    // Legitimate failing test, our middleware stack does not filter out spam
-    // asset prices! This does eventually get cleaned up during unlock cleanup,
-    // but worth flagging.
-    it.failing('keeps the spam token out of prices', () => {
+    // Unlike the v5 suite, this is not `it.failing`!
+    // On v6 the backend omits the Malicious row, so the token is
+    // never in `assetsBalance` or `detectedAssets` at any pipeline stage and
+    // no price is ever fetched for it.
+    //
+    // Note we still need the unlock cleanup (`cleanSpamAssets`) to
+    // eventually clean up any remaining spam asset price entries.
+    it('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
 
-    // V5 will perform a 'merge' operation instead of a 'full' operation
-    it('v5 pipeline ends up performing a merge operation', () => {
-      expect(response.updateMode).toBe('merge');
+    // v6 performs a 'full' update operation (full wipe of balance state)
+    it('answers with an authoritative full snapshot', () => {
+      expect(response.updateMode).toBe('full');
+    });
+
+    // Golden-record catch-all: the targeted assertions above only pin
+    // CDOGE/BNB. This snapshot pins the WHOLE captured row set, so any
+    // unexpected asset sneaking in, any captured asset dropping out, or
+    // any field-level drift shows up as a reviewable diff. Volatile price
+    // timestamps are zeroed so the record is deterministic.
+    it('captures the full response as a golden record', () => {
+      expect(withZeroedTimestamps(response)).toMatchSnapshot();
     });
   });
 });
 
-describe('assets pipeline (without graduation middleware only on v6 integration): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
   afterEach(() => {
     cleanAll();
   });
-
-  const pipelineOpts = {
-    includeCustomAssetGraduation: false,
-  };
 
   const createRecordingRpcSource = (
     balances: Record<Caip19AssetId, { amount: string }>,
@@ -311,56 +340,73 @@ describe('assets pipeline (without graduation middleware only on v6 integration)
   };
 
   it.each([BALANCES, METADATA, DETECTED_ASSETS])(
-    '$surface - keeps the imported token despite a positive API balance and low occurrences',
+    '$surface - keeps the imported token the backend flags as Malicious',
     async ({ lookUp }) => {
-      const response = await runPipeline(
+      const { response, v6Balances } = await runPipeline(
         buildEmptyAssetsState({
           customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
         }),
-        pipelineOpts,
       );
 
+      // The pin must reach the endpoint as `includeAssetIds`, which is what
+      // makes the backend answer the Malicious row at all.
+      expect(v6Balances.requestedIncludeAssetIds.flat()).toContain(
+        CDOGE_ASSET_ID_CHECKSUM,
+      );
       expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
     },
   );
 
-  it('does not re-read the custom asset on RPC when the Accounts API reports its balance', async () => {
+  it('does not re-read the custom asset on RPC when the Accounts API resolves the includeAssetIds', async () => {
     const { source, requests } = createRecordingRpcSource({});
 
-    const response = await runPipeline(
+    const { response } = await runPipeline(
       buildEmptyAssetsState({
         customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
       }),
       {
-        ...pipelineOpts,
         rpcDataSource: source,
       },
     );
 
+    // A resolved pin is neither in `unprocessedIncludeAssetIds` (so no RPC
+    // retry is queued) nor left to the legacy stale-asset sweep.
     expect(requests).toHaveLength(0);
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+
+    // Golden record of the resolved-pin flow: the backend answered the
+    // Malicious row through the pin, so the response carries it without any
+    // RPC involvement.
+    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 
-  it('re-reads the custom asset on RPC when the Accounts API omits it', async () => {
+  it('re-reads the custom asset on RPC when the Accounts API cannot process the includeAssetIds', async () => {
     const { source, requests } = createRecordingRpcSource({
       [CDOGE_ASSET_ID_LOWERCASE]: { amount: '4321' },
     });
 
-    const response = await runPipeline(
+    const { response } = await runPipeline(
       buildEmptyAssetsState({
         customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
       }),
       {
-        ...pipelineOpts,
         rpcDataSource: source,
-        omitBalanceAssetIds: [CDOGE_ASSET_ID_LOWERCASE],
+        unprocessedIncludeAssetIds: [CDOGE_ASSET_ID_LOWERCASE],
       },
     );
 
+    // The unresolved pin fails the whole chain, so the v6 RPC fallback
+    // refetches it in full rather than scoping the request via
+    // `customAssets` — the RPC read re-derives the pin from state itself.
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.customAssets ?? []).toContain(CDOGE_ASSET_ID_CHECKSUM);
+    expect(requests[0]?.chainIds).toStrictEqual([BSC_CHAIN_ID]);
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
       amount: '4321',
     });
+
+    // Golden record of the unresolved-pin recovery: the Accounts API
+    // contributed nothing for the failed chain, so the recovered response
+    // is the RPC refetch merged over an empty answer.
+    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });

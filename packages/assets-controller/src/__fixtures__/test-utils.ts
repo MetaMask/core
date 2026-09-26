@@ -49,6 +49,38 @@ export const waitFor = async (
 };
 
 /**
+ * Returns a plain deep clone of the given response or state object with
+ * all `lastUpdated` timestamps zeroed.
+ *
+ * The fast lane stamps `assetsPrice` entries with `Date.now()` at fetch
+ * time (`PriceDataSource`), which would otherwise make snapshots
+ * non-deterministic. Zeroing every `lastUpdated` key normalizes the value
+ * without resorting to mock timers.
+ *
+ * @param value - The response or state object to normalize.
+ * @returns A plain deep clone with all `lastUpdated` timestamps zeroed.
+ */
+export const withZeroedTimestamps = <Value>(value: Value): Value => {
+  if (Array.isArray(value)) {
+    const entries = value as unknown[];
+    return entries.map((entry) => withZeroedTimestamps(entry)) as Value;
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      result[key] =
+        key === 'lastUpdated' && typeof entry === 'number'
+          ? 0
+          : withZeroedTimestamps(entry);
+    }
+    return result as Value;
+  }
+  return value;
+};
+
+/**
  * Testing Utility - waitUntilStable. Waits until a snapshot stops changing,
  * for tests that need background work to be finished rather than a particular
  * value to appear. Use it before asserting something is absent, so the
