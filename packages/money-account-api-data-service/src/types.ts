@@ -13,6 +13,20 @@ export type InterestOptions = {
 };
 
 /**
+ * Options for the `fetchPositions` method.
+ */
+export type FetchPositionsOptions = {
+  /**
+   * When true, cancel an in-flight read, fetch with a zero stale time,
+   * invalidate the result for subsequent reads, and send
+   * `Cache-Control: no-cache` so the Money API also skips its Nest response
+   * cache and refreshes the wallet mUSD balance on demand. Intended for
+   * post-transaction read-your-writes refreshes.
+   */
+  fresh?: boolean;
+};
+
+/**
  * Options for the `fetchHistory` method.
  */
 export type HistoryOptions = {
