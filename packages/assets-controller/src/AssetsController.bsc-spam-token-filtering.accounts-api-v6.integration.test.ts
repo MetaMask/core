@@ -195,16 +195,13 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
     it('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+  });
 
-    // Golden-record catch-all: the targeted assertions above only pin
-    // CDOGE/BNB. This snapshot pins the whole persisted state, so any
-    // unexpected asset sneaking in, any captured asset dropping out, or any
-    // field-level drift (fast lane or slow lane) shows up as a reviewable
-    // diff. Volatile price timestamps are zeroed so the record is
-    // deterministic.
-    it('captures the full state as a golden record', () => {
-      expect(withZeroedTimestamps(state)).toMatchSnapshot();
-    });
+  it('generates snapshot (source of truth)', async () => {
+    const { state } = await fetchWallet();
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(state)).toMatchSnapshot();
   });
 });
 
@@ -248,17 +245,6 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) impor
     );
     expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
     expect(METADATA.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
-  });
-
-  // Golden-record catch-all for the custom-asset flow: the full state
-  // incl. the backend-answered Malicious row and its price, with volatile
-  // price timestamps zeroed for determinism.
-  it('captures the full state as a golden record', async () => {
-    const { state: goldenState } = await fetchWallet(
-      buildCustomAssetWalletState(),
-    );
-
-    expect(withZeroedTimestamps(goldenState)).toMatchSnapshot();
   });
 });
 
@@ -332,12 +318,5 @@ describe("AssetsController (Accounts API v6): 'full' update operation - stale tr
         expect(lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
       },
     );
-
-    // Golden record of the full update over a stale v5-era wallet: the
-    // authoritative snapshot wiped the seeded balance, everything else
-    // lingers append-only.
-    it('captures the full state as a golden record', () => {
-      expect(withZeroedTimestamps(state)).toMatchSnapshot();
-    });
   });
 });

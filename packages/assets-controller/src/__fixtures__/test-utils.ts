@@ -49,13 +49,8 @@ export const waitFor = async (
 };
 
 /**
- * Returns a plain deep clone of the given response or state object with
- * all `lastUpdated` timestamps zeroed.
- *
- * The fast lane stamps `assetsPrice` entries with `Date.now()` at fetch
- * time (`PriceDataSource`), which would otherwise make snapshots
- * non-deterministic. Zeroing every `lastUpdated` key normalizes the value
- * without resorting to mock timers.
+ * Returns a plain deep clone of the given object with all `lastUpdated`
+ * timestamps zeroed, so that snapshots are deterministic.
  *
  * @param value - The response or state object to normalize.
  * @returns A plain deep clone with all `lastUpdated` timestamps zeroed.
