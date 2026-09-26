@@ -52,7 +52,7 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/address": "^5.7.0",
+    "@ethersproject/address": "^5.8.0",
     "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
