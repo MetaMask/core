@@ -3977,7 +3977,16 @@ export class RampsController extends BaseController<
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
       providerFlowStatus,
-      kycStatus: toVbaKycStatus(session.finalStatus),
+      // The relay approves (`kycStatus: 'approved'`) as soon as the KYC decision
+      // is made, while the vendor-side `finalStatus` can lag at `'pending'` until
+      // the vendor record is finalized (and in sandbox may never advance). Treat
+      // either signal as approval so a relay-approved user is not stranded on the
+      // pending screen. This mirrors the UKYC backend, whose own "already
+      // approved" check is `finalStatus === 'approved' || kycStatus === 'approved'`.
+      kycStatus:
+        session.finalStatus === 'approved' || session.kycStatus === 'approved'
+          ? 'approved'
+          : toVbaKycStatus(session.finalStatus),
       autorampStatus: 'not_ready',
     };
 
