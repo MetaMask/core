@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
 - Bump `ethereumjs-wallet` from `^1.0.1` to `^1.0.2` ([#10486](https://github.com/MetaMask/core/pull/10486))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 
 ## [28.1.0]
 
