@@ -81,7 +81,6 @@ export type PreparedSubscriptionPermission = {
   disposition: 'new' | 'reused';
   delegation: UnsignedSubscriptionDelegation;
   typedData: SubscriptionDelegationTypedData;
-  typedDataHash: Hex;
   decodedAuthority: DecodedPermission;
   existingDelegationHash?: Hex;
 };

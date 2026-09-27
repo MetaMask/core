@@ -59,7 +59,6 @@
     "@metamask/delegation-controller": "^4.0.0",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
-    "@metamask/eth-sig-util": "^9.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-balance-service": "^3.0.0",
     "@metamask/money-account-utils": "^2.0.1",

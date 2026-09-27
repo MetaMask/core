@@ -7,7 +7,6 @@ import {
 import {
   buildDelegationTypedData,
   decodeSubscriptionAuthority,
-  hashTypedData,
 } from './typed-data.js';
 
 const DELEGATOR = '0x1111111111111111111111111111111111111111' as const;
@@ -43,7 +42,7 @@ const delegation = {
 };
 
 describe('subscription delegation typed data', () => {
-  it('builds canonical signable typed data and hashes it', () => {
+  it('builds canonical signable typed data', () => {
     const typedData = buildDelegationTypedData({
       delegation,
       chainId: '0x1',
@@ -57,7 +56,6 @@ describe('subscription delegation typed data', () => {
       verifyingContract: DELEGATION_MANAGER,
     });
     expect(typedData.primaryType).toBe('Delegation');
-    expect(hashTypedData(typedData)).toMatch(/^0x[0-9a-f]{64}$/u);
   });
 
   it('decodes the exact subscription authority', () => {

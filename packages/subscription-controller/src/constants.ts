@@ -106,7 +106,6 @@ export enum SubscriptionDelegationServiceErrorMessage {
   MissingMusdTokenAddress = 'Money Account mUSD token address is missing',
   ApprovalResultMissing = 'Subscription delegation approval result is missing',
   InvalidFundingTransactionHash = 'Subscription funding transaction hash is invalid',
-  TypedDataHashMismatch = 'Subscription delegation typed-data hash does not match',
   ReusableDelegationInvalid = 'Reusable subscription delegation is missing or invalid',
   TrialEligibilityChanged = 'Subscription trial eligibility changed after authorization',
   ChompIntentNotActive = 'CHOMP subscription intent is not active',

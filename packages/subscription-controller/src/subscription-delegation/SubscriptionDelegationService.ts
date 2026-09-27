@@ -58,7 +58,6 @@ import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionD
 import {
   buildDelegationTypedData,
   decodeSubscriptionAuthority,
-  hashTypedData,
 } from './typed-data.js';
 import type {
   MoneyAccountBalanceCheckRequest,
@@ -476,7 +475,6 @@ export class SubscriptionDelegationService {
       disposition: reusable ? 'reused' : 'new',
       delegation,
       typedData,
-      typedDataHash: hashTypedData(typedData),
       decodedAuthority: decodeSubscriptionAuthority(
         delegation,
         config.enforcers,
@@ -516,16 +514,6 @@ export class SubscriptionDelegationService {
   ): Promise<SignedSubscriptionDelegation | undefined> {
     if (permission.disposition === 'reused') {
       return undefined;
-    }
-    const typedData = buildDelegationTypedData({
-      delegation: permission.delegation,
-      chainId: config.chainId,
-      delegationManager: config.delegationManager,
-    });
-    if (!equalsIgnoreCase(hashTypedData(typedData), permission.typedDataHash)) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.TypedDataHashMismatch,
-      );
     }
     const signature = (await this.#messenger.call(
       'DelegationController:signDelegation',

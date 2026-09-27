@@ -2,8 +2,7 @@ import {
   decodeERC20TokenPeriodTransferTerms,
   decodeValueLteTerms,
 } from '@metamask/delegation-core';
-import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
-import { bytesToHex, getChecksumAddress, hexToNumber } from '@metamask/utils';
+import { getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -62,15 +61,6 @@ export function buildDelegationTypedData({
       salt: delegation.salt,
     },
   };
-}
-
-export function hashTypedData(typedData: SubscriptionDelegationTypedData): Hex {
-  return bytesToHex(
-    TypedDataUtils.eip712Hash(
-      typedData as Parameters<typeof TypedDataUtils.eip712Hash>[0],
-      SignTypedDataVersion.V4,
-    ),
-  );
 }
 
 export function decodeSubscriptionAuthority(

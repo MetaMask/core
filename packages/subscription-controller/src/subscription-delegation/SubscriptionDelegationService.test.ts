@@ -29,7 +29,6 @@ import {
 } from './SubscriptionDelegationService.js';
 import type { SubscriptionDelegationServiceMessenger } from './SubscriptionDelegationService.js';
 import type {
-  PreparedSubscriptionDelegationBundle,
   PrepareSubscriptionDelegationRequest,
   StartSubscriptionWithDelegationRequest,
 } from './types.js';
@@ -1329,31 +1328,6 @@ describe('SubscriptionDelegationService', () => {
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
       );
-    });
-
-    it('rejects when approved payment typed data changes before signing', async () => {
-      const { service, mocks } = setup();
-      mocks.addApprovalRequest.mockImplementation(
-        async ({
-          requestData,
-        }: {
-          requestData: { bundle: PreparedSubscriptionDelegationBundle };
-        }) => {
-          requestData.bundle.permissions[0].typedDataHash = `0x${'ff'.repeat(32)}`;
-          return {
-            value: {
-              fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-            },
-          };
-        },
-      );
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.TypedDataHashMismatch,
-      );
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
     it.each([
