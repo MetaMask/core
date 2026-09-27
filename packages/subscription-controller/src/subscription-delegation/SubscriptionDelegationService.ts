@@ -57,7 +57,6 @@ import type { MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction } fr
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import {
   buildDelegationTypedData,
-  computeBundleFingerprint,
   decodeSubscriptionAuthority,
   hashTypedData,
 } from './typed-data.js';
@@ -273,7 +272,7 @@ export class SubscriptionDelegationService {
    * Subscription API validates them server-side. The custom approval is the
    * sole consent and funding boundary for the payment permission. No payment
    * delegation signing, persistence, or intent mutation occurs before it
-   * returns a matching bundle fingerprint and transaction hash.
+   * returns a funding transaction hash.
    *
    * When `request.skipApproval` is `true`, the approval request and its
    * result validation are skipped and the flow proceeds directly to signing.
@@ -322,15 +321,11 @@ export class SubscriptionDelegationService {
       config,
       isTrialRequested,
     );
-    const bundleWithoutFingerprint = {
+    const bundle: PreparedSubscriptionDelegationBundle = {
       policyVersion: SUBSCRIPTION_DELEGATION_POLICY_VERSION,
       account: request.payerAddress,
       chainId: request.chainId,
       permissions: [paymentPermission],
-    };
-    const bundle: PreparedSubscriptionDelegationBundle = {
-      ...bundleWithoutFingerprint,
-      bundleFingerprint: computeBundleFingerprint(bundleWithoutFingerprint),
     };
     const approval = request.skipApproval
       ? undefined
@@ -343,7 +338,7 @@ export class SubscriptionDelegationService {
 
     try {
       if (approval) {
-        this.#validateApprovalResult(approval, bundle);
+        this.#validateApprovalResult(approval);
       }
 
       const paymentDelegation = await this.#signPaymentPermissionIfRequired(
@@ -494,7 +489,6 @@ export class SubscriptionDelegationService {
 
   #validateApprovalResult(
     approval: AddResult,
-    bundle: PreparedSubscriptionDelegationBundle,
   ): SubscriptionDelegationApprovalResult {
     if (!approval?.value || typeof approval.value !== 'object') {
       throw new Error(
@@ -502,14 +496,6 @@ export class SubscriptionDelegationService {
       );
     }
     const value = approval.value as Record<string, unknown>;
-    if (
-      typeof value.bundleFingerprint !== 'string' ||
-      !equalsIgnoreCase(value.bundleFingerprint, bundle.bundleFingerprint)
-    ) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.ApprovalFingerprintMismatch,
-      );
-    }
     if (
       typeof value.fundingTransactionHash !== 'string' ||
       !isStrictHexString(value.fundingTransactionHash) ||
@@ -520,7 +506,6 @@ export class SubscriptionDelegationService {
       );
     }
     return {
-      bundleFingerprint: value.bundleFingerprint as Hex,
       fundingTransactionHash: value.fundingTransactionHash,
     };
   }

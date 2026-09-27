@@ -87,7 +87,6 @@ export type PreparedSubscriptionPermission = {
 };
 
 export type PreparedSubscriptionDelegationBundle = {
-  bundleFingerprint: Hex;
   policyVersion: string;
   account: Hex;
   chainId: Hex;
@@ -106,7 +105,6 @@ export type SubscriptionFundingRequest = {
 };
 
 export type SubscriptionDelegationApprovalResult = {
-  bundleFingerprint: Hex;
   fundingTransactionHash: Hex;
 };
 

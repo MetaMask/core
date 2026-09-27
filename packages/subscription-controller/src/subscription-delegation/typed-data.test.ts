@@ -6,11 +6,9 @@ import {
 
 import {
   buildDelegationTypedData,
-  computeBundleFingerprint,
   decodeSubscriptionAuthority,
   hashTypedData,
 } from './typed-data.js';
-import type { PreparedSubscriptionPermission } from './types.js';
 
 const DELEGATOR = '0x1111111111111111111111111111111111111111' as const;
 const DELEGATE = '0x2222222222222222222222222222222222222222' as const;
@@ -76,49 +74,6 @@ describe('subscription delegation typed data', () => {
       startDate: 1_800_000_000,
       maxNativeValue: '0',
     });
-  });
-
-  it('does not include delegation salt in the bundle fingerprint', () => {
-    const typedData = buildDelegationTypedData({
-      delegation,
-      chainId: '0x1',
-      delegationManager: DELEGATION_MANAGER,
-    });
-    const permission: PreparedSubscriptionPermission = {
-      id: 'cash-subscription',
-      owner: 'subscription',
-      disposition: 'new',
-      delegation,
-      typedData,
-      typedDataHash: hashTypedData(typedData),
-      decodedAuthority: decodeSubscriptionAuthority(delegation, {
-        valueLte: VALUE_LTE,
-        erc20TokenPeriodTransfer: PERIOD,
-      }),
-    };
-
-    const first = computeBundleFingerprint({
-      policyVersion: '1',
-      account: DELEGATOR,
-      chainId: '0x1',
-      permissions: [permission],
-    });
-    const second = computeBundleFingerprint({
-      policyVersion: '1',
-      account: DELEGATOR,
-      chainId: '0x1',
-      permissions: [
-        {
-          ...permission,
-          delegation: {
-            ...permission.delegation,
-            salt: `0x${'02'.repeat(32)}`,
-          },
-        },
-      ],
-    });
-
-    expect(first).toBe(second);
   });
 
   it('rejects authority without both required caveats', () => {

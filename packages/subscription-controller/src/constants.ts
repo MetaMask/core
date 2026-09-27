@@ -105,7 +105,6 @@ export enum SubscriptionDelegationServiceErrorMessage {
   ChainMismatch = 'Subscription delegation chain does not match the Money Account chain',
   MissingMusdTokenAddress = 'Money Account mUSD token address is missing',
   ApprovalResultMissing = 'Subscription delegation approval result is missing',
-  ApprovalFingerprintMismatch = 'Subscription delegation approval fingerprint does not match',
   InvalidFundingTransactionHash = 'Subscription funding transaction hash is invalid',
   TypedDataHashMismatch = 'Subscription delegation typed-data hash does not match',
   ReusableDelegationInvalid = 'Reusable subscription delegation is missing or invalid',

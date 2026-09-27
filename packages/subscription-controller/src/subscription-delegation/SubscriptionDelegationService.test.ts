@@ -29,6 +29,7 @@ import {
 } from './SubscriptionDelegationService.js';
 import type { SubscriptionDelegationServiceMessenger } from './SubscriptionDelegationService.js';
 import type {
+  PreparedSubscriptionDelegationBundle,
   PrepareSubscriptionDelegationRequest,
   StartSubscriptionWithDelegationRequest,
 } from './types.js';
@@ -198,14 +199,11 @@ function setup(
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
     }),
-    addApprovalRequest: jest
-      .fn()
-      .mockImplementation(async ({ requestData }) => ({
-        value: options.approvalResult ?? {
-          bundleFingerprint: requestData.bundle.bundleFingerprint,
-          fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-        },
-      })),
+    addApprovalRequest: jest.fn().mockImplementation(async () => ({
+      value: options.approvalResult ?? {
+        fundingTransactionHash: `0x${'ef'.repeat(32)}`,
+      },
+    })),
     ensureDelegationsReadiness: jest.fn().mockResolvedValue(undefined),
     startSubscriptionWithCrypto: jest.fn().mockResolvedValue({
       subscriptionId: 'subscription-id',
@@ -1180,11 +1178,7 @@ describe('SubscriptionDelegationService', () => {
 
     it('rejects an approval result without a funding transaction hash before signing', async () => {
       const { service, mocks } = setup();
-      mocks.addApprovalRequest.mockImplementation(async ({ requestData }) => ({
-        value: {
-          bundleFingerprint: requestData.bundle.bundleFingerprint,
-        },
-      }));
+      mocks.addApprovalRequest.mockResolvedValue({ value: {} });
 
       await expect(
         service.startSubscriptionWithDelegation(START_REQUEST),
@@ -1198,13 +1192,12 @@ describe('SubscriptionDelegationService', () => {
       const { service, mocks } = setup();
       const success = jest.fn();
       const error = jest.fn();
-      mocks.addApprovalRequest.mockImplementation(async ({ requestData }) => ({
+      mocks.addApprovalRequest.mockResolvedValue({
         value: {
-          bundleFingerprint: requestData.bundle.bundleFingerprint,
           fundingTransactionHash: `0x${'ef'.repeat(32)}`,
         },
         resultCallbacks: { success, error },
-      }));
+      });
 
       await service.startSubscriptionWithDelegation(START_REQUEST);
 
@@ -1250,22 +1243,6 @@ describe('SubscriptionDelegationService', () => {
         }),
       ).rejects.toThrow('backend unavailable');
       expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
-    });
-
-    it('rejects a stale approval fingerprint before signing', async () => {
-      const { service, mocks } = setup({
-        approvalResult: {
-          bundleFingerprint: `0x${'01'.repeat(32)}`,
-          fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-        },
-      });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.ApprovalFingerprintMismatch,
-      );
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
     it('does not approve or sign when the requested chain differs from Money Account', async () => {
@@ -1341,42 +1318,35 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it.each([
-      ['non-string fingerprint', { bundleFingerprint: 1 }],
       ['non-string funding hash', { fundingTransactionHash: 1 }],
       ['non-hex funding hash', { fundingTransactionHash: 'not-a-hash' }],
       ['wrong-length funding hash', { fundingTransactionHash: '0x1234' }],
     ])('rejects an approval with a %s', async (_name, invalidValue) => {
-      const { service, mocks } = setup();
-      mocks.addApprovalRequest.mockImplementation(async ({ requestData }) => ({
-        value: {
-          bundleFingerprint: requestData.bundle.bundleFingerprint,
-          fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-          ...invalidValue,
-        },
-      }));
+      const { service } = setup({ approvalResult: invalidValue });
 
       await expect(
         service.startSubscriptionWithDelegation(START_REQUEST),
       ).rejects.toThrow(
-        'bundleFingerprint' in invalidValue
-          ? SubscriptionDelegationServiceErrorMessage.ApprovalFingerprintMismatch
-          : SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
+        SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
       );
     });
 
     it('rejects when approved payment typed data changes before signing', async () => {
       const { service, mocks } = setup();
-      mocks.addApprovalRequest.mockImplementation(async ({ requestData }) => {
-        const fingerprint = requestData.bundle.bundleFingerprint;
-        requestData.bundle.permissions.at(-1).typedDataHash =
-          `0x${'ff'.repeat(32)}`;
-        return {
-          value: {
-            bundleFingerprint: fingerprint,
-            fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-          },
-        };
-      });
+      mocks.addApprovalRequest.mockImplementation(
+        async ({
+          requestData,
+        }: {
+          requestData: { bundle: PreparedSubscriptionDelegationBundle };
+        }) => {
+          requestData.bundle.permissions[0].typedDataHash = `0x${'ff'.repeat(32)}`;
+          return {
+            value: {
+              fundingTransactionHash: `0x${'ef'.repeat(32)}`,
+            },
+          };
+        },
+      );
 
       await expect(
         service.startSubscriptionWithDelegation(START_REQUEST),
