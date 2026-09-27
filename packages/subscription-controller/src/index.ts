@@ -185,19 +185,12 @@ export type {
   SubscriptionDelegationServiceOptions,
 } from './subscription-delegation/SubscriptionDelegationService.js';
 export {
-  MoneyAccountAuthorizationRequiredError,
   SubscriptionDelegationService,
   serviceName as subscriptionDelegationServiceName,
 } from './subscription-delegation/SubscriptionDelegationService.js';
 export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type { SubscriptionDelegationServiceStartSubscriptionWithDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
-export type {
-  DelegationsReadinessResult,
-  MoneyAccountControllerEnsureDelegationsReadinessAction,
-  MoneyAccountDelegationScope,
-  VaultPermissionId,
-} from './subscription-delegation/money-account-contracts.js';
 export type {
   ChompIntentType,
   CommitAuthorizationBundleRequest,

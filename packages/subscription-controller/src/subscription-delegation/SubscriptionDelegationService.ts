@@ -53,7 +53,7 @@ import {
   makeMatchesSubscriptionDelegation,
   pickLatestMatchingSubscriptionDelegation,
 } from './fingerprint.js';
-import type { MoneyAccountControllerEnsureDelegationsReadinessAction } from './money-account-contracts.js';
+import type { MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction } from './money-account-contracts.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import {
   buildDelegationTypedData,
@@ -62,7 +62,6 @@ import {
   hashTypedData,
 } from './typed-data.js';
 import type {
-  MoneyAccountAuthorizationReason,
   MoneyAccountBalanceCheckRequest,
   MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
@@ -74,7 +73,6 @@ import type {
   StartSubscriptionWithDelegationResult,
   SubscriptionDelegationApprovalResult,
   SubscriptionDelegationEnforcers,
-  SubscriptionPermissionId,
   UnsignedSubscriptionDelegation,
 } from './types.js';
 import {
@@ -96,12 +94,6 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
-const MONEY_ACCOUNT_PERMISSION_ORDER: readonly SubscriptionPermissionId[] = [
-  'cash-deposit',
-  'cash-withdrawal',
-  'cash-deposit-premium',
-  'cash-withdrawal-premium',
-];
 
 function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
@@ -143,7 +135,7 @@ type AllowedActions =
   | ChompApiServiceGetIntentsByAddressAction
   | DelegationControllerSignDelegationAction
   | ApprovalControllerAddRequestAction
-  | MoneyAccountControllerEnsureDelegationsReadinessAction
+  | MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction
   | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | RemoteFeatureFlagControllerGetStateAction
   | SubscriptionControllerGetStateAction
@@ -193,18 +185,6 @@ type ResolvedSubscriptionDelegationConfig = {
   price: ProductPrice;
   token: TokenPaymentInfo;
 };
-
-export class MoneyAccountAuthorizationRequiredError extends Error {
-  readonly reasons: MoneyAccountAuthorizationReason[];
-
-  constructor(reasons: MoneyAccountAuthorizationReason[]) {
-    super(
-      SubscriptionDelegationServiceErrorMessage.MoneyAccountAuthorizationRequired,
-    );
-    this.name = 'MoneyAccountAuthorizationRequiredError';
-    this.reasons = reasons;
-  }
-}
 
 /**
  * Stateless orchestrator for cash-subscription delegation setup.
@@ -288,7 +268,10 @@ export class SubscriptionDelegationService {
   /**
    * Runs the complete Money Account subscription checkout authorization flow.
    *
-   * The custom approval is the sole consent and funding boundary. No
+   * Before the approval, `MoneyAccountUpgradeController` is asked to ensure
+   * the Money Account vault delegations and CHOMP intents exist; the
+   * Subscription API validates them server-side. The custom approval is the
+   * sole consent and funding boundary for the payment permission. No payment
    * delegation signing, persistence, or intent mutation occurs before it
    * returns a matching bundle fingerprint and transaction hash.
    *
@@ -324,27 +307,21 @@ export class SubscriptionDelegationService {
       config.price.trialPeriodDays > 0 &&
       !trialedProducts.includes(request.product);
 
-    const readiness = await this.#messenger.call(
-      'MoneyAccountController:ensureDelegationsReadiness',
+    await this.#messenger.call(
+      'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+      request.payerAddress,
     );
-    if (readiness.status === 'money-account-authorization-required') {
-      throw new MoneyAccountAuthorizationRequiredError(readiness.reasons);
-    }
 
     const paymentPermission = await this.#preparePaymentPermission(
       request,
       config,
       isTrialRequested,
     );
-    const permissions = [
-      ...this.#sortPermissions(readiness.permissions),
-      paymentPermission,
-    ];
     const bundleWithoutFingerprint = {
       policyVersion: SUBSCRIPTION_DELEGATION_POLICY_VERSION,
       account: request.payerAddress,
       chainId: request.chainId,
-      permissions,
+      permissions: [paymentPermission],
     };
     const bundle: PreparedSubscriptionDelegationBundle = {
       ...bundleWithoutFingerprint,
@@ -382,9 +359,6 @@ export class SubscriptionDelegationService {
 
     try {
       this.#validateApprovalResult(approval, bundle);
-      await this.#assertVaultPermissionsActive(
-        bundle.permissions.filter(({ owner }) => owner === 'money-account'),
-      );
 
       const paymentDelegation = await this.#signPaymentPermissionIfRequired(
         paymentPermission,
@@ -490,16 +464,6 @@ export class SubscriptionDelegationService {
     };
   }
 
-  #sortPermissions(
-    permissions: PreparedSubscriptionPermission[],
-  ): PreparedSubscriptionPermission[] {
-    return [...permissions].sort(
-      (left, right) =>
-        MONEY_ACCOUNT_PERMISSION_ORDER.indexOf(left.id) -
-        MONEY_ACCOUNT_PERMISSION_ORDER.indexOf(right.id),
-    );
-  }
-
   #validateApprovalResult(
     approval: AddResult,
     bundle: PreparedSubscriptionDelegationBundle,
@@ -558,45 +522,6 @@ export class SubscriptionDelegationService {
       },
     )) as Hex;
     return { ...permission.delegation, signature };
-  }
-
-  /**
-   * Post-approval safety check: re-runs the idempotent readiness action and
-   * requires every approved vault permission to be active and unchanged.
-   *
-   * @param approvedVaultPermissions - Money Account permissions from the
-   * approved bundle.
-   */
-  async #assertVaultPermissionsActive(
-    approvedVaultPermissions: PreparedSubscriptionPermission[],
-  ): Promise<void> {
-    const readiness = await this.#messenger.call(
-      'MoneyAccountController:ensureDelegationsReadiness',
-    );
-    if (readiness.status !== 'ready') {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
-      );
-    }
-
-    const currentVaultPermissions = readiness.permissions.filter(
-      ({ owner }) => owner === 'money-account',
-    );
-    const vaultPermissionsMatch =
-      currentVaultPermissions.length === approvedVaultPermissions.length &&
-      approvedVaultPermissions.every((approved) =>
-        currentVaultPermissions.some(
-          (current) =>
-            current.id === approved.id &&
-            current.disposition === 'reused' &&
-            equalsIgnoreCase(current.typedDataHash, approved.typedDataHash),
-        ),
-      );
-    if (!vaultPermissionsMatch) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
-      );
-    }
   }
 
   async #commitPaymentPermission({

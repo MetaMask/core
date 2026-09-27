@@ -164,7 +164,6 @@ function setup(
     balance?: typeof SUFFICIENT_BALANCE;
     pricing?: PricingResponse;
     approvalResult?: unknown;
-    readiness?: unknown;
     trialedProducts?: ProductType[];
   } = {},
 ) {
@@ -207,13 +206,7 @@ function setup(
           fundingTransactionHash: `0x${'ef'.repeat(32)}`,
         },
       })),
-    ensureDelegationsReadiness: jest.fn().mockResolvedValue(
-      options.readiness ?? {
-        status: 'ready',
-        readinessFingerprint: `0x${'10'.repeat(32)}`,
-        permissions: [],
-      },
-    ),
+    ensureDelegationsReadiness: jest.fn().mockResolvedValue(undefined),
     startSubscriptionWithCrypto: jest.fn().mockResolvedValue({
       subscriptionId: 'subscription-id',
       status: 'provisional',
@@ -278,7 +271,7 @@ function setup(
         handler: Mocks['addApprovalRequest'];
       }
     | {
-        type: 'MoneyAccountController:ensureDelegationsReadiness';
+        type: 'MoneyAccountUpgradeController:ensureDelegationsReadiness';
         handler: Mocks['ensureDelegationsReadiness'];
       }
     | {
@@ -353,7 +346,7 @@ function setup(
     mocks.addApprovalRequest,
   );
   rootMessenger.registerActionHandler(
-    'MoneyAccountController:ensureDelegationsReadiness',
+    'MoneyAccountUpgradeController:ensureDelegationsReadiness',
     mocks.ensureDelegationsReadiness,
   );
   rootMessenger.registerActionHandler(
@@ -381,7 +374,7 @@ function setup(
       'SubscriptionController:getSubscriptions',
       'SubscriptionController:getState',
       'ApprovalController:addRequest',
-      'MoneyAccountController:ensureDelegationsReadiness',
+      'MoneyAccountUpgradeController:ensureDelegationsReadiness',
       'SubscriptionController:startSubscriptionWithCrypto',
     ],
     events: [],
@@ -1074,13 +1067,13 @@ describe('SubscriptionDelegationService', () => {
             bundle: expect.objectContaining({
               account: PAYER,
               chainId: CHAIN_ID,
-              permissions: expect.arrayContaining([
+              permissions: [
                 expect.objectContaining({
                   id: CASH_SUBSCRIPTION_DELEGATION_TYPE,
                   owner: 'subscription',
                   disposition: 'new',
                 }),
-              ]),
+              ],
             }),
             funding: {
               useCase: 'subscription',
@@ -1096,9 +1089,11 @@ describe('SubscriptionDelegationService', () => {
       expect(
         mocks.addApprovalRequest.mock.calls[0][0].requestData.bundle,
       ).not.toHaveProperty('subscriptionIdempotencyKey');
-      // Once to build the approval bundle, once as the post-approval check.
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledTimes(2);
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith();
+      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledTimes(1);
+      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith(PAYER);
+      expect(
+        mocks.ensureDelegationsReadiness.mock.invocationCallOrder[0],
+      ).toBeLessThan(mocks.addApprovalRequest.mock.invocationCallOrder[0]);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith({
         products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
@@ -1169,21 +1164,15 @@ describe('SubscriptionDelegationService', () => {
       );
     });
 
-    it('stops before approval when Money Account authorization is required', async () => {
-      const { service, mocks } = setup({
-        readiness: {
-          status: 'money-account-authorization-required',
-          reasons: ['monitoring-list-missing'],
-        },
-      });
+    it('stops before approval when Money Account delegations cannot be made ready', async () => {
+      const { service, mocks } = setup();
+      mocks.ensureDelegationsReadiness.mockRejectedValue(
+        new Error('MoneyAccountUpgradeController is not bootstrapped'),
+      );
 
       await expect(
         service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toMatchObject({
-        message:
-          SubscriptionDelegationServiceErrorMessage.MoneyAccountAuthorizationRequired,
-        reasons: ['monitoring-list-missing'],
-      });
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
       expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.startSubscriptionWithCrypto).not.toHaveBeenCalled();
@@ -1202,8 +1191,6 @@ describe('SubscriptionDelegationService', () => {
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
       );
-      // Only the pre-approval readiness call; no post-approval check.
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledTimes(1);
       expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
@@ -1238,7 +1225,6 @@ describe('SubscriptionDelegationService', () => {
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.ApprovalFingerprintMismatch,
       );
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledTimes(1);
       expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
@@ -1356,110 +1342,6 @@ describe('SubscriptionDelegationService', () => {
         service.startSubscriptionWithDelegation(START_REQUEST),
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.TypedDataHashMismatch,
-      );
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
-    });
-
-    it('rejects when Money Account permissions are not active after approval', async () => {
-      const { service, mocks } = setup();
-      mocks.ensureDelegationsReadiness
-        .mockResolvedValueOnce({
-          status: 'ready',
-          readinessFingerprint: `0x${'10'.repeat(32)}`,
-          permissions: [],
-        })
-        .mockResolvedValueOnce({
-          status: 'setup-required',
-          readinessFingerprint: `0x${'11'.repeat(32)}`,
-          permissions: [],
-        });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
-      );
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
-    });
-
-    it('sorts vault permissions in the approval bundle', async () => {
-      const cashDeposit = {
-        id: 'cash-deposit',
-        owner: 'money-account',
-        disposition: 'reused',
-        delegation: { caveats: [] },
-        typedDataHash: `0x${'21'.repeat(32)}`,
-        existingDelegationHash: `0x${'31'.repeat(32)}`,
-      };
-      const cashWithdrawal = {
-        ...cashDeposit,
-        id: 'cash-withdrawal',
-        typedDataHash: `0x${'22'.repeat(32)}`,
-        existingDelegationHash: `0x${'32'.repeat(32)}`,
-      };
-      const { service, mocks } = setup({
-        readiness: {
-          status: 'ready',
-          readinessFingerprint: `0x${'10'.repeat(32)}`,
-          permissions: [cashWithdrawal, cashDeposit],
-        },
-      });
-
-      await service.startSubscriptionWithDelegation(START_REQUEST);
-
-      const approvalRequest = mocks.addApprovalRequest.mock.calls[0][0];
-      expect(
-        approvalRequest.requestData.bundle.permissions
-          .slice(0, 2)
-          .map(({ id }: { id: string }) => id),
-      ).toStrictEqual(['cash-deposit', 'cash-withdrawal']);
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith();
-    });
-
-    it('rejects a still-new Money Account permission after approval', async () => {
-      const { service, mocks } = setup();
-      mocks.ensureDelegationsReadiness
-        .mockResolvedValueOnce({
-          status: 'ready',
-          readinessFingerprint: `0x${'10'.repeat(32)}`,
-          permissions: [],
-        })
-        .mockResolvedValueOnce({
-          status: 'ready',
-          readinessFingerprint: `0x${'11'.repeat(32)}`,
-          permissions: [
-            {
-              owner: 'money-account',
-              disposition: 'new',
-            },
-          ],
-        });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
-      );
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
-    });
-
-    it('rejects Money Account authorization loss after approval', async () => {
-      const { service, mocks } = setup();
-      mocks.ensureDelegationsReadiness
-        .mockResolvedValueOnce({
-          status: 'ready',
-          readinessFingerprint: `0x${'10'.repeat(32)}`,
-          permissions: [],
-        })
-        .mockResolvedValueOnce({
-          status: 'money-account-authorization-required',
-          reasons: ['configuration-changed'],
-        });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.MoneyAccountPermissionsNotActive,
       );
       expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
