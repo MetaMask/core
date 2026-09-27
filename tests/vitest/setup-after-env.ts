@@ -9,17 +9,9 @@ import { matchers } from '../matchers.js';
  * `setupFilesAfterEach`, and its globals are explicit imports.
  */
 
+// The matcher types are declared in `types/global.d.ts`, which every package
+// includes; declaring them here would not reach the packages that use them.
 expect.extend(matchers);
-
-declare module 'vitest' {
-  // We're using `interface` here so that we can extend and not override it. The
-  // type parameter must match Vitest's own declaration, which defaults to `any`.
-  /* oxlint-disable-next-line typescript/consistent-type-definitions, typescript/no-explicit-any, id-length */
-  interface Matchers<T = any> {
-    toBeFulfilled(): Promise<T>;
-    toNeverResolve(): Promise<T>;
-  }
-}
 
 beforeEach(() => {
   disableNetConnect();
