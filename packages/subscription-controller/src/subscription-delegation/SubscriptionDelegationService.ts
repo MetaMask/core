@@ -275,7 +275,12 @@ export class SubscriptionDelegationService {
    * delegation signing, persistence, or intent mutation occurs before it
    * returns a matching bundle fingerprint and transaction hash.
    *
-   * @param request - Product selection and Money Account identity.
+   * When `request.skipApproval` is `true`, the approval request and its
+   * result validation are skipped and the flow proceeds directly to signing.
+   * The caller is then responsible for consent and funding.
+   *
+   * @param request - Product selection, Money Account identity, and optional
+   * `skipApproval` flag.
    * @returns The result from `SubscriptionController:startSubscriptionWithCrypto`.
    */
   async startSubscriptionWithDelegation(
@@ -327,38 +332,19 @@ export class SubscriptionDelegationService {
       ...bundleWithoutFingerprint,
       bundleFingerprint: computeBundleFingerprint(bundleWithoutFingerprint),
     };
-    const targetAmount =
-      calculatePeriodAmount({
-        unitAmount: config.price.unitAmount,
-        unitDecimals: config.price.unitDecimals,
-        tokenDecimals: MUSD_DECIMALS,
-      }) * BigInt(config.price.minBillingCyclesForBalance);
-
-    const approval = (await this.#messenger.call(
-      'ApprovalController:addRequest',
-      {
-        origin: ORIGIN_METAMASK,
-        type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
-        expectsResult: true,
-        requestData: {
+    const approval = request.skipApproval
+      ? undefined
+      : await this.#requestApproval({
+          request,
+          price: config.price,
+          musdAddress: config.musdAddress,
           bundle,
-          funding: {
-            useCase: 'subscription',
-            destinationAccount: request.payerAddress,
-            chainId: request.chainId,
-            targetToken: {
-              symbol: 'mUSD',
-              address: config.musdAddress,
-            },
-            targetAmount: targetAmount.toString(),
-          },
-        },
-      },
-      true,
-    )) as AddResult;
+        });
 
     try {
-      this.#validateApprovalResult(approval, bundle);
+      if (approval) {
+        this.#validateApprovalResult(approval, bundle);
+      }
 
       const paymentDelegation = await this.#signPaymentPermissionIfRequired(
         paymentPermission,
@@ -388,12 +374,54 @@ export class SubscriptionDelegationService {
           assertTrialEligibility: true,
         },
       );
-      approval.resultCallbacks?.success();
+      approval?.resultCallbacks?.success();
       return result;
     } catch (error) {
-      approval.resultCallbacks?.error(error as Error);
+      approval?.resultCallbacks?.error(error as Error);
       throw error;
     }
+  }
+
+  async #requestApproval({
+    request,
+    price,
+    musdAddress,
+    bundle,
+  }: {
+    request: StartSubscriptionWithDelegationRequest;
+    price: ProductPrice;
+    musdAddress: Hex;
+    bundle: PreparedSubscriptionDelegationBundle;
+  }): Promise<AddResult> {
+    const targetAmount =
+      calculatePeriodAmount({
+        unitAmount: price.unitAmount,
+        unitDecimals: price.unitDecimals,
+        tokenDecimals: MUSD_DECIMALS,
+      }) * BigInt(price.minBillingCyclesForBalance);
+
+    return (await this.#messenger.call(
+      'ApprovalController:addRequest',
+      {
+        origin: ORIGIN_METAMASK,
+        type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
+        expectsResult: true,
+        requestData: {
+          bundle,
+          funding: {
+            useCase: 'subscription',
+            destinationAccount: request.payerAddress,
+            chainId: request.chainId,
+            targetToken: {
+              symbol: 'mUSD',
+              address: musdAddress,
+            },
+            targetAmount: targetAmount.toString(),
+          },
+        },
+      },
+      true,
+    )) as AddResult;
   }
 
   async #preparePaymentPermission(

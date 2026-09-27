@@ -115,6 +115,13 @@ export type StartSubscriptionWithDelegationRequest = {
   recurringInterval: RecurringInterval;
   chainId: Hex;
   payerAddress: Hex;
+  /**
+   * When `true`, skips the `ApprovalController:addRequest` consent and
+   * funding step and proceeds directly to signing, committing, and starting
+   * the subscription. Callers must have already obtained user consent and
+   * ensured the Money Account is funded.
+   */
+  skipApproval?: boolean;
 };
 
 export type PrepareAuthorizationBundleResult =

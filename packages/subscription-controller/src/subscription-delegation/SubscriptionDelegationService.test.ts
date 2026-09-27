@@ -1212,6 +1212,46 @@ describe('SubscriptionDelegationService', () => {
       expect(error).not.toHaveBeenCalled();
     });
 
+    it('skips the approval request when skipApproval is true', async () => {
+      const { service, mocks } = setup();
+
+      const result = await service.startSubscriptionWithDelegation({
+        ...START_REQUEST,
+        skipApproval: true,
+      });
+
+      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
+      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith(PAYER);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+          payerAddress: PAYER,
+        }),
+      );
+      expect(result).toStrictEqual({
+        subscriptionId: 'subscription-id',
+        status: 'provisional',
+      });
+    });
+
+    it('propagates downstream errors when skipApproval is true', async () => {
+      const { service, mocks } = setup();
+      mocks.startSubscriptionWithCrypto.mockRejectedValue(
+        new Error('backend unavailable'),
+      );
+
+      await expect(
+        service.startSubscriptionWithDelegation({
+          ...START_REQUEST,
+          skipApproval: true,
+        }),
+      ).rejects.toThrow('backend unavailable');
+      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
+    });
+
     it('rejects a stale approval fingerprint before signing', async () => {
       const { service, mocks } = setup({
         approvalResult: {
