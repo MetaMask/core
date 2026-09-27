@@ -52,7 +52,7 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
+    "@ethersproject/providers": "^5.8.0",
     "@metamask/account-tree-controller": "^11.0.0",
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/assets-controllers": "^112.0.4",

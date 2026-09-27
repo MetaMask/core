@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
+    "@ethersproject/providers": "^5.8.0",
     "@metamask/base-data-service": "^2.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
