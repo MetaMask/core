@@ -193,6 +193,55 @@ export type AnalyticsControllerResetConsentDecisionAction = {
 };
 
 /**
+ * Opt in to marketing analytics.
+ *
+ * Independent of {@link optIn}. Replays queued marketing events.
+ *
+ * @returns A promise that resolves once opt-in processing has completed.
+ */
+export type AnalyticsControllerOptInToMarketingAction = {
+  type: `AnalyticsController:optInToMarketing`;
+  handler: AnalyticsController['optInToMarketing'];
+};
+
+/**
+ * Opt out of marketing analytics.
+ *
+ * Independent of {@link optOut}. Discards queued marketing events and
+ * marketing event fragments.
+ */
+export type AnalyticsControllerOptOutOfMarketingAction = {
+  type: `AnalyticsController:optOutOfMarketing`;
+  handler: AnalyticsController['optOutOfMarketing'];
+};
+
+/**
+ * Reset the marketing consent decision back to undecided.
+ *
+ * Independent of {@link resetConsentDecision}.
+ */
+export type AnalyticsControllerResetMarketingConsentDecisionAction = {
+  type: `AnalyticsController:resetMarketingConsentDecision`;
+  handler: AnalyticsController['resetMarketingConsentDecision'];
+};
+
+/**
+ * Set the marketing campaign cookie ID.
+ *
+ * Stores the ID of the marketing campaign cookie (e.g. a Google Analytics
+ * client ID) that was active when the user arrived. Pass `null` to clear it.
+ * The value is automatically cleared by {@link optOutOfMarketing} and
+ * {@link resetMarketingConsentDecision}.
+ *
+ * @param marketingCampaignCookieId - The marketing campaign cookie ID, or
+ * `null` to clear it.
+ */
+export type AnalyticsControllerSetMarketingCampaignCookieIdAction = {
+  type: `AnalyticsController:setMarketingCampaignCookieId`;
+  handler: AnalyticsController['setMarketingCampaignCookieId'];
+};
+
+/**
  * Union of all AnalyticsController action types.
  */
 export type AnalyticsControllerMethodActions =
@@ -207,4 +256,8 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerFinalizeEventFragmentAction
   | AnalyticsControllerOptInAction
   | AnalyticsControllerOptOutAction
-  | AnalyticsControllerResetConsentDecisionAction;
+  | AnalyticsControllerResetConsentDecisionAction
+  | AnalyticsControllerOptInToMarketingAction
+  | AnalyticsControllerOptOutOfMarketingAction
+  | AnalyticsControllerResetMarketingConsentDecisionAction
+  | AnalyticsControllerSetMarketingCampaignCookieIdAction;

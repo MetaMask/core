@@ -229,8 +229,8 @@ export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   // check if there is a path
   // (CID is everything preceding first forward slash, path is everything after)
   const index = url.indexOf('/');
-  const cid = index !== -1 ? url.substring(0, index) : url;
-  const path = index !== -1 ? url.substring(index) : undefined;
+  const cid = index === -1 ? url : url.substring(0, index);
+  const path = index === -1 ? undefined : url.substring(index);
 
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains

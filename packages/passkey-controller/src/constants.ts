@@ -7,6 +7,9 @@ export const controllerName = 'PasskeyController';
 export const PasskeyControllerErrorCode = {
   NotEnrolled: 'not_enrolled',
   AlreadyEnrolled: 'already_enrolled',
+  MigrationNotRequired: 'migration_not_required',
+  PrfRequired: 'prf_required',
+  ReplacementSourceChanged: 'replacement_source_changed',
   NoRegistrationCeremony: 'no_registration_ceremony',
   RegistrationVerificationFailed: 'registration_verification_failed',
   NoAuthenticationCeremony: 'no_authentication_ceremony',
@@ -27,6 +30,9 @@ export type PasskeyControllerErrorCode =
 export enum PasskeyControllerErrorMessage {
   NotEnrolled = `${controllerName} - Passkey is not enrolled`,
   AlreadyEnrolled = `${controllerName} - Passkey is already enrolled`,
+  MigrationNotRequired = `${controllerName} - PRF migration is not required`,
+  PrfRequired = `${controllerName} - PRF output required for passkey migration`,
+  ReplacementSourceChanged = `${controllerName} - Passkey replacement source changed`,
   NoRegistrationCeremony = `${controllerName} - No active passkey registration ceremony`,
   RegistrationVerificationFailed = `${controllerName} - Passkey registration verification failed`,
   NoAuthenticationCeremony = `${controllerName} - No active passkey authentication ceremony`,

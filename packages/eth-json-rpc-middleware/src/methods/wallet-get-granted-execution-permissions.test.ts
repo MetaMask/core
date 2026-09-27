@@ -9,9 +9,9 @@ import { createWalletGetGrantedExecutionPermissionsHandler } from './wallet-get-
 
 const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
   {
-    chainId: '0x01' as Hex,
-    from: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4' as Hex,
-    to: '0x016562aA41A8697720ce0943F003141f5dEAe006' as Hex,
+    chainId: '0x01',
+    from: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
+    to: '0x016562aA41A8697720ce0943F003141f5dEAe006',
     permission: {
       type: 'native-token-allowance',
       isAdjustmentAllowed: true,
@@ -19,15 +19,14 @@ const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
         allowance: '0x1DCD65000000',
       },
     },
-    context:
-      '0x016562aA41A8697720ce0943F003141f5dEAe0060000771577157715' as Hex,
+    context: '0x016562aA41A8697720ce0943F003141f5dEAe0060000771577157715',
     dependencies: [
       {
-        factory: '0x1234567890123456789012345678901234567890' as Hex,
-        factoryData: '0xabcdef' as Hex,
+        factory: '0x1234567890123456789012345678901234567890',
+        factoryData: '0xabcdef',
       },
     ],
-    delegationManager: '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2' as Hex,
+    delegationManager: '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2',
   },
 ];
 
@@ -90,7 +89,7 @@ describe('wallet_getGrantedExecutionPermissions', () => {
       ['empty array', []],
       ['empty object', {}],
     ])('accepts params as %s', async (_description, params) => {
-      request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
+      request = { ...REQUEST_MOCK, params };
       expect(await callMethod()).toStrictEqual(RESULT_MOCK);
     });
 

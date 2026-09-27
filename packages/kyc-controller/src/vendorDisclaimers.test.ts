@@ -1,11 +1,13 @@
 import {
+  acceptedVendorDisclaimerIds,
+  areVendorDisclaimersCompleted,
   clearVendorDisclaimerAcceptance,
   hasVendorDisclaimerAcceptance,
   ironDisclaimerIds,
   recordVendorDisclaimerAcceptance,
-} from './vendorDisclaimerAcceptance.js';
+} from './vendorDisclaimers.js';
 
-describe('vendorDisclaimerAcceptance', () => {
+describe('vendorDisclaimers', () => {
   describe('hasVendorDisclaimerAcceptance', () => {
     it('returns true when MoonPay terms are persisted', () => {
       expect(
@@ -70,15 +72,81 @@ describe('vendorDisclaimerAcceptance', () => {
     });
   });
 
-  describe('recordVendorDisclaimerAcceptance', () => {
-    it('records MoonPay acceptance', () => {
+  describe('acceptedVendorDisclaimerIds', () => {
+    it('returns Iron disclaimer ids', () => {
       expect(
-        recordVendorDisclaimerAcceptance(
-          { moonpay: null, iron: null },
-          'moonpay',
-          { termsAcceptedAt: 't', disclaimerIds: [] },
+        acceptedVendorDisclaimerIds(
+          { moonpay: null, iron: { disclaimerIds: ['d1', 'd2'] } },
+          'iron',
         ),
-      ).toStrictEqual({ moonpay: { termsAcceptedAt: 't' }, iron: null });
+      ).toStrictEqual(['d1', 'd2']);
+    });
+
+    it('returns an empty list for MoonPay', () => {
+      expect(
+        acceptedVendorDisclaimerIds(
+          { moonpay: { termsAcceptedAt: 't' }, iron: null },
+          'moonpay',
+        ),
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe('areVendorDisclaimersCompleted', () => {
+    const catalog = [
+      { id: 'd1', display_name: 'T1', url: 'u1' },
+      { id: 'd2', display_name: 'T2', url: 'u2' },
+    ];
+
+    it('returns true when every fetched Iron disclaimer id is accepted', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: null, iron: { disclaimerIds: ['d1', 'd2', 'extra'] } },
+          'iron',
+          catalog,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when a fetched Iron disclaimer id is missing', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: null, iron: { disclaimerIds: ['d1'] } },
+          'iron',
+          catalog,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns true when the fetched catalog is empty', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: null, iron: null },
+          'iron',
+          [],
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for MoonPay when the catalog has documents', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: { termsAcceptedAt: 't' }, iron: null },
+          'moonpay',
+          catalog,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('recordVendorDisclaimerAcceptance', () => {
+    it('leaves MoonPay acceptance unchanged', () => {
+      const accepted = { moonpay: null, iron: null };
+      expect(
+        recordVendorDisclaimerAcceptance(accepted, 'moonpay', {
+          disclaimerIds: [],
+        }),
+      ).toBe(accepted);
     });
 
     it('records Iron acceptance', () => {
@@ -86,7 +154,7 @@ describe('vendorDisclaimerAcceptance', () => {
         recordVendorDisclaimerAcceptance(
           { moonpay: null, iron: null },
           'iron',
-          { termsAcceptedAt: 't', disclaimerIds: ['d1'] },
+          { disclaimerIds: ['d1'] },
         ),
       ).toStrictEqual({ moonpay: null, iron: { disclaimerIds: ['d1'] } });
     });
@@ -95,7 +163,6 @@ describe('vendorDisclaimerAcceptance', () => {
       const accepted = { moonpay: null, iron: null };
       expect(
         recordVendorDisclaimerAcceptance(accepted, 'unknown' as 'moonpay', {
-          termsAcceptedAt: 't',
           disclaimerIds: ['d1'],
         }),
       ).toBe(accepted);

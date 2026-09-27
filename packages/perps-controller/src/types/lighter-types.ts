@@ -783,6 +783,8 @@ export type LighterApiOrder = {
   ownerAccountIndex: number;
   initialBaseAmount: string;
   remainingBaseAmount: string;
+  /** Executed base amount; zero remaining does not imply a fill on cancellation. */
+  filledBaseAmount?: string;
   price: string;
   isAsk: boolean;
   type: string;

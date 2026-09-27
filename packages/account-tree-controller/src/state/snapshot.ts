@@ -216,7 +216,7 @@ export class AccountTreeSnapshot {
         ...walletRest,
         groups: wallet.groups.map((group) => {
           const { metadata: _groupMetadata, ...groupRest } = group;
-          return groupRest as typeof group;
+          return groupRest;
         }),
       } as AccountTreeWalletEntry; // Looks like the compiler is not able to infer this correctly, but we just remove the `metadata` field out of any entry.
     });

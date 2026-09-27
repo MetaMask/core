@@ -71,7 +71,7 @@ describe('LineaGasFeeFlow', () => {
       gasFeeControllerData: GAS_FEE_CONTROLLER_DATA_MOCK,
       messenger: {} as TransactionControllerMessenger,
       transactionMeta: TRANSACTION_META_MOCK,
-    } as GasFeeFlowRequest;
+    };
 
     rpcRequestMock.mockResolvedValue(LINEA_RESPONSE_MOCK);
   });

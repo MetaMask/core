@@ -33,6 +33,9 @@ export { getAAGUIDFromRegistrationResponse } from './webauthn/verify-registratio
 export type {
   PasskeyControllerIsPasskeyEnrolledAction,
   PasskeyControllerGenerateRegistrationOptionsAction,
+  PasskeyControllerGeneratePasskeyReplacementRegistrationOptionsAction,
+  PasskeyControllerCompletePasskeyReplacementAction,
+  PasskeyControllerCancelPasskeyReplacementAction,
   PasskeyControllerGeneratePostRegistrationAuthenticationOptionsAction,
   PasskeyControllerGenerateAuthenticationOptionsAction,
   PasskeyControllerProtectVaultKeyWithPasskeyAction,

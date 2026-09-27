@@ -128,6 +128,7 @@ describe('subscriptionController', () => {
         'SubscriptionService:linkRewards',
         'SubscriptionService:getPricing',
         'SubscriptionService:getBillingPortalUrl',
+        'SubscriptionService:getBenefits',
         'AuthenticationController:performSignOut',
       ],
     });

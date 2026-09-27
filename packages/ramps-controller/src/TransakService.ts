@@ -1260,10 +1260,7 @@ export class TransakService {
 
   async patchUser(data: PatchUserRequestBody): Promise<unknown> {
     this.#ensureAccessToken();
-    return this.#transakPatch(
-      '/api/v2/kyc/user',
-      data as Record<string, unknown>,
-    );
+    return this.#transakPatch('/api/v2/kyc/user', data);
   }
 
   async submitSsnDetails(ssn: string, quoteId: string): Promise<unknown> {

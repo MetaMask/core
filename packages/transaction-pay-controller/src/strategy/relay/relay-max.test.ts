@@ -20,7 +20,7 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token.js';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import { getRelayMaxGasStationQuote } from './relay-max.js';
 import type { RelayQuote } from './types.js';
 
 jest.mock('../../utils/token');
@@ -63,7 +63,7 @@ const MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
 
 const NON_MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
   ...MATCHING_GAS_FEE_TOKEN,
-  tokenAddress: '0xdef' as Hex,
+  tokenAddress: '0xdef',
 };
 
 function makeFiatValue(value = '0'): FiatValue {
@@ -153,7 +153,7 @@ function makeFullRequest(
   };
 }
 
-describe('relay-max-gas-station', () => {
+describe('relay-max', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
@@ -169,7 +169,7 @@ describe('relay-max-gas-station', () => {
     jest.resetAllMocks();
 
     getNativeTokenMock.mockReturnValue(
-      '0x0000000000000000000000000000000000000000' as Hex,
+      '0x0000000000000000000000000000000000000000',
     );
     getTokenBalanceMock.mockReturnValue('0');
     getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
@@ -916,9 +916,7 @@ describe('relay-max-gas-station', () => {
     const getSingleQuote = jest
       .fn()
       .mockResolvedValueOnce(phase1Quote)
-      .mockResolvedValueOnce(
-        undefined as unknown as TransactionPayQuote<RelayQuote>,
-      );
+      .mockResolvedValueOnce(undefined);
 
     getGasFeeTokensMock.mockResolvedValue([]);
 

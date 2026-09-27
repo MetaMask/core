@@ -3,7 +3,7 @@ import { ed25519 } from '@noble/curves/ed25519';
 
 import { toBase64Url } from '../encoding.js';
 import type { Jwk } from './jwtChain.js';
-import { verifyJwtChain } from './jwtChain.js';
+import { assertAttestedServerPublicKey, verifyJwtChain } from './jwtChain.js';
 
 const KID = 'key-1';
 const PAYLOAD = { sessionServerPublicKeyX: 'spk-x', nonce: 'nonce-1' };
@@ -96,5 +96,25 @@ describe('UKYC verifyJwtChain', () => {
     expect(() => verifyJwtChain([JWK], jwt)).toThrow(
       'failed to decode jwtChain header',
     );
+  });
+});
+
+describe('UKYC assertAttestedServerPublicKey', () => {
+  const schema = {
+    jwtChain: buildJwt(),
+    serverPublicKey: { x: PAYLOAD.sessionServerPublicKeyX },
+  };
+
+  it('accepts a schema whose public key matches the attested jwtChain payload', () => {
+    expect(() => assertAttestedServerPublicKey([JWK], schema)).not.toThrow();
+  });
+
+  it('rejects a schema whose public key does not match the attested jwtChain payload', () => {
+    expect(() =>
+      assertAttestedServerPublicKey([JWK], {
+        ...schema,
+        serverPublicKey: { x: 'tampered' },
+      }),
+    ).toThrow('sessionServerPublicKey does not match');
   });
 });

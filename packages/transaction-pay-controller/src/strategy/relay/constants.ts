@@ -6,6 +6,8 @@ import type { RelayStatus } from './types.js';
 
 export const FALLBACK_HASH = '0x0' as Hex;
 
+export const ATOMIC_PROMOTION_FAILURE_PREFIX = 'Atomic promotion failed: ';
+
 export const RELAY_URL_BASE = 'https://api.relay.link';
 export const RELAY_AUTHORIZE_URL = `${RELAY_URL_BASE}/authorize`;
 export const RELAY_EXECUTE_URL = `${RELAY_URL_BASE}/execute`;

@@ -111,7 +111,6 @@ describe('MoonPayFrameHandler', () => {
       const url = handler.buildCheckFrameUrl() as string;
       expect(url).toContain('sessionToken=tok');
       expect(url).toContain('channelId=ch_1');
-      expect(url).toContain('skipKyc=true');
     });
 
     it('does not replace an existing keypair on ensureKeypair', () => {

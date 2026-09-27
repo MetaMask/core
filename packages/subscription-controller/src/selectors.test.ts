@@ -1,7 +1,11 @@
 import {
   selectHasEntitlement,
   selectIsActiveSubscriber,
+  selectIsDelegationExhausted,
+  selectIsPaymentFailed,
+  selectIsRenewalNeeded,
   selectIsUsageAvailable,
+  selectPaymentFailureReason,
 } from './selectors.js';
 import { getDefaultSubscriptionControllerState } from './SubscriptionController.js';
 import type { SubscriptionControllerState } from './SubscriptionController.js';
@@ -40,6 +44,35 @@ const MOCK_SHIELD_SUBSCRIPTION: Subscription = {
   },
   isEligibleForSupport: true,
   cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
+};
+
+const MOCK_MONEY_ACCOUNT_SUBSCRIPTION: Subscription = {
+  id: 'sub_money_account_plus',
+  products: [
+    {
+      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      currency: 'usd',
+      unitAmount: 999,
+      unitDecimals: 2,
+    },
+  ],
+  status: SUBSCRIPTION_STATUSES.paused,
+  interval: RECURRING_INTERVALS.month,
+  paymentMethod: {
+    type: PAYMENT_TYPES.byCrypto,
+    crypto: {
+      payerAddress: '0x123456789012345678901234567890123456abcd',
+      chainId: '0x1',
+      tokenSymbol: 'pvmUSD',
+      error: 'insufficient_balance',
+    },
+  },
+  lastInvoice: {
+    id: 'in_money_account',
+    status: 'FAILED',
+    errorCode: 'insufficient_balance',
+    updatedAt: '2026-09-20T12:00:00.000Z',
+  },
 };
 
 const STATE_WITH_PRODUCT_ENTITLEMENTS: SubscriptionControllerState = {
@@ -296,6 +329,144 @@ describe('subscription selectors', () => {
           getDefaultSubscriptionControllerState(),
           PRODUCT_TYPES.SHIELD,
         ),
+      ).toBe(false);
+    });
+  });
+
+  describe('payment state selectors', () => {
+    it('returns payment failure details for a Money Account subscription', () => {
+      const state: SubscriptionControllerState = {
+        ...getDefaultSubscriptionControllerState(),
+        subscriptions: [
+          MOCK_SHIELD_SUBSCRIPTION,
+          MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+        ],
+      };
+
+      expect(
+        selectIsPaymentFailed(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(true);
+      expect(
+        selectPaymentFailureReason(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe('insufficient_balance');
+      expect(
+        selectIsRenewalNeeded(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(true);
+      expect(
+        selectIsDelegationExhausted(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(false);
+    });
+
+    it.each(['insufficient_balance', 'delegation_not_found'] as const)(
+      'treats %s as renewal-needed',
+      (errorCode) => {
+        const state: SubscriptionControllerState = {
+          ...getDefaultSubscriptionControllerState(),
+          subscriptions: [
+            {
+              ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+              lastInvoice: {
+                id: 'in_money_account',
+                status: 'FAILED',
+                updatedAt: '2026-09-20T12:00:00.000Z',
+                errorCode,
+              },
+            },
+          ],
+        };
+
+        expect(
+          selectIsRenewalNeeded(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+        ).toBe(true);
+        expect(
+          selectIsDelegationExhausted(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+        ).toBe(false);
+      },
+    );
+
+    it('treats an exceeded delegation allowance as exhausted', () => {
+      const state: SubscriptionControllerState = {
+        ...getDefaultSubscriptionControllerState(),
+        subscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_money_account',
+              status: 'FAILED',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+              errorCode: 'exceeds_delegation_allowance',
+            },
+          },
+        ],
+      };
+
+      expect(
+        selectIsPaymentFailed(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(true);
+      expect(
+        selectIsRenewalNeeded(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(false);
+      expect(
+        selectIsDelegationExhausted(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(true);
+    });
+
+    it('fails closed for Shield, missing subscriptions, and missing invoices', () => {
+      const mixedState: SubscriptionControllerState = {
+        ...getDefaultSubscriptionControllerState(),
+        subscriptions: [MOCK_SHIELD_SUBSCRIPTION],
+      };
+
+      expect(selectIsPaymentFailed(mixedState, PRODUCT_TYPES.SHIELD)).toBe(
+        false,
+      );
+      expect(
+        selectPaymentFailureReason(mixedState, PRODUCT_TYPES.SHIELD),
+      ).toBeUndefined();
+      expect(selectIsRenewalNeeded(mixedState, PRODUCT_TYPES.SHIELD)).toBe(
+        false,
+      );
+      expect(
+        selectIsDelegationExhausted(mixedState, PRODUCT_TYPES.SHIELD),
+      ).toBe(false);
+
+      const noInvoiceState: SubscriptionControllerState = {
+        ...getDefaultSubscriptionControllerState(),
+        subscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: undefined,
+          },
+        ],
+      };
+
+      expect(
+        selectIsPaymentFailed(noInvoiceState, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(false);
+      expect(
+        selectPaymentFailureReason(
+          noInvoiceState,
+          PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('does not interpret a payment-method error as an execution failure', () => {
+      const state: SubscriptionControllerState = {
+        ...getDefaultSubscriptionControllerState(),
+        subscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: undefined,
+          },
+        ],
+      };
+
+      expect(
+        selectIsRenewalNeeded(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(false);
+      expect(
+        selectIsDelegationExhausted(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
       ).toBe(false);
     });
   });

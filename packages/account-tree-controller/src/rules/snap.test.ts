@@ -267,7 +267,7 @@ describe('SnapRule', () => {
         groups: {},
         metadata: {
           name: '',
-          snap: { id: MOCK_SNAP_1.id as unknown as SnapId },
+          snap: { id: MOCK_SNAP_1.id },
         },
       };
 
@@ -307,7 +307,7 @@ describe('SnapRule', () => {
         groups: {},
         metadata: {
           name: '',
-          snap: { id: snapWithoutProposedName.id as unknown as SnapId },
+          snap: { id: snapWithoutProposedName.id },
         },
       };
 
