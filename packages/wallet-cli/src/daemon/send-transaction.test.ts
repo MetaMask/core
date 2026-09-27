@@ -177,7 +177,7 @@ describe('runSendTransaction', () => {
     await runSendTransaction(messenger, {
       to: TO,
       chainId: '0x1',
-    } as SendTransactionParams);
+    });
 
     expect(call).toHaveBeenCalledWith(
       'NetworkController:findNetworkClientIdByChainId',
@@ -191,7 +191,7 @@ describe('runSendTransaction', () => {
     await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'linea',
-    } as SendTransactionParams);
+    });
 
     expect(call).not.toHaveBeenCalledWith(
       'NetworkController:findNetworkClientIdByChainId',
@@ -210,7 +210,7 @@ describe('runSendTransaction', () => {
     await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     expect(call).toHaveBeenCalledWith(
       'TransactionController:addTransaction',
@@ -226,7 +226,7 @@ describe('runSendTransaction', () => {
       to: TO,
       from: FROM,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     expect(call).not.toHaveBeenCalledWith(
       'AccountsController:getSelectedAccount',
@@ -244,7 +244,7 @@ describe('runSendTransaction', () => {
     await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     expect(call).toHaveBeenCalledWith(
       'TransactionController:addTransaction',
@@ -262,7 +262,7 @@ describe('runSendTransaction', () => {
       data: '0xabcdef',
       maxFeePerGas: '0x2',
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     const txParams = call.mock.calls.find(
       ([action]) => action === 'TransactionController:addTransaction',
@@ -288,7 +288,7 @@ describe('runSendTransaction', () => {
       maxPriorityFeePerGas: '0x1',
       gasPrice: '0x3',
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     const txParams = call.mock.calls.find(
       ([action]) => action === 'TransactionController:addTransaction',
@@ -311,7 +311,7 @@ describe('runSendTransaction', () => {
     await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     expect(call).toHaveBeenCalledWith(
       'TransactionController:addTransaction',
@@ -326,7 +326,7 @@ describe('runSendTransaction', () => {
     const result = await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     // Re-reads the just-created transaction by its own id...
     expect(call).toHaveBeenCalledWith('TransactionController:getTransactions', {
@@ -352,7 +352,7 @@ describe('runSendTransaction', () => {
     const result = await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     expect(result).toMatchObject({ status: 'submitted' });
   });
@@ -366,7 +366,7 @@ describe('runSendTransaction', () => {
     const result = await runSendTransaction(messenger, {
       to: TO,
       networkClientId: 'mainnet',
-    } as SendTransactionParams);
+    });
 
     expect(result).toMatchObject({ status: 'submitted' });
   });
@@ -385,7 +385,7 @@ describe('runSendTransaction', () => {
       runSendTransaction(messenger, {
         to: TO,
         networkClientId: 'mainnet',
-      } as SendTransactionParams),
+      }),
     ).rejects.toThrow('insufficient funds');
   });
 
@@ -398,7 +398,7 @@ describe('runSendTransaction', () => {
         value: '0x64',
         chainId: '0x1',
         dryRun: true,
-      } as SendTransactionParams);
+      });
 
       expect(result).toStrictEqual({
         dryRun: true,
@@ -421,7 +421,7 @@ describe('runSendTransaction', () => {
         to: TO,
         chainId: '0x1',
         dryRun: true,
-      } as SendTransactionParams);
+      });
 
       expect(call).toHaveBeenCalledWith(
         'NetworkController:findNetworkClientIdByChainId',

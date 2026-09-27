@@ -64,7 +64,7 @@ export function createPermissionMiddleware({
       method,
       params,
     );
-    return undefined;
+    return;
   };
 
   return createAsyncMiddleware<RestrictedMethodParameters, Json>(

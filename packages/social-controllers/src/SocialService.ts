@@ -25,12 +25,15 @@ import {
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
   CommentEngagement,
+  CreateSwapCommentOptions,
   FeedResponse,
   FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
+  FetchTokenFeedOptions,
+  FetchTraderFeedOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
   FollowingResponse,
@@ -41,6 +44,7 @@ import type {
   PositionsResponse,
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
+  SwapCommentResponse,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
@@ -207,6 +211,32 @@ const AuthorCommentStruct = structType({
   engagement: CommentEngagementStruct,
 });
 
+const SwapCommentAuthorStruct = structType({
+  id: string(),
+  name: string(),
+  images: optional(
+    structType({
+      raw: nullable(string()),
+      xs: nullable(string()),
+      sm: nullable(string()),
+    }),
+  ),
+  addresses: optional(array(string())),
+  externalId: optional(string()),
+});
+
+const SwapCommentResponseStruct = structType({
+  uid: string(),
+  transactionHash: string(),
+  chain: string(),
+  tokenAddress: string(),
+  commentText: string(),
+  author: SwapCommentAuthorStruct,
+  timestamp: number(),
+  isAppUserComment: boolean(),
+  metrics: CommentEngagementStruct,
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
@@ -262,8 +292,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchFollowing',
   'fetchPositionById',
   'fetchFeed',
+  'fetchTraderFeed',
+  'fetchTokenFeed',
   'reactToComment',
   'removeCommentReaction',
+  'createSwapComment',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -396,7 +429,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
           );
         }
-        return leaderboardData as LeaderboardResponse;
+        return leaderboardData;
       },
     });
 
@@ -433,7 +466,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
           );
         }
-        return traderProfileData as TraderProfileResponse;
+        return traderProfileData;
       },
     });
 
@@ -508,7 +541,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
           );
         }
-        return followersData as FollowersResponse;
+        return followersData;
       },
     });
 
@@ -545,7 +578,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
           );
         }
-        return positionData as Position;
+        return positionData;
       },
     });
 
@@ -610,11 +643,150 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
           );
         }
-        return feedData as FeedResponse;
+        return feedData;
       },
     });
 
     return feedResponse;
+  }
+
+  /**
+   * Fetches a page of one trader's activity as feed items.
+   *
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/feed`. Unlike {@link fetchFeed},
+   * this is scoped to a single profile (open and closed positions in the feed)
+   * and does not accept `scope` or `chains`. Set `commentedOnly` to only return
+   * positions that carry an author comment.
+   *
+   * The route is public, but the Authorization header is still sent so the
+   * social-api can hydrate `authorComment.engagement.userReaction` for the
+   * signed-in viewer.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @param options.commentedOnly - When true, only positions with a comment.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchTraderFeed(
+    options: FetchTraderFeedOptions,
+  ): Promise<FeedResponse> {
+    const traderFeedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderFeed`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const { addressOrId, commentedOnly, limit, olderThan, newerThan } =
+          options;
+        const url = new URL(
+          `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/feed`,
+        );
+        if (commentedOnly === true) {
+          url.searchParams.append('commentedOnly', 'true');
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
+        );
+        const feedData = await response.json();
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData;
+      },
+    });
+
+    return traderFeedResponse;
+  }
+
+  /**
+   * Fetches a page of positions in one token, most recently traded first.
+   *
+   * Calls `GET ${baseUrl}/tokens/${chain}/${contractAddress}/feed`. Unlike
+   * {@link fetchFeed}, this is scoped to a single token and does not accept
+   * `scope` or `chains`. Omit `status` to include both open and recently
+   * closed positions.
+   *
+   * The route is public, but the Authorization header is still sent so the
+   * social-api can hydrate `authorComment.engagement.userReaction` for the
+   * signed-in viewer.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
+   * @param options.contractAddress - Token contract address.
+   * @param options.status - `open`, `closed`, or omit for both.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchTokenFeed(options: FetchTokenFeedOptions): Promise<FeedResponse> {
+    const tokenFeedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTokenFeed`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const { chain, contractAddress, status, limit, olderThan, newerThan } =
+          options;
+        const url = new URL(
+          `${this.#v1Url}/tokens/${encodeURIComponent(chain)}/${encodeURIComponent(contractAddress)}/feed`,
+        );
+        if (status) {
+          url.searchParams.append('status', status);
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
+        );
+        const feedData = (await response.json()) as unknown;
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData;
+      },
+    });
+
+    return tokenFeedResponse;
   }
 
   /**
@@ -654,7 +826,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
           );
         }
-        return metrics as CommentEngagement;
+        return metrics;
       },
     });
   }
@@ -694,7 +866,67 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
           );
         }
-        return metrics as CommentEngagement;
+        return metrics;
+      },
+    });
+  }
+
+  /**
+   * Creates an author Call (user post) on one of the current user's swaps.
+   *
+   * Calls `POST ${baseUrl}/swap-comments`. Identify the swap with
+   * `positionUid` (the `positionId` of a feed item or position) or, for a
+   * trade too recent to be indexed, `tradeInFlight`. Provide exactly one of
+   * those two fields.
+   *
+   * @param options - Options bag.
+   * @param options.commentText - Message body of the post. May include a
+   * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
+   * @param options.source - Free-form origin label stored on the comment.
+   * @param options.positionUid - Position UUID (`positionId` / feed item id).
+   * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+   * @returns The created swap comment.
+   */
+  async createSwapComment(
+    options: CreateSwapCommentOptions,
+  ): Promise<SwapCommentResponse> {
+    const { commentText, source, positionUid, tradeInFlight } = options;
+
+    return await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createSwapComment`,
+        {
+          commentText,
+          source: source ?? null,
+          positionUid: positionUid ?? null,
+          tradeInFlight: tradeInFlight ?? null,
+        },
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comments`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            commentText,
+            ...(source === undefined ? {} : { source }),
+            ...(positionUid === undefined ? {} : { positionUid }),
+            ...(tradeInFlight === undefined ? {} : { tradeInFlight }),
+          }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED,
+        );
+        const comment = (await response.json()) as unknown;
+        if (!is(comment, SwapCommentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return comment;
       },
     });
   }
@@ -725,7 +957,7 @@ export class SocialService extends BaseDataService<
             SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
           );
         }
-        return followingData as FollowingResponse;
+        return followingData;
       },
     });
 
@@ -764,7 +996,7 @@ export class SocialService extends BaseDataService<
         if (!is(followData, FollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
         }
-        return followData as FollowResponse;
+        return followData;
       },
     });
 
@@ -807,7 +1039,7 @@ export class SocialService extends BaseDataService<
         if (!is(unfollowData, UnfollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
         }
-        return unfollowData as UnfollowResponse;
+        return unfollowData;
       },
     });
 
@@ -957,7 +1189,7 @@ export class SocialService extends BaseDataService<
         if (!is(positionsData, PositionsResponseStruct)) {
           throw new Error(invalidMessage);
         }
-        return positionsData as PositionsResponse;
+        return positionsData;
       },
     });
 

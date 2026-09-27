@@ -13094,7 +13094,7 @@ describe('NetworkController', () => {
 
     it('allows calling `getNetworkConfigurationByNetworkClientId` when subscribing to state changes containing new endpoints', async () => {
       const network = buildCustomNetworkConfiguration({
-        chainId: '0x1' as Hex,
+        chainId: '0x1',
         name: 'mainnet',
         nativeCurrency: 'ETH',
         blockExplorerUrls: [],

@@ -161,9 +161,7 @@ describe('retry logic in middleware connected to a port', () => {
       },
     };
 
-    const connectionStream = new PortStream(
-      extensionPort as unknown as Runtime.Port,
-    );
+    const connectionStream = new PortStream(extensionPort);
 
     // connect both
     const clientSideStream = jsonRpcConnection.stream;

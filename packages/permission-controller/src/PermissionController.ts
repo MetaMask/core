@@ -1349,9 +1349,6 @@ export class PermissionController<
         );
 
         if (caveatIndex === -1) {
-          // This error appeared when upgrading to TypeScript 7.
-          // @ts-expect-error: TS2589: Type instantiation is excessively deep
-          // and possibly infinite.
           permission.caveats.push(caveat);
           addedCaveat = true;
         } else {
@@ -1581,7 +1578,9 @@ export class PermissionController<
 
     this.#validatePermission(
       this.#getPermissionSpecification(permission.parentCapability),
+      /* oxlint-disable typescript/no-unnecessary-type-assertion */
       permission as PermissionConstraint,
+      /* oxlint-enable typescript/no-unnecessary-type-assertion */
       origin,
       validationFlags,
     );
@@ -1749,6 +1748,7 @@ export class PermissionController<
 
       // We have verified that the target exists, and reassign it to change its
       // type.
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       const targetName = requestedTarget as ExtractPermission<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification

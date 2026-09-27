@@ -12,6 +12,7 @@ import {
   BNB_ASSET_ID,
   BSC_CHAIN_ID,
   BSC_SPAM_ACCOUNT_ID,
+  CDOGE_ASSET_ID_CHECKSUM,
   CDOGE_ASSET_ID_LOWERCASE,
 } from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -26,11 +27,15 @@ import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
+  AssetsDataSource,
   Caip19AssetId,
+  Context,
   DataRequest,
   DataResponse,
 } from '../types.js';
+import type { AssetVisibility } from '../utils/assetVisibility.js';
+import { getAssetVisibility } from '../utils/assetVisibility.js';
 import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 /**
@@ -77,7 +82,16 @@ const DETECTED_ASSETS: ResponseSurface = {
 };
 
 async function runPipeline(
-  state: AssetsControllerStateInternal,
+  state: AssetsControllerState,
+  {
+    rpcDataSource: rpcOverride,
+    omitBalanceAssetIds = [],
+    includeCustomAssetGraduation = true,
+  }: {
+    rpcDataSource?: AssetsDataSource;
+    omitBalanceAssetIds?: string[];
+    includeCustomAssetGraduation?: boolean;
+  } = {},
 ): Promise<DataResponse> {
   const { assetsControllerMessenger } = createMockMessengers({
     registerCustomRootActions: (rootMessenger) => {
@@ -104,6 +118,14 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     onActiveChainsUpdated: jest.fn(),
+    getAssetsState: (): AssetsControllerState => state,
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const stakedBalanceDataSource = new StakedBalanceDataSource({
@@ -113,12 +135,20 @@ async function runPipeline(
 
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
+    getAssetsState: (): AssetsControllerState => state,
     onActiveChainsUpdated: jest.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state,
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: () => BNB_ASSET_ID,
+      }),
   });
 
   const tokenDataSource = new TokenDataSource(assetsControllerMessenger, {
@@ -128,14 +158,16 @@ async function runPipeline(
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
         ? 'erc20'
         : 'native',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
   const priceDataSource = new PriceDataSource({
     queryApiClient,
     getSelectedCurrency: (): 'usd' => 'usd',
+    getAssetsState: (): AssetsControllerState => state,
   });
 
-  mockBscSpamApis();
+  mockBscSpamApis({ omitBalanceAssetIds });
 
   await accountsApiDataSource.refreshActiveChains();
 
@@ -159,19 +191,24 @@ async function runPipeline(
             'Integration should not call graduation to remove assets!',
           );
         },
+        getAssetsState: (): AssetsControllerState => state,
       }),
-      rpcFallbackMiddleware: new RpcFallbackMiddleware({ rpcDataSource }),
-      detectionMiddleware: new DetectionMiddleware(),
+      rpcFallbackMiddleware: new RpcFallbackMiddleware({
+        rpcDataSource: rpcOverride ?? rpcDataSource,
+        getAssetsState: (): AssetsControllerState => state,
+      }),
+      detectionMiddleware: new DetectionMiddleware({
+        getAssetsState: (): AssetsControllerState => state,
+      }),
       tokenDataSource,
       priceDataSource,
     },
-    { isBasicFunctionality: true },
+    { isBasicFunctionality: true, includeCustomAssetGraduation },
   );
 
   const { response } = await executeAssetsPipeline({
     sources,
     request,
-    getAssetsState: () => state,
   });
 
   accountsApiDataSource.destroy();
@@ -236,6 +273,85 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     // but worth flagging.
     it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
+    });
+  });
+});
+
+describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+  afterEach(() => {
+    cleanAll();
+  });
+
+  const createRecordingRpcSource = (
+    balances: Record<Caip19AssetId, { amount: string }>,
+  ): { source: AssetsDataSource; requests: DataRequest[] } => {
+    const requests: DataRequest[] = [];
+    const source: AssetsDataSource = {
+      getName: () => 'RpcDataSource',
+      assetsMiddleware: async (ctx): Promise<Context> => {
+        requests.push(ctx.request);
+        return {
+          ...ctx,
+          response: {
+            assetsBalance: { [BSC_SPAM_ACCOUNT_ID]: balances },
+          },
+        };
+      },
+    };
+    return { source, requests };
+  };
+
+  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+    '$surface - keeps the imported token despite a positive API balance and low occurrences',
+    async ({ lookUp }) => {
+      const response = await runPipeline(
+        buildEmptyAssetsState({
+          customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+        }),
+        { includeCustomAssetGraduation: false },
+      );
+
+      expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+    },
+  );
+
+  it('does not re-read the custom asset on RPC when the Accounts API reports its balance', async () => {
+    const { source, requests } = createRecordingRpcSource({});
+
+    const response = await runPipeline(
+      buildEmptyAssetsState({
+        customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      }),
+      {
+        rpcDataSource: source,
+        includeCustomAssetGraduation: false,
+      },
+    );
+
+    expect(requests).toHaveLength(0);
+    expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+  });
+
+  it('re-reads the custom asset on RPC when the Accounts API omits it', async () => {
+    const { source, requests } = createRecordingRpcSource({
+      [CDOGE_ASSET_ID_LOWERCASE]: { amount: '4321' },
+    });
+
+    const response = await runPipeline(
+      buildEmptyAssetsState({
+        customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
+      }),
+      {
+        rpcDataSource: source,
+        omitBalanceAssetIds: [CDOGE_ASSET_ID_LOWERCASE],
+        includeCustomAssetGraduation: false,
+      },
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.customAssets ?? []).toContain(CDOGE_ASSET_ID_CHECKSUM);
+    expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
+      amount: '4321',
     });
   });
 });

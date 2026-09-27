@@ -179,7 +179,7 @@ describe('lighterAdapter', () => {
         adaptPositionFromLighter({
           ...position,
           position: '0',
-          sign: 0 as number,
+          sign: 0,
         }),
       ).toThrow('Invalid Lighter venue data');
       expect(

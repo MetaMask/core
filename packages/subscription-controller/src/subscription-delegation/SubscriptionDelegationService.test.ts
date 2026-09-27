@@ -964,7 +964,7 @@ describe('SubscriptionDelegationService', () => {
               chains: [],
             },
           ],
-        } as PricingResponse,
+        },
       ],
       [
         'delegate address',

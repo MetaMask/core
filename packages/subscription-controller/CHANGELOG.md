@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [10.0.0]
+
 ### Added
 
 - Add `INVOICE_PAYMENT_STATUSES` / `InvoicePaymentStatus` for typed invoice
@@ -33,9 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@ethersproject/abi` `^5.7.0` as a dependency ([#10427](https://github.com/MetaMask/core/pull/10427))
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409))
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.1` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
-- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
 - Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/money-account-utils` from `^2.0.0` to `^2.0.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
 
 ## [9.1.0]
 
@@ -543,7 +556,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.0...@metamask/subscription-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...@metamask/subscription-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.1...@metamask/subscription-controller@9.1.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.0...@metamask/subscription-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.1.0...@metamask/subscription-controller@9.0.0
