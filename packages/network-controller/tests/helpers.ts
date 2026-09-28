@@ -21,7 +21,10 @@ import type {
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
-import { buildTestObject } from '../../../tests/helpers.js';
+// `buildTestObject` needs no test-runner API, so it is imported from the
+// runner-agnostic module: `sample-controllers` runs under Vitest and reaches
+// this file, so it must not pull in the Jest-only helpers.
+import { buildTestObject } from '../../../tests/shared-helpers.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
 import type {
