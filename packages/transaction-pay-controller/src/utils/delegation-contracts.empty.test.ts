@@ -1,8 +1,8 @@
+import { chainHasDeleGatorContracts } from './delegation-contracts.js';
+
 jest.mock('@metamask/delegation-deployments', () => ({
   DELEGATOR_CONTRACTS: {},
 }));
-
-import { chainHasDeleGatorContracts } from './delegation-contracts';
 
 describe('chainHasDeleGatorContracts without deployments', () => {
   it('returns false when no versions are published', () => {
