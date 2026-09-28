@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Prefer a provider the user has previously completed an order with (most recent first) over API ranking order when `setSelectedProviderForAsset` switches providers
+
 ### Fixed
 
 - Treat a relay-approved KYC session as approved in `hydrateVbaOnboarding` even when the vendor-side `finalStatus` is still `pending`, so relay-approved users are no longer stranded on the pending screen ([#10497](https://github.com/MetaMask/core/pull/10497))

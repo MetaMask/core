@@ -88,7 +88,7 @@ export type RampsControllerSetSelectedProviderAction = {
 };
 
 /**
- * Switches to the first provider in state that serves the given asset,
+ * Switches to the preferred provider in state that serves the given asset,
  * when the currently selected provider does not.
  *
  * This is the controller-level equivalent of UB2's BuildQuote tier-1
@@ -100,6 +100,12 @@ export type RampsControllerSetSelectedProviderAction = {
  * The compatibility check prefers the current provider's entry in
  * `providers.data` over the `providers.selected` copy, which can be stale
  * once a fresh providers list arrives.
+ *
+ * Among the providers that serve the asset, the new selection is:
+ * 1. The first provider the user has completed an order with before (most
+ * recent first). This keeps an existing KYC relationship instead of
+ * moving the user to a new provider.
+ * 2. Otherwise the first provider in `providers.data` (API ranking order).
  *
  * No-op when:
  * - `providers.data` is empty (providers not yet loaded)
