@@ -168,7 +168,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
     );
     expect(updateTransactionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        note: 'Add required transaction ID from Money Account vault submission',
+        note: 'Add required transaction ID from second leg submission',
         transactionId: TRANSACTION_ID_MOCK,
       }),
       expect.any(Function),
