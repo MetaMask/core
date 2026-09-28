@@ -23,6 +23,9 @@
     },
     {
       "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],

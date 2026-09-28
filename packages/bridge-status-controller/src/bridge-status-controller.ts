@@ -384,6 +384,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
   };
 
+  /**
+   * Whether a history item represents an intent-based order.
+   *
+   * The bridge backend observes intent settlement directly and owns the quote
+   * status of these orders, so the client must not report SUBMITTED or
+   * finalized quote-status updates for them.
+   *
+   * @param historyKey - The key of the history item in `txHistory`
+   * @returns `true` when the history item exists and carries intent data
+   */
+  readonly #isIntentHistoryItem = (historyKey?: string): boolean =>
+    historyKey
+      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
+      : false;
+
   readonly #onTransactionFailed = ({
     txMeta,
     historyKey,
@@ -396,9 +411,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const isHistoryItemAlreadyFailed = historyKey
       ? this.state.txHistory[historyKey]?.status.status === StatusTypes.FAILED
       : false;
-    const isIntent = historyKey
-      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
-      : false;
+    const isIntent = this.#isIntentHistoryItem(historyKey);
 
     this.#updateHistoryItem({
       historyKey,
@@ -426,8 +439,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // `hasNestedSwapTransactions` also covers batch/7702 swaps whose type may
     // still read as `batch` rather than `swap`.
     if (
-      (txMeta.type && isCrossChainTx(txMeta.type)) ||
-      hasNestedSwapTransactions(txMeta)
+      !isIntent &&
+      ((txMeta.type && isCrossChainTx(txMeta.type)) ||
+        hasNestedSwapTransactions(txMeta))
     ) {
       this.#quoteStatusManager.reportFinalised(
         txMeta.id,
@@ -464,9 +478,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyKey,
       txHash: txMeta.hash,
     });
-    const isIntent = historyKey
-      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
-      : false;
+    const isIntent = this.#isIntentHistoryItem(historyKey);
 
     const isSwap =
       txMeta.type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
@@ -478,29 +490,28 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         completionTime: Date.now(),
       });
 
-      // For EVM intent-based swaps the synthetic tx transitions
-      // submitted→confirmed in a single update that carries the CoW
-      // settlement hash, so the submitted status handler never has a hash
-      // and reportSubmitted is never called. Call it here (before
-      // reportFinalised) so the deferred-queue entry is created.
-      const historyItem = historyKey
-        ? this.state.txHistory[historyKey]
-        : undefined;
-      if (
-        historyKey &&
-        historyItem &&
-        txMeta.hash &&
-        !isNonEvmChainId(historyItem.quote.srcChainId)
-      ) {
-        this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
-      }
-      this.#quoteStatusManager.reportFinalised(
-        txMeta.id,
-        true,
-        txMeta.chainId,
-        txMeta.hash,
-      );
       if (!isIntent) {
+        // Smart/batch transactions can be assigned their hash only once
+        // confirmed, so the submitted status handler never had one to report.
+        // Report it here (before reportFinalised) so the deferred-queue entry
+        // exists.
+        const historyItem = historyKey
+          ? this.state.txHistory[historyKey]
+          : undefined;
+        if (
+          historyKey &&
+          historyItem &&
+          txMeta.hash &&
+          !isNonEvmChainId(historyItem.quote.srcChainId)
+        ) {
+          this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
+        }
+        this.#quoteStatusManager.reportFinalised(
+          txMeta.id,
+          true,
+          txMeta.chainId,
+          txMeta.hash,
+        );
         this.#traceSwapOperationCompleted(
           historyKey,
           'success',
@@ -558,6 +569,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * into `txHistory`). In that case every quote is reported under the shared
    * source tx hash and `txMetaId`.
    *
+   * Intent-based orders are skipped: the backend owns their quote status.
+   *
    * @param historyKey - The key of the history item in `txHistory`
    * @param srcTxHash - The source chain transaction hash
    * @param txMetaId - The transaction meta id, used for finalization matching
@@ -568,7 +581,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): void => {
     const historyItem = this.state.txHistory[historyKey];
-    if (!historyItem) {
+    if (!historyItem || historyItem.quote.intent) {
       return;
     }
 
@@ -994,12 +1007,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // permanently ends polling, so it's the correct and non-duplicative point
     // to emit the final status.
     const historyItem = this.state.txHistory[bridgeTxMetaId];
-    this.#quoteStatusManager.reportFinalised(
-      bridgeTxMetaId,
-      false,
-      historyItem?.quote.srcChainId,
-      historyItem?.status.srcChain.txHash,
-    );
+    if (!this.#isIntentHistoryItem(bridgeTxMetaId)) {
+      this.#quoteStatusManager.reportFinalised(
+        bridgeTxMetaId,
+        false,
+        historyItem?.quote.srcChainId,
+        historyItem?.status.srcChain.txHash,
+      );
+    }
     this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
@@ -1043,17 +1058,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           return;
         }
         status = intentTxStatus.bridgeStatus.status;
-
-        // Report SUBMITTED as soon as the intent's source/settlement hash is
-        // known at poll time, before the order reaches a terminal status.
-        const intentSrcTxHash = status.srcChain.txHash;
-        if (intentSrcTxHash) {
-          this.#reportSubmittedOnce(
-            bridgeTxMetaId,
-            intentSrcTxHash,
-            bridgeTxMetaId,
-          );
-        }
       } else {
         // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
@@ -1146,22 +1150,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
         }
 
-        // Ensure a deferred entry exists before reportFinalised is called.
         const settlementTxHash = newBridgeHistoryItem.status.srcChain.txHash;
-        if (settlementTxHash) {
-          this.#reportSubmittedOnce(
+        if (!historyItem.quote.intent) {
+          // Ensure a deferred entry exists before reportFinalised is called.
+          if (settlementTxHash) {
+            this.#reportSubmittedOnce(
+              bridgeTxMetaId,
+              settlementTxHash,
+              bridgeTxMetaId,
+            );
+          }
+
+          this.#quoteStatusManager.reportFinalised(
             bridgeTxMetaId,
+            status.status === StatusTypes.COMPLETE,
+            historyItem.quote.srcChainId,
             settlementTxHash,
-            bridgeTxMetaId,
           );
         }
-
-        this.#quoteStatusManager.reportFinalised(
-          bridgeTxMetaId,
-          status.status === StatusTypes.COMPLETE,
-          historyItem.quote.srcChainId,
-          settlementTxHash,
-        );
 
         await this.#traceSwapOperationCompleted(
           bridgeTxMetaId,

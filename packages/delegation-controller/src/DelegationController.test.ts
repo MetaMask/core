@@ -44,7 +44,7 @@ const VERIFYING_CONTRACT_MOCK: Address =
   '0x00000000000000000000000000000000000321fde';
 
 const DELEGATION_MOCK: Delegation = {
-  delegator: '0x1234567890123456789012345678901234567890' as Address,
+  delegator: '0x1234567890123456789012345678901234567890',
   delegate: FROM_MOCK,
   authority: ROOT_AUTHORITY,
   caveats: [
@@ -54,7 +54,7 @@ const DELEGATION_MOCK: Delegation = {
       args: '0x',
     },
   ],
-  salt: '0x' as Hex,
+  salt: '0x',
   signature: '0x',
 };
 
@@ -197,7 +197,7 @@ describe(`${controllerName}`, () => {
         rootMessenger.call('DelegationController:signDelegation', {
           delegation: {
             ...DELEGATION_MOCK,
-            salt: '0x1' as Hex,
+            salt: '0x1',
           },
           chainId: CHAIN_ID_MOCK,
         }),

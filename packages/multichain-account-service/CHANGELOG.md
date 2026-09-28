@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [14.1.0]
+
+### Added
+
+- Add `Bip44AccountProvider.deleteAccounts` ([#10263](https://github.com/MetaMask/core/pull/10263))
+  - Default implementation deletes sequentially via `deleteAccount` and is best-effort: one failure does not skip the rest.
+  - Failures are returned as `{ ok: false, failures }` rather than thrown.
+- Add `MultichainAccountWallet.deleteAllMultichainAccountGroups` ([#10263](https://github.com/MetaMask/core/pull/10263))
+  - Deletes every account the wallet owns. EVM failure IDs identify retained groups without re-querying providers; groups whose EVM deletion succeeded are pruned after best-effort non-EVM cleanup.
+- Add an optional provider filter to `MultichainAccountGroup.getAccountIds` ([#10263](https://github.com/MetaMask/core/pull/10263))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/account-api` from `^2.0.0` to `^2.1.0` ([#10263](https://github.com/MetaMask/core/pull/10263))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/snap-account-service` from `^3.0.0` to `^4.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+### Fixed
+
+- Fix `removeMultichainAccountWallet` for `EvmAccountProvider` ([#10263](https://github.com/MetaMask/core/pull/10263))
+  - `EvmAccountProvider.deleteAccounts` deletes from the highest group index down under one keyring lock per entropy source, which the HD keyring requires.
+  - Also, now deletes through `deleteAccounts` per provider.
+  - EVM deletion failures now cause wallet removal to throw and retain the wallet: after a partial EVM deletion, only non-EVM accounts without a remaining EVM account in the same group are deleted.
+  - Wallet removal now delegates account deletion to `MultichainAccountWallet.deleteAllMultichainAccountGroups` and only drops the wallet from the service map when that call succeeds.
+
 ## [14.0.0]
 
 ### Changed
@@ -626,7 +656,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...@metamask/multichain-account-service@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.2...@metamask/multichain-account-service@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.1...@metamask/multichain-account-service@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.0...@metamask/multichain-account-service@13.0.1

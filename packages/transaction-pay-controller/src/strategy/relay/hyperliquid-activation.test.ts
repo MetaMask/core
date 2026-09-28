@@ -32,11 +32,11 @@ const HYPERLIQUID_SOURCE_REQUEST_MOCK: QuoteRequest = {
   isPostQuote: true,
   sourceBalanceRaw: SOURCE_AMOUNT_MOCK,
   sourceChainId: '0x539',
-  sourceTokenAddress: '0x00000000000000000000000000000000' as Hex,
+  sourceTokenAddress: '0x00000000000000000000000000000000',
   sourceTokenAmount: SOURCE_AMOUNT_MOCK,
   targetAmountMinimum: '0',
   targetChainId: '0xa4b1',
-  targetTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831' as Hex,
+  targetTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
 };
 
 /**
@@ -239,7 +239,7 @@ describe('HyperLiquid Activation', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         json: async () => [outboundSend()],
-      } as never);
+      });
 
       const result = await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -253,7 +253,7 @@ describe('HyperLiquid Activation', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         json: async () => [inboundSend()],
-      } as never);
+      });
 
       const result = await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -265,7 +265,7 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('queries the HyperLiquid info endpoint with the account address', async () => {
-      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
       await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -287,7 +287,7 @@ describe('HyperLiquid Activation', () => {
 
     it('reserves a custom fee amount from the feature flag', async () => {
       getConfigMock.mockReturnValue({ enabled: true, amountUsd: 2 });
-      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
       const result = await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -300,7 +300,7 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('returns the request unchanged when the amount does not exceed the fee', async () => {
-      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
       const request: QuoteRequest = {
         ...HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -328,7 +328,7 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('reserves the fee when the info request is not ok', async () => {
-      fetchMock.mockResolvedValue({ ok: false, status: 500 } as never);
+      fetchMock.mockResolvedValue({ ok: false, status: 500 });
 
       const result = await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -340,7 +340,7 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('resolves the config for the transaction type', async () => {
-      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
       await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -355,7 +355,7 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('resolves the config for the nested transaction type when batched', async () => {
-      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
       await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,
@@ -373,7 +373,7 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('resolves the config for the batch type when no nested transaction is typed', async () => {
-      fetchMock.mockResolvedValue({ ok: true, json: async () => [] } as never);
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
       await applyHyperliquidActivationFee(
         HYPERLIQUID_SOURCE_REQUEST_MOCK,

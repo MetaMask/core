@@ -27,6 +27,9 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

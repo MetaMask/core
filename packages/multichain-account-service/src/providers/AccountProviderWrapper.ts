@@ -8,6 +8,7 @@ import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceMessenger } from '../types.js';
+import type { DeleteAccountsResult } from './BaseBip44AccountProvider.js';
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider.js';
 
 /**
@@ -191,6 +192,21 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    */
   async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
     return this.provider.deleteAccount(id);
+  }
+
+  /**
+   * Forwards to the wrapped provider unconditionally, same reason as
+   * {@link deleteAccount}: wallet-removal cleanup must reach snap-backed
+   * (and EVM) accounts even when the wrapper is disabled. Forwarding the
+   * batch also preserves provider-specific ordering (EVM last-to-first).
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
+   */
+  async deleteAccounts(
+    ids: Bip44Account<KeyringAccount>['id'][],
+  ): Promise<DeleteAccountsResult> {
+    return this.provider.deleteAccounts(ids);
   }
 
   /**

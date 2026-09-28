@@ -94,6 +94,8 @@ export type TransakBuyQuote = {
   nonce: number;
   cryptoLiquidityProvider: string;
   notes: { [prop: string]: string | number | boolean | null }[];
+  requestedAssetId: string;
+  requestedChainId: string;
 };
 
 export type TransakKycRequirement = {
@@ -910,6 +912,7 @@ export class TransakService {
     genericNetwork: string,
     genericPaymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     const normalizedPaymentMethod = normalizePaymentMethodForTranslation(
       genericPaymentMethod || undefined,
@@ -929,14 +932,25 @@ export class TransakService {
       isBuyOrSell: 'BUY',
       network: translation.network,
       fiatAmount,
-      isFeeExcludedFromFiat: 'true',
     };
+
+    if (isFeeExcludedFromFiat) {
+      params.isFeeExcludedFromFiat = 'true';
+    }
 
     if (translation.paymentMethod) {
       params.paymentMethod = translation.paymentMethod;
     }
 
-    return this.#transakGet<TransakBuyQuote>('/api/v2/lookup/quotes', params);
+    const quote = await this.#transakGet<
+      Omit<TransakBuyQuote, 'requestedAssetId' | 'requestedChainId'>
+    >('/api/v2/lookup/quotes', params);
+
+    return {
+      ...quote,
+      requestedAssetId: genericCryptoCurrency,
+      requestedChainId: genericNetwork,
+    };
   }
 
   async getKycRequirement(quoteId: string): Promise<TransakKycRequirement> {
@@ -1246,10 +1260,7 @@ export class TransakService {
 
   async patchUser(data: PatchUserRequestBody): Promise<unknown> {
     this.#ensureAccessToken();
-    return this.#transakPatch(
-      '/api/v2/kyc/user',
-      data as Record<string, unknown>,
-    );
+    return this.#transakPatch('/api/v2/kyc/user', data);
   }
 
   async submitSsnDetails(ssn: string, quoteId: string): Promise<unknown> {

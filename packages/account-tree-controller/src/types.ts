@@ -4,6 +4,7 @@ import type {
   AccountsControllerAccountsAddedEvent,
   AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerSelectedAccountChangeEvent,
@@ -16,6 +17,7 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerRemoveAccountAction,
   KeyringControllerVerifyPasswordAction,
   KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringV2Action,
@@ -26,6 +28,7 @@ import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
   MultichainAccountServiceCreateMultichainAccountWalletAction,
+  MultichainAccountServiceRemoveMultichainAccountWalletAction,
 } from '@metamask/multichain-account-service';
 import type { MultichainAccountServiceWalletStatusChangeEvent } from '@metamask/multichain-account-service';
 import type {
@@ -89,10 +92,12 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
 
 export type AllowedActions =
   | AccountsControllerGetAccountAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetSelectedMultichainAccountAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
+  | KeyringControllerRemoveAccountAction
   | KeyringControllerVerifyPasswordAction
   | SnapControllerGetSnapAction
   | UserStorageController.UserStorageControllerGetStateAction
@@ -104,6 +109,7 @@ export type AllowedActions =
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
+  | MultichainAccountServiceRemoveMultichainAccountWalletAction
   | KeyringControllerWithControllerAction
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerWithKeyringV2UnsafeAction;

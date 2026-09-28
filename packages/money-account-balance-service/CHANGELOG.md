@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Surface Money API freshness on `fetchBalanceWithFallback` results (`asOfBlock`, `asOfTimestamp`, `dataFreshness`, `indexerLagSeconds`, `musdBalanceUpdatedAt`) when `source` is `api` ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Add optional `FetchBalanceWithFallbackOptions` (`minBlock`, `fresh`): when the API `as_of_block` is behind `minBlock`, throw `MoneyAccountBalanceStaleError` and fall back to RPC without reporting a defect; `minBlock` implies a fresh positions read, and explicit `fresh` is also forwarded to `fetchPositions` ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Export `MoneyAccountBalanceStaleError` ([#10455](https://github.com/MetaMask/core/pull/10455))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+
 ## [3.0.0]
 
 ### Changed

@@ -34,6 +34,8 @@ const PositionBalanceStruct = object({
   musd_balance: string(),
   vmusd_value_in_musd: string(),
   total_balance: string(),
+  // Additive — older API builds omit this field.
+  musd_balance_updated_at: optional(nullable(string())),
 });
 
 export const PositionResponseStruct = object({

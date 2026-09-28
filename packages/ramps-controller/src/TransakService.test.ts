@@ -1049,7 +1049,46 @@ describe('TransakService', () => {
       await flushPromises();
       const result = await promise;
 
-      expect(result).toStrictEqual(MOCK_BUY_QUOTE);
+      expect(result).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        requestedAssetId: 'eip155:1/slip44:60',
+        requestedChainId: 'eip155:1',
+      });
+    });
+
+    it('omits fee exclusion for a fee-inclusive quote request', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(
+          (query) =>
+            query.fiatAmount === '15' &&
+            query.isFeeExcludedFromFiat === undefined &&
+            query.apiKey === MOCK_API_KEY,
+        )
+        .reply(200, { data: { ...MOCK_BUY_QUOTE, fiatAmount: 15 } });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+        'eip155:143',
+        '/payments/debit-credit-card',
+        '15',
+        false,
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        fiatAmount: 15,
+        requestedAssetId:
+          'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+        requestedChainId: 'eip155:143',
+      });
     });
 
     it('omits query parameters whose values are undefined', async () => {
@@ -1079,7 +1118,11 @@ describe('TransakService', () => {
       await jest.runAllTimersAsync();
       await flushPromises();
 
-      expect(await promise).toStrictEqual(MOCK_BUY_QUOTE);
+      expect(await promise).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        requestedAssetId: 'eip155:1/slip44:60',
+        requestedChainId: 'eip155:1',
+      });
     });
 
     it('normalizes ramps API payment method IDs before translation', async () => {

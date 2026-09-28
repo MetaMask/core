@@ -19,6 +19,9 @@
     },
     {
       "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

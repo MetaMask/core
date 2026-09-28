@@ -151,9 +151,7 @@ function parseAcrossActionCall(data: Hex): ParsedAcrossActionCall {
 
 function serializeAcrossActionValue(value: unknown): AcrossActionArg['value'] {
   if (Array.isArray(value)) {
-    return value.map((entry) =>
-      serializeAcrossActionScalar(entry),
-    ) as AcrossActionArg['value'];
+    return value.map((entry) => serializeAcrossActionScalar(entry));
   }
 
   return serializeAcrossActionScalar(value);

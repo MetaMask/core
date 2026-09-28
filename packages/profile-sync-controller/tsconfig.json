@@ -5,6 +5,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../controller-utils"
+    },
+    {
       "path": "../keyring-controller"
     },
     {
@@ -15,6 +18,9 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

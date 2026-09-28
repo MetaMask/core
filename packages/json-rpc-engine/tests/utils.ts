@@ -20,13 +20,12 @@ export const makeRequest = <Request extends JsonRpcRequest = JsonRpcRequest>(
 
 export const makeNotification = <Request extends Partial<JsonRpcRequest>>(
   params: Request = {} as Request,
-): JsonRpcNotification =>
-  ({
-    jsonrpc,
-    method: 'test_request',
-    params: [],
-    ...params,
-  }) as JsonRpcNotification;
+): JsonRpcNotification => ({
+  jsonrpc,
+  method: 'test_request',
+  params: [],
+  ...params,
+});
 
 /**
  * Creates a {@link JsonRpcCall} middleware that returns `null`.

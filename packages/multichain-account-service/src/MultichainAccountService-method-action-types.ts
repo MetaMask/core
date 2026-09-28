@@ -80,16 +80,17 @@ export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
  * Removes a multichain account wallet, deleting all of its accounts across
  * every registered provider (EVM and snap-based).
  *
- * The deletion iterates providers (the source of truth for their own
- * account lists) and filters each provider's accounts to those matching
- * the wallet's entropy source. Cleanup is best-effort end-to-end: neither
- * a single account deletion failure nor a failure to enumerate a given
- * provider's accounts aborts cleanup of the remaining providers. If one or
- * more operations fail, a single aggregated error is reported via
- * `reportError` with all per-failure details in its context. The wallet is
- * always removed from the service's internal map at the end.
+ * EVM deletion is required because every multichain account group must have
+ * an EVM account and EVM keyring state cannot be recovered from a Snap. If
+ * EVM deletion partially fails, only non-EVM accounts whose EVM counterpart
+ * was successfully deleted are removed. The wallet remains registered and
+ * this method throws.
+ *
+ * Once every EVM account has been deleted, non-EVM cleanup is best-effort:
+ * failures are reported together and the wallet is removed.
  *
  * @param entropySource - The entropy source of the multichain account wallet.
+ * @throws If one or more EVM accounts cannot be deleted.
  */
 export type MultichainAccountServiceRemoveMultichainAccountWalletAction = {
   type: `MultichainAccountService:removeMultichainAccountWallet`;

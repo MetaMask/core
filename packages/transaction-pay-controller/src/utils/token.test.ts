@@ -70,7 +70,7 @@ describe('Token Utils', () => {
     getNetworkClientByIdMock.mockReturnValue({
       configuration: { ticker: TICKER_MOCK },
       provider: PROVIDER_MOCK,
-    } as never);
+    });
   });
 
   function enableAssetsUnifyState(): void {
@@ -124,7 +124,7 @@ describe('Token Utils', () => {
             ],
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
 
@@ -147,7 +147,7 @@ describe('Token Utils', () => {
             ],
           },
         },
-      } as never);
+      });
 
       const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
 
@@ -158,7 +158,7 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if token is not found', () => {
-      getTokensControllerStateMock.mockReturnValue({} as TokensControllerState);
+      getTokensControllerStateMock.mockReturnValue({});
 
       const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
 
@@ -166,11 +166,11 @@ describe('Token Utils', () => {
     });
 
     it('returns native token info', () => {
-      getTokensControllerStateMock.mockReturnValue({} as TokensControllerState);
+      getTokensControllerStateMock.mockReturnValue({});
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       const result = getTokenInfo(
         messenger,
@@ -185,8 +185,8 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if native ticker is not found', () => {
-      getTokensControllerStateMock.mockReturnValue({} as TokensControllerState);
-      getNetworkClientByIdMock.mockReturnValue(undefined as never);
+      getTokensControllerStateMock.mockReturnValue({});
+      getNetworkClientByIdMock.mockReturnValue(undefined);
 
       const result = getTokenInfo(
         messenger,
@@ -198,11 +198,11 @@ describe('Token Utils', () => {
     });
 
     it('supports non-standard native token address', () => {
-      getTokensControllerStateMock.mockReturnValue({} as TokensControllerState);
+      getTokensControllerStateMock.mockReturnValue({});
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       const result = getTokenInfo(
         messenger,
@@ -335,7 +335,7 @@ describe('Token Utils', () => {
             [FROM_MOCK]: {},
           },
         },
-      } as AccountTrackerControllerState);
+      });
 
       const result = getTokenBalance(
         messenger,
@@ -385,7 +385,7 @@ describe('Token Utils', () => {
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       getTokenRatesControllerStateMock.mockReturnValue({
         marketData: {
@@ -395,7 +395,7 @@ describe('Token Utils', () => {
             },
           },
         },
-      } as TokenRatesControllerState);
+      });
 
       getCurrencyRateControllerStateMock.mockReturnValue({
         currencyRates: {
@@ -420,7 +420,7 @@ describe('Token Utils', () => {
 
     it('returns undefined if no network configuration', () => {
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-      getNetworkClientByIdMock.mockReturnValue(undefined as never);
+      getNetworkClientByIdMock.mockReturnValue(undefined);
 
       const result = getTokenFiatRate(
         messenger,
@@ -436,7 +436,7 @@ describe('Token Utils', () => {
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       getTokenRatesControllerStateMock.mockReturnValue({
         marketData: {
@@ -458,7 +458,7 @@ describe('Token Utils', () => {
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       getTokenRatesControllerStateMock.mockReturnValue({
         marketData: {
@@ -468,7 +468,7 @@ describe('Token Utils', () => {
             },
           },
         },
-      } as TokenRatesControllerState);
+      });
 
       getCurrencyRateControllerStateMock.mockReturnValue({
         currencyRates: {},
@@ -488,7 +488,7 @@ describe('Token Utils', () => {
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       getCurrencyRateControllerStateMock.mockReturnValue({
         currencyRates: {
@@ -520,7 +520,7 @@ describe('Token Utils', () => {
 
       getNetworkClientByIdMock.mockReturnValue({
         configuration: { ticker: TICKER_MOCK },
-      } as never);
+      });
 
       getTokenRatesControllerStateMock.mockReturnValue({
         marketData: {
@@ -530,7 +530,7 @@ describe('Token Utils', () => {
             },
           },
         },
-      } as TokenRatesControllerState);
+      });
 
       getCurrencyRateControllerStateMock.mockReturnValue({
         currencyRates: {
@@ -666,8 +666,8 @@ describe('Token Utils', () => {
       const result = await getLiveTokenBalance(
         messenger,
         ACCOUNT_MOCK,
-        '0x89' as Hex,
-        '0x0000000000000000000000000000000000001010' as Hex,
+        '0x89',
+        '0x0000000000000000000000000000000000001010',
       );
 
       expect(result).toBe('2000000000000000000');
@@ -704,7 +704,7 @@ describe('Token Utils', () => {
             networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -733,7 +733,7 @@ describe('Token Utils', () => {
             networkClientId: 'custom-rpc-id',
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -793,7 +793,7 @@ describe('Token Utils', () => {
             networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -831,7 +831,7 @@ describe('Token Utils', () => {
             networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -1034,7 +1034,7 @@ describe('Token Utils', () => {
 
   describe('buildCaipAssetType', () => {
     it('returns slip44 asset type for native token on mainnet', () => {
-      expect(buildCaipAssetType('0x1' as Hex, NATIVE_TOKEN_ADDRESS)).toBe(
+      expect(buildCaipAssetType('0x1', NATIVE_TOKEN_ADDRESS)).toBe(
         'eip155:1/slip44:60',
       );
     });
@@ -1042,7 +1042,7 @@ describe('Token Utils', () => {
     it('returns slip44 asset type for Polygon native token with auto-mapped coin type', () => {
       const polygonNative = '0x0000000000000000000000000000000000001010' as Hex;
 
-      expect(buildCaipAssetType('0x89' as Hex, polygonNative)).toBe(
+      expect(buildCaipAssetType('0x89', polygonNative)).toBe(
         'eip155:137/slip44:966',
       );
     });
@@ -1050,7 +1050,7 @@ describe('Token Utils', () => {
     it('returns slip44 asset type with explicit coin type override', () => {
       const polygonNative = '0x0000000000000000000000000000000000001010' as Hex;
 
-      expect(buildCaipAssetType('0x89' as Hex, polygonNative, 966)).toBe(
+      expect(buildCaipAssetType('0x89', polygonNative, 966)).toBe(
         'eip155:137/slip44:966',
       );
     });
@@ -1058,13 +1058,13 @@ describe('Token Utils', () => {
     it('returns erc20 asset type for ERC-20 token', () => {
       const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex;
 
-      expect(buildCaipAssetType('0x1' as Hex, usdcAddress)).toBe(
+      expect(buildCaipAssetType('0x1', usdcAddress)).toBe(
         `eip155:1/erc20:${usdcAddress}`,
       );
     });
 
     it('defaults slip44CoinType to 60 for native tokens', () => {
-      expect(buildCaipAssetType('0xa4b1' as Hex, NATIVE_TOKEN_ADDRESS)).toBe(
+      expect(buildCaipAssetType('0xa4b1', NATIVE_TOKEN_ADDRESS)).toBe(
         'eip155:42161/slip44:60',
       );
     });

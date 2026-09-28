@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^33.0.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [11.0.0]
+
+### Added
+
+- Add optional `apiUrls` option to `ApiPlatformClientOptions`, allowing API base URLs (accounts, prices, token, tokens) to be overridden per client instance, e.g. from client env vars; unspecified services fall back to the production `API_URLS` ([#10196](https://github.com/MetaMask/core/pull/10196))
+- Add optional `metadata` to `V5BalanceItem` and to the Account Activity `Balance` type ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Add optional `sponsored`, `spendableBalance`, and `minimumReserveBalance` Stellar fields to `V6TokenBalanceMetadata` ([#10194](https://github.com/MetaMask/core/pull/10194))
+
+### Changed
+
+- **BREAKING:** Rename `V6TokenMetadata` to `V6TokenBalanceMetadata` and `V6TokenStellarMetadata` to `V6StellarTokenBalanceMetadata`
+- **BREAKING:** Accounts API `V2SupportedNetworksResponse` now uses CAIP-2 string arrays for both `fullSupport` and `partialSupport`, replacing decimal `fullSupport` and object-shaped `partialSupport.balances` ([#10144](https://github.com/MetaMask/core/pull/10144))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [10.0.1]
 
@@ -449,7 +469,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...@metamask/core-backend@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.0...@metamask/core-backend@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...@metamask/core-backend@10.0.0
 [9.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...@metamask/core-backend@9.1.1

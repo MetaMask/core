@@ -9,7 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [29.0.2]
+
+### Changed
+
+- Bump `semver` from `^7.6.3` to `^7.8.5` ([#10443](https://github.com/MetaMask/core/pull/10443))
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [29.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.1` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+### Fixed
+
+- Retain a locally-created FCM token when re-enabling notifications with every wallet-activity account disabled. ([#10401](https://github.com/MetaMask/core/pull/10401))
+- Keep wallet-activity account toggles on the Trigger API. ([#10417](https://github.com/MetaMask/core/pull/10417))
+  - `enableAccounts` and `disableAccounts` no longer add or delete FCM token links. Those links cover every notification source for an address, so deleting one when wallet activity was turned off stopped the other sources as well.
+  - Push links now follow the addresses an installation holds: they are added when an account is added, removed when an account is removed, and registered for every keyring address when notifications are enabled.
+
+## [29.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `createOnChainPushNotificationMessage`, `createOnChainPushNotificationMessages`, and the `TranslationKeys` type. Push notification copy is now provided by the Notification API via `template`, so client-side translation keys are no longer required. ([#9184](https://github.com/MetaMask/core/pull/9184))
+- Regenerated `schema.ts` from the latest Notification API OpenAPI spec. ([#9184](https://github.com/MetaMask/core/pull/9184))
+  - `OnChainNotificationV4` now includes optional `template` (`OnChainTemplate`: required `title`, optional `body`).
+  - `LocalizedNotificationCTA` no longer includes `content`; it is `link` only.
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+### Fixed
+
+- Correct ESM entry points in the legacy notification and push service subpath manifests. ([#9184](https://github.com/MetaMask/core/pull/9184))
 
 ## [28.0.1]
 
@@ -924,7 +962,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...HEAD
+[29.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.1...@metamask/notification-services-controller@29.0.2
+[29.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.0...@metamask/notification-services-controller@29.0.1
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.1...@metamask/notification-services-controller@29.0.0
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.0...@metamask/notification-services-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.2...@metamask/notification-services-controller@28.0.0
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.1...@metamask/notification-services-controller@27.0.2

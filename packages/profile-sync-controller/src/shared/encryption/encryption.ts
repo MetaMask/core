@@ -209,7 +209,7 @@ class EncryptorDecryptor {
         try {
           return this.getSalt(e);
         } catch {
-          return undefined;
+          return;
         }
       })
       .filter((s): s is Uint8Array<ArrayBuffer> => s !== undefined);

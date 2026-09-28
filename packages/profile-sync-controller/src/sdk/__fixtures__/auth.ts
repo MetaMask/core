@@ -20,6 +20,16 @@ import {
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
   MOCK_PARTNER_IDENTITY_TOKEN_URL,
   MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
+  MOCK_MFA_CREDENTIALS_RESPONSE,
+  MOCK_MFA_CREDENTIALS_URL,
+  MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  MOCK_MFA_ENROLL_COMPLETE_URL,
+  MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  MOCK_MFA_ENROLL_URL,
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_MFA_VERIFY_COMPLETE_URL,
+  MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  MOCK_MFA_VERIFY_URL,
 } from '../mocks/auth.js';
 
 type MockReply = {
@@ -121,6 +131,65 @@ export const handleMockOAuth2Token = (mockReply?: MockReply): nock.Scope => {
   return mockTokenEndpoint;
 };
 
+export const handleMockMfaEnroll = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  };
+  return nock(MOCK_MFA_ENROLL_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaEnrollComplete = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  };
+  return nock(MOCK_MFA_ENROLL_COMPLETE_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaVerify = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  };
+  return nock(MOCK_MFA_VERIFY_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaVerifyComplete = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  };
+  return nock(MOCK_MFA_VERIFY_COMPLETE_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaCredentials = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_CREDENTIALS_RESPONSE,
+  };
+  return nock(MOCK_MFA_CREDENTIALS_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+};
+
 export const handleMockUserProfileLineage = (
   mockReply?: MockReply,
 ): nock.Scope => {
@@ -178,6 +247,11 @@ export const arrangeAuthAPIs = (options?: {
   mockUserProfileLineageUrl?: MockReply;
   mockCustomerServiceTokenUrl?: MockReply;
   mockPartnerIdentityTokenUrl?: MockReply;
+  mockMfaEnrollUrl?: MockReply;
+  mockMfaEnrollCompleteUrl?: MockReply;
+  mockMfaVerifyUrl?: MockReply;
+  mockMfaVerifyCompleteUrl?: MockReply;
+  mockMfaCredentialsUrl?: MockReply;
   onSrpLoginBody?: (body: unknown) => void;
   onPairSocialIdentifierBody?: (body: unknown) => void;
   mockPairProfilesDelayMs?: number;
@@ -192,6 +266,11 @@ export const arrangeAuthAPIs = (options?: {
   mockUserProfileLineageUrl: nock.Scope;
   mockCustomerServiceTokenUrl: nock.Scope;
   mockPartnerIdentityTokenUrl: nock.Scope;
+  mockMfaEnrollUrl: nock.Scope;
+  mockMfaEnrollCompleteUrl: nock.Scope;
+  mockMfaVerifyUrl: nock.Scope;
+  mockMfaVerifyCompleteUrl: nock.Scope;
+  mockMfaCredentialsUrl: nock.Scope;
 } => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
@@ -220,6 +299,17 @@ export const arrangeAuthAPIs = (options?: {
   const mockPartnerIdentityTokenUrl = handleMockPartnerIdentityToken(
     options?.mockPartnerIdentityTokenUrl,
   );
+  const mockMfaEnrollUrl = handleMockMfaEnroll(options?.mockMfaEnrollUrl);
+  const mockMfaEnrollCompleteUrl = handleMockMfaEnrollComplete(
+    options?.mockMfaEnrollCompleteUrl,
+  );
+  const mockMfaVerifyUrl = handleMockMfaVerify(options?.mockMfaVerifyUrl);
+  const mockMfaVerifyCompleteUrl = handleMockMfaVerifyComplete(
+    options?.mockMfaVerifyCompleteUrl,
+  );
+  const mockMfaCredentialsUrl = handleMockMfaCredentials(
+    options?.mockMfaCredentialsUrl,
+  );
 
   return {
     mockNonceUrl,
@@ -232,5 +322,10 @@ export const arrangeAuthAPIs = (options?: {
     mockUserProfileLineageUrl,
     mockCustomerServiceTokenUrl,
     mockPartnerIdentityTokenUrl,
+    mockMfaEnrollUrl,
+    mockMfaEnrollCompleteUrl,
+    mockMfaVerifyUrl,
+    mockMfaVerifyCompleteUrl,
+    mockMfaCredentialsUrl,
   };
 };

@@ -76,6 +76,40 @@ describe('BaseApiClient', () => {
     });
   });
 
+  describe('API URL overrides', () => {
+    beforeEach(() => {
+      mockFetch.mockReset();
+      mockFetch.mockResolvedValue(
+        createMockResponse({ supportedNetworks: [] }),
+      );
+    });
+
+    it('uses the production URL by default', async () => {
+      const client = new AccountsApiClient({
+        clientProduct: 'test-product',
+      });
+
+      await client.fetchV1SupportedNetworks();
+
+      expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(
+        'https://accounts.api.cx.metamask.io/',
+      );
+    });
+
+    it('uses the overridden URL when apiUrls is provided', async () => {
+      const client = new AccountsApiClient({
+        clientProduct: 'test-product',
+        apiUrls: { ACCOUNTS: 'https://accounts.dev-api.cx.metamask.io' },
+      });
+
+      await client.fetchV1SupportedNetworks();
+
+      expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(
+        'https://accounts.dev-api.cx.metamask.io/',
+      );
+    });
+  });
+
   describe('bearer token timeout', () => {
     /**
      * Creates a client whose token provider only resolves when told to.

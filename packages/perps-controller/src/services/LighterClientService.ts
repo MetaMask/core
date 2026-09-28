@@ -238,6 +238,7 @@ const OrderStruct = type({
   ownerAccountIndex: NonNegativeIntegerStruct,
   initialBaseAmount: PositiveDecimalStringStruct,
   remainingBaseAmount: NonNegativeDecimalStringStruct,
+  filledBaseAmount: optional(NonNegativeDecimalStringStruct),
   price: PositiveDecimalStringStruct,
   isAsk: boolean(),
   type: string(),

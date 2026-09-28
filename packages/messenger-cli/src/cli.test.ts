@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
-import execa from 'execa';
+import { execa } from 'execa';
+import type { Result } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -20,7 +21,7 @@ const CLI_PATH = path.join(
  * @param args - The CLI arguments.
  * @returns The execa result.
  */
-async function runCLI(args: string[]): Promise<execa.ExecaReturnValue> {
+async function runCLI(args: string[]): Promise<Result> {
   return await execa(TSX_PATH, [CLI_PATH, ...args], {
     cwd: ROOT_DIR,
     reject: false,

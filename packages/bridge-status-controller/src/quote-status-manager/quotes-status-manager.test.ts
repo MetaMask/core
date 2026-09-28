@@ -120,7 +120,7 @@ describe('QuoteStatusUpdateManager', () => {
       if (action === 'TransactionController:getState') {
         return { transactions };
       }
-      return undefined;
+      return;
     });
 
     const manager = new QuoteStatusManager({
@@ -313,7 +313,7 @@ describe('QuoteStatusUpdateManager', () => {
               status: TransactionStatus.confirmed,
               type: TransactionType.batch,
               nestedTransactions: [{ type: TransactionType.swap }],
-            } as Partial<TransactionMeta>),
+            }),
           ],
         );
 
@@ -1199,7 +1199,7 @@ describe('QuoteStatusUpdateManager', () => {
         type: QuoteStatusUpdateBackendErrorType.InvalidStatusTransaction,
         currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
         newStatus: QuoteStatusBackendStatus.Submitted,
-      } as QuoteStatusUpdateResponse);
+      });
       const { manager, onError } = createManager();
 
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
@@ -1219,7 +1219,7 @@ describe('QuoteStatusUpdateManager', () => {
         type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
         currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
         newStatus: QuoteStatusBackendStatus.Submitted,
-      } as QuoteStatusUpdateResponse);
+      });
       const { manager } = createManager();
 
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
@@ -1246,7 +1246,7 @@ describe('QuoteStatusUpdateManager', () => {
         type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
         currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
         newStatus: QuoteStatusBackendStatus.FinalizedFailed,
-      } as QuoteStatusUpdateResponse);
+      });
       onError.mockClear();
 
       await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
@@ -1299,7 +1299,7 @@ describe('QuoteStatusUpdateManager', () => {
             type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
             currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
             newStatus: QuoteStatusBackendStatus.Submitted,
-          } as QuoteStatusUpdateResponse,
+          },
         ),
       );
       await flush();
@@ -1318,7 +1318,7 @@ describe('QuoteStatusUpdateManager', () => {
         statusCode: 404,
         message: 'quote not found',
         type: QuoteStatusUpdateBackendErrorType.QuoteNotFound,
-      } as QuoteStatusUpdateResponse);
+      });
       const { manager, onError } = createManager();
 
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1', 'eip155:1');
@@ -1344,7 +1344,7 @@ describe('QuoteStatusUpdateManager', () => {
         type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
         currentStatus: QuoteStatusBackendStatus.Submitted,
         newStatus: QuoteStatusBackendStatus.Submitted,
-      } as QuoteStatusUpdateResponse);
+      });
       const { manager, onError } = createManager();
 
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
@@ -1363,7 +1363,7 @@ describe('QuoteStatusUpdateManager', () => {
         type: QuoteStatusUpdateBackendErrorType.InvalidStatusTransaction,
         currentStatus: QuoteStatusBackendStatus.FinalizedFailed,
         newStatus: QuoteStatusBackendStatus.Submitted,
-      } as QuoteStatusUpdateResponse);
+      });
       const { manager, onError } = createManager();
 
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');

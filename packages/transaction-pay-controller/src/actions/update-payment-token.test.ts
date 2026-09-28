@@ -75,7 +75,14 @@ describe('Update Payment Token Action', () => {
 
   it('updates payment token', () => {
     const updateTransactionDataMock = jest.fn();
-    const messenger = createMessengerMock();
+    const messenger = createMessengerMock({
+      [TRANSACTION_ID_MOCK]: {
+        quoteError: {
+          message: 'No route found',
+          reason: 'no-quotes',
+        },
+      },
+    });
 
     updatePaymentToken(
       {
@@ -98,7 +105,12 @@ describe('Update Payment Token Action', () => {
 
     expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
 
-    const transactionDataMock = {} as TransactionData;
+    const transactionDataMock = {
+      quoteError: {
+        message: 'No route found',
+        reason: 'no-quotes',
+      },
+    } as TransactionData;
     updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
 
     expect(transactionDataMock.paymentToken).toStrictEqual({
@@ -113,6 +125,7 @@ describe('Update Payment Token Action', () => {
     });
 
     expect(transactionDataMock.fiatPayment).toStrictEqual({});
+    expect(transactionDataMock.quoteError).toBeUndefined();
   });
 
   it('uses accountOverride for balance lookup when set', () => {

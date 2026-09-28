@@ -12,6 +12,9 @@
     },
     {
       "path": "../message-manager"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./test"]

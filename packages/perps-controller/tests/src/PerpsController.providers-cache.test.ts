@@ -1025,7 +1025,7 @@ describe('PerpsController', () => {
     it('passes only an exact static Hyperliquid snapshot identity and guards config races', async () => {
       mockInfrastructure.terminalApi = {
         ...mockInfrastructure.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -1090,7 +1090,7 @@ describe('PerpsController', () => {
     it('treats a bare allowlist entry as a DEX shorthand', async () => {
       mockInfrastructure.terminalApi = {
         ...mockInfrastructure.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -1118,7 +1118,7 @@ describe('PerpsController', () => {
 
     it('keeps main first in an exact static snapshot identity', async () => {
       mockInfrastructure.terminalApi = {
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -2572,9 +2572,15 @@ describe('PerpsController', () => {
 
       preloadController.startMarketDataPreload();
       await Promise.resolve();
-      const accountChangeHandler = preloadMessenger.subscribe.mock.calls.find(
-        ([event]) => event === 'AccountsController:selectedAccountChange',
-      )?.[1] as (() => void) | undefined;
+      // Two handlers subscribe to this event: the controller's lifetime
+      // subscription-registration reset (registered in the constructor) and the
+      // preload refresh registered by startMarketDataPreload. This test drives
+      // the preload one, which is the later registration.
+      const accountChangeHandler = preloadMessenger.subscribe.mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .at(-1)?.[1] as (() => void) | undefined;
       mockEvmAccount.address = secondAddress;
       accountChangeHandler?.();
       firstRequest.resolve(firstSnapshot);
@@ -3135,9 +3141,15 @@ describe('PerpsController', () => {
       preloadController.startMarketDataPreload();
       await jest.advanceTimersByTimeAsync(500);
 
-      const accountChangeHandler = preloadMessenger.subscribe.mock.calls.find(
-        ([event]) => event === 'AccountsController:selectedAccountChange',
-      )?.[1] as (() => void) | undefined;
+      // Two handlers subscribe to this event: the controller's lifetime
+      // subscription-registration reset (registered in the constructor) and the
+      // preload refresh registered by startMarketDataPreload. This test drives
+      // the preload one, which is the later registration.
+      const accountChangeHandler = preloadMessenger.subscribe.mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .at(-1)?.[1] as (() => void) | undefined;
       expect(accountChangeHandler).toBeDefined();
 
       mockEvmAccount.address = secondAddress;

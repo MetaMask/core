@@ -67,6 +67,9 @@
     },
     {
       "path": "../eth-block-tracker/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],
