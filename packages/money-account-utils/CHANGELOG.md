@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Uncategorized
-
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
-
 ### Added
 
 - Add `MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME` and `getMoneyAccountPremiumVaultConfig` for the `moneyAccountPremiumVaultConfig` remote feature flag ([#10430](https://github.com/MetaMask/core/pull/10430))

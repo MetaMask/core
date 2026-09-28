@@ -9,19 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.0]
 
-### Uncategorized
-
-- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
-- chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
-- chore(deps): update dependency rimraf to v6 ([#10379](https://github.com/MetaMask/core/pull/10379))
-- chore(deps): update dependency @metamask/auto-changelog to ^6.2.1 ([#10364](https://github.com/MetaMask/core/pull/10364))
-- chore(deps): update dependency ts-jest to ^29.4.12 ([#10328](https://github.com/MetaMask/core/pull/10328))
-- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
-
 ### Added
 
 - Create the premium vault (pvmUSD) deposit and withdrawal delegations and register their CHOMP intents (`cash-deposit-premium` / `cash-withdrawal-premium`) when the `moneyAccountPremiumVaultConfig` flag is served for the base vault's chain and CHOMP's service details include `vedaPremiumProtocol` for that chain ([#10430](https://github.com/MetaMask/core/pull/10430))
@@ -37,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
-- Bump `@metamask/money-account-utils` from `^2.0.0` to `^2.0.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/chomp-api-service` from `^5.0.0` to `^6.0.0` ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Bump `@metamask/money-account-utils` from `^2.0.0` to `^2.1.0` ([#10423](https://github.com/MetaMask/core/pull/10423), [#10430](https://github.com/MetaMask/core/pull/10430))
 
 ## [5.0.0]
 
