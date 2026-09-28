@@ -1,7 +1,6 @@
-/* eslint-disable jest/expect-expect */
-
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+/* eslint-disable jest/expect-expect */
 import type {
   MessengerActions,
   MessengerEvents,
@@ -9,8 +8,10 @@ import type {
 } from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -35,7 +36,7 @@ import {
 
 type ExpectedError = { message: string; code?: number };
 
-jest.mock('nanoid');
+vi.mock('nanoid');
 
 type AllActions = MessengerActions<ApprovalControllerMessenger>;
 
@@ -43,7 +44,7 @@ type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const nanoidMock = jest.mocked(nanoid);
+const nanoidMock = vi.mocked(nanoid);
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
@@ -285,13 +286,13 @@ function getMessengers() {
 
 describe('approval controller', () => {
   let approvalController: ApprovalController;
-  let showApprovalRequest: jest.Mock;
+  let showApprovalRequest: Mock;
 
   beforeEach(() => {
     nanoidMock.mockReturnValue('TestId');
-    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(global.console, 'info').mockImplementation(() => undefined);
 
-    showApprovalRequest = jest.fn();
+    showApprovalRequest = vi.fn();
 
     approvalController = new ApprovalController({
       messenger: getMessengers().approvalControllerMessenger,
@@ -1299,7 +1300,7 @@ describe('approval controller', () => {
     });
 
     it('deletes existing entries', async () => {
-      const rejectSpy = jest.spyOn(approvalController, 'rejectRequest');
+      const rejectSpy = vi.spyOn(approvalController, 'rejectRequest');
 
       approvalController
         .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
