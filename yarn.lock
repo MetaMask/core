@@ -6092,7 +6092,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/transaction-controller": "npm:^72.0.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/bn.js": "npm:^5.2.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
@@ -6243,7 +6243,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6433,7 +6433,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
@@ -6461,7 +6461,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^33.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
@@ -6715,7 +6715,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^33.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
@@ -7590,7 +7590,7 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
-    ulid: "npm:^2.3.0"
+    ulid: "npm:^2.4.0"
     uuid: "npm:^11.1.1"
     vitest: "npm:^5.0.0"
   languageName: unknown
@@ -7700,7 +7700,7 @@ __metadata:
     "@noble/curves": "npm:^1.9.2"
     "@noble/hashes": "npm:^1.8.0"
     "@scure/base": "npm:^1.2.6"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     chokidar-cli: "npm:^3.0.0"
@@ -7871,7 +7871,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
@@ -8856,8 +8856,8 @@ __metadata:
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
-    "@tanstack/react-query": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
+    "@tanstack/react-query": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
@@ -8936,7 +8936,7 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
@@ -9031,7 +9031,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
@@ -9062,7 +9062,7 @@ __metadata:
     "@metamask/signature-controller": "npm:^40.0.0"
     "@metamask/transaction-controller": "npm:^72.0.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.2.1"
@@ -9436,7 +9436,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.0.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     fast-deep-equal: "npm:^3.1.3"
@@ -9740,7 +9740,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@tanstack/query-core": "npm:^5.89.0"
+    "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@types/react": "npm:^19.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -11984,21 +11984,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:5.103.1, @tanstack/query-core@npm:^5.89.0":
-  version: 5.103.1
-  resolution: "@tanstack/query-core@npm:5.103.1"
-  checksum: 10/b8b8b37c1b3230f4683ec03e4c5a93ba353c3b0d110afcc938a70d4ef68c533f57a78dc6838c21efb3d9cbeec6bb1cbe86d529557803b89d8c0c20e3eda7c380
+"@tanstack/query-core@npm:5.103.2, @tanstack/query-core@npm:^5.103.2":
+  version: 5.103.2
+  resolution: "@tanstack/query-core@npm:5.103.2"
+  checksum: 10/f19ea502e50fd4d0241fc6796d9303637666ce139b751c875eb9f1680278f20bce2dc95d9fbab30f3a997a456e02f9760e6ce9e4e58db71e256591e77bbc65c9
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:^5.89.0":
-  version: 5.103.1
-  resolution: "@tanstack/react-query@npm:5.103.1"
+"@tanstack/react-query@npm:^5.103.2":
+  version: 5.103.2
+  resolution: "@tanstack/react-query@npm:5.103.2"
   dependencies:
-    "@tanstack/query-core": "npm:5.103.1"
+    "@tanstack/query-core": "npm:5.103.2"
   peerDependencies:
     react: ^18 || ^19
-  checksum: 10/4b90b441f2249b09aaf4e4027de8c10c2624b989e2765a76a02b97233aa701324cdd95a5bac116b0f839a2af52a02c85e1c4c4b542e4f3f9deee96aaffa8eb49
+  checksum: 10/ae29a0a4893dc8a66791fd6f7e557294aaf9badab22943fa461a0283c3b4eea0778999d31314b1afd57006bdd2032f2f6644000a56bc83ebf0feaac143ca2b05
   languageName: node
   linkType: hard
 
@@ -27933,12 +27933,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ulid@npm:^2.3.0":
-  version: 2.3.0
-  resolution: "ulid@npm:2.3.0"
+"ulid@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "ulid@npm:2.4.0"
   bin:
-    ulid: ./bin/cli.js
-  checksum: 10/11d7dd35072b863effb1249f66fb03070142a625610f00e5afd99af7e909b5de9cc7ebca6ede621a6bb1b7479b2489d6f064db6742b55c14bff6496ac60f290f
+    ulid: bin/cli.js
+  checksum: 10/409ad0a703ea9f25d2a35cf790b767030a2c7b5ca0df6acb73669628156ab63bb97925a3fd7aaaf0b2384d39bd3ed2f7cd2c2de9f1171df6bc79b8c097865d92
   languageName: node
   linkType: hard
 
