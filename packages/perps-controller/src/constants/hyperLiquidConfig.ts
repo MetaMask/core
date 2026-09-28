@@ -182,6 +182,12 @@ export const HIP3_FEE_CONFIG = {
   FeeMultiplier: 2,
 } as const;
 
+// The SDK signs every L1 action (orders, cancels, leverage, ...) as this
+// EIP-712 primary type over this domain. Only these may be signed by an agent;
+// every other request is a user-signed action for the main account.
+export const HYPERLIQUID_L1_ACTION_PRIMARY_TYPE = 'Agent';
+export const HYPERLIQUID_L1_ACTION_DOMAIN_NAME = 'Exchange';
+
 const BUILDER_FEE_MAX_FEE_DECIMAL = 0.001;
 
 // Builder fee configuration

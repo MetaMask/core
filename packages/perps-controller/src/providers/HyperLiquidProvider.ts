@@ -109,6 +109,7 @@ import type {
   HistoricalPortfolioResult,
   HyperLiquidCredentials,
   InitializeResult,
+  PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsProvider,
@@ -1541,10 +1542,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
 
-  // Agent per network and main account (see #getAgentKey), from
-  // setAgentSigner or a getAgentSigner answer. An agent is only ever used for
-  // the account and network it was set or resolved for.
-  readonly #agentSigners = new Map<string, Promise<PerpsAgentSigner | null>>();
+  // Agent per network and main account (see #getAgentKey): set through
+  // setAgentSigner (null pins the main account) or a pending or non-null
+  // getAgentSigner answer. An agent is only used for its account and network.
+  readonly #agentSigners = new Map<
+    string,
+    { agentSigner: Promise<PerpsAgentSigner | null>; fromResolver: boolean }
+  >();
 
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
@@ -1610,6 +1614,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#messenger,
       {
         isTestnet,
+        resolveAgent: async (
+          mainAddress: Hex,
+        ): Promise<PerpsAgentSigner | null> =>
+          await this.#resolveAgentSigner(mainAddress),
       },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
@@ -1984,9 +1992,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      const wallet = this.#walletService.createWalletAdapter(
-        async (mainAddress) => await this.#resolveAgentSigner(mainAddress),
-      );
+      const wallet = this.#walletService.createWalletAdapter();
       await this.#clientService.initialize(wallet);
       if (this.#disconnectOperationsInFlight > 0) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -2040,18 +2046,20 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Key an agent by network and main account.
    *
-   * @param mainAddress - The main account.
+   * @param account - The main account and network.
    * @returns The agent key.
    */
-  #getAgentKey(mainAddress: string): string {
-    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
-    return `${network}:${mainAddress.toLowerCase()}`;
+  #getAgentKey(account: PerpsAgentAccount): string {
+    const network = account.isTestnet ? 'testnet' : 'mainnet';
+    return `${network}:${account.mainAddress.toLowerCase()}`;
   }
 
   /**
    * Resolve the agent that signs L1 actions for a main account on the
-   * current network. Asks `getAgentSigner` once per account and network; a
-   * failed answer is not kept, so the next L1 action asks again.
+   * current network: the one set through setAgentSigner, else the one
+   * `getAgentSigner` returns. A non-null answer is kept; null and failures are
+   * not, so the next L1 action asks again. If the binding changes while an
+   * answer is pending, the newer binding wins.
    *
    * @param mainAddress - The selected main account.
    * @returns The agent, or null to sign with the main account.
@@ -2059,31 +2067,46 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #resolveAgentSigner(
     mainAddress: Hex,
   ): Promise<PerpsAgentSigner | null> {
-    const getAgentSigner = this.#getAgentSigner;
-    const key = this.#getAgentKey(mainAddress);
-    let agentSigner = this.#agentSigners.get(key);
-    if (!agentSigner) {
-      if (!getAgentSigner) {
+    const account: PerpsAgentAccount = {
+      mainAddress,
+      isTestnet: this.#clientService.isTestnetMode(),
+    };
+    const key = this.#getAgentKey(account);
+    let entry = this.#agentSigners.get(key);
+    if (!entry) {
+      if (!this.#getAgentSigner) {
         return null;
       }
-      agentSigner = getAgentSigner({
-        mainAddress,
-        isTestnet: this.#clientService.isTestnetMode(),
-      });
-      this.#agentSigners.set(key, agentSigner);
+      entry = {
+        agentSigner: this.#getAgentSigner(account),
+        fromResolver: true,
+      };
+      this.#agentSigners.set(key, entry);
     }
+
+    let agentSigner: PerpsAgentSigner | null;
     try {
-      return await agentSigner;
+      agentSigner = await entry.agentSigner;
     } catch (error) {
-      if (this.#agentSigners.get(key) === agentSigner) {
-        this.#agentSigners.delete(key);
+      const latest = this.#agentSigners.get(key);
+      if (latest && latest !== entry) {
+        return await latest.agentSigner;
       }
-      this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.resolveAgentSigner'),
-        this.#getErrorContext('resolveAgentSigner'),
-      );
+      this.#agentSigners.delete(key);
+      this.#deps.debugLogger.log('HyperLiquidProvider: getAgentSigner failed', {
+        error: ensureError(error, 'resolveAgentSigner').message,
+      });
       throw error;
     }
+
+    const latest = this.#agentSigners.get(key);
+    if (latest && latest !== entry) {
+      return await latest.agentSigner;
+    }
+    if (!agentSigner && entry.fromResolver) {
+      this.#agentSigners.delete(key);
+    }
+    return agentSigner;
   }
 
   /**
@@ -14136,19 +14159,22 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Sign L1 actions for the selected main account on the current network
-   * with an approved agent, or with the main account when `agentSigner` is
-   * null. Other accounts and networks are unaffected, so the agent never
-   * signs for an account or network it was not approved for.
+   * Sign L1 actions for a main account on a network with an approved agent,
+   * or with the main account when `agentSigner` is null. The binding is
+   * explicit so an account switch or re-initialization that is still pending
+   * cannot attach the agent to another account.
    *
+   * @param account - The main account and network the agent is approved for.
    * @param agentSigner - The host-owned agent signer, or null to clear it.
    */
-  async setAgentSigner(agentSigner: PerpsAgentSigner | null): Promise<void> {
-    const mainAddress = await this.#walletService.getUserAddressWithDefault();
-    this.#agentSigners.set(
-      this.#getAgentKey(mainAddress),
-      Promise.resolve(agentSigner),
-    );
+  setAgentSigner(
+    account: PerpsAgentAccount,
+    agentSigner: PerpsAgentSigner | null,
+  ): void {
+    this.#agentSigners.set(this.#getAgentKey(account), {
+      agentSigner: Promise.resolve(agentSigner),
+      fromResolver: false,
+    });
   }
 
   /**
@@ -14157,7 +14183,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * hardware wallet signs them in one guided session instead of at order
    * time. Results are cached, so an already-ready account signs nothing.
    *
-   * @returns `ready: true` when no step still needs a signature.
+   * @returns `ready: true` when none of these steps will ask the main account
+   * to sign again before the first order; a step the user declined counts,
+   * because the order path does not ask again either. `ready: false` carries
+   * `KEYRING_LOCKED` when the signer is not ready, and no error when a step
+   * will retry (a rejected builder fee, a transient failure, or a wallet with
+   * no HyperLiquid account yet).
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     try {

@@ -1117,18 +1117,17 @@ export type HyperLiquidCredentials = {
   subscriptionBuilderAddressMainnet?: string;
   /**
    * Resolves the agent approved for a main account on a network, or null
-   * when none is active (for example while the wallet is locked). Called
-   * lazily, the first time an L1 action (order, cancel, leverage, ...) is
-   * signed for that account and network; reads never call it. The answer is
-   * kept until the provider is re-created, and `PerpsController:setAgentSigner`
-   * replaces it for the selected account. With an agent, L1 actions are signed
-   * by the agent key and user-signed actions (builder fee, withdraw, ...) by
-   * the main account.
+   * when there is none (for example while the wallet is locked). Called when
+   * an L1 action (order, cancel, leverage, ...) is signed for that account and
+   * network, including the unified-account migration the provider may sign
+   * while connecting. An agent it returns is kept for the lifetime of the
+   * HyperLiquid provider instance; null is not kept, so it is asked again at
+   * the next L1 action. With an agent, L1 actions are signed by the agent key
+   * and user-signed actions (builder fee, withdraw, ...) by the main account.
    */
-  getAgentSigner?: (context: {
-    mainAddress: Hex;
-    isTestnet: boolean;
-  }) => Promise<PerpsAgentSigner | null>;
+  getAgentSigner?: (
+    account: PerpsAgentAccount,
+  ) => Promise<PerpsAgentSigner | null>;
 };
 
 export type LighterCredentials = {
@@ -2147,8 +2146,9 @@ export type PerpsProvider = {
    * Run the deferred trading-readiness steps (account migration, builder fee
    * and referral setup) ahead of the first order, so any main-account
    * signature surfaces in a guided session instead of at order time.
-   * Resolves `ready: false` when a step still needs a signature. Providers
-   * without deferred setup omit it.
+   * Resolves `ready: true` when none of these steps will ask the main account
+   * to sign again before the first order. Providers without deferred setup
+   * omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   disconnect(): Promise<DisconnectResult>;
@@ -2650,6 +2650,16 @@ export type PerpsAccountSigner = {
    * omitted, the selected account's keyring type decides.
    */
   isHardwareWallet?(): boolean;
+};
+
+/**
+ * The main account and network an agent is approved for.
+ */
+export type PerpsAgentAccount = {
+  /** The main account the agent acts for. */
+  mainAddress: Hex;
+  /** Whether the agent is approved on testnet rather than mainnet. */
+  isTestnet: boolean;
 };
 
 /**

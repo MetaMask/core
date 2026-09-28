@@ -335,6 +335,7 @@ export type {
   PerpsTypedMessageParams,
   PerpsTypedDataPayload,
   PerpsAccountSigner,
+  PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsTransactionParams,
   PerpsAddTransactionOptions,

@@ -5,7 +5,11 @@ import {
 } from '@metamask/utils';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
-import { getChainId } from '../constants/hyperLiquidConfig.js';
+import {
+  getChainId,
+  HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
+  HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
+} from '../constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   PerpsAgentSigner,
@@ -31,10 +35,11 @@ const HARDWARE_KEYRING_TYPES = new Set<string>([
   'QR Hardware Wallet Device',
 ]);
 
-// The SDK signs every L1 action (orders, cancels, leverage, ...) as this
-// primary type over this domain; only these may be signed by an agent.
-const L1_ACTION_PRIMARY_TYPE = 'Agent';
-const L1_ACTION_DOMAIN_NAME = 'Exchange';
+/**
+ * Returns the agent that signs L1 actions for a main account, or null to sign
+ * them with the main account.
+ */
+type AgentResolver = (mainAddress: Hex) => Promise<PerpsAgentSigner | null>;
 
 /**
  * Whether a signing request is an L1 action.
@@ -44,8 +49,8 @@ const L1_ACTION_DOMAIN_NAME = 'Exchange';
  */
 function isL1Action(params: PerpsTypedDataPayload): boolean {
   return (
-    params.primaryType === L1_ACTION_PRIMARY_TYPE &&
-    params.domain.name === L1_ACTION_DOMAIN_NAME
+    params.primaryType === HYPERLIQUID_L1_ACTION_PRIMARY_TYPE &&
+    params.domain.name === HYPERLIQUID_L1_ACTION_DOMAIN_NAME
   );
 }
 
@@ -61,14 +66,17 @@ export class HyperLiquidWalletService {
 
   readonly #messenger: PerpsControllerMessengerBase;
 
+  readonly #resolveAgent: AgentResolver | undefined;
+
   constructor(
     deps: PerpsPlatformDependencies,
     messenger: PerpsControllerMessengerBase,
-    options: { isTestnet?: boolean } = {},
+    options: { isTestnet?: boolean; resolveAgent?: AgentResolver } = {},
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
     this.#isTestnet = options.isTestnet ?? false;
+    this.#resolveAgent = options.resolveAgent;
   }
 
   /**
@@ -187,26 +195,22 @@ export class HyperLiquidWalletService {
   /**
    * Create the wallet adapter the HyperLiquid SDK signs with.
    *
-   * Every signature is for the currently selected main account. When
-   * `resolveAgent` returns an agent for that account, L1 actions (orders,
-   * cancels, leverage, ...), which the SDK signs as primary type `Agent`
-   * over the `Exchange` domain, are signed by the agent. User-signed actions
+   * Every signature is for the currently selected main account. When the
+   * agent resolver returns an agent for that account, L1 actions (orders,
+   * cancels, leverage, ...) are signed by the agent. User-signed actions
    * (builder fee, withdraw, ...) authorize the main account itself, so the
    * main account always signs them.
    *
-   * @param resolveAgent - Returns the agent for a main account, or null.
    * @returns The wallet adapter with address, signTypedData, and getChainId methods.
    */
-  public createWalletAdapter(
-    resolveAgent?: (mainAddress: Hex) => Promise<PerpsAgentSigner | null>,
-  ): HyperLiquidWalletParams {
+  public createWalletAdapter(): HyperLiquidWalletParams {
     return {
       address: this.#getSelectedMainAddress(),
       signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
         const mainAddress = this.#getSelectedMainAddress();
         const agentSigner =
-          resolveAgent && isL1Action(params)
-            ? await resolveAgent(mainAddress)
+          this.#resolveAgent && isL1Action(params)
+            ? await this.#resolveAgent(mainAddress)
             : null;
         if (!agentSigner) {
           return await this.#signWithMainAccount(mainAddress, params);

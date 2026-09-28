@@ -36,6 +36,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
@@ -2312,6 +2313,29 @@ describe('HyperLiquidProvider', () => {
       message: { source: 'a', connectionId: `0x${'22'.repeat(32)}` },
     };
 
+    const agentSignerShape = {
+      address: AGENT_ADDRESS,
+      signTypedData: jest.fn(),
+    };
+
+    // The global readiness cache is mocked in this suite; replay the migration
+    // result the real cache would keep so later calls do not migrate again.
+    function rememberMigration(): void {
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+    }
+
+    async function waitFor(condition: () => boolean): Promise<void> {
+      while (!condition()) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
+
     type Options = {
       signer?: { isReady?: () => boolean; isHardwareWallet?: () => boolean };
       abstraction?: 'dexAbstraction' | 'default' | 'unifiedAccount';
@@ -2353,6 +2377,7 @@ describe('HyperLiquidProvider', () => {
       const exchangeClient = createMockExchangeClient({
         userSetAbstraction: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
         agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
+        setReferrer: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
       });
       mockClientService.getExchangeClient = jest
         .fn()
@@ -2436,19 +2461,19 @@ describe('HyperLiquidProvider', () => {
             signer: { isHardwareWallet: () => true },
           });
         await accountSignerProvider.getMarketDataWithPrices();
-        const referral = mockClientService.getInfoClient().referral;
-        const maxBuilderFee = mockClientService.getInfoClient().maxBuilderFee;
 
         const result = await accountSignerProvider.prepareTradingWallet();
 
         expect(result).toStrictEqual({ ready: true });
         expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
-        expect(accountSigner.signTypedData).toHaveBeenCalledWith(
-          ACCOUNT_ADDRESS,
-          USER_SIGNED_PAYLOAD,
-        );
-        expect(maxBuilderFee).toHaveBeenCalled();
-        expect(referral).toHaveBeenCalled();
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
+        expect(
+          mockClientService.getInfoClient().maxBuilderFee,
+        ).toHaveBeenCalled();
       });
 
       it('signs nothing more when called again', async () => {
@@ -2483,6 +2508,33 @@ describe('HyperLiquidProvider', () => {
         );
       });
 
+      it('reports ready after the user declines the migration, since it is not asked again', async () => {
+        const { accountSignerProvider, accountSigner } =
+          createAccountSignerProvider({
+            signer: { isHardwareWallet: () => true },
+          });
+        accountSigner.signTypedData.mockImplementation(
+          async (_address: string, payload: PerpsTypedDataPayload) => {
+            if (payload === USER_SIGNED_PAYLOAD) {
+              throw new Error('User rejected the request.');
+            }
+            return SIGNATURE;
+          },
+        );
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({ ready: true });
+        expect(
+          (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+            .set,
+        ).toHaveBeenCalledWith(
+          'mainnet',
+          ACCOUNT_ADDRESS,
+          expect.objectContaining({ attempted: true, enabled: false }),
+        );
+      });
+
       it('reports not ready when the builder fee approval is rejected', async () => {
         const { accountSignerProvider, exchangeClient } =
           createAccountSignerProvider({ abstraction: 'unifiedAccount' });
@@ -2510,13 +2562,26 @@ describe('HyperLiquidProvider', () => {
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
       });
+
+      it('reports the error when the clients cannot initialize', async () => {
+        const { accountSignerProvider, initialize } =
+          createAccountSignerProvider();
+        initialize.mockRejectedValue(new Error('transport unavailable'));
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: 'transport unavailable',
+        });
+      });
     });
 
     describe('with an agent', () => {
-      const agentOptions = (getAgentSigner: jest.Mock): Options => ({
-        abstraction: 'default',
-        getAgentSigner,
-      });
+      const MAINNET_ACCOUNT = {
+        mainAddress: ACCOUNT_ADDRESS,
+        isTestnet: false,
+      } as const;
 
       it('resolves the agent at the first L1 signature and signs with it', async () => {
         const getAgentSigner = jest.fn();
@@ -2525,18 +2590,62 @@ describe('HyperLiquidProvider', () => {
           accountSigner,
           agentSigner,
           initialize,
-        } = createAccountSignerProvider(agentOptions(getAgentSigner));
+        } = createAccountSignerProvider({
+          abstraction: 'default',
+          getAgentSigner,
+        });
         getAgentSigner.mockResolvedValue(agentSigner);
 
         await accountSignerProvider.getMarketDataWithPrices();
 
-        expect(getAgentSigner).toHaveBeenCalledWith({
-          mainAddress: ACCOUNT_ADDRESS,
-          isTestnet: false,
-        });
+        expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
         expect(initialize.mock.calls[0][0].address).toBe(ACCOUNT_ADDRESS);
-        expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+        expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+          [L1_PAYLOAD],
+        ]);
         expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      });
+
+      it('keeps a resolved agent for later L1 actions', async () => {
+        const getAgentSigner = jest.fn();
+        const { accountSignerProvider, agentSigner } =
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
+        getAgentSigner.mockResolvedValue(agentSigner);
+
+        await accountSignerProvider.getMarketDataWithPrices();
+        rememberMigration();
+        await accountSignerProvider.prepareTradingWallet();
+
+        // Migration at connect, then referral setup.
+        expect(getAgentSigner).toHaveBeenCalledTimes(1);
+        expect(agentSigner.signTypedData).toHaveBeenCalledTimes(2);
+      });
+
+      it('asks again after a null answer', async () => {
+        const getAgentSigner = jest.fn();
+        const { accountSignerProvider, accountSigner, agentSigner } =
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
+        getAgentSigner
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(agentSigner);
+
+        await accountSignerProvider.getMarketDataWithPrices();
+        rememberMigration();
+        await accountSignerProvider.prepareTradingWallet();
+
+        expect(getAgentSigner).toHaveBeenCalledTimes(2);
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
+        expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+          [L1_PAYLOAD],
+        ]);
       });
 
       it('does not ask for an agent when nothing is signed', async () => {
@@ -2559,98 +2668,146 @@ describe('HyperLiquidProvider', () => {
 
         await accountSignerProvider.getMarketDataWithPrices();
 
-        expect(accountSigner.signTypedData).toHaveBeenCalledWith(
-          ACCOUNT_ADDRESS,
-          USER_SIGNED_PAYLOAD,
-        );
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+        ]);
         expect(agentSigner.signTypedData).not.toHaveBeenCalled();
         expect(getAgentSigner).not.toHaveBeenCalled();
       });
 
-      it('fails only the L1 action and asks again when getAgentSigner rejects', async () => {
+      it('fails only the L1 actions and asks again when getAgentSigner rejects', async () => {
         const getAgentSigner = jest
           .fn()
           .mockRejectedValue(new Error('agent store unavailable'));
         const { accountSignerProvider, accountSigner, exchangeClient } =
-          createAccountSignerProvider(agentOptions(getAgentSigner));
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
 
         const marketData =
           await accountSignerProvider.getMarketDataWithPrices();
-        await accountSignerProvider.prepareTradingWallet();
+        const result = await accountSignerProvider.prepareTradingWallet();
 
-        expect(marketData.length).toBeGreaterThan(0);
-        expect(exchangeClient.agentSetAbstraction).toHaveBeenCalled();
-        expect(accountSigner.signTypedData).not.toHaveBeenCalledWith(
-          ACCOUNT_ADDRESS,
-          L1_PAYLOAD,
-        );
-        // Each L1 action (migration, then referral setup) asks again.
-        expect(getAgentSigner.mock.calls.length).toBeGreaterThan(1);
-        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
-          expect.objectContaining({ message: 'agent store unavailable' }),
-          expect.anything(),
-        );
+        expect(marketData).toHaveLength(2);
+        // A failed silent migration is retried: at connect, when prepare
+        // re-runs the connect steps, and once more by the trading setup; the
+        // referral write is the fourth L1 action. Each asks getAgentSigner.
+        expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledTimes(3);
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+        expect(getAgentSigner).toHaveBeenCalledTimes(4);
+        expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+        expect(result).toStrictEqual({ ready: false });
       });
 
-      it('signs with an agent set through setAgentSigner', async () => {
+      it('signs with the agent set for the selected account', async () => {
         const { accountSignerProvider, agentSigner } =
           createAccountSignerProvider({ abstraction: 'default' });
 
-        await accountSignerProvider.setAgentSigner(agentSigner);
+        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
         await accountSignerProvider.getMarketDataWithPrices();
 
-        expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+        expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+          [L1_PAYLOAD],
+        ]);
       });
 
-      it('never signs for another account with the agent it was set for', async () => {
+      it('binds the agent to the account it names, not the selected one', async () => {
         const {
           accountSignerProvider,
           accountSigner,
           agentSigner,
           selectAccount,
         } = createAccountSignerProvider({ abstraction: 'default' });
-        await accountSignerProvider.setAgentSigner(agentSigner);
 
-        selectAccount(OTHER_ACCOUNT_ADDRESS);
-        await accountSignerProvider.getMarketDataWithPrices();
-
-        expect(agentSigner.signTypedData).not.toHaveBeenCalled();
-        expect(accountSigner.signTypedData).toHaveBeenCalledWith(
-          OTHER_ACCOUNT_ADDRESS,
-          L1_PAYLOAD,
+        accountSignerProvider.setAgentSigner(
+          { mainAddress: OTHER_ACCOUNT_ADDRESS, isTestnet: false },
+          agentSigner,
         );
+        await accountSignerProvider.getMarketDataWithPrices();
+        selectAccount(OTHER_ACCOUNT_ADDRESS);
+        await accountSignerProvider.prepareTradingWallet();
+
+        expect(accountSigner.signTypedData.mock.calls[0]).toStrictEqual([
+          ACCOUNT_ADDRESS,
+          L1_PAYLOAD,
+        ]);
+        expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
       });
 
       it('never signs on another network with the agent it was set for', async () => {
         const { accountSignerProvider, accountSigner, agentSigner } =
           createAccountSignerProvider({ abstraction: 'default' });
-        await accountSignerProvider.setAgentSigner(agentSigner);
+        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
 
         mockClientService.isTestnetMode.mockReturnValue(true);
         await accountSignerProvider.getMarketDataWithPrices();
 
         expect(agentSigner.signTypedData).not.toHaveBeenCalled();
-        expect(accountSigner.signTypedData).toHaveBeenCalledWith(
-          ACCOUNT_ADDRESS,
-          L1_PAYLOAD,
-        );
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
       });
 
-      it('signs with the main account after setAgentSigner(null) without asking getAgentSigner', async () => {
+      it('keeps setAgentSigner(null) for later L1 actions without asking getAgentSigner', async () => {
         const getAgentSigner = jest.fn();
         const { accountSignerProvider, accountSigner, agentSigner } =
-          createAccountSignerProvider(agentOptions(getAgentSigner));
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
         getAgentSigner.mockResolvedValue(agentSigner);
 
-        await accountSignerProvider.setAgentSigner(null);
+        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
         await accountSignerProvider.getMarketDataWithPrices();
+        rememberMigration();
+        await accountSignerProvider.prepareTradingWallet();
 
         expect(getAgentSigner).not.toHaveBeenCalled();
         expect(agentSigner.signTypedData).not.toHaveBeenCalled();
-        expect(accountSigner.signTypedData).toHaveBeenCalledWith(
-          ACCOUNT_ADDRESS,
-          L1_PAYLOAD,
-        );
+        expect(accountSigner.signTypedData).toHaveBeenCalledTimes(2);
+      });
+
+      it('lets a clear made while getAgentSigner is pending win', async () => {
+        const answer = createDeferred<typeof agentSignerShape | null>();
+        const getAgentSigner = jest.fn(() => answer.promise);
+        const { accountSignerProvider, accountSigner, agentSigner } =
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
+
+        const reading = accountSignerProvider.getMarketDataWithPrices();
+        await waitFor(() => getAgentSigner.mock.calls.length === 1);
+        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
+        answer.resolve(agentSigner);
+        await reading;
+
+        expect(agentSigner.signTypedData).not.toHaveBeenCalled();
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
+      });
+
+      it('keeps an agent set while a failing getAgentSigner answer is pending', async () => {
+        const answer = createDeferred<typeof agentSignerShape | null>();
+        const getAgentSigner = jest.fn(() => answer.promise);
+        const { accountSignerProvider, agentSigner } =
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
+
+        const reading = accountSignerProvider.getMarketDataWithPrices();
+        await waitFor(() => getAgentSigner.mock.calls.length === 1);
+        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
+        answer.reject(new Error('agent store unavailable'));
+        await reading;
+        rememberMigration();
+        await accountSignerProvider.prepareTradingWallet();
+
+        expect(getAgentSigner).toHaveBeenCalledTimes(1);
+        expect(agentSigner.signTypedData).toHaveBeenCalledTimes(2);
       });
     });
   });

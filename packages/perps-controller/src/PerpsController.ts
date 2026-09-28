@@ -142,6 +142,7 @@ import type {
   GetHistoricalPortfolioParams,
   HistoricalPortfolioResult,
   OrderType,
+  PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsLogger,
@@ -5860,23 +5861,30 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for the
-   * selected account on the current network with an approved agent, or with
-   * the main account when `agentSigner` is null (for example when the wallet
-   * locks). User-signed actions stay on the main account. The agent is never
-   * used for another account or network, and a provider re-creation (network
-   * toggle, reconnect) asks `providerCredentials.hyperliquid.getAgentSigner`
-   * again. Requires an initialized controller.
+   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for a main
+   * account on a network with an approved agent, or with the main account
+   * when `agentSigner` is null. User-signed actions stay on the main account.
+   * The agent is never used for another account or network. The binding lasts
+   * for the lifetime of the HyperLiquid provider instance; initialization and
+   * re-initialization (for example a network toggle) create a new one, which
+   * asks `providerCredentials.hyperliquid.getAgentSigner` again. To stop agent
+   * signing everywhere, for example when the wallet locks, clear each account
+   * set here and have `getAgentSigner` return null. Requires an initialized
+   * controller.
    *
+   * @param account - The main account and network the agent is approved for.
    * @param agentSigner - The host-owned agent signer, or null to clear it.
    */
-  async setAgentSigner(agentSigner: PerpsAgentSigner | null): Promise<void> {
+  async setAgentSigner(
+    account: PerpsAgentAccount,
+    agentSigner: PerpsAgentSigner | null,
+  ): Promise<void> {
     await this.#getActiveProviderWhenReady();
     const provider = this.providers.get('hyperliquid');
     if (!(provider instanceof HyperLiquidProvider)) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
-    await provider.setAgentSigner(agentSigner);
+    provider.setAgentSigner(account, agentSigner);
   }
 
   /**
@@ -5885,8 +5893,9 @@ export class PerpsController extends BaseController<
    * hardware wallet signs them in one guided session, such as agent setup,
    * instead of at order time.
    *
-   * @returns `ready: false` when a step still needs a signature; providers
-   * without deferred setup are ready.
+   * @returns `ready: true` when none of these steps will ask the main account
+   * to sign again before the first order; providers without deferred setup
+   * are ready.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     const provider = await this.#getActiveProviderWhenReady();

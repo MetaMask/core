@@ -878,6 +878,43 @@ describe('PerpsController', () => {
       );
     });
 
+    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
+      const moduleError = Object.assign(
+        new Error('Cannot find module ./providers/LighterProvider'),
+        { code: 'MODULE_NOT_FOUND' },
+      );
+
+      controller.testHandleLighterImportError(moduleError);
+
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Lighter provider module not available, skipping registration',
+      );
+    });
+
+    it('handleLighterImportError routes runtime errors to logError', () => {
+      // Act — error without MODULE_NOT_FOUND code goes to Sentry
+      controller.testHandleLighterImportError(new Error('Invalid auth config'));
+
+      // Assert
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Invalid auth config' }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'createProviders.lighter',
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('account and agent signers', () => {
+    const account = {
+      mainAddress: '0x1234567890123456789012345678901234567890',
+      isTestnet: false,
+    } as const;
+
     it('hands infrastructure.accountSigner to the HyperLiquid and Lighter providers', async () => {
       const accountSigner = {
         signTypedData: jest.fn(),
@@ -932,25 +969,40 @@ describe('PerpsController', () => {
         signTypedData: jest.fn(),
       };
       Object.setPrototypeOf(mockProvider, HyperLiquidProvider.prototype);
-      mockProvider.setAgentSigner = jest.fn().mockResolvedValue(undefined);
+      mockProvider.setAgentSigner = jest.fn();
       await controller.init();
 
-      await controller.setAgentSigner(agentSigner);
-      await controller.setAgentSigner(null);
+      await controller.setAgentSigner(account, agentSigner);
+      await controller.setAgentSigner(account, null);
 
       expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(
         1,
+        account,
         agentSigner,
       );
-      expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(2, null);
+      expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(
+        2,
+        account,
+        null,
+      );
     });
 
     it('setAgentSigner rejects when the hyperliquid provider is not a HyperLiquidProvider', async () => {
       await controller.init();
 
-      await expect(controller.setAgentSigner(null)).rejects.toThrow(
+      await expect(controller.setAgentSigner(account, null)).rejects.toThrow(
         PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       );
+    });
+
+    it('setAgentSigner rejects before the controller is initialized', async () => {
+      Object.setPrototypeOf(mockProvider, HyperLiquidProvider.prototype);
+      mockProvider.setAgentSigner = jest.fn();
+
+      await expect(controller.setAgentSigner(account, null)).rejects.toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+      expect(mockProvider.setAgentSigner).not.toHaveBeenCalled();
     });
 
     it("prepareTradingWallet returns the active provider's readiness", async () => {
@@ -971,36 +1023,6 @@ describe('PerpsController', () => {
       const result = await controller.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-    });
-
-    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
-      const moduleError = Object.assign(
-        new Error('Cannot find module ./providers/LighterProvider'),
-        { code: 'MODULE_NOT_FOUND' },
-      );
-
-      controller.testHandleLighterImportError(moduleError);
-
-      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
-        'PerpsController: Lighter provider module not available, skipping registration',
-      );
-    });
-
-    it('handleLighterImportError routes runtime errors to logError', () => {
-      // Act — error without MODULE_NOT_FOUND code goes to Sentry
-      controller.testHandleLighterImportError(new Error('Invalid auth config'));
-
-      // Assert
-      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Invalid auth config' }),
-        expect.objectContaining({
-          context: expect.objectContaining({
-            data: expect.objectContaining({
-              method: 'createProviders.lighter',
-            }),
-          }),
-        }),
-      );
     });
   });
 
