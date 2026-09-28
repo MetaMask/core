@@ -29,20 +29,12 @@
       "minimumReleaseAge": null
     },
     {
-      "matchPackageNames": ["@ethersproject/**"],
-      "groupName": "ethersproject"
-    },
-    {
-      "matchPackageNames": ["@ethereumjs/**"],
-      "groupName": "ethereumjs"
-    },
-    {
-      "matchPackageNames": ["@yarnpkg/**"],
-      "groupName": "yarnpkg"
-    },
-    {
-      "matchPackageNames": ["@docusaurus/**"],
-      "groupName": "docusaurus"
+      "matchPackageNames": [
+        "!@metamask/**",
+        "!@metamask-previews/**",
+        "!@types/**"
+      ],
+      "groupName": "{{#if sourceRepoSlug}}{{{sourceRepoSlug}}}{{else}}{{{depName}}}{{/if}}"
     }
   ]
 }
