@@ -6,6 +6,7 @@ Hi! Welcome to the contributor documentation for the `core` monorepo. This is su
 
 - [Tech stack and file structure of this repo](./getting-started/architecture.md)
 - [Setting up your development environment](./getting-started/setting-up-your-environment.md)
+- [Installing and updating agent skills](./getting-started/agent-skills.md)
 - [Recommended development workflow](./getting-started/general-development-workflow.md)
 - [Codeownership](./getting-started/codeownership.md)
 
