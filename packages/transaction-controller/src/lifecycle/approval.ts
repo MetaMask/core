@@ -2,7 +2,7 @@ import type { AddResult } from '@metamask/approval-controller';
 import type { TraceContext } from '@metamask/controller-utils';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 
-import { projectLogger as log } from '../logger.js';
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type { TransactionMeta } from '../types.js';
 import { isTransactionCompleted } from '../utils/state.js';
 import { handleApprovalError } from './error.js';
@@ -10,6 +10,8 @@ import type {
   TransactionLifecycleRequest,
   TransactionStageDependencies,
 } from './types.js';
+
+const log = createModuleLogger(lifecycleLogger, 'approval');
 
 /**
  * Await user approval for a transaction.
@@ -32,8 +34,11 @@ export async function awaitApproval(
   const { requireApproval, traceContext } = options;
 
   if (transactionMeta.isStateOnly) {
+    log('Skipping approval as state only', transactionMeta.id);
     return;
   }
+
+  log('Awaiting approval', transactionMeta.id, { requireApproval });
 
   const { isCompleted, meta } = isTransactionCompleted(
     dependencies.getState(),
@@ -63,6 +68,8 @@ export async function awaitApproval(
       }),
   );
 
+  // The request is owned by a single execution, so there is no concurrent writer.
+  // eslint-disable-next-line require-atomic-updates
   request.lifecycle.resultCallbacks = approvalResult.resultCallbacks;
   applyApprovalData(request, approvalResult.value);
 }
