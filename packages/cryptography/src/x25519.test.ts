@@ -59,6 +59,18 @@ describe('x25519GetPublicKey', () => {
     );
     expect(bytesToHex(pubKey)).toBe(bytesToHex(rfcAlicePublicKey));
   });
+
+  it('throws if the private key is too short', async () => {
+    await expect(x25519GetPublicKey(new Uint8Array(31))).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for X25519.',
+    );
+  });
+
+  it('throws if the private key is too long', async () => {
+    await expect(x25519GetPublicKey(new Uint8Array(33))).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for X25519.',
+    );
+  });
 });
 
 describe('x25519GetSharedSecret', () => {
@@ -97,5 +109,37 @@ describe('x25519GetSharedSecret', () => {
       new DataView(rfcBobPublicKey.buffer),
     );
     expect(bytesToHex(shared)).toBe(rfcSharedSecret);
+  });
+
+  it('throws if the private key is too short', async () => {
+    await expect(
+      x25519GetSharedSecret(new Uint8Array(31), rfcBobPublicKey),
+    ).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for X25519.',
+    );
+  });
+
+  it('throws if the private key is too long', async () => {
+    await expect(
+      x25519GetSharedSecret(new Uint8Array(33), rfcBobPublicKey),
+    ).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for X25519.',
+    );
+  });
+
+  it('throws if the public key is too short', async () => {
+    await expect(
+      x25519GetSharedSecret(rfcAlicePrivateKey, new Uint8Array(31)),
+    ).rejects.toThrow(
+      'Invalid public key length: Public key must be exactly 32 bytes for X25519.',
+    );
+  });
+
+  it('throws if the public key is too long', async () => {
+    await expect(
+      x25519GetSharedSecret(rfcAlicePrivateKey, new Uint8Array(33)),
+    ).rejects.toThrow(
+      'Invalid public key length: Public key must be exactly 32 bytes for X25519.',
+    );
   });
 });

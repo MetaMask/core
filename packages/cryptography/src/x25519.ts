@@ -35,6 +35,18 @@ export async function x25519GetSharedSecret(
   privateKey: BufferSource,
   publicKey: BufferSource,
 ): Promise<Uint8Array> {
+  if (privateKey.byteLength !== X25519_KEY_SIZE) {
+    throw new Error(
+      `Invalid private key length: Private key must be exactly ${X25519_KEY_SIZE} bytes for X25519.`,
+    );
+  }
+
+  if (publicKey.byteLength !== X25519_KEY_SIZE) {
+    throw new Error(
+      `Invalid public key length: Public key must be exactly ${X25519_KEY_SIZE} bytes for X25519.`,
+    );
+  }
+
   // The WebCrypto API expects private keys to be in PKCS8 format.
   const pkcs8 = new Uint8Array(X25519_PKCS8_HEADER.length + X25519_KEY_SIZE);
   pkcs8.set(X25519_PKCS8_HEADER);
