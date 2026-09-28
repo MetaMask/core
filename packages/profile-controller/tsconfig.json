@@ -9,6 +9,12 @@
     },
     {
       "path": "../utils/tsconfig.json"
+    },
+    {
+      "path": "../base-data-service/tsconfig.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.json"
     }
   ],
   "include": ["../../types", "./src"]
