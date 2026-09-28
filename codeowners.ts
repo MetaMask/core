@@ -20,6 +20,13 @@ const config = {
       teams: ['@MetaMask/confirmations'],
       initializationPath: 'address-book-controller',
     },
+    'advanced-chart-core': {
+      teams: [
+        '@MetaMask/metamask-assets',
+        '@MetaMask/perps',
+        '@MetaMask/social-ai',
+      ],
+    },
     'ai-controllers': {
       teams: ['@MetaMask/social-ai'],
     },
