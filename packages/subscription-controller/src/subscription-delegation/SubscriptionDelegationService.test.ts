@@ -1267,9 +1267,17 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.createDelegation).not.toHaveBeenCalled();
       const [approvalRequest] = mocks.addApprovalRequest.mock.calls[0];
-      expect(approvalRequest.requestData?.bundle.permissions[0]).toMatchObject({
-        disposition: 'reused',
-        existingDelegationHash: newer.metadata.delegationHash,
+      expect(approvalRequest).toMatchObject({
+        requestData: {
+          bundle: {
+            permissions: [
+              {
+                disposition: 'reused',
+                existingDelegationHash: newer.metadata.delegationHash,
+              },
+            ],
+          },
+        },
       });
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
         expect.objectContaining({
