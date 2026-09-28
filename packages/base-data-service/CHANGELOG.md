@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `cockatiel` from `^3.2.1` to `^4.0.0` ([#10381](https://github.com/MetaMask/core/pull/10381))
+
 ## [2.1.0]
 
 ### Added
