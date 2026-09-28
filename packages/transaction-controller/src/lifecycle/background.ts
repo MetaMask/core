@@ -91,8 +91,6 @@ function applyDelegationAddress(request: TransactionLifecycleRequest): void {
           tx.delegationAddress = delegationAddress;
         },
       );
-
-      return;
     })
     .catch(noop);
 }
