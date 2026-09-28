@@ -230,27 +230,32 @@ describe('NeoBankService', () => {
   });
 
   describe('getAutoramps', () => {
-    it('gets and maps all autoramps for the authenticated customer', async () => {
+    it('gets and maps the autoramps for a customer', async () => {
       const scope = nock(STAGING_BASE)
         .get('/neobank/autoramps')
-        .query(true)
+        .query((actual) => actual.customer_id === 'cust-1')
         .matchHeader('Authorization', 'Bearer test-token')
-        .reply(200, [
-          {
-            id: 'ar-1',
-            customer_id: 'cust-1',
-            status: 'Approved',
-            wallet_address: '0xabc',
-          },
-          {
-            id: 'ar-2',
-            customer_id: 'cust-1',
-            status: 'Authorized',
-            recipient_account: { address: '0xdef' },
-          },
-        ]);
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-1',
+              customer_id: 'cust-1',
+              status: 'Approved',
+              wallet_address: '0xabc',
+            },
+            {
+              id: 'ar-2',
+              customer_id: 'cust-1',
+              status: 'Authorized',
+              recipient_account: { address: '0xdef' },
+            },
+          ],
+          cursor: null,
+          prev_cursor: null,
+        });
 
       const service = createService();
+      jest.spyOn(service, 'getMoonpayCustomerId').mockResolvedValue('cust-1');
 
       expect(await service.getAutoramps()).toMatchInlineSnapshot(`
         [
@@ -275,13 +280,14 @@ describe('NeoBankService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('rejects a malformed list response', async () => {
+    it('rejects a malformed list response without an items array', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramps')
         .query(true)
         .reply(200, { autoramps: [] });
 
       const service = createService();
+      jest.spyOn(service, 'getMoonpayCustomerId').mockResolvedValue('cust-1');
 
       await expect(service.getAutoramps()).rejects.toThrow(
         'Malformed response received from neo-bank autoramps API',
