@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
 ### Added
 
 - Surface Money API freshness on `fetchBalanceWithFallback` results (`asOfBlock`, `asOfTimestamp`, `dataFreshness`, `indexerLagSeconds`, `musdBalanceUpdatedAt`) when `source` is `api` ([#10455](https://github.com/MetaMask/core/pull/10455))
@@ -16,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@metamask/money-account-api-data-service` from `^1.0.0` to `^2.0.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 
 ## [3.0.0]
 
@@ -176,7 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.0.0...@metamask/money-account-balance-service@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.3...@metamask/money-account-balance-service@3.0.0
 [2.4.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.2...@metamask/money-account-balance-service@2.4.3
 [2.4.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...@metamask/money-account-balance-service@2.4.2

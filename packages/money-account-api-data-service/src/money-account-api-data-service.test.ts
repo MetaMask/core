@@ -31,6 +31,18 @@ const MOCK_POSITION_BALANCE = {
   musd_balance: '2',
   vmusd_value_in_musd: '1513527',
   total_balance: '1513529',
+  by_asset: [
+    {
+      asset_contract_address: '0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      asset_symbol: 'mUSD',
+      asset_decimals: 6,
+      wallet_balance: '2',
+      vault_value: '1513527',
+      total: '1513529',
+      total_usd: '1.51',
+    },
+  ],
+  total_balance_usd: '1.51',
 };
 
 const MOCK_POSITION_RESPONSE = {
@@ -42,6 +54,11 @@ const MOCK_POSITION_RESPONSE = {
   balance: MOCK_POSITION_BALANCE,
   positions: [
     {
+      chain_id: 143,
+      vault_key: 'standard',
+      name: 'Money Account mUSD Vault',
+      asset_symbol: 'mUSD',
+      asset_decimals: 6,
       vault_address: MOCK_VAULT_ADDRESS,
       shares_held: '1000000000000000000',
       current_rate: '1052340000000000000',
@@ -493,6 +510,27 @@ describe('MoneyAccountApiDataService', () => {
 
       const result = await service.fetchPositions(MOCK_ADDRESS);
       expect(result).toStrictEqual(responseWithoutBalance);
+      service.destroy();
+    });
+
+    it('accepts a null effective_apy when invested history is too short', async () => {
+      const { service } = createService(Env.DEV);
+      const response = {
+        ...MOCK_POSITION_RESPONSE,
+        positions: [
+          {
+            ...MOCK_POSITION_RESPONSE.positions[0],
+            effective_apy: null,
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, response);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+      expect(result.positions[0]?.effective_apy).toBeNull();
       service.destroy();
     });
 

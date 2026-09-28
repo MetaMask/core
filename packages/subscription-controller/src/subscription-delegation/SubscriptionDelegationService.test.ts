@@ -1,6 +1,13 @@
+import type { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
+import type {
+  VerifyDelegationParams,
+  VerifyDelegationResponse,
+} from '@metamask/chomp-api-service';
+import type { DelegationController } from '@metamask/delegation-controller';
 import {
+  createAllowedCalldataTerms,
   createERC20TokenPeriodTransferTerms,
-  createValueLteTerms,
+  decodeAllowedCalldataTerms,
   decodeERC20TokenPeriodTransferTerms,
   hashDelegation,
   ROOT_AUTHORITY,
@@ -22,6 +29,10 @@ import {
 import type { PricingCryptoPaymentMethod, PricingResponse } from '../types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 import {
+  encodeTransferToCalldataPrefix,
+  TRANSFER_CALLDATA_PREFIX_START_INDEX,
+} from './caveats.js';
+import {
   SubscriptionDelegationService,
   serviceName,
 } from './SubscriptionDelegationService.js';
@@ -32,11 +43,14 @@ import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const PAYER = '0x5555555555555555555555555555555555555555' as Hex;
+const TREASURY = '0x8888888888888888888888888888888888888888' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const TOKEN_DECIMALS = 18;
 const SIGNATURE: Hex = `0x${'ab'.repeat(65)}`;
-const { ValueLteEnforcer: VALUE_LTE, ERC20PeriodTransferEnforcer: PERIOD } =
-  DELEGATOR_CONTRACTS['1.3.0'][1];
+const {
+  ERC20PeriodTransferEnforcer: PERIOD,
+  AllowedCalldataEnforcer: ALLOWED_CALLDATA,
+} = DELEGATOR_CONTRACTS['1.3.0'][1];
 
 const MONEY_ACCOUNT_VAULT_CONFIG = {
   chainId: CHAIN_ID,
@@ -67,7 +81,7 @@ const PRICING_DELEGATION_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   chains: [
     {
       chainId: CHAIN_ID,
-      paymentAddress: '0x2222222222222222222222222222222222222222',
+      paymentAddress: TREASURY,
       delegateAddress: DELEGATE,
       tokens: [
         {
@@ -120,11 +134,21 @@ const INSUFFICIENT_BALANCE = {
   usedFallback: false,
 };
 
+type SignDelegationParams = Parameters<
+  DelegationController['signDelegation']
+>[0];
+
+type CreateDelegationArgs = Parameters<
+  AuthenticatedUserStorageService['createDelegation']
+>;
+
 type Mocks = {
   listDelegations: Mock;
-  createDelegation: Mock;
-  signDelegation: Mock;
-  verifyDelegation: Mock;
+  createDelegation: Mock<(...args: CreateDelegationArgs) => Promise<void>>;
+  signDelegation: Mock<(params: SignDelegationParams) => Promise<Hex>>;
+  verifyDelegation: Mock<
+    (params: VerifyDelegationParams) => Promise<VerifyDelegationResponse>
+  >;
   getIntentsByAddress: Mock;
   createIntents: Mock;
   getRemoteFeatureFlagState: Mock;
@@ -145,10 +169,16 @@ function setup(
 ) {
   const mocks: Mocks = {
     listDelegations: vi.fn().mockResolvedValue(options.listDelegations ?? []),
-    createDelegation: vi.fn().mockResolvedValue(undefined),
-    signDelegation: vi.fn().mockResolvedValue(SIGNATURE),
+    createDelegation: vi
+      .fn<(...args: CreateDelegationArgs) => Promise<void>>()
+      .mockResolvedValue(undefined),
+    signDelegation: vi
+      .fn<(params: SignDelegationParams) => Promise<Hex>>()
+      .mockResolvedValue(SIGNATURE),
     verifyDelegation: vi
-      .fn()
+      .fn<
+        (params: VerifyDelegationParams) => Promise<VerifyDelegationResponse>
+      >()
       .mockImplementation(async ({ signedDelegation }) => {
         if (options.verify) {
           return options.verify;
@@ -307,17 +337,20 @@ function buildStoredDelegation({
       authority: ROOT_AUTHORITY,
       caveats: [
         {
-          enforcer: VALUE_LTE,
-          terms: createValueLteTerms({ maxValue: 0n }),
-          args: '0x',
-        },
-        {
           enforcer: PERIOD,
           terms: createERC20TokenPeriodTransferTerms({
             tokenAddress: TOKEN,
             periodAmount,
             periodDuration,
             startDate,
+          }),
+          args: '0x',
+        },
+        {
+          enforcer: ALLOWED_CALLDATA,
+          terms: createAllowedCalldataTerms({
+            startIndex: TRANSFER_CALLDATA_PREFIX_START_INDEX,
+            value: encodeTransferToCalldataPrefix(TREASURY),
           }),
           args: '0x',
         },
@@ -346,12 +379,8 @@ function expectNoSideEffects(mocks: Mocks): void {
 }
 
 function getSignedPeriodStartDate(mocks: Mocks): number {
-  const signedArgs = mocks.signDelegation.mock.calls[0][0] as {
-    delegation: {
-      caveats: { enforcer: Hex; terms: Hex }[];
-    };
-  };
-  const periodCaveat = signedArgs.delegation.caveats.find(
+  const [{ delegation }] = mocks.signDelegation.mock.calls[0];
+  const periodCaveat = delegation.caveats.find(
     (caveat) => caveat.enforcer === PERIOD,
   );
   expect(periodCaveat).toBeDefined();
@@ -373,32 +402,35 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.getPricing).toHaveBeenCalledTimes(1);
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.signDelegation).toHaveBeenCalledWith({
-        delegation: expect.objectContaining({
-          delegate: DELEGATE,
-          delegator: PAYER,
-          caveats: [
-            expect.objectContaining({ enforcer: VALUE_LTE }),
-            expect.objectContaining({ enforcer: PERIOD }),
-          ],
-        }),
-        chainId: CHAIN_ID,
+      const [{ delegation, chainId }] = mocks.signDelegation.mock.calls[0];
+      expect(chainId).toBe(CHAIN_ID);
+      expect(delegation).toMatchObject({
+        delegate: DELEGATE,
+        delegator: PAYER,
+      });
+      expect(delegation.caveats[0].enforcer).toBe(PERIOD);
+      expect(delegation.caveats[1].enforcer).toBe(ALLOWED_CALLDATA);
+      expect(
+        decodeAllowedCalldataTerms(delegation.caveats[1].terms),
+      ).toStrictEqual({
+        startIndex: 0,
+        value: `0xa9059cbb${'0'.repeat(24)}${TREASURY.slice(2)}`,
       });
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledWith({
-        signedDelegation: expect.objectContaining({
-          delegate: DELEGATE,
-          delegator: PAYER,
-          signature: SIGNATURE,
-        }),
-        metadata: expect.objectContaining({
-          delegationHash: result.delegationHash,
-          chainIdHex: CHAIN_ID,
-          allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
-          tokenSymbol: 'pvmUSD',
-          tokenAddress: TOKEN,
-          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
-        }),
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      const [submission] = mocks.createDelegation.mock.calls[0];
+      expect(submission.signedDelegation).toMatchObject({
+        delegate: DELEGATE,
+        delegator: PAYER,
+        signature: SIGNATURE,
+      });
+      expect(submission.metadata).toMatchObject({
+        delegationHash: result.delegationHash,
+        chainIdHex: CHAIN_ID,
+        allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
+        tokenSymbol: 'pvmUSD',
+        tokenAddress: TOKEN,
+        type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
       });
       expect(mocks.createIntents).toHaveBeenCalledWith([
         {
@@ -490,6 +522,57 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.createIntents).not.toHaveBeenCalled();
     });
 
+    it('creates a new delegation when the stored one pays a different treasury address', async () => {
+      const stored = buildStoredDelegation();
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        pricing: {
+          ...PRICING,
+          paymentMethods: [
+            {
+              ...PRICING_DELEGATION_PAYMENT_METHOD,
+              chains: [
+                {
+                  ...PRICING_DELEGATION_PAYMENT_METHOD.chains?.[0],
+                  paymentAddress: '0x9999999999999999999999999999999999999999',
+                },
+              ],
+            },
+          ],
+        } as PricingResponse,
+      });
+
+      const result = await service.prepareDelegation(REQUEST);
+
+      expect(result.disposition).toBe('created');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects before signing when the pricing payment address is malformed', async () => {
+      const { service, mocks } = setup({
+        pricing: {
+          ...PRICING,
+          paymentMethods: [
+            {
+              ...PRICING_DELEGATION_PAYMENT_METHOD,
+              chains: [
+                {
+                  ...PRICING_DELEGATION_PAYMENT_METHOD.chains?.[0],
+                  paymentAddress: '0x1234',
+                },
+              ],
+            },
+          ],
+        } as PricingResponse,
+      });
+
+      await expect(service.prepareDelegation(REQUEST)).rejects.toThrow(
+        SubscriptionDelegationServiceErrorMessage.InvalidRecipientAddress,
+      );
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createDelegation).not.toHaveBeenCalled();
+    });
+
     it('reuses the matching stored delegation with the latest period startDate', async () => {
       const older = buildStoredDelegation({
         delegationHash: `0x${'11'.repeat(32)}`,
@@ -548,13 +631,9 @@ describe('SubscriptionDelegationService', () => {
       expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            delegationHash: result.delegationHash,
-          }),
-        }),
-      );
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      const [submission] = mocks.createDelegation.mock.calls[0];
+      expect(submission.metadata.delegationHash).toBe(result.delegationHash);
       expect(mocks.createIntents).toHaveBeenCalledWith([
         expect.objectContaining({
           delegationHash: result.delegationHash,
@@ -592,20 +671,20 @@ describe('SubscriptionDelegationService', () => {
       expect(result.disposition).toBe('created');
       expect(result.delegationHash).toMatch(/^0x[0-9a-fA-F]{64}$/u);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledWith({
-        signedDelegation: expect.objectContaining({
-          delegate: DELEGATE,
-          delegator: PAYER,
-          signature: SIGNATURE,
-        }),
-        metadata: expect.objectContaining({
-          delegationHash: result.delegationHash,
-          chainIdHex: CHAIN_ID,
-          allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
-          tokenSymbol: 'pvmUSD',
-          tokenAddress: TOKEN,
-          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
-        }),
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      const [submission] = mocks.createDelegation.mock.calls[0];
+      expect(submission.signedDelegation).toMatchObject({
+        delegate: DELEGATE,
+        delegator: PAYER,
+        signature: SIGNATURE,
+      });
+      expect(submission.metadata).toMatchObject({
+        delegationHash: result.delegationHash,
+        chainIdHex: CHAIN_ID,
+        allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
+        tokenSymbol: 'pvmUSD',
+        tokenAddress: TOKEN,
+        type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
       });
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
       expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();

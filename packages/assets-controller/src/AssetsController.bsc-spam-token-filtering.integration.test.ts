@@ -171,24 +171,32 @@ describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
     );
 
     // Same gap as the pipeline suite: prices are not occurrence-filtered.
-    // Unlock cleanup eventually strips them; this flags the hole.
+    // Unlock cleanup eventually strips them; this flags the hole. (The v6
+    // suite does not share this gap: the backend omits Malicious rows before
+    // they can reach the price lane.)
     it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
   });
 });
 
-describe('AssetsController: BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+describe("AssetsController (Accounts API v5): 'merge' update operation - stale tracked spam token already in state", () => {
   afterEach(() => {
     cleanAll();
   });
 
-  function buildCustomAssetWalletState(): AssetsControllerState {
+  /**
+   * State as a wallet would have it after the spam token snuck in through an
+   * older fetch: a tracked CDOGE balance with metadata and a price, but NOT a
+   * custom-asset pin.
+   *
+   * @returns The seeded controller state.
+   */
+  function buildStaleSpamWalletState(): AssetsControllerState {
     return buildEmptyAssetsState({
-      customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
       assetsBalance: {
         [BSC_SPAM_ACCOUNT_ID]: {
-          [CDOGE_ASSET_ID_CHECKSUM]: { amount: '0' },
+          [CDOGE_ASSET_ID_CHECKSUM]: { amount: '100' },
         },
       },
       assetsInfo: {
@@ -199,18 +207,49 @@ describe('AssetsController: BNB Chain spam token (CDOGE) imported as a custom as
           decimals: 9,
         },
       },
+      assetsPrice: {
+        [CDOGE_ASSET_ID_CHECKSUM]: {
+          price: 1,
+          lastUpdated: 0,
+          assetPriceType: 'fungible',
+          usdPrice: 1,
+        },
+      },
     });
   }
 
-  it('keeps the imported token in customAssets, balances and metadata', async () => {
-    const state = await fetchWallet(buildCustomAssetWalletState(), {
-      assetsAccountsApiV6: true,
+  describe('fetching the wallet on the v5 lane', () => {
+    let state: AssetsControllerState;
+
+    beforeAll(async () => {
+      state = await fetchWallet(buildStaleSpamWalletState());
     });
 
-    expect(state.customAssets[BSC_SPAM_ACCOUNT_ID]).toContain(
-      CDOGE_ASSET_ID_CHECKSUM,
+    // The v5 never wipes stale scam balances. It only gets wiped on unlock cleanup process.
+    // The v5 lane answers with `updateMode: 'merge'`;
+    // We only ever filter out *newly detected assets*
+    // Holdings already in state are exempt, so the API's fresh CDOGE row lands in the response
+    // and overwrites the seed.
+    //
+    // A spam token that got into state is therefore never removed by the v5 lane.
+    // Accounts API v6 suite performs a `updateMode: 'full'` operation which wipes the same seed via its full snapshot.
+    it.failing('wipes the stale balance', () => {
+      expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
+    });
+
+    // The snapshot really covered BNB Chain — the wipe above is the snapshot
+    // replacing covered-chain balances, not a failed fetch.
+    it('keeps the native BNB asset', () => {
+      expect(BALANCES.lookUp(state, BNB_ASSET_ID)).toBeDefined();
+    });
+
+    // Prices and metadata are append-only in state updates, so the stale
+    // price and metadata linger until the unlock cleanup strips them
+    it.each([METADATA, PRICES])(
+      '$surface - stale entry lingers',
+      ({ lookUp }) => {
+        expect(lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+      },
     );
-    expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
-    expect(METADATA.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
   });
 });
