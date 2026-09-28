@@ -1,9 +1,6 @@
 import type { Hex } from '@metamask/utils';
-import { ApproveBuilderFeeTypes } from '@nktkas/hyperliquid/api/exchange';
-import {
-  signL1Action,
-  signUserSignedAction,
-} from '@nktkas/hyperliquid/signing';
+import type * as HyperLiquidExchange from '@nktkas/hyperliquid/api/exchange';
+import type * as HyperLiquidSigning from '@nktkas/hyperliquid/signing';
 import { recoverTypedDataAddress } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
@@ -348,116 +345,139 @@ describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', 
   });
 });
 
-describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () => {
-  // Drive the adapter through the SDK's own signing functions and recover the
-  // signer from each signature, so the routing holds for the payloads the SDK
-  // builds (including its EIP712Domain entry) and for its wallet detection.
-  const mainAccount = privateKeyToAccount(generatePrivateKey());
-  const agentAccount = privateKeyToAccount(generatePrivateKey());
+// The SDK ships ES modules only, and Jest can require them only on Node 24.9
+// or newer, so this suite runs in the Node 24 CI job and is skipped on Node 22.
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
+const describeWithSdk =
+  nodeMajor > 24 || (nodeMajor === 24 && nodeMinor >= 9)
+    ? describe
+    : describe.skip;
 
-  type RecordedSignature = { payload: PerpsTypedDataPayload; signature: Hex };
+describeWithSdk(
+  'HyperLiquidWalletService wallet adapter with the HyperLiquid SDK',
+  () => {
+    // Drive the adapter through the SDK's own signing functions and recover the
+    // signer from each signature, so the routing holds for the payloads the SDK
+    // builds (including its EIP712Domain entry) and for its wallet detection.
+    const mainAccount = privateKeyToAccount(generatePrivateKey());
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
+    let signing: typeof HyperLiquidSigning;
+    let exchange: typeof HyperLiquidExchange;
 
-  function buildSdkAdapter(): {
-    adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
-    signatures: RecordedSignature[];
-    agentSignatures: () => Promise<RecordedSignature[]>;
-  } {
-    const { messenger, selectAccount } = createKeyringlessMessenger();
-    selectAccount(mainAccount.address);
-    const signatures: { payload: PerpsTypedDataPayload; signature: Hex }[] = [];
-    const recordSignature =
-      (account: typeof mainAccount) =>
-      async (payload: PerpsTypedDataPayload): Promise<Hex> => {
-        const signature = await account.signTypedData(payload);
-        signatures.push({ payload, signature });
-        return signature;
-      };
-    const service = new HyperLiquidWalletService(
-      {
-        ...createMockInfrastructure(),
-        accountSigner: {
-          signTypedData: async (_address, payload): Promise<Hex> =>
-            await recordSignature(mainAccount)(payload),
-          signPersonalMessage: async (_address, message): Promise<Hex> =>
-            await mainAccount.signMessage({ message }),
+    beforeAll(() => {
+      signing = jest.requireActual<typeof HyperLiquidSigning>(
+        '@nktkas/hyperliquid/signing',
+      );
+      exchange = jest.requireActual<typeof HyperLiquidExchange>(
+        '@nktkas/hyperliquid/api/exchange',
+      );
+    });
+
+    type RecordedSignature = { payload: PerpsTypedDataPayload; signature: Hex };
+
+    function buildSdkAdapter(): {
+      adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
+      signatures: RecordedSignature[];
+      agentSignatures: () => Promise<RecordedSignature[]>;
+    } {
+      const { messenger, selectAccount } = createKeyringlessMessenger();
+      selectAccount(mainAccount.address);
+      const signatures: { payload: PerpsTypedDataPayload; signature: Hex }[] =
+        [];
+      const recordSignature =
+        (account: typeof mainAccount) =>
+        async (payload: PerpsTypedDataPayload): Promise<Hex> => {
+          const signature = await account.signTypedData(payload);
+          signatures.push({ payload, signature });
+          return signature;
+        };
+      const service = new HyperLiquidWalletService(
+        {
+          ...createMockInfrastructure(),
+          accountSigner: {
+            signTypedData: async (_address, payload): Promise<Hex> =>
+              await recordSignature(mainAccount)(payload),
+            signPersonalMessage: async (_address, message): Promise<Hex> =>
+              await mainAccount.signMessage({ message }),
+          },
         },
-      },
-      messenger,
-      {
-        isTestnet: true,
-        // A viem local account is a PerpsAgentSigner as it is.
-        resolveAgent: async (): Promise<PerpsAgentSigner> => agentAccount,
-      },
-    );
-    const agentSign = jest.spyOn(agentAccount, 'signTypedData');
-    return {
-      adapter: service.createWalletAdapter(),
-      signatures,
-      agentSignatures: async () =>
-        await Promise.all(
-          agentSign.mock.calls.map(async ([payload], index) => ({
-            payload: payload as PerpsTypedDataPayload,
-            signature: (await agentSign.mock.results[index].value) as Hex,
-          })),
-        ),
-    };
-  }
+        messenger,
+        {
+          isTestnet: true,
+          // A viem local account is a PerpsAgentSigner as it is.
+          resolveAgent: async (): Promise<PerpsAgentSigner> => agentAccount,
+        },
+      );
+      const agentSign = jest.spyOn(agentAccount, 'signTypedData');
+      return {
+        adapter: service.createWalletAdapter(),
+        signatures,
+        agentSignatures: async () =>
+          await Promise.all(
+            agentSign.mock.calls.map(async ([payload], index) => ({
+              payload: payload as PerpsTypedDataPayload,
+              signature: (await agentSign.mock.results[index].value) as Hex,
+            })),
+          ),
+      };
+    }
 
-  async function recoverSigner({
-    payload,
-    signature,
-  }: {
-    payload: PerpsTypedDataPayload;
-    signature: Hex;
-  }): Promise<Hex> {
-    return await recoverTypedDataAddress({
-      domain: payload.domain,
-      types: payload.types,
-      primaryType: payload.primaryType,
-      message: payload.message,
+    async function recoverSigner({
+      payload,
       signature,
+    }: {
+      payload: PerpsTypedDataPayload;
+      signature: Hex;
+    }): Promise<Hex> {
+      return await recoverTypedDataAddress({
+        domain: payload.domain,
+        types: payload.types,
+        primaryType: payload.primaryType,
+        message: payload.message,
+        signature,
+      });
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
-  }
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+    it('signs an SDK L1 action with the agent', async () => {
+      const { adapter, signatures, agentSignatures } = buildSdkAdapter();
 
-  it('signs an SDK L1 action with the agent', async () => {
-    const { adapter, signatures, agentSignatures } = buildSdkAdapter();
-
-    await signL1Action({
-      wallet: adapter,
-      action: { type: 'cancel', cancels: [{ a: 0, o: 1 }] },
-      nonce: 1,
-      isTestnet: true,
-    });
-
-    const agentSigned = await agentSignatures();
-    expect(signatures).toHaveLength(0);
-    expect(agentSigned).toHaveLength(1);
-    expect(agentSigned[0].payload.types).toHaveProperty('EIP712Domain');
-    expect(await recoverSigner(agentSigned[0])).toBe(agentAccount.address);
-  });
-
-  it('signs an SDK user-signed action with the main account', async () => {
-    const { adapter, signatures, agentSignatures } = buildSdkAdapter();
-
-    await signUserSignedAction({
-      wallet: adapter,
-      action: {
-        type: 'approveBuilderFee',
-        signatureChainId: '0x66eee',
-        hyperliquidChain: 'Testnet',
-        maxFeeRate: '0.1%',
-        builder: agentAccount.address,
+      await signing.signL1Action({
+        wallet: adapter,
+        action: { type: 'cancel', cancels: [{ a: 0, o: 1 }] },
         nonce: 1,
-      },
-      types: ApproveBuilderFeeTypes,
+        isTestnet: true,
+      });
+
+      const agentSigned = await agentSignatures();
+      expect(signatures).toHaveLength(0);
+      expect(agentSigned).toHaveLength(1);
+      expect(agentSigned[0].payload.types).toHaveProperty('EIP712Domain');
+      expect(await recoverSigner(agentSigned[0])).toBe(agentAccount.address);
     });
 
-    expect(await agentSignatures()).toHaveLength(0);
-    expect(signatures).toHaveLength(1);
-    expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
-  });
-});
+    it('signs an SDK user-signed action with the main account', async () => {
+      const { adapter, signatures, agentSignatures } = buildSdkAdapter();
+
+      await signing.signUserSignedAction({
+        wallet: adapter,
+        action: {
+          type: 'approveBuilderFee',
+          signatureChainId: '0x66eee',
+          hyperliquidChain: 'Testnet',
+          maxFeeRate: '0.1%',
+          builder: agentAccount.address,
+          nonce: 1,
+        },
+        types: exchange.ApproveBuilderFeeTypes,
+      });
+
+      expect(await agentSignatures()).toHaveLength(0);
+      expect(signatures).toHaveLength(1);
+      expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
+    });
+  },
+);
