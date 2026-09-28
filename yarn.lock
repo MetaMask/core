@@ -9372,7 +9372,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.17.25"
     "@typescript/native": "npm:typescript@^7.0.2"
-    debug: "npm:^4.3.4"
+    debug: "npm:^4.4.3"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     jest-when: "npm:^4.0.3"
