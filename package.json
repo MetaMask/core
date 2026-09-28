@@ -66,7 +66,7 @@
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
     "@jest/globals": "^30.4.1",
-    "@lavamoat/allow-scripts": "^3.4.3",
+    "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/create-release-branch": "^4.2.2",
@@ -118,6 +118,13 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": ">=4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+      "onFail": "error"
+    }
+  },
   "engines": {
     "node": "^22.14.0 || ^24"
   },
@@ -134,5 +141,10 @@
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json",
+    "postinstall": "lavamoat/scripts.yarn.json",
+    "skills:postinstall": "lavamoat/scripts.skills.json"
   }
 }
