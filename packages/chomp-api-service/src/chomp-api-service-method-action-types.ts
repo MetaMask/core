@@ -27,11 +27,14 @@ export type ChompApiServiceAssociateAddressAction = {
  *
  * GET /v1/auth/address
  *
- * The result is scoped to the authenticated profile and consumers use it to
- * decide whether an association already exists, so it is always fetched
- * fresh (`staleTime: 0`, `cacheTime: 0`) and the query key is scoped to the
- * profile via a digest of the bearer token — concurrent calls only share a
- * request when they are for the same profile.
+ * The result is scoped to the authenticated profile and consumers use it
+ * to decide whether an association already exists, so it is always fetched
+ * fresh (`staleTime: 0`) and evicted as soon as the call settles
+ * (`gcTime: 0`). The query key carries a SHA-256 digest of the bearer
+ * token — the same token the request is made with — so concurrent calls
+ * only share an in-flight request when they are for the same profile. The
+ * digest, not the token, is used because query keys leave the service via
+ * the `cacheUpdated` messenger events.
  *
  * @returns The active address associations; empty array if none exist.
  * Addresses are lowercased.
@@ -99,6 +102,9 @@ export type ChompApiServiceCreateIntentsAction = {
  * Fetches intents associated with a given address.
  *
  * GET /v1/intent/account/:address
+ *
+ * Callers use the result to decide whether an intent already exists, so it
+ * is always fetched fresh (`staleTime: 0`).
  *
  * @param address - The address to look up intents for.
  * @returns The array of intents for the address.

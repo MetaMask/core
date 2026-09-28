@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ChompIntentType` export, covering every vault and subscription CHOMP intent type ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Add optional `vedaPremiumProtocol` service-details support alongside the required base `vedaProtocol` ([#10430](https://github.com/MetaMask/core/pull/10430))
+
 ### Changed
 
+- **BREAKING:** Widen the intent metadata type union (used by `SendIntentParams`, intent responses, and the service-details `intentTypes` struct) to include `cash-deposit-premium`, `cash-withdrawal-premium`, and `cash-subscription`, alongside the existing `cash-deposit` and `cash-withdrawal` ([#10430](https://github.com/MetaMask/core/pull/10430))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+
+### Fixed
+
+- Always fetch `getIntentsByAddress` fresh, so a follow-up read does not reuse a stale intent list and try to create intents that already exist ([#10430](https://github.com/MetaMask/core/pull/10430))
 
 ## [5.0.0]
 
