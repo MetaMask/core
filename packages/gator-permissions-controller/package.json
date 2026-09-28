@@ -64,8 +64,8 @@
     "@metamask/utils": "^12.0.0"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.4.3",
-    "@lavamoat/preinstall-always-fail": "^2.1.0",
+    "@lavamoat/allow-scripts": "^5.1.0",
+    "@lavamoat/preinstall-always-fail": "^3.0.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",

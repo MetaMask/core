@@ -70,8 +70,8 @@
   "devDependencies": {
     "@ethereumjs/common": "^4.4.0",
     "@ethereumjs/tx": "^5.4.0",
-    "@lavamoat/allow-scripts": "^3.4.3",
-    "@lavamoat/preinstall-always-fail": "^2.1.0",
+    "@lavamoat/allow-scripts": "^5.1.0",
+    "@lavamoat/preinstall-always-fail": "^3.0.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/keyring-utils": "^5.0.0",
     "@metamask/scure-bip39": "^2.1.1",
