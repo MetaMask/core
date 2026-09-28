@@ -10,7 +10,7 @@ import {
 } from './message-signing.js';
 
 jest.mock('@noble/hashes/hmac', () => {
-  const actual = jest.requireActual('@noble/hashes/hmac');
+  const actual: typeof import('@noble/hashes/hmac') = jest.requireActual('@noble/hashes/hmac');
   return {
     hmac: jest.fn(actual.hmac),
   };
