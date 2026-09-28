@@ -26,11 +26,11 @@
 /packages/address-book-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
 ### advanced-chart-core
-/packages/advanced-chart-core                 @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
-/packages/advanced-chart-core/CHANGELOG.md    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
-/packages/advanced-chart-core/package.json    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
-/packages/advanced-chart-core/tsconfig.*      @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
-/packages/advanced-chart-core/typedoc.json    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
+/packages/advanced-chart-core                 @MetaMask/metamask-assets @MetaMask/perps
+/packages/advanced-chart-core/CHANGELOG.md    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
+/packages/advanced-chart-core/package.json    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
+/packages/advanced-chart-core/tsconfig.*      @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
+/packages/advanced-chart-core/typedoc.json    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
 
 ### ai-controllers
 /packages/ai-controllers                 @MetaMask/social-ai

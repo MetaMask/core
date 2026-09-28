@@ -24,7 +24,6 @@ const config = {
       teams: [
         '@MetaMask/metamask-assets',
         '@MetaMask/perps',
-        '@MetaMask/social-ai',
       ],
     },
     'ai-controllers': {
