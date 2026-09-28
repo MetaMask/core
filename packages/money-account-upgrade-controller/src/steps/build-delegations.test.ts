@@ -1,4 +1,9 @@
-import type { DelegationResponse } from '@metamask/authenticated-user-storage';
+import type {
+  AuthenticatedUserStorageServiceCreateDelegationAction,
+  DelegationResponse,
+} from '@metamask/authenticated-user-storage';
+import type { ChompApiServiceVerifyDelegationAction } from '@metamask/chomp-api-service';
+import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import {
   ROOT_AUTHORITY,
   createERC20TransferAmountTerms,
@@ -122,9 +127,20 @@ type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
   listDelegations: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock;
-  createDelegation: jest.Mock;
+  signDelegation: jest.Mock<
+    ReturnType<DelegationControllerSignDelegationAction['handler']>,
+    Parameters<DelegationControllerSignDelegationAction['handler']>
+  >;
+  verifyDelegation: jest.Mock<
+    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
+    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
+  >;
+  createDelegation: jest.Mock<
+    ReturnType<
+      AuthenticatedUserStorageServiceCreateDelegationAction['handler']
+    >,
+    Parameters<AuthenticatedUserStorageServiceCreateDelegationAction['handler']>
+  >;
 };
 
 function setup(): {
@@ -133,9 +149,28 @@ function setup(): {
 } {
   const mocks: Mocks = {
     listDelegations: jest.fn().mockResolvedValue([]),
-    signDelegation: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
+    signDelegation: jest
+      .fn<
+        ReturnType<DelegationControllerSignDelegationAction['handler']>,
+        Parameters<DelegationControllerSignDelegationAction['handler']>
+      >()
+      .mockResolvedValue(MOCK_SIGNATURE),
+    verifyDelegation: jest
+      .fn<
+        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
+        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
+      >()
+      .mockResolvedValue({ valid: true }),
+    createDelegation: jest
+      .fn<
+        ReturnType<
+          AuthenticatedUserStorageServiceCreateDelegationAction['handler']
+        >,
+        Parameters<
+          AuthenticatedUserStorageServiceCreateDelegationAction['handler']
+        >
+      >()
+      .mockResolvedValue(undefined),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({

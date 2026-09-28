@@ -2,7 +2,10 @@ import type {
   DelegationResponse,
   DelegationMetadata,
 } from '@metamask/authenticated-user-storage';
-import type { IntentEntry } from '@metamask/chomp-api-service';
+import type {
+  ChompApiServiceCreateIntentsAction,
+  IntentEntry,
+} from '@metamask/chomp-api-service';
 import { createRedeemerTerms } from '@metamask/delegation-core';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -146,7 +149,10 @@ type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 type Mocks = {
   listDelegations: jest.Mock;
   getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
+  createIntents: jest.Mock<
+    ReturnType<ChompApiServiceCreateIntentsAction['handler']>,
+    Parameters<ChompApiServiceCreateIntentsAction['handler']>
+  >;
 };
 
 function setup(): {
@@ -158,7 +164,12 @@ function setup(): {
       .fn()
       .mockResolvedValue([depositDelegation(), withdrawalDelegation()]),
     getIntentsByAddress: jest.fn().mockResolvedValue([]),
-    createIntents: jest.fn().mockResolvedValue([]),
+    createIntents: jest
+      .fn<
+        ReturnType<ChompApiServiceCreateIntentsAction['handler']>,
+        Parameters<ChompApiServiceCreateIntentsAction['handler']>
+      >()
+      .mockResolvedValue([]),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({

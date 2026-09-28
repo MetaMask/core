@@ -1,5 +1,8 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
-import type { IntentEntry } from '@metamask/chomp-api-service';
+import type {
+  ChompApiServiceVerifyDelegationAction,
+  IntentEntry,
+} from '@metamask/chomp-api-service';
 import { createRedeemerTerms } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
@@ -264,7 +267,10 @@ type Mocks = {
   listDelegations: jest.Mock;
   createDelegation: jest.Mock;
   signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock;
+  verifyDelegation: jest.Mock<
+    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
+    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
+  >;
   getIntentsByAddress: jest.Mock;
   createIntents: jest.Mock;
   isEnabled: jest.Mock;
@@ -369,7 +375,12 @@ function setup({
     listDelegations: jest.fn().mockResolvedValue([]),
     createDelegation: jest.fn().mockResolvedValue(undefined),
     signDelegation: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
-    verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
+    verifyDelegation: jest
+      .fn<
+        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
+        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
+      >()
+      .mockResolvedValue({ valid: true }),
     getIntentsByAddress: jest.fn().mockResolvedValue([]),
     createIntents: jest.fn().mockResolvedValue([]),
     isEnabled: jest.fn().mockImplementation(() => config.isEnabled),
