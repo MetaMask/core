@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(deps): update lodash monorepo to ^4.18.1 ([#10447](https://github.com/MetaMask/core/pull/10447))
+
 ## [76.3.3]
 
 ### Changed
