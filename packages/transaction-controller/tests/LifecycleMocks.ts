@@ -126,12 +126,10 @@ export function buildLifecycleMocks({
       failTransaction: jest.fn(),
       fetchGasFeeTokens: jest.fn().mockResolvedValue([]),
       gasFeeFlows: [],
-      getNonceLock: jest
-        .fn()
-        .mockResolvedValue({
-          nextNonce: NONCE_MOCK,
-          releaseLock: releaseNonce,
-        }),
+      getNonceLock: jest.fn().mockResolvedValue({
+        nextNonce: NONCE_MOCK,
+        releaseLock: releaseNonce,
+      }),
       getState: jest.fn(
         (): TransactionControllerState => ({
           batchTransactionCounts: {},
