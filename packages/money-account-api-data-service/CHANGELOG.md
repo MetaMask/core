@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
 - Add optional `fresh` option to `fetchPositions` that cancels in-flight reads, fetches with a zero stale time, invalidates the result for subsequent reads, and sends `Cache-Control: no-cache` so the Money API skips its Nest response cache when supported ([#10455](https://github.com/MetaMask/core/pull/10455))
@@ -72,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...@metamask/money-account-api-data-service@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.0...@metamask/money-account-api-data-service@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.3.0...@metamask/money-account-api-data-service@0.4.0
