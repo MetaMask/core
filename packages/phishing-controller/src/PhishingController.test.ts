@@ -3072,7 +3072,7 @@ describe('PhishingController', () => {
         platform: RequestSourcePlatform.Mobile,
       });
       const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .matchHeader('x-request-source', 'Mobile-browser')
+        .matchHeader('x-request-source', 'mobile-browser')
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: 'example.com' })
         .reply(200, scanResponse);
@@ -3091,7 +3091,7 @@ describe('PhishingController', () => {
         platform: RequestSourcePlatform.Extension,
       });
       const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .matchHeader('x-request-source', 'Extension-nft-detection')
+        .matchHeader('x-request-source', 'extension-nft-detection')
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
         .reply(200, { results: {}, errors: {} });
 
@@ -3109,7 +3109,7 @@ describe('PhishingController', () => {
         platform: RequestSourcePlatform.Extension,
       });
       const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .matchHeader('x-request-source', 'Extension-unknown')
+        .matchHeader('x-request-source', 'extension-unknown')
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: 'example.com' })
         .reply(200, scanResponse);
@@ -3145,7 +3145,7 @@ describe('PhishingController', () => {
         platform: RequestSourcePlatform.Mobile,
       });
       const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .matchHeader('x-request-source', 'Mobile-unknown')
+        .matchHeader('x-request-source', 'mobile-unknown')
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: 'example.com' })
         .reply(200, scanResponse);

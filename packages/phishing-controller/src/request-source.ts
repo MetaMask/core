@@ -31,7 +31,7 @@ export enum RequestSourceFlow {
    */
   Browser = 'browser',
   /**
- * Dapp RPC traffic used as a trust signal.
+   * Dapp RPC traffic used as a trust signal.
    */
   RpcTrustSignals = 'rpc-trust-signals',
   /**

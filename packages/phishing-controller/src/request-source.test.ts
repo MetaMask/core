@@ -21,43 +21,43 @@ describe('buildRequestSource', () => {
     [
       RequestSourcePlatform.Extension,
       RequestSourceFlow.DappConnection,
-      'Extension-dapp-connection',
+      'extension-dapp-connection',
     ],
     [
       RequestSourcePlatform.Extension,
       RequestSourceFlow.RpcTrustSignals,
-      'Extension-rpc-trust-signals',
+      'extension-rpc-trust-signals',
     ],
     [
       RequestSourcePlatform.Extension,
       RequestSourceFlow.Confirmations,
-      'Extension-confirmations',
+      'extension-confirmations',
     ],
     [
       RequestSourcePlatform.Extension,
       RequestSourceFlow.RevealSrp,
-      'Extension-reveal-srp',
+      'extension-reveal-srp',
     ],
     [
       RequestSourcePlatform.Extension,
       RequestSourceFlow.NftDetection,
-      'Extension-nft-detection',
+      'extension-nft-detection',
     ],
     [
       RequestSourcePlatform.Mobile,
       RequestSourceFlow.DappConnection,
-      'Mobile-dapp-connection',
+      'mobile-dapp-connection',
     ],
-    [RequestSourcePlatform.Mobile, RequestSourceFlow.Browser, 'Mobile-browser'],
+    [RequestSourcePlatform.Mobile, RequestSourceFlow.Browser, 'mobile-browser'],
     [
       RequestSourcePlatform.Mobile,
       RequestSourceFlow.RpcTrustSignals,
-      'Mobile-rpc-trust-signals',
+      'mobile-rpc-trust-signals',
     ],
     [
       RequestSourcePlatform.Mobile,
       RequestSourceFlow.NftDetection,
-      'Mobile-nft-detection',
+      'mobile-nft-detection',
     ],
   ];
 
@@ -70,10 +70,10 @@ describe('buildRequestSource', () => {
 
   it('falls back to the platform sentinel when no flow is given', () => {
     expect(buildRequestSource(RequestSourcePlatform.Extension)).toBe(
-      'Extension-unknown',
+      'extension-unknown',
     );
     expect(buildRequestSource(RequestSourcePlatform.Mobile)).toBe(
-      'Mobile-unknown',
+      'mobile-unknown',
     );
   });
 
@@ -85,7 +85,7 @@ describe('buildRequestSource', () => {
         RequestSourcePlatform.Extension,
         'dapp-conection' as RequestSourceFlow,
       ),
-    ).toBe('Extension-unknown');
+    ).toBe('extension-unknown');
   });
 
   it('returns the bare sentinel when no platform is configured', () => {
