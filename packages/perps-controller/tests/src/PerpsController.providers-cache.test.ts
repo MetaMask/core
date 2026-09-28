@@ -953,15 +953,24 @@ describe('PerpsController', () => {
       );
     });
 
-    it("prepareTradingWallet runs the active provider's deferred setup", async () => {
+    it("prepareTradingWallet returns the active provider's readiness", async () => {
       mockProvider.prepareTradingWallet = jest
         .fn()
-        .mockResolvedValue(undefined);
+        .mockResolvedValue({ ready: false, error: 'KEYRING_LOCKED' });
       await controller.init();
 
-      await controller.prepareTradingWallet();
+      const result = await controller.prepareTradingWallet();
 
+      expect(result).toStrictEqual({ ready: false, error: 'KEYRING_LOCKED' });
       expect(mockProvider.prepareTradingWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it('prepareTradingWallet reports ready when the provider has no deferred setup', async () => {
+      await controller.init();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: true });
     });
 
     it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {

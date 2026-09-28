@@ -1061,18 +1061,21 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('delegates prepareTradingWallet to default provider', async () => {
-      const prepareTradingWallet = jest.fn().mockResolvedValue(undefined);
+      const prepareTradingWallet = jest.fn().mockResolvedValue({
+        ready: false,
+      });
       Object.assign(mockHLProvider, { prepareTradingWallet });
 
-      await aggregatedProvider.prepareTradingWallet();
+      const result = await aggregatedProvider.prepareTradingWallet();
 
+      expect(result).toStrictEqual({ ready: false });
       expect(prepareTradingWallet).toHaveBeenCalledTimes(1);
     });
 
-    it('resolves prepareTradingWallet when the default provider has no deferred setup', async () => {
-      await expect(
-        aggregatedProvider.prepareTradingWallet(),
-      ).resolves.toBeUndefined();
+    it('reports ready when the default provider has no deferred setup', async () => {
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: true });
     });
 
     it('delegates toggleTestnet to default provider', async () => {

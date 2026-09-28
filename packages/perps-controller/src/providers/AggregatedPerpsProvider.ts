@@ -1047,8 +1047,15 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#getDefaultProvider().isReadyToTrade();
   }
 
-  async prepareTradingWallet(): Promise<void> {
-    await this.#getDefaultProvider().prepareTradingWallet?.();
+  /**
+   * Prepare the default provider only; other providers keep their setup
+   * signatures (such as Lighter's venue-key registration) at order time.
+   *
+   * @returns The default provider's readiness.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    const provider = this.#getDefaultProvider();
+    return (await provider.prepareTradingWallet?.()) ?? { ready: true };
   }
 
   async disconnect(): Promise<DisconnectResult> {

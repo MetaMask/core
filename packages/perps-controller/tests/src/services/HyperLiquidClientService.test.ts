@@ -275,54 +275,6 @@ describe('HyperLiquidClientService', () => {
     });
   });
 
-  describe('setWallet', () => {
-    const agentWallet = {
-      address: '0x00000000000000000000000000000000000a9e17' as const,
-      signTypedData: jest.fn(),
-    };
-
-    it('only stores the wallet before initialization', () => {
-      const { ExchangeClient } = require('@nktkas/hyperliquid');
-
-      service.setWallet(agentWallet);
-
-      expect(ExchangeClient).not.toHaveBeenCalled();
-      expect(() => service.getExchangeClient()).toThrow(
-        'CLIENT_NOT_INITIALIZED',
-      );
-    });
-
-    it('rebuilds only the exchange client and keeps the WebSocket', async () => {
-      await service.initialize(mockWallet);
-      const {
-        ExchangeClient,
-        InfoClient,
-        SubscriptionClient,
-        WebSocketTransport,
-      } = require('@nktkas/hyperliquid');
-      const agentExchangeClient = { agent: true };
-      ExchangeClient.mockClear();
-      InfoClient.mockClear();
-      SubscriptionClient.mockClear();
-      WebSocketTransport.mockClear();
-      ExchangeClient.mockImplementationOnce(() => agentExchangeClient);
-
-      service.setWallet(agentWallet);
-
-      expect(ExchangeClient).toHaveBeenCalledTimes(1);
-      expect(ExchangeClient).toHaveBeenCalledWith({
-        wallet: agentWallet,
-        transport: mockHttpTransport,
-      });
-      expect(service.getExchangeClient()).toBe(agentExchangeClient);
-      expect(InfoClient).not.toHaveBeenCalled();
-      expect(SubscriptionClient).not.toHaveBeenCalled();
-      expect(WebSocketTransport).not.toHaveBeenCalled();
-      expect(mockWsTransport.close).not.toHaveBeenCalled();
-      expect(service.isInitialized()).toBe(true);
-    });
-  });
-
   describe('Client Access', () => {
     beforeEach(async () => {
       await service.initialize(mockWallet);

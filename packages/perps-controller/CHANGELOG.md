@@ -18,10 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code
   - `isHardwareWallet()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
 - Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet
-  - Add optional `providerCredentials.hyperliquid.getAgentSigner`, which resolves the approved agent (new exported `PerpsAgentSigner` type) when the HyperLiquid clients initialize
-  - Add `PerpsController:setAgentSigner` (`PerpsControllerSetAgentSignerAction`) to switch to an agent, or back to the main account with `null`, at runtime; only the exchange client is rebuilt, so live subscriptions keep running
-  - User-signed actions (builder fee, withdraw, account migration, ...) always stay on the main account; approving the agent remains the client's job
+  - Add optional `providerCredentials.hyperliquid.getAgentSigner({ mainAddress, isTestnet })`, which resolves the approved agent (new exported `PerpsAgentSigner` type) the first time an L1 action is signed for that account and network; reads never call it
+  - Add `PerpsController:setAgentSigner` (`PerpsControllerSetAgentSignerAction`) to set the agent for the selected account and network at runtime, or clear it with `null`
+  - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, account migration, ...) always stay on the main account; approving the agent remains the client's job
 - Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run deferred trading-readiness steps (account migration, builder fee and referral setup) before the first order
+  - Resolves a `ReadyToTradeResult` that is `ready: false` while a step still needs a signature
 
 ### Removed
 

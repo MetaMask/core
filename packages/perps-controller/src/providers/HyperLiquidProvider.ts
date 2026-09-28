@@ -53,7 +53,6 @@ import {
   HyperLiquidClientService,
   WebSocketConnectionState,
 } from '../services/HyperLiquidClientService.js';
-import type { HyperLiquidWalletParams } from '../services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService.js';
 import {
@@ -108,8 +107,8 @@ import type {
   GetSupportedPathsParams,
   GetUserDataSnapshotParams,
   HistoricalPortfolioResult,
-  InitializeResult,
   HyperLiquidCredentials,
+  InitializeResult,
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsProvider,
@@ -1540,14 +1539,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
 
-  // Agent set through setAgentSigner. Undefined until the host sets one;
-  // null when the host cleared it, which also skips #getAgentSigner.
-  #agentSigner: PerpsAgentSigner | null | undefined;
-
   readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
 
-  // Serializes setAgentSigner so a clear cannot interleave with an activation.
-  #agentSignerUpdate: Promise<void> = Promise.resolve();
+  // Agent per network and main account (see #getAgentKey), from
+  // setAgentSigner or a getAgentSigner answer. An agent is only ever used for
+  // the account and network it was set or resolved for.
+  readonly #agentSigners = new Map<string, Promise<PerpsAgentSigner | null>>();
 
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
@@ -1987,7 +1984,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      const wallet = await this.#buildWallet();
+      const wallet = this.#walletService.createWalletAdapter(
+        async (mainAddress) => await this.#resolveAgentSigner(mainAddress),
+      );
       await this.#clientService.initialize(wallet);
       if (this.#disconnectOperationsInFlight > 0) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -2039,24 +2038,52 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Build the wallet the SDK signs with: the agent set through
-   * setAgentSigner, else the agent `getAgentSigner` resolves for the main
-   * account (unless the host cleared it), else the main account.
+   * Key an agent by network and main account.
    *
-   * @returns The wallet adapter for the client service.
+   * @param mainAddress - The main account.
+   * @returns The agent key.
    */
-  async #buildWallet(): Promise<HyperLiquidWalletParams> {
-    if (this.#agentSigner) {
-      return this.#walletService.createAgentWalletAdapter(this.#agentSigner);
+  #getAgentKey(mainAddress: string): string {
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    return `${network}:${mainAddress.toLowerCase()}`;
+  }
+
+  /**
+   * Resolve the agent that signs L1 actions for a main account on the
+   * current network. Asks `getAgentSigner` once per account and network; a
+   * failed answer is not kept, so the next L1 action asks again.
+   *
+   * @param mainAddress - The selected main account.
+   * @returns The agent, or null to sign with the main account.
+   */
+  async #resolveAgentSigner(
+    mainAddress: Hex,
+  ): Promise<PerpsAgentSigner | null> {
+    const getAgentSigner = this.#getAgentSigner;
+    const key = this.#getAgentKey(mainAddress);
+    let agentSigner = this.#agentSigners.get(key);
+    if (!agentSigner) {
+      if (!getAgentSigner) {
+        return null;
+      }
+      agentSigner = getAgentSigner({
+        mainAddress,
+        isTestnet: this.#clientService.isTestnetMode(),
+      });
+      this.#agentSigners.set(key, agentSigner);
     }
-    const mainWallet = this.#walletService.createWalletAdapter();
-    if (this.#agentSigner === null || !this.#getAgentSigner) {
-      return mainWallet;
+    try {
+      return await agentSigner;
+    } catch (error) {
+      if (this.#agentSigners.get(key) === agentSigner) {
+        this.#agentSigners.delete(key);
+      }
+      this.#deps.logger.error(
+        ensureError(error, 'HyperLiquidProvider.resolveAgentSigner'),
+        this.#getErrorContext('resolveAgentSigner'),
+      );
+      throw error;
     }
-    const agentSigner = await this.#getAgentSigner(mainWallet.address);
-    return agentSigner
-      ? this.#walletService.createAgentWalletAdapter(agentSigner)
-      : mainWallet;
   }
 
   /**
@@ -14109,45 +14136,19 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Check if ready to trade
-   *
-   * @returns A promise that resolves to the result.
-   */
-  /**
-   * Sign L1 actions with an approved agent, or with the main account again
-   * when `agentSigner` is null. Only the exchange client is rebuilt, so live
-   * subscriptions keep running. Before the clients initialize, the agent is
-   * stored and used by the first initialization.
+   * Sign L1 actions for the selected main account on the current network
+   * with an approved agent, or with the main account when `agentSigner` is
+   * null. Other accounts and networks are unaffected, so the agent never
+   * signs for an account or network it was not approved for.
    *
    * @param agentSigner - The host-owned agent signer, or null to clear it.
    */
   async setAgentSigner(agentSigner: PerpsAgentSigner | null): Promise<void> {
-    const update = this.#applyAgentSigner(agentSigner, this.#agentSignerUpdate);
-    this.#agentSignerUpdate = update.catch(() => undefined);
-    await update;
-  }
-
-  /**
-   * Store the agent after the previous update, then swap the signing wallet
-   * if the clients are initialized.
-   *
-   * @param agentSigner - The host-owned agent signer, or null to clear it.
-   * @param previousUpdate - The update this one must run after.
-   */
-  async #applyAgentSigner(
-    agentSigner: PerpsAgentSigner | null,
-    previousUpdate: Promise<void>,
-  ): Promise<void> {
-    await previousUpdate;
-    this.#agentSigner = agentSigner;
-    try {
-      await this.#initializationPromise;
-    } catch {
-      // A failed initialization retries lazily with the stored agent.
-    }
-    if (this.#clientsInitialized) {
-      this.#clientService.setWallet(await this.#buildWallet());
-    }
+    const mainAddress = await this.#walletService.getUserAddressWithDefault();
+    this.#agentSigners.set(
+      this.#getAgentKey(mainAddress),
+      Promise.resolve(agentSigner),
+    );
   }
 
   /**
@@ -14155,11 +14156,40 @@ export class HyperLiquidProvider implements PerpsProvider {
    * signing, builder fee and referral setup) ahead of the first order, so a
    * hardware wallet signs them in one guided session instead of at order
    * time. Results are cached, so an already-ready account signs nothing.
+   *
+   * @returns `ready: true` when no step still needs a signature.
    */
-  async prepareTradingWallet(): Promise<void> {
-    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    try {
+      const { network, userAddress } = await this.#ensureReadyForTrading({
+        requiresBuilderFee: true,
+      });
+      const ready =
+        this.#tradingSetupComplete &&
+        !this.#unifiedAccountSetupNeedsRetry &&
+        this.#builderFeeCheckCache.has(this.#getCacheKey(network, userAddress));
+      if (ready) {
+        return { ready: true };
+      }
+      return this.#walletService.isKeyringUnlocked()
+        ? { ready: false }
+        : { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    } catch (error) {
+      return {
+        ready: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      };
+    }
   }
 
+  /**
+   * Check if ready to trade
+   *
+   * @returns A promise that resolves to the result.
+   */
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     try {
       const exchangeClient = this.#clientService.getExchangeClient();

@@ -1116,13 +1116,19 @@ export type HyperLiquidCredentials = {
   /** Dedicated subscription waiver builder for mainnet. */
   subscriptionBuilderAddressMainnet?: string;
   /**
-   * Resolves the approved agent for a main account, or null when none is
-   * active. Consulted when the HyperLiquid clients first initialize; use
-   * `PerpsController:setAgentSigner` to switch at runtime. With an agent, L1
-   * actions (orders, cancels, leverage, ...) are signed by the agent key and
-   * user-signed actions (builder fee, withdraw, ...) by the main account.
+   * Resolves the agent approved for a main account on a network, or null
+   * when none is active (for example while the wallet is locked). Called
+   * lazily, the first time an L1 action (order, cancel, leverage, ...) is
+   * signed for that account and network; reads never call it. The answer is
+   * kept until the provider is re-created, and `PerpsController:setAgentSigner`
+   * replaces it for the selected account. With an agent, L1 actions are signed
+   * by the agent key and user-signed actions (builder fee, withdraw, ...) by
+   * the main account.
    */
-  getAgentSigner?: (mainAddress: Hex) => Promise<PerpsAgentSigner | null>;
+  getAgentSigner?: (context: {
+    mainAddress: Hex;
+    isTestnet: boolean;
+  }) => Promise<PerpsAgentSigner | null>;
 };
 
 export type LighterCredentials = {
@@ -2141,9 +2147,10 @@ export type PerpsProvider = {
    * Run the deferred trading-readiness steps (account migration, builder fee
    * and referral setup) ahead of the first order, so any main-account
    * signature surfaces in a guided session instead of at order time.
-   * Providers without deferred setup omit it.
+   * Resolves `ready: false` when a step still needs a signature. Providers
+   * without deferred setup omit it.
    */
-  prepareTradingWallet?(): Promise<void>;
+  prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   disconnect(): Promise<DisconnectResult>;
   ping(timeoutMs?: number): Promise<void>; // Lightweight WebSocket health check with configurable timeout
   getWebSocketConnectionState?(): WebSocketConnectionState; // Optional: get current WebSocket connection state

@@ -131,6 +131,7 @@ import type {
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  ReadyToTradeResult,
   SwitchProviderResult,
   ToggleTestnetResult,
   TwapOrder,
@@ -5859,11 +5860,13 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) with an
-   * approved agent, or with the main account again when `agentSigner` is null
-   * (for example when the wallet locks). User-signed actions stay on the main
-   * account. A provider re-creation (network toggle, account switch) resolves
-   * the agent through `providerCredentials.hyperliquid.getAgentSigner` again.
+   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for the
+   * selected account on the current network with an approved agent, or with
+   * the main account when `agentSigner` is null (for example when the wallet
+   * locks). User-signed actions stay on the main account. The agent is never
+   * used for another account or network, and a provider re-creation (network
+   * toggle, reconnect) asks `providerCredentials.hyperliquid.getAgentSigner`
+   * again. Requires an initialized controller.
    *
    * @param agentSigner - The host-owned agent signer, or null to clear it.
    */
@@ -5880,11 +5883,14 @@ export class PerpsController extends BaseController<
    * Run the active provider's deferred trading-readiness steps (account
    * migration, builder fee and referral setup) ahead of the first order, so a
    * hardware wallet signs them in one guided session, such as agent setup,
-   * instead of at order time. Providers without deferred setup do nothing.
+   * instead of at order time.
+   *
+   * @returns `ready: false` when a step still needs a signature; providers
+   * without deferred setup are ready.
    */
-  async prepareTradingWallet(): Promise<void> {
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     const provider = await this.#getActiveProviderWhenReady();
-    await provider.prepareTradingWallet?.();
+    return (await provider.prepareTradingWallet?.()) ?? { ready: true };
   }
 
   /**

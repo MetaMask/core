@@ -46,8 +46,8 @@ export type ValidCandleInterval = CandlePeriod;
  * Extracted for reuse across initialize(), toggleTestnet(), and ensureSubscriptionClient() methods.
  */
 export type HyperLiquidWalletParams = {
-  /** The signing account; the SDK keys nonces and locks by it. */
-  address?: Hex;
+  /** The main account; the SDK recognizes the wallet and keys nonces by it. */
+  address: Hex;
   signTypedData: (params: PerpsTypedDataPayload) => Promise<Hex>;
   getChainId?: () => Promise<number>;
 };
@@ -351,26 +351,14 @@ export class HyperLiquidClientService {
 
     this.#infoClientHttp = new InfoClient({ transport: this.#httpTransport });
 
-    this.#exchangeClient = effectiveWallet
-      ? this.#createExchangeClient(effectiveWallet, this.#httpTransport)
-      : undefined;
-  }
-
-  /**
-   * Create the exchange client that signs with the given wallet.
-   *
-   * @param wallet - The wallet parameters for signing typed data.
-   * @param transport - The HTTP transport to send exchange actions over.
-   * @returns The exchange client.
-   */
-  #createExchangeClient(
-    wallet: HyperLiquidWalletParams,
-    transport: HttpTransport,
-  ): ExchangeClient {
-    return new ExchangeClient({
-      wallet: wallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
-      transport,
-    });
+    if (effectiveWallet) {
+      this.#exchangeClient = new ExchangeClient({
+        wallet: effectiveWallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
+        transport: this.#httpTransport,
+      });
+    } else {
+      this.#exchangeClient = undefined;
+    }
   }
 
   /**
@@ -439,24 +427,6 @@ export class HyperLiquidClientService {
       } else {
         await this.initialize(wallet);
       }
-    }
-  }
-
-  /**
-   * Replace the signing wallet. Only the exchange client depends on it, so
-   * this rebuilds that client over the existing HTTP transport and leaves the
-   * WebSocket and its subscriptions untouched. Before initialization it only
-   * stores the wallet for `initialize` to use.
-   *
-   * @param wallet - The wallet parameters for signing typed data.
-   */
-  public setWallet(wallet: HyperLiquidWalletParams): void {
-    this.#walletParams = wallet;
-    if (this.#httpTransport) {
-      this.#exchangeClient = this.#createExchangeClient(
-        wallet,
-        this.#httpTransport,
-      );
     }
   }
 

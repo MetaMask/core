@@ -31,6 +31,24 @@ const HARDWARE_KEYRING_TYPES = new Set<string>([
   'QR Hardware Wallet Device',
 ]);
 
+// The SDK signs every L1 action (orders, cancels, leverage, ...) as this
+// primary type over this domain; only these may be signed by an agent.
+const L1_ACTION_PRIMARY_TYPE = 'Agent';
+const L1_ACTION_DOMAIN_NAME = 'Exchange';
+
+/**
+ * Whether a signing request is an L1 action.
+ *
+ * @param params - The typed data the SDK asked the wallet to sign.
+ * @returns True for L1 actions.
+ */
+function isL1Action(params: PerpsTypedDataPayload): boolean {
+  return (
+    params.primaryType === L1_ACTION_PRIMARY_TYPE &&
+    params.domain.name === L1_ACTION_DOMAIN_NAME
+  );
+}
+
 /**
  * Service for MetaMask wallet integration with HyperLiquid SDK
  * Provides wallet adapter that implements AbstractWindowEthereum interface
@@ -117,26 +135,35 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Sign typed data with the selected main account: through the injected
-   * account signer when one is set, else through the keyring. The account is
-   * resolved on every call so an account switch cannot race a cached adapter.
+   * Resolve the selected main account. It is read on every signature so an
+   * account switch cannot race a cached adapter.
    *
-   * @param params - The typed data the SDK asked the wallet to sign.
-   * @returns The signature.
+   * @returns The selected main account address.
    */
-  async #signWithMainAccount(params: PerpsTypedDataPayload): Promise<Hex> {
-    const currentEvmAccount = getSelectedEvmAccountFromMessenger(
-      this.#messenger,
-    );
+  #getSelectedMainAddress(): Hex {
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
-    if (!currentEvmAccount?.address) {
+    if (!evmAccount?.address) {
       throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
 
-    const currentAddress = currentEvmAccount.address as Hex;
+    return evmAccount.address as Hex;
+  }
 
+  /**
+   * Sign typed data with the main account: through the injected account
+   * signer when one is set, else through the keyring.
+   *
+   * @param mainAddress - The selected main account.
+   * @param params - The typed data the SDK asked the wallet to sign.
+   * @returns The signature.
+   */
+  async #signWithMainAccount(
+    mainAddress: Hex,
+    params: PerpsTypedDataPayload,
+  ): Promise<Hex> {
     this.#deps.debugLogger.log('HyperLiquidWalletService: Signing typed data', {
-      address: currentAddress,
+      address: mainAddress,
       primaryType: params.primaryType,
       domain: params.domain,
     });
@@ -146,11 +173,11 @@ export class HyperLiquidWalletService {
       if (!isAccountSignerReady(accountSigner)) {
         throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
       }
-      return await accountSigner.signTypedData(currentAddress, params);
+      return await accountSigner.signTypedData(mainAddress, params);
     }
 
     const signature = await this.#signTypedMessage({
-      from: currentAddress,
+      from: mainAddress,
       data: params,
     });
 
@@ -158,54 +185,35 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Create the wallet adapter the HyperLiquid SDK signs with, backed by the
-   * selected main account.
+   * Create the wallet adapter the HyperLiquid SDK signs with.
    *
+   * Every signature is for the currently selected main account. When
+   * `resolveAgent` returns an agent for that account, L1 actions (orders,
+   * cancels, leverage, ...), which the SDK signs as primary type `Agent`
+   * over the `Exchange` domain, are signed by the agent. User-signed actions
+   * (builder fee, withdraw, ...) authorize the main account itself, so the
+   * main account always signs them.
+   *
+   * @param resolveAgent - Returns the agent for a main account, or null.
    * @returns The wallet adapter with address, signTypedData, and getChainId methods.
    */
-  public createWalletAdapter(): HyperLiquidWalletParams & { address: Hex } {
-    const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
-
-    if (!evmAccount?.address) {
-      throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
-    }
-
+  public createWalletAdapter(
+    resolveAgent?: (mainAddress: Hex) => Promise<PerpsAgentSigner | null>,
+  ): HyperLiquidWalletParams {
     return {
-      address: evmAccount.address as Hex,
-      signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> =>
-        await this.#signWithMainAccount(params),
-      getChainId: async (): Promise<number> =>
-        parseInt(getChainId(this.#isTestnet), 10),
-    };
-  }
-
-  /**
-   * Create a wallet adapter backed by an approved agent.
-   *
-   * HyperLiquid lets an agent sign only L1 actions (orders, cancels,
-   * leverage, ...), which the SDK signs as primary type `Agent` over the
-   * `Exchange` domain. Every other request is a user-signed action that
-   * authorizes the main account (builder fee, withdraw, ...), so it goes to
-   * the main account.
-   *
-   * @param agentSigner - The host-owned agent signer.
-   * @returns The wallet adapter with the agent as its signing address.
-   */
-  public createAgentWalletAdapter(
-    agentSigner: PerpsAgentSigner,
-  ): HyperLiquidWalletParams & { address: Hex } {
-    return {
-      address: agentSigner.address,
+      address: this.#getSelectedMainAddress(),
       signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
-        if (
-          params.primaryType !== 'Agent' ||
-          params.domain.name !== 'Exchange'
-        ) {
-          return await this.#signWithMainAccount(params);
+        const mainAddress = this.#getSelectedMainAddress();
+        const agentSigner =
+          resolveAgent && isL1Action(params)
+            ? await resolveAgent(mainAddress)
+            : null;
+        if (!agentSigner) {
+          return await this.#signWithMainAccount(mainAddress, params);
         }
         this.#deps.debugLogger.log(
           'HyperLiquidWalletService: Signing L1 action with agent',
-          { agent: agentSigner.address },
+          { address: mainAddress, agent: agentSigner.address },
         );
         return await agentSigner.signTypedData(params);
       },

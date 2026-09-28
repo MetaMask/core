@@ -297,12 +297,18 @@ export const createMockMessenger = (
  * delegated, so any `KeyringController:*` call throws.
  *
  * @param keyringType - Keyring type reported in the selected account metadata.
- * @returns The messenger and a spy on its `call`.
+ * @returns The messenger, a spy on its `call`, and a way to switch the
+ * selected account.
  */
 export const createKeyringlessMessenger = (
   keyringType = 'HD Key Tree',
-): { messenger: PerpsControllerMessenger; call: jest.SpyInstance } => {
+): {
+  messenger: PerpsControllerMessenger;
+  call: jest.SpyInstance;
+  selectAccount: (address: `0x${string}`) => void;
+} => {
   const account = createMockEvmAccount();
+  let selectedAddress = account.address;
   const root = new Messenger<
     MockAnyNamespace,
     MessengerActions<PerpsControllerMessenger>,
@@ -314,6 +320,7 @@ export const createKeyringlessMessenger = (
   });
   root.registerActionHandler('AccountsController:getSelectedAccount', () => ({
     ...account,
+    address: selectedAddress,
     scopes: ['eip155:0'],
     metadata: { ...account.metadata, keyring: { type: keyringType } },
   }));
@@ -321,7 +328,13 @@ export const createKeyringlessMessenger = (
     actions: ['AccountsController:getSelectedAccount'],
     messenger,
   });
-  return { messenger, call: jest.spyOn(messenger, 'call') };
+  return {
+    messenger,
+    call: jest.spyOn(messenger, 'call'),
+    selectAccount: (address): void => {
+      selectedAddress = address;
+    },
+  };
 };
 
 /**

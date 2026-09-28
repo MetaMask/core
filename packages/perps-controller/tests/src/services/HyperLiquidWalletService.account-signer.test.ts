@@ -1,3 +1,11 @@
+import type { Hex } from '@metamask/utils';
+import { ApproveBuilderFeeTypes } from '@nktkas/hyperliquid/api/exchange';
+import {
+  signL1Action,
+  signUserSignedAction,
+} from '@nktkas/hyperliquid/signing';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type { PerpsTypedDataPayload } from '../../../src/types/index.js';
@@ -5,7 +13,6 @@ import {
   createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
-  createMockMessenger,
   keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
@@ -137,9 +144,10 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   );
 });
 
-describe('HyperLiquidWalletService agent wallet adapter', () => {
+describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   const { address: mainAddress } = createMockEvmAccount();
-  const AGENT_ADDRESS = '0x00000000000000000000000000000000000a9e17' as const;
+  const OTHER_MAIN_ADDRESS = '0x00000000000000000000000000000000000b0b01';
+  const AGENT_ADDRESS = '0x00000000000000000000000000000000000a9e17';
   const AGENT_SIGNATURE = `0x${'ef'.repeat(65)}` as const;
   const USER_SIGNED_ACTION: PerpsTypedDataPayload = {
     domain: {
@@ -165,50 +173,73 @@ describe('HyperLiquidWalletService agent wallet adapter', () => {
     },
   };
 
-  function buildAgentAdapter(): {
-    adapter: ReturnType<HyperLiquidWalletService['createAgentWalletAdapter']>;
+  function buildAdapter(agentAvailable = true): {
+    adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
+    resolveAgent: jest.Mock;
     agentSign: jest.Mock;
     mainSign: jest.Mock;
     call: jest.SpyInstance;
+    selectAccount: (address: `0x${string}`) => void;
   } {
-    const { service, call, signer } = buildService();
+    const signer = {
+      signTypedData: jest.fn().mockResolvedValue(SIGNATURE),
+      signPersonalMessage: jest.fn(),
+    };
+    const { messenger, call, selectAccount } = createKeyringlessMessenger();
+    const service = new HyperLiquidWalletService(
+      { ...createMockInfrastructure(), accountSigner: signer },
+      messenger,
+      { isTestnet: true },
+    );
     const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
-    const adapter = service.createAgentWalletAdapter({
-      address: AGENT_ADDRESS,
-      signTypedData: agentSign,
-    });
-    return { adapter, agentSign, mainSign: signer.signTypedData, call };
+    const resolveAgent = jest
+      .fn()
+      .mockResolvedValue(
+        agentAvailable
+          ? { address: AGENT_ADDRESS, signTypedData: agentSign }
+          : null,
+      );
+    return {
+      adapter: service.createWalletAdapter(resolveAgent),
+      resolveAgent,
+      agentSign,
+      mainSign: signer.signTypedData,
+      call,
+      selectAccount,
+    };
   }
 
-  it('uses the agent as the signing address', () => {
-    const { adapter } = buildAgentAdapter();
+  it('keeps the main account as the wallet address', () => {
+    const { adapter } = buildAdapter();
 
-    expect(adapter.address).toBe(AGENT_ADDRESS);
+    expect(adapter.address).toBe(mainAddress);
   });
 
-  it('signs L1 actions with the agent', async () => {
-    const { adapter, agentSign, mainSign, call } = buildAgentAdapter();
+  it('signs L1 actions with the agent resolved for the selected account', async () => {
+    const { adapter, resolveAgent, agentSign, mainSign, call } = buildAdapter();
 
     const signature = await adapter.signTypedData(TYPED_DATA);
 
     expect(signature).toBe(AGENT_SIGNATURE);
+    expect(resolveAgent).toHaveBeenCalledWith(mainAddress);
     expect(agentSign).toHaveBeenCalledWith(TYPED_DATA);
     expect(mainSign).not.toHaveBeenCalled();
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
-  it('signs user-signed actions with the main account', async () => {
-    const { adapter, agentSign, mainSign } = buildAgentAdapter();
+  it('signs user-signed actions with the main account without resolving an agent', async () => {
+    const { adapter, resolveAgent, agentSign, mainSign } = buildAdapter();
 
     const signature = await adapter.signTypedData(USER_SIGNED_ACTION);
 
     expect(signature).toBe(SIGNATURE);
     expect(mainSign).toHaveBeenCalledWith(mainAddress, USER_SIGNED_ACTION);
+    expect(resolveAgent).not.toHaveBeenCalled();
     expect(agentSign).not.toHaveBeenCalled();
   });
 
   it('keeps an Agent primary type outside the Exchange domain on the main account', async () => {
-    const { adapter, agentSign, mainSign } = buildAgentAdapter();
+    const { adapter, agentSign, mainSign } = buildAdapter();
     const lookalike = {
       ...TYPED_DATA,
       domain: { ...TYPED_DATA.domain, name: 'HyperliquidSignTransaction' },
@@ -220,24 +251,106 @@ describe('HyperLiquidWalletService agent wallet adapter', () => {
     expect(agentSign).not.toHaveBeenCalled();
   });
 
-  it('signs user-signed actions through the keyring when no account signer is set', async () => {
-    const messenger = createMockMessenger();
-    const call = jest.spyOn(messenger, 'call');
-    const service = new HyperLiquidWalletService(
-      createMockInfrastructure(),
-      messenger,
+  it('signs L1 actions with the main account when no agent is resolved', async () => {
+    const { adapter, mainSign } = buildAdapter(false);
+
+    await adapter.signTypedData(TYPED_DATA);
+
+    expect(mainSign).toHaveBeenCalledWith(mainAddress, TYPED_DATA);
+  });
+
+  it('resolves the agent for the account selected at signing time', async () => {
+    const { adapter, resolveAgent, selectAccount } = buildAdapter();
+
+    selectAccount(OTHER_MAIN_ADDRESS);
+    await adapter.signTypedData(TYPED_DATA);
+
+    expect(resolveAgent).toHaveBeenCalledWith(OTHER_MAIN_ADDRESS);
+    expect(resolveAgent).not.toHaveBeenCalledWith(mainAddress);
+  });
+
+  it('propagates agent resolution failures', async () => {
+    const { adapter, resolveAgent, mainSign } = buildAdapter();
+    resolveAgent.mockRejectedValue(new Error('agent store unavailable'));
+
+    await expect(adapter.signTypedData(TYPED_DATA)).rejects.toThrow(
+      'agent store unavailable',
     );
-    const adapter = service.createAgentWalletAdapter({
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn(),
+    expect(mainSign).not.toHaveBeenCalled();
+  });
+});
+
+describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () => {
+  // Drive the adapter through the SDK's own signing functions so the routing
+  // holds for the payloads the SDK actually builds and for the SDK's wallet
+  // detection, not just for hand-written payloads.
+  const mainAccount = privateKeyToAccount(generatePrivateKey());
+  const agentAccount = privateKeyToAccount(generatePrivateKey());
+
+  function buildSdkAdapter(): {
+    adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
+    mainSign: jest.SpyInstance;
+    agentSign: jest.SpyInstance;
+  } {
+    const { messenger, selectAccount } = createKeyringlessMessenger();
+    selectAccount(mainAccount.address);
+    const mainSign = jest.spyOn(mainAccount, 'signTypedData');
+    const agentSign = jest.spyOn(agentAccount, 'signTypedData');
+    const service = new HyperLiquidWalletService(
+      {
+        ...createMockInfrastructure(),
+        accountSigner: {
+          signTypedData: async (_address, payload): Promise<Hex> =>
+            await mainAccount.signTypedData(payload),
+          signPersonalMessage: async (_address, message): Promise<Hex> =>
+            await mainAccount.signMessage({ message }),
+        },
+      },
+      messenger,
+      { isTestnet: true },
+    );
+    return {
+      adapter: service.createWalletAdapter(async () => agentAccount),
+      mainSign,
+      agentSign,
+    };
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('signs an SDK L1 action with the agent', async () => {
+    const { adapter, mainSign, agentSign } = buildSdkAdapter();
+
+    await signL1Action({
+      wallet: adapter,
+      action: { type: 'cancel', cancels: [{ a: 0, o: 1 }] },
+      nonce: 1,
+      isTestnet: true,
     });
 
-    await adapter.signTypedData(USER_SIGNED_ACTION);
+    expect(agentSign).toHaveBeenCalledTimes(1);
+    expect(mainSign).not.toHaveBeenCalled();
+  });
 
-    expect(call).toHaveBeenCalledWith(
-      'KeyringController:signTypedMessage',
-      { from: mainAddress, data: USER_SIGNED_ACTION },
-      'V4',
-    );
+  it('signs an SDK user-signed action with the main account', async () => {
+    const { adapter, mainSign, agentSign } = buildSdkAdapter();
+
+    await signUserSignedAction({
+      wallet: adapter,
+      action: {
+        type: 'approveBuilderFee',
+        signatureChainId: '0x66eee',
+        hyperliquidChain: 'Testnet',
+        maxFeeRate: '0.1%',
+        builder: agentAccount.address,
+        nonce: 1,
+      },
+      types: ApproveBuilderFeeTypes,
+    });
+
+    expect(mainSign).toHaveBeenCalledTimes(1);
+    expect(agentSign).not.toHaveBeenCalled();
   });
 });
