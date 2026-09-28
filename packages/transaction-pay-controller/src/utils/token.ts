@@ -481,8 +481,8 @@ function resolveControllerAssetId(
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    for (const key in assetsInfo) {
-      if (key.startsWith(chainPrefix) && assetsInfo[key].type === 'native') {
+    for (const [key, metadata] of Object.entries(assetsInfo)) {
+      if (key.startsWith(chainPrefix) && metadata.type === 'native') {
         return key as CaipAssetType;
       }
     }
@@ -498,7 +498,7 @@ function resolveControllerAssetId(
 
   const target = derivedAssetId.toLowerCase();
 
-  for (const key in assetsInfo) {
+  for (const key of Object.keys(assetsInfo)) {
     if (key.toLowerCase() === target) {
       return key as CaipAssetType;
     }
