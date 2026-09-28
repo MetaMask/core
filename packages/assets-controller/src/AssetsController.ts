@@ -53,6 +53,7 @@ import type {
 import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type {
+  FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
@@ -171,6 +172,11 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils/index.js';
+import {
+  SNAPS_ASSETS_MIGRATION_NAMESPACES,
+  getMigrationStages,
+  isMigrationStageActive,
+} from './utils/snaps-assets-migration.js';
 import { emitTrace, withTrace } from './utils/trace.js';
 import type { TraceSpanData } from './utils/trace.js';
 
@@ -368,8 +374,8 @@ type AllowedEvents =
   // AccountActivityService (real-time balance updates + chain status for unified assets)
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
-  // AccountsApiDataSource subscribes to react to Snaps → AssetsController
-  // migration flag changes (which gate the chains it surfaces as active)
+  // Snaps → AssetsController migration flags: re-subscribe and fetch when
+  // the per-network stage changes, the same way account and network switches do
   | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type AssetsControllerMessenger = Messenger<
@@ -1289,6 +1295,18 @@ export class AssetsController extends BaseController<
       (transactionMeta: TransactionMeta) => {
         this.#refreshAssetsForTransaction(transactionMeta);
       },
+    );
+
+    this.messenger.subscribe(
+      'RemoteFeatureFlagController:stateChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async () => await this.#handleSnapsMigrationFlagsChanged(),
+      // Only react to changes in the set of enabled chain prefixes. The
+      // messenger compares selector results with strict equality, so the
+      // selector must return a primitive rather than a fresh object.
+      (state) =>
+        this.#getEnabledMigrationNamespaces(state.remoteFeatureFlags).join(','),
     );
   }
 
@@ -4091,6 +4109,72 @@ export class AssetsController extends BaseController<
       return `eip155:${parseInt(hexChainId, 16)}`;
     } catch {
       return undefined;
+    }
+  }
+
+  /**
+   * Migration namespaces currently enabled for ingestion (stage >= 1). The
+   * order matches `SNAPS_ASSETS_MIGRATION_NAMESPACES`, so joining the result
+   * is a stable selector signature.
+   *
+   * @param remoteFeatureFlags - The remote feature flags state to check.
+   * @returns Enabled migration namespaces (e.g. `['solana', 'tron']`).
+   */
+  #getEnabledMigrationNamespaces(remoteFeatureFlags: FeatureFlags): string[] {
+    const stages = getMigrationStages(remoteFeatureFlags);
+    const enabled: string[] = [];
+    for (const [
+      index,
+      namespace,
+    ] of SNAPS_ASSETS_MIGRATION_NAMESPACES.entries()) {
+      const stage = stages[index];
+      if (stage !== undefined && isMigrationStageActive(stage)) {
+        enabled.push(namespace);
+      }
+    }
+    return enabled;
+  }
+
+  /**
+   * Re-subscribe and force-fetch balances when the set of enabled Snaps →
+   * AssetsController migration chains changes, matching an account or network
+   * switch.
+   *
+   * Active chains are refreshed first so newly enabled migration networks are
+   * claimed (and disabled ones dropped) before the fetch. When tracking is
+   * off, only the chain list is refreshed; the next start owns the fetch.
+   */
+  async #handleSnapsMigrationFlagsChanged(): Promise<void> {
+    try {
+      const tracking =
+        this.#isUiOpen() && this.#isKeyringUnlocked() && this.#isEnabled();
+      const accounts = tracking ? this.#getSelectedAccounts() : [];
+
+      if (!tracking || accounts.length === 0) {
+        await this.#accountsApiDataSource.refreshActiveChains();
+        return;
+      }
+
+      log('Snaps assets migration flags changed');
+
+      const releaseLock = await this.#accountRefreshMutex.acquire();
+      try {
+        await this.#accountsApiDataSource.refreshActiveChains();
+        this.#subscribeAssets();
+        await this.getAssets(accounts, {
+          chainIds: [...this.#enabledChains],
+          forceUpdate: true,
+          dataTypes: ['balance', 'metadata', 'price'],
+        });
+        this.#ensureNativeBalancesDefaultZero();
+        this.#fetchMissingPricesWithoutCache(accounts, [
+          ...this.#enabledChains,
+        ]);
+      } finally {
+        releaseLock();
+      }
+    } catch (error) {
+      log('Snaps migration flag change handling failed', { error });
     }
   }
 

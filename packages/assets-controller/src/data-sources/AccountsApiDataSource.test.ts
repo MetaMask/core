@@ -369,67 +369,6 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  describe('RemoteFeatureFlagController:stateChange subscription', () => {
-    it('refreshes active chains when a migration stage changes', async () => {
-      const { controller, apiClient, messenger } = await setupController({
-        remoteFeatureFlags: {},
-      });
-
-      apiClient.accounts.fetchV2SupportedNetworks.mockClear();
-
-      messenger.publish(
-        'RemoteFeatureFlagController:stateChange',
-        {
-          remoteFeatureFlags: {
-            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
-              stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
-            },
-          },
-          cacheTimestamp: 0,
-        },
-        [],
-      );
-
-      await new Promise(process.nextTick);
-
-      expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
-        1,
-      );
-
-      controller.destroy();
-    });
-
-    it('does not refresh active chains when an unrelated flag changes', async () => {
-      const { controller, apiClient, messenger } = await setupController({
-        remoteFeatureFlags: {},
-      });
-
-      // Establish the baseline migration-stage signature.
-      messenger.publish(
-        'RemoteFeatureFlagController:stateChange',
-        { remoteFeatureFlags: {}, cacheTimestamp: 0 },
-        [],
-      );
-      await new Promise(process.nextTick);
-      apiClient.accounts.fetchV2SupportedNetworks.mockClear();
-
-      // An unrelated flag change keeps the migration-stage signature identical,
-      // so the selector-gated handler must not fire.
-      messenger.publish(
-        'RemoteFeatureFlagController:stateChange',
-        { remoteFeatureFlags: { someUnrelatedFlag: true }, cacheTimestamp: 0 },
-        [],
-      );
-      await new Promise(process.nextTick);
-
-      expect(
-        apiClient.accounts.fetchV2SupportedNetworks,
-      ).not.toHaveBeenCalled();
-
-      controller.destroy();
-    });
-  });
-
   it('exposes assetsMiddleware and getActiveChains on instance', async () => {
     const { controller } = await setupController();
 

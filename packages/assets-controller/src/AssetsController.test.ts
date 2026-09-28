@@ -10,6 +10,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
 import {
@@ -45,6 +46,10 @@ import {
   formatExchangeRatesForBridge,
   normalizeAssetId,
 } from './utils/index.js';
+import {
+  SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
+  SnapsAssetsMigrationStage,
+} from './utils/snaps-assets-migration.js';
 
 jest.mock('./utils', () => {
   const actual =
@@ -5191,6 +5196,150 @@ describe('AssetsController', () => {
         await flushPromises();
         controller.destroy();
       }
+    });
+  });
+
+  describe('snaps migration feature flag changes', () => {
+    function publishMigrationFlagChange(
+      messenger: RootMessenger,
+      remoteFeatureFlags: FeatureFlags,
+    ): void {
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags,
+          cacheTimestamp: 0,
+        },
+        [],
+      );
+    }
+
+    it('re-subscribes and force-fetches when a migration stage changes while tracking', async () => {
+      const remoteFeatureFlags: FeatureFlags = {};
+
+      await withController(
+        { remoteFeatureFlags },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockResolvedValue({});
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+          getAssetsSpy.mockClear();
+          subscribeSpy.mockClear();
+
+          remoteFeatureFlags[SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana] = {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          };
+          publishMigrationFlagChange(messenger, remoteFeatureFlags);
+          await flushPromises();
+
+          expect(subscribeSpy).toHaveBeenCalled();
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            expect.objectContaining({
+              chainIds: ['eip155:1'],
+              forceUpdate: true,
+              dataTypes: ['balance', 'metadata', 'price'],
+            }),
+          );
+
+          getAssetsSpy.mockRestore();
+          subscribeSpy.mockRestore();
+        },
+      );
+    });
+
+    it('does not re-subscribe or fetch when an unrelated flag changes', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        publishMigrationFlagChange(messenger, {});
+        await flushPromises();
+        getAssetsSpy.mockClear();
+        subscribeSpy.mockClear();
+
+        publishMigrationFlagChange(messenger, { someUnrelatedFlag: true });
+        await flushPromises();
+
+        expect(subscribeSpy).not.toHaveBeenCalled();
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+        subscribeSpy.mockRestore();
+      });
+    });
+
+    it('does not re-subscribe or fetch when an already-enabled stage advances', async () => {
+      const remoteFeatureFlags: FeatureFlags = {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      };
+
+      await withController(
+        { remoteFeatureFlags },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockResolvedValue({});
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+          publishMigrationFlagChange(messenger, remoteFeatureFlags);
+          await flushPromises();
+          getAssetsSpy.mockClear();
+          subscribeSpy.mockClear();
+
+          remoteFeatureFlags[SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana] = {
+            stage:
+              SnapsAssetsMigrationStage.ReadAssetsControllerWithoutFallback,
+          };
+          publishMigrationFlagChange(messenger, remoteFeatureFlags);
+          await flushPromises();
+
+          expect(subscribeSpy).not.toHaveBeenCalled();
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+
+          getAssetsSpy.mockRestore();
+          subscribeSpy.mockRestore();
+        },
+      );
+    });
+
+    it('refreshes active chains without re-subscribing or fetching when tracking is off', async () => {
+      const refreshSpy = jest
+        .spyOn(AccountsApiDataSource.prototype, 'refreshActiveChains')
+        .mockResolvedValue(undefined);
+
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+        refreshSpy.mockClear();
+
+        publishMigrationFlagChange(messenger, {
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+        });
+        await flushPromises();
+
+        expect(refreshSpy).toHaveBeenCalledTimes(1);
+        expect(subscribeSpy).not.toHaveBeenCalled();
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+        subscribeSpy.mockRestore();
+      });
+
+      refreshSpy.mockRestore();
     });
   });
 

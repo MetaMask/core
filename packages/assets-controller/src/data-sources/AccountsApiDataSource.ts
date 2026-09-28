@@ -26,10 +26,7 @@ import type {
 import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
 import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
-import {
-  getMigrationStages,
-  shouldSupportChain,
-} from '../utils/snaps-assets-migration.js';
+import { shouldSupportChain } from '../utils/snaps-assets-migration.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -53,14 +50,14 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // Allowed actions that AccountsApiDataSource can call. Balances are fetched via
 // ApiPlatformClient directly (no BackendApiClient actions needed); the messenger
-// is used to subscribe to `RemoteFeatureFlagController:stateChange` (see
-// constructor) so migration flag changes refresh the active chains, and to
-// read those flags when listing active chains.
+// is used to read Snaps → AssetsController migration flags when listing active
+// chains. Flag changes are handled by AssetsController, which refreshes these
+// chains and then re-subscribes and fetches.
 export type AccountsApiDataSourceAllowedActions =
   RemoteFeatureFlagControllerGetStateAction;
 
-// Allowed events that AccountsApiDataSource subscribes to. Migration flag
-// changes trigger a refresh of the chains surfaced as active.
+// Events available on the shared AssetsController messenger. This data source
+// does not subscribe; AssetsController reacts to migration flag changes.
 export type AccountsApiDataSourceAllowedEvents =
   RemoteFeatureFlagControllerStateChangeEvent;
 
@@ -99,7 +96,7 @@ export type AccountsApiDataSourceConfig = {
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
   /**
    * The AssetsController messenger (shared by all data sources). Used to read
-   * Snaps → AssetsController migration flags and subscribe to flag changes.
+   * Snaps → AssetsController migration flags when listing active chains.
    */
   messenger: AssetsControllerMessenger;
   /** ApiPlatformClient for API calls with caching */
@@ -299,39 +296,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     this.#getAssetVisibility = options.getAssetVisibility;
     this.#apiClient = options.queryApiClient;
 
-    // The Snaps → AssetsController migration flags gate which migration networks
-    // (Solana, Stellar, Tron) are surfaced as active chains (see
-    // `#shouldSupportChain`). Mirror core-backend's AccountActivityService and
-    // react to remote feature flag changes so newly-enabled chains are picked up
-    // (and disabled ones dropped) without waiting for the periodic refresh.
-    this.#messenger.subscribe(
-      'RemoteFeatureFlagController:stateChange',
-      // Promise result intentionally not awaited
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async () => await this.#handleMigrationFeatureFlagsChanged(),
-      // Only react to changes in the set of migration stages. The messenger
-      // compares selector results with strict equality, so the selector must
-      // return a primitive rather than a fresh object.
-      (state) => getMigrationStages(state.remoteFeatureFlags).join(','),
-    );
-
     this.#initializeActiveChains().catch(console.error);
-  }
-
-  /**
-   * Handle a change to the Snaps → AssetsController migration flags: re-fetch
-   * active chains so newly-enabled migration networks are surfaced (and disabled
-   * ones dropped) without waiting for the periodic refresh. The refresh invokes
-   * `onActiveChainsUpdated` when the set changes, which drives re-subscription.
-   */
-  async #handleMigrationFeatureFlagsChanged(): Promise<void> {
-    try {
-      await this.#refreshActiveChains();
-    } catch (error) {
-      log('Failed to refresh active chains after feature flag change', {
-        error,
-      });
-    }
   }
 
   // ============================================================================

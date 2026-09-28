@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- When the set of chains enabled by the Snaps → AssetsController migration flags changes (`networkAssetsSnapsMigrationSolana`, `networkAssetsSnapsMigrationStellar`, or `networkAssetsSnapsMigrationTron`), `AssetsController` refreshes active chains, re-subscribes, and force-fetches balances the same way it does on an account or network switch. ([#10539](https://github.com/MetaMask/core/pull/10539))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
 
