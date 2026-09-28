@@ -5549,15 +5549,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/advanced-chart-core@workspace:packages/advanced-chart-core"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.2.2"
+    deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
-    rimraf: "npm:^5.0.5"
-    ts-jest: "npm:^29.4.11"
-    tsx: "npm:^4.20.5"
+    rimraf: "npm:^6.1.3"
+    ts-jest: "npm:^29.4.12"
+    tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5903,7 +5903,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^6.1.0, @metamask/auto-changelog@npm:^6.1.1, @metamask/auto-changelog@npm:^6.2.1":
+"@metamask/auto-changelog@npm:^6.1.1, @metamask/auto-changelog@npm:^6.2.1":
   version: 6.2.1
   resolution: "@metamask/auto-changelog@npm:6.2.1"
   dependencies:
@@ -16133,7 +16133,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deepmerge@npm:^4.2.2, deepmerge@npm:^4.3.1":
+"deepmerge@npm:^4.3.1":
   version: 4.3.1
   resolution: "deepmerge@npm:4.3.1"
   checksum: 10/058d9e1b0ff1a154468bf3837aea436abcfea1ba1d165ddaaf48ca93765fdd01a30d33c36173da8fbbed951dd0a267602bc782fe288b0fc4b7e1e7091afc4529
@@ -18076,7 +18076,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:^10.2.2, glob@npm:^10.3.10, glob@npm:^10.3.7, glob@npm:^10.5.0":
+"glob@npm:^10.2.2, glob@npm:^10.3.10, glob@npm:^10.5.0":
   version: 10.5.0
   resolution: "glob@npm:10.5.0"
   dependencies:
@@ -25278,17 +25278,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rimraf@npm:^5.0.5":
-  version: 5.0.10
-  resolution: "rimraf@npm:5.0.10"
-  dependencies:
-    glob: "npm:^10.3.7"
-  bin:
-    rimraf: dist/esm/bin.mjs
-  checksum: 10/f3b8ce81eecbde4628b07bdf9e2fa8b684e0caea4999acb1e3b0402c695cd41f28cd075609a808e61ce2672f528ca079f675ab1d8e8d5f86d56643a03e0b8d2e
-  languageName: node
-  linkType: hard
-
 "rimraf@npm:^6.1.3":
   version: 6.1.3
   resolution: "rimraf@npm:6.1.3"
@@ -26761,46 +26750,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-jest@npm:^29.4.11":
-  version: 29.4.13
-  resolution: "ts-jest@npm:29.4.13"
-  dependencies:
-    bs-logger: "npm:^0.2.6"
-    fast-json-stable-stringify: "npm:^2.1.0"
-    handlebars: "npm:^4.7.9"
-    json5: "npm:^2.2.3"
-    lodash.memoize: "npm:^4.1.2"
-    make-error: "npm:^1.3.6"
-    semver: "npm:^7.8.5"
-    type-fest: "npm:^4.41.0"
-    yargs-parser: "npm:^21.1.1"
-  peerDependencies:
-    "@babel/core": ">=7.0.0-beta.0 <9"
-    "@jest/transform": ^29.0.0 || ^30.0.0
-    "@jest/types": ^29.0.0 || ^30.0.0
-    babel-jest: ^29.0.0 || ^30.0.0
-    jest: ^29.0.0 || ^30.0.0
-    jest-util: ^29.0.0 || ^30.0.0
-    typescript: ">=4.3 <7"
-  peerDependenciesMeta:
-    "@babel/core":
-      optional: true
-    "@jest/transform":
-      optional: true
-    "@jest/types":
-      optional: true
-    babel-jest:
-      optional: true
-    esbuild:
-      optional: true
-    jest-util:
-      optional: true
-  bin:
-    ts-jest: cli.js
-  checksum: 10/ef146e599a9f307a748027594e778cf820939ec9d7781a727fb70ce834df081205c824802ec934619769710685eb6428d3da175a561e09ba4996d288c3b5b83c
-  languageName: node
-  linkType: hard
-
 "ts-jest@npm:^29.4.12":
   version: 29.4.12
   resolution: "ts-jest@npm:29.4.12"
@@ -26886,7 +26835,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tsx@npm:^4.20.5, tsx@npm:^4.23.15":
+"tsx@npm:^4.23.15":
   version: 4.23.15
   resolution: "tsx@npm:4.23.15"
   dependencies:

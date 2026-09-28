@@ -297,6 +297,317 @@
       "count": 3
     }
   },
+  "packages/advanced-chart-core/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/__tests__/index.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/bootstrap.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/bridge.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/loadLibrary.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/resolution.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/timezone.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/dataLifecycle.ts": {
+    "no-shadow": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/core/state.ts": {
+    "no-shadow": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/__tests__/indicators.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/__tests__/legend.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 56
+    },
+    "typescript/unbound-method": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/__tests__/subPane.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/index.ts": {
+    "no-shadow": {
+      "count": 6
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/legend.ts": {
+    "no-shadow": {
+      "count": 10
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/studies.ts": {
+    "no-shadow": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/volume/__tests__/volume.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/volume/index.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/interaction/__tests__/crosshair.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-shadow": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/interaction/__tests__/visibleRange.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/messages/__tests__/handler.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/messages/handler.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/state.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/index.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/socialLeaderboard/__tests__/socialLeaderboard.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/markerHitTest.test.ts": {
+    "no-shadow": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/index.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/pagination/__tests__/priceApi.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/pagination/__tests__/rnBacked.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 13
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 18
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 22
+    }
+  },
+  "packages/advanced-chart-core/src/platform/__tests__/reactNativeHost.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/platform/iframeHost.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/platform/reactNativeHost.ts": {
+    "no-shadow": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/chartType.test.ts": {
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/datafeed.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 13
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/externalLinkBridge.test.ts": {
+    "no-shadow": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/initChart.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    },
+    "typescript/no-unsafe-call": {
+      "count": 9
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 18
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/ohlcvIngestion.test.ts": {
+    "no-shadow": {
+      "count": 4
+    },
+    "no-unsafe-optional-chaining": {
+      "count": 5
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 9
+    },
+    "typescript/no-unsafe-call": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 13
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/scaleLayout.test.ts": {
+    "typescript/no-unsafe-member-access": {
+      "count": 10
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/theme.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 11
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/tvDomHelpers.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/datafeed.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/externalLinkBridge.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
   "packages/ai-controllers/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -1760,7 +2071,7 @@
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 15
     },
     "typescript/no-unsafe-return": {
       "count": 4
@@ -1803,6 +2114,12 @@
   "packages/bridge-status-controller/src/bridge-status-controller.intent.ts": {
     "jsdoc/require-param": {
       "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
@@ -1810,16 +2127,16 @@
       "count": 3
     },
     "typescript/no-unsafe-assignment": {
-      "count": 12
+      "count": 49
     },
     "typescript/no-unsafe-call": {
       "count": 5
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 82
     },
     "typescript/no-unsafe-return": {
-      "count": 7
+      "count": 8
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -1827,6 +2144,21 @@
       "count": 1
     },
     "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 7
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 11
+    },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 6
+    },
+    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -1868,10 +2200,38 @@
   "packages/bridge-status-controller/src/quote-status-manager/quotes-status-manager.ts": {
     "no-useless-return": {
       "count": 2
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
     }
   },
   "packages/bridge-status-controller/src/quote-status-manager/utils.ts": {
     "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/strategy/evm-strategy.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    }
+  },
+  "packages/bridge-status-controller/src/strategy/intent-strategy.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 7
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -1880,12 +2240,33 @@
       "count": 2
     }
   },
+  "packages/bridge-status-controller/src/utils/accounts.ts": {
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/authentication.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
   "packages/bridge-status-controller/src/utils/bridge-status.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/utils/bridge.ts": {
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
     }
   },
   "packages/bridge-status-controller/src/utils/intent-api.test.ts": {
@@ -1902,9 +2283,25 @@
       "count": 8
     }
   },
+  "packages/bridge-status-controller/src/utils/keyring.ts": {
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
   "packages/bridge-status-controller/src/utils/metrics.test.ts": {
     "no-unused-vars": {
       "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/network.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/no-unsafe-return": {
+      "count": 3
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
@@ -1929,6 +2326,21 @@
   "packages/bridge-status-controller/src/utils/transaction.ts": {
     "no-useless-return": {
       "count": 1
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 14
+    },
+    "typescript/no-unsafe-call": {
+      "count": 5
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 15
+    },
+    "typescript/no-unsafe-return": {
+      "count": 9
     }
   },
   "packages/build-utils/jest.config.cjs": {
