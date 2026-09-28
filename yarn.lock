@@ -7598,7 +7598,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/money-account-api-data-service@npm:^2.0.0, @metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service":
+"@metamask/money-account-api-data-service@npm:^2.1.0, @metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service"
   dependencies:
@@ -7623,7 +7623,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-balance-service@npm:^3.1.0, @metamask/money-account-balance-service@workspace:packages/money-account-balance-service":
+"@metamask/money-account-balance-service@npm:^3.1.1, @metamask/money-account-balance-service@workspace:packages/money-account-balance-service":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-balance-service@workspace:packages/money-account-balance-service"
   dependencies:
@@ -7634,7 +7634,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/money-account-api-data-service": "npm:^2.0.0"
+    "@metamask/money-account-api-data-service": "npm:^2.1.0"
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -9164,7 +9164,7 @@ __metadata:
     "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/money-account-balance-service": "npm:^3.1.0"
+    "@metamask/money-account-balance-service": "npm:^3.1.1"
     "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^33.0.0"
