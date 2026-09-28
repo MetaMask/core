@@ -275,8 +275,6 @@ function estimateGasPropertiesInBackground(
             newTransactionMeta.txParams.maxPriorityFeePerGas;
         },
       );
-
-      return;
     })
     .catch(noop);
 }
