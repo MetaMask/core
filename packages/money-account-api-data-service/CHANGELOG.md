@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `fetchVaultRate`, which reads a vault's current Accountant exchange rate from `GET /v1/vaults/:address/rate` and is exposed as the `MoneyAccountApiDataService:fetchVaultRate` action. Export `VaultRateResponse`, `VaultRateOptions`, and `MoneyAccountApiDataServiceFetchVaultRateAction` (#0)
+- Add `fetchVaultRate`, which reads a vault's current Accountant exchange rate from `GET /v1/vaults/:address/rate` and is exposed as the `MoneyAccountApiDataService:fetchVaultRate` action. Export `VaultRateResponse`, `VaultRateOptions`, and `MoneyAccountApiDataServiceFetchVaultRateAction` ([#10504](https://github.com/MetaMask/core/pull/10504))
 
 ### Changed
 
