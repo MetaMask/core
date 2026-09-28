@@ -1,26 +1,23 @@
-import { expect, jest } from '@jest/globals';
+import { expect, vi } from 'vitest';
 
-import { advanceTimeWith } from './shared-helpers.js';
+import { advanceTimeWith } from '../shared-helpers.js';
 
 /**
- * Test helpers for packages whose tests still run under Jest.
+ * Test helpers for packages whose tests run under Vitest.
  *
- * The runner-agnostic helpers live in `tests/shared-helpers.ts` and are
- * re-exported here so that this module's public surface is unchanged. The Vitest
- * equivalent of this module is `tests/vitest/helpers.ts`.
- *
- * `jest` and `expect` are imported from `@jest/globals` rather than read off the
- * ambient global, because a package that has migrated to Vitest can still reach
- * this module transitively - `sample-controllers` imports a test helper from
- * `network-controller`, which imports this one - and such a package's tsconfig no
- * longer declares Jest's types.
+ * This is the Vitest counterpart to `tests/helpers.ts`; the runner-agnostic
+ * helpers both share live in `tests/shared-helpers.ts`. Once every package has
+ * moved to Vitest, the three modules can be merged back into a single
+ * `tests/helpers.ts`.
  */
 
-export { buildTestObject, flushPromises } from './shared-helpers.js';
+export { buildTestObject, flushPromises } from '../shared-helpers.js';
 
 /**
  * Advances the provided fake timer by a specified duration in incremental steps,
  * flushing promises between each step.
+ *
+ * TODO: Rename this to `advanceTime` once no package uses the Jest helpers.
  *
  * @param options - The options object.
  * @param options.duration - The total amount of time (in milliseconds) to advance the timer by.
@@ -31,7 +28,7 @@ export async function jestAdvanceTime(options: {
   stepSize?: number;
 }): Promise<void> {
   await advanceTimeWith(
-    async (ms) => await jest.advanceTimersByTimeAsync(ms),
+    async (ms) => await vi.advanceTimersByTimeAsync(ms),
     options,
   );
 }
