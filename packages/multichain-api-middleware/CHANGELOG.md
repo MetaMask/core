@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#10531](https://github.com/MetaMask/core/pull/10531))
 
 ## [5.0.0]
 
