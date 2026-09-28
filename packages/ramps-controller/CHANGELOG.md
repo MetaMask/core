@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `RampsController.setSelectedToken` matches `eip155` ERC-20 asset ids case-insensitively and keeps the catalog token's own `assetId`. Non-EVM asset ids still require an exact match.
+
 ## [26.0.1]
 
 ### Fixed
