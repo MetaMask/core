@@ -107,56 +107,7 @@ The local primary SRP is prioritized because the repair is performed from a wall
 
 ## Detailed design
 
-
-
-### 1. Identify affected accounts
-
-At social-login unlock or before adding a new secret, read the local backup state and fetch the remote secret metadata. The local wallet state must be available so that the repair has a trusted primary SRP to use.
-
-The cases handled by this design are different shapes of the same problem: the remote secret metadata does not identify the local primary SRP correctly. The shape determines how the issue is detected and repaired.
-
-#### Common cause
-
-During the failed initialisation flow, the primary SRP can be written under the first TOPRF key while the key shares fail to persist. A retry can then create and persist a second TOPRF key without writing the primary SRP again. Later imported secrets are written under the second key.
-
-The different remote secret metadata shapes described below can result from this incomplete initialisation, especially when later migration or password-change operations process the data.
-
-#### 1. All private keys
-
-When the user recovers with the second key, the remote secret metadata contains only private keys and no primary SRP. This is the clearest case to detect: all returned secret items are `PrivateKeys` and the primary SRP is missing.
-
-Confirm this case by checking that the local primary SRP is available. If it is not available, the account cannot be automatically repaired.
-
-#### 2. v1 imported SRP and private keys
-
-In v1, both the primary SRP and imported SRPs have the type `Mnemonic`. There is no field that says which mnemonic is the primary SRP.
-
-This shape normally exists before v1 migration has completed. It can also remain after migration fails or only partially completes, or be created again by an older client that writes v1 secret metadata. Once migration completes successfully, the items should be v2; an incorrect primary classification then appears as the v2 shape described below.
-
-The v1 logic uses the oldest client creation time to choose the primary SRP. If an imported SRP has an earlier timestamp—for example because of clock differences, timestamp collisions, or the order in which items were added—it can be treated as the primary SRP instead of the local primary SRP.
-
-Another case occurs when the actual primary SRP was never stored remotely. After the user adds one or more imported SRPs, the remote v1 secret metadata may contain only imported SRPs. The imported SRP with the earliest timestamp can then be incorrectly treated as the primary SRP.
-
-To detect this case, compare the local primary SRP with every remote v1 mnemonic using the secret value or its hash. Do not assume that the first v1 mnemonic is the primary SRP:
-
-- If a remote mnemonic matches the local primary SRP, that item is the actual primary candidate.
-- If no remote mnemonic matches the local primary SRP, the primary SRP is missing from the remote secret metadata.
-
-
-
-#### 3. v2 incorrectly labels an item as `PrimarySrp`
-
-The remote secret metadata contains only v2 items, but the item labelled `PrimarySrp` is not the local primary SRP. In this case, the local primary SRP remains in the local v1 representation while all remote items have been migrated to v2. The other remote items may be imported SRPs or private keys.
-
-This shape can be created or preserved when:
-
-- A v2 migration selected the wrong mnemonic and wrote `dataType: PrimarySrp` for it.
-- An older password-change flow reordered legacy items before they were classified.
-- A password change copied an already incorrect v2 `PrimarySrp` designation to the new secret metadata.
-
-To detect this case, compare the remote v2 `PrimarySrp` with the local primary SRP using the secret value or its hash. If they differ, search the other remote mnemonic items for the local primary SRP. A matching item identifies the actual primary candidate; if no item matches, the local primary SRP is missing from the remote secret metadata.
-
-### 2. Restore the primary SRP
+### 1. Restore the primary SRP
 
 Use the local primary SRP to repair the remote secret metadata:
 
@@ -165,7 +116,7 @@ Use the local primary SRP to repair the remote secret metadata:
 
 The repair must keep one primary SRP and must not create an additional primary record.
 
-### 3. Migrate v1 secret metadata
+### 2. Migrate v1 secret metadata
 
 After the primary SRP is restored, migrate the account's v1 secret metadata to v2. The migration must finish for all v1 items before the repair is reported as complete.
 
@@ -173,7 +124,7 @@ Before saving the migrated items, compare every remote mnemonic with the primary
 
 The detailed rules for v1 and v2 secret metadata are defined in the version-aware repair section.
 
-### 4. Verify the repair
+### 3. Verify the repair
 
 Fetch the remote secret metadata again after the writes. Verify that:
 
@@ -186,7 +137,7 @@ Fetch the remote secret metadata again after the writes. Verify that:
 
 
 
-### 5. Handle failures and retries
+### 4. Handle failures and retries
 
 Only report a successful repair after every verification check passes. If any step fails, do not mark the repair as complete.
 
