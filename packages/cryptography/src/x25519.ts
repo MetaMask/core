@@ -19,10 +19,10 @@ const X25519_PKCS8_HEADER = new Uint8Array([
  * @param privateKey - The 32-byte X25519 private key.
  * @returns The 32-byte X25519 public key.
  */
-export async function x25519GetPublicKey(
+export async function getX25519PublicKey(
   privateKey: BufferSource,
 ): Promise<Uint8Array> {
-  return x25519GetSharedSecret(privateKey, X25519_BASE_POINT);
+  return getX25519SharedSecret(privateKey, X25519_BASE_POINT);
 }
 
 /**
@@ -32,7 +32,7 @@ export async function x25519GetPublicKey(
  * @param publicKey - The 32-byte X25519 public key of the peer.
  * @returns The 32-byte shared secret.
  */
-export async function x25519GetSharedSecret(
+export async function getX25519SharedSecret(
   privateKey: BufferSource,
   publicKey: BufferSource,
 ): Promise<Uint8Array> {
