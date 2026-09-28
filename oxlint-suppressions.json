@@ -5985,17 +5985,9 @@
       "count": 8
     }
   },
-  "packages/subscription-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/subscription-controller/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
+  "packages/subscription-controller/src/SubscriptionController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 7
     }
   },
   "packages/subscription-controller/src/SubscriptionService.test.ts": {
@@ -6005,11 +5997,11 @@
     "typescript/no-unsafe-assignment": {
       "count": 7
     },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
     "typescript/no-unsafe-return": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionService.ts": {
@@ -6019,6 +6011,14 @@
   },
   "packages/subscription-controller/src/subscription-delegation/caveats.test.ts": {
     "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "packages/subscription-controller/src/types.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
