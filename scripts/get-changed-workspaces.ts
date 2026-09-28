@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-import { computeChangedWorkspaces } from './lib/workspaces.mjs';
+import { computeChangedWorkspaces } from './lib/workspaces.ts';
 
 /**
  * List workspaces that need to be checked given a merge base.

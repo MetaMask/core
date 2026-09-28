@@ -1,4 +1,4 @@
-import { renderCodeownersSection } from './render.js';
+import { renderCodeownersSection } from './render.ts';
 
 describe('renderCodeownersSection', () => {
   it('renders a package section without a blank line between its header and rules', () => {

@@ -3,7 +3,7 @@
  * delete the branch when the tip is unchanged.
  *
  * Usage (from GitHub Actions):
- *   GITHUB_TOKEN=... yarn tsx scripts/close-stale-release-prs.mts
+ *   GITHUB_TOKEN=... yarn tsx scripts/close-stale-release-prs.ts
  */
 
 import * as core from '@actions/core';
