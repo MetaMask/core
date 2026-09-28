@@ -2590,8 +2590,9 @@ export type PerpsTypedDataPayload = {
 
 /**
  * Client-implemented signer for the user's main EVM account. When provided,
- * the wallet services sign through it instead of KeyringController. Clients
- * that own a KeyringController omit it.
+ * the wallet services sign through it and never call `KeyringController`.
+ * Clients that own a KeyringController omit it. The signing address still
+ * comes from the messenger's selected account.
  */
 export type PerpsAccountSigner = {
   /**
@@ -2604,13 +2605,13 @@ export type PerpsAccountSigner = {
   signTypedData(address: Hex, payload: PerpsTypedDataPayload): Promise<Hex>;
 
   /**
-   * EIP-191 `personal_sign` as `address`. Needed only for Lighter.
+   * EIP-191 `personal_sign` as `address`.
    *
    * @param address - The account that signs.
    * @param message - Plaintext message to sign.
    * @returns A 65-byte 0x-prefixed signature.
    */
-  signPersonalMessage?(address: Hex, message: string): Promise<Hex>;
+  signPersonalMessage(address: Hex, message: string): Promise<Hex>;
 
   /**
    * False while the signer cannot sign (e.g. wallet disconnected). Signing
@@ -2620,7 +2621,8 @@ export type PerpsAccountSigner = {
 
   /**
    * True when every signature needs a physical confirmation, which defers
-   * optional signing prompts. Defaults to false.
+   * optional signing prompts. When omitted, the selected account's keyring
+   * type decides.
    */
   isHardwareWallet?(): boolean;
 };

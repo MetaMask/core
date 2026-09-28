@@ -4129,9 +4129,9 @@ export class LighterProvider implements PerpsProvider {
     // The generation only advances when some provider call rebinds; also
     // notice a wallet switch nothing has observed yet. Account-bound work
     // must never run without a binding: every legitimate flow (including
-    // configured-index setups) binds first, so a
-    // null binding here means the wallet was deselected — fail closed even
-    // when a configured account index could still resolve.
+    // configured-index setups) binds first, so a null binding here means the
+    // wallet was deselected — fail closed even when a configured account
+    // index could still resolve.
     if (this.#boundAddress === null) {
       throw new Error(
         'Operation cancelled: no wallet account is bound to the venue session',

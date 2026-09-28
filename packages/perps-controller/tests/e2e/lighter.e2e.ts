@@ -121,13 +121,30 @@ async function createE2eSignerBridge(): Promise<LighterSignerBridge> {
 }
 
 /**
+ * Refuse to sign as any account other than the e2e viem account.
+ *
+ * @param address - The address the controller asked to sign as.
+ */
+function assertSignerAddress(address: string): void {
+  if (address.toLowerCase() !== viemAccount.address.toLowerCase()) {
+    throw new Error(
+      `accountSigner asked to sign as ${address}, expected ${viemAccount.address}`,
+    );
+  }
+}
+
+/**
  * Signs as the e2e viem account, in place of a wallet's KeyringController.
  */
 const accountSigner: PerpsAccountSigner = {
-  signTypedData: async (_address, payload) =>
-    await viemAccount.signTypedData(payload),
-  signPersonalMessage: async (_address, message) =>
-    await viemAccount.signMessage({ message }),
+  signTypedData: async (address, payload) => {
+    assertSignerAddress(address);
+    return await viemAccount.signTypedData(payload);
+  },
+  signPersonalMessage: async (address, message) => {
+    assertSignerAddress(address);
+    return await viemAccount.signMessage({ message });
+  },
 };
 
 /**

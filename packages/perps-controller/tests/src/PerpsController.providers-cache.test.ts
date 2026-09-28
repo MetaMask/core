@@ -878,6 +878,36 @@ describe('PerpsController', () => {
       );
     });
 
+    it('hands infrastructure.accountSigner to the HyperLiquid and Lighter providers', async () => {
+      const accountSigner = {
+        signTypedData: jest.fn(),
+        signPersonalMessage: jest.fn(),
+      };
+      const MockLighterConstructor = jest.fn(() =>
+        createMockHyperLiquidProvider(),
+      );
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: { ...mockInfrastructure, accountSigner },
+      });
+
+      await controller.init();
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      const withAccountSigner = expect.objectContaining({
+        platformDependencies: expect.objectContaining({ accountSigner }),
+      });
+      expect(
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>,
+      ).toHaveBeenCalledWith(withAccountSigner);
+      expect(MockLighterConstructor).toHaveBeenCalledWith(withAccountSigner);
+    });
+
     it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
       const moduleError = Object.assign(
         new Error('Cannot find module ./providers/LighterProvider'),

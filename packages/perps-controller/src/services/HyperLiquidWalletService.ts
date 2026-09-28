@@ -17,6 +17,7 @@ import {
   getSelectedEvmAccountDetailsFromMessenger,
   getSelectedEvmAccountFromMessenger,
 } from '../utils/accountUtils.js';
+import { isAccountSignerReady } from './accountSigner.js';
 
 // Mirrors KeyringTypes from @metamask/keyring-controller. Inlined to keep this
 // service portable between mobile and the core monorepo.
@@ -58,7 +59,7 @@ export class HyperLiquidWalletService {
   public isKeyringUnlocked(): boolean {
     const { accountSigner } = this.#deps;
     if (accountSigner) {
-      return accountSigner.isReady?.() ?? true;
+      return isAccountSignerReady(accountSigner);
     }
     return this.#messenger.call('KeyringController:getState').isUnlocked;
   }
@@ -69,9 +70,9 @@ export class HyperLiquidWalletService {
    * @returns True for MetaMask hardware keyrings; false for software accounts.
    */
   public isSelectedHardwareWallet(): boolean {
-    const { accountSigner } = this.#deps;
-    if (accountSigner) {
-      return accountSigner.isHardwareWallet?.() ?? false;
+    const declared = this.#deps.accountSigner?.isHardwareWallet?.();
+    if (declared !== undefined) {
+      return declared;
     }
 
     const selectedEvmAccount = getSelectedEvmAccountDetailsFromMessenger(
@@ -90,8 +91,7 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Sign typed data via the injected account signer, or the keyring
-   * controller when none is injected.
+   * Sign typed data via DI keyring controller
    *
    * @param msgParams - The typed message parameters including data and sender address.
    * @returns The signature string.
@@ -99,13 +99,6 @@ export class HyperLiquidWalletService {
   async #signTypedMessage(msgParams: PerpsTypedMessageParams): Promise<string> {
     if (!this.isKeyringUnlocked()) {
       throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
-    }
-    const { accountSigner } = this.#deps;
-    if (accountSigner) {
-      return accountSigner.signTypedData(
-        msgParams.from as Hex,
-        msgParams.data as PerpsTypedDataPayload,
-      );
     }
     // Cast needed: PerpsTypedMessageParams uses loose `data: unknown` type
     // while KeyringController uses strict TypedMessageParams / SignTypedDataVersion
@@ -126,19 +119,7 @@ export class HyperLiquidWalletService {
    */
   public createWalletAdapter(): {
     address: Hex;
-    signTypedData: (params: {
-      domain: {
-        name: string;
-        version: string;
-        chainId: number;
-        verifyingContract: Hex;
-      };
-      types: {
-        [key: string]: { name: string; type: string }[];
-      };
-      primaryType: string;
-      message: Record<string, unknown>;
-    }) => Promise<Hex>;
+    signTypedData: (params: PerpsTypedDataPayload) => Promise<Hex>;
     getChainId?: () => Promise<number>;
   } {
     // Get current EVM account via DI messenger
@@ -152,19 +133,7 @@ export class HyperLiquidWalletService {
 
     return {
       address,
-      signTypedData: async (params: {
-        domain: {
-          name: string;
-          version: string;
-          chainId: number;
-          verifyingContract: Hex;
-        };
-        types: {
-          [key: string]: { name: string; type: string }[];
-        };
-        primaryType: string;
-        message: Record<string, unknown>;
-      }): Promise<Hex> => {
+      signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
         // Get FRESH account on every sign to handle account switches
         // This prevents race conditions where wallet adapter was created with old account
         const currentEvmAccount = getSelectedEvmAccountFromMessenger(
@@ -178,7 +147,7 @@ export class HyperLiquidWalletService {
         const currentAddress = currentEvmAccount.address as Hex;
 
         // Construct EIP-712 typed data
-        const typedData = {
+        const typedData: PerpsTypedDataPayload = {
           domain: params.domain,
           types: params.types,
           primaryType: params.primaryType,
@@ -193,6 +162,14 @@ export class HyperLiquidWalletService {
             domain: params.domain,
           },
         );
+
+        const { accountSigner } = this.#deps;
+        if (accountSigner) {
+          if (!isAccountSignerReady(accountSigner)) {
+            throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+          }
+          return await accountSigner.signTypedData(currentAddress, typedData);
+        }
 
         // Use messenger to sign typed data
         const signature = await this.#signTypedMessage({

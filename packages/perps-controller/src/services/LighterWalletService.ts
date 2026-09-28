@@ -13,10 +13,9 @@
  * 2. Venue-key (Schnorr/ECgFp5) signatures over L2 transactions, produced
  *    inside the injected signer bridge from client-managed key material.
  *
- * Signature routing goes through the injected `accountSigner` when it
- * implements `signPersonalMessage`, else
- * `KeyringController:signPersonalMessage`. The L1 address always comes from
- * the messenger's selected account.
+ * Signature routing goes through the injected `accountSigner` when one is
+ * set, else `KeyringController:signPersonalMessage`. The L1 address always
+ * comes from the messenger's selected account.
  */
 
 import { bytesToHex } from '@metamask/utils';
@@ -27,6 +26,7 @@ import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { LighterNetwork } from '../types/lighter-types.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import { isAccountSignerReady } from './accountSigner.js';
 
 export class LighterWalletService {
   #isTestnet: boolean;
@@ -69,16 +69,16 @@ export class LighterWalletService {
   /**
    * Sign an EIP-191 personal message with the user's L1 account.
    *
-   * Routes through the injected account signer when it can sign personal
-   * messages, else the keyring when a messenger is present.
+   * Routes through the injected account signer when one is set, else the
+   * keyring.
    *
    * @param message - Plaintext message to sign.
    * @returns 65-byte signature as 0x-prefixed hex.
    */
   async signPersonalMessage(message: string): Promise<string> {
     const { accountSigner } = this.#deps;
-    if (accountSigner?.signPersonalMessage) {
-      if (!(accountSigner.isReady?.() ?? true)) {
+    if (accountSigner) {
+      if (!isAccountSignerReady(accountSigner)) {
         throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
       }
       return await accountSigner.signPersonalMessage(

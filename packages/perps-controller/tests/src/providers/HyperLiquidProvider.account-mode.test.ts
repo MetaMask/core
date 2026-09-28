@@ -12,6 +12,7 @@ import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/tra
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import type { HyperLiquidWalletParams } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
@@ -19,7 +20,9 @@ import type {
   ClosePositionParams,
   DepositParams,
   Order,
+  PerpsAccountSigner,
   PerpsPlatformDependencies,
+  PerpsTypedDataPayload,
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
@@ -33,8 +36,11 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createKeyringlessMessenger,
+  createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/HyperLiquidClientService');
@@ -2245,6 +2251,132 @@ describe('HyperLiquidProvider', () => {
           .setInFlight,
       ).toHaveBeenCalledWith('unifiedAccount', 'mainnet', USER_ADDRESS);
       expect(mockCompleteInFlight).toHaveBeenCalled();
+    });
+  });
+
+  describe('with a real wallet service and accountSigner', () => {
+    // The wallet service is real and the messenger has no KeyringController,
+    // so every signature must reach the injected accountSigner. The SDK
+    // exchange client is the mocked boundary: like the SDK, it signs through
+    // the wallet the provider initialized it with.
+    const { HyperLiquidWalletService: RealHyperLiquidWalletService } =
+      jest.requireActual<
+        typeof import('../../../src/services/HyperLiquidWalletService.js')
+      >('../../../src/services/HyperLiquidWalletService');
+    const ACCOUNT_ADDRESS = createMockEvmAccount().address;
+    const SIGNATURE = `0x${'cd'.repeat(65)}` as const;
+    const MIGRATION_PAYLOAD: PerpsTypedDataPayload = {
+      domain: {
+        name: 'HyperliquidSignTransaction',
+        version: '1',
+        chainId: 42161,
+        verifyingContract: '0x0000000000000000000000000000000000000000',
+      },
+      types: {
+        'HyperliquidTransaction:UserSetAbstraction': [
+          { name: 'hyperliquidChain', type: 'string' },
+          { name: 'user', type: 'address' },
+          { name: 'abstraction', type: 'string' },
+          { name: 'nonce', type: 'uint64' },
+        ],
+      },
+      primaryType: 'HyperliquidTransaction:UserSetAbstraction',
+      message: {
+        hyperliquidChain: 'Mainnet',
+        user: ACCOUNT_ADDRESS,
+        abstraction: 'unifiedAccount',
+        nonce: 1,
+      },
+    };
+
+    function createAccountSignerProvider(
+      signerOverrides: Partial<PerpsAccountSigner> = {},
+    ) {
+      const accountSigner = {
+        signTypedData: jest.fn().mockResolvedValue(SIGNATURE),
+        signPersonalMessage: jest.fn(),
+        ...signerOverrides,
+      };
+      const { messenger, call } = createKeyringlessMessenger();
+      MockedHyperLiquidWalletService.mockImplementation(
+        (deps, walletMessenger, options) =>
+          new RealHyperLiquidWalletService(deps, walletMessenger, options),
+      );
+      let sdkWallet: HyperLiquidWalletParams | undefined;
+      mockClientService.initialize.mockImplementation(async (wallet) => {
+        sdkWallet = wallet;
+      });
+      const exchangeClient = createMockExchangeClient({
+        userSetAbstraction: jest.fn(async () => {
+          if (!sdkWallet) {
+            throw new Error('SDK used before initialize');
+          }
+          await sdkWallet.signTypedData(MIGRATION_PAYLOAD);
+          return { status: 'ok' };
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+        }),
+      );
+      const accountSignerProvider = new HyperLiquidProvider({
+        platformDependencies: { ...mockPlatformDependencies, accountSigner },
+        messenger,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+      });
+      return { accountSignerProvider, accountSigner, call, exchangeClient };
+    }
+
+    it('signs the init-time unified-account migration through accountSigner', async () => {
+      const { accountSignerProvider, accountSigner, call, exchangeClient } =
+        createAccountSignerProvider();
+
+      await accountSignerProvider.getMarketDataWithPrices();
+
+      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledWith({
+        user: ACCOUNT_ADDRESS,
+        abstraction: 'unifiedAccount',
+      });
+      expect(accountSigner.signTypedData).toHaveBeenCalledWith(
+        ACCOUNT_ADDRESS,
+        MIGRATION_PAYLOAD,
+      );
+      expect(keyringCalls(call)).toStrictEqual([]);
+    });
+
+    it('defers the init-time migration when accountSigner reports a hardware wallet', async () => {
+      const { accountSignerProvider, accountSigner, call, exchangeClient } =
+        createAccountSignerProvider({ isHardwareWallet: () => true });
+
+      await accountSignerProvider.getMarketDataWithPrices();
+
+      expect(exchangeClient.userSetAbstraction).not.toHaveBeenCalled();
+      expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      expect(keyringCalls(call)).toStrictEqual([]);
+    });
+
+    it('treats a not-ready accountSigner as a locked keyring and caches nothing', async () => {
+      const { accountSignerProvider, accountSigner, call } =
+        createAccountSignerProvider({ isReady: () => false });
+
+      await accountSignerProvider.getMarketDataWithPrices();
+
+      expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+        '[ensureUnifiedAccountEnabled] Keyring locked, will retry later',
+      );
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).not.toHaveBeenCalled();
+      expect(keyringCalls(call)).toStrictEqual([]);
     });
   });
 });

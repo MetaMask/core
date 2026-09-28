@@ -4,6 +4,12 @@
  * Provides reusable mock implementations for ServiceContext and related types
  */
 
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   type ServiceContext,
   type PerpsControllerState,
@@ -284,3 +290,47 @@ export const createMockMessenger = (
     ...overrides,
   } as unknown as jest.Mocked<PerpsControllerMessenger>;
 };
+
+/**
+ * Create a real PerpsController messenger for a host without a
+ * KeyringController: only `AccountsController:getSelectedAccount` is
+ * delegated, so any `KeyringController:*` call throws.
+ *
+ * @param keyringType - Keyring type reported in the selected account metadata.
+ * @returns The messenger and a spy on its `call`.
+ */
+export const createKeyringlessMessenger = (
+  keyringType = 'HD Key Tree',
+): { messenger: PerpsControllerMessenger; call: jest.SpyInstance } => {
+  const account = createMockEvmAccount();
+  const root = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<PerpsControllerMessenger>,
+    MessengerEvents<PerpsControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: PerpsControllerMessenger = new Messenger({
+    namespace: 'PerpsController',
+    parent: root,
+  });
+  root.registerActionHandler('AccountsController:getSelectedAccount', () => ({
+    ...account,
+    scopes: ['eip155:0'],
+    metadata: { ...account.metadata, keyring: { type: keyringType } },
+  }));
+  root.delegate({
+    actions: ['AccountsController:getSelectedAccount'],
+    messenger,
+  });
+  return { messenger, call: jest.spyOn(messenger, 'call') };
+};
+
+/**
+ * Names of the `KeyringController:*` actions a messenger spy saw.
+ *
+ * @param call - Spy on a messenger's `call`.
+ * @returns The KeyringController action names, in call order.
+ */
+export const keyringCalls = (call: jest.SpyInstance): string[] =>
+  call.mock.calls
+    .map(([action]: [unknown]) => String(action))
+    .filter((action) => action.startsWith('KeyringController:'));
