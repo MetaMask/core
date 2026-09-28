@@ -12,6 +12,54 @@ const ED25519_PKCS8_HEADER = new Uint8Array([
 ]);
 
 /**
+ * Derive the Ed25519 public key corresponding to the given private key.
+ *
+ * @param privateKey - The 32-byte Ed25519 private key.
+ * @returns The 32-byte Ed25519 public key.
+ */
+export async function getEd25519PublicKey(
+  privateKey: BufferSource,
+): Promise<Uint8Array> {
+  if (privateKey.byteLength !== ED25519_KEY_LENGTH) {
+    throw new Error(
+      `Invalid private key length: Private key must be exactly ${ED25519_KEY_LENGTH} bytes for Ed25519.`,
+    );
+  }
+
+  const pkcs8 = new Uint8Array(
+    ED25519_PKCS8_HEADER.length + ED25519_KEY_LENGTH,
+  );
+  pkcs8.set(ED25519_PKCS8_HEADER);
+  pkcs8.set(toUint8Array(privateKey), ED25519_PKCS8_HEADER.length);
+
+  const subtlePrivateKey = await globalThis.crypto.subtle.importKey(
+    'pkcs8',
+    pkcs8,
+    { name: 'Ed25519' },
+    true,
+    ['sign'],
+  );
+
+  const jwk = await globalThis.crypto.subtle.exportKey('jwk', subtlePrivateKey);
+
+  // Intentionally discarding private key from JWK (`d`).
+  const subtlePublicKey = await globalThis.crypto.subtle.importKey(
+    'jwk',
+    { kty: jwk.kty, crv: jwk.crv, x: jwk.x },
+    { name: 'Ed25519' },
+    true,
+    ['verify'],
+  );
+
+  const publicKey = await globalThis.crypto.subtle.exportKey(
+    'raw',
+    subtlePublicKey,
+  );
+
+  return new Uint8Array(publicKey);
+}
+
+/**
  * Sign the given data using the given Ed25519 private key.
  *
  * @param privateKey - The 32-byte Ed25519 private key seed.

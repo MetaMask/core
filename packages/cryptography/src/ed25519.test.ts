@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from '@metamask/utils';
 
-import { ed25519Sign, ed25519Verify } from './ed25519.js';
+import { ed25519Sign, ed25519Verify, getEd25519PublicKey } from './ed25519.js';
 
 // RFC 8032 Section 6 Ed25519 test vector 3 (2-byte message)
 // https://www.rfc-editor.org/rfc/rfc8032#section-6
@@ -13,6 +13,37 @@ const rfcPublicKey = hexToBytes(
 const rfcMessage = hexToBytes('0xaf82');
 const rfcSignature =
   '0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a';
+
+describe('getEd25519PublicKey', () => {
+  it('derives the public key from RFC 8032 test vector 3', async () => {
+    const pubKey = await getEd25519PublicKey(rfcPrivateKey);
+    expect(bytesToHex(pubKey)).toBe(bytesToHex(rfcPublicKey));
+  });
+
+  it('accepts an ArrayBuffer private key', async () => {
+    const pubKey = await getEd25519PublicKey(rfcPrivateKey.buffer);
+    expect(bytesToHex(pubKey)).toBe(bytesToHex(rfcPublicKey));
+  });
+
+  it('accepts a DataView private key', async () => {
+    const pubKey = await getEd25519PublicKey(
+      new DataView(rfcPrivateKey.buffer),
+    );
+    expect(bytesToHex(pubKey)).toBe(bytesToHex(rfcPublicKey));
+  });
+
+  it('throws if the private key is too short', async () => {
+    await expect(getEd25519PublicKey(new Uint8Array(31))).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for Ed25519.',
+    );
+  });
+
+  it('throws if the private key is too long', async () => {
+    await expect(getEd25519PublicKey(new Uint8Array(33))).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for Ed25519.',
+    );
+  });
+});
 
 describe('ed25519Sign', () => {
   it('matches RFC 8032 test vector 3', async () => {
