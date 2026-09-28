@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -221,6 +221,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -421,27 +422,6 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
     return value as VbaKycStatus;
   }
   return 'none';
-}
-
-/**
- * Whether an autoramp-creation error means the customer already has an autoramp.
- *
- * The neobank proxy mirrors MoonPay's response verbatim, and MoonPay permits a
- * single autoramp per customer — a duplicate create is rejected with a `400`
- * whose body reads e.g. `"Customer already has a Pix onramp"`. There is no
- * list-by-customer endpoint to rediscover the existing autoramp's id (only
- * fetch-by-id), so this conflict is the signal that provisioning is already
- * done rather than a failure.
- *
- * @param error - The error thrown by {@link RampsController.createAutoramp}.
- * @returns Whether the error indicates an autoramp already exists.
- */
-function isAutorampAlreadyExistsError(error: unknown): boolean {
-  return (
-    error instanceof HttpError &&
-    error.httpStatus === 400 &&
-    /already has/iu.test(error.message)
-  );
 }
 
 /**
@@ -4030,26 +4010,22 @@ export class RampsController extends BaseController<
         throw registration.error;
       }
 
-      const normalizedWalletAddress = walletAddress.toLowerCase();
-      // The neobank proxy (and MoonPay) expose autoramps by id only — there is
-      // no list-by-customer endpoint — so reconcile the autoramps already known
-      // for this wallet by refreshing each by id. A refresh failure is
-      // non-fatal: the last-known snapshot is kept for the usable check below.
-      const knownAutorampsForWallet = this.state.autoramps.filter(
-        (autoramp) =>
-          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress,
+      const remoteAutoramps = await this.messenger.call(
+        'NeoBankService:getAutoramps',
       );
-      await Promise.all(
-        knownAutorampsForWallet.map(async (autoramp) => {
-          try {
-            await this.refreshAutoramp(autoramp.id);
-          } catch {
-            // Keep the last-known snapshot; a transient refresh failure must not
-            // trigger a duplicate create.
-          }
-        }),
+      const remoteAutorampIds = new Set(
+        remoteAutoramps.map((autoramp) => autoramp.id),
       );
+      for (const autoramp of remoteAutoramps) {
+        this.#applyAutorampRemoteSnapshot(autoramp);
+      }
+      this.update((state) => {
+        state.autoramps = state.autoramps.filter((autoramp) =>
+          remoteAutorampIds.has(autoramp.id),
+        );
+      });
 
+      const normalizedWalletAddress = walletAddress.toLowerCase();
       const hasUsableAutoramp = this.state.autoramps.some(
         (autoramp) =>
           autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
@@ -4057,17 +4033,7 @@ export class RampsController extends BaseController<
           autoramp.status !== AutorampStatus.Cancelled,
       );
       if (!hasUsableAutoramp) {
-        try {
-          await this.createAutoramp({});
-        } catch (error) {
-          // Without a list endpoint the client cannot rediscover an autoramp
-          // that already exists server-side (e.g. after a reinstall cleared
-          // local state). MoonPay permits one per customer, so a duplicate
-          // create conflict means provisioning is already done.
-          if (!isAutorampAlreadyExistsError(error)) {
-            throw error;
-          }
-        }
+        await this.createAutoramp({});
       }
     } catch {
       return { ...snapshot, autorampStatus: 'retryable_failure' };

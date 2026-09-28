@@ -1,5 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -10324,7 +10324,6 @@ describe('RampsController', () => {
       clearState: jest.Mock;
       getSessionProfile: jest.Mock;
       getAutoramps: jest.Mock;
-      getAutoramp: jest.Mock;
     };
 
     type KycValues = {
@@ -10404,7 +10403,6 @@ describe('RampsController', () => {
           .fn()
           .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
         getAutoramps: jest.fn().mockResolvedValue([]),
-        getAutoramp: jest.fn(),
       };
 
       rootMessenger.registerActionHandler(
@@ -10438,10 +10436,6 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
         handlers.getAutoramps as never,
-      );
-      rootMessenger.registerActionHandler(
-        'NeoBankService:getAutoramp' as never,
-        handlers.getAutoramp as never,
       );
 
       return handlers;
@@ -10738,23 +10732,17 @@ describe('RampsController', () => {
       });
     });
 
-    it('reconciles an existing autoramp by id instead of creating another', async () => {
+    it('loads an existing autoramp from the service instead of creating another', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
-        // Persisted from a previous run; there is no list endpoint, so hydrate
-        // rediscovers it by refreshing the known id.
-        controller.addAutoramp({
-          id: 'autoramp-1',
-          customerId: 'customer-1',
-          walletAddress: '0xAbC',
-          status: AutorampStatus.Created,
-        });
-        handlers.getAutoramp.mockResolvedValue({
-          id: 'autoramp-1',
-          customerId: 'customer-1',
-          walletAddress: '0xAbC',
-          status: AutorampStatus.Approved,
-        });
+        handlers.getAutoramps.mockResolvedValue([
+          {
+            id: 'autoramp-1',
+            customerId: 'customer-1',
+            walletAddress: '0xAbC',
+            status: AutorampStatus.Approved,
+          },
+        ]);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'alreadyRegistered',
           registration: {
@@ -10778,31 +10766,37 @@ describe('RampsController', () => {
           }),
         );
 
-        expect(handlers.getAutoramp).toHaveBeenCalledWith('autoramp-1');
         expect(createAutoramp).not.toHaveBeenCalled();
-        expect(controller.state.autoramps).toHaveLength(1);
-        expect(controller.state.autoramps[0]).toMatchObject({
-          id: 'autoramp-1',
-          status: AutorampStatus.Approved,
-        });
+        expect(
+          controller.state.autoramps.map(
+            ({ updatedAt: _updatedAt, ...account }) => account,
+          ),
+        ).toMatchInlineSnapshot(`
+          [
+            {
+              "customerId": "customer-1",
+              "depositRailsSummary": undefined,
+              "id": "autoramp-1",
+              "lastSeenStatus": "Approved",
+              "status": "Approved",
+              "walletAddress": "0xAbC",
+            },
+          ]
+        `);
       });
     });
 
     it('creates a new autoramp when the existing account is terminal', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
-        controller.addAutoramp({
-          id: 'autoramp-rejected',
-          customerId: 'customer-1',
-          walletAddress: '0xabc',
-          status: AutorampStatus.Created,
-        });
-        handlers.getAutoramp.mockResolvedValue({
-          id: 'autoramp-rejected',
-          customerId: 'customer-1',
-          walletAddress: '0xabc',
-          status: AutorampStatus.Rejected,
-        });
+        handlers.getAutoramps.mockResolvedValue([
+          {
+            id: 'autoramp-rejected',
+            customerId: 'customer-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Rejected,
+          },
+        ]);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'alreadyRegistered',
           registration: {
@@ -10924,9 +10918,11 @@ describe('RampsController', () => {
       });
     });
 
-    it('marks the autoramp retryable when autoramp creation fails', async () => {
+    it('marks the autoramp retryable when loading autoramps fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
+        const handlers = registerKycHandlers(rootMessenger);
+        const error = new Error('autoramp lookup failed');
+        handlers.getAutoramps.mockRejectedValue(error);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'alreadyRegistered',
           registration: {
@@ -10937,9 +10933,7 @@ describe('RampsController', () => {
             isSelf: true,
           },
         });
-        jest
-          .spyOn(controller, 'createAutoramp')
-          .mockRejectedValue(new Error('autoramp creation failed'));
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
@@ -10949,39 +10943,7 @@ describe('RampsController', () => {
             autorampStatus: 'retryable_failure',
           }),
         );
-      });
-    });
-
-    it('treats a duplicate-create conflict as already provisioned', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'alreadyRegistered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
-        // MoonPay permits one autoramp per customer; with no local id to
-        // rediscover it, the create is rejected as a duplicate. That means the
-        // account already exists, so activation is ready rather than failed.
-        jest
-          .spyOn(controller, 'createAutoramp')
-          .mockRejectedValue(
-            new HttpError(400, 'Customer already has a Pix onramp'),
-          );
-
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'ready',
-          }),
-        );
+        expect(createAutoramp).not.toHaveBeenCalled();
       });
     });
 
