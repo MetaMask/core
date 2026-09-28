@@ -139,3 +139,14 @@ export const RateHistoryResponseStruct = object({
   data_freshness: DataFreshnessStruct,
   indexer_lag_seconds: number(),
 });
+
+export const VaultRateResponseStruct = object({
+  vault_address: string(),
+  chain_id: number(),
+  rate: string(),
+  timestamp: string(),
+  as_of_block: number(),
+  as_of_timestamp: string(),
+  data_freshness: DataFreshnessStruct,
+  indexer_lag_seconds: number(),
+});

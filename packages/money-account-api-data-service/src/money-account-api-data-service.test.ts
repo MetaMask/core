@@ -141,6 +141,17 @@ const MOCK_RATE_HISTORY_RESPONSE = {
   indexer_lag_seconds: 5,
 };
 
+const MOCK_VAULT_RATE_RESPONSE = {
+  vault_address: MOCK_VAULT_ADDRESS,
+  chain_id: 143,
+  rate: '1.052340000000000000',
+  timestamp: '2026-05-10T12:34:56Z',
+  as_of_block: 21455123,
+  as_of_timestamp: '2026-05-10T12:34:56Z',
+  data_freshness: 'live' as const,
+  indexer_lag_seconds: 4,
+};
+
 // ============================================================
 // Messenger helpers
 // ============================================================
@@ -264,6 +275,12 @@ describe('MoneyAccountApiDataService', () => {
       )
         .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate-history`)
         .reply(200, MOCK_RATE_HISTORY_RESPONSE);
+      const vaultRateScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
 
       await service.fetchPositions(MOCK_ADDRESS);
       await service.fetchInterest(MOCK_ADDRESS, {
@@ -272,12 +289,14 @@ describe('MoneyAccountApiDataService', () => {
       });
       await service.fetchHistory(MOCK_ADDRESS);
       await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
+      await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
 
-      expect(getBearerToken).toHaveBeenCalledTimes(4);
+      expect(getBearerToken).toHaveBeenCalledTimes(5);
       positionsScope.done();
       interestScope.done();
       historyScope.done();
       rateHistoryScope.done();
+      vaultRateScope.done();
       service.destroy();
     });
 
@@ -886,6 +905,168 @@ describe('MoneyAccountApiDataService', () => {
     });
   });
 
+  describe('fetchVaultRate', () => {
+    const mixedCaseVaultAddress = '0xAbCd222222222222222222222222222222222222';
+
+    it('returns the current rate and lowercases the vault address', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${mixedCaseVaultAddress.toLowerCase()}/rate`)
+        .query({})
+        .reply(200, {
+          ...MOCK_VAULT_RATE_RESPONSE,
+          vault_address: mixedCaseVaultAddress.toLowerCase(),
+        });
+
+      const result = await service.fetchVaultRate(mixedCaseVaultAddress);
+      expect(result).toStrictEqual({
+        ...MOCK_VAULT_RATE_RESPONSE,
+        vault_address: mixedCaseVaultAddress.toLowerCase(),
+      });
+      service.destroy();
+    });
+
+    it('sends chain_id only when provided', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .query({ chain_id: '143' })
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
+
+      const result = await service.fetchVaultRate(MOCK_VAULT_ADDRESS, {
+        chainId: 143,
+      });
+      expect(result).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      service.destroy();
+    });
+
+    it('attaches the profile bearer token', async () => {
+      const getBearerToken = jest.fn().mockResolvedValue('jwt-token');
+      const { service } = createService(Env.DEV, { getBearerToken });
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer jwt-token' },
+      })
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
+
+      const result = await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+
+      expect(result).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      expect(getBearerToken).toHaveBeenCalledTimes(1);
+      scope.done();
+      service.destroy();
+    });
+
+    it('omits the authorization header when token retrieval fails', async () => {
+      const { service } = createService(Env.DEV, {
+        getBearerToken: async () => {
+          throw new Error('wallet is locked');
+        },
+      });
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        badheaders: ['authorization'],
+      })
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
+
+      const result = await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+
+      expect(result).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      scope.done();
+      service.destroy();
+    });
+
+    it('caches and deduplicates requests within the stale time, keyed by chain id', async () => {
+      const { service } = createService(Env.DEV);
+      const otherChainResponse = {
+        ...MOCK_VAULT_RATE_RESPONSE,
+        chain_id: 1,
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .query({})
+        .once()
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .query({ chain_id: '1' })
+        .once()
+        .reply(200, otherChainResponse);
+
+      const [first, second] = await Promise.all([
+        service.fetchVaultRate(MOCK_VAULT_ADDRESS),
+        service.fetchVaultRate(MOCK_VAULT_ADDRESS),
+      ]);
+      const cached = await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      const otherChain = await service.fetchVaultRate(MOCK_VAULT_ADDRESS, {
+        chainId: 1,
+      });
+      const cachedOtherChain = await service.fetchVaultRate(
+        MOCK_VAULT_ADDRESS,
+        { chainId: 1 },
+      );
+
+      expect(first).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      expect(second).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      expect(cached).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      expect(otherChain).toStrictEqual(otherChainResponse);
+      expect(cachedOtherChain).toStrictEqual(otherChainResponse);
+      expect(nock.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws HttpError on a 404 response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(404);
+
+      const error: unknown = await service
+        .fetchVaultRate(MOCK_VAULT_ADDRESS)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 404 });
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiResponseValidationError on a malformed response without retrying', async () => {
+      const { service } = createService(Env.DEV);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .once()
+        .reply(200, { not: 'valid' });
+
+      await expect(service.fetchVaultRate(MOCK_VAULT_ADDRESS)).rejects.toThrow(
+        MoneyAccountApiResponseValidationError,
+      );
+      scope.done();
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { rootMessenger, service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .query({ chain_id: '143' })
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'MoneyAccountApiDataService:fetchVaultRate',
+        MOCK_VAULT_ADDRESS,
+        { chainId: 143 },
+      );
+      expect(result).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      service.destroy();
+    });
+  });
+
   describe('tracing', () => {
     let mockTrace: jest.Mock<MoneyAccountApiDataServiceTraceCallback>;
 
@@ -988,6 +1169,31 @@ describe('MoneyAccountApiDataService', () => {
       expect(request.data).toStrictEqual(
         expect.objectContaining({
           operation: 'fetchRateHistory',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
+    it('emits a trace for fetchVaultRate on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .reply(200, MOCK_VAULT_RATE_RESPONSE);
+
+      await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.VAULT_RATE_API);
+      expect(request.name).toBe('Money Account API Fetch Vault Rate');
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchVaultRate',
           success: true,
         }),
       );
