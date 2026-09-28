@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/money-account-balance-service` from `^3.0.0` to `^3.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 - Bump `@metamask/chomp-api-service` from `^5.0.0` to `^6.0.0` ([#10505](https://github.com/MetaMask/core/pull/10505))
 - Bump `@metamask/money-account-utils` from `^2.0.1` to `^2.1.0` ([#10505](https://github.com/MetaMask/core/pull/10505))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#10516](https://github.com/MetaMask/core/pull/10516))
 
 ## [10.0.1]
 
