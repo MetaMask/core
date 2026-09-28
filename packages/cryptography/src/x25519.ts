@@ -1,6 +1,6 @@
 import { toUint8Array } from './utils.js';
 
-const X25519_KEY_SIZE = 32;
+const X25519_KEY_LENGTH = 32;
 
 // https://www.rfc-editor.org/rfc/rfc7748#section-4.1
 const X25519_BASE_POINT = new Uint8Array(32);
@@ -36,20 +36,20 @@ export async function x25519GetSharedSecret(
   privateKey: BufferSource,
   publicKey: BufferSource,
 ): Promise<Uint8Array> {
-  if (privateKey.byteLength !== X25519_KEY_SIZE) {
+  if (privateKey.byteLength !== X25519_KEY_LENGTH) {
     throw new Error(
-      `Invalid private key length: Private key must be exactly ${X25519_KEY_SIZE} bytes for X25519.`,
+      `Invalid private key length: Private key must be exactly ${X25519_KEY_LENGTH} bytes for X25519.`,
     );
   }
 
-  if (publicKey.byteLength !== X25519_KEY_SIZE) {
+  if (publicKey.byteLength !== X25519_KEY_LENGTH) {
     throw new Error(
-      `Invalid public key length: Public key must be exactly ${X25519_KEY_SIZE} bytes for X25519.`,
+      `Invalid public key length: Public key must be exactly ${X25519_KEY_LENGTH} bytes for X25519.`,
     );
   }
 
   // The WebCrypto API expects private keys to be in PKCS8 format.
-  const pkcs8 = new Uint8Array(X25519_PKCS8_HEADER.length + X25519_KEY_SIZE);
+  const pkcs8 = new Uint8Array(X25519_PKCS8_HEADER.length + X25519_KEY_LENGTH);
   pkcs8.set(X25519_PKCS8_HEADER);
   pkcs8.set(toUint8Array(privateKey), X25519_PKCS8_HEADER.length);
 
@@ -72,7 +72,7 @@ export async function x25519GetSharedSecret(
   const sharedSecret = await globalThis.crypto.subtle.deriveBits(
     { name: 'X25519', public: subtlePublicKey },
     subtlePrivateKey,
-    X25519_KEY_SIZE * 8,
+    X25519_KEY_LENGTH * 8,
   );
 
   return new Uint8Array(sharedSecret);
