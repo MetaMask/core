@@ -1,3 +1,9 @@
+import type { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
+import type {
+  VerifyDelegationParams,
+  VerifyDelegationResponse,
+} from '@metamask/chomp-api-service';
+import type { DelegationController } from '@metamask/delegation-controller';
 import {
   createAllowedCalldataTerms,
   createERC20TokenPeriodTransferTerms,
@@ -126,11 +132,22 @@ const INSUFFICIENT_BALANCE = {
   usedFallback: false,
 };
 
+type SignDelegationParams = Parameters<
+  DelegationController['signDelegation']
+>[0];
+
+type CreateDelegationArgs = Parameters<
+  AuthenticatedUserStorageService['createDelegation']
+>;
+
 type Mocks = {
   listDelegations: jest.Mock;
-  createDelegation: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock;
+  createDelegation: jest.Mock<Promise<void>, CreateDelegationArgs>;
+  signDelegation: jest.Mock<Promise<Hex>, [SignDelegationParams]>;
+  verifyDelegation: jest.Mock<
+    Promise<VerifyDelegationResponse>,
+    [VerifyDelegationParams]
+  >;
   getIntentsByAddress: jest.Mock;
   createIntents: jest.Mock;
   getRemoteFeatureFlagState: jest.Mock;
@@ -151,10 +168,14 @@ function setup(
 ) {
   const mocks: Mocks = {
     listDelegations: jest.fn().mockResolvedValue(options.listDelegations ?? []),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
-    signDelegation: jest.fn().mockResolvedValue(SIGNATURE),
+    createDelegation: jest
+      .fn<Promise<void>, CreateDelegationArgs>()
+      .mockResolvedValue(undefined),
+    signDelegation: jest
+      .fn<Promise<Hex>, [SignDelegationParams]>()
+      .mockResolvedValue(SIGNATURE),
     verifyDelegation: jest
-      .fn()
+      .fn<Promise<VerifyDelegationResponse>, [VerifyDelegationParams]>()
       .mockImplementation(async ({ signedDelegation }) => {
         if (options.verify) {
           return options.verify;
@@ -355,12 +376,8 @@ function expectNoSideEffects(mocks: Mocks): void {
 }
 
 function getSignedPeriodStartDate(mocks: Mocks): number {
-  const signedArgs = mocks.signDelegation.mock.calls[0][0] as {
-    delegation: {
-      caveats: { enforcer: Hex; terms: Hex }[];
-    };
-  };
-  const periodCaveat = signedArgs.delegation.caveats.find(
+  const [{ delegation }] = mocks.signDelegation.mock.calls[0];
+  const periodCaveat = delegation.caveats.find(
     (caveat) => caveat.enforcer === PERIOD,
   );
   expect(periodCaveat).toBeDefined();
@@ -382,37 +399,35 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.getPricing).toHaveBeenCalledTimes(1);
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.signDelegation).toHaveBeenCalledWith({
-        delegation: expect.objectContaining({
-          delegate: DELEGATE,
-          delegator: PAYER,
-          caveats: [
-            expect.objectContaining({ enforcer: PERIOD }),
-            expect.objectContaining({ enforcer: ALLOWED_CALLDATA }),
-          ],
-        }),
-        chainId: CHAIN_ID,
+      const [{ delegation, chainId }] = mocks.signDelegation.mock.calls[0];
+      expect(chainId).toBe(CHAIN_ID);
+      expect(delegation).toMatchObject({
+        delegate: DELEGATE,
+        delegator: PAYER,
       });
-      const { caveats } = mocks.signDelegation.mock.calls[0][0].delegation;
-      expect(decodeAllowedCalldataTerms(caveats[1].terms)).toStrictEqual({
+      expect(delegation.caveats[0].enforcer).toBe(PERIOD);
+      expect(delegation.caveats[1].enforcer).toBe(ALLOWED_CALLDATA);
+      expect(
+        decodeAllowedCalldataTerms(delegation.caveats[1].terms),
+      ).toStrictEqual({
         startIndex: 0,
         value: `0xa9059cbb${'0'.repeat(24)}${TREASURY.slice(2)}`,
       });
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledWith({
-        signedDelegation: expect.objectContaining({
-          delegate: DELEGATE,
-          delegator: PAYER,
-          signature: SIGNATURE,
-        }),
-        metadata: expect.objectContaining({
-          delegationHash: result.delegationHash,
-          chainIdHex: CHAIN_ID,
-          allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
-          tokenSymbol: 'pvmUSD',
-          tokenAddress: TOKEN,
-          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
-        }),
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      const [submission] = mocks.createDelegation.mock.calls[0];
+      expect(submission.signedDelegation).toMatchObject({
+        delegate: DELEGATE,
+        delegator: PAYER,
+        signature: SIGNATURE,
+      });
+      expect(submission.metadata).toMatchObject({
+        delegationHash: result.delegationHash,
+        chainIdHex: CHAIN_ID,
+        allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
+        tokenSymbol: 'pvmUSD',
+        tokenAddress: TOKEN,
+        type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
       });
       expect(mocks.createIntents).toHaveBeenCalledWith([
         {
@@ -516,8 +531,7 @@ describe('SubscriptionDelegationService', () => {
               chains: [
                 {
                   ...PRICING_DELEGATION_PAYMENT_METHOD.chains?.[0],
-                  paymentAddress:
-                    '0x9999999999999999999999999999999999999999' as Hex,
+                  paymentAddress: '0x9999999999999999999999999999999999999999',
                 },
               ],
             },
@@ -541,7 +555,7 @@ describe('SubscriptionDelegationService', () => {
               chains: [
                 {
                   ...PRICING_DELEGATION_PAYMENT_METHOD.chains?.[0],
-                  paymentAddress: '0x1234' as Hex,
+                  paymentAddress: '0x1234',
                 },
               ],
             },
@@ -614,13 +628,9 @@ describe('SubscriptionDelegationService', () => {
       expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            delegationHash: result.delegationHash,
-          }),
-        }),
-      );
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      const [submission] = mocks.createDelegation.mock.calls[0];
+      expect(submission.metadata.delegationHash).toBe(result.delegationHash);
       expect(mocks.createIntents).toHaveBeenCalledWith([
         expect.objectContaining({
           delegationHash: result.delegationHash,
@@ -658,20 +668,20 @@ describe('SubscriptionDelegationService', () => {
       expect(result.disposition).toBe('created');
       expect(result.delegationHash).toMatch(/^0x[0-9a-fA-F]{64}$/u);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledWith({
-        signedDelegation: expect.objectContaining({
-          delegate: DELEGATE,
-          delegator: PAYER,
-          signature: SIGNATURE,
-        }),
-        metadata: expect.objectContaining({
-          delegationHash: result.delegationHash,
-          chainIdHex: CHAIN_ID,
-          allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
-          tokenSymbol: 'pvmUSD',
-          tokenAddress: TOKEN,
-          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
-        }),
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      const [submission] = mocks.createDelegation.mock.calls[0];
+      expect(submission.signedDelegation).toMatchObject({
+        delegate: DELEGATE,
+        delegator: PAYER,
+        signature: SIGNATURE,
+      });
+      expect(submission.metadata).toMatchObject({
+        delegationHash: result.delegationHash,
+        chainIdHex: CHAIN_ID,
+        allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
+        tokenSymbol: 'pvmUSD',
+        tokenAddress: TOKEN,
+        type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
       });
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
       expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();

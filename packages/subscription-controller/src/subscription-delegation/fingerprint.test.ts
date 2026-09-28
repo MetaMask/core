@@ -192,14 +192,10 @@ describe('makeMatchesSubscriptionDelegation', () => {
     [
       'allowedCalldataEnforcer',
       {
-        allowedCalldataEnforcer:
-          '0x6666666666666666666666666666666666666666' as Hex,
+        allowedCalldataEnforcer: '0x6666666666666666666666666666666666666666',
       },
     ],
-    [
-      'recipient',
-      { recipient: '0x6666666666666666666666666666666666666666' as Hex },
-    ],
+    ['recipient', { recipient: '0x6666666666666666666666666666666666666666' }],
     ['calldataStartIndex', { calldataStartIndex: 4 }],
     ['periodAmount', { periodAmount: PERIOD_AMOUNT + 1n }],
     ['periodDuration', { periodDuration: PERIOD_DURATION + 1 }],
