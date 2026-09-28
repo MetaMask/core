@@ -118,6 +118,9 @@ export type TransactionConfig = {
    * completion. Used by flows whose second-leg amount is only known after
    * Relay settles (EXACT_INPUT max flows) or that require the second leg to
    * originate from a different signer than the Relay solver.
+   * For max deposits enabled by `payStrategies.relay.atomicMaxEnabled`, this
+   * is a subsidy hint: atomic quotes are retried non-atomically if not
+   * subsidized, and subsidized non-atomic quotes are upgraded to atomic.
    */
   atomic?: boolean;
 

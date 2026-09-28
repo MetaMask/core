@@ -117,7 +117,7 @@ export async function startRpcSocketServer({
       handleRequest(handlers, line, onShutdown, logFn)
         .then((response) => {
           socket.end(`${JSON.stringify(response)}\n`);
-          return undefined;
+          return;
         })
         .catch((dispatchError: unknown) => {
           logFn(`Unhandled RPC dispatch error: ${String(dispatchError)}`);

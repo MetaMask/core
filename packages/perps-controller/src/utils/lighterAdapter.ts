@@ -466,6 +466,9 @@ export function adaptFillFromLighterTrade(
   }
   return {
     orderId: String(accountIsAsk ? trade.askId : trade.bidId),
+    // Lighter's unique execution id, validated as a safe non-negative
+    // integer above. Order id alone cannot separate two fills of one order.
+    fillId: String(trade.tradeId),
     symbol,
     side: accountIsAsk ? 'sell' : 'buy',
     size: trade.size,
@@ -660,7 +663,11 @@ export function adaptOrderFromLighter(
 ): Order {
   const original = parseFloat(order.initialBaseAmount);
   const remaining = parseFloat(order.remainingBaseAmount);
-  const filled = Math.max(original - remaining, 0);
+  // Canceled orders have zero remaining size even when nothing filled.
+  const filled =
+    order.filledBaseAmount === undefined
+      ? Math.max(original - remaining, 0)
+      : parseFloat(order.filledBaseAmount);
 
   const isTrigger = !['market', 'limit'].includes(order.type);
   const triggerPrice =

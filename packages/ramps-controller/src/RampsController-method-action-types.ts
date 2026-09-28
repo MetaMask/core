@@ -428,6 +428,24 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
 };
 
 /**
+ * Refreshes KYC session facts and, when Iron has approved KYC, activates the
+ * Money Account (wallet registration + autoramp). Hosts map the returned
+ * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
+ * name screens.
+ *
+ * Overlapping calls share one run so polling cannot trigger duplicate wallet
+ * signatures or autoramp creation.
+ *
+ * @param params - VBA onboarding parameters.
+ * @param params.walletAddress - Monad Money Account wallet address.
+ * @returns Independent KYC and autoramp facts for the current customer.
+ */
+export type RampsControllerHydrateVbaOnboardingAction = {
+  type: `RampsController:hydrateVbaOnboarding`;
+  handler: RampsController['hydrateVbaOnboarding'];
+};
+
+/**
  * Removes a local autoramp last-seen cursor by id.
  *
  * @param autorampId - MoonPay autoramp id.
@@ -513,6 +531,23 @@ export type RampsControllerStopOrderPollingAction = {
 export type RampsControllerGetBuyWidgetDataAction = {
   type: `RampsController:getBuyWidgetData`;
   handler: RampsController['getBuyWidgetData'];
+};
+
+/**
+ * Fetches the widget data for a quote's hosted-flow fallback (see
+ * `getBuyWidgetFallback`), used when an embedded checkout turns the user away.
+ *
+ * @param fallback - The buy-widget fallback attached to the quote.
+ * @param options - Optional request options.
+ * @param options.redirectUrl - Where the hosted flow returns to; set as the
+ * `redirectUrl` query parameter, replacing any existing value.
+ * @returns Promise resolving to the hosted BuyWidget, or null if the fallback has no URL or the response has an empty url.
+ * @throws TypeError if the fallback URL is not a valid URL.
+ * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
+ */
+export type RampsControllerGetFallbackBuyWidgetDataAction = {
+  type: `RampsController:getFallbackBuyWidgetData`;
+  handler: RampsController['getFallbackBuyWidgetData'];
 };
 
 /**
@@ -900,6 +935,7 @@ export type RampsControllerMethodActions =
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
   | RampsControllerRegisterMoneyAccountWalletAction
+  | RampsControllerHydrateVbaOnboardingAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction
@@ -908,6 +944,7 @@ export type RampsControllerMethodActions =
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction
+  | RampsControllerGetFallbackBuyWidgetDataAction
   | RampsControllerAddPrecreatedOrderAction
   | RampsControllerGetOrderAction
   | RampsControllerGetOrderFromCallbackAction

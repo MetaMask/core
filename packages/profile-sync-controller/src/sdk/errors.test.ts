@@ -3,7 +3,7 @@ import { JsonRpcError, serializeError } from '@metamask/rpc-errors';
 import {
   CredentialAlreadyEnrolledError,
   CredentialNotEnrolledError,
-  ElevatedTokenInvalidError,
+  VerificationTokenInvalidError,
   MaxIdentifiersReachedError,
   MaxPasskeysReachedError,
   MfaError,
@@ -70,7 +70,7 @@ describe('MFA errors', () => {
       new MaxIdentifiersReachedError('Maximum identifiers reached'),
       new MfaRateLimitedError('Slow down', 5_000),
       new MfaUnavailableError('Identity provider unavailable'),
-      new ElevatedTokenInvalidError('Expected AAL2 claims'),
+      new VerificationTokenInvalidError('Expected AAL2 claims'),
     ];
 
     expect(errors.map((error) => error.name)).toStrictEqual([
@@ -83,7 +83,7 @@ describe('MFA errors', () => {
       'MaxIdentifiersReachedError',
       'MfaRateLimitedError',
       'MfaUnavailableError',
-      'ElevatedTokenInvalidError',
+      'VerificationTokenInvalidError',
     ]);
     expect(errors.map((error) => error.mfaCode)).toStrictEqual([
       'credential_not_enrolled',
@@ -95,7 +95,7 @@ describe('MFA errors', () => {
       'max_identifiers_reached',
       'rate_limited',
       'kratos_unavailable',
-      'elevated_token_invalid',
+      'verification_token_invalid',
     ]);
   });
 

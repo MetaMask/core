@@ -1,4 +1,5 @@
 import type {
+  DelegationResponse,
   AuthenticatedUserStorageServiceCreateDelegationAction,
   AuthenticatedUserStorageServiceListDelegationsAction,
 } from '@metamask/authenticated-user-storage';
@@ -40,6 +41,7 @@ import { buildUnsignedSubscriptionDelegation } from './caveats.js';
 import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
+  pickLatestMatchingSubscriptionDelegation,
 } from './fingerprint.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import type {
@@ -68,15 +70,18 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
 
-  if (!contracts?.ValueLteEnforcer || !contracts.ERC20PeriodTransferEnforcer) {
+  if (
+    !contracts?.ERC20PeriodTransferEnforcer ||
+    !contracts.AllowedCalldataEnforcer
+  ) {
     throw new Error(
       `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: ${chainId}`,
     );
   }
 
   return {
-    valueLte: contracts.ValueLteEnforcer,
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
+    allowedCalldata: contracts.AllowedCalldataEnforcer,
   };
 }
 
@@ -136,6 +141,7 @@ type SubscriptionIntentParams = {
 type ResolvedSubscriptionDelegationConfig = {
   chainId: Hex;
   delegateAddress: Hex;
+  paymentAddress: Hex;
   enforcers: SubscriptionDelegationEnforcers;
   price: ProductPrice;
   token: TokenPaymentInfo;
@@ -227,6 +233,9 @@ export class SubscriptionDelegationService {
    * one exists (ensuring a CHOMP intent is active for its hash, unless
    * `skipChompInteractions` is true). Reuse classifies period `startDate` as
    * trial-deferred (`> now`) vs immediately redeemable, matching creation.
+   * When several records match, the latest period `startDate` is reused
+   * so a `forceNew` replacement is preferred over an older equivalent
+   * permission.
    * If there is no match, builds, signs, optionally verifies with CHOMP,
    * persists, and optionally registers a new delegation.
    *
@@ -236,11 +245,14 @@ export class SubscriptionDelegationService {
    * that accepts `'cash-subscription'` intent metadata.
    *
    * @param request - Authoritative pricing and payer details for the delegation.
+   * @param forceNew - Whether to create a replacement instead of reusing a
+   * matching stored delegation.
    * @returns The delegation hash (CHOMP-verified unless skipped) and whether it
    * was created or reused.
    */
   async prepareDelegation(
     request: PrepareSubscriptionDelegationRequest,
+    forceNew = false,
   ): Promise<PreparedSubscriptionDelegation> {
     if (request.product !== PRODUCT_TYPES.MONEY_ACCOUNT_PLUS) {
       throw new Error(
@@ -250,11 +262,17 @@ export class SubscriptionDelegationService {
 
     const skipChomp = Boolean(request.skipChompInteractions);
 
-    const { chainId, delegateAddress, enforcers, price, token } =
-      await this.#resolveConfiguration(
-        request.product,
-        request.recurringInterval,
-      );
+    const {
+      chainId,
+      delegateAddress,
+      paymentAddress,
+      enforcers,
+      price,
+      token,
+    } = await this.#resolveConfiguration(
+      request.product,
+      request.recurringInterval,
+    );
 
     if (request.checkBalance) {
       const { hasSufficientBalance } = await this.#compareMoneyAccountBalance(
@@ -283,22 +301,20 @@ export class SubscriptionDelegationService {
     });
     const isTrialDeferred = startDate > nowSeconds;
 
-    const matches = makeMatchesSubscriptionDelegation({
-      delegatorAddress: request.payerAddress,
-      delegateAddress,
-      chainId,
-      tokenAddress: token.address,
-      periodAmount,
-      periodDuration,
-      nowSeconds,
-      isTrialDeferred,
-      enforcers,
-    });
-
-    const existingDelegations = await this.#messenger.call(
-      'AuthenticatedUserStorageService:listDelegations',
-    );
-    const reusable = existingDelegations.find(matches);
+    const reusable = forceNew
+      ? undefined
+      : await this.#findReusableDelegation({
+          request,
+          chainId,
+          delegateAddress,
+          paymentAddress,
+          tokenAddress: token.address,
+          periodAmount,
+          periodDuration,
+          nowSeconds,
+          isTrialDeferred,
+          enforcers,
+        });
     if (reusable) {
       if (!skipChomp) {
         await this.#ensureIntent({
@@ -319,6 +335,7 @@ export class SubscriptionDelegationService {
     const unsigned = buildUnsignedSubscriptionDelegation({
       delegateAddress,
       delegatorAddress: request.payerAddress,
+      recipientAddress: paymentAddress,
       enforcers,
       tokenAddress: token.address,
       periodAmount,
@@ -402,6 +419,52 @@ export class SubscriptionDelegationService {
     };
   }
 
+  async #findReusableDelegation({
+    request,
+    chainId,
+    delegateAddress,
+    paymentAddress,
+    tokenAddress,
+    periodAmount,
+    periodDuration,
+    nowSeconds,
+    isTrialDeferred,
+    enforcers,
+  }: {
+    request: PrepareSubscriptionDelegationRequest;
+    chainId: Hex;
+    delegateAddress: Hex;
+    paymentAddress: Hex;
+    tokenAddress: Hex;
+    periodAmount: bigint;
+    periodDuration: number;
+    nowSeconds: number;
+    isTrialDeferred: boolean;
+    enforcers: SubscriptionDelegationEnforcers;
+  }): Promise<DelegationResponse | undefined> {
+    const matches = makeMatchesSubscriptionDelegation({
+      delegatorAddress: request.payerAddress,
+      delegateAddress,
+      recipientAddress: paymentAddress,
+      chainId,
+      tokenAddress,
+      periodAmount,
+      periodDuration,
+      nowSeconds,
+      isTrialDeferred,
+      enforcers,
+    });
+
+    const existingDelegations = await this.#messenger.call(
+      'AuthenticatedUserStorageService:listDelegations',
+    );
+
+    return pickLatestMatchingSubscriptionDelegation(
+      existingDelegations.filter(matches),
+      enforcers,
+    );
+  }
+
   async #resolveConfiguration(
     product: ProductType,
     recurringInterval: RecurringInterval,
@@ -443,6 +506,7 @@ export class SubscriptionDelegationService {
     return {
       chainId,
       delegateAddress: chain.delegateAddress,
+      paymentAddress: chain.paymentAddress,
       enforcers,
       price,
       token,

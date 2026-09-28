@@ -60,6 +60,9 @@ export class CeremonyManager {
     for (const [key, ceremony] of map) {
       if (now - ceremony.createdAt > CEREMONY_MAX_AGE_MS) {
         map.delete(key);
+        if (ceremonyType === 'registration') {
+          this.#deleteAuthenticationCeremoniesForRegistration(key);
+        }
       }
     }
   }
@@ -84,6 +87,19 @@ export class CeremonyManager {
         break;
       }
       map.delete(oldestKey);
+      if (ceremonyType === 'registration') {
+        this.#deleteAuthenticationCeremoniesForRegistration(oldestKey);
+      }
+    }
+  }
+
+  #deleteAuthenticationCeremoniesForRegistration(
+    registrationChallenge: string,
+  ): void {
+    for (const [authenticationChallenge, ceremony] of this.#authenticationMap) {
+      if (ceremony.registrationChallenge === registrationChallenge) {
+        this.#authenticationMap.delete(authenticationChallenge);
+      }
     }
   }
 
@@ -150,7 +166,9 @@ export class CeremonyManager {
    * @returns Whether an entry was deleted.
    */
   deleteRegistrationCeremony(challenge: string): boolean {
-    return this.#registrationMap.delete(challenge);
+    const deleted = this.#registrationMap.delete(challenge);
+    this.#deleteAuthenticationCeremoniesForRegistration(challenge);
+    return deleted;
   }
 
   /**

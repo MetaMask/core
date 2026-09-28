@@ -63,7 +63,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
           isAccountSyncingEnabled,
         };
       }
-      return undefined;
+      return;
     });
   };
 

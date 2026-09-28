@@ -24,6 +24,9 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  * one exists (ensuring a CHOMP intent is active for its hash, unless
  * `skipChompInteractions` is true). Reuse classifies period `startDate` as
  * trial-deferred (`> now`) vs immediately redeemable, matching creation.
+ * When several records match, the latest period `startDate` is reused
+ * so a `forceNew` replacement is preferred over an older equivalent
+ * permission.
  * If there is no match, builds, signs, optionally verifies with CHOMP,
  * persists, and optionally registers a new delegation.
  *
@@ -33,6 +36,8 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  * that accepts `'cash-subscription'` intent metadata.
  *
  * @param request - Authoritative pricing and payer details for the delegation.
+ * @param forceNew - Whether to create a replacement instead of reusing a
+ * matching stored delegation.
  * @returns The delegation hash (CHOMP-verified unless skipped) and whether it
  * was created or reused.
  */

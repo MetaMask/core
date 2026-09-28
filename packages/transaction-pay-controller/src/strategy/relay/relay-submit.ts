@@ -398,7 +398,7 @@ async function resolveSettledAmount({
   let settlementHash: Hex | undefined;
 
   if (hasPolledTargetHash) {
-    settlementHash = completion.targetHash as Hex;
+    settlementHash = completion.targetHash;
   } else if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
     settlementHash = submittedSourceHash;
   }
@@ -817,7 +817,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
     maxFeePerGas: relayParams?.maxFeePerGas,
     maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
     to: delegation.to,

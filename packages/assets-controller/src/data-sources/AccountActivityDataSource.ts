@@ -11,7 +11,6 @@ import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
-  AssetMetadata,
   ChainId,
   Caip19AssetId,
   DataRequest,
@@ -39,13 +38,11 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
  *
  * @param updates - Balance updates from account-activity websocket payload.
  * @param accountId - Internal account UUID.
- * @param getAssetType - Resolver for asset metadata type.
  * @returns DataResponse with merge mode when balances are present.
  */
 function processAccountActivityBalanceUpdates(
   updates: BalanceUpdate[],
   accountId: string,
-  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl',
 ): DataResponse {
   const assetsBalance = Object.create(null) as Record<
     string,
@@ -54,10 +51,6 @@ function processAccountActivityBalanceUpdates(
   assetsBalance[accountId] = Object.create(null) as Record<
     Caip19AssetId,
     AssetBalance
-  >;
-  const assetsMetadata = Object.create(null) as Record<
-    Caip19AssetId,
-    AssetMetadata
   >;
 
   for (const update of updates) {
@@ -89,19 +82,11 @@ function processAccountActivityBalanceUpdates(
       amount: humanReadableAmount,
       ...(postBalance.metadata ? { metadata: postBalance.metadata } : {}),
     };
-
-    assetsMetadata[assetId] = {
-      type: getAssetType(assetId),
-      symbol: asset.unit,
-      name: asset.unit,
-      decimals: asset.decimals,
-    };
   }
 
   const response: DataResponse = { updateMode: 'merge' };
   if (Object.keys(assetsBalance[accountId]).length > 0) {
     response.assetsBalance = assetsBalance;
-    response.assetsInfo = assetsMetadata;
   }
 
   return response;
@@ -139,8 +124,6 @@ export type AccountActivityDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
-  /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID. */
-  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   /**
    * Pushes decoded balance updates to the controller (bound to
    * `AssetsController.handleAssetsUpdate`). AADS is event-driven and never
@@ -202,10 +185,6 @@ export class AccountActivityDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
-  readonly #getAssetType: (
-    assetId: Caip19AssetId,
-  ) => 'native' | 'erc20' | 'spl';
-
   readonly #onAssetsUpdate: (
     response: DataResponse,
     request?: DataRequest,
@@ -225,7 +204,6 @@ export class AccountActivityDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
-    this.#getAssetType = options.getAssetType;
     this.#onAssetsUpdate = options.onAssetsUpdate;
     this.#onBalanceUpdatedBound = this.#onBalanceUpdated.bind(this);
 
@@ -291,7 +269,6 @@ export class AccountActivityDataSource extends AbstractDataSource<
       const response = processAccountActivityBalanceUpdates(
         updates,
         account.id,
-        (assetId) => this.#getAssetType(assetId),
       );
 
       if (!response.assetsBalance) {
@@ -301,7 +278,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
       const request: DataRequest = {
         accountsWithSupportedChains: [{ account, supportedChains: [chainId] }],
         chainIds: [chainId],
-        dataTypes: ['balance', 'metadata'],
+        dataTypes: ['balance', 'metadata', 'price'],
       };
 
       Promise.resolve(this.#onAssetsUpdate(response, request)).catch(

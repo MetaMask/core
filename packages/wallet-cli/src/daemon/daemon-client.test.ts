@@ -368,9 +368,7 @@ describe('pingDaemon', () => {
     setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
     // Simulate a non-Error throw; the producer must normalize it.
-    mockReadLine.mockImplementation(async () =>
-      Promise.reject('string-throw' as unknown as Error),
-    );
+    mockReadLine.mockImplementation(async () => Promise.reject('string-throw'));
 
     const result = await pingDaemon('/tmp/test.sock');
     expect(result).toStrictEqual({

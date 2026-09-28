@@ -94,7 +94,7 @@ function makeDelegationResponse(
     signedDelegation: {
       delegate: overrides.delegate ?? MOCK_DELEGATE,
       delegator: overrides.delegator ?? MOCK_ADDRESS,
-      authority: ROOT_AUTHORITY as Hex,
+      authority: ROOT_AUTHORITY,
       caveats: overrides.caveats ?? [
         {
           enforcer: MOCK_REDEEMER_ENFORCER,
@@ -103,7 +103,7 @@ function makeDelegationResponse(
         },
       ],
       salt: `0x${'42'.repeat(32)}`,
-      signature: '0x' as Hex,
+      signature: '0x',
     },
     metadata: {
       delegationHash: `0x${'ab'.repeat(32)}`,
@@ -184,7 +184,7 @@ async function run(
     chainId: MOCK_CHAIN_ID,
     boringVaultAddress: MOCK_BORING_VAULT,
     delegateAddress: MOCK_DELEGATE,
-    delegatorImplAddress: '0x2222222222222222222222222222222222222222' as Hex,
+    delegatorImplAddress: '0x2222222222222222222222222222222222222222',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_MUSD,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,

@@ -75,7 +75,7 @@ function buildTransactionMeta(
       ...(data ? { data } : {}),
     },
     type,
-  } as TransactionMeta;
+  };
 }
 
 describe('getEffectiveRecipient', () => {

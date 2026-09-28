@@ -183,6 +183,10 @@ export const QuoteSchemaV2 = intersection([
        */
       [FeeType.NETWORK]: optional(array(AmountsAndAssetSchema)),
       /**
+       * The native balance that must remain in the source account.
+       */
+      reserve: optional(array(AmountsAndAssetSchema)),
+      /**
        * The relayer or provider fees for the quote,
        */
       [FeeType.RELAYER]: optional(array(AmountsAndAssetSchema)),

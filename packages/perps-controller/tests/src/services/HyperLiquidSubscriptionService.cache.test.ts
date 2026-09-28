@@ -77,6 +77,9 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
     symbol,
     dex: null,
   })),
+  buildHyperLiquidFillId: jest.requireActual(
+    '../../../src/utils/hyperLiquidAdapter',
+  ).buildHyperLiquidFillId,
 }));
 
 // Mock DevLogger
