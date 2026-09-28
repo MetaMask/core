@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `securityData` property to `RwaToken`, populated when `includeTokenSecurityData` is requested ([#10542](https://github.com/MetaMask/core/pull/10542))
+- Add optional `includeTokenSecurityData` property to `FetchRwasParams` ([#10542](https://github.com/MetaMask/core/pull/10542))
+
 ### Changed
 
 - Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
