@@ -44,15 +44,20 @@ module.exports = {
           }
 
           const pkgJson = workspace.manifest.raw
-          const binFolder =
-            extra.env.BERRY_BIN_FOLDER || `node_modules${path.sep}.bin`
+          // Abundance of caution. It seems yarn is not adding
+          // any node_modules/.bin locations to the PATH by default.
+          const binFolder = `node_modules${path.sep}.bin`
+          const berryBin = extra.env.BERRY_BIN_FOLDER
 
           const wrapper = makeRunScriptWrapper(
             {
               scriptName,
               scriptPayload: extra.script,
-              projectRoot: extra.cwd,
+              projectRoot: project.cwd,
               pathBinMatcher: (fragment) => {
+                if (berryBin && fragment === berryBin) {
+                  return true
+                }
                 return fragment.endsWith(binFolder)
               },
               customizePermissionsConfig: addMandatoryReads,
@@ -66,12 +71,14 @@ module.exports = {
               pathDelimiter: path.delimiter,
               tmpdir,
               realpathSync: fs.realpathSync,
+              lstatSync: fs.lstatSync,
+              readlinkSync: fs.readlinkSync,
             }
           )
 
-          // extra.env is a reference to the mutable object, but a different variable
-          // containing that reference is used within execute, so we must amend not
-          // replace it.
+          // extra.env is a reference to the mutable object, but a
+          // different variable containing that reference is used within
+          // execute, so we must amend not replace it.
           const newEnv = wrapper.processEnv(extra.env)
           for (const key of Object.keys(extra.env)) {
             delete extra.env[key]
@@ -96,7 +103,7 @@ function addMandatoryReads(configOptions, _env) {
 }
 
 ;;
-/// <reference path="./makeRunScriptWrapper.global.d.ts" />
+/// <reference path="./make-run-script-wrapper.global.d.ts" />
 
 /**
  * @param {MakeRunScriptWrapperOptions} param0
@@ -112,7 +119,15 @@ function makeRunScriptWrapper(
     customizePermissionsConfig,
     readScriptsConfig,
   },
-  { readFileSync, pathJoin, pathDelimiter, tmpdir, realpathSync }
+  {
+    readFileSync,
+    pathJoin,
+    pathDelimiter,
+    tmpdir,
+    realpathSync,
+    lstatSync,
+    readlinkSync,
+  }
 ) {
   const DEFAULT_PERMISSION_KEY = '#default'
 
@@ -122,10 +137,79 @@ function makeRunScriptWrapper(
   }
 
   /**
+   * Additively composes two configuration objects. Arrays are concatenated, and
+   * nested objects are recursively merged.
+   *
+   * @param {any} parent
+   * @param {any} config
+   */
+  function additiveCompose(parent, config) {
+    const composed = { ...parent, ...config }
+    for (const key of Object.keys(parent)) {
+      if (key in config) {
+        if (Array.isArray(parent[key]) || Array.isArray(config[key])) {
+          composed[key] = [parent[key], config[key]].flat()
+        } else if (typeof config[key] === 'object') {
+          composed[key] = additiveCompose(parent[key], config[key])
+        }
+      }
+    }
+    return composed
+  }
+
+  /**
+   * Reads and processes a config file
+   *
+   * @param {string} filePath - The path to the config file
+   * @param {number} [depth] - The recursion depth for extend
+   * @returns {Record<string, any>} - The processed configuration object
+   */
+  function readScriptConfig(filePath, depth = 0) {
+    const conf = readJsonFile(filePath)
+    if (typeof conf !== 'object' || conf === null || depth > 10) {
+      throw Error(
+        `Failed to load config.${depth > 10 ? ' (maximum extend depth exceeded)' : ''}`
+      )
+    }
+    const { extends: parentPath, ...config } = conf
+    if (!parentPath) {
+      return config
+    }
+    const parent = readScriptConfig(
+      pathJoin(filePath, '..', parentPath),
+      depth + 1
+    )
+
+    return additiveCompose(parent, config)
+  }
+
+  /**
+   * @param {Record<string, string>} configs
+   * @param {string} scriptName
+   * @returns {string | undefined}
+   */
+  function prefixMatch(configs, scriptName) {
+    const keys = Object.keys(configs)
+    const matchingKeys = keys
+      .filter((k) => k.endsWith('*'))
+      .filter((k) => scriptName.startsWith(k.slice(0, -1)))
+
+    if (matchingKeys.length === 0) {
+      return undefined
+    }
+    // longest prefix match wins
+    const bestMatch = matchingKeys.reduce((a, b) =>
+      a.length > b.length ? a : b
+    )
+    return configs[bestMatch]
+  }
+
+  /**
    * @param {object} opts
    * @param {Record<string, string> | undefined} opts.scriptsConfig
    * @param {string} [opts.scriptName]
    * @param {string} opts.projectRoot
+   * @returns {{ config: Record<string, any>; name?: string }}
    */
   function readConfig({
     scriptsConfig,
@@ -133,22 +217,21 @@ function makeRunScriptWrapper(
     projectRoot,
   }) {
     if (!scriptsConfig) {
-      return {}
+      return { config: {} }
     }
     const configName =
-      scriptsConfig[scriptName] || scriptsConfig[DEFAULT_PERMISSION_KEY]
+      scriptsConfig[scriptName] ||
+      prefixMatch(scriptsConfig, scriptName) ||
+      scriptsConfig[DEFAULT_PERMISSION_KEY]
 
     // config needs to be optional, because it's opt-in first and specifying a default turns it opt-out.
     if (!configName) {
-      return {}
+      return { config: {} }
     }
     const configPath = pathJoin(projectRoot, configName)
     let conf
     try {
-      conf = readJsonFile(configPath)
-      if (typeof conf !== 'object' || conf === null) {
-        throw Error(`Expected an object, got ${typeof conf}`)
-      }
+      conf = readScriptConfig(configPath)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       throw Error(
@@ -156,7 +239,10 @@ function makeRunScriptWrapper(
         { cause: err }
       )
     }
-    return conf
+    return {
+      config: conf,
+      name: configName,
+    }
   }
 
   /**
@@ -197,25 +283,46 @@ function makeRunScriptWrapper(
     // 2. tmp write - crossplatform
     if (configOptions['--allow-fs-tmp'] === true) {
       delete configOptions['--allow-fs-tmp']
-      if (configOptions['--allow-fs-write']) {
-        if (typeof configOptions['--allow-fs-write'] === 'string') {
-          configOptions['--allow-fs-write'] = [
-            configOptions['--allow-fs-write'],
-          ]
-        }
-        if (configOptions['--allow-fs-write'] === true) {
-          return // none of this matters
-        }
-      } else {
-        // do this for both undefined and false
-        configOptions['--allow-fs-write'] = []
-      }
       const tmp = tmpdir()
-      configOptions['--allow-fs-write'].push(tmp)
-      // because macos is being weird
-      const tmpRealPath = realpathSync(tmp)
-      if (tmpRealPath !== tmp) {
-        configOptions['--allow-fs-write'].push(tmpRealPath)
+      let tmpRealPath = tmp
+      try {
+        tmpRealPath = realpathSync(tmp)
+      } catch {
+        // if realpathSync fails, it's been restricted by permissions
+        try {
+          const stats = lstatSync(tmp)
+          if (stats.isSymbolicLink()) {
+            tmpRealPath = readlinkSync(tmp)
+          }
+        } catch {
+          // silence the error and continue with no separate tmpRealPath
+        }
+      }
+      // write doesn't grant read, sadly
+      for (const perm of ['write', 'read']) {
+        const allowOption = `--allow-fs-${perm}`
+        if (configOptions[allowOption]) {
+          if (configOptions[allowOption] === true) {
+            continue // all of fs allowed, nothing to add
+          }
+          if (typeof configOptions[allowOption] === 'string') {
+            // need to expand to multiple paths
+            configOptions[allowOption] = [configOptions[allowOption]]
+          }
+          if (!Array.isArray(configOptions[allowOption])) {
+            throw Error(
+              `Unexpected type for ${allowOption}: ${typeof configOptions[allowOption]}`
+            )
+          }
+        } else {
+          // do this for both undefined and false
+          configOptions[allowOption] = []
+        }
+        configOptions[allowOption].push(tmp)
+        // because macos is being weird
+        if (tmpRealPath !== tmp) {
+          configOptions[allowOption].push(tmpRealPath)
+        }
       }
     }
   }
@@ -239,13 +346,29 @@ function makeRunScriptWrapper(
   /**
    * Checks the config obtained from package.json and puts it in as NODE_OPTIONS
    *
-   * @param {string | undefined} existingOptions
    * @param {ConfigOptions} configOptions
    * @param {NodeJS.ProcessEnv} env
    */
-  function installNodeOptions(existingOptions, configOptions, env) {
+  function installNodeOptions(configOptions, env) {
+    const existingOptions = env.NODE_OPTIONS
+    const inLavaMoatEnvAlready = !!env.LAVAMOAT_RUN_CONF
+
     if (!configOptions) {
       return existingOptions || ''
+    }
+    // Calls to run can be nested, so existing NODE_OPTIONS are not to be preserved.
+    // If end user needs to set some options, let them put those in the script config json too.
+    // If this becomes an issue, we could use a separate env var to distinguish between options we set and options that were there already.
+
+    // If we're not nested, but there are existing options, it's safe to warn the user without being annoying.
+    if (
+      !inLavaMoatEnvAlready &&
+      existingOptions &&
+      existingOptions.length > 0
+    ) {
+      console.error(
+        `[LavaMoat] Warning: Replacing existing NODE_OPTIONS. Move them to the relevant JSON file in lavamoat/ if they were intentional.`
+      )
     }
 
     customizePermissionsConfig(configOptions, env)
@@ -254,7 +377,7 @@ function makeRunScriptWrapper(
 
     const confOption = makeFlagsFromConfig(configOptions)
 
-    return `${existingOptions || ''} ${confOption.trim()}`.trim()
+    return confOption.trim()
   }
 
   /**
@@ -332,15 +455,23 @@ function makeRunScriptWrapper(
         filteredFragments.push(fragment)
       }
     }
-    // Why would there be multiple bin fragments? In a npm workspace, local bin and workspace root bin is added
-    filteredFragments.push(...nodeModulesBinFragments)
+    // This should preserve order of items.
+    const uniqueNodeModulesBinFragments = Array.from(
+      new Set(nodeModulesBinFragments)
+    )
+
+    // Why would there even be multiple bin fragments? ecause
+    // npm happily adds entries for hypothetical node_modules/.bin
+    // in all parent dirs
+    filteredFragments.push(...uniqueNodeModulesBinFragments)
+
     return filteredFragments.join(pathDelimiter)
   }
 
   return {
     processEnv: (existingEnv) => {
       const scriptsConfig = readScriptsConfig(projectRoot)
-      const config = readConfig({
+      const { config, name: configName } = readConfig({
         scriptsConfig,
         scriptName,
         projectRoot,
@@ -355,12 +486,9 @@ function makeRunScriptWrapper(
 
       const fixedEnv = {
         ...filterEnv(existingEnv, lavamoatDir),
+        LAVAMOAT_RUN_CONF: configName,
         PATH: envPathOpinions(existingPath),
-        NODE_OPTIONS: installNodeOptions(
-          existingEnv.NODE_OPTIONS,
-          config.nodeOptions,
-          existingEnv
-        ),
+        NODE_OPTIONS: installNodeOptions(config.nodeOptions, existingEnv),
       }
       return fixedEnv
     },
