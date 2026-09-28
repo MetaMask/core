@@ -25,6 +25,13 @@
 /packages/address-book-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
+### advanced-chart-core
+/packages/advanced-chart-core                 @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
+/packages/advanced-chart-core/CHANGELOG.md    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
+/packages/advanced-chart-core/package.json    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
+/packages/advanced-chart-core/tsconfig.*      @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
+/packages/advanced-chart-core/typedoc.json    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps @MetaMask/social-ai
+
 ### ai-controllers
 /packages/ai-controllers                 @MetaMask/social-ai
 /packages/ai-controllers/CHANGELOG.md    @MetaMask/core-platform @MetaMask/social-ai

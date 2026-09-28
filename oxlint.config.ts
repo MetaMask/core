@@ -84,6 +84,11 @@ export default createConfig({
     },
 
     {
+      files: ['packages/advanced-chart-core/**'],
+      env: { browser: true },
+    },
+
+    {
       files: [
         'packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts',
         'packages/foundryup/src/cli.ts',
