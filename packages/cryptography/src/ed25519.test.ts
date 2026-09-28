@@ -1,6 +1,13 @@
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
 
 import { getPublicKey, sign, verify } from './ed25519.js';
+
+const privateKey = hexToBytes(
+  '0xf05665c0091fc75a5a558eddb88acd3ce2a789e15c0e10ceb334849357394ac1',
+);
+const publicKey = hexToBytes(
+  '0x2d0eba7e02a698405c3e3ce6b35acd00def24ffb7c10c2127f58393e2c44f935',
+);
 
 // RFC 8032 Section 6 Ed25519 test vector 3 (2-byte message)
 // https://www.rfc-editor.org/rfc/rfc8032#section-6
@@ -15,6 +22,11 @@ const rfcSignature =
   '0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a';
 
 describe('getPublicKey', () => {
+  it('derives the public key from a provided private key', async () => {
+    const pubKey = await getPublicKey(privateKey);
+    expect(bytesToHex(pubKey)).toBe(bytesToHex(publicKey));
+  });
+
   it('derives the public key from RFC 8032 test vector 3', async () => {
     const pubKey = await getPublicKey(rfcPrivateKey);
     expect(bytesToHex(pubKey)).toBe(bytesToHex(rfcPublicKey));
@@ -44,6 +56,13 @@ describe('getPublicKey', () => {
 });
 
 describe('sign', () => {
+  it('signs the provided data with the private key', async () => {
+    const signature = await sign(privateKey, stringToBytes('foo'));
+    expect(bytesToHex(signature)).toBe(
+      '0x0062c22e7ff3c86a9af932d2641b5c532e6b8d7c05c489467cc875c3b27bebd2463010fc816e65b520e60f40ef192ee79e85a9cea918bd2a41d566ee6aeba50b',
+    );
+  });
+
   it('matches RFC 8032 test vector 3', async () => {
     const signature = await sign(rfcPrivateKey, rfcMessage);
     expect(bytesToHex(signature)).toBe(rfcSignature);
@@ -76,7 +95,15 @@ describe('sign', () => {
 });
 
 describe('verify', () => {
-  it('verifies a valid signature', async () => {
+  it('verifies the provided data, public key and signature', async () => {
+    const signature = hexToBytes(
+      '0x0062c22e7ff3c86a9af932d2641b5c532e6b8d7c05c489467cc875c3b27bebd2463010fc816e65b520e60f40ef192ee79e85a9cea918bd2a41d566ee6aeba50b',
+    );
+    const verified = await verify(publicKey, signature, stringToBytes('foo'));
+    expect(verified).toBe(true);
+  });
+
+  it('verifies the RFC 8032 test vector 3 signature', async () => {
     const valid = await verify(
       rfcPublicKey,
       hexToBytes(rfcSignature),
