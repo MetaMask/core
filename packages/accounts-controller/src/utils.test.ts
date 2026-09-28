@@ -2,6 +2,7 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createMockInternalAccount } from '../tests/mocks.js';
 import {
@@ -233,7 +234,9 @@ describe('utils', () => {
     });
 
     it('returns undefined and log a warning if address cannot be found', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
 
       const badAddress = '0xbad';
       expect(
