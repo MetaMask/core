@@ -6979,11 +6979,6 @@
       "count": 1
     }
   },
-  "packages/user-operation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/user-operation-controller/src/BlockTrackerPollingController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -7046,9 +7041,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 2
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 2
     }
   },
   "packages/user-operation-controller/src/helpers/Bundler.ts": {
@@ -7075,9 +7067,6 @@
     "typescript/explicit-function-return-type": {
       "count": 11
     },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    },
     "typescript/unbound-method": {
       "count": 4
     }
@@ -7095,11 +7084,6 @@
   },
   "packages/user-operation-controller/src/helpers/SnapSmartContractAccount.test.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/utils/gas-fees.test.ts": {
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
