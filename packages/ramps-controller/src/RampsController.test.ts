@@ -3893,9 +3893,7 @@ describe('RampsController', () => {
         topTokens: [],
         allTokens: [],
       }));
-      const getProvidersSpy = jest.fn(
-        async () => ({ providers: [] }) as { providers: Provider[] },
-      );
+      const getProvidersSpy = jest.fn(async () => ({ providers: [] }));
 
       await withController(
         {
@@ -9971,13 +9969,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: 'canonical-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
         );
         rootMessenger.registerActionHandler(
           'NeoBankService:getCustomerByExternalId',
@@ -10014,13 +10011,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: 'canonical-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest
           .fn()
@@ -10078,13 +10074,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: '',
-              canonicalProfileId: '',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: '',
+            canonicalProfileId: '',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest.fn();
         rootMessenger.registerActionHandler(
@@ -10109,13 +10104,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: '',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: '',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest
           .fn()
@@ -10324,6 +10318,7 @@ describe('RampsController', () => {
     type KycHandlers = {
       getSessionStatusForVendor: jest.Mock;
       refreshSessionStatus: jest.Mock;
+      getProviderFlowStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
       clearState: jest.Mock;
@@ -10348,6 +10343,7 @@ describe('RampsController', () => {
        * 404-style error (treated as "no session").
        */
       getSessionRejects: boolean;
+      providerFlowStatus: 'not_started' | 'submitted' | 'abandoned' | 'failed';
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
       /** Canonical id of the currently signed-in profile. */
@@ -10370,6 +10366,7 @@ describe('RampsController', () => {
         session: approvedSession,
         refreshThrows: false,
         getSessionRejects: false,
+        providerFlowStatus: 'not_started',
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
         profileCanonicalId: CANONICAL_PROFILE_ID,
@@ -10392,6 +10389,9 @@ describe('RampsController', () => {
       const handlers: KycHandlers = {
         getSessionStatusForVendor,
         refreshSessionStatus,
+        getProviderFlowStatus: jest
+          .fn()
+          .mockReturnValue(values.providerFlowStatus),
         hasCompletedVendorDisclaimers: jest
           .fn()
           .mockResolvedValue(values.vendorDisclaimersCompleted),
@@ -10418,6 +10418,10 @@ describe('RampsController', () => {
         handlers.refreshSessionStatus as never,
       );
       rootMessenger.registerActionHandler(
+        'KycController:getProviderFlowStatus' as never,
+        handlers.getProviderFlowStatus as never,
+      );
+      rootMessenger.registerActionHandler(
         'KycController:hasCompletedVendorDisclaimers' as never,
         handlers.hasCompletedVendorDisclaimers as never,
       );
@@ -10440,7 +10444,9 @@ describe('RampsController', () => {
     const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
       finalStatus,
-      kycStatus: 'approved',
+      // Relay and vendor decisions agree in these cases; the relay-approved,
+      // vendor-pending divergence is covered by its own test below.
+      kycStatus: finalStatus,
       vendorStatus: finalStatus,
       externalUserId: CANONICAL_PROFILE_ID,
     });
@@ -10449,6 +10455,7 @@ describe('RampsController', () => {
       sessionExists: false,
       vendorDisclaimersComplete: false,
       sessionDisclaimersComplete: false,
+      providerFlowStatus: 'not_started',
       kycStatus: 'none',
       autorampStatus: 'not_ready',
     });
@@ -10459,6 +10466,7 @@ describe('RampsController', () => {
       sessionExists: true,
       vendorDisclaimersComplete: true,
       sessionDisclaimersComplete: true,
+      providerFlowStatus: 'not_started',
       kycStatus: 'pending',
       autorampStatus: 'not_ready',
       ...overrides,
@@ -10490,6 +10498,14 @@ describe('RampsController', () => {
           sessionDisclaimersCompleted: false,
         },
         expected: factsSnapshot({ sessionDisclaimersComplete: false }),
+      },
+      {
+        name: 'an abandoned provider flow without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          providerFlowStatus: 'abandoned',
+        },
+        expected: factsSnapshot({ providerFlowStatus: 'abandoned' }),
       },
       {
         name: 'kycStatus new when KYC has not started',
@@ -10636,6 +10652,52 @@ describe('RampsController', () => {
     it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-1',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Created,
+            }),
+          );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
+      });
+    });
+
+    it('treats a relay-approved session as approved even while the vendor finalizes', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // The relay has approved (`kycStatus: 'approved'`) but the vendor is
+        // still finalizing (`finalStatus: 'pending'`). Activation must proceed
+        // rather than stranding the user on a pending screen.
+        registerKycHandlers(rootMessenger, {
+          session: {
+            ...approvedSession,
+            finalStatus: 'pending',
+            vendorStatus: 'new',
+          },
+        });
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'registered',
           registration: {

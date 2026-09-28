@@ -332,10 +332,7 @@ export class BackupAndSyncService {
             ]);
 
             // 2.1 Decide if we need to perform legacy account syncing
-            if (
-              !walletFromUserStorage ||
-              !walletFromUserStorage.isLegacyAccountSyncingDisabled
-            ) {
+            if (!walletFromUserStorage?.isLegacyAccountSyncingDisabled) {
               // 2.2 Perform legacy account syncing
               // This will migrate legacy account data to the new structure.
               // This operation will only be performed once.

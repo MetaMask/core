@@ -62,13 +62,16 @@ function mockAccountsSupportedNetworks(): nock.Scope {
  * Intercept `GET {ACCOUNTS}/v5/multiaccount/balances` with the wallet's
  * captured 38 holdings.
  *
+ * @param omitAssetIds - Asset IDs (any casing) to drop from the captured
+ * balances, simulating a token the Accounts API does not index.
  * @returns The nock scope and the account IDs each request asked about.
  */
-function mockV5MultiAccountBalances(): {
+function mockV5MultiAccountBalances(omitAssetIds: string[] = []): {
   scope: nock.Scope;
   requestedAccountIds: string[][];
 } {
   const requestedAccountIds: string[][] = [];
+  const omitted = new Set(omitAssetIds.map((assetId) => assetId.toLowerCase()));
 
   const scope = nock(API_URLS.ACCOUNTS)
     .persist()
@@ -78,10 +81,37 @@ function mockV5MultiAccountBalances(): {
       requestedAccountIds.push(
         readListParam(uri, 'accountIds', API_URLS.ACCOUNTS),
       );
-      return v5MultiAccountBalances;
+      const balances = v5MultiAccountBalances.balances.filter(
+        (entry) => !omitted.has(entry.assetId.toLowerCase()),
+      );
+      return { ...v5MultiAccountBalances, count: balances.length, balances };
     });
 
   return { scope, requestedAccountIds };
+}
+
+/**
+ * Intercept `GET {ACCOUNTS}/v6/multiaccount/balances` with the wallet's
+ * captured token balances.
+ *
+ * @param omitAssetIds - Asset IDs (any casing) to drop from the captured
+ * balances.
+ * @returns The nock scope.
+ */
+function mockV6MultiAccountBalances(omitAssetIds: string[] = []): nock.Scope {
+  const omitted = new Set(omitAssetIds.map((assetId) => assetId.toLowerCase()));
+
+  return nock(API_URLS.ACCOUNTS)
+    .persist()
+    .get('/v6/multiaccount/balances')
+    .query(true)
+    .reply(200, {
+      balances: v5MultiAccountBalances.balances.filter(
+        (entry) => !omitted.has(entry.assetId.toLowerCase()),
+      ),
+      unprocessedNetworks: [],
+      unprocessedIncludeAssetIds: [],
+    });
 }
 
 /**
@@ -190,9 +220,16 @@ function mockV3SpotPrices(): BatchRecordingMock {
  * All interceptors persist, so batch composition and cache misses cannot make a
  * test fail for want of an interceptor.
  *
+ * @param options - Options for shaping the intercepted responses.
+ * @param options.omitBalanceAssetIds - Asset IDs (any casing) to drop from
+ * the captured balances, simulating tokens the Accounts API does not index.
  * @returns The recording mocks, and other utils
  */
-export function mockBscSpamApis(): {
+export function mockBscSpamApis({
+  omitBalanceAssetIds = [],
+}: {
+  omitBalanceAssetIds?: string[];
+} = {}): {
   accountsSupportedNetworks: nock.Scope;
   balances: { requestedAccountIds: string[][] };
   assets: BatchRecordingMock;
@@ -204,7 +241,8 @@ export function mockBscSpamApis(): {
   mockPricesSupportedNetworks();
   mockChainIdNetwork();
 
-  const balances = mockV5MultiAccountBalances();
+  const balances = mockV5MultiAccountBalances(omitBalanceAssetIds);
+  mockV6MultiAccountBalances(omitBalanceAssetIds);
   const assets = mockV3Assets();
   const prices = mockV3SpotPrices();
 

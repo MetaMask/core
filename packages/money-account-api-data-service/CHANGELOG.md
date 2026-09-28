@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Added
+
+- Add optional `fresh` option to `fetchPositions` that cancels in-flight reads, fetches with a zero stale time, invalidates the result for subsequent reads, and sends `Cache-Control: no-cache` so the Money API skips its Nest response cache when supported ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Accept optional additive `musd_balance_updated_at` on the positions `balance` summary ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Accept vault metadata on each position returned by `fetchPositions`: `chain_id`, `vault_key`, `name`, `asset_symbol`, and `asset_decimals` ([#10500](https://github.com/MetaMask/core/pull/10500))
+- Accept multi-asset balance fields `by_asset` and `total_balance_usd` on the positions `balance` summary, and export `AssetBalance` ([#10500](https://github.com/MetaMask/core/pull/10500))
+
 ### Changed
 
+- **BREAKING:** `effective_apy` on a vault position is now `string | null`. `null` means the position has been invested for fewer than 28 days, and is distinct from a rate of zero ([#10500](https://github.com/MetaMask/core/pull/10500))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 
 ## [1.0.0]
 
@@ -64,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...@metamask/money-account-api-data-service@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.0...@metamask/money-account-api-data-service@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.3.0...@metamask/money-account-api-data-service@0.4.0

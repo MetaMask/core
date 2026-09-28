@@ -9,6 +9,10 @@ import type { MoneyAccountApiDataService } from './money-account-api-data-servic
  * Fetches the current vault positions for a given user address.
  *
  * @param address - The user's Ethereum address.
+ * @param options - Optional fetch options.
+ * @param options.fresh - When true, cancels in-flight reads, fetches with a
+ * zero stale time, invalidates the result for subsequent reads, and asks the
+ * Money API to skip its Nest response cache with `Cache-Control: no-cache`.
  * @returns The position response containing vault positions and an optional
  * `balance` summary (`null` when the API balance path is unavailable).
  */

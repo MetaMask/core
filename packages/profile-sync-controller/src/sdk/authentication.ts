@@ -4,14 +4,14 @@ import type { Eip1193Provider } from 'ethers';
 import type { Env } from '../shared/env.js';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
-import type { MfaStepUpAssertion } from './authentication-jwt-bearer/mfa/services.js';
+import type { MfaVerificationAssertion } from './authentication-jwt-bearer/mfa/services.js';
 import type {
   EnrolledCredential,
   EnrollmentChallenge,
   EnrollmentProof,
   MfaCredentialType,
-  StepUpChallenge,
-  StepUpProof,
+  VerificationChallenge,
+  VerificationProof,
 } from './authentication-jwt-bearer/mfa/types.js';
 import {
   getNonce,
@@ -137,16 +137,16 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   async beginMfaVerification(
     type: MfaCredentialType,
     entropySourceId?: string,
-  ): Promise<StepUpChallenge> {
+  ): Promise<VerificationChallenge> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.beginMfaVerification(type, entropySourceId);
   }
 
   async completeMfaVerification(
     flowId: string,
-    proof: StepUpProof,
+    proof: VerificationProof,
     entropySourceId?: string,
-  ): Promise<MfaStepUpAssertion> {
+  ): Promise<MfaVerificationAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaVerification(
       flowId,

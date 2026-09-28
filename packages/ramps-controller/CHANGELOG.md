@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Treat a relay-approved KYC session as approved in `hydrateVbaOnboarding` even when the vendor-side `finalStatus` is still `pending`, so relay-approved users are no longer stranded on the pending screen ([#10497](https://github.com/MetaMask/core/pull/10497))
+
+## [26.0.0]
+
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^32.3.1` ([#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
+- **BREAKING:** Add `providerFlowStatus` to `VbaOnboardingSnapshot` and require the `KycController:getProviderFlowStatus` messenger action ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^33.0.0` ([#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
 
 ## [25.1.0]
 
@@ -652,7 +665,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...@metamask/ramps-controller@26.0.0
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.0...@metamask/ramps-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.0.0...@metamask/ramps-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...@metamask/ramps-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...@metamask/ramps-controller@24.0.0

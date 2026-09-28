@@ -61,49 +61,52 @@ export type AuthenticationControllerCompleteCredentialEnrollmentAction = {
 };
 
 /**
- * Begins step-up verification with an enrolled credential.
+ * Begins verification with an enrolled credential.
  *
  * @param request - Credential type and trace reason.
  * @returns A challenge for the client-owned ceremony.
  */
-export type AuthenticationControllerBeginStepUpAction = {
-  type: `AuthenticationController:beginStepUp`;
-  handler: AuthenticationController['beginStepUp'];
+export type AuthenticationControllerBeginCredentialVerificationAction = {
+  type: `AuthenticationController:beginCredentialVerification`;
+  handler: AuthenticationController['beginCredentialVerification'];
 };
 
 /**
- * Completes step-up verification and opens a short-lived elevated session.
+ * Completes verification and opens a short-lived verification session.
  *
- * The AAL2 assertion returned by the MFA service is exchanged at Hydra for
- * an elevated access token, whose claims are checked before the session
- * opens. The token itself never enters controller state.
+ * The assertion returned by the MFA service is exchanged at Hydra for an
+ * access token. Its assurance level is not checked: the services receiving
+ * the token enforce their own requirements. The token itself never enters
+ * controller state.
  *
  * @param request - Flow identifier, platform or email proof, and trace reason.
- * @returns The elevated profile access token.
+ * @returns The verification token.
  */
-export type AuthenticationControllerCompleteStepUpAction = {
-  type: `AuthenticationController:completeStepUp`;
-  handler: AuthenticationController['completeStepUp'];
+export type AuthenticationControllerCompleteCredentialVerificationAction = {
+  type: `AuthenticationController:completeCredentialVerification`;
+  handler: AuthenticationController['completeCredentialVerification'];
 };
 
 /**
- * Returns the active elevated token when it meets the requested freshness.
+ * Returns the active verification token when it meets the requested
+ * freshness.
  *
  * @param request - Optional maximum session age in milliseconds, measured
  * from when the token was obtained. Zero always requires a new ceremony.
- * @returns A live elevated token, or null when no reusable session exists.
+ * @returns A live verification token, or null when no reusable session
+ * exists.
  */
-export type AuthenticationControllerGetElevatedProfileTokenAction = {
-  type: `AuthenticationController:getElevatedProfileToken`;
-  handler: AuthenticationController['getElevatedProfileToken'];
+export type AuthenticationControllerGetVerificationTokenAction = {
+  type: `AuthenticationController:getVerificationToken`;
+  handler: AuthenticationController['getVerificationToken'];
 };
 
 /**
- * Clears the in-memory elevated session and its expiration timer.
+ * Clears every in-memory verification session and its expiration timer.
  */
-export type AuthenticationControllerClearStepUpSessionAction = {
-  type: `AuthenticationController:clearStepUpSession`;
-  handler: AuthenticationController['clearStepUpSession'];
+export type AuthenticationControllerClearVerificationSessionAction = {
+  type: `AuthenticationController:clearVerificationSession`;
+  handler: AuthenticationController['clearVerificationSession'];
 };
 
 export type AuthenticationControllerPerformSignOutAction = {
@@ -228,10 +231,10 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerRefreshEnrolledCredentialsAction
   | AuthenticationControllerBeginCredentialEnrollmentAction
   | AuthenticationControllerCompleteCredentialEnrollmentAction
-  | AuthenticationControllerBeginStepUpAction
-  | AuthenticationControllerCompleteStepUpAction
-  | AuthenticationControllerGetElevatedProfileTokenAction
-  | AuthenticationControllerClearStepUpSessionAction
+  | AuthenticationControllerBeginCredentialVerificationAction
+  | AuthenticationControllerCompleteCredentialVerificationAction
+  | AuthenticationControllerGetVerificationTokenAction
+  | AuthenticationControllerClearVerificationSessionAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerClearStateAction
   | AuthenticationControllerGetBearerTokenAction

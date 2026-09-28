@@ -32,7 +32,7 @@ export function initialize(options: InitializeOptions): DefaultInstances {
   const configurationEntries = initializationConfigurations.concat(
     Object.values(defaultConfigurations).filter(
       (config) => !overriddenConfiguration.includes(config.name),
-    ) as InitializationConfiguration<unknown, unknown>[],
+    ),
   );
 
   const instances: Record<string, unknown> = {};

@@ -1945,7 +1945,7 @@ export class PerpsController extends BaseController<
     return this.messenger.call(
       'TransactionController:addTransaction',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      txParams as any,
+      txParams,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { ...(options as any), isInternal: true },
     );
@@ -2380,7 +2380,7 @@ export class PerpsController extends BaseController<
       )
         .then(({ LighterProvider }) => {
           this.registerLighterProvider(LighterProvider);
-          return undefined;
+          return;
         })
         .catch((error: unknown) => this.handleLighterImportError(error));
     }
@@ -2483,9 +2483,7 @@ export class PerpsController extends BaseController<
       // version whose venue has since been removed. `activeProvider` is
       // persisted, so throwing here would fail initialization on every
       // launch — the stale value must self-heal.
-      const directProvider = this.providers.get(
-        activeProvider as PerpsProviderType,
-      );
+      const directProvider = this.providers.get(activeProvider);
       if (directProvider) {
         this.activeProviderInstance = directProvider;
       } else {
@@ -2543,7 +2541,7 @@ export class PerpsController extends BaseController<
    * @returns The current controller state cast to PerpsControllerState.
    */
   #getControllerState(): PerpsControllerState {
-    return this.state as unknown as PerpsControllerState;
+    return this.state;
   }
 
   /**
@@ -2621,7 +2619,7 @@ export class PerpsController extends BaseController<
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
       ...additionalContext,
-    } as ServiceContext;
+    };
   }
 
   /**
@@ -3389,7 +3387,7 @@ export class PerpsController extends BaseController<
                 if (requestToUpdate) {
                   // For deposits, we have a txHash immediately, so mark as completed
                   // (the transaction hash means the deposit was successful)
-                  requestToUpdate.status = 'completed' as TransactionStatus;
+                  requestToUpdate.status = 'completed';
                   requestToUpdate.success = true;
                   requestToUpdate.txHash = actualTxHash;
                 }
@@ -3404,7 +3402,7 @@ export class PerpsController extends BaseController<
               });
             }, 100);
 
-            return undefined;
+            return;
           })
           .catch((error) => {
             // Check if user denied/cancelled the transaction
@@ -3454,7 +3452,7 @@ export class PerpsController extends BaseController<
                     (req) => req.id === currentDepositId,
                   );
                   if (requestToUpdate) {
-                    requestToUpdate.status = 'failed' as TransactionStatus;
+                    requestToUpdate.status = 'failed';
                     requestToUpdate.success = false;
                   }
                 }
@@ -3470,12 +3468,12 @@ export class PerpsController extends BaseController<
                 (req) => req.id === currentDepositId,
               );
               if (requestToUpdate) {
-                requestToUpdate.status = 'completed' as TransactionStatus;
+                requestToUpdate.status = 'completed';
                 requestToUpdate.success = true;
                 requestToUpdate.txHash = actualTxHash;
               }
             });
-            return undefined;
+            return;
           })
           .catch((error) => {
             const errorMessage = ensureError(
@@ -3528,7 +3526,7 @@ export class PerpsController extends BaseController<
               (req) => req.id === currentDepositId,
             );
             if (request) {
-              request.status = 'failed' as TransactionStatus;
+              request.status = 'failed';
               request.success = false;
             }
           }
@@ -6495,7 +6493,7 @@ export class PerpsController extends BaseController<
 
       // Handle other simple legacy strings (e.g., 'volume', 'openInterest', etc.)
       return {
-        optionId: pref as SortOptionId,
+        optionId: pref,
         direction: MARKET_SORTING_CONFIG.DefaultDirection,
       };
     }

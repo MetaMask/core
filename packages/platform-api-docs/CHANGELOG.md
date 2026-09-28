@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `execa` from `^5.0.0` to `^5.1.1` ([#10330](https://github.com/MetaMask/core/pull/10330))
+- Bump `execa` from `^5.0.0` to `^10.0.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332))
+- Bump `yargs` from `^17.7.2` to `^17.7.3` ([#10446](https://github.com/MetaMask/core/pull/10446))
+- Bump `@docusaurus/core` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/plugin-content-docs` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/preset-classic` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/theme-common` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/types` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 
 ## [0.2.1]
 

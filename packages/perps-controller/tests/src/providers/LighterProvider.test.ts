@@ -9474,7 +9474,7 @@ describe('LighterProvider', () => {
               array.fill(next);
               return array;
             }
-            return realRandom(array as never) as TView;
+            return realRandom(array as never);
           },
         );
       try {
