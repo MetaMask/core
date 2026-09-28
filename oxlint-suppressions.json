@@ -2071,7 +2071,7 @@
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 15
+      "count": 11
     },
     "typescript/no-unsafe-return": {
       "count": 4
@@ -2114,12 +2114,6 @@
   "packages/bridge-status-controller/src/bridge-status-controller.intent.ts": {
     "jsdoc/require-param": {
       "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
@@ -2127,16 +2121,16 @@
       "count": 3
     },
     "typescript/no-unsafe-assignment": {
-      "count": 49
+      "count": 12
     },
     "typescript/no-unsafe-call": {
       "count": 5
     },
     "typescript/no-unsafe-member-access": {
-      "count": 82
+      "count": 13
     },
     "typescript/no-unsafe-return": {
-      "count": 8
+      "count": 7
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -2144,21 +2138,6 @@
       "count": 1
     },
     "jsdoc/require-returns": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 7
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 11
-    },
-    "typescript/no-unsafe-call": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 6
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -2200,38 +2179,10 @@
   "packages/bridge-status-controller/src/quote-status-manager/quotes-status-manager.ts": {
     "no-useless-return": {
       "count": 2
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 5
     }
   },
   "packages/bridge-status-controller/src/quote-status-manager/utils.ts": {
     "jsdoc/require-returns": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/strategy/evm-strategy.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 3
-    }
-  },
-  "packages/bridge-status-controller/src/strategy/intent-strategy.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -2240,33 +2191,12 @@
       "count": 2
     }
   },
-  "packages/bridge-status-controller/src/utils/accounts.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/utils/authentication.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/bridge-status.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/src/utils/bridge.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/bridge-status-controller/src/utils/intent-api.test.ts": {
@@ -2283,25 +2213,9 @@
       "count": 8
     }
   },
-  "packages/bridge-status-controller/src/utils/keyring.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/metrics.test.ts": {
     "no-unused-vars": {
       "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/utils/network.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
@@ -2326,21 +2240,6 @@
   "packages/bridge-status-controller/src/utils/transaction.ts": {
     "no-useless-return": {
       "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 14
-    },
-    "typescript/no-unsafe-call": {
-      "count": 5
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 15
-    },
-    "typescript/no-unsafe-return": {
-      "count": 9
     }
   },
   "packages/build-utils/jest.config.cjs": {
