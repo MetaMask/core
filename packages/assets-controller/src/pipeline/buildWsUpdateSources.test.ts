@@ -21,6 +21,7 @@ function buildSources(): WsUpdateSources {
     customAssetGraduationMiddleware: stubSource(
       'CustomAssetGraduationMiddleware',
     ),
+    rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
     detectionMiddleware: stubSource('DetectionMiddleware'),
     tokenDataSource: stubTokenSource('TokenDataSource'),
     priceDataSource: stubSource('PriceDataSource'),
@@ -30,8 +31,8 @@ function buildSources(): WsUpdateSources {
 describe('buildWsUpdateSources', () => {
   it.each([
     {
-      title:
-        'orders the lane graduation → occurrence filter → detection → enrichment',
+      title: 'v5 lane: graduation → occurrence filter → detection → enrichment',
+      includeCustomAssetGraduation: true,
       isBasicFunctionality: true,
       expected: [
         'CustomAssetGraduationMiddleware',
@@ -41,18 +42,41 @@ describe('buildWsUpdateSources', () => {
       ],
     },
     {
-      title: 'runs only the graduation and detection',
+      title: 'v5 lane: runs only the graduation and detection',
+      includeCustomAssetGraduation: true,
       isBasicFunctionality: false,
       // No network-backed source may run when the user has opted out.
       expected: ['CustomAssetGraduationMiddleware', 'DetectionMiddleware'],
     },
-  ])('$title', ({ isBasicFunctionality, expected }) => {
-    const sources = buildWsUpdateSources(buildSources(), {
-      isBasicFunctionality,
-    });
+    {
+      title:
+        'v6 lane: occurrence filter → RPC fallback → detection → enrichment',
+      includeCustomAssetGraduation: false,
+      isBasicFunctionality: true,
+      expected: [
+        'OccurrenceFloorFilter',
+        'RpcFallbackMiddleware',
+        'DetectionMiddleware',
+        'ParallelMiddleware',
+      ],
+    },
+    {
+      title: 'v6 lane: runs only the detection',
+      includeCustomAssetGraduation: false,
+      isBasicFunctionality: false,
+      expected: ['DetectionMiddleware'],
+    },
+  ])(
+    '$title',
+    ({ includeCustomAssetGraduation, isBasicFunctionality, expected }) => {
+      const sources = buildWsUpdateSources(buildSources(), {
+        isBasicFunctionality,
+        includeCustomAssetGraduation,
+      });
 
-    expect(sources.map((source) => source.getName())).toStrictEqual(expected);
-  });
+      expect(sources.map((source) => source.getName())).toStrictEqual(expected);
+    },
+  );
 
   it('derives the occurrence filter from the token data source', () => {
     const tokenDataSource = stubTokenSource('TokenDataSource');
@@ -61,7 +85,7 @@ describe('buildWsUpdateSources', () => {
 
     const sources = buildWsUpdateSources(
       { ...buildSources(), tokenDataSource },
-      { isBasicFunctionality: true },
+      { isBasicFunctionality: true, includeCustomAssetGraduation: true },
     );
 
     const occurrenceFloorFilter = sources.find(

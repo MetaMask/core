@@ -4226,6 +4226,7 @@ export class AssetsController extends BaseController<
       fn: async (parentContext) => {
         const updateStart = performance.now();
         const pipelineRequest = this.#getUpdatePipelineRequest(request);
+        const isBasicFunctionality = this.#isBasicFunctionality();
         const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
         const enrichmentSources: AssetsDataSource[] =
           sourceId === 'AccountActivityDataSource'
@@ -4233,11 +4234,12 @@ export class AssetsController extends BaseController<
                 {
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
+                  rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
                   detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
-                { isBasicFunctionality: this.#isBasicFunctionality() },
+                { isBasicFunctionality, includeCustomAssetGraduation: true },
               )
             : [
                 ...(shouldRunRpcFallback
@@ -4247,7 +4249,7 @@ export class AssetsController extends BaseController<
                     ]
                   : []),
                 this.#detectionMiddleware,
-                ...(this.#isBasicFunctionality()
+                ...(isBasicFunctionality
                   ? [
                       createParallelMiddleware([
                         this.#tokenDataSource,
@@ -4296,32 +4298,32 @@ export class AssetsController extends BaseController<
       fn: async (parentContext) => {
         const updateStart = performance.now();
         const pipelineRequest = this.#getUpdatePipelineRequest(request);
-        const shouldFilterOccurrences =
-          sourceId === 'AccountActivityDataSource' &&
-          this.#isBasicFunctionality();
-        const enrichmentSources: AssetsDataSource[] = [
-          ...(shouldFilterOccurrences
-            ? [
+        const isBasicFunctionality = this.#isBasicFunctionality();
+        const enrichmentSources: AssetsDataSource[] =
+          sourceId === 'AccountActivityDataSource'
+            ? buildWsUpdateSources(
                 {
-                  getName: () => 'OccurrenceFloorFilter',
-                  assetsMiddleware:
-                    this.#tokenDataSource.occurrenceFilterMiddleware,
+                  customAssetGraduationMiddleware:
+                    this.#customAssetGraduationMiddleware,
+                  rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+                  detectionMiddleware: this.#detectionMiddleware,
+                  tokenDataSource: this.#tokenDataSource,
+                  priceDataSource: this.#priceDataSource,
                 },
-              ]
-            : []),
-        ];
-        if (this.#isBasicFunctionality()) {
-          enrichmentSources.push(this.#rpcFallbackMiddleware);
-        }
-        enrichmentSources.push(this.#detectionMiddleware);
-        if (this.#isBasicFunctionality()) {
-          enrichmentSources.push(
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          );
-        }
+                { isBasicFunctionality, includeCustomAssetGraduation: false },
+              )
+            : [
+                ...(isBasicFunctionality ? [this.#rpcFallbackMiddleware] : []),
+                this.#detectionMiddleware,
+                ...(isBasicFunctionality
+                  ? [
+                      createParallelMiddleware([
+                        this.#tokenDataSource,
+                        this.#priceDataSource,
+                      ]),
+                    ]
+                  : []),
+              ];
 
         const { response: enrichedResponse } = await this.#executeMiddlewares({
           sources: enrichmentSources,

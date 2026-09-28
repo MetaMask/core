@@ -35,6 +35,7 @@ import type {
   AccountId,
   AssetsControllerState,
   Caip19AssetId,
+  Context,
   DataRequest,
   DataResponse,
 } from '../types.js';
@@ -51,20 +52,25 @@ import { executeAssetsPipeline } from './executeAssetsPipeline.js';
  * @param options - The pass inputs.
  * @param options.state - The state the pass sees.
  * @param options.event - The websocket event to deliver.
+ * @param options.lane - The update lane to compose (`v5` by default, `v6`
+ * runs the RPC fallback instead of graduation).
  * @returns The enriched response, the request the detection middleware
  * mutated, and the asset IDs the Token and Price APIs were asked about.
  */
 async function runWsUpdatePass({
   state,
   event,
+  lane = 'v5',
 }: {
   state: ReturnType<typeof buildEmptyAssetsState>;
   event: ReturnType<typeof buildEthBalanceUpdatedEvent>;
+  lane?: 'v5' | 'v6';
 }): Promise<{
   response: DataResponse;
   request: DataRequest;
   priceBatches: string[][];
   assetBatches: string[][];
+  rpcFallbackRequests: DataRequest[];
 }> {
   cleanAll();
   const { assets, prices } = mockWsApis();
@@ -77,6 +83,7 @@ async function runWsUpdatePass({
   });
 
   const queryApiClient = createTestApiClient();
+  const rpcFallbackRequests: DataRequest[] = [];
 
   const tokenDataSource = new TokenDataSource(assetsControllerMessenger, {
     queryApiClient,
@@ -105,13 +112,26 @@ async function runWsUpdatePass({
         },
         getAssetsState: (): AssetsControllerState => state,
       }),
+      rpcFallbackMiddleware: {
+        getName: (): string => 'RpcFallbackMiddleware',
+        assetsMiddleware: async (
+          ctx: Context,
+          next: (context: Context) => Promise<Context>,
+        ): Promise<Context> => {
+          rpcFallbackRequests.push(ctx.request);
+          return next(ctx);
+        },
+      },
       detectionMiddleware: new DetectionMiddleware({
         getAssetsState: (): AssetsControllerState => state,
       }),
       tokenDataSource,
       priceDataSource,
     },
-    { isBasicFunctionality: true },
+    {
+      isBasicFunctionality: true,
+      includeCustomAssetGraduation: lane === 'v5',
+    },
   );
 
   let captured: { response: DataResponse; request: DataRequest } | undefined;
@@ -147,6 +167,7 @@ async function runWsUpdatePass({
     request: captured.request,
     priceBatches: prices.requestedBatches,
     assetBatches: assets.requestedBatches,
+    rpcFallbackRequests,
   };
 }
 
@@ -264,6 +285,54 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       // detection, and metadata enrichment covers the native asset every pass.
       expect(askedAbout(result.assetBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
+      );
+    });
+  });
+
+  describe('v6 lane: the same websocket event through the v6 composition', () => {
+    let result: Awaited<ReturnType<typeof runWsUpdatePass>>;
+
+    beforeAll(async () => {
+      result = await runWsUpdatePass({
+        state: buildEmptyAssetsState(),
+        event: {
+          address: '0x742d35cc6634c0532925a3b844bc454e4438f44e',
+          chain: 'eip155:1',
+          updates: [
+            ...buildEthBalanceUpdatedEvent().updates,
+            ...buildUsdcBalanceUpdatedEvent().updates,
+          ],
+        },
+        lane: 'v6',
+      });
+    });
+
+    it('enriches and prices both surfaced holdings like the v5 lane', () => {
+      expect(askedAbout(result.assetBatches)).toStrictEqual(
+        new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
+      );
+      expect(askedAbout(result.priceBatches)).toStrictEqual(
+        new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
+      );
+
+      const ethPrice = getIgnoringCase(
+        result.response.assetsPrice ?? {},
+        ETH_ASSET_ID,
+      ) as { price: number };
+      const usdcPrice = getIgnoringCase(
+        result.response.assetsPrice ?? {},
+        USDC_ASSET_ID_LOWERCASE,
+      ) as { price: number };
+      expect(ethPrice.price).toBeGreaterThan(0);
+      expect(usdcPrice.price).toBeGreaterThan(0.9);
+    });
+
+    it('runs the RPC fallback once on the balance pass', () => {
+      // The v6 lane replaces graduation with an RPC fallback ahead of
+      // detection; a response without errors leaves it a passthrough.
+      expect(result.rpcFallbackRequests).toHaveLength(1);
+      expect(result.rpcFallbackRequests[0]?.dataTypes).toStrictEqual(
+        expect.arrayContaining(['balance']),
       );
     });
   });
