@@ -16,6 +16,7 @@ export type {
 export type {
   PositionResponse,
   PositionBalance,
+  AssetBalance,
   InterestResponse,
   HistoryResponse,
   RateHistoryResponse,
