@@ -106,7 +106,14 @@ export default defineConfig({
       // @sinonjs/fake-timers would otherwise fake everything it can - including
       // the two we need left alone. Stating the inclusive list here once keeps
       // the behaviour identical without repeating it at every call site.
+      //
+      // This is everything @sinonjs/fake-timers can fake except `nextTick` and
+      // `queueMicrotask`. `Intl` matters: Jest was faking it, so leaving it out
+      // would quietly stop `Intl.DateTimeFormat` following mocked time. The
+      // browser-only entries are absent from the Node global and are ignored
+      // there, but do apply under the jsdom environment.
       toFake: [
+        'Intl',
         'setTimeout',
         'clearTimeout',
         'setImmediate',
