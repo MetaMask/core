@@ -101,7 +101,7 @@ const approve = async (args: SubmitStrategyParams) => {
   } = args;
   const { approval, resetApproval } = quoteResponse;
   if (!approval || !isEvmTxData(approval)) {
-    return undefined;
+    return;
   }
 
   const transactionType = isBridgeTx

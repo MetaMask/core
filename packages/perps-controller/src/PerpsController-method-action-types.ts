@@ -907,10 +907,17 @@ export type PerpsControllerCalculateFeesAction = {
 
 /**
  * Approve the dedicated subscription builder outside order submission.
- * Until this succeeds, subscription waivers fall back to the ordinary
- * builder at the standard fee.
  *
- * @returns Whether the subscription builder is approved.
+ * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+ * marking on the standard builder, so there is nothing left to approve. Kept
+ * as a no-op so clients still calling it keep building while they migrate;
+ * remove it once cloid marking is verified in shadow mode.
+ *
+ * Resolves `true`, not `false`. The method answers "is the subscription
+ * builder ready?", and the honest answer is now "nothing needs approving" —
+ * a `false` would read as a setup failure to a caller that branches on it and
+ * could block a waiver that is already fully in effect.
+ * @returns Always `true`; no approval is required.
  */
 export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
   type: `PerpsController:approveSubscriptionBuilderFee`;
@@ -1265,6 +1272,30 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
+ * Get the saved margin mode (Isolated/Cross) for a market on the current
+ * network. Clients should still let a venue-enforced mode take priority.
+ *
+ * @param symbol - Market symbol
+ * @returns The saved margin mode or undefined if not set
+ */
+export type PerpsControllerGetMarginModeAction = {
+  type: `PerpsController:getMarginMode`;
+  handler: PerpsController['getMarginMode'];
+};
+
+/**
+ * Save the margin mode (Isolated/Cross) picked for a market on the current
+ * network. Values other than `isolated` or `cross` are ignored.
+ *
+ * @param symbol - Market symbol
+ * @param marginMode - Margin mode to persist
+ */
+export type PerpsControllerSaveMarginModeAction = {
+  type: `PerpsController:saveMarginMode`;
+  handler: PerpsController['saveMarginMode'];
+};
+
+/**
  * Toggle watchlist status for a market.
  *
  * Updates local state immediately (optimistic UI) and then syncs the new
@@ -1456,6 +1487,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
   | PerpsControllerSaveOrderBookGroupingAction
+  | PerpsControllerGetMarginModeAction
+  | PerpsControllerSaveMarginModeAction
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction

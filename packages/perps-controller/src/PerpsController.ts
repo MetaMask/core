@@ -105,6 +105,7 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  MarginMode,
   MarginResult,
   MarketInfo,
   Order,
@@ -420,6 +421,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number; // Last used leverage for this market
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -438,6 +440,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number;
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -925,6 +928,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMarketDataWithPrices',
   'getMarketFilterPreferences',
   'getMarkets',
+  'getMarginMode',
   'getMaxLeverage',
   'getOpenOrders',
   'getOrderBookGrouping',
@@ -967,6 +971,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setProLayoutPreferences',
   'setPerpsMode',
   'setSelectedOrderType',
+  'saveMarginMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
@@ -1275,6 +1280,39 @@ export class PerpsController extends BaseController<
     this.messenger.subscribe(
       'RemoteFeatureFlagController:stateChange',
       this.refreshEligibilityOnFeatureFlagChange.bind(this),
+    );
+
+    // Also subscribed for the controller lifetime: the subscription profile
+    // must learn the new trading address after every account switch, and the
+    // preload-scoped account handler is torn down on disconnect, so it cannot
+    // carry this.
+    const forgetRegisteredTradingAddresses = (): void => {
+      this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
+      // Clearing alone only guarantees the *next preview* re-registers. An
+      // order submitted straight after a switch, with no preview in between,
+      // would otherwise be attributed to nothing, so the new address announces
+      // itself here. Fire-and-forget: attribution plumbing must not block or
+      // fail an account switch.
+      const switchedAccount = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      );
+      if (switchedAccount) {
+        this.#rewardsIntegrationService
+          .registerTradingAddress(switchedAccount.address, {
+            isTestnet: this.state.isTestnet,
+          })
+          .catch(() => {
+            /* never blocks an account switch */
+          });
+      }
+    };
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      forgetRegisteredTradingAddresses,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      forgetRegisteredTradingAddresses,
     );
 
     this.providers = new Map();
@@ -1908,7 +1946,7 @@ export class PerpsController extends BaseController<
     return this.messenger.call(
       'TransactionController:addTransaction',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      txParams as any,
+      txParams,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { ...(options as any), isInternal: true },
     );
@@ -2334,15 +2372,16 @@ export class PerpsController extends BaseController<
     // is only used when explicitly enabled and selected.
     const isLighterEnabled = this.#isLighterProviderEnabled();
     if (isLighterEnabled) {
-      // NOTE: Keep the path in a variable so ts-bridge does not rewrite the
-      // import argument and strip the webpackIgnore magic comment in core dist.
+      // NOTE: Keep the path in a variable so bundlers that ignore the
+      // webpackIgnore magic comment (e.g. Metro) cannot statically resolve the
+      // import and pull the Lighter provider into the client bundle.
       const lighterModulePath = './providers/LighterProvider';
       this.#lighterRegistrationPromise = import(
         /* webpackIgnore: true */ lighterModulePath
       )
         .then(({ LighterProvider }) => {
           this.registerLighterProvider(LighterProvider);
-          return undefined;
+          return;
         })
         .catch((error: unknown) => this.handleLighterImportError(error));
     }
@@ -2445,9 +2484,7 @@ export class PerpsController extends BaseController<
       // version whose venue has since been removed. `activeProvider` is
       // persisted, so throwing here would fail initialization on every
       // launch — the stale value must self-heal.
-      const directProvider = this.providers.get(
-        activeProvider as PerpsProviderType,
-      );
+      const directProvider = this.providers.get(activeProvider);
       if (directProvider) {
         this.activeProviderInstance = directProvider;
       } else {
@@ -2505,7 +2542,7 @@ export class PerpsController extends BaseController<
    * @returns The current controller state cast to PerpsControllerState.
    */
   #getControllerState(): PerpsControllerState {
-    return this.state as unknown as PerpsControllerState;
+    return this.state;
   }
 
   /**
@@ -2583,7 +2620,7 @@ export class PerpsController extends BaseController<
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
       ...additionalContext,
-    } as ServiceContext;
+    };
   }
 
   /**
@@ -3282,7 +3319,7 @@ export class PerpsController extends BaseController<
                 if (requestToUpdate) {
                   // For deposits, we have a txHash immediately, so mark as completed
                   // (the transaction hash means the deposit was successful)
-                  requestToUpdate.status = 'completed' as TransactionStatus;
+                  requestToUpdate.status = 'completed';
                   requestToUpdate.success = true;
                   requestToUpdate.txHash = actualTxHash;
                 }
@@ -3297,7 +3334,7 @@ export class PerpsController extends BaseController<
               });
             }, 100);
 
-            return undefined;
+            return;
           })
           .catch((error) => {
             // Check if user denied/cancelled the transaction
@@ -3347,7 +3384,7 @@ export class PerpsController extends BaseController<
                     (req) => req.id === currentDepositId,
                   );
                   if (requestToUpdate) {
-                    requestToUpdate.status = 'failed' as TransactionStatus;
+                    requestToUpdate.status = 'failed';
                     requestToUpdate.success = false;
                   }
                 }
@@ -3363,12 +3400,12 @@ export class PerpsController extends BaseController<
                 (req) => req.id === currentDepositId,
               );
               if (requestToUpdate) {
-                requestToUpdate.status = 'completed' as TransactionStatus;
+                requestToUpdate.status = 'completed';
                 requestToUpdate.success = true;
                 requestToUpdate.txHash = actualTxHash;
               }
             });
-            return undefined;
+            return;
           })
           .catch((error) => {
             const errorMessage = ensureError(
@@ -3421,7 +3458,7 @@ export class PerpsController extends BaseController<
               (req) => req.id === currentDepositId,
             );
             if (request) {
-              request.status = 'failed' as TransactionStatus;
+              request.status = 'failed';
               request.success = false;
             }
           }
@@ -5779,27 +5816,61 @@ export class PerpsController extends BaseController<
     // cache read and can therefore never start a benefits request while an
     // order is being signed.
     await this.#rewardsIntegrationService.refreshSubscriptionBenefits();
-    const waiverStatus =
-      this.#rewardsIntegrationService.getSubscriptionFeeWaiverStatus();
+
+    // ADR 0064: preview is also where the trading address is announced, so a
+    // fill decoded off the HL fan-out can be attributed back to a profile.
+    // Fire-and-forget — attribution plumbing must not delay or fail a quote.
+    const selectedAccount = getSelectedEvmAccountFromMessenger(this.messenger);
+    if (selectedAccount) {
+      this.#rewardsIntegrationService
+        .registerTradingAddress(selectedAccount.address, {
+          isTestnet: this.state.isTestnet,
+        })
+        .catch(() => {
+          /* never blocks a fee preview */
+        });
+    }
+
+    // The preview quotes the same blended rate the submit path charges, which
+    // is only possible once the order notional reaches the resolver. `amount`
+    // is the order notional in USD for the quote being previewed.
+    const orderNotionalUsd = params.amount
+      ? Number.parseFloat(params.amount)
+      : undefined;
+    const feeResolution =
+      await this.#rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    // Taken from the resolution rather than read separately: a second read can
+    // observe a different snapshot if the cache is invalidated or the feature
+    // flag flips between the two, which would surface metadata describing a
+    // waiver the quoted rates do not reflect.
+    const waiverStatus = feeResolution.subscription;
     const context = this.#createServiceContext('calculateFees', {
       subscriptionFeeWaiver:
         waiverStatus.reason === 'no-source' ? undefined : waiverStatus,
+      feeResolution,
     });
     return this.#marketDataService.calculateFees({ provider, params, context });
   }
 
   /**
    * Approve the dedicated subscription builder outside order submission.
-   * Until this succeeds, subscription waivers fall back to the ordinary
-   * builder at the standard fee.
    *
-   * @returns Whether the subscription builder is approved.
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder, so there is nothing left to approve. Kept
+   * as a no-op so clients still calling it keep building while they migrate;
+   * remove it once cloid marking is verified in shadow mode.
+   *
+   * Resolves `true`, not `false`. The method answers "is the subscription
+   * builder ready?", and the honest answer is now "nothing needs approving" —
+   * a `false` would read as a setup failure to a caller that branches on it and
+   * could block a waiver that is already fully in effect.
+   * @returns Always `true`; no approval is required.
    */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
-    const provider = this.getActiveProvider();
-    return provider.approveSubscriptionBuilderFee
-      ? provider.approveSubscriptionBuilderFee()
-      : false;
+    this.#debugLog(
+      'PerpsController: approveSubscriptionBuilderFee is a no-op; subscription attribution now rides on the order cloid',
+    );
+    return true;
   }
 
   /**
@@ -6354,7 +6425,7 @@ export class PerpsController extends BaseController<
 
       // Handle other simple legacy strings (e.g., 'volume', 'openInterest', etc.)
       return {
-        optionId: pref as SortOptionId,
+        optionId: pref,
         direction: MARKET_SORTING_CONFIG.DefaultDirection,
       };
     }
@@ -6655,6 +6726,51 @@ export class PerpsController extends BaseController<
       state.tradeConfigurations[network][symbol] = {
         ...existingConfig,
         orderBookGrouping: grouping,
+      };
+    });
+  }
+
+  /**
+   * Get the saved margin mode (Isolated/Cross) for a market on the current
+   * network. Clients should still let a venue-enforced mode take priority.
+   *
+   * @param symbol - Market symbol
+   * @returns The saved margin mode or undefined if not set
+   */
+  getMarginMode(symbol: string): MarginMode | undefined {
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    return this.state.tradeConfigurations[network]?.[symbol]?.marginMode;
+  }
+
+  /**
+   * Save the margin mode (Isolated/Cross) picked for a market on the current
+   * network. Values other than `isolated` or `cross` are ignored.
+   *
+   * @param symbol - Market symbol
+   * @param marginMode - Margin mode to persist
+   */
+  saveMarginMode(symbol: string, marginMode: MarginMode): void {
+    if (marginMode !== 'isolated' && marginMode !== 'cross') {
+      return;
+    }
+
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+
+    this.#debugLog('PerpsController: Saving margin mode', {
+      symbol,
+      network,
+      marginMode,
+    });
+
+    this.update((state) => {
+      if (!state.tradeConfigurations[network]) {
+        state.tradeConfigurations[network] = {};
+      }
+
+      const existingConfig = state.tradeConfigurations[network][symbol] || {};
+      state.tradeConfigurations[network][symbol] = {
+        ...existingConfig,
+        marginMode,
       };
     });
   }

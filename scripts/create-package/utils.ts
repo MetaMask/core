@@ -1,5 +1,5 @@
 import * as commentJson from 'comment-json';
-import execa from 'execa';
+import { execa } from 'execa';
 import { promises as fs } from 'fs';
 import { createRequire } from 'module';
 import path from 'path';

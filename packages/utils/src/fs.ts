@@ -207,7 +207,7 @@ export async function ensureDirectoryStructureExists(
  */
 export async function forceRemove(entryPath: string): Promise<void> {
   try {
-    return await fs.promises.rm(entryPath, {
+    await fs.promises.rm(entryPath, {
       recursive: true,
       force: true,
     });

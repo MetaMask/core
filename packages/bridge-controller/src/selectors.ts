@@ -241,6 +241,7 @@ export const selectExchangeRateByAssetId = (
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
     const marketDataByChain =
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       (marketData as Record<string, EvmTokenExchangeRates> | undefined) ?? {};
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];

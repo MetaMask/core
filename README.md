@@ -43,6 +43,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/advanced-chart-core`](packages/advanced-chart-core)
 - [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
 - [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
@@ -151,6 +152,7 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  advanced_chart_core(["@metamask/advanced-chart-core"]);
   ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
   analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);
@@ -405,6 +407,7 @@ linkStyle default opacity:0.5
   core_backend --> profile_sync_controller;
   core_backend --> remote_feature_flag_controller;
   core_backend --> utils;
+  cryptography --> utils;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
@@ -595,6 +598,7 @@ linkStyle default opacity:0.5
   perps_controller --> network_controller;
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
+  perps_controller --> subscription_controller;
   perps_controller --> transaction_controller;
   phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
@@ -618,6 +622,7 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> utils;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
+  profile_sync_controller --> controller_utils;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
   profile_sync_controller --> seedless_onboarding_controller;
@@ -686,6 +691,7 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> transaction_controller;
   smart_transactions_controller --> utils;
   smart_transactions_controller --> json_rpc_engine;
+  snap_account_service --> accounts_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   snap_account_service --> utils;
@@ -697,12 +703,18 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   storage_service --> utils;
+  subscription_controller --> authenticated_user_storage;
   subscription_controller --> base_controller;
   subscription_controller --> base_data_service;
+  subscription_controller --> chomp_api_service;
   subscription_controller --> controller_utils;
+  subscription_controller --> delegation_controller;
   subscription_controller --> messenger;
+  subscription_controller --> money_account_balance_service;
+  subscription_controller --> money_account_utils;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
+  subscription_controller --> remote_feature_flag_controller;
   subscription_controller --> transaction_controller;
   subscription_controller --> utils;
   transaction_controller --> accounts_controller;

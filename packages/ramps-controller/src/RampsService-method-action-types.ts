@@ -98,7 +98,9 @@ export type RampsServiceGetProvidersAction = {
  *
  * @param options - Query parameters for filtering payment methods.
  * @param options.region - User's region code (e.g., "us-al").
- * @param options.assetId - CAIP-19 cryptocurrency identifier.
+ * @param options.assetId - CAIP-19 cryptocurrency identifier. Kept on the
+ * caller contract for local cache/staleness; not sent — `/payments` is scoped
+ * to provider + region (the API ignores `crypto`).
  * @param options.provider - Provider ID path.
  * @returns The payment methods response containing payments array.
  */

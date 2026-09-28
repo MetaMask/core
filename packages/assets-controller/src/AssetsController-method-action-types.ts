@@ -122,7 +122,8 @@ export type AssetsControllerGetStateForTransactionPayAction = {
 /**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
- * Adding a custom asset also unhides it if it was previously hidden.
+ * Adding a custom asset also unhides it if it was previously hidden,
+ * and force-fetches that asset's chain (including every visible pin).
  *
  * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
  * flow), the token metadata is persisted immediately into `assetsInfo` so the
@@ -173,6 +174,9 @@ export type AssetsControllerHideAssetAction = {
 
 /**
  * Unhide an asset globally.
+ * Force-fetches that asset's chain (including every visible pin) so a
+ * `full` snapshot can restore the balance immediately, then re-evaluates
+ * subscriptions so later polls stop excluding it.
  *
  * @param assetId - The CAIP-19 asset ID to unhide.
  */

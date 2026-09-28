@@ -22,6 +22,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.lint.json"
     }
   ]
 }

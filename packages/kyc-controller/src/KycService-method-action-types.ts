@@ -32,26 +32,14 @@ export type KycServiceFetchVendorDisclaimersAction = {
 };
 
 /**
- * Creates a vendor session via the UKYC backend.
+ * Creates a MoonPay vendor session via the UKYC backend.
  *
  * @param params - The session parameters.
  * @returns The created session token.
  */
-export type KycServiceCreateSessionAction = {
-  type: `KycService:createSession`;
-  handler: KycService['createSession'];
-};
-
-/**
- * Checks whether KYC is required for the given vendor, country, and
- * capabilities.
- *
- * @param params - The check parameters.
- * @returns Whether KYC is required.
- */
-export type KycServiceCheckKycRequiredAction = {
-  type: `KycService:checkKycRequired`;
-  handler: KycService['checkKycRequired'];
+export type KycServiceCreateMoonpaySessionAction = {
+  type: `KycService:createMoonpaySession`;
+  handler: KycService['createMoonpaySession'];
 };
 
 /**
@@ -131,17 +119,6 @@ export type KycServiceFetchSessionDisclaimersBySessionIdAction = {
 export type KycServiceSubmitSessionDisclaimersAction = {
   type: `KycService:submitSessionDisclaimers`;
   handler: KycService['submitSessionDisclaimers'];
-};
-
-/**
- * Fetches the user-keyed simplified KYC status used by Money toast / banner
- * surfaces (`GET /kyc/status`).
- *
- * @returns The simplified status payload.
- */
-export type KycServiceFetchKycStatusAction = {
-  type: `KycService:fetchKycStatus`;
-  handler: KycService['fetchKycStatus'];
 };
 
 /**
@@ -232,22 +209,33 @@ export type KycServiceGetSessionStatusAction = {
 };
 
 /**
+ * Fetches the latest UKYC session status for an identity vendor
+ * (`GET /sessions/latest/status/{vendor}`).
+ *
+ * @param vendor - Identity vendor whose latest session should be queried.
+ * @returns The session status, or `null` when no latest session exists.
+ */
+export type KycServiceGetSessionStatusForVendorAction = {
+  type: `KycService:getSessionStatusForVendor`;
+  handler: KycService['getSessionStatusForVendor'];
+};
+
+/**
  * Union of all KycService action types.
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
   | KycServiceFetchVendorDisclaimersAction
-  | KycServiceCreateSessionAction
-  | KycServiceCheckKycRequiredAction
+  | KycServiceCreateMoonpaySessionAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
   | KycServiceFetchSessionDisclaimersByCountryAction
   | KycServiceFetchSessionDisclaimersBySessionIdAction
   | KycServiceSubmitSessionDisclaimersAction
-  | KycServiceFetchKycStatusAction
   | KycServiceFetchIdosEnclaveJwksAction
   | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
-  | KycServiceGetSessionStatusAction;
+  | KycServiceGetSessionStatusAction
+  | KycServiceGetSessionStatusForVendorAction;

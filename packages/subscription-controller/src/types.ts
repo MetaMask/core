@@ -121,6 +121,16 @@ export const SUBSCRIPTION_STATUSES = {
 export type SubscriptionStatus =
   (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
 
+export const INVOICE_PAYMENT_STATUSES = {
+  PROCESSING: 'PROCESSING',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export type InvoicePaymentStatus =
+  (typeof INVOICE_PAYMENT_STATUSES)[keyof typeof INVOICE_PAYMENT_STATUSES];
+
 export const CANCEL_TYPES = {
   ALLOWED_IMMEDIATE: 'allowed_immediate',
   ALLOWED_AT_PERIOD_END: 'allowed_at_period_end',
@@ -145,6 +155,25 @@ export const CRYPTO_PAYMENT_METHOD_ERRORS = {
 export type CryptoPaymentMethodError =
   (typeof CRYPTO_PAYMENT_METHOD_ERRORS)[keyof typeof CRYPTO_PAYMENT_METHOD_ERRORS];
 
+/**
+ * Errors returned by the Subscription API after crypto payment execution.
+ *
+ * These are distinct from {@link CRYPTO_PAYMENT_METHOD_ERRORS}, which describe
+ * approval/payment-method failures.
+ */
+export const CRYPTO_PAYMENT_ERRORS = {
+  INSUFFICIENT_BALANCE: 'insufficient_balance',
+  INSUFFICIENT_ALLOWANCE: 'insufficient_allowance',
+  EXCEEDS_DELEGATION_ALLOWANCE: 'exceeds_delegation_allowance',
+  DELEGATION_NOT_FOUND: 'delegation_not_found',
+  DELEGATION_REVOKED: 'delegation_revoked',
+  RECIPIENT_NOT_ALLOWLISTED: 'recipient_not_allowlisted',
+  INTERNAL_SERVER_ERROR: 'internal_server_error',
+} as const;
+
+export type CryptoPaymentError =
+  (typeof CRYPTO_PAYMENT_ERRORS)[keyof typeof CRYPTO_PAYMENT_ERRORS];
+
 export const MODAL_TYPE = {
   A: 'A',
   B: 'B',
@@ -166,8 +195,8 @@ export type Product = {
 export type Subscription = {
   id: string;
   products: Product[];
-  currentPeriodStart: string; // ISO 8601
-  currentPeriodEnd: string; // ISO 8601
+  currentPeriodStart?: string; // ISO 8601
+  currentPeriodEnd?: string; // ISO 8601
   /** is subscription scheduled for cancellation */
   cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
@@ -181,12 +210,21 @@ export type Subscription = {
   /** The date the subscription was canceled. */
   canceledAt?: string; // ISO 8601
   /** The cancellation type indicating what cancellation options are available for this subscription. */
-  cancelType: CancelType;
+  cancelType?: CancelType;
   /** The date the subscription was marked as inactive (paused/past_due/canceled). */
   inactiveAt?: string; // ISO 8601
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
-  isEligibleForSupport: boolean;
+  isEligibleForSupport?: boolean;
   billingCycles?: number;
+  /** The most recent invoice associated with the subscription. */
+  lastInvoice?: SubscriptionInvoice;
+};
+
+export type SubscriptionInvoice = {
+  id: string;
+  status: InvoicePaymentStatus;
+  errorCode?: CryptoPaymentError;
+  updatedAt: string; // ISO 8601
 };
 
 export type SubscriptionCardPaymentMethod = {
@@ -427,29 +465,71 @@ type TokenPaymentInfoBase = {
 };
 
 /**
- * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
- * `accountantAddress` is not present on this variant.
+ * Named vault a vault-share settlement token belongs to, e.g. `base` or
+ * `premium`. Distinguishes which vault to withdraw from.
+ *
+ * Deliberately a plain `string` rather than a union: the set of vaults is
+ * server-driven and grows without a client release, so narrowing it here would
+ * make the pricing response fail validation the first time the API adds a
+ * vault. Compare against `VAULT_NAMES` instead of raw literals, and always
+ * handle the unknown case.
  */
-export type SpotTokenPaymentInfo = TokenPaymentInfoBase & {
-  isVaultShare?: false;
-};
+export type VaultName = string;
+
+/**
+ * The vault names known at the time of writing. Not exhaustive — see
+ * {@link VaultName}.
+ */
+export const VAULT_NAMES = {
+  base: 'base',
+  premium: 'premium',
+} as const;
+
+/**
+ * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
+ * Neither `accountantAddress` nor `vault` is present on this variant.
+ */
+export type SpotTokenPaymentInfo = TokenPaymentInfoBase;
 
 /**
  * Yield-bearing vault share priced via an accountant rate.
  */
 export type VaultTokenPaymentInfo = TokenPaymentInfoBase & {
-  isVaultShare: true;
   /**
-   * Veda accountant address used to value this vault share.
+   * Veda accountant address used to value this vault share. Every vault has
+   * its own accountant, so this is present on every vault-share token — which
+   * is what makes it the discriminant for this variant.
    */
   accountantAddress: Hex;
+  /**
+   * Named vault this token is a share of. Sent only for vault-share tokens.
+   */
+  vault?: VaultName;
 };
 
 /**
- * A settlement token in a pricing chain. Discriminated by `isVaultShare`:
- * vault shares require `accountantAddress`; spot tokens omit it.
+ * A settlement token in a pricing chain. Discriminated by the presence of
+ * `accountantAddress`: vault shares carry it (and may carry `vault`), spot
+ * tokens carry neither.
+ *
+ * The API previously sent an explicit `isVaultShare` boolean. It no longer
+ * does, so do not reintroduce a dependency on it — use
+ * {@link isVaultShareToken}.
  */
 export type TokenPaymentInfo = SpotTokenPaymentInfo | VaultTokenPaymentInfo;
+
+/**
+ * Whether a settlement token is a yield-bearing vault share, which must be
+ * valued through its accountant rate rather than at face value.
+ *
+ * @param token - The settlement token to check.
+ * @returns True if the token is a vault share.
+ */
+export function isVaultShareToken(
+  token: TokenPaymentInfo,
+): token is VaultTokenPaymentInfo {
+  return (token as VaultTokenPaymentInfo).accountantAddress !== undefined;
+}
 
 export type ChainPaymentInfo = {
   chainId: Hex;
@@ -718,19 +798,50 @@ export type UpdatePaymentMethodCardResponse = {
   redirectUrl: string;
 };
 
-export type UpdatePaymentMethodCryptoRequest = {
+type UpdatePaymentMethodCryptoRequestBase = {
   subscriptionId: string;
   chainId: Hex;
   payerAddress: Hex;
   tokenSymbol: string;
-  /**
-   * The raw transaction to pay for the subscription
-   * Can be empty if retry after topping up balance
-   */
-  rawTransaction?: Hex;
   recurringInterval: RecurringInterval;
   billingCycles: number;
 };
+
+/**
+ * ERC-20 approval crypto payment-method update request.
+ *
+ * `rawTransaction` may be omitted when retrying after a balance top-up.
+ */
+export type UpdateErc20PaymentMethodCryptoRequest =
+  UpdatePaymentMethodCryptoRequestBase & {
+    cryptoAuthMethod?: typeof CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
+    /**
+     * The raw transaction to pay for the subscription.
+     */
+    rawTransaction?: Hex;
+    delegationHash?: never;
+  };
+
+/**
+ * Delegation crypto payment-method update request used to rotate an active
+ * subscription to a replacement delegation.
+ */
+export type UpdateDelegationPaymentMethodCryptoRequest =
+  UpdatePaymentMethodCryptoRequestBase & {
+    cryptoAuthMethod: typeof CRYPTO_AUTH_METHODS.DELEGATION;
+    delegationHash: Hex;
+    rawTransaction?: never;
+  };
+
+/**
+ * Request to update a subscription's crypto payment method.
+ *
+ * Provide `rawTransaction` for the existing ERC-20 approval path, or provide
+ * `cryptoAuthMethod: 'delegation'` and `delegationHash` to rotate a delegation.
+ */
+export type UpdatePaymentMethodCryptoRequest =
+  | UpdateErc20PaymentMethodCryptoRequest
+  | UpdateDelegationPaymentMethodCryptoRequest;
 
 export type BillingPortalResponse = {
   url: string;

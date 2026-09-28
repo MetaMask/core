@@ -9,8 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+## [4.1.0]
+
+### Added
+
+- Add PRF migration methods for enrolled legacy `userHandle` passkeys ([#10310](https://github.com/MetaMask/core/pull/10310))
+  - `generatePasskeyReplacementRegistrationOptions` stages a PRF-only
+    replacement registration while retaining the existing record.
+  - `completePasskeyReplacement` verifies the replacement registration and PRF
+    assertion, re-wraps the vault key, and atomically commits the new record.
+  - `cancelPasskeyReplacement` removes the targeted replacement ceremony and
+    its linked post-registration authentication ceremony.
+
+### Changed
+
 - Use `@metamask/utils` SHA-256, SHA-384, and SHA-512 digests for asynchronous WebAuthn verification and RP ID matching, while retaining Noble SHA-256 for synchronous HKDF ([#10188](https://github.com/MetaMask/core/pull/10188))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+### Fixed
+
+- Keep replacement ceremonies retryable after password and vault-key export failures ([#10310](https://github.com/MetaMask/core/pull/10310))
 
 ## [4.0.0]
 
@@ -131,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Registration verification requires the credential `id`/`rawId` to match the credential id in authenticator data; vault wrapping key derivation uses that verified credential id so enrollment keys align with the stored credential.
 - Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@4.0.0...@metamask/passkey-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.1.0...@metamask/passkey-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.0.0...@metamask/passkey-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.1.0...@metamask/passkey-controller@3.0.0

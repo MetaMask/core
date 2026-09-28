@@ -4,6 +4,7 @@ const { wordlist } = englishWordlist;
 
 /**
  * Transform a typed array containing mnemonic data to the seed phrase.
+ *
  * @param uint8Array - Typed array containing mnemonic data.
  * @returns The seed phrase.
  */

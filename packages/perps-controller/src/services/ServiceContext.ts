@@ -1,6 +1,7 @@
 import type { PerpsControllerState } from '../PerpsController.js';
 import type {
   Order,
+  PerpsFeeResolution,
   PerpsGlobalSnapshotRequest,
   PerpsSubscriptionFeeWaiverStatus,
   Position,
@@ -82,6 +83,15 @@ export type ServiceContext = {
    * subscription source is wired.
    */
   subscriptionFeeWaiver?: PerpsSubscriptionFeeWaiverStatus;
+
+  /**
+   * Unified fee resolution for the quote being previewed.
+   *
+   * Carries the same blended subscription rate the submit path will charge, so
+   * a preview quotes what the order actually pays rather than the undiscounted
+   * builder fee. Omitted when no resolution was computed.
+   */
+  feeResolution?: PerpsFeeResolution;
 
   /**
    * Callback functions for controller-specific operations

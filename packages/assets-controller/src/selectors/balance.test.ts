@@ -164,9 +164,7 @@ describe('balance selectors', () => {
         accountTree:
           undefined as unknown as AccountTreeControllerState['accountTree'],
       };
-      expect(
-        getGroupIdForAccount(noTree as AccountTreeControllerState, accountId1),
-      ).toBeUndefined();
+      expect(getGroupIdForAccount(noTree, accountId1)).toBeUndefined();
     });
   });
 
@@ -777,7 +775,7 @@ describe('wallet-balance selectors', () => {
                 request.parentContext === undefined ? parentSpan : undefined,
               );
             }
-            return undefined;
+            return;
           },
         );
 
