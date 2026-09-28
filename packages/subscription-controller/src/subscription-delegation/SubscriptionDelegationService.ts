@@ -452,11 +452,14 @@ export class SubscriptionDelegationService {
       isTrialDeferred: startDate > nowSeconds,
       enforcers: config.enforcers,
     });
-    const reusable = (
-      await this.#messenger.call(
-        'AuthenticatedUserStorageService:listDelegations',
-      )
-    ).find(matches);
+    const reusable = pickLatestMatchingSubscriptionDelegation(
+      (
+        await this.#messenger.call(
+          'AuthenticatedUserStorageService:listDelegations',
+        )
+      ).filter(matches),
+      config.enforcers,
+    );
     const delegation = reusable
       ? removeDelegationSignature(reusable.signedDelegation)
       : buildUnsignedSubscriptionDelegation({

@@ -1241,6 +1241,45 @@ describe('SubscriptionDelegationService', () => {
       );
     });
 
+    it('reuses the matching payment permission with the latest period startDate', async () => {
+      const older = buildStoredDelegation({
+        startDate: 1_700_000_000,
+      });
+      const newer = buildStoredDelegation({
+        startDate: 1_700_086_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [older, newer],
+        intents: [
+          {
+            delegationHash: older.metadata.delegationHash,
+            status: 'active',
+          },
+          {
+            delegationHash: newer.metadata.delegationHash,
+            status: 'active',
+          },
+        ],
+      });
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createDelegation).not.toHaveBeenCalled();
+      const [approvalRequest] = mocks.addApprovalRequest.mock.calls[0];
+      expect(
+        approvalRequest.requestData?.bundle.permissions[0],
+      ).toMatchObject({
+        disposition: 'reused',
+        existingDelegationHash: newer.metadata.delegationHash,
+      });
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          delegationHash: newer.metadata.delegationHash,
+        }),
+      );
+    });
+
     it('rejects when a reusable payment permission disappears after approval', async () => {
       const stored = buildStoredDelegation();
       const { service, mocks } = setup({ listDelegations: [stored] });
