@@ -2,7 +2,7 @@ import type { TypedTxData } from '@ethereumjs/tx';
 import { add0x } from '@metamask/utils';
 import { cloneDeep, merge } from 'lodash-es';
 
-import { projectLogger as log } from '../logger.js';
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
 import { signAuthorizationList } from '../utils/eip7702.js';
@@ -15,6 +15,8 @@ import type {
   TransactionLifecycleRequest,
   TransactionStageDependencies,
 } from './types.js';
+
+const log = createModuleLogger(lifecycleLogger, 'sign');
 
 const signAbortCallbacks = new WeakMap<
   TransactionStageDependencies,

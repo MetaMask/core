@@ -1,6 +1,7 @@
 import { errorCodes, providerErrors } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
 
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
 import {
@@ -14,6 +15,8 @@ import { releaseTransactionExecution } from './state.js';
 import type { TransactionLifecycleRequest } from './types.js';
 
 const controllerName = 'TransactionController';
+
+const log = createModuleLogger(lifecycleLogger, 'error');
 
 /** An error thrown while a transaction was being approved or executed. */
 export type TransactionError = Error & { code?: number; data?: Json };
@@ -45,16 +48,28 @@ export function handleApprovalError(
     transactionMeta.id,
   );
 
-  if (!isCompleted) {
-    if (isRejectError(error)) {
-      rejectTransactionAndThrow(request, transactionMeta.id, actionId, error);
-    } else {
-      failTransaction(transactionMeta, error, actionId);
-    }
+  if (isCompleted) {
+    log(
+      'Ignoring approval error as transaction already completed',
+      transactionMeta.id,
+    );
+    return;
+  }
+
+  if (isRejectError(error)) {
+    rejectTransactionAndThrow(request, transactionMeta.id, actionId, error);
+  } else {
+    log('Approval failed', transactionMeta.id, error);
+    failTransaction(transactionMeta, error, actionId);
   }
 }
 
-/** Preserve execution failure semantics separately from approval rejection. */
+/**
+ * Preserve execution failure semantics separately from approval rejection.
+ *
+ * @param request - Transaction metadata, lifecycle state, and dependencies.
+ * @param error - Error thrown while processing the transaction.
+ */
 export function handleTransactionError(
   request: TransactionLifecycleRequest,
   error: unknown,
@@ -67,6 +82,8 @@ export function handleTransactionError(
     request.lifecycle.onError(error as Error);
     return;
   }
+
+  log('Transaction execution failed', request.transactionMeta.id, error);
 
   try {
     request.dependencies.failTransaction(
@@ -104,6 +121,8 @@ export function rejectTransaction(
   if (!transactionMeta) {
     return;
   }
+
+  log('Rejecting transaction', transactionId, error);
 
   deleteTransaction(dependencies, transactionId);
 

@@ -1,4 +1,4 @@
-import { projectLogger as log } from '../logger.js';
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import { TransactionEnvelopeType, TransactionStatus } from '../types.js';
 import { getNextNonce } from '../utils/nonce.js';
 import {
@@ -9,7 +9,13 @@ import { isEIP1559Transaction } from '../utils/utils.js';
 import { isTransactionApproving, startTransactionApproval } from './state.js';
 import type { TransactionLifecycleRequest } from './types.js';
 
-/** Reserve execution resources after approval, without signing or publishing. */
+const log = createModuleLogger(lifecycleLogger, 'approve');
+
+/**
+ * Reserve execution resources after approval, without signing or publishing.
+ *
+ * @param request - Transaction metadata, lifecycle state, and dependencies.
+ */
 export async function approveTransaction(
   request: TransactionLifecycleRequest,
 ): Promise<void> {
@@ -56,6 +62,8 @@ export async function approveTransaction(
 
   lifecycle.execution.releaseNonce = releaseNonce;
 
+  // The request is owned by a single execution, so there is no concurrent writer.
+  // eslint-disable-next-line require-atomic-updates
   request.transactionMeta = dependencies.updateTransactionInternal(
     { transactionId },
     (draft) => {

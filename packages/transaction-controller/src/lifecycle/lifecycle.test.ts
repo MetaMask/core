@@ -1,7 +1,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { createDeferredPromise } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import-x/no-nodejs-modules
+ 
 import { EventEmitter } from 'events';
 import { cloneDeep } from 'lodash-es';
 
@@ -95,7 +95,7 @@ describe('Transaction lifecycle coordination', () => {
     ).toBe(false);
 
     expect(request.dependencies.skipSimulationTransactionIds.size).toBe(0);
-    await expect(finishTransaction(request)).resolves.toBe('0xhash');
+    expect(await finishTransaction(request)).toBe('0xhash');
   });
 
   it('releases execution resources when signing fails and preserves the execution error payload', async () => {
@@ -148,8 +148,8 @@ describe('Transaction lifecycle coordination', () => {
       resultCallbacks: { success, error: jest.fn() },
     });
 
-    request.constructorOptions.hooks.beforePublish = jest
-      .fn()
+    jest
+      .spyOn(request.constructorOptions.hooks, 'beforePublish')
       .mockResolvedValue(false);
 
     await awaitApproval(request);
@@ -172,7 +172,7 @@ describe('Transaction lifecycle coordination', () => {
       status: TransactionStatus.submitted,
     });
 
-    await expect(finishTransaction(request)).resolves.toBe('0xexternal');
+    expect(await finishTransaction(request)).toBe('0xexternal');
     expect(success).toHaveBeenCalledTimes(2);
   });
 
@@ -358,7 +358,7 @@ describe('Transaction lifecycle coordination', () => {
       }),
     );
 
-    await expect(finishTransaction(request)).resolves.toBe('0xfallback');
+    expect(await finishTransaction(request)).toBe('0xfallback');
   });
 
   it('prefers the per-transaction publish hook over the constructor hook', async () => {
@@ -379,12 +379,23 @@ describe('Transaction lifecycle coordination', () => {
     expect(publish).not.toHaveBeenCalled();
     expect(request.dependencies.publishTransaction).not.toHaveBeenCalled();
     expect(publishOverride).toHaveBeenCalledWith(expect.anything(), '0xsigned');
-    await expect(finishTransaction(request)).resolves.toBe('0xoverride');
+    expect(await finishTransaction(request)).toBe('0xoverride');
   });
 });
 
-/** Create a real metadata store with observable I/O and resource ownership. */
-function createRequest() {
+/**
+ * Create a real metadata store with observable I/O and resource ownership.
+ *
+ * @returns The lifecycle request plus handles to observe and drive it.
+ */
+function createRequest(): {
+  events: string[];
+  fail: jest.Mock;
+  finish: { resolve: (meta: TransactionMeta) => void };
+  publish: jest.Mock;
+  releaseNonce: jest.Mock;
+  request: TransactionLifecycleRequest;
+} {
   const transactionMeta: TransactionMeta = {
     chainId: '0x1',
     id: 'transaction',
@@ -405,7 +416,7 @@ function createRequest() {
   const internalEvents = new EventEmitter();
 
   const finish = {
-    resolve: (meta: TransactionMeta) => {
+    resolve: (meta: TransactionMeta): void => {
       current = meta;
       internalEvents.emit(`${transactionMeta.id}:finished`, meta);
     },
@@ -438,7 +449,7 @@ function createRequest() {
     },
     constructorOptions: {
       disableSwaps: false,
-      hooks: { publish },
+      hooks: { beforePublish: jest.fn().mockResolvedValue(true), publish },
       trace: ((_options, callback) =>
         callback?.()) as TransactionLifecycleRequest['constructorOptions']['trace'],
     },
