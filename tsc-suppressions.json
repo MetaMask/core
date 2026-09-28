@@ -192,6 +192,19 @@
       "count": 2
     }
   },
+  "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
+    "TS18048": {
+      "count": 2
+    },
+    "TS2322": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/pipeline/buildWsUpdateSources.test.ts": {
+    "TS2540": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/selectors/balance.test.ts": {
     "TS2322": {
       "count": 1
@@ -898,6 +911,9 @@
     }
   },
   "packages/profile-sync-controller/src/shared/utils/message-signing.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
     "TS2339": {
       "count": 1
     }
