@@ -14,6 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `hmacSha256`, `hmacSha384`, and `hmacSha512` functions for computing HMAC digests
   - Add `pbkdf2Sha256`, `pbkdf2Sha384`, and `pbkdf2Sha512` functions for key derivation
   - Add `hkdfSha256`, `hkdfSha384`, and `hkdfSha512` functions for key derivation
-  - Add `getX25519PublicKey` and `getX25519SharedSecret` functions for X25519 key derivation
+  - Add `getPublicKey` and `getSharedSecret` functions for X25519 key derivation exported via `@metamask/cryptography/x25519`
 
 [Unreleased]: https://github.com/MetaMask/core/
