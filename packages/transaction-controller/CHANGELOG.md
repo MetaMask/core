@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/wallet` from `^5.7.0` to `^5.8.0` ([#10484](https://github.com/MetaMask/core/pull/10484))
+- Bump `@ethereumjs/common` from `^4.4.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+- Bump `@ethereumjs/rlp` from `^5.0.2` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+- Bump `@ethereumjs/tx` from `^5.4.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+- Bump `@ethereumjs/util` from `^9.1.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
 
 ## [72.0.1]
 
