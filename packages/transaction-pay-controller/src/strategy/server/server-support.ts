@@ -22,6 +22,9 @@ export enum ServerUnsupportedReason {
   /** The direct mUSD Money Account fiat flow is not implemented. */
   DirectMusdMoneyAccount = 'directMusdMoneyAccount',
 
+  /** Non-atomic multi-leg submission is not implemented. */
+  NonAtomic = 'nonAtomic',
+
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
 
@@ -30,9 +33,6 @@ export enum ServerUnsupportedReason {
 
   /** Two-phase max-amount gas station probing is not implemented. */
   MaxAmount = 'maxAmount',
-
-  /** Non-atomic multi-leg submission is not implemented. */
-  NonAtomic = 'nonAtomic',
 
   /** Polymarket deposit-wallet routing is not implemented. */
   PolymarketDepositWallet = 'polymarketDepositWallet',
