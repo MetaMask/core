@@ -391,11 +391,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/AssetsController.bsc-spam-token-filtering.accounts-api-v6.integration.test.ts": {
-    "jest/no-restricted-matchers": {
-      "count": 3
-    }
-  },
   "packages/assets-controller/src/AssetsController.spam-cleanup.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -618,11 +613,6 @@
   "packages/assets-controller/src/migrations/healAssetsInfoMetadata.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
-    }
-  },
-  "packages/assets-controller/src/pipeline/buildFastFetchSources.bsc-spam-token-filtering.accounts-api-v6.integration.test.ts": {
-    "jest/no-restricted-matchers": {
-      "count": 3
     }
   },
   "packages/assets-controller/src/pipeline/buildFastFetchSources.test.ts": {

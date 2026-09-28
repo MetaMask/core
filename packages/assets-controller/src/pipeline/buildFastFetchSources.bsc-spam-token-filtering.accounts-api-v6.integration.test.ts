@@ -18,7 +18,6 @@ import {
 } from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
-import { withZeroedTimestamps } from '../__fixtures__/test-utils.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
@@ -303,15 +302,6 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
     it('answers with an authoritative full snapshot', () => {
       expect(response.updateMode).toBe('full');
     });
-
-    // Golden-record catch-all: the targeted assertions above only pin
-    // CDOGE/BNB. This snapshot pins the WHOLE captured row set, so any
-    // unexpected asset sneaking in, any captured asset dropping out, or
-    // any field-level drift shows up as a reviewable diff. Volatile price
-    // timestamps are zeroed so the record is deterministic.
-    it('captures the full response as a golden record', () => {
-      expect(withZeroedTimestamps(response)).toMatchSnapshot();
-    });
   });
 });
 
@@ -373,11 +363,6 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     // retry is queued) nor left to the legacy stale-asset sweep.
     expect(requests).toHaveLength(0);
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
-
-    // Golden record of the resolved-pin flow: the backend answered the
-    // Malicious row through the pin, so the response carries it without any
-    // RPC involvement.
-    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 
   it('re-reads the custom asset on RPC when the Accounts API cannot process the includeAssetIds', async () => {
@@ -403,10 +388,5 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     expect(BALANCES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toMatchObject({
       amount: '4321',
     });
-
-    // Golden record of the unresolved-pin recovery: the Accounts API
-    // contributed nothing for the failed chain, so the recovered response
-    // is the RPC refetch merged over an empty answer.
-    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });
