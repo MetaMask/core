@@ -320,7 +320,7 @@ describe('ProfileController', () => {
   });
 
   describe('replaceProfile', () => {
-    it('calls ProfileService:replaceProfile and updates state', async () => {
+    it('calls ProfileService:replaceProfile with profileId from state and updates state', async () => {
       const rootMessenger = getRootMessenger();
       const replaceProfileMock = jest
         .fn()
@@ -336,16 +336,36 @@ describe('ProfileController', () => {
         display_name: 'Alice 2',
         linked_addresses: ['eip155:1:0xabc'],
       };
-      const { controller } = createController({ rootMessenger });
-      await controller.replaceProfile('profile-123', input);
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          metamaskProfile: {
+            ...getDefaultProfileControllerState().metamaskProfile,
+            profileId: 'profile-123',
+          },
+        },
+      });
+      await controller.replaceProfile(input);
 
       expect(replaceProfileMock).toHaveBeenCalledWith('profile-123', input);
       expect(controller.state.metamaskProfile.username).toBe('alice2');
     });
+
+    it('throws if no profile is set in state', async () => {
+      const { controller } = createController();
+
+      await expect(
+        controller.replaceProfile({
+          username: 'alice2',
+          display_name: 'Alice 2',
+          linked_addresses: [],
+        }),
+      ).rejects.toThrow('ProfileController: no profile found in state');
+    });
   });
 
   describe('updateProfile', () => {
-    it('calls ProfileService:updateProfile and updates state', async () => {
+    it('calls ProfileService:updateProfile with profileId from state and updates state', async () => {
       const rootMessenger = getRootMessenger();
       const updateProfileMock = jest
         .fn()
@@ -356,24 +376,36 @@ describe('ProfileController', () => {
         updateProfileMock,
       );
 
-      const { controller } = createController({ rootMessenger });
-      await controller.updateProfile('profile-123', { username: 'alice2' });
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          metamaskProfile: {
+            ...getDefaultProfileControllerState().metamaskProfile,
+            profileId: 'profile-123',
+          },
+        },
+      });
+      await controller.updateProfile({ username: 'alice2' });
 
       expect(updateProfileMock).toHaveBeenCalledWith('profile-123', {
         username: 'alice2',
       });
       expect(controller.state.metamaskProfile.username).toBe('alice2');
     });
+
+    it('throws if no profile is set in state', async () => {
+      const { controller } = createController();
+
+      await expect(
+        controller.updateProfile({ username: 'alice2' }),
+      ).rejects.toThrow('ProfileController: no profile found in state');
+    });
   });
 
   describe('deleteProfile', () => {
-    it('calls ProfileService:deleteProfile and resets state including xProfile', async () => {
+    it('calls ProfileService:deleteProfile using profileId from state and resets state including xProfile', async () => {
       const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:createProfile',
-        jest.fn().mockResolvedValue(mockProfileResponse),
-      );
+      const deleteProfileMock = jest.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
         'ProfileService:connectX',
@@ -382,24 +414,31 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:deleteProfile',
-        jest.fn().mockResolvedValue(undefined),
+        deleteProfileMock,
       );
 
-      const { controller } = createController({ rootMessenger });
-      await controller.createProfile({
-        profile_id: 'canonical-123',
-        username: 'alice',
-        display_name: 'Alice Wonderland',
+      const { controller } = createController({
+        rootMessenger,
+        state: { metamaskProfile: mockMappedProfile },
       });
       await controller.connectX('auth-code', 'state-xyz');
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
 
-      await controller.deleteProfile('profile-123');
+      await controller.deleteProfile();
 
+      expect(deleteProfileMock).toHaveBeenCalledWith('profile-123');
       expect(controller.state.metamaskProfile).toStrictEqual(
         getDefaultProfileControllerState().metamaskProfile,
       );
       expect(controller.state.xProfile).toBeUndefined();
+    });
+
+    it('throws if no profile is set in state', async () => {
+      const { controller } = createController();
+
+      await expect(controller.deleteProfile()).rejects.toThrow(
+        'ProfileController: no profile found in state',
+      );
     });
   });
 
@@ -485,7 +524,7 @@ describe('ProfileController', () => {
     });
   });
 
-  describe('getXAccount', () => {
+  describe('fetchAndUpdateXAccount', () => {
     it('calls ProfileService:getXAccount and updates xProfile in state', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
@@ -495,7 +534,7 @@ describe('ProfileController', () => {
       );
 
       const { controller } = createController({ rootMessenger });
-      await controller.getXAccount();
+      await controller.fetchAndUpdateXAccount();
 
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
     });

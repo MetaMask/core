@@ -18,7 +18,7 @@ export type {
   ProfileControllerCreateProfileAction,
   ProfileControllerDeleteProfileAction,
   ProfileControllerGetMetaMaskProfileAction,
-  ProfileControllerGetXAccountAction,
+  ProfileControllerFetchAndUpdateXAccountAction,
   ProfileControllerGetXAuthUrlAction,
   ProfileControllerGetXprofileAction,
   ProfileControllerReplaceProfileAction,

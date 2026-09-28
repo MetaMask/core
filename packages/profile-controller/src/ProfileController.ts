@@ -170,7 +170,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkUsernameAvailability',
   'getXAuthUrl',
   'connectX',
-  'getXAccount',
+  'fetchAndUpdateXAccount',
 ] as const;
 
 // === CONTROLLER ===
@@ -211,13 +211,22 @@ export class ProfileController extends BaseController<
     );
   }
 
-  /**
-   * Checks if a profile has been created.
-   *
-   * @returns True if a profile has been created, false otherwise.
-   */
   #hasProfile(): boolean {
     return this.state.metamaskProfile.profileId !== '';
+  }
+
+  /**
+   * Returns the profile ID from state, throwing if no profile exists yet.
+   *
+   * @returns The current profile ID.
+   * @throws If no profile has been created.
+   */
+  #getProfileIdOrThrow(): string {
+    const { profileId } = this.state.metamaskProfile;
+    if (!profileId) {
+      throw new Error('ProfileController: no profile found in state');
+    }
+    return profileId;
   }
 
   /**
@@ -284,30 +293,25 @@ export class ProfileController extends BaseController<
    * Creates a new MetaMask profile and updates state.
    *
    * @param params - The profile creation parameters.
-   * @returns The created MetaMask profile.
    */
-  async createProfile(params: CreateProfileParams): Promise<MetaMaskProfile> {
+  async createProfile(params: CreateProfileParams): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:createProfile',
       params,
     );
-    const mappedProfile = this.#mapApiResponseToProfile(response);
     this.update((state) => {
-      state.metamaskProfile = mappedProfile;
+      state.metamaskProfile = this.#mapApiResponseToProfile(response);
     });
-    return mappedProfile;
   }
 
   /**
-   * Fully replaces an existing profile and updates state.
+   * Fully replaces the current profile and updates state.
    *
-   * @param profileId - The profile identifier (the canonical profile ID).
    * @param input - The replacement profile data.
+   * @throws If no profile has been created yet.
    */
-  async replaceProfile(
-    profileId: string,
-    input: ReplaceProfileParams,
-  ): Promise<void> {
+  async replaceProfile(input: ReplaceProfileParams): Promise<void> {
+    const profileId = this.#getProfileIdOrThrow();
     const response = await this.messenger.call(
       'ProfileService:replaceProfile',
       profileId,
@@ -319,15 +323,13 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Partially updates an existing profile and updates state.
+   * Partially updates the current profile and updates state.
    *
-   * @param profileId - The profile identifier (the canonical profile ID).
    * @param input - The fields to update.
+   * @throws If no profile has been created yet.
    */
-  async updateProfile(
-    profileId: string,
-    input: UpdateProfileParams,
-  ): Promise<void> {
+  async updateProfile(input: UpdateProfileParams): Promise<void> {
+    const profileId = this.#getProfileIdOrThrow();
     const response = await this.messenger.call(
       'ProfileService:updateProfile',
       profileId,
@@ -339,11 +341,12 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Deletes a profile and resets state, including clearing any linked X profile.
+   * Deletes the current profile and resets state, including clearing any linked X profile.
    *
-   * @param profileId - The profile identifier (the canonical profile ID) to delete.
+   * @throws If no profile has been created yet.
    */
-  async deleteProfile(profileId: string): Promise<void> {
+  async deleteProfile(): Promise<void> {
+    const profileId = this.#getProfileIdOrThrow();
     await this.messenger.call('ProfileService:deleteProfile', profileId);
     this.update((state) => {
       state.metamaskProfile =
@@ -377,32 +380,28 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Completes the X OAuth PKCE flow and updates the X profile in state.
+   * Completes the X OAuth PKCE flow and updates xProfile in state.
    *
-   * @param params - The parameters for the X OA  uth PKCE flow.
-   * @param params.code - The OAuth authorization code from the X redirect.
-   * @param params.state - The state parameter returned by the X redirect.
-   * @returns The X profile.
+   * @param code - The OAuth authorization code from the X redirect.
+   * @param xState - The state parameter returned by the X redirect.
    */
-  async connectX(params: { code: string; state: string }): Promise<XProfile> {
-    const response = await this.messenger.call(
-      'ProfileService:connectX',
-      params,
-    );
-    return this.#mapXResponseToXProfile(response);
+  async connectX(code: string, xState: string): Promise<void> {
+    const response = await this.messenger.call('ProfileService:connectX', {
+      code,
+      state: xState,
+    });
+    this.update((state) => {
+      state.xProfile = this.#mapXResponseToXProfile(response);
+    });
   }
 
   /**
    * Fetches the X account linked to the current profile and updates state.
-   *
-   * @returns The X profile.
    */
-  async fetchAndUpdateXAccount(): Promise<XProfile> {
+  async fetchAndUpdateXAccount(): Promise<void> {
     const response = await this.messenger.call('ProfileService:getXAccount');
-    const mappedXProfile = this.#mapXResponseToXProfile(response);
     this.update((state) => {
-      state.xProfile = mappedXProfile;
+      state.xProfile = this.#mapXResponseToXProfile(response);
     });
-    return mappedXProfile;
   }
 }

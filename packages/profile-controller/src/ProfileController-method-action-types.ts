@@ -102,9 +102,10 @@ export type ProfileControllerConnectXAction = {
   handler: ProfileController['connectX'];
 };
 
-export type ProfileControllerGetXAccountAction = {
-  type: `ProfileController:getXAccount`;
-  handler: ProfileController['getXAccount'];
+/** Fetches the X account linked to the current profile and updates state. */
+export type ProfileControllerFetchAndUpdateXAccountAction = {
+  type: `ProfileController:fetchAndUpdateXAccount`;
+  handler: ProfileController['fetchAndUpdateXAccount'];
 };
 
 /**
@@ -120,4 +121,4 @@ export type ProfileControllerMethodActions =
   | ProfileControllerCheckUsernameAvailabilityAction
   | ProfileControllerGetXAuthUrlAction
   | ProfileControllerConnectXAction
-  | ProfileControllerGetXAccountAction;
+  | ProfileControllerFetchAndUpdateXAccountAction;
