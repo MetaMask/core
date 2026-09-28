@@ -5754,7 +5754,7 @@ __metadata:
     "@babel/runtime": "npm:^7.23.9"
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
-    "@ethersproject/address": "npm:^5.7.0"
+    "@ethersproject/address": "npm:^5.8.0"
     "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.8.0"
@@ -5994,7 +5994,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
-    "@ethersproject/address": "npm:^5.7.0"
+    "@ethersproject/address": "npm:^5.8.0"
     "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/constants": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
@@ -8840,7 +8840,7 @@ __metadata:
     "@babel/runtime": "npm:^7.23.9"
     "@ethersproject/bytes": "npm:^5.8.0"
     "@ethersproject/keccak256": "npm:^5.8.0"
-    "@ethersproject/transactions": "npm:^5.7.0"
+    "@ethersproject/transactions": "npm:^5.8.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -9123,6 +9123,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
+    "@ethersproject/abi": "npm:^5.7.0"
     "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"

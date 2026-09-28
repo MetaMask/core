@@ -97,15 +97,18 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
 
-  if (!contracts?.ValueLteEnforcer || !contracts.ERC20PeriodTransferEnforcer) {
+  if (
+    !contracts?.ERC20PeriodTransferEnforcer ||
+    !contracts.AllowedCalldataEnforcer
+  ) {
     throw new Error(
       `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: ${chainId}`,
     );
   }
 
   return {
-    valueLte: contracts.ValueLteEnforcer,
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
+    allowedCalldata: contracts.AllowedCalldataEnforcer,
   };
 }
 
@@ -178,6 +181,7 @@ type ResolvedSubscriptionDelegationConfig = {
   chainId: Hex;
   delegateAddress: Hex;
   delegationManager: Hex;
+  paymentAddress: Hex;
   enforcers: SubscriptionDelegationEnforcers;
   musdAddress?: Hex;
   price: ProductPrice;
@@ -440,6 +444,7 @@ export class SubscriptionDelegationService {
       delegatorAddress: request.payerAddress,
       delegateAddress: config.delegateAddress,
       chainId: request.chainId,
+      recipientAddress: config.paymentAddress,
       tokenAddress: config.token.address,
       periodAmount,
       periodDuration,
@@ -458,6 +463,7 @@ export class SubscriptionDelegationService {
           delegateAddress: config.delegateAddress,
           delegatorAddress: request.payerAddress,
           enforcers: config.enforcers,
+          recipientAddress: config.paymentAddress,
           tokenAddress: config.token.address,
           periodAmount,
           periodDuration,
@@ -700,11 +706,17 @@ export class SubscriptionDelegationService {
 
     const skipChomp = Boolean(request.skipChompInteractions);
 
-    const { chainId, delegateAddress, enforcers, price, token } =
-      await this.#resolveConfiguration(
-        request.product,
-        request.recurringInterval,
-      );
+    const {
+      chainId,
+      delegateAddress,
+      paymentAddress,
+      enforcers,
+      price,
+      token,
+    } = await this.#resolveConfiguration(
+      request.product,
+      request.recurringInterval,
+    );
 
     if (request.checkBalance) {
       const { hasSufficientBalance } = await this.#compareMoneyAccountBalance(
@@ -739,6 +751,7 @@ export class SubscriptionDelegationService {
           request,
           chainId,
           delegateAddress,
+          paymentAddress,
           tokenAddress: token.address,
           periodAmount,
           periodDuration,
@@ -766,6 +779,7 @@ export class SubscriptionDelegationService {
     const unsigned = buildUnsignedSubscriptionDelegation({
       delegateAddress,
       delegatorAddress: request.payerAddress,
+      recipientAddress: paymentAddress,
       enforcers,
       tokenAddress: token.address,
       periodAmount,
@@ -853,6 +867,7 @@ export class SubscriptionDelegationService {
     request,
     chainId,
     delegateAddress,
+    paymentAddress,
     tokenAddress,
     periodAmount,
     periodDuration,
@@ -863,6 +878,7 @@ export class SubscriptionDelegationService {
     request: PrepareSubscriptionDelegationRequest;
     chainId: Hex;
     delegateAddress: Hex;
+    paymentAddress: Hex;
     tokenAddress: Hex;
     periodAmount: bigint;
     periodDuration: number;
@@ -873,6 +889,7 @@ export class SubscriptionDelegationService {
     const matches = makeMatchesSubscriptionDelegation({
       delegatorAddress: request.payerAddress,
       delegateAddress,
+      recipientAddress: paymentAddress,
       chainId,
       tokenAddress,
       periodAmount,
@@ -936,6 +953,7 @@ export class SubscriptionDelegationService {
       delegationManager:
         DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)]
           .DelegationManager,
+      paymentAddress: chain.paymentAddress,
       enforcers,
       musdAddress: vaultConfig.underlyingToken,
       price,
