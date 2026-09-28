@@ -60,7 +60,7 @@
     "eth-chainlist": "^0.0.840"
   },
   "devDependencies": {
-    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/abi": "^5.8.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
