@@ -608,12 +608,16 @@ export class ChompApiService extends BaseDataService<
    *
    * GET /v1/intent/account/:address
    *
+   * Callers use the result to decide whether an intent already exists, so it
+   * is always fetched fresh (`staleTime: 0`).
+   *
    * @param address - The address to look up intents for.
    * @returns The array of intents for the address.
    */
   async getIntentsByAddress(address: Hex): Promise<IntentEntry[]> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getIntentsByAddress`, address],
+      staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(

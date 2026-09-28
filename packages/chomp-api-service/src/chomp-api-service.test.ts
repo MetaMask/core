@@ -587,6 +587,20 @@ describe('ChompApiService', () => {
       expect(result).toStrictEqual([]);
     });
 
+    it('does not serve results from cache', async () => {
+      nock(BASE_URL).get('/v1/intent/account/0xabc').reply(200, []);
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .reply(200, intentsResponse);
+      const { service } = createService();
+
+      const first = await service.getIntentsByAddress('0xabc');
+      const second = await service.getIntentsByAddress('0xabc');
+
+      expect(first).toStrictEqual([]);
+      expect(second).toStrictEqual(intentsResponse);
+    });
+
     it('throws on non-OK status', async () => {
       nock(BASE_URL)
         .get('/v1/intent/account/0xabc')
