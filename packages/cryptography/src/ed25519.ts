@@ -17,7 +17,7 @@ const ED25519_PKCS8_HEADER = new Uint8Array([
  * @param privateKey - The 32-byte Ed25519 private key.
  * @returns The 32-byte Ed25519 public key.
  */
-export async function getEd25519PublicKey(
+export async function getPublicKey(
   privateKey: BufferSource,
 ): Promise<Uint8Array> {
   if (privateKey.byteLength !== ED25519_KEY_LENGTH) {
@@ -66,7 +66,7 @@ export async function getEd25519PublicKey(
  * @param data - The data to sign.
  * @returns The 64-byte Ed25519 signature.
  */
-export async function ed25519Sign(
+export async function sign(
   privateKey: BufferSource,
   data: BufferSource,
 ): Promise<Uint8Array> {
@@ -108,7 +108,7 @@ export async function ed25519Sign(
  * @param data - The signed data.
  * @returns `true` if the signature is valid, `false` otherwise.
  */
-export async function ed25519Verify(
+export async function verify(
   publicKey: BufferSource,
   signature: BufferSource,
   data: BufferSource,
