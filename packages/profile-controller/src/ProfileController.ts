@@ -32,29 +32,49 @@ const controllerName = 'ProfileController';
 
 // === TYPES ===
 
+/** Representation of a MetaMask profile stored in controller state. */
 export type MetaMaskProfile = {
+  /** The canonical profile ID connected to the profile. */
   profileId: string;
+  /** The username for the profile. */
   username: string;
+  /** The display name for the profile. */
   displayName: string;
+  /** The bio for the profile. */
   bio: string;
+  /** The linked addresses for the profile. */
   linkedAddresses: CaipAccountId[];
+  /** The avatar URL for the profile. */
   avatarUrl: string;
+  /** Whether the profile's trading activity is visible to the public. */
   tradingPrivacy: 'public' | 'private';
+  /** Whether the profile is connected to X. */
   connectedToX: boolean;
+  /** The date and time the profile was created. */
   createdAt: string;
+  /** The date and time the profile was updated. */
   updatedAt: string;
 };
 
+/** Representation of a linked X (Twitter) profile stored in controller state. */
 export type XProfile = {
+  /** The unique identifier for the X profile. This is the user ID of the X profile. */
   xUserId: string;
+  /** The URL for the X profile. */
   xProfileUrl: string;
+  /** The username for the X profile. */
   username: string;
+  /** The display name for the X profile. */
   displayName: string;
+  /** The avatar URL for the X profile. */
   avatarUrl: string;
+  /** The date and time the X profile was created. */
   createdAt: string;
+  /** The date and time the X profile was updated. */
   updatedAt: string;
 };
 
+/** State managed by ProfileController. */
 export type ProfileControllerState = {
   metamaskProfile: MetaMaskProfile;
   xProfile?: XProfile;
@@ -62,20 +82,24 @@ export type ProfileControllerState = {
 
 // === MESSENGER ===
 
+/** The `ProfileController:getState` action type. */
 export type ProfileControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   ProfileControllerState
 >;
 
+/** Union of all actions exposed by ProfileController. */
 export type ProfileControllerActions =
   | ProfileControllerGetStateAction
   | ProfileControllerMethodActions;
 
+/** The `ProfileController:stateChanged` event type. */
 export type ProfileControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   ProfileControllerState
 >;
 
+/** Union of all events emitted by ProfileController. */
 export type ProfileControllerEvents = ProfileControllerChangeEvent;
 
 type AllowedActions =
@@ -90,6 +114,7 @@ type AllowedActions =
 
 export type AllowedEvents = never;
 
+/** Messenger type for ProfileController, scoped to its actions, events, and allowed service calls. */
 export type ProfileControllerMessenger = Messenger<
   typeof controllerName,
   ProfileControllerActions | AllowedActions,
@@ -113,6 +138,11 @@ const profileControllerMetadata = {
   },
 } satisfies StateMetadata<ProfileControllerState>;
 
+/**
+ * Returns the default initial state for ProfileController.
+ *
+ * @returns A ProfileControllerState with empty profile fields and no X profile.
+ */
 export function getDefaultProfileControllerState(): ProfileControllerState {
   return {
     metamaskProfile: {
@@ -145,11 +175,19 @@ const MESSENGER_EXPOSED_METHODS = [
 
 // === CONTROLLER ===
 
+/** Manages MetaMask profile state and delegates API operations to ProfileService. */
 export class ProfileController extends BaseController<
   typeof controllerName,
   ProfileControllerState,
   ProfileControllerMessenger
 > {
+  /**
+   * Creates a new ProfileController instance.
+   *
+   * @param options - Constructor options.
+   * @param options.messenger - The messenger scoped to ProfileController.
+   * @param options.state - Optional partial initial state to merge with defaults.
+   */
   constructor({
     messenger,
     state,
@@ -173,10 +211,21 @@ export class ProfileController extends BaseController<
     );
   }
 
+  /**
+   * Checks if a profile has been created.
+   *
+   * @returns True if a profile has been created, false otherwise.
+   */
   #hasProfile(): boolean {
     return this.state.metamaskProfile.profileId !== '';
   }
 
+  /**
+   * Maps an API response to a MetaMask profile.
+   *
+   * @param response - The API response to map.
+   * @returns The mapped MetaMask profile.
+   */
   #mapApiResponseToProfile(response: ProfileApiResponse): MetaMaskProfile {
     return {
       profileId: response.profile_id,
@@ -192,6 +241,12 @@ export class ProfileController extends BaseController<
     };
   }
 
+  /**
+   * Maps an API response to an X profile.
+   *
+   * @param response - The API response to map.
+   * @returns The mapped X profile.
+   */
   #mapXResponseToXProfile(response: XConnectResponse): XProfile {
     return {
       xUserId: response.x_user_id,
@@ -204,6 +259,11 @@ export class ProfileController extends BaseController<
     };
   }
 
+  /**
+   * Returns the current MetaMask profile from state, or undefined if none has been created.
+   *
+   * @returns The MetaMask profile, or undefined.
+   */
   getMetaMaskProfile(): MetaMaskProfile | undefined {
     if (!this.#hasProfile()) {
       return undefined;
@@ -211,10 +271,20 @@ export class ProfileController extends BaseController<
     return this.state.metamaskProfile;
   }
 
+  /**
+   * Returns the currently linked X profile from state, or undefined if none has been connected.
+   *
+   * @returns The X profile, or undefined.
+   */
   getXprofile(): XProfile | undefined {
     return this.state.xProfile;
   }
 
+  /**
+   * Creates a new MetaMask profile and updates state.
+   *
+   * @param input - The profile creation parameters.
+   */
   async createProfile(input: CreateProfileParams): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:createProfile',
@@ -225,6 +295,12 @@ export class ProfileController extends BaseController<
     });
   }
 
+  /**
+   * Fully replaces an existing profile and updates state.
+   *
+   * @param identifier - The profile identifier.
+   * @param input - The replacement profile data.
+   */
   async replaceProfile(
     identifier: string,
     input: ReplaceProfileParams,
@@ -239,6 +315,12 @@ export class ProfileController extends BaseController<
     });
   }
 
+  /**
+   * Partially updates an existing profile and updates state.
+   *
+   * @param identifier - The profile identifier.
+   * @param input - The fields to update.
+   */
   async updateProfile(
     identifier: string,
     input: UpdateProfileParams,
@@ -253,6 +335,11 @@ export class ProfileController extends BaseController<
     });
   }
 
+  /**
+   * Deletes a profile and resets state, including clearing any linked X profile.
+   *
+   * @param identifier - The profile identifier to delete.
+   */
   async deleteProfile(identifier: string): Promise<void> {
     await this.messenger.call('ProfileService:deleteProfile', identifier);
     this.update((state) => {
@@ -262,6 +349,12 @@ export class ProfileController extends BaseController<
     });
   }
 
+  /**
+   * Checks whether a username is available.
+   *
+   * @param username - The username to check.
+   * @returns Availability details including validity and normalized form.
+   */
   async checkUsernameAvailability(
     username: string,
   ): Promise<UsernameAvailabilityResponse> {
@@ -271,10 +364,21 @@ export class ProfileController extends BaseController<
     );
   }
 
+  /**
+   * Fetches the X OAuth authorization URL to begin the PKCE flow.
+   *
+   * @returns An object containing the authorization URL and its associated state token.
+   */
   async getXAuthUrl(): Promise<XAuthUrlResponse> {
     return this.messenger.call('ProfileService:getXAuthUrl');
   }
 
+  /**
+   * Completes the X OAuth PKCE flow and updates the X profile in state.
+   *
+   * @param code - The OAuth authorization code from the X redirect.
+   * @param xState - The state parameter returned by the X redirect.
+   */
   async connectX(code: string, xState: string): Promise<void> {
     const response = await this.messenger.call('ProfileService:connectX', {
       code,
@@ -285,6 +389,9 @@ export class ProfileController extends BaseController<
     });
   }
 
+  /**
+   * Fetches the X account linked to the current profile and updates state.
+   */
   async getXAccount(): Promise<void> {
     const response = await this.messenger.call('ProfileService:getXAccount');
     this.update((state) => {

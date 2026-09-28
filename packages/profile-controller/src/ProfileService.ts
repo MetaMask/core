@@ -28,6 +28,7 @@ export const serviceName = 'ProfileService';
 // Error messages
 // ---------------------------------------------------------------------------
 
+/** Human-readable error messages for each ProfileService operation. */
 export const ProfileServiceErrorMessage = {
   GET_PROFILE_FAILED: 'ProfileService: failed to fetch profile',
   CREATE_PROFILE_FAILED: 'ProfileService: failed to create profile',
@@ -134,41 +135,54 @@ const MESSENGER_EXPOSED_METHODS = [
   'getXAccount',
 ] as const;
 
+/** The shape of a profile returned by the MetaMask Profile API. */
 export type ProfileApiResponse = Infer<typeof ProfileApiResponseStruct>;
 
+/** The response shape for a username availability check. */
 export type UsernameAvailabilityResponse = Infer<
   typeof UsernameAvailabilityResponseStruct
 >;
 
+/** The response shape returned when connecting or fetching an X account. */
 export type XConnectResponse = Infer<typeof XConnectResponseStruct>;
 
+/** The response shape returned when requesting the X OAuth authentication URL. */
 export type XAuthUrlResponse = Infer<typeof XAuthUrlResponseStruct>;
 
+/** Alias for {@link XConnectResponse} returned when fetching the linked X account. */
 export type XAccountResponse = XConnectResponse;
 
+/** Parameters for creating a new MetaMask profile. */
 export type CreateProfileParams = Infer<typeof CreateProfileParamsStruct>;
 
+/** Parameters for fully replacing an existing MetaMask profile (PUT). */
 export type ReplaceProfileParams = Infer<typeof ReplaceProfileParamsStruct>;
 
+/** Parameters for partially updating an existing MetaMask profile (PATCH). */
 export type UpdateProfileParams = Infer<typeof UpdateProfileParamsStruct>;
 
+/** Parameters for completing the X OAuth PKCE flow. */
 export type ConnectXParams = Infer<typeof ConnectXParamsStruct>;
 
 // ---------------------------------------------------------------------------
 // Messenger types
 // ---------------------------------------------------------------------------
 
+/** Union of all actions exposed by ProfileService, including cache invalidation. */
 export type ProfileServiceActions =
   | ProfileServiceMethodActions
   | DataServiceInvalidateQueriesAction<typeof serviceName>;
 
+/** Event emitted when the ProfileService query cache is updated. */
 export type ProfileServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
   typeof serviceName
 >;
 
+/** Event emitted with per-query granularity when the ProfileService cache is updated. */
 export type ProfileServiceGranularCacheUpdatedEvent =
   DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
+/** Union of all events emitted by ProfileService. */
 export type ProfileServiceEvents =
   | ProfileServiceCacheUpdatedEvent
   | ProfileServiceGranularCacheUpdatedEvent;
@@ -178,6 +192,7 @@ type AllowedActions =
 
 type AllowedEvents = never;
 
+/** Messenger type for ProfileService, scoped to its actions and events. */
 export type ProfileServiceMessenger = Messenger<
   typeof serviceName,
   ProfileServiceActions | AllowedActions,
@@ -188,6 +203,7 @@ export type ProfileServiceMessenger = Messenger<
 // Service
 // ---------------------------------------------------------------------------
 
+/** Communicates with the MetaMask Profile API and exposes all operations via the messenger. */
 export class ProfileService extends BaseDataService<
   typeof serviceName,
   ProfileServiceMessenger
@@ -198,6 +214,14 @@ export class ProfileService extends BaseDataService<
     return `${this.#baseUrl}/v1`;
   }
 
+  /**
+   * Creates a new ProfileService instance.
+   *
+   * @param options - Constructor options.
+   * @param options.messenger - The messenger scoped to ProfileService.
+   * @param options.baseUrl - Base URL for the MetaMask Profile API.
+   * @param options.policyOptions - Optional service policy configuration.
+   */
   constructor({
     messenger,
     baseUrl,
@@ -216,12 +240,24 @@ export class ProfileService extends BaseDataService<
     );
   }
 
+  /**
+   * Throws an HttpError if the response is not a 2xx status code.
+   *
+   * @param response - The response to check.
+   * @param message - The message to include in the error.
+   * @throws {HttpError} If the response is not a 2xx status code.
+   */
   #throwIfNotOk(response: Response, message: string): void {
     if (!response.ok) {
       throw new HttpError(response.status, `${message}: ${response.status}`);
     }
   }
 
+  /**
+   * Gets the authentication headers for the request.
+   *
+   * @returns The authentication headers.
+   */
   async #getAuthHeaders(): Promise<Record<string, string>> {
     const token = await this.messenger.call(
       'AuthenticationController:getBearerToken',
@@ -229,6 +265,14 @@ export class ProfileService extends BaseDataService<
     return { Authorization: `Bearer ${token}` };
   }
 
+  /**
+   * Fetches a profile by its identifier.
+   *
+   * @param profileId - The profile identifier to fetch.
+   * @returns The profile data from the API.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
   async getProfile(profileId: string): Promise<ProfileApiResponse> {
     assert(profileId, string());
     const authHeaders = await this.#getAuthHeaders();
@@ -249,6 +293,14 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Creates a new MetaMask profile.
+   *
+   * @param params - The profile creation parameters.
+   * @returns The created profile data.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If params or the response do not match the expected shape.
+   */
   async createProfile(
     params: CreateProfileParams,
   ): Promise<ProfileApiResponse> {
@@ -273,6 +325,15 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Fully replaces an existing profile (PUT).
+   *
+   * @param profileId - The identifier of the profile to replace.
+   * @param params - The replacement profile data.
+   * @returns The updated profile data.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If params or the response do not match the expected shape.
+   */
   async replaceProfile(
     profileId: string,
     params: ReplaceProfileParams,
@@ -301,6 +362,15 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Partially updates an existing profile (PATCH).
+   *
+   * @param profileId - The identifier of the profile to update.
+   * @param params - The fields to update.
+   * @returns The updated profile data.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If params or the response do not match the expected shape.
+   */
   async updateProfile(
     profileId: string,
     params: UpdateProfileParams,
@@ -329,6 +399,14 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Deletes a profile by its identifier.
+   *
+   * @param profileId - The identifier of the profile to delete.
+   * @returns The result of the mutation.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the profileId is not a string.
+   */
   async deleteProfile(profileId: string): Promise<void> {
     assert(profileId, string());
     const authHeaders = await this.#getAuthHeaders();
@@ -351,6 +429,14 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Checks whether a username is available.
+   *
+   * @param username - The username to check.
+   * @returns Availability details including validity and normalized form.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the username or response do not match the expected shape.
+   */
   async checkUsernameAvailability(
     username: string,
   ): Promise<UsernameAvailabilityResponse> {
@@ -374,7 +460,14 @@ export class ProfileService extends BaseDataService<
     });
   }
 
-  async getXAuthUrl(): Promise<{ url: string; state: string }> {
+  /**
+   * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+   *
+   * @returns An object containing the authorization URL and the state token.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async getXAuthUrl(): Promise<XAuthUrlResponse> {
     const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
       queryKey: [`${this.name}:getXAuthUrl`],
@@ -392,6 +485,14 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Completes the X OAuth PKCE flow and links the X account to the profile.
+   *
+   * @param params - The OAuth callback code and state from the X redirect.
+   * @returns The linked X account data.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If params or the response do not match the expected shape.
+   */
   async connectX(params: ConnectXParams): Promise<XConnectResponse> {
     assert(params, ConnectXParamsStruct);
     const authHeaders = await this.#getAuthHeaders();
@@ -414,6 +515,13 @@ export class ProfileService extends BaseDataService<
     });
   }
 
+  /**
+   * Fetches the X account currently linked to the authenticated profile.
+   *
+   * @returns The linked X account data.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
   async getXAccount(): Promise<XAccountResponse> {
     const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
