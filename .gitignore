@@ -62,3 +62,8 @@ packages/wallet-framework-docs/site/build
 # Foundry (anvil) binaries cached by @metamask/foundryup for the wallet-cli
 # real-chain e2e (enableGlobalCache is off, so the cache lands in-repo).
 .metamask/
+
+# Declaration files that `tsc --build` emits next to the shared test helpers,
+# because those files sit outside the `rootDir` of the package projects that
+# import them.
+tests/**/*.d.ts

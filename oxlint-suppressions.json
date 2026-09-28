@@ -5581,6 +5581,20 @@
       "count": 2
     }
   },
+  "packages/seedless-onboarding-controller/src/utils.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
   "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
     "typescript/no-unsafe-argument": {
       "count": 6
@@ -7690,18 +7704,8 @@
       "count": 2
     }
   },
-  "tests/helpers.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    }
-  },
-  "tests/scripts-setup.ts": {
-    "jest/require-top-level-describe": {
-      "count": 1
-    }
-  },
-  "tests/setupAfterEnv/nock.ts": {
-    "jest/require-top-level-describe": {
+  "tests/vitest/setup-after-env.ts": {
+    "vitest/require-top-level-describe": {
       "count": 2
     }
   },
