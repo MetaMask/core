@@ -32,6 +32,10 @@ import {
 } from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
+  resolveSettledAmount,
+  submitSecondLeg,
+} from '../../utils/second-leg.js';
+import {
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
@@ -54,6 +58,13 @@ import type {
 import { ServerStatus } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
+
+/**
+ * Placeholder returned when an intent confirms without reporting a
+ * target-chain transaction hash, so there is no settlement to read amounts
+ * from.
+ */
+const MISSING_TARGET_HASH = '0x' as Hex;
 
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
@@ -162,7 +173,72 @@ async function executeSingleServerQuote(
     },
   );
 
+  // Phase 4: submit the calls the quote could not execute itself, now that the
+  // funds have settled on the target chain.
+  if (quote.requiresSecondLeg) {
+    return {
+      transactionHash: await submitQuoteSecondLeg(
+        quote,
+        messenger,
+        transaction,
+        targetHash,
+      ),
+    };
+  }
+
   return { transactionHash: targetHash };
+}
+
+/**
+ * Submits the second leg of a non-atomic server quote.
+ *
+ * The quote only delivered the target token to the recipient, so the target
+ * calls run afterwards from the recipient account on the target chain, sized to
+ * the amount that actually settled.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @param settlementHash - Hash of the transaction that delivered the funds.
+ * @returns Hash of the second-leg transaction, falling back to the settlement
+ * hash when unavailable.
+ */
+async function submitQuoteSecondLeg(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+  settlementHash: Hex | undefined,
+): Promise<Hex | undefined> {
+  const { from, recipient, targetChainId, targetTokenAddress } = quote.request;
+  const secondLegFrom = recipient ?? from;
+
+  if (!settlementHash || settlementHash === MISSING_TARGET_HASH) {
+    throw new Error('Missing settlement hash for second leg');
+  }
+
+  const sourceAmountRaw = await resolveSettledAmount({
+    messenger,
+    recipient: secondLegFrom,
+    settlementHash,
+    targetChainId,
+    targetTokenAddress,
+  });
+
+  log('Submitting second leg', {
+    from: secondLegFrom,
+    sourceAmountRaw,
+    targetChainId,
+  });
+
+  const { transactionHash } = await submitSecondLeg({
+    chainId: targetChainId,
+    from: secondLegFrom,
+    messenger,
+    sourceAmountRaw,
+    transaction,
+  });
+
+  return transactionHash ?? settlementHash;
 }
 
 /**
@@ -992,7 +1068,7 @@ async function waitForServerCompletion(
       }
 
       if (statusResponse.status === ServerStatus.Confirmed) {
-        return statusResponse.targetHash ?? '0x';
+        return statusResponse.targetHash ?? MISSING_TARGET_HASH;
       }
 
       if (

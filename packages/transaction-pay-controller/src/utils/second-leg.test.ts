@@ -1,0 +1,597 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
+
+import type { TransactionPayControllerMessenger } from '../types.js';
+import { getNetworkClientId } from './provider.js';
+import {
+  resolveExecutionAccount,
+  resolveNonAtomicRecipient,
+  resolveSecondLegCalls,
+  resolveSettledAmount,
+  submitSecondLeg,
+} from './second-leg.js';
+import {
+  collectTransactionIds,
+  getTransaction,
+  getTransferredAmountFromTxHash,
+  updateTransaction,
+  waitForTransactionConfirmed,
+} from './transaction.js';
+
+jest.mock('./provider');
+jest.mock('./transaction');
+
+const TRANSACTION_ID_MOCK = 'tx-id';
+const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+const CHAIN_ID_MOCK = '0x279f' as Hex;
+const TOKEN_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
+const SETTLEMENT_HASH_MOCK = '0xsettlement' as Hex;
+const NETWORK_CLIENT_ID_MOCK = 'network-client-id-mock';
+const AMOUNT_MOCK = '5000000';
+const PAYER_MOCK = '0x3333333333333333333333333333333333333333' as Hex;
+const OVERRIDE_RECIPIENT_MOCK =
+  '0x4444444444444444444444444444444444444444' as Hex;
+
+const TRANSACTION_MOCK = {
+  id: TRANSACTION_ID_MOCK,
+  nestedTransactions: [
+    { data: '0xoldApprove' as Hex, to: '0xapprove' as Hex },
+    { data: '0xoldDeposit' as Hex, to: '0xdeposit' as Hex },
+  ],
+  requiredAssets: [{ amount: '0x0' }],
+  txParams: { from: FROM_MOCK },
+  type: TransactionType.batch,
+} as unknown as TransactionMeta;
+
+function buildMessenger(
+  callMock: jest.Mock = jest.fn(),
+): TransactionPayControllerMessenger {
+  return { call: callMock } as unknown as TransactionPayControllerMessenger;
+}
+
+function buildAmountDataCallMock(
+  overrides: { addTransactionBatch?: () => Promise<unknown> } = {},
+): jest.Mock {
+  return jest.fn((action: string) => {
+    if (action === 'TransactionPayController:getAmountData') {
+      return Promise.resolve({
+        updates: [
+          { data: '0xnewApprove', nestedTransactionIndex: 0 },
+          { data: '0xnewDeposit', nestedTransactionIndex: 1 },
+        ],
+      });
+    }
+
+    if (action === 'TransactionController:addTransactionBatch') {
+      return (
+        overrides.addTransactionBatch?.() ??
+        Promise.resolve({ batchId: 'batch-id' })
+      );
+    }
+
+    throw new Error(`Unexpected action: ${action}`);
+  });
+}
+
+describe('second-leg', () => {
+  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
+  const getTransactionMock = jest.mocked(getTransaction);
+  const getTransferredAmountFromTxHashMock = jest.mocked(
+    getTransferredAmountFromTxHash,
+  );
+  const updateTransactionMock = jest.mocked(updateTransaction);
+  const waitForTransactionConfirmedMock = jest.mocked(
+    waitForTransactionConfirmed,
+  );
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+
+    getNetworkClientIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+
+    collectTransactionIdsMock.mockImplementation(
+      (_chainId, _from, _messenger, onTransaction) => {
+        onTransaction('child-1');
+        onTransaction('child-2');
+        return { end: jest.fn() };
+      },
+    );
+
+    getTransactionMock.mockImplementation((transactionId) => {
+      if (transactionId === TRANSACTION_ID_MOCK) {
+        return TRANSACTION_MOCK;
+      }
+
+      if (transactionId === 'child-2') {
+        return { hash: '0xsecondleg' } as TransactionMeta;
+      }
+    });
+
+    waitForTransactionConfirmedMock.mockResolvedValue();
+  });
+
+  describe('resolveExecutionAccount', () => {
+    it('returns the executing account when it differs from the payer', () => {
+      expect(resolveExecutionAccount(TRANSACTION_MOCK, PAYER_MOCK)).toBe(
+        FROM_MOCK,
+      );
+    });
+
+    it('returns undefined when the executing account is the payer', () => {
+      expect(
+        resolveExecutionAccount(TRANSACTION_MOCK, FROM_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('ignores case when comparing the executing account to the payer', () => {
+      expect(
+        resolveExecutionAccount(
+          TRANSACTION_MOCK,
+          FROM_MOCK.toUpperCase() as Hex,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when the transaction has no params', () => {
+      expect(
+        resolveExecutionAccount({} as TransactionMeta, PAYER_MOCK),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('resolveNonAtomicRecipient', () => {
+    it('returns undefined for atomic flows', async () => {
+      expect(
+        await resolveNonAtomicRecipient(
+          TRANSACTION_MOCK,
+          { atomic: true, from: PAYER_MOCK } as never,
+          buildMessenger(),
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when the request does not specify atomicity', async () => {
+      expect(
+        await resolveNonAtomicRecipient(
+          TRANSACTION_MOCK,
+          { from: PAYER_MOCK } as never,
+          buildMessenger(),
+        ),
+      ).toBeUndefined();
+    });
+
+    it('settles on the executing account when the payer only funds the quote', async () => {
+      expect(
+        await resolveNonAtomicRecipient(
+          TRANSACTION_MOCK,
+          { atomic: false, from: PAYER_MOCK } as never,
+          buildMessenger(),
+        ),
+      ).toBe(FROM_MOCK);
+    });
+
+    it('falls back to the payer when there is no distinct executing account', async () => {
+      expect(
+        await resolveNonAtomicRecipient(
+          {} as TransactionMeta,
+          { atomic: false, from: PAYER_MOCK } as never,
+          buildMessenger(),
+        ),
+      ).toBe(PAYER_MOCK);
+    });
+
+    it('asks the client for the recipient on post-quote flows', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getState') {
+          return {
+            transactionData: {
+              [TRANSACTION_ID_MOCK]: { tokens: [{ amountHuman: '1.5' }] },
+            },
+          };
+        }
+
+        if (action === 'TransactionPayController:getPaymentOverrideData') {
+          return Promise.resolve({ recipient: OVERRIDE_RECIPIENT_MOCK });
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      const result = await resolveNonAtomicRecipient(
+        TRANSACTION_MOCK,
+        { atomic: false, from: PAYER_MOCK, isPostQuote: true } as never,
+        buildMessenger(callMock),
+      );
+
+      expect(result).toBe(OVERRIDE_RECIPIENT_MOCK);
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionPayController:getPaymentOverrideData',
+        expect.objectContaining({ amount: '1.5' }),
+      );
+    });
+
+    it('defaults the post-quote amount to zero when no token amount is known', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getState') {
+          return { transactionData: {} };
+        }
+
+        if (action === 'TransactionPayController:getPaymentOverrideData') {
+          return Promise.resolve({ recipient: OVERRIDE_RECIPIENT_MOCK });
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      await resolveNonAtomicRecipient(
+        TRANSACTION_MOCK,
+        { atomic: false, from: PAYER_MOCK, isPostQuote: true } as never,
+        buildMessenger(callMock),
+      );
+
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionPayController:getPaymentOverrideData',
+        expect.objectContaining({ amount: '0' }),
+      );
+    });
+  });
+
+  describe('resolveSettledAmount', () => {
+    it('returns the amount transferred to the recipient', async () => {
+      getTransferredAmountFromTxHashMock.mockResolvedValue({
+        amountRaw: AMOUNT_MOCK,
+      } as never);
+
+      const result = await resolveSettledAmount({
+        messenger: buildMessenger(),
+        recipient: FROM_MOCK,
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        targetChainId: CHAIN_ID_MOCK,
+        targetTokenAddress: TOKEN_MOCK,
+      });
+
+      expect(result).toBe(AMOUNT_MOCK);
+      expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainId: CHAIN_ID_MOCK,
+          tokenAddress: TOKEN_MOCK,
+          txHash: SETTLEMENT_HASH_MOCK,
+          walletAddress: FROM_MOCK,
+        }),
+      );
+    });
+
+    it('throws when no amount can be read from the settlement transaction', async () => {
+      getTransferredAmountFromTxHashMock.mockResolvedValue({
+        amountRaw: undefined,
+      } as never);
+
+      await expect(
+        resolveSettledAmount({
+          messenger: buildMessenger(),
+          recipient: FROM_MOCK,
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          targetChainId: CHAIN_ID_MOCK,
+          targetTokenAddress: TOKEN_MOCK,
+        }),
+      ).rejects.toThrow(
+        `Could not determine settled amount from transaction ${SETTLEMENT_HASH_MOCK}`,
+      );
+    });
+  });
+
+  describe('resolveSecondLegCalls', () => {
+    it('returns pre-built calls unchanged without re-encoding', async () => {
+      const calls = [{ data: '0xprebuilt' as Hex, to: '0xtarget' as Hex }];
+      const callMock = jest.fn();
+
+      const result = await resolveSecondLegCalls({
+        calls,
+        messenger: buildMessenger(callMock),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(result).toStrictEqual(calls);
+      expect(callMock).not.toHaveBeenCalled();
+    });
+
+    it('re-encodes the nested calls for the settled amount', async () => {
+      const callMock = buildAmountDataCallMock();
+
+      const result = await resolveSecondLegCalls({
+        messenger: buildMessenger(callMock),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(result).toStrictEqual([
+        { data: '0xnewApprove', to: '0xapprove' },
+        { data: '0xnewDeposit', to: '0xdeposit' },
+      ]);
+    });
+
+    it('updates the parent transaction calls and required asset amount', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
+          ...nt,
+        })),
+        requiredAssets: [{ amount: '0x0' }],
+      } as TransactionMeta;
+
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      await resolveSecondLegCalls({
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(parentTransaction.nestedTransactions).toStrictEqual([
+        { data: '0xnewApprove', to: '0xapprove' },
+        { data: '0xnewDeposit', to: '0xdeposit' },
+      ]);
+      expect(parentTransaction.requiredAssets?.[0].amount).toBe('0x4c4b40');
+    });
+
+    it('ignores updates that target a call index that does not exist', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: [{ data: '0xoldApprove' }],
+      } as TransactionMeta;
+
+      getTransactionMock.mockReturnValue(parentTransaction);
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      const callMock = jest.fn(() =>
+        Promise.resolve({
+          updates: [{ data: '0xnew', nestedTransactionIndex: 5 }],
+        }),
+      );
+
+      const result = await resolveSecondLegCalls({
+        messenger: buildMessenger(callMock),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(result).toStrictEqual([{ data: '0xoldApprove' }]);
+    });
+
+    it('leaves the required asset amount alone when the transaction has none', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
+          ...nt,
+        })),
+        requiredAssets: undefined,
+      } as TransactionMeta;
+
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      await resolveSecondLegCalls({
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(parentTransaction.requiredAssets).toBeUndefined();
+    });
+
+    it('throws when there are no amount updates', async () => {
+      const callMock = jest.fn(() => Promise.resolve({ updates: [] }));
+
+      await expect(
+        resolveSecondLegCalls({
+          messenger: buildMessenger(callMock),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('No amount updates');
+    });
+
+    it('throws when the transaction has no nested calls', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_MOCK,
+        nestedTransactions: undefined,
+      });
+
+      await expect(
+        resolveSecondLegCalls({
+          messenger: buildMessenger(buildAmountDataCallMock()),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing nested transactions');
+    });
+  });
+
+  describe('submitSecondLeg', () => {
+    it('submits a sponsored batch on the requested chain from the requested account', async () => {
+      const callMock = buildAmountDataCallMock();
+
+      const result = await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(callMock),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(getNetworkClientIdMock).toHaveBeenCalledWith(
+        expect.anything(),
+        CHAIN_ID_MOCK,
+      );
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.objectContaining({
+          disableHook: true,
+          disableSequential: true,
+          disableUpgrade: true,
+          from: FROM_MOCK,
+          isGasFeeSponsored: true,
+          isInternal: true,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_METAMASK,
+          requireApproval: false,
+          skipInitialGasEstimate: true,
+          transactions: [
+            {
+              params: { data: '0xnewApprove', to: '0xapprove', value: '0x0' },
+              type: TransactionType.tokenMethodApprove,
+            },
+            {
+              params: { data: '0xnewDeposit', to: '0xdeposit', value: '0x0' },
+              type: TransactionType.contractInteraction,
+            },
+          ],
+        }),
+      );
+      expect(result).toStrictEqual({ transactionHash: '0xsecondleg' });
+    });
+
+    it('submits without sponsorship when sponsored is false', async () => {
+      const callMock = buildAmountDataCallMock();
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(callMock),
+        sourceAmountRaw: AMOUNT_MOCK,
+        sponsored: false,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.objectContaining({ isGasFeeSponsored: false }),
+      );
+    });
+
+    it('waits for every submitted child transaction to confirm', async () => {
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(waitForTransactionConfirmedMock).toHaveBeenCalledWith(
+        'child-1',
+        expect.anything(),
+      );
+      expect(waitForTransactionConfirmedMock).toHaveBeenCalledWith(
+        'child-2',
+        expect.anything(),
+      );
+    });
+
+    it('prefixes submission errors', async () => {
+      const callMock = buildAmountDataCallMock({
+        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
+      });
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(callMock),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Second leg: submit failed');
+    });
+
+    it('uses a custom error prefix when provided', async () => {
+      const callMock = buildAmountDataCallMock({
+        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
+      });
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          errorPrefix: 'Custom: ',
+          from: FROM_MOCK,
+          messenger: buildMessenger(callMock),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Custom: submit failed');
+    });
+
+    it('returns the recovered hash when onError resolves the failure', async () => {
+      const callMock = buildAmountDataCallMock({
+        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
+      });
+
+      const result = await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(callMock),
+        onError: async () => '0xrecovered',
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(result).toStrictEqual({ transactionHash: '0xrecovered' });
+    });
+
+    it('throws the original error when onError cannot recover', async () => {
+      const callMock = buildAmountDataCallMock({
+        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
+      });
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(callMock),
+          onError: async () => undefined,
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Second leg: submit failed');
+    });
+
+    it('throws when no child transactions were submitted', async () => {
+      collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(buildAmountDataCallMock()),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('No transactions submitted');
+    });
+
+    it('throws when the submitted transaction has no hash', async () => {
+      getTransactionMock.mockImplementation((transactionId) =>
+        transactionId === TRANSACTION_ID_MOCK ? TRANSACTION_MOCK : undefined,
+      );
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(buildAmountDataCallMock()),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing transaction hash');
+    });
+  });
+});

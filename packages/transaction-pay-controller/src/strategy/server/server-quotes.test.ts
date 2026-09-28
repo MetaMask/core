@@ -246,6 +246,54 @@ describe('server-quotes', () => {
     expect(getDelegationTransactionMock).not.toHaveBeenCalled();
   });
 
+  it('settles on the executing account when an account override pays for the quote', async () => {
+    const MONEY_ACCOUNT_MOCK =
+      '0xaaaa000000000000000000000000000000000001' as Hex;
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: {
+        nestedTransactions: [{ data: '0x1234' }],
+        txParams: { from: MONEY_ACCOUNT_MOCK },
+      } as TransactionMeta,
+    });
+
+    // `from` is the account override paying for the quote, but the nested calls
+    // execute from the money account, so the funds have to settle there.
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        recipient: MONEY_ACCOUNT_MOCK,
+        sender: FROM_MOCK,
+      }),
+      undefined,
+    );
+
+    // The second leg resolves the settled amount from `request.recipient`, so
+    // it has to match where the quote actually delivered the funds.
+    expect(result[0].request.recipient).toBe(MONEY_ACCOUNT_MOCK);
+  });
+
+  it('settles on the sender when no account override is active', async () => {
+    await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: {
+        nestedTransactions: [{ data: '0x1234' }],
+        txParams: { from: FROM_MOCK },
+      } as TransactionMeta,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ recipient: FROM_MOCK }),
+      undefined,
+    );
+  });
+
   it('decodes ERC-20 transfer calldata from a single nested transaction', async () => {
     await getServerQuotes({
       accountSupports7702: true,
@@ -459,6 +507,7 @@ describe('server-quotes', () => {
           steps: quote.steps,
         },
         request: QUOTE_REQUEST_MOCK,
+        requiresSecondLeg: false,
         sourceAmount: {
           fiat: '0',
           human: quote.input.formatted,
@@ -902,9 +951,6 @@ describe('server-quotes', () => {
 
   describe('processMoneyAccountPostQuote', () => {
     const DEPOSIT_AMOUNT_RAW_MOCK = '1500000';
-    // transfer(TOKEN_TRANSFER_RECIPIENT_MOCK, DEPOSIT_AMOUNT_RAW_MOCK)
-    const MONEY_ACCOUNT_TRANSFER_DATA_MOCK =
-      '0xa9059cbb0000000000000000000000005678901234567890123456789012345678901234000000000000000000000000000000000000000000000000000000000016e360' as Hex;
     const OVERRIDE_CALL_MOCK = {
       data: '0xoverride' as Hex,
       to: '0xcccc000000000000000000000000000000000000' as Hex,
@@ -978,7 +1024,7 @@ describe('server-quotes', () => {
       );
     });
 
-    it('transfers the deposit amount rather than the source token amount', async () => {
+    it('settles on the money account and carries only the deposit calls', async () => {
       await getServerQuotes({
         accountSupports7702: true,
         messenger,
@@ -992,17 +1038,14 @@ describe('server-quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
+      // The deposit calls are delegated from the money account, so the funds
+      // must settle there directly rather than on the EOA behind a forwarding
+      // transfer that only runs if the provider executes the calls.
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
         expect.objectContaining({
-          calls: [
-            {
-              data: MONEY_ACCOUNT_TRANSFER_DATA_MOCK,
-              to: QUOTE_REQUEST_MOCK.targetTokenAddress,
-              value: '0x0',
-            },
-            OVERRIDE_CALL_MOCK,
-          ],
+          calls: [OVERRIDE_CALL_MOCK],
+          recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
         }),
         undefined,
       );
@@ -1028,20 +1071,9 @@ describe('server-quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      // The transfer call targets the source token address with FROM_MOCK as recipient.
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
-        expect.objectContaining({
-          calls: expect.arrayContaining([
-            expect.objectContaining({
-              to: TARGET_TOKEN_ADDRESS_MOCK,
-              // data encodes FROM_MOCK (lower-cased, no 0x prefix) as the recipient
-              data: expect.stringContaining(
-                FROM_MOCK.slice(2).toLowerCase(),
-              ) as string,
-            }),
-          ]),
-        }),
+        expect.objectContaining({ recipient: FROM_MOCK }),
         undefined,
       );
     });
@@ -1173,6 +1205,219 @@ describe('server-quotes', () => {
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
         expect.not.objectContaining({ calls: expect.anything() }),
+        undefined,
+      );
+    });
+  });
+
+  describe('requiresSecondLeg', () => {
+    it('is true when the quote could not embed the calls', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(true);
+    });
+
+    it('is true when atomic is false, and the calls are left out of the quote', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, atomic: false }],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(true);
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.not.objectContaining({ calls: expect.anything() }),
+        undefined,
+      );
+    });
+
+    it('is false when the calls are embedded in the quote', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false when there are no calls to run', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false for plain token transfers', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: {
+          nestedTransactions: [{ data: TOKEN_TRANSFER_DATA_MOCK }],
+          txParams: {},
+        } as TransactionMeta,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false when the nested calls carry no calldata', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: {
+          nestedTransactions: [{ data: '0x' }],
+          txParams: {},
+        } as TransactionMeta,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false when the resolved calldata is empty', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: {
+          nestedTransactions: [{ data: '0x' }],
+          txParams: { data: '0x' },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false when the target chain is HyperCore', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isMaxAmount: true,
+            targetChainId: CHAIN_ID_HYPERCORE,
+          },
+        ],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false when the source chain is HyperCore', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isMaxAmount: true,
+            sourceChainId: CHAIN_ID_HYPERCORE,
+          },
+        ],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false for post-quote flows, which submit the original transaction separately', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isPostQuote: true }],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is true when the provider will not execute the embedded calls', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: { ...FULFILLED_RESULT_MOCK.quote, callsSupported: false },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(true);
+    });
+
+    it('is false when the provider confirms it will execute the embedded calls', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: { ...FULFILLED_RESULT_MOCK.quote, callsSupported: true },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+  });
+
+  describe('isCallsOptional', () => {
+    it('opts in when the calls are embedded, so providers that cannot run them still quote', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ isCallsOptional: true }),
+        undefined,
+      );
+    });
+
+    it.each([
+      ['the calls are left out of the quote', { atomic: false }],
+      ['the flow submits its own calls', { isPostQuote: true }],
+    ])('is omitted when %s', async (_title, overrides) => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, ...overrides }],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.not.objectContaining({ isCallsOptional: expect.anything() }),
         undefined,
       );
     });

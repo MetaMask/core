@@ -50,6 +50,7 @@ import {
 import { calculateGasCost } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
+import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
 import {
   getNativeToken,
   getTokenFiatRate,
@@ -436,54 +437,6 @@ function normalizeAuthorizationList(
     s: a.s as Hex,
     yParity: Number(a.yParity),
   }));
-}
-
-/**
- * Derives the Relay quote recipient for non-atomic flows, where the second leg
- * runs after settlement so funds must land directly on the account submitting
- * that leg.
- *
- * Post-quote flows (e.g. Perps/Predict withdraw to Money Account) ask the
- * client `getPaymentOverrideData` callback, which knows the Money Account
- * address that cannot be derived from the request. Non-post-quote flows (e.g.
- * max-amount Money Account deposit) use the parent transaction's own `from`,
- * which is the Money Account rather than the funding EOA in `request.from`.
- *
- * @param transaction - Transaction metadata.
- * @param request - Quote request.
- * @param messenger - Controller messenger.
- * @returns The recipient address, or `undefined` for atomic flows.
- */
-async function resolveNonAtomicRecipient(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  messenger: TransactionPayControllerMessenger,
-): Promise<Hex | undefined> {
-  if (request.atomic !== false) {
-    return undefined;
-  }
-
-  if (!request.isPostQuote) {
-    return (transaction.txParams?.from as Hex | undefined) ?? request.from;
-  }
-
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const { recipient } = await messenger.call(
-    'TransactionPayController:getPaymentOverrideData',
-    {
-      amount: amountHuman,
-      transaction,
-      transactionData,
-    },
-  );
-
-  return recipient;
 }
 
 /**
