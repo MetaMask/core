@@ -39,15 +39,16 @@ export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
 };
 
 /**
- * Like {@link upgradeAccount}, but always runs the upgrade steps, ignoring
- * the recorded upgrade. Use this immediately before an action that depends
- * on the base and (when configured) premium vault delegations and CHOMP
- * intents actually existing right now — e.g. before starting a
+ * Like {@link upgradeAccount}, but skips the recorded-upgrade shortcut and
+ * always runs the upgrade steps. Use this immediately before an action that
+ * depends on the base and (when configured) premium vault delegations and
+ * CHOMP intents actually existing right now — e.g. before starting a
  * subscription — rather than trusting a fingerprint recorded on a
  * previous run, which does not reflect deletions or revocations made
  * since (on this device or elsewhere).
  *
- * As with `upgradeAccount`, each step only performs its action if its own
+ * "Force" means the shortcut is skipped, not that everything is redone:
+ * as with `upgradeAccount`, each step only performs its action if its own
  * remote check finds it is not already done, so a call that finds
  * everything in place performs no signing and makes no writes.
  *
@@ -56,9 +57,9 @@ export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
  * disarmed or superseded while the sequence is running, or if a step
  * fails (wrapped in a {@link MoneyAccountUpgradeStepError}).
  */
-export type MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction = {
-  type: `MoneyAccountUpgradeController:ensureDelegationsReadiness`;
-  handler: MoneyAccountUpgradeController['ensureDelegationsReadiness'];
+export type MoneyAccountUpgradeControllerForceUpgradeAccountAction = {
+  type: `MoneyAccountUpgradeController:forceUpgradeAccount`;
+  handler: MoneyAccountUpgradeController['forceUpgradeAccount'];
 };
 
 /**
@@ -66,4 +67,4 @@ export type MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction = {
  */
 export type MoneyAccountUpgradeControllerMethodActions =
   | MoneyAccountUpgradeControllerUpgradeAccountAction
-  | MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction;
+  | MoneyAccountUpgradeControllerForceUpgradeAccountAction;

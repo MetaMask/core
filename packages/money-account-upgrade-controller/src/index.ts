@@ -22,5 +22,5 @@ export type {
 } from './MoneyAccountUpgradeController.js';
 export type {
   MoneyAccountUpgradeControllerUpgradeAccountAction,
-  MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction,
+  MoneyAccountUpgradeControllerForceUpgradeAccountAction,
 } from './MoneyAccountUpgradeController-method-action-types.js';

@@ -1933,13 +1933,13 @@ describe('MoneyAccountUpgradeController', () => {
     });
   });
 
-  describe('ensureDelegationsReadiness', () => {
+  describe('forceUpgradeAccount', () => {
     it('throws when no bootstrap has been scheduled', async () => {
       const { controller } = setup({ isEnabled: false });
       controller.init();
 
       await expect(
-        controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS),
+        controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
     });
 
@@ -1948,7 +1948,7 @@ describe('MoneyAccountUpgradeController', () => {
       await bootstrap();
 
       await expect(
-        controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS),
+        controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
     });
 
@@ -1957,7 +1957,7 @@ describe('MoneyAccountUpgradeController', () => {
       await bootstrap();
       markBaseVaultReady(mocks);
 
-      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+      await controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
       expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
@@ -1969,7 +1969,7 @@ describe('MoneyAccountUpgradeController', () => {
       await bootstrap();
       makeAusAndChompWritable(mocks);
 
-      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+      await controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
       expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
       expect(mocks.createIntents).toHaveBeenCalledTimes(1);
@@ -1998,7 +1998,7 @@ describe('MoneyAccountUpgradeController', () => {
         intent(MOCK_VMUSD_DELEGATION_HASH, 'revoked'),
       ]);
 
-      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+      await controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
       // Only the revoked withdrawal intent needed re-registering.
       expect(mocks.createIntents).toHaveBeenCalledTimes(1);
@@ -2023,7 +2023,7 @@ describe('MoneyAccountUpgradeController', () => {
         storedDelegation(MOCK_BORING_VAULT_ADDRESS, MOCK_VMUSD_DELEGATION_HASH),
       ]);
 
-      await controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS);
+      await controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
       // Only the two premium delegations needed signing.
       expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
@@ -2035,7 +2035,7 @@ describe('MoneyAccountUpgradeController', () => {
       mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
 
       await expect(
-        controller.ensureDelegationsReadiness(MOCK_ACCOUNT_ADDRESS),
+        controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('Money Account upgrade failed at step');
     });
 
@@ -2045,7 +2045,7 @@ describe('MoneyAccountUpgradeController', () => {
       markBaseVaultReady(mocks);
 
       const result = await rootMessenger.call(
-        'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+        'MoneyAccountUpgradeController:forceUpgradeAccount',
         MOCK_ACCOUNT_ADDRESS,
       );
 

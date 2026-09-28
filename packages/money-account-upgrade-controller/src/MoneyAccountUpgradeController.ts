@@ -122,7 +122,7 @@ export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgr
 
 const MESSENGER_EXPOSED_METHODS = [
   'upgradeAccount',
-  'ensureDelegationsReadiness',
+  'forceUpgradeAccount',
 ] as const;
 
 export type MoneyAccountUpgradeControllerGetStateAction =
@@ -668,15 +668,16 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
-   * Like {@link upgradeAccount}, but always runs the upgrade steps, ignoring
-   * the recorded upgrade. Use this immediately before an action that depends
-   * on the base and (when configured) premium vault delegations and CHOMP
-   * intents actually existing right now — e.g. before starting a
+   * Like {@link upgradeAccount}, but skips the recorded-upgrade shortcut and
+   * always runs the upgrade steps. Use this immediately before an action that
+   * depends on the base and (when configured) premium vault delegations and
+   * CHOMP intents actually existing right now — e.g. before starting a
    * subscription — rather than trusting a fingerprint recorded on a
    * previous run, which does not reflect deletions or revocations made
    * since (on this device or elsewhere).
    *
-   * As with `upgradeAccount`, each step only performs its action if its own
+   * "Force" means the shortcut is skipped, not that everything is redone:
+   * as with `upgradeAccount`, each step only performs its action if its own
    * remote check finds it is not already done, so a call that finds
    * everything in place performs no signing and makes no writes.
    *
@@ -685,7 +686,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    * disarmed or superseded while the sequence is running, or if a step
    * fails (wrapped in a {@link MoneyAccountUpgradeStepError}).
    */
-  async ensureDelegationsReadiness(address: Hex): Promise<void> {
+  async forceUpgradeAccount(address: Hex): Promise<void> {
     const config = await this.#getArmedConfig();
     await this.#runSteps(address, config);
   }
