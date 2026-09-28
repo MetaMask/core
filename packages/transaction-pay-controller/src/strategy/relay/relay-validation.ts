@@ -13,6 +13,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { chainHasDeleGatorContracts } from '../../utils/delegation-contracts.js';
 import {
   getEIP7702UpgradeContractAddress,
   isRelayValidationEnabled,
@@ -123,15 +124,28 @@ async function buildValidationSimulation(
     transaction: request.transaction,
   });
 
-  const executeRequest = quote.original.metamask.isExecute
-    ? await getRelayExecuteRequest({
-        allParams: calls,
-        messenger: request.messenger,
-        quote,
-        requestId: quote.original.steps[0].requestId,
-        transaction: request.transaction,
-      })
-    : undefined;
+  let executeRequest: Omit<RelayExecuteRequest, 'metamask'> | undefined;
+  const sourceSupportsExecute = chainHasDeleGatorContracts(
+    quote.request.sourceChainId,
+  );
+
+  if (quote.original.metamask.isExecute && sourceSupportsExecute) {
+    executeRequest = await getRelayExecuteRequest({
+      allParams: calls,
+      messenger: request.messenger,
+      quote,
+      requestId: quote.original.steps[0].requestId,
+      transaction: request.transaction,
+    });
+  } else if (quote.original.metamask.isExecute) {
+    log(
+      'Skipping Relay execute simulation: source chain has no DeleGator contracts',
+      {
+        sourceChainId: quote.request.sourceChainId,
+      },
+    );
+    quote.original.metamask.isExecute = false;
+  }
 
   return buildRelayValidationSimulation(
     request.messenger,

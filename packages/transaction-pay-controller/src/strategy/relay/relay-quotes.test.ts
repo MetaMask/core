@@ -339,6 +339,30 @@ describe('Relay Quotes Utils', () => {
       expect(body.metamask).toStrictEqual({ executeVersion: 2 });
     });
 
+    it('omits originGasOverhead when the chain has no DeleGator contracts', async () => {
+      isRelayExecuteEnabledMock.mockReturnValue(true);
+      isEIP7702ChainMock.mockReturnValue(true);
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      });
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, sourceChainId: '0x13b2' }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.originGasOverhead).toBeUndefined();
+      expect(body.metamask).toBeUndefined();
+    });
+
     it('omits originGasOverhead when relay execute is enabled but chain does not support EIP-7702', async () => {
       isRelayExecuteEnabledMock.mockReturnValue(true);
       isEIP7702ChainMock.mockReturnValue(false);
@@ -3224,6 +3248,29 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(result[0].original.metamask.isExecute).toBe(true);
+      });
+
+      it('drops isExecute and keeps source network fees when the source chain has no DeleGator contracts', async () => {
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+        quoteMock.metamask.isExecute = true;
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => quoteMock,
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, sourceChainId: '0x13b2' }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].original.metamask.isExecute).toBe(false);
+        expect(result[0].fees.sourceNetwork).not.toStrictEqual({
+          estimate: ZERO_AMOUNT,
+          max: ZERO_AMOUNT,
+        });
       });
 
       it('does not zero source network fees when quote does not have isExecute', async () => {

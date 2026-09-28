@@ -1922,6 +1922,37 @@ describe('Relay Submit Utils', () => {
         expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
       });
 
+      it('submits the Relay steps as a normal transaction when the chain has no DeleGator contracts', async () => {
+        request.quotes[0].request.sourceChainId = '0x13b2';
+
+        await submitRelayQuotes(request);
+
+        expect(submitViaRelayExecuteMock).not.toHaveBeenCalled();
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(request.quotes[0].original.metamask.isExecute).toBe(false);
+      });
+
+      it('leaves gas undefined on the fallback transaction when the execute quote has no gas limits', async () => {
+        request.quotes[0].request.sourceChainId = '0x13b2';
+        request.quotes[0].original.metamask.gasLimits = [];
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          expect.objectContaining({ gas: undefined }),
+          expect.any(Object),
+        );
+      });
+
+      it('still fails submit when execute throws an unrelated error', async () => {
+        submitViaRelayExecuteMock.mockRejectedValue(new Error('relay down'));
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Relay: relay down',
+        );
+        expect(addTransactionMock).not.toHaveBeenCalled();
+      });
+
       it('uses fallback data and value when step item data/value are undefined', async () => {
         request.quotes[0].original.steps[0].items[0].data.data = undefined;
         request.quotes[0].original.steps[0].items[0].data.value = undefined;

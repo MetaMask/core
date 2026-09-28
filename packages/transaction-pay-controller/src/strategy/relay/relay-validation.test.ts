@@ -931,6 +931,69 @@ describe('validateRelayQuotes', () => {
         );
       });
 
+      it('simulates the plain calls when the source chain has no DeleGator contracts', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({
+          calls: [
+            {
+              data: '0xcall',
+              from: FROM_MOCK,
+              to: '0xrelay',
+              value: '0x0',
+            },
+          ],
+        });
+
+        const quote = buildQuote(
+          { sourceChainId: '0x13b2' },
+          {
+            metamask: { gasLimits: [], is7702: false, isExecute: true },
+          },
+        );
+
+        await validateRelayQuotes({
+          messenger,
+          quotes: [quote],
+          transaction: TRANSACTION_MOCK,
+        });
+
+        expect(getRelayExecuteRequestMock).not.toHaveBeenCalled();
+        expect(quote.original.metamask.isExecute).toBe(false);
+        expect(validateQuoteExecutionMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            simulation: expect.objectContaining({
+              transactions: [
+                expect.objectContaining({
+                  data: '0xcall',
+                  from: FROM_MOCK,
+                  to: '0xrelay',
+                }),
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('still fails quote simulation when execute throws an unrelated error', async () => {
+        getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
+        getRelayExecuteRequestMock.mockRejectedValue(new Error('relay down'));
+
+        const quote = buildQuote(
+          {},
+          {
+            metamask: { gasLimits: [], is7702: false, isExecute: true },
+          },
+        );
+
+        await expect(
+          validateRelayQuotes({
+            messenger,
+            quotes: [quote],
+            transaction: TRANSACTION_MOCK,
+          }),
+        ).rejects.toThrow('Quote simulation failed');
+        expect(quote.original.metamask.isExecute).toBe(true);
+      });
+
       it('does not call getRelayExecuteRequest when isExecute is false', async () => {
         getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
 

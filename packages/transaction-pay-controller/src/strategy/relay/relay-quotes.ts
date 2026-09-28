@@ -33,6 +33,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
+import { chainHasDeleGatorContracts } from '../../utils/delegation-contracts.js';
 import {
   getFeatureFlags,
   getRelayOriginGasOverhead,
@@ -333,7 +334,8 @@ async function getSingleQuote(
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
-      isEIP7702Chain(messenger, sourceChainId);
+      isEIP7702Chain(messenger, sourceChainId) &&
+      chainHasDeleGatorContracts(sourceChainId);
 
     const nonAtomicRecipient = await resolveNonAtomicRecipient(
       transaction,
@@ -723,6 +725,16 @@ async function normalizeQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
+
+  if (
+    quote.metamask?.isExecute &&
+    !chainHasDeleGatorContracts(request.sourceChainId)
+  ) {
+    log('Skipping Relay execute: source chain has no DeleGator contracts', {
+      sourceChainId: request.sourceChainId,
+    });
+    quote.metamask.isExecute = false;
+  }
   const { details } = quote;
   const { currencyIn, currencyOut } = details;
 

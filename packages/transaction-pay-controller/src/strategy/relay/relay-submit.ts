@@ -19,6 +19,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { accountSupports7702 } from '../../utils/7702.js';
+import { chainHasDeleGatorContracts } from '../../utils/delegation-contracts.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -661,13 +662,26 @@ async function submitTransactions(
     transaction,
   });
 
-  if (quote.original.metamask.isExecute) {
+  if (
+    quote.original.metamask.isExecute &&
+    chainHasDeleGatorContracts(quote.request.sourceChainId)
+  ) {
     return await submitViaRelayExecute(
       quote,
       transaction,
       messenger,
       allParams,
     );
+  }
+
+  if (quote.original.metamask.isExecute) {
+    log(
+      'Skipping Relay execute submit: source chain has no DeleGator contracts',
+      {
+        sourceChainId: quote.request.sourceChainId,
+      },
+    );
+    quote.original.metamask.isExecute = false;
   }
 
   return await submitViaTransactionController(
@@ -930,10 +944,15 @@ async function submitViaTransactionController(
   const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
+    // Execute quotes carry no gas limits because the relayer pays gas. When
+    // such a quote falls back to a normal submit, let the TransactionController
+    // estimate gas instead.
+    const gasLimit = gasLimits[0];
+
     const transactionParams = {
       ...allParams[0],
       authorizationList,
-      gas: toHex(gasLimits[0]),
+      gas: gasLimit === undefined ? undefined : toHex(gasLimit),
     };
 
     result = await messenger.call(
