@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^25.1.0` to `^25.1.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
+### Fixed
+
+- Always set `excludeNativeTokenForFee` when origin gas is priced in the source token, so the fee shown in the quote is the fee the user is charged ([#10404](https://github.com/MetaMask/core/pull/10404))
+  - Previously only the across strategy opted in, so for the relay and server strategies the `TransactionController` re-checked the native balance at publish time and silently dropped the gas fee token, billing the user in native token instead.
+
 ## [29.2.1]
 
 ### Fixed
@@ -69,8 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Always set `excludeNativeTokenForFee` when origin gas is priced in the source token, so the fee shown in the quote is the fee the user is charged ([#10404](https://github.com/MetaMask/core/pull/10404))
-  - Previously only the across strategy opted in, so for the relay and server strategies the `TransactionController` re-checked the native balance at publish time and silently dropped the gas fee token, billing the user in native token instead.
 - Populate `TransactionPayQuote.targetAmount` on server pay strategy quotes, which previously always reported zero ([#10342](https://github.com/MetaMask/core/pull/10342))
   - The fiat and USD values are now derived from the quote's output amount and the target token fiat rate, matching the relay strategy. They remain zero only when no fiat rate is available for the target token.
 - Fix single-step server pay strategy quotes failing to submit with an invalid transaction envelope type error ([#10342](https://github.com/MetaMask/core/pull/10342))
