@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "29.2.1",
+  "version": "29.2.3",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "Ethereum",
@@ -53,8 +53,8 @@
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
-    "@metamask/assets-controller": "^16.1.2",
+    "@ethersproject/providers": "^5.8.0",
+    "@metamask/assets-controller": "^17.0.0",
     "@metamask/assets-controllers": "^112.0.4",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
@@ -63,7 +63,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^37.0.0",
-    "@metamask/ramps-controller": "^25.1.1",
+    "@metamask/ramps-controller": "^26.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.0.0",
     "@metamask/transaction-controller": "^72.0.1",
@@ -71,7 +71,7 @@
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.5",
     "immer": "^11.1.18",
-    "lodash-es": "^4.17.21"
+    "lodash-es": "^4.18.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",

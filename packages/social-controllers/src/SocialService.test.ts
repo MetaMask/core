@@ -1768,6 +1768,157 @@ describe('SocialService', () => {
     });
   });
 
+  describe('createSwapComment', () => {
+    const mockSwapCommentResponse = {
+      uid: 'comment-1',
+      transactionHash: '0xabc',
+      chain: 'base',
+      tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      commentText: 'this is alpha',
+      author: {
+        id: 'profile-1',
+        name: 'TraderAlice',
+        images: { raw: null, xs: null, sm: null },
+        addresses: ['0x1234567890abcdef1234567890abcdef12345678'],
+      },
+      timestamp: 1700000000,
+      isAppUserComment: true,
+      metrics: {
+        reactions: [],
+        userReaction: null,
+      },
+    };
+
+    it('sends POST with positionUid to /swap-comments', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(mockSwapCommentResponse),
+      });
+
+      const service = createService();
+      const result = await service.createSwapComment({
+        commentText: 'this is alpha',
+        positionUid: 'position-1',
+      });
+
+      expect(result).toStrictEqual(mockSwapCommentResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentText: 'this is alpha',
+          positionUid: 'position-1',
+        }),
+      });
+    });
+
+    it('sends a static.klipy.com gif file url inside commentText', async () => {
+      const gifUrl =
+        'https://static.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/um0L4dFH.gif';
+      const commentText = `Loading up here\n${gifUrl}`;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () =>
+          Promise.resolve({
+            ...mockSwapCommentResponse,
+            commentText,
+          }),
+      });
+
+      const service = createService();
+
+      await service.createSwapComment({
+        commentText,
+        positionUid: 'position-1',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentText,
+          positionUid: 'position-1',
+        }),
+      });
+    });
+
+    it('sends tradeInFlight when the swap is not indexed yet', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(mockSwapCommentResponse),
+      });
+
+      const service = createService();
+      const tradeInFlight = {
+        transactionHash: '0xdead',
+        chain: 'base',
+        tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      };
+
+      await service.createSwapComment({
+        commentText: 'this is alpha',
+        tradeInFlight,
+        source: 'metamask-mobile',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentText: 'this is alpha',
+          source: 'metamask-mobile',
+          tradeInFlight,
+        }),
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 409 });
+
+      const service = createService();
+
+      await expect(
+        service.createSwapComment({
+          commentText: 'this is alpha',
+          positionUid: 'position-1',
+        }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED}: 409`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve({ uid: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.createSwapComment({
+          commentText: 'this is alpha',
+          positionUid: 'position-1',
+        }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
+      );
+    });
+  });
+
   describe('optOutOfLeaderboard', () => {
     it('sends POST to /leaderboard/opt-out with the bearer token and resolves to void', async () => {
       mockFetch.mockResolvedValue({ ok: true, status: 204 });

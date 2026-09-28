@@ -16,7 +16,21 @@ const result = await service.fetchBalanceWithFallback(accountAddress);
 //   musdBalance, vmusdValueInMusd, totalBalance,
 //   source: 'api' | 'rpc',
 //   usedFallback: boolean,
+//   // when source === 'api':
+//   asOfBlock?, asOfTimestamp?, dataFreshness?, indexerLagSeconds?,
+//   musdBalanceUpdatedAt?,
 // }
+```
+
+Post-transaction refreshes may pass additive options so a lagging Money API
+result falls back to pending-tag RPC once, without changing the steady-state
+`api` policy:
+
+```ts
+await service.fetchBalanceWithFallback(accountAddress, {
+  fresh: true,
+  minBlock: confirmedTxBlockNumber,
+});
 ```
 
 ### Feature flag: `moneyAccountBalanceSource`
