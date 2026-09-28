@@ -78,3 +78,19 @@ export function buildUsdcBalanceUpdatedEvent(options?: {
     ],
   };
 }
+
+/**
+ * Build a `balanceUpdated` payload reporting both the ETH and USDC balances.
+ *
+ * @returns The event payload.
+ */
+export function buildEthAndUsdcBalanceUpdatedEvent(): BalanceUpdatedEventPayload {
+  return {
+    address: WS_WALLET_ADDRESS,
+    chain: MAINNET_CHAIN_ID,
+    updates: [
+      ...buildEthBalanceUpdatedEvent().updates,
+      ...buildUsdcBalanceUpdatedEvent().updates,
+    ],
+  };
+}

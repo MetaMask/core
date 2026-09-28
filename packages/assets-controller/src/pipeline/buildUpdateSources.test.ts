@@ -24,7 +24,8 @@ function buildSources(): UpdateSources {
 describe('buildUpdateSources', () => {
   it.each([
     {
-      title: 'v5 AccountsApi lane: graduation → RPC fallback → detection → enrichment',
+      title:
+        'v5 AccountsApi lane: graduation → RPC fallback → detection → enrichment',
       includeCustomAssetGraduation: true,
       includeRpcFallback: true,
       isBasicFunctionality: true,
@@ -85,9 +86,7 @@ describe('buildUpdateSources', () => {
         includeRpcFallback,
       });
 
-      expect(sources.map((source) => source.getName())).toStrictEqual(
-        expected,
-      );
+      expect(sources.map((source) => source.getName())).toStrictEqual(expected);
     },
   );
 });
