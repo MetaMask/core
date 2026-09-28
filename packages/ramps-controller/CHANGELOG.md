@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.0.1]
 
-### Changed
-
-- Bump `ts-jest` to `^29.4.14` ([#10509](https://github.com/MetaMask/core/pull/10509))
-
 ### Fixed
 
 - Treat a relay-approved KYC session as approved in `hydrateVbaOnboarding` even when the vendor-side `finalStatus` is still `pending`, so relay-approved users are no longer stranded on the pending screen ([#10497](https://github.com/MetaMask/core/pull/10497))
