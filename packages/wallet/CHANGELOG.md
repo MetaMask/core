@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Grant `SubscriptionDelegationService` access to the additional messenger actions required by `SubscriptionDelegationService:startSubscriptionWithDelegation` ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - `ApprovalController:addRequest`, `MoneyAccountUpgradeController:ensureDelegationsReadiness`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`
 - Bump `@metamask/claims-controller` from `^1.0.1` to `^1.0.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/shield-controller` from `^7.0.2` to `^7.0.3` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/subscription-controller` from `^10.0.0` to `^10.0.1` ([#10459](https://github.com/MetaMask/core/pull/10459))

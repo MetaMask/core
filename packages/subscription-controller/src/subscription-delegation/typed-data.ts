@@ -1,10 +1,8 @@
-import {
-  decodeERC20TokenPeriodTransferTerms,
-  decodeValueLteTerms,
-} from '@metamask/delegation-core';
+import { decodeERC20TokenPeriodTransferTerms } from '@metamask/delegation-core';
 import { getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { equalsIgnoreCase } from './fingerprint.js';
 import type {
   DecodedPermission,
   SubscriptionDelegationEnforcers,
@@ -63,28 +61,35 @@ export function buildDelegationTypedData({
   };
 }
 
+/**
+ * Decodes the effective permission granted by a cash-subscription delegation
+ * for display in confirmations.
+ *
+ * The delegation must carry exactly the two caveats CHOMP accepts:
+ * `ERC20TokenPeriodTransfer` (token, amount, period, start) and
+ * `AllowedCalldata` (pinning the `transfer` recipient). No `ValueLte` caveat
+ * is present; `maxNativeValue` is reported as `'0'` because the settlement
+ * token's `transfer` is non-payable (see `buildSubscriptionCaveats`).
+ *
+ * @param delegation - The unsigned subscription delegation.
+ * @param enforcers - Delegation Framework enforcer addresses for the chain.
+ * @returns The decoded permission.
+ */
 export function decodeSubscriptionAuthority(
   delegation: UnsignedSubscriptionDelegation,
   enforcers: SubscriptionDelegationEnforcers,
 ): DecodedPermission {
-  const valueLte = delegation.caveats.find(
-    ({ enforcer }) =>
-      enforcer.toLowerCase() === enforcers.valueLte.toLowerCase(),
+  const periodTransfer = delegation.caveats.find(({ enforcer }) =>
+    equalsIgnoreCase(enforcer, enforcers.erc20TokenPeriodTransfer),
   );
-  const periodTransfer = delegation.caveats.find(
-    ({ enforcer }) =>
-      enforcer.toLowerCase() ===
-      enforcers.erc20TokenPeriodTransfer.toLowerCase(),
+  const allowedCalldata = delegation.caveats.find(({ enforcer }) =>
+    equalsIgnoreCase(enforcer, enforcers.allowedCalldata),
   );
-  if (!valueLte || !periodTransfer) {
+  if (!periodTransfer || !allowedCalldata) {
     throw new Error('Subscription delegation is missing required caveats');
   }
 
-  const valueTerms = decodeValueLteTerms(valueLte.terms);
   const periodTerms = decodeERC20TokenPeriodTransferTerms(periodTransfer.terms);
-  if (valueTerms.maxValue !== 0n) {
-    throw new Error('Subscription delegation permits native value');
-  }
 
   return {
     tokenAddress: periodTerms.tokenAddress,

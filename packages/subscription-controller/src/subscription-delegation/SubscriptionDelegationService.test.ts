@@ -1,5 +1,7 @@
+import type { ApprovalController } from '@metamask/approval-controller';
 import type { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
 import type {
+  ChompApiService,
   VerifyDelegationParams,
   VerifyDelegationResponse,
 } from '@metamask/chomp-api-service';
@@ -18,6 +20,7 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
+import type { SubscriptionController } from '../SubscriptionController.js';
 import {
   CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
@@ -159,6 +162,20 @@ type CreateDelegationArgs = Parameters<
   AuthenticatedUserStorageService['createDelegation']
 >;
 
+type CreateIntentsArgs = Parameters<ChompApiService['createIntents']>;
+
+type CreateIntentsResult = ReturnType<ChompApiService['createIntents']>;
+
+type AddApprovalRequestArgs = Parameters<ApprovalController['addRequest']>;
+
+type StartSubscriptionWithCryptoArgs = Parameters<
+  SubscriptionController['startSubscriptionWithCrypto']
+>;
+
+type StartSubscriptionWithCryptoResult = ReturnType<
+  SubscriptionController['startSubscriptionWithCrypto']
+>;
+
 type Mocks = {
   listDelegations: jest.Mock;
   createDelegation: jest.Mock<Promise<void>, CreateDelegationArgs>;
@@ -168,15 +185,18 @@ type Mocks = {
     [VerifyDelegationParams]
   >;
   getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
+  createIntents: jest.Mock<CreateIntentsResult, CreateIntentsArgs>;
   getRemoteFeatureFlagState: jest.Mock;
   fetchBalanceWithFallback: jest.Mock;
   getPricing: jest.Mock;
   getSubscriptions: jest.Mock;
   getSubscriptionState: jest.Mock;
-  addApprovalRequest: jest.Mock;
+  addApprovalRequest: jest.Mock<Promise<unknown>, AddApprovalRequestArgs>;
   ensureDelegationsReadiness: jest.Mock;
-  startSubscriptionWithCrypto: jest.Mock;
+  startSubscriptionWithCrypto: jest.Mock<
+    StartSubscriptionWithCryptoResult,
+    StartSubscriptionWithCryptoArgs
+  >;
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -212,7 +232,9 @@ function setup(
         });
         return { valid: true, delegationHash };
       }),
-    createIntents: jest.fn().mockResolvedValue([]),
+    createIntents: jest
+      .fn<CreateIntentsResult, CreateIntentsArgs>()
+      .mockResolvedValue([]),
     getRemoteFeatureFlagState: jest.fn().mockReturnValue({
       remoteFeatureFlags: options.remoteFeatureFlags ?? REMOTE_FEATURE_FLAGS,
       cacheTimestamp: 0,
@@ -227,16 +249,20 @@ function setup(
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
     }),
-    addApprovalRequest: jest.fn().mockImplementation(async () => ({
-      value: options.approvalResult ?? {
-        fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-      },
-    })),
+    addApprovalRequest: jest
+      .fn<Promise<unknown>, AddApprovalRequestArgs>()
+      .mockImplementation(async () => ({
+        value: options.approvalResult ?? {
+          fundingTransactionHash: `0x${'ef'.repeat(32)}`,
+        },
+      })),
     ensureDelegationsReadiness: jest.fn().mockResolvedValue(undefined),
-    startSubscriptionWithCrypto: jest.fn().mockResolvedValue({
-      subscriptionId: 'subscription-id',
-      status: 'provisional',
-    }),
+    startSubscriptionWithCrypto: jest
+      .fn<StartSubscriptionWithCryptoResult, StartSubscriptionWithCryptoArgs>()
+      .mockResolvedValue({
+        subscriptionId: 'subscription-id',
+        status: 'provisional',
+      }),
     getIntentsByAddress: jest.fn(),
   };
   mocks.getIntentsByAddress.mockImplementation(async () => {
@@ -440,6 +466,14 @@ function buildStoredDelegation({
         }),
         args: '0x' as const,
       },
+      {
+        enforcer: ALLOWED_CALLDATA,
+        terms: createAllowedCalldataTerms({
+          startIndex: TRANSFER_CALLDATA_PREFIX_START_INDEX,
+          value: encodeTransferToCalldataPrefix(TREASURY),
+        }),
+        args: '0x' as const,
+      },
     ],
     salt: `0x${'aa'.repeat(32)}`,
     signature: SIGNATURE,
@@ -452,33 +486,7 @@ function buildStoredDelegation({
     });
 
   return {
-    signedDelegation: {
-      delegate: DELEGATE,
-      delegator: PAYER,
-      authority: ROOT_AUTHORITY,
-      caveats: [
-        {
-          enforcer: PERIOD,
-          terms: createERC20TokenPeriodTransferTerms({
-            tokenAddress: TOKEN,
-            periodAmount,
-            periodDuration,
-            startDate,
-          }),
-          args: '0x',
-        },
-        {
-          enforcer: ALLOWED_CALLDATA,
-          terms: createAllowedCalldataTerms({
-            startIndex: TRANSFER_CALLDATA_PREFIX_START_INDEX,
-            value: encodeTransferToCalldataPrefix(TREASURY),
-          }),
-          args: '0x',
-        },
-      ],
-      salt: `0x${'aa'.repeat(32)}`,
-      signature: SIGNATURE,
-    },
+    signedDelegation,
     metadata: {
       delegationHash: resolvedDelegationHash,
       chainIdHex: CHAIN_ID,
@@ -1151,43 +1159,46 @@ describe('SubscriptionDelegationService', () => {
       const result =
         await service.startSubscriptionWithDelegation(START_REQUEST);
 
-      expect(mocks.addApprovalRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          origin: 'metamask',
-          type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
-          expectsResult: true,
-          requestData: {
-            bundle: expect.objectContaining({
-              account: PAYER,
-              chainId: CHAIN_ID,
-              permissions: [
-                expect.objectContaining({
-                  id: CASH_SUBSCRIPTION_DELEGATION_TYPE,
-                  owner: 'subscription',
-                  disposition: 'new',
-                }),
-              ],
-            }),
-            funding: {
-              useCase: 'subscription',
-              destinationAccount: PAYER,
-              chainId: CHAIN_ID,
-              targetToken: { symbol: 'mUSD', address: MUSD },
-              targetAmount: '30000000',
-            },
+      expect(mocks.addApprovalRequest).toHaveBeenCalledTimes(1);
+      const [approvalRequest, shouldShowRequest] =
+        mocks.addApprovalRequest.mock.calls[0];
+      expect(shouldShowRequest).toBe(true);
+      expect(approvalRequest).toMatchObject({
+        origin: 'metamask',
+        type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
+        expectsResult: true,
+        requestData: {
+          bundle: {
+            account: PAYER,
+            chainId: CHAIN_ID,
+            permissions: [
+              {
+                id: CASH_SUBSCRIPTION_DELEGATION_TYPE,
+                owner: 'subscription',
+                disposition: 'new',
+              },
+            ],
           },
-        }),
-        true,
+          funding: {
+            useCase: 'subscription',
+            destinationAccount: PAYER,
+            chainId: CHAIN_ID,
+            targetToken: { symbol: 'mUSD', address: MUSD },
+            targetAmount: '30000000',
+          },
+        },
+      });
+      expect(approvalRequest.requestData?.bundle).not.toHaveProperty(
+        'subscriptionIdempotencyKey',
       );
-      expect(
-        mocks.addApprovalRequest.mock.calls[0][0].requestData.bundle,
-      ).not.toHaveProperty('subscriptionIdempotencyKey');
       expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledTimes(1);
       expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith(PAYER);
       expect(
         mocks.ensureDelegationsReadiness.mock.invocationCallOrder[0],
       ).toBeLessThan(mocks.addApprovalRequest.mock.invocationCallOrder[0]);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      const [persisted] = mocks.createDelegation.mock.calls[0];
+      expect(persisted.metadata.delegationHash).toMatch(/^0x[0-9a-f]{64}$/u);
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith({
         products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
         isTrialRequested: false,
@@ -1197,7 +1208,7 @@ describe('SubscriptionDelegationService', () => {
         payerAddress: PAYER,
         tokenSymbol: 'pvmUSD',
         cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
-        delegationHash: expect.stringMatching(/^0x[0-9a-f]{64}$/u),
+        delegationHash: persisted.metadata.delegationHash,
         assertTrialEligibility: true,
       });
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
