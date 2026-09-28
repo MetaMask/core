@@ -54,9 +54,7 @@ describe('getPublicKey', () => {
   });
 
   it('accepts a DataView private key', async () => {
-    const pubKey = await getPublicKey(
-      new DataView(rfcAlicePrivateKey.buffer),
-    );
+    const pubKey = await getPublicKey(new DataView(rfcAlicePrivateKey.buffer));
     expect(bytesToHex(pubKey)).toBe(bytesToHex(rfcAlicePublicKey));
   });
 
@@ -80,18 +78,12 @@ describe('getSharedSecret', () => {
   });
 
   it('computes the shared secret from Alice private key and Bob public key', async () => {
-    const shared = await getSharedSecret(
-      rfcAlicePrivateKey,
-      rfcBobPublicKey,
-    );
+    const shared = await getSharedSecret(rfcAlicePrivateKey, rfcBobPublicKey);
     expect(bytesToHex(shared)).toBe(rfcSharedSecret);
   });
 
   it('computes the shared secret from Bob private key and Alice public key', async () => {
-    const shared = await getSharedSecret(
-      rfcBobPrivateKey,
-      rfcAlicePublicKey,
-    );
+    const shared = await getSharedSecret(rfcBobPrivateKey, rfcAlicePublicKey);
     expect(bytesToHex(shared)).toBe(rfcSharedSecret);
   });
 
