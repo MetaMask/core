@@ -62,7 +62,7 @@
     "@metamask/network-controller": "^37.0.0",
     "@metamask/utils": "^12.0.0",
     "jsonschema": "^1.4.1",
-    "lodash-es": "^4.17.21",
+    "lodash-es": "^4.18.1",
     "uuid": "^11.1.1"
   },
   "devDependencies": {

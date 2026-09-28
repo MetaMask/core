@@ -32,6 +32,28 @@ export class MoneyAccountBalanceUnavailableError extends Error {
 }
 
 /**
+ * Thrown when the Money API returns a structurally valid balance whose
+ * indexer watermark (`as_of_block`) is still behind a caller-supplied
+ * `minBlock` (typically the confirmed transaction's block number).
+ * Triggers RPC fallback in {@link MoneyAccountBalanceService.fetchBalanceWithFallback}
+ * without being reported as a defect — lag is expected shortly after confirm.
+ */
+export class MoneyAccountBalanceStaleError extends Error {
+  readonly asOfBlock: number;
+
+  readonly minBlock: number;
+
+  constructor(asOfBlock: number, minBlock: number) {
+    super(
+      `Money API balance is stale: as_of_block ${asOfBlock} < minBlock ${minBlock}`,
+    );
+    this.name = 'MoneyAccountBalanceStaleError';
+    this.asOfBlock = asOfBlock;
+    this.minBlock = minBlock;
+  }
+}
+
+/**
  * Thrown when every eligible balance source fails. Preserves each cause for
  * diagnostics; never substitutes a zero balance.
  */

@@ -4334,9 +4334,6 @@
     }
   },
   "packages/permission-controller/src/PermissionController.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     }
@@ -5789,17 +5786,6 @@
   "packages/subscription-controller/src/SubscriptionService.ts": {
     "typescript/no-unsafe-return": {
       "count": 1
-    }
-  },
-  "packages/subscription-controller/src/subscription-delegation/SubscriptionDelegationService.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 6
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
     }
   },
   "packages/subscription-controller/src/subscription-delegation/caveats.test.ts": {

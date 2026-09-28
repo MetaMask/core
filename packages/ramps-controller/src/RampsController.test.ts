@@ -10318,6 +10318,7 @@ describe('RampsController', () => {
     type KycHandlers = {
       getSessionStatusForVendor: jest.Mock;
       refreshSessionStatus: jest.Mock;
+      getProviderFlowStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
       clearState: jest.Mock;
@@ -10342,6 +10343,7 @@ describe('RampsController', () => {
        * 404-style error (treated as "no session").
        */
       getSessionRejects: boolean;
+      providerFlowStatus: 'not_started' | 'submitted' | 'abandoned' | 'failed';
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
       /** Canonical id of the currently signed-in profile. */
@@ -10364,6 +10366,7 @@ describe('RampsController', () => {
         session: approvedSession,
         refreshThrows: false,
         getSessionRejects: false,
+        providerFlowStatus: 'not_started',
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
         profileCanonicalId: CANONICAL_PROFILE_ID,
@@ -10386,6 +10389,9 @@ describe('RampsController', () => {
       const handlers: KycHandlers = {
         getSessionStatusForVendor,
         refreshSessionStatus,
+        getProviderFlowStatus: jest
+          .fn()
+          .mockReturnValue(values.providerFlowStatus),
         hasCompletedVendorDisclaimers: jest
           .fn()
           .mockResolvedValue(values.vendorDisclaimersCompleted),
@@ -10410,6 +10416,10 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'KycController:refreshSessionStatus' as never,
         handlers.refreshSessionStatus as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getProviderFlowStatus' as never,
+        handlers.getProviderFlowStatus as never,
       );
       rootMessenger.registerActionHandler(
         'KycController:hasCompletedVendorDisclaimers' as never,
@@ -10443,6 +10453,7 @@ describe('RampsController', () => {
       sessionExists: false,
       vendorDisclaimersComplete: false,
       sessionDisclaimersComplete: false,
+      providerFlowStatus: 'not_started',
       kycStatus: 'none',
       autorampStatus: 'not_ready',
     });
@@ -10453,6 +10464,7 @@ describe('RampsController', () => {
       sessionExists: true,
       vendorDisclaimersComplete: true,
       sessionDisclaimersComplete: true,
+      providerFlowStatus: 'not_started',
       kycStatus: 'pending',
       autorampStatus: 'not_ready',
       ...overrides,
@@ -10484,6 +10496,14 @@ describe('RampsController', () => {
           sessionDisclaimersCompleted: false,
         },
         expected: factsSnapshot({ sessionDisclaimersComplete: false }),
+      },
+      {
+        name: 'an abandoned provider flow without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          providerFlowStatus: 'abandoned',
+        },
+        expected: factsSnapshot({ providerFlowStatus: 'abandoned' }),
       },
       {
         name: 'kycStatus new when KYC has not started',

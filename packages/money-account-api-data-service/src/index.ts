@@ -16,6 +16,7 @@ export type {
 export type {
   PositionResponse,
   PositionBalance,
+  AssetBalance,
   InterestResponse,
   HistoryResponse,
   RateHistoryResponse,
@@ -29,6 +30,7 @@ export type {
 export type {
   InterestWindow,
   InterestOptions,
+  FetchPositionsOptions,
   HistoryOptions,
   RateHistoryOptions,
 } from './types.js';
