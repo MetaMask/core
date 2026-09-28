@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `NeoBankService.getAutoramps` now resolves the current customer from the signed-in profile and lists autoramps by `customer_id` (MoonPay's paginated `GET /api/autoramps`), instead of hitting an unsupported unfiltered list route that always 404'd. This lets `hydrateVbaOnboarding` rediscover an existing autoramp after a reinstall or SRP restore on a new device rather than failing account provisioning. The public `getAutoramps()` signature is unchanged ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- `NeoBankService.getAutoramps` now resolves the current customer from the signed-in profile and lists autoramps by `customer_id` (MoonPay's paginated `GET /api/autoramps`), instead of hitting an unsupported unfiltered list route that always 404'd. This lets `hydrateVbaOnboarding` rediscover an existing autoramp after a reinstall or SRP restore on a new device rather than failing account provisioning. The public `getAutoramps()` signature is unchanged ([#10507](https://github.com/MetaMask/core/pull/10507))
 
 ## [26.0.0]
 
