@@ -927,10 +927,11 @@ export type PerpsControllerSetAgentSignerAction = {
 
 /**
  * Forget every HyperLiquid agent, set or resolved, so the next L1 action
- * asks `providerCredentials.hyperliquid.getAgentSigner` again. Call it when
- * the wallet locks (with `getAgentSigner` returning null while locked) and
- * nothing signs with an agent until it returns one again. Requires an
- * initialized controller.
+ * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
+ * still pending is discarded too. Call it when the wallet locks (with
+ * `getAgentSigner` returning null while locked) and nothing signs with an
+ * agent until it returns one again. Without an initialized HyperLiquid
+ * provider there are no agents, so it does nothing.
  */
 export type PerpsControllerClearAgentSignersAction = {
   type: `PerpsController:clearAgentSigners`;
@@ -938,10 +939,11 @@ export type PerpsControllerClearAgentSignersAction = {
 };
 
 /**
- * Run the active provider's deferred trading-readiness steps (account
- * migration, builder fee and referral setup) ahead of the first order, so a
- * hardware wallet signs them in one guided session, such as agent setup,
- * instead of at order time.
+ * Run the active provider's setup that needs a main-account signature
+ * (HyperLiquid account migration, builder fee and referral; Lighter
+ * venue-key registration) ahead of the first order, so a hardware wallet
+ * signs it in one guided session, such as agent setup, instead of at order
+ * time.
  *
  * @returns `ready: true` when none of these steps will ask the main account
  * to sign again before the first order; providers without deferred setup

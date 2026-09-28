@@ -2945,6 +2945,69 @@ describe('HyperLiquidProvider', () => {
         expect(getAgentSigner).toHaveBeenCalledTimes(2);
         expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       });
+
+      it('discards an answer pending across clearAgentSigners and asks again', async () => {
+        const { getAgentSigner, answer, asked } = createPendingResolver();
+        const { accountSignerProvider, accountSigner, agentSigner } =
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner,
+          });
+
+        const reading = accountSignerProvider.getMarketDataWithPrices();
+        await asked;
+        getAgentSigner.mockResolvedValue(null);
+        accountSignerProvider.clearAgentSigners();
+        answer.resolve(agentSigner);
+        await reading;
+
+        expect(getAgentSigner).toHaveBeenCalledTimes(2);
+        expect(agentSigner.signTypedData).not.toHaveBeenCalled();
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
+      });
+
+      it('keeps trading setup retryable until the referral succeeds after getAgentSigner rejected', async () => {
+        const getAgentSigner = jest
+          .fn()
+          .mockRejectedValueOnce(new Error('agent store unavailable'))
+          .mockResolvedValue(null);
+        const { accountSignerProvider, exchangeClient } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+
+        const firstResult = await accountSignerProvider.prepareTradingWallet();
+        const secondResult = await accountSignerProvider.prepareTradingWallet();
+
+        expect(firstResult).toStrictEqual({ ready: false });
+        expect(secondResult).toStrictEqual({ ready: true });
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(2);
+      });
+
+      it('reports a failed answer asked again after a clear as unavailable', async () => {
+        const { getAgentSigner, answer, asked } = createPendingResolver();
+        const { accountSignerProvider, agentSigner, initialize } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+
+        const signing = wallet.signTypedData(L1_PAYLOAD);
+        await asked;
+        getAgentSigner.mockRejectedValue(new Error('agent store unavailable'));
+        accountSignerProvider.clearAgentSigners();
+        answer.resolve(agentSigner);
+
+        await expect(signing).rejects.toThrow(
+          'HyperLiquid agent signer unavailable',
+        );
+        expect(agentSigner.signTypedData).not.toHaveBeenCalled();
+      });
     });
   });
 });

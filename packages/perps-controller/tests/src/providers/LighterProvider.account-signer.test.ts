@@ -88,6 +88,7 @@ type BuiltProvider = {
   accountSigner: { signPersonalMessage: jest.Mock };
   call: jest.SpyInstance;
   calls: LighterWasmCall[];
+  deps: ReturnType<typeof createMockInfrastructure>;
 };
 
 function buildProvider(isReady?: () => boolean): BuiltProvider {
@@ -127,9 +128,10 @@ function buildProvider(isReady?: () => boolean): BuiltProvider {
   };
   const { messenger, call } = createKeyringlessMessenger();
   const { bridge, calls } = createBridge();
+  const deps = { ...createMockInfrastructure(), accountSigner };
   const provider = new LighterProvider({
     isTestnet: true,
-    platformDependencies: { ...createMockInfrastructure(), accountSigner },
+    platformDependencies: deps,
     messenger,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
@@ -138,7 +140,7 @@ function buildProvider(isReady?: () => boolean): BuiltProvider {
     signerBridge: bridge,
     webSocketCtor: null,
   });
-  return { provider, address, client, accountSigner, call, calls };
+  return { provider, address, client, accountSigner, call, calls, deps };
 }
 
 describe('LighterProvider with accountSigner', () => {
@@ -176,8 +178,12 @@ describe('LighterProvider with accountSigner', () => {
 
     const result = await provider.isReadyToTrade();
 
-    expect(result.ready).toBe(false);
-    expect(result.error).toContain(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      walletConnected: false,
+      networkSupported: true,
+    });
     expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
     expect(
       calls.some((wasmCall) => wasmCall.function === '_signChangePubKey'),
@@ -199,6 +205,35 @@ describe('LighterProvider with accountSigner', () => {
     expect(client.sendTx).toHaveBeenCalledWith(
       LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
       expect.stringContaining('"changePubKey":true'),
+    );
+  });
+
+  it('reports KEYRING_LOCKED from prepareTradingWallet once the signer locks, even with a registered venue key', async () => {
+    let signerReady = true;
+    const { provider } = buildProvider(() => signerReady);
+    const firstResult = await provider.prepareTradingWallet();
+
+    signerReady = false;
+    const lockedResult = await provider.prepareTradingWallet();
+
+    expect(firstResult.ready).toBe(true);
+    expect(lockedResult).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+  });
+
+  it('logs a failed prepareTradingWallet', async () => {
+    const { provider, client, deps } = buildProvider();
+    client.sendTx.mockRejectedValue(new Error('venue unavailable'));
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result.ready).toBe(false);
+    expect(loggerError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: result.error }),
+      expect.anything(),
     );
   });
 });

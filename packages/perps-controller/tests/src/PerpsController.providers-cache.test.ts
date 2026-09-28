@@ -1004,13 +1004,25 @@ describe('PerpsController', () => {
     });
 
     it('clearAgentSigners forwards to the HyperLiquid provider', async () => {
-      mockProvider.setAgentSigner = jest.fn();
       mockProvider.clearAgentSigners = jest.fn();
       await controller.init();
 
-      await controller.clearAgentSigners();
+      controller.clearAgentSigners();
 
       expect(mockProvider.clearAgentSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('clearAgentSigners does nothing before the controller is initialized', () => {
+      mockProvider.clearAgentSigners = jest.fn();
+
+      expect(() => controller.clearAgentSigners()).not.toThrow();
+      expect(mockProvider.clearAgentSigners).not.toHaveBeenCalled();
+    });
+
+    it('clearAgentSigners does nothing when the provider has no agent support', async () => {
+      await controller.init();
+
+      expect(() => controller.clearAgentSigners()).not.toThrow();
     });
 
     it("prepareTradingWallet returns the active provider's readiness", async () => {

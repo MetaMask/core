@@ -67,6 +67,22 @@ export class LighterWalletService {
   }
 
   /**
+   * Whether the main account can sign now: the injected account signer's
+   * readiness when one is set, else the keyring's unlock state.
+   *
+   * @returns True when the main account is available for signing.
+   */
+  isMainAccountSignerReady(): boolean {
+    const { accountSigner } = this.#deps;
+    if (accountSigner) {
+      return isAccountSignerReady(accountSigner);
+    }
+    return this.#messenger
+      ? this.#messenger.call('KeyringController:getState').isUnlocked
+      : false;
+  }
+
+  /**
    * Sign an EIP-191 personal message with the user's L1 account.
    *
    * Routes through the injected account signer when one is set, else the

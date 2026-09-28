@@ -1280,10 +1280,21 @@ export class LighterProvider implements PerpsProvider {
    * Register the venue key ahead of the first order, so its main-account
    * `personal_sign` surfaces in a guided session instead of at order time.
    *
-   * @returns The readiness after registration.
+   * @returns The readiness after registration: `KEYRING_LOCKED` whenever the
+   * main-account signer is not ready, even with a registered venue key.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
-    return await this.isReadyToTrade();
+    if (!this.#walletService.isMainAccountSignerReady()) {
+      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    }
+    const result = await this.isReadyToTrade();
+    if (!result.ready && result.error) {
+      this.#deps.logger.error(
+        new Error(result.error),
+        this.#getErrorContext('prepareTradingWallet'),
+      );
+    }
+    return result;
   }
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {

@@ -1576,6 +1576,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Agent per network and main account (see #getAgentKey): set through
   // setAgentSigner (null pins the main account) or a pending or non-null
   // getAgentSigner answer. An agent is only used for its account and network.
+  // Incremented by clearAgentSigners so answers pending across a clear are
+  // discarded and asked again.
+  #agentSignersGeneration = 0;
+
   readonly #agentSigners = new Map<
     string,
     { agentSigner: Promise<PerpsAgentSigner | null>; fromResolver: boolean }
@@ -2081,8 +2085,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns The agent key.
    */
   #getAgentKey(account: PerpsAgentAccount): string {
-    const network = account.isTestnet ? 'testnet' : 'mainnet';
-    return `${network}:${account.mainAddress.toLowerCase()}`;
+    return this.#getCacheKey(
+      account.isTestnet ? 'testnet' : 'mainnet',
+      account.mainAddress,
+    );
   }
 
   /**
@@ -2090,7 +2096,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * current network: the one set through setAgentSigner, else the one
    * `getAgentSigner` returns. A non-null answer is kept; null and failures are
    * not, so the next L1 action asks again. If the binding changes while an
-   * answer is pending, the newer binding wins.
+   * answer is pending, the newer binding wins, and an answer pending across
+   * clearAgentSigners is discarded and asked again.
    *
    * @param mainAddress - The selected main account.
    * @returns The agent, or null to sign with the main account.
@@ -2103,6 +2110,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       isTestnet: this.#clientService.isTestnetMode(),
     };
     const key = this.#getAgentKey(account);
+    const generation = this.#agentSignersGeneration;
     let entry = this.#agentSigners.get(key);
     if (!entry) {
       if (!this.#getAgentSigner) {
@@ -2118,26 +2126,35 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#agentSigners.set(key, entry);
     }
 
+    const pendingEntry = entry;
+    // A clear or a newer binding made while this answer was pending wins.
+    const isSuperseded = (): boolean => {
+      const latest = this.#agentSigners.get(key);
+      return (
+        generation !== this.#agentSignersGeneration ||
+        (latest !== undefined && latest !== pendingEntry)
+      );
+    };
+
     let agentSigner: PerpsAgentSigner | null;
     try {
-      agentSigner = await entry.agentSigner;
+      agentSigner = await pendingEntry.agentSigner;
     } catch (error) {
-      const latest = this.#agentSigners.get(key);
-      if (latest && latest !== entry) {
-        return await latest.agentSigner;
+      if (isSuperseded()) {
+        return await this.#resolveAgentSigner(mainAddress);
       }
       this.#agentSigners.delete(key);
       this.#deps.debugLogger.log('HyperLiquidProvider: getAgentSigner failed', {
-        error: ensureError(error, 'resolveAgentSigner').message,
+        error: ensureError(error, 'HyperLiquidProvider.resolveAgentSigner')
+          .message,
       });
       throw new AgentSignerUnavailableError(error);
     }
 
-    const latest = this.#agentSigners.get(key);
-    if (latest && latest !== entry) {
-      return await latest.agentSigner;
+    if (isSuperseded()) {
+      return await this.#resolveAgentSigner(mainAddress);
     }
-    if (!agentSigner && entry.fromResolver) {
+    if (!agentSigner && pendingEntry.fromResolver) {
       this.#agentSigners.delete(key);
     }
     return agentSigner;
@@ -2744,6 +2761,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #tradingSetupComplete = false;
 
+  // Set when the referral write failed in a way that must be retried (the
+  // agent signer was unavailable), so trading setup is not marked complete.
+  #referralSetupNeedsRetry = false;
+
   readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
 
   /**
@@ -2863,8 +2884,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           'Trading setup completion',
         );
 
-        // Only mark complete if keyring was unlocked (signing could actually happen)
-        if (this.#walletService.isKeyringUnlocked()) {
+        // Only mark complete if keyring was unlocked (signing could actually
+        // happen) and the referral does not need another attempt.
+        if (
+          this.#walletService.isKeyringUnlocked() &&
+          !this.#referralSetupNeedsRetry
+        ) {
           this.#tradingSetupComplete = true;
         }
       })();
@@ -14217,6 +14242,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * next L1 action asks `getAgentSigner` again. Call it when the wallet locks.
    */
   clearAgentSigners(): void {
+    this.#agentSignersGeneration += 1;
     this.#agentSigners.clear();
   }
 
@@ -14252,10 +14278,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
         'HyperLiquidProvider.prepareTradingWallet',
       );
-      this.#deps.logger.error(
-        caughtError,
-        this.#getErrorContext('prepareTradingWallet'),
-      );
+      if (caughtError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        this.#deps.debugLogger.log(
+          '[prepareTradingWallet] Provider replaced during preparation',
+        );
+      } else {
+        this.#deps.logger.error(
+          caughtError,
+          this.#getErrorContext('prepareTradingWallet'),
+        );
+      }
       return { ready: false, error: caughtError.message };
     }
   }
@@ -15328,6 +15360,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Note: Non-blocking - failures are logged to Sentry but don't prevent trading
    */
   async #ensureReferralSet(): Promise<void> {
+    this.#referralSetupNeedsRetry = false;
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const expectedReferralCode = this.#getReferralCode(isTestnet);
@@ -15473,6 +15506,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.debugLogger.log(
           '[ensureReferralSet] Agent signer unavailable, will retry later',
         );
+        this.#referralSetupNeedsRetry = true;
         completeInFlight();
         return;
       }

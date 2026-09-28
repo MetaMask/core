@@ -1081,13 +1081,49 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('reports ready when every provider is ready or has no deferred setup', async () => {
+      const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
-        prepareTradingWallet: jest.fn().mockResolvedValue({ ready: true }),
+        prepareTradingWallet: prepareHyperLiquid,
       });
 
       const result = await aggregatedProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
+      expect(prepareHyperLiquid).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the first not-ready provider when several are not ready', async () => {
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: jest
+          .fn()
+          .mockResolvedValue({ ready: false, error: 'first' }),
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: jest
+          .fn()
+          .mockResolvedValue({ ready: false, error: 'second' }),
+      });
+
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: false, error: 'first' });
+    });
+
+    it('still prepares the other providers when one throws', async () => {
+      const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: jest
+          .fn()
+          .mockRejectedValue(new Error('provider crashed')),
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
+
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: false, error: 'provider crashed' });
+      expect(prepareLighter).toHaveBeenCalledTimes(1);
     });
 
     it('delegates toggleTestnet to default provider', async () => {

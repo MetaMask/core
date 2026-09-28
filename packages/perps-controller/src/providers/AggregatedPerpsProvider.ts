@@ -94,6 +94,7 @@ import type {
   PerpsReadOptions,
   PerpsFeeResolution,
 } from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -1056,7 +1057,18 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     let notReady: ReadyToTradeResult | undefined;
     for (const [, provider] of this.#getActiveProviders()) {
-      const result = await provider.prepareTradingWallet?.();
+      let result: ReadyToTradeResult | undefined;
+      try {
+        result = await provider.prepareTradingWallet?.();
+      } catch (error) {
+        result = {
+          ready: false,
+          error: ensureError(
+            error,
+            'AggregatedPerpsProvider.prepareTradingWallet',
+          ).message,
+        };
+      }
       if (result && !result.ready) {
         notReady ??= result;
       }
