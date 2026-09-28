@@ -1,7 +1,5 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { createDeferredPromise } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
- 
 import { EventEmitter } from 'events';
 import { cloneDeep } from 'lodash-es';
 
@@ -32,18 +30,18 @@ describe('Transaction lifecycle coordination', () => {
   });
 
   it('blocks external calldata to an internal EVM account using the current accounts state', async () => {
-    const { request } = createRequest();
+    const { request, messengerCall } = createRequest();
     const { to } = request.addTransactionRequest.txParams;
     jest.mocked(getChainId).mockReturnValue('0x1');
 
-    jest.mocked(request.dependencies.messenger.call).mockReturnValue({
+    messengerCall.mockReturnValue({
       internalAccounts: {
         accounts: {
           evm: { address: to, type: 'eip155:eoa' },
           solana: { address: 'solana-account', type: 'solana:data-account' },
         },
       },
-    } as unknown as AccountsControllerState);
+    });
 
     await expect(
       initTransaction({
@@ -99,10 +97,11 @@ describe('Transaction lifecycle coordination', () => {
   });
 
   it('releases execution resources when signing fails and preserves the execution error payload', async () => {
-    const { request, releaseNonce, publish, fail } = createRequest();
+    const { request, releaseNonce, publish, fail, messengerCall } =
+      createRequest();
     const error = new Error('Hardware wallet disconnected');
     request.addTransactionRequest.options.actionId = 'action';
-    jest.mocked(request.dependencies.messenger.call).mockRejectedValue(error);
+    messengerCall.mockRejectedValue(error);
 
     await awaitApproval(request);
     await approveTransaction(request);
@@ -129,7 +128,14 @@ describe('Transaction lifecycle coordination', () => {
   });
 
   it('settles skipped-publish approval callbacks after releasing the lock, without submitting', async () => {
-    const { request, releaseNonce, publish, finish } = createRequest();
+    const {
+      request,
+      releaseNonce,
+      publish,
+      finish,
+      messengerCall,
+      messengerPublish,
+    } = createRequest();
 
     const success = jest.fn(() => {
       expect(releaseNonce).toHaveBeenCalledTimes(1);
@@ -144,7 +150,7 @@ describe('Transaction lifecycle coordination', () => {
 
     request.addTransactionRequest.options.requireApproval = true;
 
-    jest.mocked(request.dependencies.messenger.call).mockResolvedValueOnce({
+    messengerCall.mockResolvedValueOnce({
       resultCallbacks: { success, error: jest.fn() },
     });
 
@@ -161,7 +167,7 @@ describe('Transaction lifecycle coordination', () => {
     expect(success).toHaveBeenCalledTimes(1);
     expect(publish).not.toHaveBeenCalled();
 
-    expect(request.dependencies.messenger.publish).toHaveBeenCalledWith(
+    expect(messengerPublish).toHaveBeenCalledWith(
       'TransactionController:transactionPublishingSkipped',
       request.transactionMeta,
     );
@@ -218,19 +224,15 @@ describe('Transaction lifecycle coordination', () => {
       v: bigint;
     }>();
 
-    jest
-      .mocked(first.request.dependencies.messenger.call)
-      .mockImplementation(() => {
-        firstStarted.resolve();
-        return firstSignature.promise;
-      });
+    first.messengerCall.mockImplementation(() => {
+      firstStarted.resolve();
+      return firstSignature.promise;
+    });
 
-    jest
-      .mocked(second.request.dependencies.messenger.call)
-      .mockImplementation(() => {
-        secondStarted.resolve();
-        return secondSignature.promise;
-      });
+    second.messengerCall.mockImplementation(() => {
+      secondStarted.resolve();
+      return secondSignature.promise;
+    });
 
     await awaitApproval(first.request);
     await awaitApproval(second.request);
@@ -291,11 +293,11 @@ describe('Transaction lifecycle coordination', () => {
   });
 
   it('preserves actionId for approval failures and does not acquire execution resources', async () => {
-    const { request, fail, releaseNonce } = createRequest();
+    const { request, fail, releaseNonce, messengerCall } = createRequest();
     const error = new Error('Approval unavailable');
     request.addTransactionRequest.options.actionId = 'action';
     request.addTransactionRequest.options.requireApproval = true;
-    jest.mocked(request.dependencies.messenger.call).mockRejectedValue(error);
+    messengerCall.mockRejectedValue(error);
 
     await awaitApproval(request).catch((failure) =>
       handleTransactionError(request, failure),
@@ -309,12 +311,12 @@ describe('Transaction lifecycle coordination', () => {
   });
 
   it('signs the latest persisted approval edits rather than the initial metadata', async () => {
-    const { request } = createRequest();
+    const { request, messengerCall } = createRequest();
     request.addTransactionRequest.options.requireApproval = true;
     const approvedMeta = cloneDeep(request.transactionMeta);
     approvedMeta.txParams.gasPrice = '0x9';
 
-    jest.mocked(request.dependencies.messenger.call).mockResolvedValueOnce({
+    messengerCall.mockResolvedValueOnce({
       resultCallbacks: { error: jest.fn(), success: jest.fn() },
       value: { txMeta: approvedMeta },
     });
@@ -392,6 +394,8 @@ function createRequest(): {
   events: string[];
   fail: jest.Mock;
   finish: { resolve: (meta: TransactionMeta) => void };
+  messengerCall: jest.Mock;
+  messengerPublish: jest.Mock;
   publish: jest.Mock;
   releaseNonce: jest.Mock;
   request: TransactionLifecycleRequest;
@@ -423,6 +427,15 @@ function createRequest(): {
   };
 
   const events: string[] = [];
+
+  const messengerCall = jest.fn();
+
+  const messengerPublish = jest.fn((event: string) => {
+    if (event === 'TransactionController:transactionApproved') {
+      events.push('approved');
+    }
+  });
+
   const releaseNonce = jest.fn(() => events.push('release'));
 
   const publish = jest.fn(async () => {
@@ -474,12 +487,8 @@ function createRequest(): {
       internalEvents,
       layer1GasFeeFlows: [],
       messenger: {
-        call: jest.fn().mockResolvedValue({ r: 1n, s: 2n, v: 27n }),
-        publish: jest.fn((event: string) => {
-          if (event === 'TransactionController:transactionApproved') {
-            events.push('approved');
-          }
-        }),
+        call: messengerCall.mockResolvedValue({ r: 1n, s: 2n, v: 27n }),
+        publish: messengerPublish,
       } as unknown as TransactionLifecycleRequest['dependencies']['messenger'],
       publishTransaction: jest.fn(),
       skipSimulationTransactionIds: new Set([transactionMeta.id]),
@@ -499,5 +508,14 @@ function createRequest(): {
     transactionMeta,
   };
 
-  return { events, fail, finish, publish, releaseNonce, request };
+  return {
+    events,
+    fail,
+    finish,
+    messengerCall,
+    messengerPublish,
+    publish,
+    releaseNonce,
+    request,
+  };
 }

@@ -79,9 +79,12 @@ async function waitForTransactionFinished(
   transactionId: string,
 ): Promise<TransactionMeta> {
   return new Promise((resolve) => {
-    dependencies.internalEvents.once(`${transactionId}:finished`, (txMeta) => {
-      resolve(txMeta);
-    });
+    dependencies.internalEvents.once(
+      `${transactionId}:finished`,
+      (txMeta: TransactionMeta) => {
+        resolve(txMeta);
+      },
+    );
   });
 }
 

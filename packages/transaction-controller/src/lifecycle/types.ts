@@ -5,7 +5,7 @@ import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import type { EventEmitter } from 'events';
-import type { WritableDraft } from 'immer/dist/internal.js';
+import type { Draft } from 'immer';
 
 import type {
   TransactionController,
@@ -106,7 +106,7 @@ export type TransactionStageDependencies = {
   ) => Promise<void>;
   updateState: (
     callback: (
-      state: WritableDraft<TransactionControllerState>,
+      state: Draft<TransactionControllerState>,
     ) => void | TransactionControllerState,
   ) => void;
   updateTransaction: (transactionMeta: TransactionMeta, note: string) => void;
