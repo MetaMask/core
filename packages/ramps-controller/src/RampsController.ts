@@ -1281,7 +1281,7 @@ function getSafeRampsFee(value: number | string | undefined): BigNumber {
 }
 
 /** EVM ERC-20 CAIP-19. Hex case is not part of the address. */
-const EIP155_ERC20_ASSET_ID = /^eip155:\d+\/erc20:0x[0-9a-fA-F]{40}$/;
+const EIP155_ERC20_ASSET_ID = /^eip155:\d+\/erc20:0x[0-9a-fA-F]{40}$/u;
 
 function isEip155Erc20AssetId(assetId: string | undefined): assetId is string {
   return typeof assetId === 'string' && EIP155_ERC20_ASSET_ID.test(assetId);
@@ -2189,6 +2189,10 @@ export class RampsController extends BaseController<
    * Exact CAIP-19 match, then a case-insensitive match for `eip155` ERC-20
    * only. Solana, Tron, and Bitcoin references stay exact: their case is
    * part of the id. The returned token keeps the catalog's own `assetId`.
+   *
+   * @param tokens - Region catalog from the top-tokens response.
+   * @param assetId - Caller CAIP-19 id.
+   * @returns The catalog token, or `undefined` when nothing matches.
    */
   #findTokenForAssetId(
     tokens: TokensResponse,
@@ -2201,7 +2205,7 @@ export class RampsController extends BaseController<
       return exact;
     }
     const target = assetId.toLowerCase();
-    const matchesEvm = (tok: RampsToken) =>
+    const matchesEvm = (tok: RampsToken): boolean =>
       isEip155Erc20AssetId(tok.assetId) && tok.assetId.toLowerCase() === target;
     return (
       tokens.allTokens.find(matchesEvm) ?? tokens.topTokens.find(matchesEvm)
