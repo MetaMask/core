@@ -283,31 +283,34 @@ export class ProfileController extends BaseController<
   /**
    * Creates a new MetaMask profile and updates state.
    *
-   * @param input - The profile creation parameters.
+   * @param params - The profile creation parameters.
+   * @returns The created MetaMask profile.
    */
-  async createProfile(input: CreateProfileParams): Promise<void> {
+  async createProfile(params: CreateProfileParams): Promise<MetaMaskProfile> {
     const response = await this.messenger.call(
       'ProfileService:createProfile',
-      input,
+      params,
     );
+    const mappedProfile = this.#mapApiResponseToProfile(response);
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(response);
+      state.metamaskProfile = mappedProfile;
     });
+    return mappedProfile;
   }
 
   /**
    * Fully replaces an existing profile and updates state.
    *
-   * @param identifier - The profile identifier.
+   * @param profileId - The profile identifier (the canonical profile ID).
    * @param input - The replacement profile data.
    */
   async replaceProfile(
-    identifier: string,
+    profileId: string,
     input: ReplaceProfileParams,
   ): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:replaceProfile',
-      identifier,
+      profileId,
       input,
     );
     this.update((state) => {
@@ -318,16 +321,16 @@ export class ProfileController extends BaseController<
   /**
    * Partially updates an existing profile and updates state.
    *
-   * @param identifier - The profile identifier.
+   * @param profileId - The profile identifier (the canonical profile ID).
    * @param input - The fields to update.
    */
   async updateProfile(
-    identifier: string,
+    profileId: string,
     input: UpdateProfileParams,
   ): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:updateProfile',
-      identifier,
+      profileId,
       input,
     );
     this.update((state) => {
@@ -338,10 +341,10 @@ export class ProfileController extends BaseController<
   /**
    * Deletes a profile and resets state, including clearing any linked X profile.
    *
-   * @param identifier - The profile identifier to delete.
+   * @param profileId - The profile identifier (the canonical profile ID) to delete.
    */
-  async deleteProfile(identifier: string): Promise<void> {
-    await this.messenger.call('ProfileService:deleteProfile', identifier);
+  async deleteProfile(profileId: string): Promise<void> {
+    await this.messenger.call('ProfileService:deleteProfile', profileId);
     this.update((state) => {
       state.metamaskProfile =
         getDefaultProfileControllerState().metamaskProfile;
@@ -376,26 +379,30 @@ export class ProfileController extends BaseController<
   /**
    * Completes the X OAuth PKCE flow and updates the X profile in state.
    *
-   * @param code - The OAuth authorization code from the X redirect.
-   * @param xState - The state parameter returned by the X redirect.
+   * @param params - The parameters for the X OA  uth PKCE flow.
+   * @param params.code - The OAuth authorization code from the X redirect.
+   * @param params.state - The state parameter returned by the X redirect.
+   * @returns The X profile.
    */
-  async connectX(code: string, xState: string): Promise<void> {
-    const response = await this.messenger.call('ProfileService:connectX', {
-      code,
-      state: xState,
-    });
-    this.update((state) => {
-      state.xProfile = this.#mapXResponseToXProfile(response);
-    });
+  async connectX(params: { code: string; state: string }): Promise<XProfile> {
+    const response = await this.messenger.call(
+      'ProfileService:connectX',
+      params,
+    );
+    return this.#mapXResponseToXProfile(response);
   }
 
   /**
    * Fetches the X account linked to the current profile and updates state.
+   *
+   * @returns The X profile.
    */
-  async getXAccount(): Promise<void> {
+  async fetchAndUpdateXAccount(): Promise<XProfile> {
     const response = await this.messenger.call('ProfileService:getXAccount');
+    const mappedXProfile = this.#mapXResponseToXProfile(response);
     this.update((state) => {
-      state.xProfile = this.#mapXResponseToXProfile(response);
+      state.xProfile = mappedXProfile;
     });
+    return mappedXProfile;
   }
 }
