@@ -12,24 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
   - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
   - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
-- Add optional `accountSigner` to `PerpsPlatformDependencies` so clients without a `KeyringController` can sign through their own wallet
+- Add optional `accountSigner` to `PerpsPlatformDependencies` so clients without a `KeyringController` can sign through their own wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
   - Export the new `PerpsAccountSigner` and `PerpsTypedDataPayload` types
   - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it and never call the `KeyringController:*` messenger actions; the signing address still comes from the messenger's selected account
   - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code
   - `isHardwareWallet()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
-- Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet
+- Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
   - Add optional `providerCredentials.hyperliquid.getAgentSigner(account)`, which resolves the approved agent (new exported `PerpsAgentSigner` and `PerpsAgentAccount` types) when an L1 action is signed for that main account and network, including the unified-account migration the provider may sign while connecting; an agent it returns is kept for the provider's lifetime, while `null` and failures are asked again at the next L1 action
   - Add `PerpsController:setAgentSigner(account, agentSigner)` (`PerpsControllerSetAgentSignerAction`) to bind an agent to an explicit main account and network, or pin that account to the main wallet with `null`
   - Add `PerpsController:clearAgentSigners` (`PerpsControllerClearAgentSignersAction`) to forget every agent, for example when the wallet locks, so the next L1 action asks `getAgentSigner` again
   - Add optional `PerpsProvider.setAgentSigner` and `PerpsProvider.clearAgentSigners`, implemented by the HyperLiquid provider
   - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, the user-signed migration from `dexAbstraction`, ...) always stay on the main account; approving the agent remains the client's job
   - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
-- Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run setup that needs a main-account signature before the first order: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter
+- Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run setup that needs a main-account signature before the first order: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
   - Resolves a `ReadyToTradeResult` that is `ready: true` once the main-account signer is ready and none of these steps will ask it to sign again before the first order; the aggregated provider prepares every provider in turn
 
 ### Removed
 
-- **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig`
+- **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig` ([#10559](https://github.com/MetaMask/core/pull/10559))
   - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
   - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
 
