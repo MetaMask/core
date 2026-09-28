@@ -51,10 +51,7 @@ Options:
   --help                   Show this help message
 ```
 
-`--site-url` and `--site-base-url` matter when the site is published somewhere
-other than the root of a domain, such as a GitHub Pages project site. Leave them
-unset and the site is built for `https://metamask.github.io/`, which makes its
-asset paths wrong under any other prefix.
+`--site-url` and `--site-base-url` matter when the site is published somewhere other than the root of a domain, such as a GitHub Pages project site. Leave them unset and the site is built for `https://metamask.github.io/`, which makes its asset paths wrong under any other prefix.
 
 ## Strategies
 
