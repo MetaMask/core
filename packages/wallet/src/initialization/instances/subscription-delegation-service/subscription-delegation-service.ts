@@ -29,7 +29,7 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'ChompApiService:getIntentsByAddress',
         'ApprovalController:addRequest',
         'DelegationController:signDelegation',
-        'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+        'MoneyAccountUpgradeController:forceUpgradeAccount',
         'MoneyAccountBalanceService:fetchBalanceWithFallback',
         'RemoteFeatureFlagController:getState',
         'SubscriptionController:getState',

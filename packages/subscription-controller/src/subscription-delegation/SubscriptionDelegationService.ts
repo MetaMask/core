@@ -53,7 +53,7 @@ import {
   makeMatchesSubscriptionDelegation,
   pickLatestMatchingSubscriptionDelegation,
 } from './fingerprint.js';
-import type { MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction } from './money-account-contracts.js';
+import type { MoneyAccountUpgradeControllerForceUpgradeAccountAction } from './money-account-contracts.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import {
   buildDelegationTypedData,
@@ -136,7 +136,7 @@ type AllowedActions =
   | ChompApiServiceGetIntentsByAddressAction
   | DelegationControllerSignDelegationAction
   | ApprovalControllerAddRequestAction
-  | MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction
+  | MoneyAccountUpgradeControllerForceUpgradeAccountAction
   | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | RemoteFeatureFlagControllerGetStateAction
   | SubscriptionControllerGetStateAction
@@ -315,7 +315,7 @@ export class SubscriptionDelegationService {
       !trialedProducts.includes(request.product);
 
     await this.#messenger.call(
-      'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+      'MoneyAccountUpgradeController:forceUpgradeAccount',
       request.payerAddress,
     );
 

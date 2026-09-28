@@ -3,7 +3,7 @@ import type { Hex } from '@metamask/utils';
 /**
  * Temporary local contract for Money Account delegation readiness.
  *
- * Mirrors `MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction`
+ * Mirrors `MoneyAccountUpgradeControllerForceUpgradeAccountAction`
  * from `@metamask/money-account-upgrade-controller`. Replace with that import
  * once the owning package publishes the action.
  *
@@ -14,7 +14,7 @@ import type { Hex } from '@metamask/utils';
  * step fails. The Subscription API validates the resulting delegations
  * server-side.
  */
-export type MoneyAccountUpgradeControllerEnsureDelegationsReadinessAction = {
-  type: 'MoneyAccountUpgradeController:ensureDelegationsReadiness';
+export type MoneyAccountUpgradeControllerForceUpgradeAccountAction = {
+  type: 'MoneyAccountUpgradeController:forceUpgradeAccount';
   handler: (address: Hex) => Promise<void>;
 };

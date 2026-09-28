@@ -192,7 +192,7 @@ type Mocks = {
   getSubscriptions: jest.Mock;
   getSubscriptionState: jest.Mock;
   addApprovalRequest: jest.Mock<Promise<unknown>, AddApprovalRequestArgs>;
-  ensureDelegationsReadiness: jest.Mock;
+  forceUpgradeAccount: jest.Mock;
   startSubscriptionWithCrypto: jest.Mock<
     StartSubscriptionWithCryptoResult,
     StartSubscriptionWithCryptoArgs
@@ -256,7 +256,7 @@ function setup(
           fundingTransactionHash: `0x${'ef'.repeat(32)}`,
         },
       })),
-    ensureDelegationsReadiness: jest.fn().mockResolvedValue(undefined),
+    forceUpgradeAccount: jest.fn().mockResolvedValue(undefined),
     startSubscriptionWithCrypto: jest
       .fn<StartSubscriptionWithCryptoResult, StartSubscriptionWithCryptoArgs>()
       .mockResolvedValue({
@@ -323,8 +323,8 @@ function setup(
         handler: Mocks['addApprovalRequest'];
       }
     | {
-        type: 'MoneyAccountUpgradeController:ensureDelegationsReadiness';
-        handler: Mocks['ensureDelegationsReadiness'];
+        type: 'MoneyAccountUpgradeController:forceUpgradeAccount';
+        handler: Mocks['forceUpgradeAccount'];
       }
     | {
         type: 'SubscriptionController:startSubscriptionWithCrypto';
@@ -398,8 +398,8 @@ function setup(
     mocks.addApprovalRequest,
   );
   rootMessenger.registerActionHandler(
-    'MoneyAccountUpgradeController:ensureDelegationsReadiness',
-    mocks.ensureDelegationsReadiness,
+    'MoneyAccountUpgradeController:forceUpgradeAccount',
+    mocks.forceUpgradeAccount,
   );
   rootMessenger.registerActionHandler(
     'SubscriptionController:startSubscriptionWithCrypto',
@@ -426,7 +426,7 @@ function setup(
       'SubscriptionController:getSubscriptions',
       'SubscriptionController:getState',
       'ApprovalController:addRequest',
-      'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+      'MoneyAccountUpgradeController:forceUpgradeAccount',
       'SubscriptionController:startSubscriptionWithCrypto',
     ],
     events: [],
@@ -1191,10 +1191,10 @@ describe('SubscriptionDelegationService', () => {
       expect(approvalRequest.requestData?.bundle).not.toHaveProperty(
         'subscriptionIdempotencyKey',
       );
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledTimes(1);
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith(PAYER);
+      expect(mocks.forceUpgradeAccount).toHaveBeenCalledTimes(1);
+      expect(mocks.forceUpgradeAccount).toHaveBeenCalledWith(PAYER);
       expect(
-        mocks.ensureDelegationsReadiness.mock.invocationCallOrder[0],
+        mocks.forceUpgradeAccount.mock.invocationCallOrder[0],
       ).toBeLessThan(mocks.addApprovalRequest.mock.invocationCallOrder[0]);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       const [persisted] = mocks.createDelegation.mock.calls[0];
@@ -1270,7 +1270,7 @@ describe('SubscriptionDelegationService', () => {
 
     it('stops before approval when Money Account delegations cannot be made ready', async () => {
       const { service, mocks } = setup();
-      mocks.ensureDelegationsReadiness.mockRejectedValue(
+      mocks.forceUpgradeAccount.mockRejectedValue(
         new Error('MoneyAccountUpgradeController is not bootstrapped'),
       );
 
@@ -1320,7 +1320,7 @@ describe('SubscriptionDelegationService', () => {
       });
 
       expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
-      expect(mocks.ensureDelegationsReadiness).toHaveBeenCalledWith(PAYER);
+      expect(mocks.forceUpgradeAccount).toHaveBeenCalledWith(PAYER);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);

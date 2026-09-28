@@ -54,7 +54,7 @@ describe('subscriptionDelegationService', () => {
         'ChompApiService:getIntentsByAddress',
         'ApprovalController:addRequest',
         'DelegationController:signDelegation',
-        'MoneyAccountUpgradeController:ensureDelegationsReadiness',
+        'MoneyAccountUpgradeController:forceUpgradeAccount',
         'MoneyAccountBalanceService:fetchBalanceWithFallback',
         'RemoteFeatureFlagController:getState',
         'SubscriptionController:getState',
