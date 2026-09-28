@@ -1298,6 +1298,124 @@ describe('MoneyAccountApiDataService', () => {
     });
   });
 
+  describe('additive API fields', () => {
+    it('accepts unknown fields on positions responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_POSITION_RESPONSE,
+        future_top_level: 'ok',
+        balance: {
+          ...MOCK_POSITION_RESPONSE.balance,
+          future_balance_field: 1,
+          by_asset: [
+            {
+              ...MOCK_POSITION_RESPONSE.balance.by_asset[0],
+              future_asset_field: true,
+            },
+          ],
+        },
+        positions: [
+          {
+            ...MOCK_POSITION_RESPONSE.positions[0],
+            future_position_field: 'premium',
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
+    it('accepts unknown fields on interest responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_INTEREST_RESPONSE,
+        future_interest_field: 'ok',
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/interest`)
+        .query({
+          vault_address: MOCK_VAULT_ADDRESS,
+          window: '7d',
+        })
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchInterest(MOCK_ADDRESS, {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+        window: '7d',
+      });
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
+    it('accepts unknown fields on history responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_HISTORY_RESPONSE,
+        future_history_field: 'ok',
+        cash_flows: [
+          {
+            ...MOCK_HISTORY_RESPONSE.cash_flows[0],
+            future_cash_flow_field: 42,
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchHistory(MOCK_ADDRESS);
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
+    it('accepts unknown fields on rate-history responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_RATE_HISTORY_RESPONSE,
+        future_rate_history_field: 'ok',
+        rates: [
+          {
+            ...MOCK_RATE_HISTORY_RESPONSE.rates[0],
+            future_rate_entry_field: true,
+          },
+          MOCK_RATE_HISTORY_RESPONSE.rates[1],
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate-history`)
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
+    it('accepts unknown fields on vault-rate responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_VAULT_RATE_RESPONSE,
+        future_vault_rate_field: 'ok',
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+  });
+
   describe('invalidateQueries', () => {
     it('invalidates cached queries', async () => {
       const { service } = createService(Env.DEV);

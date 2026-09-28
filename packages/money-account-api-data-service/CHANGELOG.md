@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Response validation now tolerates unknown fields returned by the Money Account API instead of throwing `MoneyAccountApiResponseValidationError`, so additive backend changes no longer break clients ([#10538](https://github.com/MetaMask/core/pull/10538))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
 ## [2.0.0]
