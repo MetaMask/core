@@ -7,6 +7,7 @@ const X25519_BASE_POINT = new Uint8Array(32);
 X25519_BASE_POINT[0] = 9;
 
 // https://www.rfc-editor.org/rfc/rfc8410#section-7
+// https://github.com/nodejs/node/blob/main/test/parallel/test-webcrypto-export-import-cfrg.js
 const X25519_PKCS8_HEADER = new Uint8Array([
   0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04,
   0x22, 0x04, 0x20,
