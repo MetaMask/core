@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
@@ -15,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership ([#10057](https://github.com/MetaMask/core/pull/10057)).
+- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership. ([#10057](https://github.com/MetaMask/core/pull/10057))
   - Filter account data update events (`notify:accountTransactionsUpdated`, `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated`) to the accounts that the originating Snap actually owns before republishing them.
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/account-api` from `^2.0.0` to `^2.1.0` ([#10263](https://github.com/MetaMask/core/pull/10263))
