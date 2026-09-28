@@ -21,10 +21,7 @@ const config = {
       initializationPath: 'address-book-controller',
     },
     'advanced-chart-core': {
-      teams: [
-        '@MetaMask/metamask-assets',
-        '@MetaMask/perps',
-      ],
+      teams: ['@MetaMask/metamask-assets', '@MetaMask/perps'],
     },
     'ai-controllers': {
       teams: ['@MetaMask/social-ai'],
