@@ -295,7 +295,7 @@ describe('SnapTracker', () => {
         ...buildSnap(MOCK_SNAP_ID, true),
         enabled: true,
         blocked: false,
-      } as TruncatedSnap);
+      });
 
       publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
 
@@ -309,7 +309,7 @@ describe('SnapTracker', () => {
         ...buildSnap(MOCK_SNAP_ID, true),
         enabled: false,
         blocked: false,
-      } as TruncatedSnap);
+      });
 
       publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
 
@@ -323,7 +323,7 @@ describe('SnapTracker', () => {
         ...buildSnap(MOCK_SNAP_ID, false),
         enabled: true,
         blocked: false,
-      } as TruncatedSnap);
+      });
 
       publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
 

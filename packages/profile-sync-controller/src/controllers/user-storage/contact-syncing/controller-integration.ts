@@ -129,10 +129,7 @@ export async function syncContactsWithUserStorage(
           if (localContact) {
             contactsToDeleteLocally.push(remoteContact);
           }
-        } else if (!localContact) {
-          // SCENARIO 2: New contact from remote - import to local
-          contactsToAddOrUpdateLocally.push(remoteContact);
-        } else {
+        } else if (localContact) {
           // SCENARIO 4 & 6: Contact exists on both sides - check for conflicts
           const hasContentDifference =
             localContact.name !== remoteContact.name ||
@@ -153,6 +150,9 @@ export async function syncContactsWithUserStorage(
           }
 
           // Else: content is identical, no action needed
+        } else {
+          // SCENARIO 2: New contact from remote - import to local
+          contactsToAddOrUpdateLocally.push(remoteContact);
         }
       }
 

@@ -17,14 +17,14 @@ import {
   mfaVerify,
   mfaVerifyComplete,
 } from './mfa/services.js';
-import type { MfaStepUpAssertion } from './mfa/services.js';
+import type { MfaVerificationAssertion } from './mfa/services.js';
 import type {
   EnrolledCredential,
   EnrollmentChallenge,
   EnrollmentProof,
   MfaCredentialType,
-  StepUpChallenge,
-  StepUpProof,
+  VerificationChallenge,
+  VerificationProof,
 } from './mfa/types.js';
 import {
   authenticate,
@@ -239,7 +239,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * @param options.entropySourceId - Entropy source whose profile owns the
    * credential.
    * @param options.accessToken - Bearer to use instead of the base session
-   * token; an elevated token is required once a credential is already enrolled.
+   * token; the server requires an AAL2 token once a credential that proves
+   * AAL2 is enrolled.
    * @returns Enrollment challenge for the client ceremony.
    */
   async beginMfaEnrollment(
@@ -302,7 +303,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   /**
-   * Begins step-up verification with an enrolled credential.
+   * Begins verification with an enrolled credential.
    *
    * @param type - Credential type to verify.
    * @param entropySourceId - Entropy source whose profile owns the credential.
@@ -311,7 +312,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   async beginMfaVerification(
     type: MfaCredentialType,
     entropySourceId?: string,
-  ): Promise<StepUpChallenge> {
+  ): Promise<VerificationChallenge> {
     const accessToken = await this.getAccessToken(entropySourceId);
     const result = await mfaVerify(this.#config.env, accessToken, {
       credential_type: type,
@@ -339,18 +340,18 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   /**
-   * Completes step-up verification with an enrolled credential.
+   * Completes verification with an enrolled credential.
    *
    * @param flowId - Identifier returned by the begin call.
    * @param proof - Platform assertion or email code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
-   * @returns AAL2 assertion issued after verification.
+   * @returns Assertion issued after verification.
    */
   async completeMfaVerification(
     flowId: string,
-    proof: StepUpProof,
+    proof: VerificationProof,
     entropySourceId?: string,
-  ): Promise<MfaStepUpAssertion> {
+  ): Promise<MfaVerificationAssertion> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await mfaVerifyComplete(this.#config.env, accessToken, {
       credential_type: proof.type,
@@ -375,10 +376,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   /**
-   * Exchanges an MFA assertion for an elevated access token.
+   * Exchanges an MFA verification assertion for an access token carrying the
+   * assurance level the assertion proves.
    *
-   * @param assertionJwt - AAL2 authentication assertion.
-   * @returns Elevated access token.
+   * @param assertionJwt - Verification assertion.
+   * @returns Access token.
    */
   async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
     return await authorizeOIDC(

@@ -207,7 +207,7 @@ export async function getRelayExecuteRequest({
     networkClientId,
     nestedTransactions,
     txParams,
-  } as TransactionMeta;
+  };
 
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',

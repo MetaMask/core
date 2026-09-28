@@ -100,7 +100,7 @@ export const getGasFeeEstimates = async (
     return estimates[BRIDGE_PREFERRED_GAS_ESTIMATE];
   }
 
-  return undefined;
+  return;
 };
 
 export const getTransactions = (messenger: BridgeStatusControllerMessenger) => {

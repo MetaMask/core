@@ -299,7 +299,7 @@ describe('BridgeController', function () {
       async ({ controller: bridgeController, rootMessenger }) => {
         messengerCallMock.mockReturnValue({
           currentCurrency: 'usd',
-        } as never);
+        });
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -412,7 +412,7 @@ describe('BridgeController', function () {
       async ({ controller: bridgeController, rootMessenger }) => {
         messengerCallMock.mockReturnValue({
           currentCurrency: 'usd',
-        } as never);
+        });
 
         expect(bridgeController.state.tokenSecurityTypeDestination).toBeNull();
 
@@ -472,7 +472,7 @@ describe('BridgeController', function () {
               sse: { enabled: true, minimumVersion: '13.1.0' },
             },
           },
-        } as never);
+        });
 
         const fetchQuotesStreamSpy = jest
           .spyOn(fetchUtils, 'fetchBridgeQuoteStream')
@@ -1543,7 +1543,7 @@ describe('BridgeController', function () {
         messengerCallMock.mockReturnValue({
           address: '0x123WalletAddress',
           provider: jest.fn(),
-        } as never);
+        });
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -1595,7 +1595,7 @@ describe('BridgeController', function () {
         messengerCallMock.mockReturnValue({
           address: '0xabcWalletAddress',
           provider: jest.fn(),
-        } as never);
+        });
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -2020,7 +2020,7 @@ describe('BridgeController', function () {
         messengerCallMock.mockReturnValue({
           address: '0x123',
           provider: jest.fn(),
-        } as never);
+        });
 
         jest
           .spyOn(balanceUtils, 'hasSufficientBalance')
@@ -2159,7 +2159,7 @@ describe('BridgeController', function () {
           currencyRates: {},
           marketData: {},
           conversionRates: {},
-        } as never);
+        });
 
         jest
           .spyOn(balanceUtils, 'hasSufficientBalance')
@@ -2755,7 +2755,7 @@ describe('BridgeController', function () {
             options: {
               scope: 'mainnet',
             },
-          } as never;
+          };
         },
       );
     });
@@ -4194,7 +4194,7 @@ describe('BridgeController', function () {
         if (actionType === 'AuthenticationController:getBearerToken') {
           return Promise.resolve('AUTH_TOKEN');
         }
-        return undefined;
+        return;
       });
     });
 

@@ -77,8 +77,8 @@ type VerificationServiceResult = {
   publicKey?: PasskeyRequestOptions;
 };
 
-export type MfaStepUpAssertion = {
-  /** AAL2 assertion JWT to exchange at Hydra for an elevated access token. */
+export type MfaVerificationAssertion = {
+  /** Assertion JWT to exchange at Hydra for an access token. */
   token: string;
   /** Assertion lifetime in seconds. */
   expiresIn: number;
@@ -420,7 +420,7 @@ export async function mfaEnrollComplete(
 }
 
 /**
- * Begins step-up verification with an enrolled credential.
+ * Begins verification with an enrolled credential.
  *
  * @param env - Authentication environment.
  * @param accessToken - Primary profile access token.
@@ -448,18 +448,18 @@ export async function mfaVerify(
 }
 
 /**
- * Completes step-up verification with an enrolled credential.
+ * Completes verification with an enrolled credential.
  *
  * @param env - Authentication environment.
  * @param accessToken - Primary profile access token.
  * @param params - Flow identifier and verification proof.
- * @returns The AAL2 assertion JWT and its lifetime in seconds.
+ * @returns The assertion JWT and its lifetime in seconds.
  */
 export async function mfaVerifyComplete(
   env: Env,
   accessToken: string,
   params: VerificationCompletionParams,
-): Promise<MfaStepUpAssertion> {
+): Promise<MfaVerificationAssertion> {
   let body: MfaVerifyCompleteRequest = {
     credential_type: params.credential_type,
     flow_id: params.flow_id,
@@ -522,13 +522,15 @@ export function toEnrolledCredential(
     };
   }
 
-  if (type === 'email_otp' && credential.email?.address !== undefined) {
+  if (type === 'email_otp') {
+    // The API marks the address optional, so a row without one is kept.
+    const address = credential.email?.address;
     return {
       type,
       ...base,
-      email: credential.email.address,
+      ...(address === undefined ? {} : { email: address }),
       // The spec marks `verified` optional; an active row is verified.
-      verified: credential.email.verified ?? status === 'active',
+      verified: credential.email?.verified ?? status === 'active',
     };
   }
 

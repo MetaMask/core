@@ -61,7 +61,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 /**
@@ -91,7 +91,7 @@ function createBalanceUpdate(overrides?: {
       ...overrides?.postBalance,
     },
     transfers: overrides?.transfers ?? [],
-  } as BalanceUpdate;
+  };
 }
 
 type SetupOptions = {

@@ -127,7 +127,7 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
         return { data: 'success' };
       }
 
-      return undefined;
+      return;
     }),
     registerActionHandler: jest.fn(),
     publish: baseMessenger.publish.bind(baseMessenger),

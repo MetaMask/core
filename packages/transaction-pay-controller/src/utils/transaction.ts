@@ -251,7 +251,7 @@ export function updateTransaction(
   },
   fn: (draft: TransactionMeta) => void,
 ): void {
-  const transaction = getTransaction(transactionId, messenger as never);
+  const transaction = getTransaction(transactionId, messenger);
 
   if (!transaction) {
     throw new Error(`Transaction not found: ${transactionId}`);

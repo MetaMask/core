@@ -679,7 +679,7 @@ export class NftDetectionController extends BaseController<
                 nftMetadata,
               };
             }
-            return undefined;
+            return;
           })
           .filter((nft): nft is NonNullable<typeof nft> => nft !== undefined);
 

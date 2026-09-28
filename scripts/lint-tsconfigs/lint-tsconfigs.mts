@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   }
 
   if (!didLintPass) {
-    // eslint-disable-next-line require-atomic-updates
+    // oxlint-disable-next-line require-atomic-updates
     process.exitCode = 1;
   }
 }
