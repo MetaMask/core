@@ -16,5 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `pony-cause` from `^2.1.10` to `^2.1.11` ([#10440](https://github.com/MetaMask/core/pull/10440))
 - Bump `@types/lodash` from `^4.17.20` to `^4.17.25` ([#10435](https://github.com/MetaMask/core/pull/10435))
 - Bump `lodash` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `debug` from `^4.3.4` to `^4.4.3` ([#10523](https://github.com/MetaMask/core/pull/10523))
 
 [Unreleased]: https://github.com/MetaMask/core/
