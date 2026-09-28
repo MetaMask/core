@@ -908,6 +908,62 @@ describe('PerpsController', () => {
       expect(MockLighterConstructor).toHaveBeenCalledWith(withAccountSigner);
     });
 
+    it('passes providerCredentials.hyperliquid.getAgentSigner to the HyperLiquid provider', async () => {
+      const getAgentSigner = jest.fn();
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { hyperliquid: { getAgentSigner } },
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      await controller.init();
+
+      expect(
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>,
+      ).toHaveBeenCalledWith(expect.objectContaining({ getAgentSigner }));
+    });
+
+    it('setAgentSigner forwards the agent to the HyperLiquid provider', async () => {
+      const agentSigner = {
+        address: '0x00000000000000000000000000000000000a9e17' as const,
+        signTypedData: jest.fn(),
+      };
+      Object.setPrototypeOf(mockProvider, HyperLiquidProvider.prototype);
+      mockProvider.setAgentSigner = jest.fn().mockResolvedValue(undefined);
+      await controller.init();
+
+      await controller.setAgentSigner(agentSigner);
+      await controller.setAgentSigner(null);
+
+      expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(
+        1,
+        agentSigner,
+      );
+      expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(2, null);
+    });
+
+    it('setAgentSigner rejects when the hyperliquid provider is not a HyperLiquidProvider', async () => {
+      await controller.init();
+
+      await expect(controller.setAgentSigner(null)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      );
+    });
+
+    it("prepareTradingWallet runs the active provider's deferred setup", async () => {
+      mockProvider.prepareTradingWallet = jest
+        .fn()
+        .mockResolvedValue(undefined);
+      await controller.init();
+
+      await controller.prepareTradingWallet();
+
+      expect(mockProvider.prepareTradingWallet).toHaveBeenCalledTimes(1);
+    });
+
     it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
       const moduleError = Object.assign(
         new Error('Cannot find module ./providers/LighterProvider'),

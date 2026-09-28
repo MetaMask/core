@@ -906,6 +906,31 @@ export type PerpsControllerCalculateFeesAction = {
 };
 
 /**
+ * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) with an
+ * approved agent, or with the main account again when `agentSigner` is null
+ * (for example when the wallet locks). User-signed actions stay on the main
+ * account. A provider re-creation (network toggle, account switch) resolves
+ * the agent through `providerCredentials.hyperliquid.getAgentSigner` again.
+ *
+ * @param agentSigner - The host-owned agent signer, or null to clear it.
+ */
+export type PerpsControllerSetAgentSignerAction = {
+  type: `PerpsController:setAgentSigner`;
+  handler: PerpsController['setAgentSigner'];
+};
+
+/**
+ * Run the active provider's deferred trading-readiness steps (account
+ * migration, builder fee and referral setup) ahead of the first order, so a
+ * hardware wallet signs them in one guided session, such as agent setup,
+ * instead of at order time. Providers without deferred setup do nothing.
+ */
+export type PerpsControllerPrepareTradingWalletAction = {
+  type: `PerpsController:prepareTradingWallet`;
+  handler: PerpsController['prepareTradingWallet'];
+};
+
+/**
  * Approve the dedicated subscription builder outside order submission.
  *
  * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
@@ -1453,6 +1478,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerSetAgentSignerAction
+  | PerpsControllerPrepareTradingWalletAction
   | PerpsControllerApproveSubscriptionBuilderFeeAction
   | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction

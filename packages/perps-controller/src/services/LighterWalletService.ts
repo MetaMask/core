@@ -81,10 +81,11 @@ export class LighterWalletService {
       if (!isAccountSignerReady(accountSigner)) {
         throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
       }
-      return await accountSigner.signPersonalMessage(
-        this.getUserAddress() as Hex,
-        message,
-      );
+      const address = this.getUserAddress() as Hex;
+      this.#deps.debugLogger.log('LighterWalletService: personal_sign', {
+        address,
+      });
+      return await accountSigner.signPersonalMessage(address, message);
     }
 
     if (this.#messenger) {

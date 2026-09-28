@@ -2256,21 +2256,26 @@ describe('HyperLiquidProvider', () => {
 
   describe('with a real wallet service and accountSigner', () => {
     // The wallet service is real and the messenger has no KeyringController,
-    // so every signature must reach the injected accountSigner. The SDK
-    // exchange client is the mocked boundary: like the SDK, it signs through
-    // the wallet the provider initialized it with.
+    // so every main-account signature must reach the injected accountSigner.
+    // The SDK exchange client is the mocked boundary: like the SDK, it signs
+    // through the wallet the provider initialized (or swapped) it with.
     const { HyperLiquidWalletService: RealHyperLiquidWalletService } =
       jest.requireActual<
         typeof import('../../../src/services/HyperLiquidWalletService.js')
       >('../../../src/services/HyperLiquidWalletService');
     const ACCOUNT_ADDRESS = createMockEvmAccount().address;
+    const AGENT_ADDRESS = '0x00000000000000000000000000000000000a9e17' as const;
     const SIGNATURE = `0x${'cd'.repeat(65)}` as const;
-    const MIGRATION_PAYLOAD: PerpsTypedDataPayload = {
+    const AGENT_SIGNATURE = `0x${'ef'.repeat(65)}` as const;
+    const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
+    // Shapes the SDK signs: user-signed actions use the
+    // HyperliquidSignTransaction domain, L1 actions the Exchange domain.
+    const USER_SIGNED_PAYLOAD: PerpsTypedDataPayload = {
       domain: {
         name: 'HyperliquidSignTransaction',
         version: '1',
-        chainId: 42161,
-        verifyingContract: '0x0000000000000000000000000000000000000000',
+        chainId: 1,
+        verifyingContract: ZERO_ADDRESS,
       },
       types: {
         'HyperliquidTransaction:UserSetAbstraction': [
@@ -2288,39 +2293,76 @@ describe('HyperLiquidProvider', () => {
         nonce: 1,
       },
     };
+    const L1_PAYLOAD: PerpsTypedDataPayload = {
+      domain: {
+        name: 'Exchange',
+        version: '1',
+        chainId: 1337,
+        verifyingContract: ZERO_ADDRESS,
+      },
+      types: {
+        Agent: [
+          { name: 'source', type: 'string' },
+          { name: 'connectionId', type: 'bytes32' },
+        ],
+      },
+      primaryType: 'Agent',
+      message: { source: 'a', connectionId: `0x${'22'.repeat(32)}` },
+    };
 
-    function createAccountSignerProvider(
-      signerOverrides: Partial<PerpsAccountSigner> = {},
-    ) {
+    type Options = {
+      signer?: { isReady?: () => boolean; isHardwareWallet?: () => boolean };
+      abstraction?: 'dexAbstraction' | 'default' | 'unifiedAccount';
+      getAgentSigner?: jest.Mock;
+    };
+
+    function createAccountSignerProvider(options: Options = {}) {
       const accountSigner = {
         signTypedData: jest.fn().mockResolvedValue(SIGNATURE),
         signPersonalMessage: jest.fn(),
-        ...signerOverrides,
+        ...options.signer,
+      };
+      const agentSigner = {
+        address: AGENT_ADDRESS,
+        signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
       };
       const { messenger, call } = createKeyringlessMessenger();
       MockedHyperLiquidWalletService.mockImplementation(
-        (deps, walletMessenger, options) =>
-          new RealHyperLiquidWalletService(deps, walletMessenger, options),
+        (deps, walletMessenger, walletOptions) =>
+          new RealHyperLiquidWalletService(
+            deps,
+            walletMessenger,
+            walletOptions,
+          ),
       );
       let sdkWallet: HyperLiquidWalletParams | undefined;
-      mockClientService.initialize.mockImplementation(async (wallet) => {
+      const initialize = jest.fn(async (wallet: HyperLiquidWalletParams) => {
         sdkWallet = wallet;
       });
-      const exchangeClient = createMockExchangeClient({
-        userSetAbstraction: jest.fn(async () => {
+      const setWallet = jest.fn((wallet: HyperLiquidWalletParams) => {
+        sdkWallet = wallet;
+      });
+      Object.assign(mockClientService, { initialize, setWallet });
+      const signThroughSdkWallet =
+        (payload: PerpsTypedDataPayload) => async () => {
           if (!sdkWallet) {
             throw new Error('SDK used before initialize');
           }
-          await sdkWallet.signTypedData(MIGRATION_PAYLOAD);
+          await sdkWallet.signTypedData(payload);
           return { status: 'ok' };
-        }),
+        };
+      const exchangeClient = createMockExchangeClient({
+        userSetAbstraction: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
+        agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
       });
       mockClientService.getExchangeClient = jest
         .fn()
         .mockReturnValue(exchangeClient);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+          userAbstraction: jest
+            .fn()
+            .mockResolvedValue(options.abstraction ?? 'dexAbstraction'),
         }),
       );
       const accountSignerProvider = new HyperLiquidProvider({
@@ -2330,8 +2372,17 @@ describe('HyperLiquidProvider', () => {
           ['BTC', 0],
           ['ETH', 1],
         ],
+        getAgentSigner: options.getAgentSigner,
       });
-      return { accountSignerProvider, accountSigner, call, exchangeClient };
+      return {
+        accountSignerProvider,
+        accountSigner,
+        agentSigner,
+        call,
+        exchangeClient,
+        initialize,
+        setWallet,
+      };
     }
 
     it('signs the init-time unified-account migration through accountSigner', async () => {
@@ -2346,14 +2397,16 @@ describe('HyperLiquidProvider', () => {
       });
       expect(accountSigner.signTypedData).toHaveBeenCalledWith(
         ACCOUNT_ADDRESS,
-        MIGRATION_PAYLOAD,
+        USER_SIGNED_PAYLOAD,
       );
       expect(keyringCalls(call)).toStrictEqual([]);
     });
 
     it('defers the init-time migration when accountSigner reports a hardware wallet', async () => {
       const { accountSignerProvider, accountSigner, call, exchangeClient } =
-        createAccountSignerProvider({ isHardwareWallet: () => true });
+        createAccountSignerProvider({
+          signer: { isHardwareWallet: () => true },
+        });
 
       await accountSignerProvider.getMarketDataWithPrices();
 
@@ -2363,20 +2416,104 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('treats a not-ready accountSigner as a locked keyring and caches nothing', async () => {
-      const { accountSignerProvider, accountSigner, call } =
-        createAccountSignerProvider({ isReady: () => false });
+      const { accountSignerProvider, accountSigner, call, exchangeClient } =
+        createAccountSignerProvider({ signer: { isReady: () => false } });
 
       await accountSignerProvider.getMarketDataWithPrices();
 
+      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
-      expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
-        '[ensureUnifiedAccountEnabled] Keyring locked, will retry later',
-      );
       expect(
         (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
           .set,
       ).not.toHaveBeenCalled();
       expect(keyringCalls(call)).toStrictEqual([]);
+    });
+
+    it('runs the deferred migration through prepareTradingWallet', async () => {
+      const { accountSignerProvider, accountSigner, exchangeClient } =
+        createAccountSignerProvider({
+          signer: { isHardwareWallet: () => true },
+        });
+      await accountSignerProvider.getMarketDataWithPrices();
+
+      await accountSignerProvider.prepareTradingWallet();
+
+      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
+      expect(accountSigner.signTypedData).toHaveBeenCalledWith(
+        ACCOUNT_ADDRESS,
+        USER_SIGNED_PAYLOAD,
+      );
+    });
+
+    describe('with an agent', () => {
+      it('resolves the agent at init and signs L1 actions with it', async () => {
+        const getAgentSigner = jest.fn();
+        const {
+          accountSignerProvider,
+          accountSigner,
+          agentSigner,
+          initialize,
+        } = createAccountSignerProvider({
+          abstraction: 'default',
+          getAgentSigner,
+        });
+        getAgentSigner.mockResolvedValue(agentSigner);
+
+        await accountSignerProvider.getMarketDataWithPrices();
+
+        expect(getAgentSigner).toHaveBeenCalledWith(ACCOUNT_ADDRESS);
+        expect(initialize.mock.calls[0][0].address).toBe(AGENT_ADDRESS);
+        expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+        expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      });
+
+      it('keeps user-signed actions on the main account', async () => {
+        const getAgentSigner = jest.fn();
+        const { accountSignerProvider, accountSigner, agentSigner } =
+          createAccountSignerProvider({ getAgentSigner });
+        getAgentSigner.mockResolvedValue(agentSigner);
+
+        await accountSignerProvider.getMarketDataWithPrices();
+
+        expect(accountSigner.signTypedData).toHaveBeenCalledWith(
+          ACCOUNT_ADDRESS,
+          USER_SIGNED_PAYLOAD,
+        );
+        expect(agentSigner.signTypedData).not.toHaveBeenCalled();
+      });
+
+      it('uses an agent set before the clients initialize', async () => {
+        const { accountSignerProvider, agentSigner, initialize, setWallet } =
+          createAccountSignerProvider({ abstraction: 'default' });
+
+        await accountSignerProvider.setAgentSigner(agentSigner);
+        await accountSignerProvider.getMarketDataWithPrices();
+
+        expect(setWallet).not.toHaveBeenCalled();
+        expect(initialize.mock.calls[0][0].address).toBe(AGENT_ADDRESS);
+        expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+      });
+
+      it('swaps the signing wallet at runtime without reconnecting', async () => {
+        const getAgentSigner = jest.fn().mockResolvedValue(null);
+        const { accountSignerProvider, agentSigner, setWallet } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+        await accountSignerProvider.getMarketDataWithPrices();
+        getAgentSigner.mockClear();
+
+        await accountSignerProvider.setAgentSigner(agentSigner);
+        await accountSignerProvider.setAgentSigner(null);
+
+        expect(setWallet).toHaveBeenCalledTimes(2);
+        expect(setWallet.mock.calls[0][0].address).toBe(AGENT_ADDRESS);
+        expect(setWallet.mock.calls[1][0].address).toBe(ACCOUNT_ADDRESS);
+        expect(getAgentSigner).not.toHaveBeenCalled();
+        expect(mockClientService.disconnect).not.toHaveBeenCalled();
+      });
     });
   });
 });

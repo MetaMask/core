@@ -53,6 +53,7 @@ import {
   HyperLiquidClientService,
   WebSocketConnectionState,
 } from '../services/HyperLiquidClientService.js';
+import type { HyperLiquidWalletParams } from '../services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService.js';
 import {
@@ -108,6 +109,8 @@ import type {
   GetUserDataSnapshotParams,
   HistoricalPortfolioResult,
   InitializeResult,
+  HyperLiquidCredentials,
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsProvider,
   PerpsProviderType,
@@ -836,6 +839,7 @@ type HyperLiquidProviderOptions = {
   subscriptionBuilderAddressTestnet?: string;
   subscriptionBuilderAddressMainnet?: string;
   onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+  getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
 };
 
 type HandleHip3PreOrderParams = {
@@ -1536,6 +1540,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
 
+  // Agent set through setAgentSigner. Undefined until the host sets one;
+  // null when the host cleared it, which also skips #getAgentSigner.
+  #agentSigner: PerpsAgentSigner | null | undefined;
+
+  readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
+
+  // Serializes setAgentSigner so a clear cannot interleave with an activation.
+  #agentSignerUpdate: Promise<void> = Promise.resolve();
+
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
 
@@ -1570,6 +1583,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       options.subscriptionBuilderAddressTestnet;
     this.#subscriptionBuilderAddressMainnet =
       options.subscriptionBuilderAddressMainnet;
+    this.#getAgentSigner = options.getAgentSigner;
     this.#onChaseOrderMaxDistanceReached =
       options.onChaseOrderMaxDistanceReached;
     this.#priceDeviationLimit =
@@ -1973,7 +1987,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      const wallet = this.#walletService.createWalletAdapter();
+      const wallet = await this.#buildWallet();
       await this.#clientService.initialize(wallet);
       if (this.#disconnectOperationsInFlight > 0) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -2022,6 +2036,27 @@ export class HyperLiquidProvider implements PerpsProvider {
       // so future calls can retry if needed
       this.#initializationPromise = null;
     }
+  }
+
+  /**
+   * Build the wallet the SDK signs with: the agent set through
+   * setAgentSigner, else the agent `getAgentSigner` resolves for the main
+   * account (unless the host cleared it), else the main account.
+   *
+   * @returns The wallet adapter for the client service.
+   */
+  async #buildWallet(): Promise<HyperLiquidWalletParams> {
+    if (this.#agentSigner) {
+      return this.#walletService.createAgentWalletAdapter(this.#agentSigner);
+    }
+    const mainWallet = this.#walletService.createWalletAdapter();
+    if (this.#agentSigner === null || !this.#getAgentSigner) {
+      return mainWallet;
+    }
+    const agentSigner = await this.#getAgentSigner(mainWallet.address);
+    return agentSigner
+      ? this.#walletService.createAgentWalletAdapter(agentSigner)
+      : mainWallet;
   }
 
   /**
@@ -14078,6 +14113,53 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @returns A promise that resolves to the result.
    */
+  /**
+   * Sign L1 actions with an approved agent, or with the main account again
+   * when `agentSigner` is null. Only the exchange client is rebuilt, so live
+   * subscriptions keep running. Before the clients initialize, the agent is
+   * stored and used by the first initialization.
+   *
+   * @param agentSigner - The host-owned agent signer, or null to clear it.
+   */
+  async setAgentSigner(agentSigner: PerpsAgentSigner | null): Promise<void> {
+    const update = this.#applyAgentSigner(agentSigner, this.#agentSignerUpdate);
+    this.#agentSignerUpdate = update.catch(() => undefined);
+    await update;
+  }
+
+  /**
+   * Store the agent after the previous update, then swap the signing wallet
+   * if the clients are initialized.
+   *
+   * @param agentSigner - The host-owned agent signer, or null to clear it.
+   * @param previousUpdate - The update this one must run after.
+   */
+  async #applyAgentSigner(
+    agentSigner: PerpsAgentSigner | null,
+    previousUpdate: Promise<void>,
+  ): Promise<void> {
+    await previousUpdate;
+    this.#agentSigner = agentSigner;
+    try {
+      await this.#initializationPromise;
+    } catch {
+      // A failed initialization retries lazily with the stored agent.
+    }
+    if (this.#clientsInitialized) {
+      this.#clientService.setWallet(await this.#buildWallet());
+    }
+  }
+
+  /**
+   * Run the deferred trading-readiness steps (account migration with user
+   * signing, builder fee and referral setup) ahead of the first order, so a
+   * hardware wallet signs them in one guided session instead of at order
+   * time. Results are cached, so an already-ready account signs nothing.
+   */
+  async prepareTradingWallet(): Promise<void> {
+    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+  }
+
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     try {
       const exchangeClient = this.#clientService.getExchangeClient();

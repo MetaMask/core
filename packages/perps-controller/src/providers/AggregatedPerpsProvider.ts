@@ -1047,6 +1047,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#getDefaultProvider().isReadyToTrade();
   }
 
+  async prepareTradingWallet(): Promise<void> {
+    await this.#getDefaultProvider().prepareTradingWallet?.();
+  }
+
   async disconnect(): Promise<DisconnectResult> {
     // Disconnect all providers
     const results = await Promise.allSettled(

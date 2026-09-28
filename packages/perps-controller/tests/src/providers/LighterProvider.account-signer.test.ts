@@ -1,3 +1,5 @@
+import { LIGHTER_TX_TYPE_CHANGE_PUB_KEY } from '../../../src/constants/lighterConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import { LighterClientService } from '../../../src/services/LighterClientService.js';
 import type {
@@ -28,6 +30,9 @@ const MockedClientService = LighterClientService as jest.MockedClass<
 
 const ACCOUNT_INDEX = 28;
 const API_KEY_INDEX = 7;
+const NEXT_NONCE = 42;
+// Expiry of the mocked signed transaction; only needs to be in the future.
+const TX_EXPIRY_MS = 9 * 60 * 1000;
 const L1_SIGNATURE = `0x${'ab'.repeat(65)}` as const;
 const CHANGE_PUB_KEY_BODY =
   'Register Lighter Account\n\npubkey: 0x9c...\nOnly sign this message for a trusted client!';
@@ -65,8 +70,8 @@ function createBridge(): {
         return {
           txInfo: JSON.stringify({
             changePubKey: true,
-            Nonce: 42,
-            ExpiredAt: Date.now() + 599_000,
+            Nonce: NEXT_NONCE,
+            ExpiredAt: Date.now() + TX_EXPIRY_MS,
           }),
           txHash: 'dddd000000000001',
         } as LighterSignerResult<Operation>;
@@ -76,54 +81,70 @@ function createBridge(): {
   return { bridge, calls };
 }
 
+type BuiltProvider = {
+  provider: LighterProvider;
+  address: string;
+  client: { sendTx: jest.Mock };
+  accountSigner: { signPersonalMessage: jest.Mock };
+  call: jest.SpyInstance;
+  calls: LighterWasmCall[];
+};
+
+function buildProvider(isReady?: () => boolean): BuiltProvider {
+  const { address } = createMockEvmAccount();
+  const account = {
+    code: 0,
+    accountType: 0,
+    index: ACCOUNT_INDEX,
+    l1Address: address,
+    status: 1,
+    collateral: '0',
+    availableBalance: '0',
+    positions: [],
+  };
+  const client = {
+    network: 'testnet',
+    getAccountsByL1Address: jest.fn().mockResolvedValue({
+      code: 200,
+      l1Address: address,
+      subAccounts: [account],
+    }),
+    getAccountByIndex: jest
+      .fn()
+      .mockResolvedValue({ code: 200, accounts: [account] }),
+    getApiKeys: jest.fn().mockResolvedValue({ code: 200, apiKeys: [] }),
+    getNextNonce: jest.fn().mockResolvedValue({ code: 200, nonce: NEXT_NONCE }),
+    getTx: jest.fn().mockResolvedValue(null),
+    sendTx: jest.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
+  };
+  MockedClientService.mockImplementation(
+    () => client as unknown as LighterClientService,
+  );
+  const accountSigner = {
+    signTypedData: jest.fn(),
+    signPersonalMessage: jest.fn().mockResolvedValue(L1_SIGNATURE),
+    isReady,
+  };
+  const { messenger, call } = createKeyringlessMessenger();
+  const { bridge, calls } = createBridge();
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: { ...createMockInfrastructure(), accountSigner },
+    messenger,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+    },
+    signerBridge: bridge,
+    webSocketCtor: null,
+  });
+  return { provider, address, client, accountSigner, call, calls };
+}
+
 describe('LighterProvider with accountSigner', () => {
   it('registers the venue key with an L1 signature from accountSigner', async () => {
-    const { address } = createMockEvmAccount();
-    const account = {
-      code: 0,
-      accountType: 0,
-      index: ACCOUNT_INDEX,
-      l1Address: address,
-      status: 1,
-      collateral: '0',
-      availableBalance: '0',
-      positions: [],
-    };
-    const client = {
-      network: 'testnet',
-      getAccountsByL1Address: jest.fn().mockResolvedValue({
-        code: 200,
-        l1Address: address,
-        subAccounts: [account],
-      }),
-      getAccountByIndex: jest
-        .fn()
-        .mockResolvedValue({ code: 200, accounts: [account] }),
-      getApiKeys: jest.fn().mockResolvedValue({ code: 200, apiKeys: [] }),
-      getNextNonce: jest.fn().mockResolvedValue({ code: 200, nonce: 42 }),
-      getTx: jest.fn().mockResolvedValue(null),
-      sendTx: jest.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
-    };
-    MockedClientService.mockImplementation(
-      () => client as unknown as LighterClientService,
-    );
-    const accountSigner = {
-      signTypedData: jest.fn(),
-      signPersonalMessage: jest.fn().mockResolvedValue(L1_SIGNATURE),
-    };
-    const { messenger, call } = createKeyringlessMessenger();
-    const { bridge, calls } = createBridge();
-    const provider = new LighterProvider({
-      isTestnet: true,
-      platformDependencies: { ...createMockInfrastructure(), accountSigner },
-      messenger,
-      lighterAuthConfig: {
-        accountIndex: ACCOUNT_INDEX,
-        apiKeyIndex: API_KEY_INDEX,
-      },
-      signerBridge: bridge,
-      webSocketCtor: null,
-    });
+    const { provider, address, client, accountSigner, call, calls } =
+      buildProvider();
 
     const result = await provider.isReadyToTrade();
 
@@ -138,13 +159,30 @@ describe('LighterProvider with accountSigner', () => {
     expect(changePubKey?.params).toStrictEqual([
       ACCOUNT_INDEX,
       L1_SIGNATURE,
-      42,
+      NEXT_NONCE,
       API_KEY_INDEX,
     ]);
     expect(client.sendTx).toHaveBeenCalledWith(
-      8,
+      LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
       expect.stringContaining('"changePubKey":true'),
     );
+    expect(keyringCalls(call)).toStrictEqual([]);
+  });
+
+  it('reports KEYRING_LOCKED and registers nothing when accountSigner is not ready', async () => {
+    const { provider, client, accountSigner, call, calls } = buildProvider(
+      () => false,
+    );
+
+    const result = await provider.isReadyToTrade();
+
+    expect(result.ready).toBe(false);
+    expect(result.error).toContain(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(
+      calls.some((wasmCall) => wasmCall.function === '_signChangePubKey'),
+    ).toBe(false);
+    expect(client.sendTx).not.toHaveBeenCalled();
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 });

@@ -1115,6 +1115,14 @@ export type HyperLiquidCredentials = {
   subscriptionBuilderAddressTestnet?: string;
   /** Dedicated subscription waiver builder for mainnet. */
   subscriptionBuilderAddressMainnet?: string;
+  /**
+   * Resolves the approved agent for a main account, or null when none is
+   * active. Consulted when the HyperLiquid clients first initialize; use
+   * `PerpsController:setAgentSigner` to switch at runtime. With an agent, L1
+   * actions (orders, cancels, leverage, ...) are signed by the agent key and
+   * user-signed actions (builder fee, withdraw, ...) by the main account.
+   */
+  getAgentSigner?: (mainAddress: Hex) => Promise<PerpsAgentSigner | null>;
 };
 
 export type LighterCredentials = {
@@ -2129,6 +2137,13 @@ export type PerpsProvider = {
   toggleTestnet(): Promise<ToggleTestnetResult>;
   initialize(): Promise<InitializeResult>;
   isReadyToTrade(): Promise<ReadyToTradeResult>;
+  /**
+   * Run the deferred trading-readiness steps (account migration, builder fee
+   * and referral setup) ahead of the first order, so any main-account
+   * signature surfaces in a guided session instead of at order time.
+   * Providers without deferred setup omit it.
+   */
+  prepareTradingWallet?(): Promise<void>;
   disconnect(): Promise<DisconnectResult>;
   ping(timeoutMs?: number): Promise<void>; // Lightweight WebSocket health check with configurable timeout
   getWebSocketConnectionState?(): WebSocketConnectionState; // Optional: get current WebSocket connection state
@@ -2574,7 +2589,8 @@ export type PerpsTypedMessageParams = {
 
 /**
  * EIP-712 payload produced by the HyperLiquid SDK, signed with
- * `eth_signTypedData_v4` semantics.
+ * `eth_signTypedData_v4` semantics. `types` includes the `EIP712Domain`
+ * entry derived from `domain`, as `eth_signTypedData_v4` expects.
  */
 export type PerpsTypedDataPayload = {
   domain: {
@@ -2605,7 +2621,9 @@ export type PerpsAccountSigner = {
   signTypedData(address: Hex, payload: PerpsTypedDataPayload): Promise<Hex>;
 
   /**
-   * EIP-191 `personal_sign` as `address`.
+   * EIP-191 `personal_sign` as `address`. Required so a host that sets
+   * `accountSigner` never falls back to `KeyringController` (Lighter signs
+   * its venue-key registration this way).
    *
    * @param address - The account that signs.
    * @param message - Plaintext message to sign.
@@ -2620,11 +2638,30 @@ export type PerpsAccountSigner = {
   isReady?(): boolean;
 
   /**
-   * True when every signature needs a physical confirmation, which defers
-   * optional signing prompts. When omitted, the selected account's keyring
-   * type decides.
+   * True when every signature needs a physical confirmation. HyperLiquid then
+   * defers its optional init-time signing prompts to action time. When
+   * omitted, the selected account's keyring type decides.
    */
   isHardwareWallet?(): boolean;
+};
+
+/**
+ * Host-owned delegated signer for a venue agent (HyperLiquid API wallet).
+ * The host creates the key, gets it approved by the user's main account, and
+ * keeps it; Core only asks it to sign. A viem local account satisfies this
+ * shape.
+ */
+export type PerpsAgentSigner = {
+  /** The agent account address. */
+  address: Hex;
+
+  /**
+   * Sign EIP-712 typed data with the agent key.
+   *
+   * @param payload - The typed data to sign.
+   * @returns A 65-byte 0x-prefixed signature.
+   */
+  signTypedData(payload: PerpsTypedDataPayload): Promise<Hex>;
 };
 
 /**

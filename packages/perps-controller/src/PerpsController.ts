@@ -141,6 +141,7 @@ import type {
   GetHistoricalPortfolioParams,
   HistoricalPortfolioResult,
   OrderType,
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsLogger,
   PerpsActiveProviderMode,
@@ -958,6 +959,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markFirstOrderCompleted',
   'markTutorialCompleted',
   'placeOrder',
+  'prepareTradingWallet',
   'previewPositionModify',
   'reconnect',
   'recordMarketViewed',
@@ -976,6 +978,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
   'saveTradeConfiguration',
+  'setAgentSigner',
   'setAttributionContext',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
@@ -2361,6 +2364,9 @@ export class PerpsController extends BaseController<
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
       onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
+      getAgentSigner:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.getAgentSigner,
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -5850,6 +5856,35 @@ export class PerpsController extends BaseController<
       feeResolution,
     });
     return this.#marketDataService.calculateFees({ provider, params, context });
+  }
+
+  /**
+   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) with an
+   * approved agent, or with the main account again when `agentSigner` is null
+   * (for example when the wallet locks). User-signed actions stay on the main
+   * account. A provider re-creation (network toggle, account switch) resolves
+   * the agent through `providerCredentials.hyperliquid.getAgentSigner` again.
+   *
+   * @param agentSigner - The host-owned agent signer, or null to clear it.
+   */
+  async setAgentSigner(agentSigner: PerpsAgentSigner | null): Promise<void> {
+    await this.#getActiveProviderWhenReady();
+    const provider = this.providers.get('hyperliquid');
+    if (!(provider instanceof HyperLiquidProvider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    await provider.setAgentSigner(agentSigner);
+  }
+
+  /**
+   * Run the active provider's deferred trading-readiness steps (account
+   * migration, builder fee and referral setup) ahead of the first order, so a
+   * hardware wallet signs them in one guided session, such as agent setup,
+   * instead of at order time. Providers without deferred setup do nothing.
+   */
+  async prepareTradingWallet(): Promise<void> {
+    const provider = await this.#getActiveProviderWhenReady();
+    await provider.prepareTradingWallet?.();
   }
 
   /**

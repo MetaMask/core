@@ -16,7 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export the new `PerpsAccountSigner` and `PerpsTypedDataPayload` types
   - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it and never call the `KeyringController:*` messenger actions; the signing address still comes from the messenger's selected account
   - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code
-  - `isHardwareWallet()` defers optional signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
+  - `isHardwareWallet()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
+- Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet
+  - Add optional `providerCredentials.hyperliquid.getAgentSigner`, which resolves the approved agent (new exported `PerpsAgentSigner` type) when the HyperLiquid clients initialize
+  - Add `PerpsController:setAgentSigner` (`PerpsControllerSetAgentSignerAction`) to switch to an agent, or back to the main account with `null`, at runtime; only the exchange client is rebuilt, so live subscriptions keep running
+  - User-signed actions (builder fee, withdraw, account migration, ...) always stay on the main account; approving the agent remains the client's job
+- Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run deferred trading-readiness steps (account migration, builder fee and referral setup) before the first order
 
 ### Removed
 
