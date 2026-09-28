@@ -45,7 +45,6 @@ describe('buildWsUpdateSources', () => {
       title: 'v5 lane: runs only the graduation and detection',
       includeCustomAssetGraduation: true,
       isBasicFunctionality: false,
-      // No network-backed source may run when the user has opted out.
       expected: ['CustomAssetGraduationMiddleware', 'DetectionMiddleware'],
     },
     {

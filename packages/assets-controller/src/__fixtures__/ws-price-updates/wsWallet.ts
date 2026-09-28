@@ -10,9 +10,6 @@ import {
 /**
  * Build the wallet's `InternalAccount`.
  *
- * Scoped to Ethereum Mainnet only, so `accountsWithSupportedChains` resolves
- * to the one chain the websocket events report balances for.
- *
  * @param overrides - Fields to override on the account.
  * @returns The internal account.
  */
@@ -37,11 +34,10 @@ export function buildWsAccount(
 }
 
 /**
- * A fresh wallet: no balances, metadata, prices or custom assets yet, so the
- * first websocket event surfaces holdings that are all brand new to state.
+ * A fresh wallet's state, empty of balances, metadata, prices and custom
+ * assets.
  *
- * @param overrides - State slices to override (e.g. seed the ETH holding of a
- * prior pass).
+ * @param overrides - State slices to override.
  * @returns The starting state.
  */
 export function buildEmptyAssetsState(

@@ -30,8 +30,7 @@ type BatchRecordingMock = {
 };
 
 /**
- * Intercept `GET https://chainid.network/chains.json`, which
- * `AssetsController` fetches on boot to fill native-asset gaps.
+ * Intercept `GET https://chainid.network/chains.json`.
  *
  * @returns The nock scope.
  */
@@ -43,8 +42,7 @@ function mockChainIdNetwork(): nock.Scope {
 }
 
 /**
- * Intercept `GET {ACCOUNTS}/v2/supportedNetworks`, which
- * `AccountsApiDataSource` reads on boot to decide which chains it claims.
+ * Intercept `GET {ACCOUNTS}/v2/supportedNetworks`.
  *
  * @returns The nock scope.
  */
@@ -56,9 +54,7 @@ function mockAccountsSupportedNetworks(): nock.Scope {
 }
 
 /**
- * Intercept `GET {TOKENS}/v2/supportedNetworks`. `eip155:1` is in the captured
- * `fullSupport` list, so Mainnet assets genuinely reach the Token and Price
- * data sources rather than being skipped as unsupported.
+ * Intercept `GET {TOKENS}/v2/supportedNetworks`.
  *
  * @returns The nock scope.
  */
@@ -70,9 +66,7 @@ function mockTokensSupportedNetworks(): nock.Scope {
 }
 
 /**
- * Intercept `GET {TOKEN}/v1/suggestedOccurrenceFloors`. The capture has `1`
- * (Mainnet) at three, so a websocket-first USDC sighting must beat that floor
- * on its own captured occurrences to survive.
+ * Intercept `GET {TOKEN}/v1/suggestedOccurrenceFloors`.
  *
  * @returns The nock scope.
  */
@@ -85,9 +79,7 @@ function mockSuggestedOccurrenceFloors(): nock.Scope {
 
 /**
  * Intercept `GET {TOKENS}/v3/assets`, answering each batch from the captured
- * per-asset entries and preserving the API's lower-case `assetId` echo. Assets
- * the API does not carry are answered as empty stubs, as it does for tokens on
- * chains it does not index.
+ * per-asset entries with the API's lower-case `assetId` echo.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -108,8 +100,7 @@ function mockV3Assets(): BatchRecordingMock {
 }
 
 /**
- * Intercept `GET {PRICES}/v2/supportedNetworks`, which `PriceDataSource` reads
- * before fetching.
+ * Intercept `GET {PRICES}/v2/supportedNetworks`.
  *
  * @returns The nock scope.
  */
@@ -122,8 +113,7 @@ function mockPricesSupportedNetworks(): nock.Scope {
 
 /**
  * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices
- * and keying the response lower-case as the live API does. Assets with no
- * captured price are simply absent, as they are upstream.
+ * with the API's lower-case keying.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -153,16 +143,9 @@ function mockV3SpotPrices(): BatchRecordingMock {
 }
 
 /**
- * Register every interceptor the websocket update pass needs for this wallet:
- * the Token API occurrence floors, Tokens API supported networks and assets,
- * the Price API supported networks and spot prices, plus the Accounts API
- * supported networks and `chainid.network` manifest `AssetsController` reads
- * on boot.
- *
- * All interceptors persist, so batch composition and cache misses cannot make a
- * test fail for want of an interceptor. The Tokens and Price batched
- * interceptors record what they were asked about, so tests can assert the
- * websocket pass actually invoked them.
+ * Register every interceptor the websocket update pass needs for this
+ * wallet. The batched Tokens and Price interceptors record what they were
+ * asked about.
  *
  * @returns The recording mocks.
  */

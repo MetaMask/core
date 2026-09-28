@@ -43,17 +43,12 @@ import { buildWsUpdateSources } from './buildWsUpdateSources.js';
 import { executeAssetsPipeline } from './executeAssetsPipeline.js';
 
 /**
- * Run one websocket update pass over the wallet — everything but the
- * controller: the real `AccountActivityDataSource` receives a
- * `AccountActivityService:balanceUpdated` event, and its update flows through
- * the composed websocket lane (`buildWsUpdateSources`) via
- * `executeAssetsPipeline`, against the given state.
+ * Run one websocket update pass through the composed lane.
  *
  * @param options - The pass inputs.
  * @param options.state - The state the pass sees.
  * @param options.event - The websocket event to deliver.
- * @param options.lane - The update lane to compose (`v5` by default, `v6`
- * runs the RPC fallback instead of graduation).
+ * @param options.lane - The update lane to compose (`v5` by default).
  * @returns The enriched response, the request the detection middleware
  * mutated, and the asset IDs the Token and Price APIs were asked about.
  */
@@ -246,8 +241,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('queues both holdings for a price update', () => {
-      // The detection middleware mutates the request so the price data source
-      // prices the holdings it surfaced.
       const queued =
         result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
         [];
@@ -281,8 +274,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('asks the Token API for the new token and the native asset', () => {
-      // The occurrence filter consults occurrences for the new ERC-20 before
-      // detection, and metadata enrichment covers the native asset every pass.
       expect(askedAbout(result.assetBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
       );
@@ -328,8 +319,7 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('runs the RPC fallback once on the balance pass', () => {
-      // The v6 lane replaces graduation with an RPC fallback ahead of
-      // detection; a response without errors leaves it a passthrough.
+      // A response without errors leaves the fallback a passthrough.
       expect(result.rpcFallbackRequests).toHaveLength(1);
       expect(result.rpcFallbackRequests[0]?.dataTypes).toStrictEqual(
         expect.arrayContaining(['balance']),
@@ -443,8 +433,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('does not refetch metadata for the enriched token, only the native asset', () => {
-      // Native metadata is refreshed every pass; the fully enriched token is
-      // left alone.
       expect(askedAbout(result.assetBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );

@@ -1,14 +1,7 @@
 /**
- * Integration coverage for `AssetsController` websocket price updates — the
- * behavior fixed by the "prices after websocket balance updates" change:
- * after a websocket balance update, the Token and Price APIs are invoked so
- * existing and newly-seen tokens get metadata and spot prices in the same
- * pipeline pass.
- *
- * Boots the real controller against the same captured APIs as
- * `buildWsUpdateSources.price-updates.integration.test.ts`, keeps the wallet
- * lifecycle closed so only the websocket event drives the Token and Price
- * APIs, and asserts what lands in persisted controller state.
+ * Integration coverage for `AssetsController` websocket price updates: after
+ * a websocket balance update, the Token and Price APIs are invoked so existing
+ * and newly-seen tokens get metadata and spot prices in the same pipeline pass.
  */
 
 import type { ApiPlatformClient } from '@metamask/core-backend';
@@ -78,10 +71,8 @@ async function withController<ReturnValue>(
 }
 
 /**
- * Boot the controller (lifecycle closed: UI shut, keyring locked, account
- * tree uninitialized, so the subscribe lanes stay dormant and only the
- * websocket event can drive the Token and Price APIs), deliver a websocket
- * balance event, and let state settle.
+ * Boot the controller (lifecycle closed), deliver a websocket balance event,
+ * and let state settle.
  *
  * @param options - The run options.
  * @param options.state - The state to boot with.
@@ -111,9 +102,7 @@ async function runWsEvent({
   const controllerState = await withController(
     { state, queryApiClient, remoteFeatureFlags },
     async ({ controller, messenger }) => {
-      // Wait for boot (`AccountsApiDataSource` reading the supported networks
-      // manifest) so the assertions below cannot pass on a wallet that never
-      // finished starting.
+      // Wait for boot so the assertions cannot pass on a half-started wallet.
       await waitFor(() =>
         expect(accountsSupportedNetworks.isDone()).toBe(true),
       );
@@ -121,7 +110,6 @@ async function runWsEvent({
       messenger.publish('AccountActivityService:balanceUpdated', event);
 
       await waitFor(() => {
-        // The event's balances must have landed before anything is asserted.
         for (const update of event.updates) {
           const landed = getIgnoringCase(
             controller.state.assetsBalance[WS_ACCOUNT_ID] ?? {},
@@ -430,8 +418,6 @@ describe('AssetsController: websocket price updates', () => {
     });
 
     it('did not refetch metadata for the enriched token', () => {
-      // Native metadata is refreshed every pass, so the Token API is still
-      // asked about the native asset — but not about USDC.
       const askedAbout = new Set(
         result.assetBatches.flat().map((assetId) => assetId.toLowerCase()),
       );

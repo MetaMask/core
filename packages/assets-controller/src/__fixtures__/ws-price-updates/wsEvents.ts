@@ -14,20 +14,16 @@ export type BalanceUpdatedEventPayload = {
   updates: BalanceUpdate[];
 };
 
-/**
- * Hex quantities the websocket reports, as a transaction-driven wallet would
- * (AADS converts `0x…` amounts to human-readable form before the pipeline).
- */
+/** Hex quantities, as the websocket reports them. */
 export const WS_ETH_WEI_HEX = '0x1bc16d674ec80000'; // 2 ETH
 export const WS_USDC_BASE_UNITS_HEX = '0x989680'; // 10 USDC (6 decimals)
 
-/** Human-readable amounts AADS derives from the hex quantities above. */
+/** Human-readable amounts, as AADS derives them from the hex quantities. */
 export const ETH_WS_AMOUNT = '2';
 export const USDC_WS_AMOUNT = '10';
 
 /**
- * Build an `AccountActivityService:balanceUpdated` event payload updating the
- * native ETH balance — the wallet's pre-existing holding.
+ * Build a `balanceUpdated` payload for the native ETH balance.
  *
  * @param options - Overrides for the balance amount.
  * @param options.amount - The balance amount to report, in wei hex.
@@ -55,9 +51,8 @@ export function buildEthBalanceUpdatedEvent(options?: {
 }
 
 /**
- * Build an `AccountActivityService:balanceUpdated` event payload for USDC —
- * a token the wallet never held before, first surfaced by the websocket
- * (lower-case address, as the websocket sends ERC-20s).
+ * Build a `balanceUpdated` payload for USDC, a token the wallet never held
+ * before.
  *
  * @param options - Overrides for the balance amount.
  * @param options.amount - The balance amount to report, in base-unit hex.

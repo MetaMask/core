@@ -25,9 +25,7 @@ import {
 import { buildWsAccount } from './wsWallet.js';
 
 /**
- * RPC provider that answers the cheap probes `RpcDataSource` makes without
- * inventing token balances. Persist the stubs so a slow-lane fallback cannot
- * fail the suite for want of a matching request.
+ * The RPC provider, stubbing the probes `RpcDataSource` makes.
  *
  * @returns The mock provider.
  */
@@ -82,9 +80,7 @@ function buildMainnetNetworkState(): NetworkState {
 }
 
 /**
- * Register the NetworkController / NetworkEnablement / ConfigRegistry handlers
- * the websocket price-update fixtures need. Shared by the pipeline and
- * controller integration tests.
+ * Register the network handlers the websocket price-update fixtures need.
  *
  * @param rootMessenger - The root messenger to register handlers on.
  */
@@ -97,8 +93,7 @@ export function registerMainnetNetwork(rootMessenger: MockRootMessenger): void {
     () => networkState,
   );
 
-  // `RpcDataSource` only reads `provider` off the client, so the
-  // configuration is here to keep the shape honest rather than to be used.
+  // Only `provider` is read; the configuration keeps the client shape honest.
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     () =>
@@ -131,9 +126,8 @@ export function registerMainnetNetwork(rootMessenger: MockRootMessenger): void {
 type RegisterWsControllerActionsOptions = RegisterWalletLifecycleMocksOptions;
 
 /**
- * Register every external action `AssetsController` needs to boot the
- * websocket price-update wallet: the account, lifecycle, feature flags, and
- * the network handlers from {@link registerMainnetNetwork}.
+ * Register every external action `AssetsController` needs to boot the wallet,
+ * plus the network handlers from {@link registerMainnetNetwork}.
  *
  * @param rootMessenger - The root messenger to register handlers on.
  * @param opts - Lifecycle / flag overrides.

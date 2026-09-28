@@ -9,10 +9,7 @@ import { writeFile } from '@metamask/utils/node';
 
 const OUT_DIR = `${import.meta.dirname}/api-responses`;
 
-/**
- * The assets the example websocket event reports balances for, in the
- * checksummed form `AccountActivityDataSource` normalization emits.
- */
+/** The assets the example websocket event reports balances for, checksummed. */
 const WS_EVENT_ASSET_IDS = [
   'eip155:1/slip44:60',
   'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -115,8 +112,7 @@ async function main(): Promise<void> {
   const assets = (await fetchJson(
     `${API_URLS.TOKENS}/v3/assets?${assetsParams.toString()}`,
   )) as { assetId?: string }[];
-  // Keyed by the lower-cased asset ID the API echoes back, matching
-  // `__fixtures__/bsc-spam-token/api-responses/index.ts`.
+  // Keyed by the lower-cased asset ID the API echoes back.
   const assetsByLowerId: Record<string, unknown> = {};
   for (const entry of assets) {
     if (entry.assetId) {
