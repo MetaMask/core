@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `securityData` property to `RwaToken`, populated when `includeTokenSecurityData` is requested ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
-- Add optional `includeTokenSecurityData` property to `FetchRwasParams` ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add optional `securityData` property to `RwaToken`, populated when `includeTokenSecurityData` is requested ([#10542](https://github.com/MetaMask/core/pull/10542))
+- Add optional `includeTokenSecurityData` property to `FetchRwasParams` ([#10542](https://github.com/MetaMask/core/pull/10542))
 
 ### Changed
 
