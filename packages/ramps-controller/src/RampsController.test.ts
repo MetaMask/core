@@ -10444,7 +10444,9 @@ describe('RampsController', () => {
     const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
       finalStatus,
-      kycStatus: 'approved',
+      // Relay and vendor decisions agree in these cases; the relay-approved,
+      // vendor-pending divergence is covered by its own test below.
+      kycStatus: finalStatus,
       vendorStatus: finalStatus,
       externalUserId: CANONICAL_PROFILE_ID,
     });
@@ -10650,6 +10652,52 @@ describe('RampsController', () => {
     it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-1',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Created,
+            }),
+          );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
+      });
+    });
+
+    it('treats a relay-approved session as approved even while the vendor finalizes', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // The relay has approved (`kycStatus: 'approved'`) but the vendor is
+        // still finalizing (`finalStatus: 'pending'`). Activation must proceed
+        // rather than stranding the user on a pending screen.
+        registerKycHandlers(rootMessenger, {
+          session: {
+            ...approvedSession,
+            finalStatus: 'pending',
+            vendorStatus: 'new',
+          },
+        });
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'registered',
           registration: {

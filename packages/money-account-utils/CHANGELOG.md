@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
+### Added
+
+- Add `MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME` and `getMoneyAccountPremiumVaultConfig` for the `moneyAccountPremiumVaultConfig` remote feature flag ([#10430](https://github.com/MetaMask/core/pull/10430))
+  - The premium flag is parsed with the same `MoneyAccountVaultConfig` shape as `moneyAccountVaultConfig`; its Veda adapter comes from CHOMP service details.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
@@ -70,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guards: `isMusdToken`, `isMusdTokenOnChain`, `isMusdOnMoneyAccountChain`
 - Add `getTokenDisplaySymbol`, ported from MetaMask Mobile, which canonicalises the registry symbol of the mUSD token to its branded casing (`MUSD` → `mUSD`) and passes all other symbols through unchanged ([#9397](https://github.com/MetaMask/core/pull/9397))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.1...@metamask/money-account-utils@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.0...@metamask/money-account-utils@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.2.0...@metamask/money-account-utils@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.1.0...@metamask/money-account-utils@1.2.0

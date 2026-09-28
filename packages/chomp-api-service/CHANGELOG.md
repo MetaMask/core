@@ -9,8 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+## [6.0.0]
+
+### Added
+
+- Add `ChompIntentType` export, covering every vault and subscription CHOMP intent type ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Add optional `vedaPremiumProtocol` service-details support alongside the required base `vedaProtocol` ([#10430](https://github.com/MetaMask/core/pull/10430))
+
+### Changed
+
+- **BREAKING:** Widen the intent metadata type union (used by `SendIntentParams`, intent responses, and the service-details `intentTypes` struct) to include `cash-deposit-premium`, `cash-withdrawal-premium`, and `cash-subscription`, alongside the existing `cash-deposit` and `cash-withdrawal` ([#10430](https://github.com/MetaMask/core/pull/10430))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+
+### Fixed
+
+- Always fetch `getIntentsByAddress` fresh, so a follow-up read does not reuse a stale intent list and try to create intents that already exist ([#10430](https://github.com/MetaMask/core/pull/10430))
 
 ## [5.0.0]
 
@@ -89,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...@metamask/chomp-api-service@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.2...@metamask/chomp-api-service@5.0.0
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.1...@metamask/chomp-api-service@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...@metamask/chomp-api-service@4.0.1

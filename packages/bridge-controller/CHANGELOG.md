@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@ethersproject/bignumber` from `^5.7.0` to `^5.8.0` ([#10479](https://github.com/MetaMask/core/pull/10479))
+- Bump `@ethersproject/constants` from `^5.7.0` to `^5.8.0` ([#10481](https://github.com/MetaMask/core/pull/10481))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
 
 ## [81.3.3]
 

@@ -126,6 +126,8 @@ import {
 } from './migrations/healAssetsInfoMetadata.js';
 import {
   buildFastFetchSources,
+  buildUpdateSources,
+  buildWsUpdateSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
 import type {
@@ -4225,38 +4227,36 @@ export class AssetsController extends BaseController<
       fn: async (parentContext) => {
         const updateStart = performance.now();
         const pipelineRequest = this.#getUpdatePipelineRequest(request);
-        const shouldGraduateCustomAssets =
-          sourceId === 'AccountsApiDataSource' ||
-          sourceId === 'AccountActivityDataSource';
-        const shouldFilterOccurrences =
-          sourceId === 'AccountActivityDataSource' &&
-          this.#isBasicFunctionality();
-
-        const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
-        const enrichmentSources: AssetsDataSource[] = [
-          ...(shouldGraduateCustomAssets
-            ? [this.#customAssetGraduationMiddleware]
-            : []),
-          ...(shouldFilterOccurrences
-            ? [
+        const isBasicFunctionality = this.#isBasicFunctionality();
+        const isAccountsApiUpdate = sourceId === 'AccountsApiDataSource';
+        const enrichmentSources: AssetsDataSource[] =
+          sourceId === 'AccountActivityDataSource'
+            ? buildWsUpdateSources(
                 {
-                  getName: () => 'OccurrenceFloorFilter',
-                  assetsMiddleware:
-                    this.#tokenDataSource.occurrenceFilterMiddleware,
+                  customAssetGraduationMiddleware:
+                    this.#customAssetGraduationMiddleware,
+                  rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+                  detectionMiddleware: this.#detectionMiddleware,
+                  tokenDataSource: this.#tokenDataSource,
+                  priceDataSource: this.#priceDataSource,
                 },
-              ]
-            : []),
-          ...(shouldRunRpcFallback ? [this.#rpcFallbackMiddleware] : []),
-          this.#detectionMiddleware,
-        ];
-        if (this.#isBasicFunctionality()) {
-          enrichmentSources.push(
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          );
-        }
+                { isBasicFunctionality, includeCustomAssetGraduation: true },
+              )
+            : buildUpdateSources(
+                {
+                  customAssetGraduationMiddleware:
+                    this.#customAssetGraduationMiddleware,
+                  rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+                  detectionMiddleware: this.#detectionMiddleware,
+                  tokenDataSource: this.#tokenDataSource,
+                  priceDataSource: this.#priceDataSource,
+                },
+                {
+                  isBasicFunctionality,
+                  includeCustomAssetGraduation: isAccountsApiUpdate,
+                  includeRpcFallback: isAccountsApiUpdate,
+                },
+              );
 
         const { response: enrichedResponse } = await this.#executeMiddlewares({
           sources: enrichmentSources,
@@ -4297,32 +4297,35 @@ export class AssetsController extends BaseController<
       fn: async (parentContext) => {
         const updateStart = performance.now();
         const pipelineRequest = this.#getUpdatePipelineRequest(request);
-        const shouldFilterOccurrences =
-          sourceId === 'AccountActivityDataSource' &&
-          this.#isBasicFunctionality();
-        const enrichmentSources: AssetsDataSource[] = [
-          ...(shouldFilterOccurrences
-            ? [
+        const isBasicFunctionality = this.#isBasicFunctionality();
+        const enrichmentSources: AssetsDataSource[] =
+          sourceId === 'AccountActivityDataSource'
+            ? buildWsUpdateSources(
                 {
-                  getName: () => 'OccurrenceFloorFilter',
-                  assetsMiddleware:
-                    this.#tokenDataSource.occurrenceFilterMiddleware,
+                  customAssetGraduationMiddleware:
+                    this.#customAssetGraduationMiddleware,
+                  rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+                  detectionMiddleware: this.#detectionMiddleware,
+                  tokenDataSource: this.#tokenDataSource,
+                  priceDataSource: this.#priceDataSource,
                 },
-              ]
-            : []),
-        ];
-        if (this.#isBasicFunctionality()) {
-          enrichmentSources.push(this.#rpcFallbackMiddleware);
-        }
-        enrichmentSources.push(this.#detectionMiddleware);
-        if (this.#isBasicFunctionality()) {
-          enrichmentSources.push(
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          );
-        }
+                { isBasicFunctionality, includeCustomAssetGraduation: false },
+              )
+            : buildUpdateSources(
+                {
+                  customAssetGraduationMiddleware:
+                    this.#customAssetGraduationMiddleware,
+                  rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+                  detectionMiddleware: this.#detectionMiddleware,
+                  tokenDataSource: this.#tokenDataSource,
+                  priceDataSource: this.#priceDataSource,
+                },
+                {
+                  isBasicFunctionality,
+                  includeCustomAssetGraduation: false,
+                  includeRpcFallback: isBasicFunctionality,
+                },
+              );
 
         const { response: enrichedResponse } = await this.#executeMiddlewares({
           sources: enrichmentSources,
