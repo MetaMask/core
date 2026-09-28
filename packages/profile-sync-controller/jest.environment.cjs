@@ -1,6 +1,7 @@
 /* eslint-disable n/prefer-global/text-encoder */
 /* eslint-disable n/prefer-global/text-decoder */
 const { TestEnvironment } = require('jest-environment-jsdom');
+const { webcrypto } = require('node:crypto');
 
 /**
  * ProfileSync SDK & Controllers depends on @noble/hashes, which as of 1.3.2 relies on the
@@ -26,7 +27,7 @@ class CustomTestEnvironment extends TestEnvironment {
     if (!this.global.crypto?.subtle) {
       Object.defineProperty(this.global, 'crypto', {
         configurable: true,
-        value: require('node:crypto').webcrypto,
+        value: webcrypto,
       });
     }
   }
