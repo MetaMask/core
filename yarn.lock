@@ -6487,7 +6487,7 @@ __metadata:
     prettier: "npm:^3.3.3"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
-    simple-git-hooks: "npm:^2.8.0"
+    simple-git-hooks: "npm:^2.14.0"
     ts-jest: "npm:^29.4.12"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -25794,12 +25794,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"simple-git-hooks@npm:^2.8.0":
-  version: 2.11.1
-  resolution: "simple-git-hooks@npm:2.11.1"
+"simple-git-hooks@npm:^2.14.0":
+  version: 2.14.0
+  resolution: "simple-git-hooks@npm:2.14.0"
   bin:
     simple-git-hooks: cli.js
-  checksum: 10/b19b1edaca3af95442a35e3963fa54955ddd58f481dde25da4f7a48353ae5e35bc875ae381e214fe2889be494e6fe01cc1c5f24aebb9558cee496deda3d026a4
+  checksum: 10/e404d1cc520f24515fb33807730d32e0d38d65ebf1866d485061845f6748958636aa3f3709a731410e1ac6a731e03477b6a342ce22096055449c49e4e1cffea1
   languageName: node
   linkType: hard
 
