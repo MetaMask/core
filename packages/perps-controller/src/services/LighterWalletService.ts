@@ -13,9 +13,10 @@
  * 2. Venue-key (Schnorr/ECgFp5) signatures over L2 transactions, produced
  *    inside the injected signer bridge from client-managed key material.
  *
- * Signature routing goes through
+ * Signature routing goes through the injected `accountSigner` when it
+ * implements `signPersonalMessage`, else
  * `KeyringController:signPersonalMessage` when a messenger is available,
- * or through an injected `LighterPersonalSigner` for headless use.
+ * else an injected `LighterPersonalSigner` for headless use.
  */
 
 import { bytesToHex } from '@metamask/utils';
@@ -83,13 +84,25 @@ export class LighterWalletService {
   /**
    * Sign an EIP-191 personal message with the user's L1 account.
    *
-   * Routes through the keyring when a messenger is present, else the
+   * Routes through the injected account signer when it can sign personal
+   * messages, else the keyring when a messenger is present, else the
    * injected headless signer.
    *
    * @param message - Plaintext message to sign.
    * @returns 65-byte signature as 0x-prefixed hex.
    */
   async signPersonalMessage(message: string): Promise<string> {
+    const { accountSigner } = this.#deps;
+    if (accountSigner?.signPersonalMessage) {
+      if (!(accountSigner.isReady?.() ?? true)) {
+        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      }
+      return await accountSigner.signPersonalMessage(
+        this.getUserAddress() as Hex,
+        message,
+      );
+    }
+
     if (this.#messenger) {
       const { isUnlocked } = this.#messenger.call('KeyringController:getState');
       if (!isUnlocked) {

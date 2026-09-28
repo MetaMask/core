@@ -2573,6 +2573,59 @@ export type PerpsTypedMessageParams = {
 };
 
 /**
+ * EIP-712 payload produced by the HyperLiquid SDK, signed with
+ * `eth_signTypedData_v4` semantics.
+ */
+export type PerpsTypedDataPayload = {
+  domain: {
+    name: string;
+    version: string;
+    chainId: number;
+    verifyingContract: Hex;
+  };
+  types: Record<string, { name: string; type: string }[]>;
+  primaryType: string;
+  message: Record<string, unknown>;
+};
+
+/**
+ * Client-implemented signer for the user's main EVM account. When provided,
+ * the wallet services sign through it instead of KeyringController. Clients
+ * that own a KeyringController omit it.
+ */
+export type PerpsAccountSigner = {
+  /**
+   * Sign EIP-712 typed data as `address`.
+   *
+   * @param address - The account that signs.
+   * @param payload - The typed data to sign.
+   * @returns A 65-byte 0x-prefixed signature.
+   */
+  signTypedData(address: Hex, payload: PerpsTypedDataPayload): Promise<Hex>;
+
+  /**
+   * EIP-191 `personal_sign` as `address`. Needed only for Lighter.
+   *
+   * @param address - The account that signs.
+   * @param message - Plaintext message to sign.
+   * @returns A 65-byte 0x-prefixed signature.
+   */
+  signPersonalMessage?(address: Hex, message: string): Promise<Hex>;
+
+  /**
+   * False while the signer cannot sign (e.g. wallet disconnected). Signing
+   * then fails with `KEYRING_LOCKED`. Defaults to true.
+   */
+  isReady?(): boolean;
+
+  /**
+   * True when every signature needs a physical confirmation, which defers
+   * optional signing prompts. Defaults to false.
+   */
+  isHardwareWallet?(): boolean;
+};
+
+/**
  * Minimal transaction params passed to TransactionController.addTransaction.
  * Only the fields PerpsController actually sets.
  */
@@ -2764,6 +2817,13 @@ export type PerpsPlatformDependencies = {
      */
     registerTradingAddress?(caipAccountId: string): Promise<void>;
   };
+
+  // === Account Signer (DI — for clients without a KeyringController) ===
+  /**
+   * Optional signer for the user's main EVM account. When set, it takes
+   * precedence over the `KeyringController:*` messenger actions.
+   */
+  accountSigner?: PerpsAccountSigner;
 };
 
 /**

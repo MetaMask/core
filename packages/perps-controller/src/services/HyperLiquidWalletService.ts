@@ -9,6 +9,7 @@ import { getChainId } from '../constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   PerpsPlatformDependencies,
+  PerpsTypedDataPayload,
   PerpsTypedMessageParams,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
@@ -55,6 +56,10 @@ export class HyperLiquidWalletService {
    * @returns True if the keyring is unlocked and available for signing.
    */
   public isKeyringUnlocked(): boolean {
+    const { accountSigner } = this.#deps;
+    if (accountSigner) {
+      return accountSigner.isReady?.() ?? true;
+    }
     return this.#messenger.call('KeyringController:getState').isUnlocked;
   }
 
@@ -64,6 +69,11 @@ export class HyperLiquidWalletService {
    * @returns True for MetaMask hardware keyrings; false for software accounts.
    */
   public isSelectedHardwareWallet(): boolean {
+    const { accountSigner } = this.#deps;
+    if (accountSigner) {
+      return accountSigner.isHardwareWallet?.() ?? false;
+    }
+
     const selectedEvmAccount = getSelectedEvmAccountDetailsFromMessenger(
       this.#messenger,
     );
@@ -80,7 +90,8 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Sign typed data via DI keyring controller
+   * Sign typed data via the injected account signer, or the keyring
+   * controller when none is injected.
    *
    * @param msgParams - The typed message parameters including data and sender address.
    * @returns The signature string.
@@ -88,6 +99,13 @@ export class HyperLiquidWalletService {
   async #signTypedMessage(msgParams: PerpsTypedMessageParams): Promise<string> {
     if (!this.isKeyringUnlocked()) {
       throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    }
+    const { accountSigner } = this.#deps;
+    if (accountSigner) {
+      return accountSigner.signTypedData(
+        msgParams.from as Hex,
+        msgParams.data as PerpsTypedDataPayload,
+      );
     }
     // Cast needed: PerpsTypedMessageParams uses loose `data: unknown` type
     // while KeyringController uses strict TypedMessageParams / SignTypedDataVersion

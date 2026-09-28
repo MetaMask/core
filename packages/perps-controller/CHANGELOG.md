@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
   - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
   - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
+- Add optional `accountSigner` to `PerpsPlatformDependencies` so clients without a `KeyringController` can sign through their own wallet
+  - Export the new `PerpsAccountSigner` and `PerpsTypedDataPayload` types
+  - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it instead of the `KeyringController:*` messenger actions
+  - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code; `isHardwareWallet()` defers optional signing prompts like a hardware keyring does
 
 ## [18.0.1]
 

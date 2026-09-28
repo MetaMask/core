@@ -331,6 +331,8 @@ export type {
   PerpsPerformance,
   PerpsTracer,
   PerpsTypedMessageParams,
+  PerpsTypedDataPayload,
+  PerpsAccountSigner,
   PerpsTransactionParams,
   PerpsAddTransactionOptions,
   PerpsInternalAccount,
