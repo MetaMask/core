@@ -19,9 +19,17 @@ export type NeoBankServiceGetAutorampAction = {
 };
 
 /**
- * Fetches all autoramp accounts belonging to the authenticated customer.
+ * Fetches the current customer's autoramp accounts via neobank-proxy
+ * `GET /neobank/autoramps?customer_id=…` (MoonPay `GET /api/autoramps`).
  *
- * @returns Remote snapshots for all customer autoramps.
+ * The customer is resolved from the signed-in profile (so it works after a
+ * reinstall or SRP restore, not from local state). `customer_id` scopes the
+ * result to this customer — omitting it would return every partner customer's
+ * autoramps. MoonPay returns a paginated envelope (`{ items, cursor,
+ * prev_cursor }`); a customer holds at most one autoramp, so the first page is
+ * sufficient.
+ *
+ * @returns Remote snapshots for the current customer's autoramps.
  */
 export type NeoBankServiceGetAutorampsAction = {
   type: `NeoBankService:getAutoramps`;
