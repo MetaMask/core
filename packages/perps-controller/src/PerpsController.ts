@@ -899,6 +899,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'calculateMaintenanceMargin',
   'cancelOrder',
   'cancelOrders',
+  'clearAgentSigners',
   'clearAttributionContext',
   'clearDepositResult',
   'clearPendingTradeConfiguration',
@@ -5862,29 +5863,52 @@ export class PerpsController extends BaseController<
 
   /**
    * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for a main
-   * account on a network with an approved agent, or with the main account
-   * when `agentSigner` is null. User-signed actions stay on the main account.
-   * The agent is never used for another account or network. The binding lasts
-   * for the lifetime of the HyperLiquid provider instance; initialization and
-   * re-initialization (for example a network toggle) create a new one, which
-   * asks `providerCredentials.hyperliquid.getAgentSigner` again. To stop agent
-   * signing everywhere, for example when the wallet locks, clear each account
-   * set here and have `getAgentSigner` return null. Requires an initialized
-   * controller.
+   * account on a network with an approved agent, or pin them to the main
+   * account with null (`getAgentSigner` is then not asked for that account and
+   * network until `clearAgentSigners`). User-signed actions stay on the main
+   * account, and the agent is never used for another account or network.
+   * Bindings last for the lifetime of the HyperLiquid provider instance;
+   * initialization and re-initialization (a network toggle, or a client
+   * reconnecting after an account switch) create a new one. Requires an
+   * initialized controller.
    *
    * @param account - The main account and network the agent is approved for.
-   * @param agentSigner - The host-owned agent signer, or null to clear it.
+   * @param agentSigner - The host-owned agent signer, or null to pin the main
+   * account.
    */
   async setAgentSigner(
     account: PerpsAgentAccount,
     agentSigner: PerpsAgentSigner | null,
   ): Promise<void> {
+    (await this.#getAgentSignerProvider()).setAgentSigner?.(
+      account,
+      agentSigner,
+    );
+  }
+
+  /**
+   * Forget every HyperLiquid agent, set or resolved, so the next L1 action
+   * asks `providerCredentials.hyperliquid.getAgentSigner` again. Call it when
+   * the wallet locks (with `getAgentSigner` returning null while locked) and
+   * nothing signs with an agent until it returns one again. Requires an
+   * initialized controller.
+   */
+  async clearAgentSigners(): Promise<void> {
+    (await this.#getAgentSignerProvider()).clearAgentSigners?.();
+  }
+
+  /**
+   * Resolve the HyperLiquid provider, which owns the agent bindings.
+   *
+   * @returns The HyperLiquid provider.
+   */
+  async #getAgentSignerProvider(): Promise<PerpsProvider> {
     await this.#getActiveProviderWhenReady();
     const provider = this.providers.get('hyperliquid');
-    if (!(provider instanceof HyperLiquidProvider)) {
+    if (!provider?.setAgentSigner) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
-    provider.setAgentSigner(account, agentSigner);
+    return provider;
   }
 
   /**

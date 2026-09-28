@@ -17,6 +17,7 @@ import {
   createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
+  createMockMessenger,
   keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
@@ -284,6 +285,69 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   });
 });
 
+describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', () => {
+  // The shape Mobile and Extension would run: KeyringController present, no
+  // accountSigner, and an agent resolver.
+  const { address: mainAddress } = createMockEvmAccount();
+  const AGENT_SIGNATURE = `0x${'ef'.repeat(65)}` as const;
+  const USER_SIGNED_ACTION: PerpsTypedDataPayload = {
+    ...TYPED_DATA,
+    domain: { ...TYPED_DATA.domain, name: 'HyperliquidSignTransaction' },
+    primaryType: 'HyperliquidTransaction:ApproveBuilderFee',
+    types: {
+      'HyperliquidTransaction:ApproveBuilderFee': [
+        { name: 'hyperliquidChain', type: 'string' },
+        { name: 'nonce', type: 'uint64' },
+      ],
+    },
+  };
+
+  function buildKeyringAdapter(): {
+    adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
+    agentSign: jest.Mock;
+    call: jest.SpyInstance;
+  } {
+    const messenger = createMockMessenger();
+    const call = jest.spyOn(messenger, 'call');
+    const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const service = new HyperLiquidWalletService(
+      createMockInfrastructure(),
+      messenger,
+      {
+        resolveAgent: async (): Promise<PerpsAgentSigner> => ({
+          address: '0x00000000000000000000000000000000000a9e17',
+          signTypedData: agentSign,
+        }),
+      },
+    );
+    return { adapter: service.createWalletAdapter(), agentSign, call };
+  }
+
+  it('signs L1 actions with the agent without calling KeyringController', async () => {
+    const { adapter, agentSign, call } = buildKeyringAdapter();
+
+    const signature = await adapter.signTypedData(TYPED_DATA);
+
+    expect(signature).toBe(AGENT_SIGNATURE);
+    expect(agentSign).toHaveBeenCalledWith(TYPED_DATA);
+    expect(keyringCalls(call)).toStrictEqual([]);
+  });
+
+  it('signs user-signed actions through KeyringController:signTypedMessage V4', async () => {
+    const { adapter, agentSign, call } = buildKeyringAdapter();
+
+    const signature = await adapter.signTypedData(USER_SIGNED_ACTION);
+
+    expect(signature).toBe('0xSignatureResult');
+    expect(agentSign).not.toHaveBeenCalled();
+    expect(call).toHaveBeenCalledWith(
+      'KeyringController:signTypedMessage',
+      { from: mainAddress, data: USER_SIGNED_ACTION },
+      'V4',
+    );
+  });
+});
+
 describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () => {
   // Drive the adapter through the SDK's own signing functions and recover the
   // signer from each signature, so the routing holds for the payloads the SDK
@@ -291,9 +355,12 @@ describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () 
   const mainAccount = privateKeyToAccount(generatePrivateKey());
   const agentAccount = privateKeyToAccount(generatePrivateKey());
 
+  type RecordedSignature = { payload: PerpsTypedDataPayload; signature: Hex };
+
   function buildSdkAdapter(): {
     adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
-    signatures: { payload: PerpsTypedDataPayload; signature: Hex }[];
+    signatures: RecordedSignature[];
+    agentSignatures: () => Promise<RecordedSignature[]>;
   } {
     const { messenger, selectAccount } = createKeyringlessMessenger();
     selectAccount(mainAccount.address);
@@ -318,13 +385,22 @@ describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () 
       messenger,
       {
         isTestnet: true,
-        resolveAgent: async (): Promise<PerpsAgentSigner> => ({
-          address: agentAccount.address,
-          signTypedData: recordSignature(agentAccount),
-        }),
+        // A viem local account is a PerpsAgentSigner as it is.
+        resolveAgent: async (): Promise<PerpsAgentSigner> => agentAccount,
       },
     );
-    return { adapter: service.createWalletAdapter(), signatures };
+    const agentSign = jest.spyOn(agentAccount, 'signTypedData');
+    return {
+      adapter: service.createWalletAdapter(),
+      signatures,
+      agentSignatures: async () =>
+        await Promise.all(
+          agentSign.mock.calls.map(async ([payload], index) => ({
+            payload: payload as PerpsTypedDataPayload,
+            signature: (await agentSign.mock.results[index].value) as Hex,
+          })),
+        ),
+    };
   }
 
   async function recoverSigner({
@@ -343,8 +419,12 @@ describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () 
     });
   }
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('signs an SDK L1 action with the agent', async () => {
-    const { adapter, signatures } = buildSdkAdapter();
+    const { adapter, signatures, agentSignatures } = buildSdkAdapter();
 
     await signL1Action({
       wallet: adapter,
@@ -353,13 +433,15 @@ describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () 
       isTestnet: true,
     });
 
-    expect(signatures).toHaveLength(1);
-    expect(signatures[0].payload.types).toHaveProperty('EIP712Domain');
-    expect(await recoverSigner(signatures[0])).toBe(agentAccount.address);
+    const agentSigned = await agentSignatures();
+    expect(signatures).toHaveLength(0);
+    expect(agentSigned).toHaveLength(1);
+    expect(agentSigned[0].payload.types).toHaveProperty('EIP712Domain');
+    expect(await recoverSigner(agentSigned[0])).toBe(agentAccount.address);
   });
 
   it('signs an SDK user-signed action with the main account', async () => {
-    const { adapter, signatures } = buildSdkAdapter();
+    const { adapter, signatures, agentSignatures } = buildSdkAdapter();
 
     await signUserSignedAction({
       wallet: adapter,
@@ -374,6 +456,7 @@ describe('HyperLiquidWalletService wallet adapter with the HyperLiquid SDK', () 
       types: ApproveBuilderFeeTypes,
     });
 
+    expect(await agentSignatures()).toHaveLength(0);
     expect(signatures).toHaveLength(1);
     expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
   });

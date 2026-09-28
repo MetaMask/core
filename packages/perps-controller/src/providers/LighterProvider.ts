@@ -1276,6 +1276,16 @@ export class LighterProvider implements PerpsProvider {
     };
   }
 
+  /**
+   * Register the venue key ahead of the first order, so its main-account
+   * `personal_sign` surfaces in a guided session instead of at order time.
+   *
+   * @returns The readiness after registration.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    return await this.isReadyToTrade();
+  }
+
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     try {
       if (!this.#signerBridge) {

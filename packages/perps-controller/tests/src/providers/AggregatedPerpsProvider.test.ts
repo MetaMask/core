@@ -1060,19 +1060,31 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.isReadyToTrade).toHaveBeenCalled();
     });
 
-    it('delegates prepareTradingWallet to default provider', async () => {
-      const prepareTradingWallet = jest.fn().mockResolvedValue({
+    it('prepares every provider and reports the first one not ready', async () => {
+      const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
+      const prepareLighter = jest.fn().mockResolvedValue({
         ready: false,
+        error: 'KEYRING_LOCKED',
       });
-      Object.assign(mockHLProvider, { prepareTradingWallet });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: prepareHyperLiquid,
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
 
       const result = await aggregatedProvider.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: false });
-      expect(prepareTradingWallet).toHaveBeenCalledTimes(1);
+      expect(result).toStrictEqual({ ready: false, error: 'KEYRING_LOCKED' });
+      expect(prepareHyperLiquid).toHaveBeenCalledTimes(1);
+      expect(prepareLighter).toHaveBeenCalledTimes(1);
     });
 
-    it('reports ready when the default provider has no deferred setup', async () => {
+    it('reports ready when every provider is ready or has no deferred setup', async () => {
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: jest.fn().mockResolvedValue({ ready: true }),
+      });
+
       const result = await aggregatedProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });

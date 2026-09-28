@@ -824,6 +824,37 @@ type ChaseOrderMaxDistanceReachedHandler = (
   event: ChaseOrderMaxDistanceReached,
 ) => void;
 
+/**
+ * The host's `getAgentSigner` failed. Like a locked keyring, it is retryable:
+ * the next L1 action asks again.
+ */
+class AgentSignerUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super('HyperLiquid agent signer unavailable', { cause });
+    this.name = 'AgentSignerUnavailableError';
+  }
+}
+
+/**
+ * Whether an error, or any error in its cause chain, is an
+ * AgentSignerUnavailableError. The SDK wraps wallet failures in its own error.
+ *
+ * @param error - The caught error.
+ * @returns True when the agent signer could not be resolved.
+ */
+function isAgentSignerUnavailableError(error: unknown): boolean {
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+  while (current instanceof Error && !seen.has(current)) {
+    if (current instanceof AgentSignerUnavailableError) {
+      return true;
+    }
+    seen.add(current);
+    current = current.cause;
+  }
+  return false;
+}
+
 type HyperLiquidProviderOptions = {
   isTestnet?: boolean;
   hip3Enabled?: boolean;
@@ -2077,10 +2108,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (!this.#getAgentSigner) {
         return null;
       }
-      entry = {
-        agentSigner: this.#getAgentSigner(account),
-        fromResolver: true,
-      };
+      let answer: Promise<PerpsAgentSigner | null>;
+      try {
+        answer = this.#getAgentSigner(account);
+      } catch (error) {
+        answer = Promise.reject(error);
+      }
+      entry = { agentSigner: answer, fromResolver: true };
       this.#agentSigners.set(key, entry);
     }
 
@@ -2096,7 +2130,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.debugLogger.log('HyperLiquidProvider: getAgentSigner failed', {
         error: ensureError(error, 'resolveAgentSigner').message,
       });
-      throw error;
+      throw new AgentSignerUnavailableError(error);
     }
 
     const latest = this.#agentSigners.get(key);
@@ -14160,9 +14194,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Sign L1 actions for a main account on a network with an approved agent,
-   * or with the main account when `agentSigner` is null. The binding is
-   * explicit so an account switch or re-initialization that is still pending
-   * cannot attach the agent to another account.
+   * or pin them to the main account when `agentSigner` is null (the resolver
+   * is then not asked for that account and network until clearAgentSigners).
+   * The binding is explicit so an account switch or re-initialization that is
+   * still pending cannot attach the agent to another account.
    *
    * @param account - The main account and network the agent is approved for.
    * @param agentSigner - The host-owned agent signer, or null to clear it.
@@ -14178,41 +14213,50 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Forget every agent, whether set through setAgentSigner or resolved, so the
+   * next L1 action asks `getAgentSigner` again. Call it when the wallet locks.
+   */
+  clearAgentSigners(): void {
+    this.#agentSigners.clear();
+  }
+
+  /**
    * Run the deferred trading-readiness steps (account migration with user
    * signing, builder fee and referral setup) ahead of the first order, so a
    * hardware wallet signs them in one guided session instead of at order
    * time. Results are cached, so an already-ready account signs nothing.
    *
-   * @returns `ready: true` when none of these steps will ask the main account
-   * to sign again before the first order; a step the user declined counts,
-   * because the order path does not ask again either. `ready: false` carries
-   * `KEYRING_LOCKED` when the signer is not ready, and no error when a step
-   * will retry (a rejected builder fee, a transient failure, or a wallet with
-   * no HyperLiquid account yet).
+   * @returns `ready: true` when the main-account signer is ready and none of
+   * these steps will ask it to sign again before the first order; a step the
+   * user declined counts, because the order path does not ask again either.
+   * `ready: false` carries `KEYRING_LOCKED` when the signer is not ready, the
+   * error when the steps could not run, and no error when a step will retry
+   * (a rejected builder fee, a transient failure, or a wallet with no
+   * HyperLiquid account yet).
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     try {
       const { network, userAddress } = await this.#ensureReadyForTrading({
         requiresBuilderFee: true,
       });
+      if (!this.#walletService.isKeyringUnlocked()) {
+        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      }
       const ready =
         this.#tradingSetupComplete &&
         !this.#unifiedAccountSetupNeedsRetry &&
         this.#builderFeeCheckCache.has(this.#getCacheKey(network, userAddress));
-      if (ready) {
-        return { ready: true };
-      }
-      return this.#walletService.isKeyringUnlocked()
-        ? { ready: false }
-        : { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      return { ready };
     } catch (error) {
-      return {
-        ready: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : PERPS_ERROR_CODES.UNKNOWN_ERROR,
-      };
+      const caughtError = ensureError(
+        error,
+        'HyperLiquidProvider.prepareTradingWallet',
+      );
+      this.#deps.logger.error(
+        caughtError,
+        this.#getErrorContext('prepareTradingWallet'),
+      );
+      return { ready: false, error: caughtError.message };
     }
   }
 
@@ -15420,6 +15464,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
           '[ensureReferralSet] Keyring locked, will retry later',
+        );
+        completeInFlight();
+        return;
+      }
+
+      if (isAgentSignerUnavailableError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureReferralSet] Agent signer unavailable, will retry later',
         );
         completeInFlight();
         return;

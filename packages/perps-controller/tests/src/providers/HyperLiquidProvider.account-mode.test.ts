@@ -15,12 +15,16 @@ import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClien
 import type { HyperLiquidWalletParams } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
-import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
+import {
+  PerpsSigningCache,
+  TradingReadinessCache,
+} from '../../../src/services/TradingReadinessCache.js';
 import type {
   ClosePositionParams,
   DepositParams,
   Order,
   PerpsAccountSigner,
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsTypedDataPayload,
   LiveDataConfig,
@@ -2259,7 +2263,7 @@ describe('HyperLiquidProvider', () => {
     // The wallet service is real and the messenger has no KeyringController,
     // so every main-account signature must reach the injected accountSigner.
     // The SDK exchange client is the mocked boundary: like the SDK, it signs
-    // through the wallet the provider initialized (or swapped) it with.
+    // through the wallet the provider initialized it with.
     const { HyperLiquidWalletService: RealHyperLiquidWalletService } =
       jest.requireActual<
         typeof import('../../../src/services/HyperLiquidWalletService.js')
@@ -2313,11 +2317,6 @@ describe('HyperLiquidProvider', () => {
       message: { source: 'a', connectionId: `0x${'22'.repeat(32)}` },
     };
 
-    const agentSignerShape = {
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn(),
-    };
-
     // The global readiness cache is mocked in this suite; replay the migration
     // result the real cache would keep so later calls do not migrate again.
     function rememberMigration(): void {
@@ -2330,10 +2329,24 @@ describe('HyperLiquidProvider', () => {
       });
     }
 
-    async function waitFor(condition: () => boolean): Promise<void> {
-      while (!condition()) {
-        await new Promise((resolve) => setImmediate(resolve));
-      }
+    /**
+     * A getAgentSigner that stays pending until the test settles it, and
+     * signals when it is asked.
+     *
+     * @returns The resolver mock, its answer and the "asked" signal.
+     */
+    function createPendingResolver(): {
+      getAgentSigner: jest.Mock;
+      answer: ReturnType<typeof createDeferred<PerpsAgentSigner | null>>;
+      asked: Promise<void>;
+    } {
+      const answer = createDeferred<PerpsAgentSigner | null>();
+      const asked = createDeferred<void>();
+      const getAgentSigner = jest.fn(async () => {
+        asked.resolve();
+        return await answer.promise;
+      });
+      return { getAgentSigner, answer, asked: asked.promise };
     }
 
     type Options = {
@@ -2563,7 +2576,7 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('reports the error when the clients cannot initialize', async () => {
+      it('reports and logs the error when the clients cannot initialize', async () => {
         const { accountSignerProvider, initialize } =
           createAccountSignerProvider();
         initialize.mockRejectedValue(new Error('transport unavailable'));
@@ -2573,6 +2586,28 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           ready: false,
           error: 'transport unavailable',
+        });
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'transport unavailable' }),
+          expect.anything(),
+        );
+      });
+
+      it('reports KEYRING_LOCKED when the signer locks after setup completed', async () => {
+        let signerReady = true;
+        const { accountSignerProvider } = createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          signer: { isReady: () => signerReady },
+        });
+        const firstResult = await accountSignerProvider.prepareTradingWallet();
+
+        signerReady = false;
+        const lockedResult = await accountSignerProvider.prepareTradingWallet();
+
+        expect(firstResult).toStrictEqual({ ready: true });
+        expect(lockedResult).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
       });
     });
@@ -2749,7 +2784,7 @@ describe('HyperLiquidProvider', () => {
         ]);
       });
 
-      it('keeps setAgentSigner(null) for later L1 actions without asking getAgentSigner', async () => {
+      it('pins the main account with setAgentSigner(null) without asking getAgentSigner', async () => {
         const getAgentSigner = jest.fn();
         const { accountSignerProvider, accountSigner, agentSigner } =
           createAccountSignerProvider({
@@ -2768,9 +2803,8 @@ describe('HyperLiquidProvider', () => {
         expect(accountSigner.signTypedData).toHaveBeenCalledTimes(2);
       });
 
-      it('lets a clear made while getAgentSigner is pending win', async () => {
-        const answer = createDeferred<typeof agentSignerShape | null>();
-        const getAgentSigner = jest.fn(() => answer.promise);
+      it('lets a pin made while getAgentSigner is pending win', async () => {
+        const { getAgentSigner, answer, asked } = createPendingResolver();
         const { accountSignerProvider, accountSigner, agentSigner } =
           createAccountSignerProvider({
             abstraction: 'default',
@@ -2778,7 +2812,7 @@ describe('HyperLiquidProvider', () => {
           });
 
         const reading = accountSignerProvider.getMarketDataWithPrices();
-        await waitFor(() => getAgentSigner.mock.calls.length === 1);
+        await asked;
         accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
         answer.resolve(agentSigner);
         await reading;
@@ -2790,8 +2824,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       it('keeps an agent set while a failing getAgentSigner answer is pending', async () => {
-        const answer = createDeferred<typeof agentSignerShape | null>();
-        const getAgentSigner = jest.fn(() => answer.promise);
+        const { getAgentSigner, answer, asked } = createPendingResolver();
         const { accountSignerProvider, agentSigner } =
           createAccountSignerProvider({
             abstraction: 'default',
@@ -2799,7 +2832,7 @@ describe('HyperLiquidProvider', () => {
           });
 
         const reading = accountSignerProvider.getMarketDataWithPrices();
-        await waitFor(() => getAgentSigner.mock.calls.length === 1);
+        await asked;
         accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
         answer.reject(new Error('agent store unavailable'));
         await reading;
@@ -2808,6 +2841,109 @@ describe('HyperLiquidProvider', () => {
 
         expect(getAgentSigner).toHaveBeenCalledTimes(1);
         expect(agentSigner.signTypedData).toHaveBeenCalledTimes(2);
+      });
+
+      it('asks getAgentSigner with the network of the provider', async () => {
+        const getAgentSigner = jest.fn().mockResolvedValue(null);
+        const { accountSignerProvider } = createAccountSignerProvider({
+          abstraction: 'default',
+          getAgentSigner,
+        });
+        mockClientService.isTestnetMode.mockReturnValue(true);
+
+        await accountSignerProvider.getMarketDataWithPrices();
+
+        expect(getAgentSigner.mock.calls).toStrictEqual([
+          [{ mainAddress: ACCOUNT_ADDRESS, isTestnet: true }],
+        ]);
+      });
+
+      it('stops agent signing on lock and resumes after unlock', async () => {
+        const getAgentSigner = jest.fn();
+        const {
+          accountSignerProvider,
+          accountSigner,
+          agentSigner,
+          initialize,
+        } = createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+        });
+        getAgentSigner.mockResolvedValue(agentSigner);
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+
+        await wallet.signTypedData(L1_PAYLOAD);
+        getAgentSigner.mockResolvedValue(null);
+        accountSignerProvider.clearAgentSigners();
+        await wallet.signTypedData(L1_PAYLOAD);
+        getAgentSigner.mockResolvedValue(agentSigner);
+        await wallet.signTypedData(L1_PAYLOAD);
+
+        expect(agentSigner.signTypedData).toHaveBeenCalledTimes(2);
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
+        expect(getAgentSigner).toHaveBeenCalledTimes(3);
+      });
+
+      it('clears pins made with setAgentSigner(null)', async () => {
+        const getAgentSigner = jest.fn();
+        const { accountSignerProvider, agentSigner, initialize } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+        getAgentSigner.mockResolvedValue(agentSigner);
+        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+
+        accountSignerProvider.clearAgentSigners();
+        await wallet.signTypedData(L1_PAYLOAD);
+
+        expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+      });
+
+      it('retries the referral instead of recording a failure when getAgentSigner rejects', async () => {
+        const getAgentSigner = jest
+          .fn()
+          .mockRejectedValue(new Error('agent store unavailable'));
+        const { accountSignerProvider, exchangeClient } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+
+        await accountSignerProvider.prepareTradingWallet();
+
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+        expect(
+          (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
+            .setReferral,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('treats a getAgentSigner that throws synchronously like a rejection', async () => {
+        const getAgentSigner = jest.fn(() => {
+          throw new Error('agent store unavailable');
+        });
+        const { accountSignerProvider, accountSigner, initialize } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+
+        await expect(wallet.signTypedData(L1_PAYLOAD)).rejects.toThrow(
+          'HyperLiquid agent signer unavailable',
+        );
+        await expect(wallet.signTypedData(L1_PAYLOAD)).rejects.toThrow(
+          'HyperLiquid agent signer unavailable',
+        );
+        expect(getAgentSigner).toHaveBeenCalledTimes(2);
+        expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       });
     });
   });

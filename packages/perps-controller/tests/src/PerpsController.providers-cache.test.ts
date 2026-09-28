@@ -968,7 +968,6 @@ describe('PerpsController', () => {
         address: '0x00000000000000000000000000000000000a9e17' as const,
         signTypedData: jest.fn(),
       };
-      Object.setPrototypeOf(mockProvider, HyperLiquidProvider.prototype);
       mockProvider.setAgentSigner = jest.fn();
       await controller.init();
 
@@ -987,7 +986,7 @@ describe('PerpsController', () => {
       );
     });
 
-    it('setAgentSigner rejects when the hyperliquid provider is not a HyperLiquidProvider', async () => {
+    it('setAgentSigner rejects when the hyperliquid provider has no agent support', async () => {
       await controller.init();
 
       await expect(controller.setAgentSigner(account, null)).rejects.toThrow(
@@ -996,13 +995,22 @@ describe('PerpsController', () => {
     });
 
     it('setAgentSigner rejects before the controller is initialized', async () => {
-      Object.setPrototypeOf(mockProvider, HyperLiquidProvider.prototype);
       mockProvider.setAgentSigner = jest.fn();
 
       await expect(controller.setAgentSigner(account, null)).rejects.toThrow(
         PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
       );
       expect(mockProvider.setAgentSigner).not.toHaveBeenCalled();
+    });
+
+    it('clearAgentSigners forwards to the HyperLiquid provider', async () => {
+      mockProvider.setAgentSigner = jest.fn();
+      mockProvider.clearAgentSigners = jest.fn();
+      await controller.init();
+
+      await controller.clearAgentSigners();
+
+      expect(mockProvider.clearAgentSigners).toHaveBeenCalledTimes(1);
     });
 
     it("prepareTradingWallet returns the active provider's readiness", async () => {

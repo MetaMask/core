@@ -1048,14 +1048,20 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Prepare the default provider only; other providers keep their setup
-   * signatures (such as Lighter's venue-key registration) at order time.
+   * Prepare every provider in turn, so a hardware wallet sees one prompt at a
+   * time.
    *
-   * @returns The default provider's readiness.
+   * @returns The first provider readiness that is not ready, else ready.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
-    const provider = this.#getDefaultProvider();
-    return (await provider.prepareTradingWallet?.()) ?? { ready: true };
+    let notReady: ReadyToTradeResult | undefined;
+    for (const [, provider] of this.#getActiveProviders()) {
+      const result = await provider.prepareTradingWallet?.();
+      if (result && !result.ready) {
+        notReady ??= result;
+      }
+    }
+    return notReady ?? { ready: true };
   }
 
   async disconnect(): Promise<DisconnectResult> {

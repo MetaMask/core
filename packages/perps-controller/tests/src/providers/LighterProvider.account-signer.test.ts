@@ -185,4 +185,20 @@ describe('LighterProvider with accountSigner', () => {
     expect(client.sendTx).not.toHaveBeenCalled();
     expect(keyringCalls(call)).toStrictEqual([]);
   });
+
+  it('registers the venue key through prepareTradingWallet', async () => {
+    const { provider, address, client, accountSigner } = buildProvider();
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result.ready).toBe(true);
+    expect(accountSigner.signPersonalMessage).toHaveBeenCalledWith(
+      address,
+      CHANGE_PUB_KEY_BODY,
+    );
+    expect(client.sendTx).toHaveBeenCalledWith(
+      LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
+      expect.stringContaining('"changePubKey":true'),
+    );
+  });
 });

@@ -2143,14 +2143,28 @@ export type PerpsProvider = {
   initialize(): Promise<InitializeResult>;
   isReadyToTrade(): Promise<ReadyToTradeResult>;
   /**
-   * Run the deferred trading-readiness steps (account migration, builder fee
-   * and referral setup) ahead of the first order, so any main-account
-   * signature surfaces in a guided session instead of at order time.
-   * Resolves `ready: true` when none of these steps will ask the main account
-   * to sign again before the first order. Providers without deferred setup
-   * omit it.
+   * Run the deferred setup that needs a main-account signature (for example
+   * account migration, builder fee, referral or venue-key registration) ahead
+   * of the first order, so the signatures surface in a guided session instead
+   * of at order time. Resolves `ready: true` when none of these steps will ask
+   * the main account to sign again before the first order. Providers without
+   * such setup omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
+  /**
+   * Sign L1 actions for a main account on a network with an approved agent,
+   * or pin them to the main account with null. Providers without agents omit
+   * it.
+   */
+  setAgentSigner?(
+    account: PerpsAgentAccount,
+    agentSigner: PerpsAgentSigner | null,
+  ): void;
+  /**
+   * Forget every agent so the next L1 action asks for one again. Providers
+   * without agents omit it.
+   */
+  clearAgentSigners?(): void;
   disconnect(): Promise<DisconnectResult>;
   ping(timeoutMs?: number): Promise<void>; // Lightweight WebSocket health check with configurable timeout
   getWebSocketConnectionState?(): WebSocketConnectionState; // Optional: get current WebSocket connection state
