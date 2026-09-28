@@ -156,6 +156,7 @@
   },
   "scriptsConfig": {
     "#default": "lavamoat/scripts.strict.json",
+    "postinstall": "lavamoat/scripts.yarn.json",
     "skills:postinstall": "lavamoat/scripts.skills.json"
   }
 }
