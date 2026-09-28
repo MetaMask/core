@@ -25,8 +25,7 @@ import {
   verifyMutationReceipt,
 } from './escrow-utils.js';
 import {
-  authorizeKeyBoundIdentifier,
-  authorizeWithKeyBoundToken,
+  authorizeEscrowsWithToken,
   countDistinctIdentifiers,
   getIdentifierAuthMode,
   MIN_IDENTIFIERS,
@@ -337,15 +336,13 @@ export class MfaRecoveryController extends BaseController<
       requestId,
       pkE,
     });
-    const { token, proofPrivateKey } =
-      await requestKeyBoundIdentifierToken({
-        identifier,
-        requestHash,
-        identifierAuthProvider: this.#identifierAuthProvider,
-      });
+    const credential = await requestKeyBoundIdentifierToken({
+      identifier,
+      requestHash,
+      identifierAuthProvider: this.#identifierAuthProvider,
+    });
     return {
-      token,
-      proofPrivateKey,
+      ...credential,
       requestId,
       ephemeralPrivateKey: ephemeral.privateKey,
       pkE,
@@ -385,10 +382,9 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const authorizedEscrows = await authorizeWithKeyBoundToken({
+      const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
-        token,
-        proofPrivateKey: session.proofPrivateKey,
+        credential: session,
       });
       const results = await Promise.allSettled(
         authorizedEscrows.map(async ({ escrow, authorization }) => {
@@ -564,7 +560,7 @@ export class MfaRecoveryController extends BaseController<
     const authorizedEscrows =
       mutation.operation === 'register'
         ? null
-        : await this.#authorizeIdentifier({
+        : await this.#authorizeEscrows({
             escrows: remainingEscrows,
             identifier: identifier as Identifier,
             requestHash: mutation.requestHash,
@@ -672,7 +668,7 @@ export class MfaRecoveryController extends BaseController<
     return { receipts, hasInvalidReceipt };
   }
 
-  async #authorizeIdentifier({
+  async #authorizeEscrows({
     escrows,
     identifier,
     requestHash,
@@ -682,12 +678,12 @@ export class MfaRecoveryController extends BaseController<
     requestHash: string;
   }): Promise<AuthorizedEscrow[]> {
     getIdentifierAuthMode(identifier.type);
-    return await authorizeKeyBoundIdentifier({
-      escrows,
+    const credential = await requestKeyBoundIdentifierToken({
       identifier,
       requestHash,
       identifierAuthProvider: this.#identifierAuthProvider,
     });
+    return await authorizeEscrowsWithToken({ escrows, credential });
   }
 
   #payloadForEscrow(

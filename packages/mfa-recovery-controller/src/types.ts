@@ -86,7 +86,8 @@ export type MutationReceipt = {
 };
 
 /**
- * P-256 public JWK used as an ephemeral wrap key (`pkE`).
+ * P-256 public JWK for the client's ephemeral key (`pkE`). The escrow wrap
+ * key is a different key.
  */
 export type EcPublicJwk = {
   kty: 'EC';
@@ -96,14 +97,23 @@ export type EcPublicJwk = {
 };
 
 /**
+ * Key-bound identifier credential: the IdP token and the private key that
+ * proves possession of it. Ephemeral; keep only in memory.
+ */
+export type KeyBoundCredential = {
+  token: KeyBoundIdentifierToken;
+  proofPrivateKey: string;
+};
+
+/**
  * Result of first-factor identifier authentication, consumed by
  * `getRecoverySecret`.
  *
- * The private keys are ephemeral and must only be kept in memory.
+ * `proofPrivateKey` signs escrow challenges. `ephemeralPrivateKey` is the
+ * private half of `pkE` and decrypts the recovery secret. Keep both in
+ * memory only.
  */
-export type IdentifierSession = {
-  token: KeyBoundIdentifierToken;
-  proofPrivateKey: string;
+export type IdentifierSession = KeyBoundCredential & {
   requestId: string;
   ephemeralPrivateKey: string;
   pkE: EcPublicJwk;
