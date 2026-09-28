@@ -26,7 +26,10 @@ import {
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
 import type { GasPayment } from '../../utils/gas-payment.js';
-import { resolveGasPayment } from '../../utils/gas-payment.js';
+import {
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
@@ -893,7 +896,7 @@ async function submitViaTransactionController(
     },
   });
 
-  const { gasFeeToken } = gasPayment;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   log('Submitting transactions', {
     isPostQuote,
@@ -944,6 +947,7 @@ async function submitViaTransactionController(
       'TransactionController:addTransaction',
       transactionParams,
       {
+        excludeNativeTokenForFee,
         gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -986,6 +990,11 @@ async function submitViaTransactionController(
   );
 
   log('All transactions confirmed', transactionIds);
+
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
+  );
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
@@ -1037,6 +1046,7 @@ function buildRelayTransactionBatchRequest({
     disable7702: !gasLimit7702,
     disableHook: Boolean(gasLimit7702),
     disableSequential: Boolean(gasLimit7702),
+    excludeNativeTokenForFee: gasPayment.excludeNativeTokenForFee,
     gasFeeToken: gasPayment.gasFeeToken,
     gasLimit7702,
     networkClientId,

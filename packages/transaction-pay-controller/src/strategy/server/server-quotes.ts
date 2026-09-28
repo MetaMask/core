@@ -27,7 +27,11 @@ import {
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags.js';
-import { resolveGasStationCost } from '../../utils/gas-payment.js';
+import {
+  GasPaymentMode,
+  resolveGasPayment,
+  resolveGasStationCost,
+} from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
@@ -135,6 +139,8 @@ async function getQuotesForRequest(
           quoteRequest,
           messenger,
           body.tradeType === TradeType.ExactInput,
+          transaction,
+          accountSupports7702,
         ),
       ),
     );
@@ -341,16 +347,20 @@ async function normalizeQuote(
   quoteRequest: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
   isInputBased: boolean,
+  transaction: TransactionMeta,
+  accountSupports7702: boolean,
 ): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
   const { gasless } = quote;
   const transactionSteps = quote.steps.filter(isTransactionStep);
   const isSignatureOnly = transactionSteps.length === 0;
   const sourceNetwork = await calculateSourceNetworkCost({
+    accountSupports7702,
     gasless: gasless || isSignatureOnly,
     messenger,
     quoteRequest,
     steps: transactionSteps,
+    transaction,
   });
 
   const sourceFiatRate = getTokenFiatRate(
@@ -443,15 +453,19 @@ async function normalizeQuote(
 }
 
 async function calculateSourceNetworkCost({
+  accountSupports7702,
   gasless,
   messenger,
   quoteRequest,
   steps,
+  transaction,
 }: {
+  accountSupports7702: boolean | undefined;
   gasless: boolean;
   messenger: TransactionPayControllerMessenger;
   quoteRequest: QuoteRequest;
   steps: ServerTransactionStep[];
+  transaction: TransactionMeta;
 }): Promise<SourceNetworkCost> {
   const noFees = {
     estimate: ZERO_AMOUNT,
@@ -462,12 +476,31 @@ async function calculateSourceNetworkCost({
     maxPriorityFeePerGas: undefined,
   };
 
-  if (gasless) {
+  const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
+
+  const gasPayment = resolveGasPayment({
+    isDelegated: gasless,
+    sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702,
+      request: quoteRequest,
+      transaction,
+    },
+  });
+
+  if (gasPayment.mode === GasPaymentMode.Delegation) {
     log('Zeroing source network fees for gasless quote');
     return noFees;
   }
 
-  const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
+  if (gasPayment.mode === GasPaymentMode.Sponsored) {
+    log('Zeroing source network fees for sponsored same-chain server route');
+
+    // Gas limit is zero as sponsored transactions go through the EIP-7702
+    // gas station hook and do not require user-paid gas.
+    return { ...noFees, gasLimits: [0], is7702: true };
+  }
+
   const firstStep = steps[0];
   const chainIdHex = toHex(firstStep.chainId);
 

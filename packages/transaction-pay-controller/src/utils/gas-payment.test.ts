@@ -7,6 +7,7 @@ import type { GasPayment } from './gas-payment.js';
 import {
   shouldUseGasStation,
   GasPaymentMode,
+  logGasPaymentOutcome,
   resolveGasPayment,
   resolveGasStationCost,
 } from './gas-payment.js';
@@ -17,6 +18,21 @@ jest.mock('./gas');
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),
   getTokenBalance: jest.fn(),
+}));
+
+// `logGasPaymentOutcome` only emits diagnostics, so the log call is the
+// observable behaviour. Capturing it is the only way to assert the outcome it
+// reports rather than merely that it did not throw.
+const logMock = jest.fn();
+
+jest.mock('@metamask/utils', () => ({
+  ...jest.requireActual('@metamask/utils'),
+  // Indirected through a closure because `jest.mock` is hoisted above the
+  // `logMock` declaration, so it cannot be read while the module initialises.
+  createModuleLogger:
+    () =>
+    (...args: unknown[]) =>
+      logMock(...args),
 }));
 
 const REQUEST_MOCK = {
@@ -164,7 +180,6 @@ describe('gas-payment', () => {
       expect(
         resolveGasPayment({
           ...PAYMENT_REQUEST_MOCK,
-          excludeNativeTokenForFee: true,
           isDelegated: true,
           isSourceGasFeeToken: true,
           sponsorship: SPONSORED_MOCK,
@@ -192,23 +207,22 @@ describe('gas-payment', () => {
           isSourceGasFeeToken: true,
         }),
       ).toStrictEqual({
+        excludeNativeTokenForFee: true,
         gasFeeToken: REQUEST_MOCK.sourceTokenAddress,
         mode: GasPaymentMode.GasFeeToken,
       });
     });
 
-    it('excludes native token for fee only when the strategy opts in', () => {
+    it('always excludes native token for fee so the quoted fee is honoured', () => {
+      // The user was shown the source token fee at quote time, so the
+      // `TransactionController` must not silently bill them in native token
+      // when its own balance check disagrees with the quote's.
       expect(
         resolveGasPayment({
           ...PAYMENT_REQUEST_MOCK,
-          excludeNativeTokenForFee: true,
           isSourceGasFeeToken: true,
-        }),
-      ).toStrictEqual({
-        excludeNativeTokenForFee: true,
-        gasFeeToken: REQUEST_MOCK.sourceTokenAddress,
-        mode: GasPaymentMode.GasFeeToken,
-      });
+        }).excludeNativeTokenForFee,
+      ).toBe(true);
     });
 
     it('falls back to native gas', () => {
@@ -227,6 +241,58 @@ describe('gas-payment', () => {
         isGasFeeSponsored: false,
         mode: GasPaymentMode.Native,
       });
+    });
+  });
+
+  describe('logGasPaymentOutcome', () => {
+    const GAS_FEE_TOKEN_PAYMENT_MOCK: GasPayment = {
+      excludeNativeTokenForFee: true,
+      gasFeeToken: REQUEST_MOCK.sourceTokenAddress,
+      mode: GasPaymentMode.GasFeeToken,
+    };
+
+    beforeEach(() => {
+      logMock.mockClear();
+    });
+
+    it('reports the gas fee token was honoured when it survived to publish', () => {
+      logGasPaymentOutcome(GAS_FEE_TOKEN_PAYMENT_MOCK, [
+        { id: '1', selectedGasFeeToken: REQUEST_MOCK.sourceTokenAddress },
+      ]);
+
+      expect(logMock).toHaveBeenCalledWith('Gas was paid with source token', {
+        gasFeeToken: REQUEST_MOCK.sourceTokenAddress,
+      });
+    });
+
+    it('reports the offending transactions when the gas fee token was dropped', () => {
+      logGasPaymentOutcome(GAS_FEE_TOKEN_PAYMENT_MOCK, [
+        { id: '1', selectedGasFeeToken: undefined },
+      ]);
+
+      expect(logMock).toHaveBeenCalledWith(
+        'Gas fee token was dropped, gas paid with native token instead',
+        {
+          gasFeeToken: REQUEST_MOCK.sourceTokenAddress,
+          transactionIds: ['1'],
+        },
+      );
+    });
+
+    it('treats a missing transaction as honoured rather than dropped', () => {
+      logGasPaymentOutcome(GAS_FEE_TOKEN_PAYMENT_MOCK, [undefined]);
+
+      expect(logMock).toHaveBeenCalledWith('Gas was paid with source token', {
+        gasFeeToken: REQUEST_MOCK.sourceTokenAddress,
+      });
+    });
+
+    it('stays silent for modes that never set a gas fee token', () => {
+      logGasPaymentOutcome({ mode: GasPaymentMode.Native }, [
+        { id: '1', selectedGasFeeToken: undefined },
+      ]);
+
+      expect(logMock).not.toHaveBeenCalled();
     });
   });
 

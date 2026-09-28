@@ -19,12 +19,17 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
 import type { GasPayment } from '../../utils/gas-payment.js';
-import { GasPaymentMode, resolveGasPayment } from '../../utils/gas-payment.js';
+import {
+  GasPaymentMode,
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
@@ -210,6 +215,11 @@ async function submitTransactionSteps(
     isDelegated: quote.original.gasless,
     isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
     sourceTokenAddress: quote.request.sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, quote.request.from),
+      request: quote.request,
+      transaction,
+    },
   });
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
@@ -683,7 +693,7 @@ async function submitViaTransactionController(
 ): Promise<void> {
   const { from, sourceChainId } = quote.request;
   const { gasLimits, is7702 } = quote.original.client;
-  const { gasFeeToken } = gasPayment;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
@@ -722,7 +732,9 @@ async function submitViaTransactionController(
       const { params, type } = stepTransactions[0];
 
       const addTransactionOptions = {
+        excludeNativeTokenForFee,
         gasFeeToken,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -773,7 +785,9 @@ async function submitViaTransactionController(
               disableSequential: true,
               gasLimit7702,
             }),
+        excludeNativeTokenForFee,
         gasFeeToken,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -800,6 +814,11 @@ async function submitViaTransactionController(
   );
 
   log('Server transactions confirmed', transactionIds);
+
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
+  );
 
   const lastId = transactionIds.at(-1);
   const sourceHash = lastId

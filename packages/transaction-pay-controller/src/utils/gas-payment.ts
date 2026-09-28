@@ -40,6 +40,21 @@ export enum GasPaymentMode {
 }
 
 /**
+ * Plain-language summary logged for each resolved {@link GasPaymentMode}.
+ *
+ * Phrased in the future tense because this is the payment MetaMask is about to
+ * request, not one that has happened. For the modes that go through the
+ * `TransactionController`, the outcome is only known after publish — see
+ * {@link logGasPaymentOutcome}.
+ */
+const GAS_PAYMENT_MODE_LOG: Record<GasPaymentMode, string> = {
+  [GasPaymentMode.Delegation]: 'Gas will be paid by relayer',
+  [GasPaymentMode.GasFeeToken]: 'Gas will be paid with source token',
+  [GasPaymentMode.Native]: 'Gas will be paid with native token',
+  [GasPaymentMode.Sponsored]: 'Gas will be sponsored',
+};
+
+/**
  * Who pays origin gas, plus the `TransactionController` options that implement
  * it. Spread the options straight into `addTransaction` or
  * `addTransactionBatch`.
@@ -47,7 +62,9 @@ export enum GasPaymentMode {
 export type GasPayment = {
   /**
    * Stop the `TransactionController` silently falling back to native gas when
-   * a gas fee token is set. Only set in {@link GasPaymentMode.GasFeeToken}.
+   * a gas fee token is set. Always set in {@link GasPaymentMode.GasFeeToken},
+   * because reaching that mode means the quote was priced with the gas fee
+   * token and the user was shown that fee.
    */
   excludeNativeTokenForFee?: boolean;
 
@@ -71,13 +88,6 @@ export type GasPayment = {
 };
 
 type GasPaymentRequest = {
-  /**
-   * Whether to set `excludeNativeTokenForFee` when a gas fee token is used.
-   * Opt-in per strategy since it changes how the `TransactionController`
-   * treats an account that also holds native balance.
-   */
-  excludeNativeTokenForFee?: boolean;
-
   /**
    * Whether a relayer will redeem a signed delegation and pay origin gas
    * (Relay `/execute`, server `gasless`, HyperLiquid withdrawals).
@@ -188,15 +198,31 @@ export function shouldUseGasStation({
   nativeGasCostRaw: string | undefined;
   request: Pick<QuoteRequest, 'from' | 'sourceChainId'>;
 }): boolean {
-  if (
-    nativeGasCostRaw !== undefined &&
-    hasNativeBalanceFor({ messenger, nativeGasCostRaw, request })
-  ) {
-    log('Native balance is sufficient for gas', { nativeGasCostRaw });
+  const { isSufficient, nativeBalanceRaw } = checkNativeBalance({
+    messenger,
+    nativeGasCostRaw,
+    request,
+  });
+
+  if (isSufficient) {
+    log('Native balance is sufficient for gas', {
+      nativeBalanceRaw,
+      nativeGasCostRaw,
+    });
     return false;
   }
 
-  return canUseGasStation(messenger, request.sourceChainId);
+  if (!canUseGasStation(messenger, request.sourceChainId)) {
+    return false;
+  }
+
+  log('Requesting gas fee token as insufficient native token', {
+    nativeBalanceRaw,
+    nativeGasCostRaw,
+    sourceChainId: request.sourceChainId,
+  });
+
+  return true;
 }
 
 /**
@@ -242,15 +268,61 @@ function canUseGasStation(
  * `TransactionController` options.
  *
  * @param request - Payment request.
- * @param request.excludeNativeTokenForFee - Whether to block native gas fallback alongside a gas fee token.
- * @param request.isDelegated - Whether a relayer redeems a delegation and pays origin gas.
- * @param request.isSourceGasFeeToken - Whether the quote priced origin gas in the source token.
- * @param request.sourceTokenAddress - Source token charged when paying with a gas fee token.
- * @param request.sponsorship - Inputs for the MetaMask sponsorship check.
  * @returns The resolved mode and its `TransactionController` options.
  */
-export function resolveGasPayment({
-  excludeNativeTokenForFee,
+export function resolveGasPayment(request: GasPaymentRequest): GasPayment {
+  const gasPayment = getGasPayment(request);
+
+  log(GAS_PAYMENT_MODE_LOG[gasPayment.mode], gasPayment);
+
+  return gasPayment;
+}
+
+/**
+ * Log whether the `TransactionController` actually charged gas the way
+ * {@link resolveGasPayment} asked it to.
+ *
+ * `resolveGasPayment` only logs the request. The `TransactionController` makes
+ * its own decision at publish time and clears `selectedGasFeeToken` when it
+ * declines, so without this the logs would claim the source token paid for gas
+ * even when the user was billed in native token.
+ *
+ * Only meaningful for {@link GasPaymentMode.GasFeeToken}; every other mode
+ * either bypasses the `TransactionController` or has nothing to contradict.
+ *
+ * @param gasPayment - The gas payment that was requested.
+ * @param transactions - Final metadata of the submitted transactions.
+ */
+export function logGasPaymentOutcome(
+  gasPayment: GasPayment,
+  transactions: (
+    | Pick<TransactionMeta, 'id' | 'selectedGasFeeToken'>
+    | undefined
+  )[],
+): void {
+  if (gasPayment.mode !== GasPaymentMode.GasFeeToken) {
+    return;
+  }
+
+  const ignored = transactions.filter(
+    (transaction) => transaction && !transaction.selectedGasFeeToken,
+  );
+
+  if (!ignored.length) {
+    log('Gas was paid with source token', {
+      gasFeeToken: gasPayment.gasFeeToken,
+    });
+
+    return;
+  }
+
+  log('Gas fee token was dropped, gas paid with native token instead', {
+    gasFeeToken: gasPayment.gasFeeToken,
+    transactionIds: ignored.map((transaction) => transaction?.id),
+  });
+}
+
+function getGasPayment({
   isDelegated,
   isSourceGasFeeToken,
   sourceTokenAddress,
@@ -272,9 +344,15 @@ export function resolveGasPayment({
     isSponsored === undefined ? {} : { isGasFeeSponsored: isSponsored };
 
   if (isSourceGasFeeToken) {
+    // Reaching this mode means the quote priced origin gas in the source token
+    // and the user was shown that fee, so the `TransactionController` must not
+    // quietly bill them in native token instead. Without this, it drops the
+    // gas fee token whenever its own balance check says native covers the gas,
+    // and that check uses a live balance and a per-transaction cost while the
+    // quote used cached balances and a buffered cost across every origin call.
     return {
       ...unsponsored,
-      ...(excludeNativeTokenForFee ? { excludeNativeTokenForFee: true } : {}),
+      excludeNativeTokenForFee: true,
       gasFeeToken: sourceTokenAddress,
       mode: GasPaymentMode.GasFeeToken,
     };
@@ -320,11 +398,15 @@ export async function resolveGasStationCost({
     return { isAvailable: false };
   }
 
-  if (
-    nativeGasCostRaw !== undefined &&
-    hasNativeBalanceFor({ messenger, nativeGasCostRaw, request })
-  ) {
+  const { isSufficient, nativeBalanceRaw } = checkNativeBalance({
+    messenger,
+    nativeGasCostRaw,
+    request,
+  });
+
+  if (isSufficient) {
     log('Skipping gas station as native balance covers gas', {
+      nativeBalanceRaw,
       nativeGasCostRaw,
       sourceChainId,
     });
@@ -334,6 +416,13 @@ export async function resolveGasStationCost({
   if (!canUseGasStation(messenger, sourceChainId)) {
     return { isAvailable: false };
   }
+
+  log('Requesting gas fee token as insufficient native token', {
+    nativeBalanceRaw,
+    nativeGasCostRaw,
+    sourceChainId,
+    sourceTokenAddress,
+  });
 
   const amount = await getGasStationCostInSourceToken({
     feeTokenAccount: feeTokenAccount ?? from,
@@ -402,6 +491,13 @@ async function getGasStationCostInSourceToken({
     return undefined;
   }
 
+  log('Found gas fee token', {
+    amount: gasFeeToken.amount,
+    gas: gasFeeToken.gas,
+    sourceChainId,
+    sourceTokenAddress,
+  });
+
   const gasFeeTokenWithNormalizedAmount = {
     ...gasFeeToken,
     amount: toHex(
@@ -460,25 +556,43 @@ function getNormalizedGasFeeTokenAmount({
   return amount.integerValue(BigNumber.ROUND_CEIL).toFixed(0);
 }
 
-function hasNativeBalanceFor({
+/**
+ * Read the account's native balance and compare it to a gas cost.
+ *
+ * The balance is returned alongside the verdict so callers can log what the
+ * decision was actually based on. An undefined cost is never sufficient, since
+ * an unknown gas cost cannot be shown to be covered.
+ *
+ * @param request - Balance check.
+ * @param request.messenger - Controller messenger.
+ * @param request.nativeGasCostRaw - Native gas cost to cover, in raw units.
+ * @param request.request - Quote request fields identifying the payment.
+ * @returns The raw native balance and whether it covers the cost.
+ */
+function checkNativeBalance({
   messenger,
   nativeGasCostRaw,
   request,
 }: {
   messenger: TransactionPayControllerMessenger;
-  nativeGasCostRaw: string;
+  nativeGasCostRaw: string | undefined;
   request: Pick<QuoteRequest, 'from' | 'sourceChainId'>;
-}): boolean {
+}): { isSufficient: boolean; nativeBalanceRaw: string } {
   const { from, sourceChainId } = request;
 
-  const nativeBalance = getTokenBalance(
+  const nativeBalanceRaw = getTokenBalance(
     messenger,
     from,
     sourceChainId,
     getNativeToken(sourceChainId),
   );
 
-  return new BigNumber(nativeBalance).isGreaterThanOrEqualTo(nativeGasCostRaw);
+  return {
+    isSufficient:
+      nativeGasCostRaw !== undefined &&
+      new BigNumber(nativeBalanceRaw).isGreaterThanOrEqualTo(nativeGasCostRaw),
+    nativeBalanceRaw,
+  };
 }
 
 /**

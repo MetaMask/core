@@ -24,7 +24,11 @@ import type {
 import { accountSupports7702 } from '../../utils/7702.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getGasBuffer } from '../../utils/feature-flags.js';
-import { GasPaymentMode, resolveGasPayment } from '../../utils/gas-payment.js';
+import {
+  GasPaymentMode,
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   collectTransactionIds,
@@ -134,7 +138,6 @@ async function submitTransactions(
   // Across has no relayer-paid delegation flow and is never sponsored, so the
   // only lift available is the gas station collecting gas in the source token.
   const gasPayment = resolveGasPayment({
-    excludeNativeTokenForFee: true,
     isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
     sourceTokenAddress,
   });
@@ -320,6 +323,11 @@ async function submitTransactions(
 
   await Promise.all(
     transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+  );
+
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
   );
 
   const hash = transactionIds.length
