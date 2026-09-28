@@ -11,7 +11,9 @@ import { mockWsApis } from '../__fixtures__/ws-price-updates/api-responses/index
 import { registerMainnetNetwork } from '../__fixtures__/ws-price-updates/messenger.js';
 import {
   ETH_ASSET_ID,
+  ETH_SPOT_PRICE,
   USDC_ASSET_ID_LOWERCASE,
+  USDC_SPOT_PRICE,
   WS_ACCOUNT_ID,
 } from '../__fixtures__/ws-price-updates/wallet.js';
 import type { BalanceUpdatedEventPayload } from '../__fixtures__/ws-price-updates/wsEvents.js';
@@ -92,9 +94,11 @@ const DETECTED_ASSETS: ResponseSurface = {
 type WsUpdatePassResult = {
   response: DataResponse;
   request: DataRequest;
-  priceBatches: string[][];
-  assetBatches: string[][];
-  rpcFallbackRequests: DataRequest[];
+  mocks: {
+    priceAPI: { priceBatches: string[][] };
+    tokenAPI: { assetBatches: string[][] };
+    rpc: { rpcFallbackRequests: DataRequest[] };
+  };
 };
 
 /** The update lanes the controller composes. */
@@ -102,18 +106,6 @@ const LANES: { name: string; lane: UpdateLane }[] = [
   { name: 'the v5 lane', lane: 'v5' },
   { name: 'the v6 lane', lane: 'v6' },
 ];
-
-/**
- * Read the price the pass recorded for an asset.
- *
- * @param response - The pass response.
- * @param assetId - The CAIP-19 asset ID.
- * @returns The recorded price.
- */
-function priceOf(response: DataResponse, assetId: string): number {
-  const price = PRICES.lookUp(response, assetId) as { price: number };
-  return price.price;
-}
 
 /**
  * Asset IDs an API was asked about, lower-cased, across all batches.
@@ -251,9 +243,11 @@ async function runWsUpdatePass({
   return {
     response: captured.response,
     request: captured.request,
-    priceBatches: prices.requestedBatches,
-    assetBatches: assets.requestedBatches,
-    rpcFallbackRequests,
+    mocks: {
+      priceAPI: { priceBatches: prices.requestedBatches },
+      tokenAPI: { assetBatches: assets.requestedBatches },
+      rpc: { rpcFallbackRequests },
+    },
   };
 }
 
@@ -306,14 +300,18 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
 
       it('prices both holdings from the captured spot prices', () => {
-        expect(priceOf(result.response, ETH_ASSET_ID)).toBeGreaterThan(0);
-        // The captured USDC price is pegged around one dollar.
+        expect(PRICES.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
+          assetPriceType: 'fungible',
+          price: ETH_SPOT_PRICE,
+          usdPrice: ETH_SPOT_PRICE,
+        });
         expect(
-          priceOf(result.response, USDC_ASSET_ID_LOWERCASE),
-        ).toBeGreaterThan(0.9);
-        expect(priceOf(result.response, USDC_ASSET_ID_LOWERCASE)).toBeLessThan(
-          1.1,
-        );
+          PRICES.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
+        ).toMatchObject({
+          assetPriceType: 'fungible',
+          price: USDC_SPOT_PRICE,
+          usdPrice: USDC_SPOT_PRICE,
+        });
       });
 
       it('queues both surfaced holdings for a price update', () => {
@@ -326,13 +324,13 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
 
       it('invokes the Price API for both surfaced holdings in the same pass', () => {
-        expect(askedAbout(result.priceBatches)).toStrictEqual(
+        expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
           new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
         );
       });
 
       it('invokes the Token API for the new token and the native asset', () => {
-        expect(askedAbout(result.assetBatches)).toStrictEqual(
+        expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
           new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
         );
       });
@@ -352,8 +350,8 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
 
     it('runs the RPC fallback once on the balance pass', () => {
       // A response without errors leaves the fallback a passthrough.
-      expect(result.rpcFallbackRequests).toHaveLength(1);
-      expect(result.rpcFallbackRequests[0]?.dataTypes).toStrictEqual(
+      expect(result.mocks.rpc.rpcFallbackRequests).toHaveLength(1);
+      expect(result.mocks.rpc.rpcFallbackRequests[0]?.dataTypes).toStrictEqual(
         expect.arrayContaining(['balance']),
       );
     });
@@ -383,13 +381,17 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('invokes the Price API for the held-but-unpriced asset', () => {
-      expect(askedAbout(result.priceBatches)).toStrictEqual(
+      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
     });
 
     it('prices the held asset from the captured spot price', () => {
-      expect(priceOf(result.response, ETH_ASSET_ID)).toBeGreaterThan(0);
+      expect(PRICES.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
+        assetPriceType: 'fungible',
+        price: ETH_SPOT_PRICE,
+        usdPrice: ETH_SPOT_PRICE,
+      });
     });
 
     it('carries the refreshed websocket balance', () => {
@@ -420,11 +422,11 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('does not invoke the Price API', () => {
-      expect(result.priceBatches).toStrictEqual([]);
+      expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 
     it('does not refetch metadata for the enriched token, only the native asset', () => {
-      expect(askedAbout(result.assetBatches)).toStrictEqual(
+      expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
     });

@@ -10,7 +10,9 @@ import { mockWsApis } from './__fixtures__/ws-price-updates/api-responses/index.
 import { registerWsControllerActions } from './__fixtures__/ws-price-updates/messenger.js';
 import {
   ETH_ASSET_ID,
+  ETH_SPOT_PRICE,
   USDC_ASSET_ID_LOWERCASE,
+  USDC_SPOT_PRICE,
   WS_ACCOUNT_ID,
 } from './__fixtures__/ws-price-updates/wallet.js';
 import type { BalanceUpdatedEventPayload } from './__fixtures__/ws-price-updates/wsEvents.js';
@@ -75,21 +77,11 @@ const UPDATE_LANES: { name: string; remoteFeatureFlags?: FeatureFlags }[] = [
 /** A settled websocket event run. */
 type WsEventResult = {
   state: AssetsControllerState;
-  assetBatches: string[][];
-  priceBatches: string[][];
+  mocks: {
+    priceAPI: { priceBatches: string[][] };
+    tokenAPI: { assetBatches: string[][] };
+  };
 };
-
-/**
- * Read the price the run persisted for an asset.
- *
- * @param state - The settled controller state.
- * @param assetId - The CAIP-19 asset ID.
- * @returns The persisted price.
- */
-function priceOf(state: AssetsControllerState, assetId: string): number {
-  const price = PRICES.lookUp(state, assetId) as { price: number };
-  return price.price;
-}
 
 /**
  * Asset IDs an API was asked about, lower-cased, across all batches.
@@ -192,8 +184,10 @@ async function runWsEvent({
 
   return {
     state: controllerState,
-    assetBatches: assets.requestedBatches,
-    priceBatches: prices.requestedBatches,
+    mocks: {
+      priceAPI: { priceBatches: prices.requestedBatches },
+      tokenAPI: { assetBatches: assets.requestedBatches },
+    },
   };
 }
 
@@ -244,24 +238,28 @@ describe('AssetsController: websocket price updates', () => {
       });
 
       it('prices both holdings from the captured Price API in the same pass', () => {
-        expect(priceOf(result.state, ETH_ASSET_ID)).toBeGreaterThan(0);
-        // The captured USDC price is pegged around one dollar.
-        expect(priceOf(result.state, USDC_ASSET_ID_LOWERCASE)).toBeGreaterThan(
-          0.9,
-        );
-        expect(priceOf(result.state, USDC_ASSET_ID_LOWERCASE)).toBeLessThan(
-          1.1,
-        );
+        expect(PRICES.lookUp(result.state, ETH_ASSET_ID)).toMatchObject({
+          assetPriceType: 'fungible',
+          price: ETH_SPOT_PRICE,
+          usdPrice: ETH_SPOT_PRICE,
+        });
+        expect(
+          PRICES.lookUp(result.state, USDC_ASSET_ID_LOWERCASE),
+        ).toMatchObject({
+          assetPriceType: 'fungible',
+          price: USDC_SPOT_PRICE,
+          usdPrice: USDC_SPOT_PRICE,
+        });
       });
 
       it('invoked the Price API for both holdings', () => {
-        expect(askedAbout(result.priceBatches)).toStrictEqual(
+        expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
           new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
         );
       });
 
       it('invoked the Token API for the new token and the native asset', () => {
-        expect(askedAbout(result.assetBatches)).toStrictEqual(
+        expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
           new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
         );
       });
@@ -285,11 +283,15 @@ describe('AssetsController: websocket price updates', () => {
     });
 
     it('prices the held-but-unpriced asset from the captured Price API', () => {
-      expect(priceOf(result.state, ETH_ASSET_ID)).toBeGreaterThan(0);
+      expect(PRICES.lookUp(result.state, ETH_ASSET_ID)).toMatchObject({
+        assetPriceType: 'fungible',
+        price: ETH_SPOT_PRICE,
+        usdPrice: ETH_SPOT_PRICE,
+      });
     });
 
     it('invoked the Price API for the held-but-unpriced asset', () => {
-      expect(askedAbout(result.priceBatches)).toStrictEqual(
+      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
     });
@@ -318,11 +320,11 @@ describe('AssetsController: websocket price updates', () => {
     });
 
     it('did not invoke the Price API for the priced token', () => {
-      expect(result.priceBatches).toStrictEqual([]);
+      expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 
     it('did not refetch metadata for the enriched token', () => {
-      expect(askedAbout(result.assetBatches)).toStrictEqual(
+      expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
     });

@@ -24,6 +24,12 @@ export const USDC_ASSET_ID_LOWERCASE =
 export const USDC_ASSET_ID_CHECKSUM =
   `${MAINNET_CHAIN_ID}/erc20:${USDC_ADDRESS_CHECKSUM}` as const;
 
+/** The ETH spot price the Price API reports. */
+export const ETH_SPOT_PRICE = 2688.8502994319642;
+
+/** The USDC spot price the Price API reports. */
+export const USDC_SPOT_PRICE = 0.999966;
+
 // RPC mocks
 export const MAINNET_CHAIN_ID_HEX = '0x1' as const;
 export const MAINNET_NETWORK_CLIENT_ID = 'mainnet' as const;
