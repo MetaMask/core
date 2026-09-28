@@ -85,12 +85,12 @@ const ORIGINAL_QUOTE_MOCK = {
         {
           data: {
             chainId: 1,
-            data: '0x1234' as Hex,
+            data: '0x1234',
             from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
-            to: '0xfedcb' as Hex,
+            to: '0xfedcb',
             value: '1234',
           },
           status: 'complete',
@@ -222,7 +222,7 @@ describe('Relay Submit Utils', () => {
     successfulFetchMock.mockResolvedValue({
       ok: true,
       json: async () => STATUS_RESPONSE_MOCK,
-    } as Response);
+    });
 
     request = cloneDeep(REQUEST_MOCK);
     request.messenger = messenger;
@@ -352,7 +352,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.predictDeposit,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -369,7 +369,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.perpsDeposit,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -386,7 +386,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.simpleSend,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -403,7 +403,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.musdConversion,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -427,7 +427,7 @@ describe('Relay Submit Utils', () => {
           ...request.transaction,
           type: TransactionType.batch,
           nestedTransactions: [{ type: nestedType }],
-        } as TransactionMeta;
+        };
 
         await submitRelayQuotes(request);
 
@@ -446,7 +446,7 @@ describe('Relay Submit Utils', () => {
         ...request.transaction,
         type: TransactionType.batch,
         nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -630,7 +630,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         txParams: { from: moneyAccountFrom },
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {
@@ -703,7 +703,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.predictDeposit,
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -730,7 +730,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.perpsDeposit,
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -820,7 +820,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: 'pending' }),
-      } as Response);
+      });
 
       await submitRelayQuotes(request);
 
@@ -856,7 +856,7 @@ describe('Relay Submit Utils', () => {
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
         }),
-      } as Response);
+      });
 
       const result = await submitRelayQuotes(request);
 
@@ -925,7 +925,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           `Relay: Request failed with status: ${status}`,
@@ -937,7 +937,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => ({ status: 'unknown_status' }),
-      } as Response);
+      });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'Relay: Unrecognized status: unknown_status',
@@ -951,11 +951,11 @@ describe('Relay Submit Utils', () => {
           .mockResolvedValueOnce({
             ok: true,
             json: async () => ({ status: pendingStatus }),
-          } as Response)
+          })
           .mockResolvedValue({
             ok: true,
             json: async () => STATUS_RESPONSE_MOCK,
-          } as Response);
+          });
 
         await submitRelayQuotes(request);
 
@@ -975,7 +975,7 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       const result = await submitRelayQuotes(request);
 
@@ -1008,7 +1008,7 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockImplementation(() => {
           jest.spyOn(Date, 'now').mockReturnValue(200);
           return Promise.resolve({
@@ -1028,11 +1028,11 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       await submitRelayQuotes(request);
 
@@ -1046,11 +1046,11 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       await submitRelayQuotes(request);
 
@@ -1095,7 +1095,7 @@ describe('Relay Submit Utils', () => {
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
         }),
-      } as Response);
+      });
 
       const result = await submitRelayQuotes(request);
       expect(result.transactionHash).toBe('0x0');
@@ -1119,9 +1119,9 @@ describe('Relay Submit Utils', () => {
       };
 
       const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
-        to: '0xpaymentoverride' as Hex,
-        data: '0xpaymentoverride' as Hex,
-        value: '0x0' as Hex,
+        to: '0xpaymentoverride',
+        data: '0xpaymentoverride',
+        value: '0x0',
       };
 
       beforeEach(() => {
@@ -1192,7 +1192,7 @@ describe('Relay Submit Utils', () => {
         request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
         submitMoneyAccountVaultDepositMock.mockResolvedValue({
           transactionHash:
-            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex,
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
         });
         successfulFetchMock.mockResolvedValueOnce({
           ok: true,
@@ -1201,7 +1201,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -1241,8 +1241,8 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1270,14 +1270,14 @@ describe('Relay Submit Utils', () => {
         request.transaction = {
           ...request.transaction,
           type: TransactionType.simpleSend,
-        } as TransactionMeta;
+        };
 
         request.quotes[0].original.steps[0].items.push({
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1316,9 +1316,9 @@ describe('Relay Submit Utils', () => {
           id: ORIGINAL_TRANSACTION_ID_MOCK,
           txParams: {
             from: FROM_MOCK,
-            to: '0xrecipient' as Hex,
-            data: '0xorigdata' as Hex,
-            value: '0x100' as Hex,
+            to: '0xrecipient',
+            data: '0xorigdata',
+            value: '0x100',
           },
           type: TransactionType.simpleSend,
         } as TransactionMeta;
@@ -1371,8 +1371,8 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1405,7 +1405,7 @@ describe('Relay Submit Utils', () => {
         request.transaction = {
           ...request.transaction,
           type: TransactionType.predictDeposit,
-        } as TransactionMeta;
+        };
 
         await submitRelayQuotes(request);
 
@@ -1764,7 +1764,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
         const result = await submitRelayQuotes(request);
 
@@ -1852,7 +1852,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'refund' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refund',
@@ -1874,7 +1874,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'refunded' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refunded',
@@ -1892,7 +1892,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: timeout',
@@ -1923,10 +1923,8 @@ describe('Relay Submit Utils', () => {
       });
 
       it('uses fallback data and value when step item data/value are undefined', async () => {
-        request.quotes[0].original.steps[0].items[0].data.data =
-          undefined as unknown as Hex;
-        request.quotes[0].original.steps[0].items[0].data.value =
-          undefined as unknown as string;
+        request.quotes[0].original.steps[0].items[0].data.data = undefined;
+        request.quotes[0].original.steps[0].items[0].data.value = undefined;
 
         await submitRelayQuotes(request);
 
@@ -2013,7 +2011,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [TARGET_HASH_MOCK],
           }),
-        } as Response);
+        });
       });
 
       it('resolves settled amount from on-chain Transfer log and submits vault deposit', async () => {
@@ -2070,7 +2068,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -2095,7 +2093,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -2137,7 +2135,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
         request.quotes[0].original.details.currencyOut.minimumAmount = '';
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
@@ -2180,14 +2178,14 @@ describe('Relay Submit Utils', () => {
       describe('post-quote flow', () => {
         const DEPOSIT_CALLS_MOCK: BatchTransactionParams[] = [
           {
-            to: '0xapprove0000000000000000000000000000001' as Hex,
-            data: '0xapprove' as Hex,
-            value: '0x0' as Hex,
+            to: '0xapprove0000000000000000000000000000001',
+            data: '0xapprove',
+            value: '0x0',
           },
           {
-            to: '0xteller00000000000000000000000000000001' as Hex,
-            data: '0xdeposit' as Hex,
-            value: '0x0' as Hex,
+            to: '0xteller00000000000000000000000000000001',
+            data: '0xdeposit',
+            value: '0x0',
           },
         ];
 
@@ -2197,7 +2195,7 @@ describe('Relay Submit Utils', () => {
             transactionData: {
               [ORIGINAL_TRANSACTION_ID_MOCK]: {},
             },
-          } as never);
+          });
           getPaymentOverrideDataMock.mockResolvedValue({
             calls: DEPOSIT_CALLS_MOCK,
           });
@@ -2389,7 +2387,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [TARGET_HASH_MOCK],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -2413,7 +2411,7 @@ describe('Relay Submit Utils', () => {
             status: 'failure',
             inTxHashes: [SOURCE_HASH_MOCK],
           }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: failure',

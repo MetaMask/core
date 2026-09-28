@@ -1484,7 +1484,10 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    if (!nftMetadata) {
+    if (nftMetadata) {
+      // Sanitize provided metadata
+      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
+    } else {
       const fetchedMetadata = await this.#getNftInformation(
         checksumHexAddress,
         tokenId,
@@ -1492,9 +1495,6 @@ export class NftController extends BaseController<
       );
       // Sanitize metadata
       nftMetadata = await this.#sanitizeNftMetadata(fetchedMetadata);
-    } else {
-      // Sanitize provided metadata
-      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
     }
 
     const { contracts: newNftContracts } = await this.#addNftContracts(

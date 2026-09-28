@@ -160,10 +160,7 @@ describe('Swaps utils', () => {
     it('fetches and returns tokens with native token', async () => {
       const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
 
-      const result = await fetchTokens(
-        CHAIN_IDS.MAINNET,
-        mockFetchFn as unknown as FetchFunction,
-      );
+      const result = await fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn);
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         `${API_BASE_URL}/networks/1/tokens`,
@@ -189,11 +186,7 @@ describe('Swaps utils', () => {
       const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
       const clientId = 'test-client-id';
 
-      await fetchTokens(
-        CHAIN_IDS.MAINNET,
-        mockFetchFn as unknown as FetchFunction,
-        clientId,
-      );
+      await fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn, clientId);
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         `${API_BASE_URL}/networks/1/tokens`,
@@ -206,10 +199,7 @@ describe('Swaps utils', () => {
     it('does not include client ID header when not provided', async () => {
       const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
 
-      await fetchTokens(
-        CHAIN_IDS.MAINNET,
-        mockFetchFn as unknown as FetchFunction,
-      );
+      await fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn);
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         `${API_BASE_URL}/networks/1/tokens`,

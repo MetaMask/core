@@ -65,7 +65,7 @@ const PRICING_DELEGATION_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   chains: [
     {
       chainId: CHAIN_ID,
-      paymentAddress: '0x2222222222222222222222222222222222222222' as Hex,
+      paymentAddress: '0x2222222222222222222222222222222222222222',
       delegateAddress: DELEGATE,
       tokens: [
         {
@@ -896,7 +896,7 @@ describe('SubscriptionDelegationService', () => {
               chains: [],
             },
           ],
-        } as PricingResponse,
+        },
       ],
       [
         'delegate address',

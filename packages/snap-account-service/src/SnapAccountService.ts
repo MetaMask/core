@@ -467,7 +467,7 @@ export class SnapAccountService {
       this.#migratePromise = this.#migrate()
         .then(() => {
           this.#migrated = true;
-          return undefined;
+          return;
         })
         .catch((error) => {
           // Clear the promise so the next call can retry.

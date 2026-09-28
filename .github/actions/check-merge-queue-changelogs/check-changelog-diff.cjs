@@ -8,7 +8,7 @@ if (process.argv.length < 5) {
     'Usage: node check-changelog-diff.cjs <base-file> <pr-file> <merged-file>',
   );
 
-  // eslint-disable-next-line n/no-process-exit
+  // oxlint-disable-next-line n/no-process-exit
   process.exit(1);
 }
 

@@ -123,7 +123,7 @@ describe('hyperLiquidAdapter - advanced order types', () => {
         oid: undefined,
         orderType: undefined,
         limitPx: '',
-      } as unknown as Partial<FrontendOrder>);
+      });
 
       const result = adaptOrderFromSDK(malformedOrder);
 

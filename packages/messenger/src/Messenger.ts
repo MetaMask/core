@@ -701,6 +701,7 @@ export class Messenger<
               handler(newValue, previousValue);
             }
           } else {
+            // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
             (handler as GenericEventHandler)(...payload);
           }
         } catch (error) {

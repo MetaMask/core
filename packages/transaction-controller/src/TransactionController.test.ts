@@ -655,19 +655,15 @@ describe('TransactionController', () => {
       async () => false,
     );
 
-    rootMessenger.registerActionHandler(
-      'NetworkController:getState',
-      () =>
-        ({
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
-          ...network.state,
-        }) as NetworkState,
-    );
+    rootMessenger.registerActionHandler('NetworkController:getState', () => ({
+      ...getDefaultNetworkControllerState(),
+      selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
+      ...network.state,
+    }));
 
     rootMessenger.registerActionHandler(
       'NetworkController:getNetworkClientRegistry',
-      () => ({}) as never,
+      () => ({}),
     );
 
     rootMessenger.registerActionHandler(
@@ -828,7 +824,7 @@ describe('TransactionController', () => {
         return '0x0';
       }
 
-      return undefined;
+      return;
     });
 
     getNonceLockSpy = jest.fn().mockResolvedValue({
@@ -861,7 +857,7 @@ describe('TransactionController', () => {
             },
             id: NETWORK_CLIENT_ID_MOCK,
             provider: new MockInternalProvider(),
-          } as unknown as NetworkClientConfiguration;
+          };
         }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
         getNonceLock: getNonceLockSpy,
@@ -3223,7 +3219,7 @@ describe('TransactionController', () => {
             return '0x0';
           }
 
-          return undefined;
+          return;
         });
 
         const { result } = await controller.addTransaction(
@@ -3260,7 +3256,7 @@ describe('TransactionController', () => {
             return '0x0';
           }
 
-          return undefined;
+          return;
         });
 
         const { result } = await controller.addTransaction(
@@ -3851,7 +3847,7 @@ describe('TransactionController', () => {
 
         existingSubmitHistory[99] = {
           chainId: CHAIN_IDS.LINEA_MAINNET,
-        } as unknown as SubmitHistoryEntry;
+        };
 
         const { controller } = setupController({
           messengerOptions: {
@@ -6375,7 +6371,7 @@ describe('TransactionController', () => {
           return '0x0';
         }
 
-        return undefined;
+        return;
       });
       const { controller } = setupController({
         options: {

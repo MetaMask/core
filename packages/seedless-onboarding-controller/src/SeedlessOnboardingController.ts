@@ -2731,10 +2731,7 @@ export class SeedlessOnboardingController<
    */
   #isMaxKeyChainLengthError(error: unknown): boolean {
     if (error instanceof TOPRFError) {
-      return (
-        error.code ===
-        (TOPRFErrorCode.MaxKeyChainLengthExceeded as typeof error.code)
-      );
+      return error.code === TOPRFErrorCode.MaxKeyChainLengthExceeded;
     }
 
     return false;

@@ -183,10 +183,7 @@ function getDefaultSeedlessOnboardingVaultEncryptor(): Encryptor<
     encryptWithDetail,
     decrypt,
     decryptWithDetail,
-    decryptWithKey: decryptWithKeyBrowserPassworder as (
-      key: unknown,
-      payload: unknown,
-    ) => Promise<unknown>,
+    decryptWithKey: decryptWithKeyBrowserPassworder,
     importKey: importKeyBrowserPassworder,
     exportKey: exportKeyBrowserPassworder,
     generateSalt: generateSaltBrowserPassworder,

@@ -544,7 +544,7 @@ describe('multicall', () => {
             tokenAddresses: [tokenAddresses[0]] as Hex[],
           },
         ],
-        '0x999999' as Hex, // Unsupported chain
+        '0x999999', // Unsupported chain
         provider,
         true,
         false,

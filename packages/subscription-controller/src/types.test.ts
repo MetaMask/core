@@ -209,7 +209,7 @@ describe('UpdatePaymentMethodCryptoRequest', () => {
     assertUpdatePaymentMethodCryptoRequest({
       ...sharedRequest,
       cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
-      delegationHash: '0xabcdef1234567890' as Hex,
+      delegationHash: '0xabcdef1234567890',
       rawTransaction: '0xdeadbeef' as Hex,
     });
 
@@ -233,7 +233,7 @@ describe('isVaultShareToken', () => {
   it('identifies a vault share by its accountant address', () => {
     const token: TokenPaymentInfo = {
       ...sharedToken,
-      accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a' as Hex,
+      accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
       vault: VAULT_NAMES.premium,
     };
 
@@ -257,7 +257,7 @@ describe('isVaultShareToken', () => {
   it('accepts a vault name the client does not know about', () => {
     const token: TokenPaymentInfo = {
       ...sharedToken,
-      accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a' as Hex,
+      accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
       vault: 'some-vault-shipped-after-this-release',
     };
 

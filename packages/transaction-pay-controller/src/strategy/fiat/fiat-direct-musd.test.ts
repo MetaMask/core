@@ -39,7 +39,7 @@ const RAMPS_QUOTE_MOCK: RampsQuote = {
 };
 
 const REQUIRED_TOKEN_MOCK: TransactionPayRequiredToken = {
-  address: '0x2222222222222222222222222222222222222222' as Hex,
+  address: '0x2222222222222222222222222222222222222222',
   allowUnderMinimum: false,
   amountFiat: '10',
   amountHuman: '10',
@@ -99,7 +99,7 @@ function getQuotesMessenger({
 
         callback(fiatPayment);
 
-        return undefined;
+        return;
       }
 
       throw new Error(`Unexpected action: ${action}`);

@@ -20,7 +20,7 @@ import {
 } from '@metamask/superstruct';
 import type { Struct } from '@metamask/superstruct';
 
-import { ElevatedTokenInvalidError, MfaError } from '../../errors.js';
+import { VerificationTokenInvalidError, MfaError } from '../../errors.js';
 import { asRecord } from '../../utils/as-record.js';
 
 export const MFA_CREDENTIAL_TYPES = ['passkey', 'email_otp'] as const;
@@ -189,6 +189,7 @@ export const BeginEnrollmentRequestStruct = refine(
     type: MfaCredentialTypeStruct,
     email: optional(sensitive(size(string(), 3, 254))),
     reason: TokenReasonStruct,
+    maxSessionAgeMs: optional(min(integer(), 0)),
   }),
   'BeginEnrollmentRequest',
   (value) => {
@@ -221,12 +222,12 @@ export const CompleteEnrollmentRequestStruct = object({
   reason: TokenReasonStruct,
 });
 
-export const BeginStepUpRequestStruct = object({
+export const BeginVerificationRequestStruct = object({
   type: MfaCredentialTypeStruct,
   reason: TokenReasonStruct,
 });
 
-const StepUpProofStruct = union([
+const VerificationProofStruct = union([
   object({
     type: literal('passkey'),
     assertion: AuthenticationResponseJSONStruct,
@@ -237,22 +238,25 @@ const StepUpProofStruct = union([
   }),
 ]);
 
-export const CompleteStepUpRequestStruct = object({
+export const CompleteVerificationRequestStruct = object({
   flowId: string(),
-  proof: StepUpProofStruct,
+  proof: VerificationProofStruct,
   reason: TokenReasonStruct,
 });
 
-export const GetElevatedTokenRequestStruct = object({
+export const GetVerificationTokenRequestStruct = object({
   maxSessionAgeMs: optional(min(integer(), 0)),
 });
 
-export const ElevatedTokenClaimsStruct = sensitive(
+// No `aal` check: the assurance level a verification yields is the server's
+// policy, and the services receiving the token enforce it themselves.
+export const VerificationTokenClaimsStruct = sensitive(
   type({
     sub: string(),
-    aal: literal(2),
     exp: integer(),
-    amr: union([MfaCredentialTypeStruct, array(MfaCredentialTypeStruct)]),
+    // Any method name: the server may verify with methods this client cannot
+    // enroll, and an unknown name must not invalidate the token.
+    amr: union([string(), array(string())]),
   }),
 );
 
@@ -308,35 +312,33 @@ export function assertValidMfaRequest<Value>(
 }
 
 /**
- * Validates and normalizes claims from an elevated access token.
+ * Validates and normalizes claims from a verification access token.
  *
  * Hydra places hook-supplied claims under `ext` unless they are promoted to
- * the top level, so `aal` and `amr` are read from either location.
+ * the top level, so `amr` is read from either location.
  *
  * @param payload - Decoded JWT payload.
  * @returns Validated claims with `amr` represented as an array.
- * @throws ElevatedTokenInvalidError if claims are missing or invalid.
+ * @throws VerificationTokenInvalidError if claims are missing or invalid.
  */
-export function parseElevatedTokenClaims(payload: unknown): {
+export function parseVerificationTokenClaims(payload: unknown): {
   sub: string;
-  aal: 2;
   exp: number;
-  amr: ('passkey' | 'email_otp')[];
+  amr: string[];
 } {
   const record = asRecord(payload);
   const ext = asRecord(record?.ext);
   const value: unknown = {
     sub: record?.sub,
     exp: record?.exp,
-    aal: record?.aal ?? ext?.aal,
     amr: record?.amr ?? ext?.amr,
   };
 
   try {
-    assert(value, ElevatedTokenClaimsStruct);
+    assert(value, VerificationTokenClaimsStruct);
   } catch (error) {
     if (error instanceof StructError) {
-      throw new ElevatedTokenInvalidError(formatStructError(error));
+      throw new VerificationTokenInvalidError(formatStructError(error));
     }
     /* istanbul ignore next */
     throw error;
@@ -344,7 +346,6 @@ export function parseElevatedTokenClaims(payload: unknown): {
 
   return {
     sub: value.sub,
-    aal: value.aal,
     exp: value.exp,
     amr: Array.isArray(value.amr) ? value.amr : [value.amr],
   };

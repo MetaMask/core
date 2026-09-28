@@ -11,7 +11,7 @@ import type { RpcHandlerDefinition, RpcHandlerMap } from './types.js';
 function asHandler(run: jest.Mock): RpcHandlerDefinition<unknown, never> {
   return {
     paramsStruct: any(),
-    run: run as unknown as RpcHandlerDefinition<unknown, never>['run'],
+    run,
   };
 }
 
@@ -708,7 +708,7 @@ describe('startRpcSocketServer', () => {
       const handlers: RpcHandlerMap = {
         strict: {
           paramsStruct: literal('expected'),
-          run: run as unknown as RpcHandlerMap[string]['run'],
+          run,
         },
       };
 
@@ -743,7 +743,7 @@ describe('startRpcSocketServer', () => {
       const handlers: RpcHandlerMap = {
         strict: {
           paramsStruct: literal('expected'),
-          run: run as unknown as RpcHandlerMap[string]['run'],
+          run,
         },
       };
 

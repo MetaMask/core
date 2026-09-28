@@ -4,9 +4,9 @@ import { promises as fs } from 'fs';
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported
 // dynamically afterwards.
-jest.unstable_mockModule('execa', () => ({ default: jest.fn() }));
+jest.unstable_mockModule('execa', () => ({ execa: jest.fn() }));
 
-const { default: execa } = await import('execa');
+const { execa } = await import('execa');
 const {
   findConflictingChangelogFiles,
   mergeChangelogs,
@@ -605,8 +605,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 describe('findConflictedChangelogFiles', () => {
   it('filters unmerged paths down to package changelogs', async () => {
+    // @ts-expect-error: Partial mock.
     jest.mocked(execa).mockResolvedValue({
-      // @ts-expect-error: Partial mock.
       stdout: [
         'packages/foo/CHANGELOG.md',
         'packages/foo/package.json',
@@ -679,8 +679,8 @@ describe('resolvePackageMetadata', () => {
 
   it('falls back to the "ours" conflict stage if package.json is not parseable in the working tree', async () => {
     jest.spyOn(fs, 'readFile').mockResolvedValue('<<<<<<< HEAD\nconflict');
+    // @ts-expect-error: Partial mock.
     jest.mocked(execa).mockResolvedValue({
-      // @ts-expect-error: Partial mokc.
       stdout: JSON.stringify({
         name: '@metamask/example',
         repository: { url: 'https://github.com/MetaMask/core' },

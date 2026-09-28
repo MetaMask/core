@@ -165,29 +165,20 @@ describe('makeMatchesSubscriptionDelegation', () => {
 
   it.each([
     ['type', { type: 'cash-deposit' }],
-    [
-      'delegator',
-      { delegator: '0x6666666666666666666666666666666666666666' as Hex },
-    ],
-    [
-      'delegate',
-      { delegate: '0x6666666666666666666666666666666666666666' as Hex },
-    ],
-    ['chainId', { chainIdHex: '0x89' as Hex }],
-    [
-      'token',
-      { tokenAddress: '0x6666666666666666666666666666666666666666' as Hex },
-    ],
+    ['delegator', { delegator: '0x6666666666666666666666666666666666666666' }],
+    ['delegate', { delegate: '0x6666666666666666666666666666666666666666' }],
+    ['chainId', { chainIdHex: '0x89' }],
+    ['token', { tokenAddress: '0x6666666666666666666666666666666666666666' }],
     [
       'valueLteEnforcer',
       {
-        valueLteEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
+        valueLteEnforcer: '0x6666666666666666666666666666666666666666',
       },
     ],
     [
       'periodEnforcer',
       {
-        periodEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
+        periodEnforcer: '0x6666666666666666666666666666666666666666',
       },
     ],
     ['periodAmount', { periodAmount: PERIOD_AMOUNT + 1n }],
