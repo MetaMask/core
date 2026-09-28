@@ -1,3 +1,5 @@
+import { toUint8Array } from './utils.js';
+
 const X25519_KEY_SIZE = 32;
 
 // https://www.rfc-editor.org/rfc/rfc7748#section-4.1
@@ -61,11 +63,4 @@ export async function x25519GetSharedSecret(
   );
 
   return new Uint8Array(sharedSecret);
-}
-
-function toUint8Array(source: BufferSource): Uint8Array {
-  if (source instanceof ArrayBuffer) {
-    return new Uint8Array(source);
-  }
-  return new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
 }
