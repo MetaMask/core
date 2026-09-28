@@ -70,7 +70,7 @@
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "yaml": "^2.3.4"
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": "^22.14.0 || ^24"

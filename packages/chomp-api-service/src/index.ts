@@ -23,6 +23,7 @@ export type {
   AssociateAddressParams,
   AssociateAddressResponse,
   AuthorizationData,
+  ChompIntentType,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   CreateWithdrawalParams,

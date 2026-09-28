@@ -12,6 +12,11 @@ import {
 const DataFreshnessStruct = enums(['live', 'degraded']);
 
 const VaultPositionStruct = object({
+  chain_id: number(),
+  vault_key: string(),
+  name: string(),
+  asset_symbol: string(),
+  asset_decimals: number(),
   vault_address: string(),
   shares_held: string(),
   current_rate: string(),
@@ -23,17 +28,38 @@ const VaultPositionStruct = object({
   unrealised_interest_usd: string(),
   lifetime_interest_usd: string(),
   current_apy: string(),
-  effective_apy: string(),
+  // `null` means the position has been invested for fewer than 28 days.
+  effective_apy: nullable(string()),
+});
+
+/**
+ * One underlying asset in the positions balance breakdown.
+ */
+const AssetBalanceStruct = object({
+  asset_contract_address: string(),
+  asset_symbol: string(),
+  asset_decimals: number(),
+  wallet_balance: string(),
+  vault_value: string(),
+  total: string(),
+  total_usd: string(),
 });
 
 /**
  * Wallet + vault balance summary on the positions response.
  * `null` when the API's wallet-balance path is disabled or unavailable.
+ *
+ * `musd_balance`, `vmusd_value_in_musd`, and `total_balance` are mUSD-only
+ * and deprecated on the API in favor of `by_asset` and `total_balance_usd`.
  */
 const PositionBalanceStruct = object({
   musd_balance: string(),
   vmusd_value_in_musd: string(),
   total_balance: string(),
+  // Additive — older API builds omit this field.
+  musd_balance_updated_at: optional(nullable(string())),
+  by_asset: array(AssetBalanceStruct),
+  total_balance_usd: string(),
 });
 
 export const PositionResponseStruct = object({
