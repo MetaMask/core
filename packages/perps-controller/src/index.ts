@@ -504,7 +504,6 @@ export type {
   LighterWebSocketLike,
   LighterWasmCall,
   LighterAuthConfig,
-  LighterPersonalSigner,
 } from './types/lighter-types.js';
 export {
   PERPS_CONSTANTS,

@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it instead of the `KeyringController:*` messenger actions
   - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code; `isHardwareWallet()` defers optional signing prompts like a hardware keyring does
 
+### Removed
+
+- **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig`
+  - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
+  - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
+
 ## [18.0.1]
 
 ### Fixed

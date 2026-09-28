@@ -7,35 +7,14 @@ import {
 
 // A fixed 65-byte signature (deterministic vector).
 const FIXED_SIGNATURE = `0x${'ab'.repeat(65)}`;
-const HEADLESS_ADDRESS = '0x8D7f03FdE1A626223364E592740a233b72395235';
+const SELECTED_ADDRESS = '0x8D7f03FdE1A626223364E592740a233b72395235';
 
 describe('LighterWalletService', () => {
-  describe('headless (injected signer)', () => {
-    const buildService = (
-      signer = jest.fn().mockResolvedValue(FIXED_SIGNATURE),
-    ): { service: LighterWalletService; signer: jest.Mock } => {
+  describe('network', () => {
+    it('exposes and toggles testnet mode', () => {
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
-        personalSigner: signer,
-        l1Address: HEADLESS_ADDRESS,
       });
-      return { service, signer };
-    };
-
-    it('returns the injected L1 address', () => {
-      const { service } = buildService();
-      expect(service.getUserAddress()).toBe(HEADLESS_ADDRESS);
-    });
-
-    it('routes personal_sign through the injected signer', async () => {
-      const { service, signer } = buildService();
-      const signature = await service.signPersonalMessage('hello');
-      expect(signature).toBe(FIXED_SIGNATURE);
-      expect(signer).toHaveBeenCalledWith('hello');
-    });
-
-    it('exposes and toggles testnet mode', () => {
-      const { service } = buildService();
       expect(service.isTestnetMode()).toBe(true);
       service.setTestnetMode(false);
       expect(service.isTestnetMode()).toBe(false);
@@ -45,7 +24,7 @@ describe('LighterWalletService', () => {
 
   describe('messenger-backed', () => {
     const selectedAccount = {
-      address: HEADLESS_ADDRESS,
+      address: SELECTED_ADDRESS,
       type: 'eip155:eoa',
       metadata: {},
     };
@@ -88,7 +67,7 @@ describe('LighterWalletService', () => {
       expect(messenger.call).toHaveBeenCalledWith(
         'KeyringController:signPersonalMessage',
         expect.objectContaining({
-          from: HEADLESS_ADDRESS,
+          from: SELECTED_ADDRESS,
           data: expect.stringMatching(/^0x/u),
         }),
       );
@@ -103,10 +82,9 @@ describe('LighterWalletService', () => {
   });
 
   describe('unconfigured', () => {
-    it('rejects signing without messenger or injected signer', async () => {
+    it('rejects signing without messenger or account signer', async () => {
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
-        l1Address: HEADLESS_ADDRESS,
       });
       await expect(service.signPersonalMessage('x')).rejects.toThrow(
         'NO_ACCOUNT_SELECTED',

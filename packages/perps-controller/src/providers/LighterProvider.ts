@@ -1173,8 +1173,6 @@ export class LighterProvider implements PerpsProvider {
     this.#walletService = new LighterWalletService(this.#deps, {
       isTestnet: this.#isTestnet,
       messenger: options.messenger,
-      personalSigner: options.lighterAuthConfig?.personalSigner,
-      l1Address: options.lighterAuthConfig?.l1Address,
     });
 
     this.#deps.debugLogger.log('[LighterProvider] Constructor complete', {
@@ -4131,7 +4129,7 @@ export class LighterProvider implements PerpsProvider {
     // The generation only advances when some provider call rebinds; also
     // notice a wallet switch nothing has observed yet. Account-bound work
     // must never run without a binding: every legitimate flow (including
-    // headless l1Address and configured-index setups) binds first, so a
+    // configured-index setups) binds first, so a
     // null binding here means the wallet was deselected — fail closed even
     // when a configured account index could still resolve.
     if (this.#boundAddress === null) {

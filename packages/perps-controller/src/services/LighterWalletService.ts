@@ -15,8 +15,8 @@
  *
  * Signature routing goes through the injected `accountSigner` when it
  * implements `signPersonalMessage`, else
- * `KeyringController:signPersonalMessage` when a messenger is available,
- * else an injected `LighterPersonalSigner` for headless use.
+ * `KeyringController:signPersonalMessage`. The L1 address always comes from
+ * the messenger's selected account.
  */
 
 import { bytesToHex } from '@metamask/utils';
@@ -25,10 +25,7 @@ import type { Hex } from '@metamask/utils';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
-import type {
-  LighterNetwork,
-  LighterPersonalSigner,
-} from '../types/lighter-types.js';
+import type { LighterNetwork } from '../types/lighter-types.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 
 export class LighterWalletService {
@@ -38,23 +35,15 @@ export class LighterWalletService {
 
   readonly #messenger: PerpsControllerMessenger | undefined;
 
-  readonly #personalSigner: LighterPersonalSigner | undefined;
-
-  readonly #l1Address: string | undefined;
-
   constructor(
     deps: PerpsPlatformDependencies,
     options: {
       isTestnet?: boolean;
       messenger?: PerpsControllerMessenger;
-      personalSigner?: LighterPersonalSigner;
-      l1Address?: string;
     } = {},
   ) {
     this.#deps = deps;
     this.#messenger = options.messenger;
-    this.#personalSigner = options.personalSigner;
-    this.#l1Address = options.l1Address;
     this.#isTestnet = options.isTestnet ?? true;
   }
 
@@ -68,25 +57,20 @@ export class LighterWalletService {
    * @returns The EVM address.
    */
   getUserAddress(): string {
-    if (this.#messenger) {
-      const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
-      if (!evmAccount?.address) {
-        throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
-      }
-      return evmAccount.address;
+    const evmAccount = this.#messenger
+      ? getSelectedEvmAccountFromMessenger(this.#messenger)
+      : undefined;
+    if (!evmAccount?.address) {
+      throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
-    if (this.#l1Address) {
-      return this.#l1Address;
-    }
-    throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
+    return evmAccount.address;
   }
 
   /**
    * Sign an EIP-191 personal message with the user's L1 account.
    *
    * Routes through the injected account signer when it can sign personal
-   * messages, else the keyring when a messenger is present, else the
-   * injected headless signer.
+   * messages, else the keyring when a messenger is present.
    *
    * @param message - Plaintext message to sign.
    * @returns 65-byte signature as 0x-prefixed hex.
@@ -118,10 +102,6 @@ export class LighterWalletService {
         'KeyringController:signPersonalMessage',
         { from: address, data },
       );
-    }
-
-    if (this.#personalSigner) {
-      return await this.#personalSigner(message);
     }
 
     throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
