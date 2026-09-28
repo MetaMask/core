@@ -1,9 +1,11 @@
 import { noop } from 'lodash-es';
 
-import { projectLogger as log } from '../logger.js';
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import { updateFirstTimeInteraction } from '../utils/first-time-interaction.js';
 import { getTransaction } from '../utils/state.js';
 import type { TransactionLifecycleRequest } from './types.js';
+
+const log = createModuleLogger(lifecycleLogger, 'background');
 
 /**
  * Start the background updates for a newly added transaction.
@@ -44,7 +46,7 @@ export function startBackgroundUpdates(
       getTransaction: (transactionId: string) =>
         getTransaction(getState(), transactionId),
       isFirstTimeInteractionEnabled:
-        isFirstTimeInteractionEnabled ?? (() => true),
+        isFirstTimeInteractionEnabled ?? ((): boolean => true),
       trace,
       traceContext,
       transactionMeta,

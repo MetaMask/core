@@ -1,7 +1,7 @@
 import type { TraceContext } from '@metamask/controller-utils';
 import { cloneDeep, noop } from 'lodash-es';
 
-import { projectLogger as log } from '../logger.js';
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type { AfterAddHook, TransactionMeta } from '../types.js';
 import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import { updateGasFees } from '../utils/gas-fees.js';
@@ -10,6 +10,8 @@ import { updateSwapsTransaction } from '../utils/swaps.js';
 import { rejectTransaction } from './error.js';
 import { getEIP1559Compatibility } from './init.js';
 import type { TransactionLifecycleRequest } from './types.js';
+
+const log = createModuleLogger(lifecycleLogger, 'data');
 
 /**
  * Populate a newly initialised transaction with gas and swaps data.
@@ -28,6 +30,8 @@ import type { TransactionLifecycleRequest } from './types.js';
 export async function addTransactionData(
   request: TransactionLifecycleRequest,
 ): Promise<TransactionMeta> {
+  log('Adding transaction data', request.transactionMeta.id);
+
   await applyAfterAddHook(request);
   await addGasData(request);
   addSwapsData(request);
@@ -174,7 +178,7 @@ async function updateTransactionGasFees(
             'GasFeeController:fetchGasFeeEstimates',
             options,
           ),
-        getSavedGasFees: getSavedGasFees ?? (() => undefined),
+        getSavedGasFees: getSavedGasFees ?? ((): undefined => undefined),
         messenger: dependencies.messenger,
         txMeta: transactionMeta,
       }),

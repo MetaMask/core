@@ -1,7 +1,10 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import { TransactionStatus } from '../types.js';
 import type { TransactionLifecycleRequest } from './types.js';
+
+const log = createModuleLogger(lifecycleLogger, 'finish');
 
 /**
  * Resolve the result of a transaction once it has reached a final state.
@@ -23,6 +26,7 @@ export async function finishTransaction(
   const { id: transactionId } = transactionMeta;
 
   if (transactionMeta.isStateOnly) {
+    log('Skipping finish as state only', transactionId);
     return '';
   }
 
@@ -31,11 +35,13 @@ export async function finishTransaction(
   switch (finalMeta?.status) {
     case TransactionStatus.failed: {
       const error = finalMeta.error as Error;
+      log('Transaction failed', transactionId, error);
       resultCallbacks?.error(error);
       throw rpcErrors.internal(error.message);
     }
 
     case TransactionStatus.submitted:
+      log('Transaction submitted', transactionId, finalMeta.hash);
       resultCallbacks?.success();
       return finalMeta.hash as string;
 
@@ -44,6 +50,12 @@ export async function finishTransaction(
         `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
           finalMeta ?? transactionId,
         )}`,
+      );
+
+      log(
+        'Transaction ended in unexpected state',
+        transactionId,
+        finalMeta?.status,
       );
 
       resultCallbacks?.error(internalError);

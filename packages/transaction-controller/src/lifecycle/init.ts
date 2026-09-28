@@ -3,6 +3,7 @@ import { JsonRpcError } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type {
   DappSuggestedGasFees,
   TransactionMeta,
@@ -23,6 +24,8 @@ import type {
   TransactionLifecycleRequest,
   TransactionStageDependencies,
 } from './types.js';
+
+const log = createModuleLogger(lifecycleLogger, 'init');
 
 /**
  * Validate a new transaction request and build its initial metadata.
@@ -47,6 +50,8 @@ export async function initTransaction(
     dependencies: { hasNetworkClient, messenger },
   } = request;
 
+  log('Adding transaction', originalTxParams, options);
+
   const { networkClientId } = options;
   const txParams = normalizeTransactionParams(originalTxParams);
 
@@ -67,6 +72,13 @@ export async function initTransaction(
   await validate(request, txParams, chainId);
 
   const transactionMeta = await createMetadata(request, txParams, chainId);
+
+  log('Initialised transaction', {
+    chainId,
+    id: transactionMeta.id,
+    networkClientId,
+    type: transactionMeta.type,
+  });
 
   return {
     ...request,

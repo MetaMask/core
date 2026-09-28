@@ -1,6 +1,7 @@
 import type { AcceptResultCallbacks } from '@metamask/approval-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type { TransactionMeta } from '../types.js';
 import type {
   TransactionLifecycleRequest,
@@ -11,6 +12,8 @@ const approvingTransactionIds = new WeakMap<
   TransactionStageDependencies,
   Set<string>
 >();
+
+const log = createModuleLogger(lifecycleLogger, 'state');
 
 /** Ephemeral coordination only; transaction data remains on transactionMeta. */
 export type TransactionLifecycleState = {
@@ -59,12 +62,19 @@ export function startTransactionApproval(
 
   transactionIds.add(transactionId);
 
+  log('Started transaction approval', transactionId);
+
   return () => {
+    log('Released transaction approval', transactionId);
     transactionIds.delete(transactionId);
   };
 }
 
-/** Release resources owned by this execution, including on early exits. */
+/**
+ * Release resources owned by this execution, including on early exits.
+ *
+ * @param lifecycle - Lifecycle state holding the active execution resources.
+ */
 export function releaseTransactionExecution(
   lifecycle: TransactionLifecycleState,
 ): void {
@@ -73,8 +83,14 @@ export function releaseTransactionExecution(
   delete lifecycle.execution;
 }
 
-/** Release execution resources and restore normal simulation behaviour. */
+/**
+ * Release execution resources and restore normal simulation behaviour.
+ *
+ * @param request - Transaction metadata, lifecycle state, and dependencies.
+ */
 export function cleanupTransaction(request: TransactionLifecycleRequest): void {
+  log('Cleaning up transaction', request.transactionMeta.id);
+
   releaseTransactionExecution(request.lifecycle);
 
   if (request.lifecycle.onError) {

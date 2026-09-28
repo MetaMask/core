@@ -1,7 +1,7 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 
 import { ExtraTransactionsPublishHook } from '../hooks/ExtraTransactionsPublishHook.js';
-import { projectLogger as log } from '../logger.js';
+import { createModuleLogger, lifecycleLogger } from '../logger.js';
 import type {
   PublishHook,
   PublishHookResult,
@@ -13,7 +13,13 @@ import { getTransaction, getTransactionOrThrow } from '../utils/state.js';
 import { releaseTransactionExecution } from './state.js';
 import type { TransactionLifecycleRequest } from './types.js';
 
-/** Apply publish hooks and submit the signed execution. */
+const log = createModuleLogger(lifecycleLogger, 'submit');
+
+/**
+ * Apply publish hooks and submit the signed execution.
+ *
+ * @param request - Transaction metadata, lifecycle state, and dependencies.
+ */
 export async function submitTransaction(
   request: TransactionLifecycleRequest,
 ): Promise<void> {
@@ -40,7 +46,8 @@ export async function submitTransaction(
     ? undefined
     : transactionMeta.rawTx;
 
-  const beforePublish = hooks.beforePublish ?? (() => Promise.resolve(true));
+  const beforePublish =
+    hooks.beforePublish ?? ((): Promise<boolean> => Promise.resolve(true));
 
   if (!(await beforePublish(transactionMeta))) {
     log('Skipping publishing transaction based on hook');
@@ -176,6 +183,8 @@ async function publishAndSubmitTransaction(
     },
   );
 
+  // The request is owned by a single execution, so there is no concurrent writer.
+  // eslint-disable-next-line require-atomic-updates
   request.transactionMeta = submittedTransactionMeta;
 
   messenger.publish('TransactionController:transactionSubmitted', {
@@ -260,7 +269,8 @@ async function defaultPublishHook(
     const publishHook: PublishHook =
       publishHookOverride ??
       hooks.publish ??
-      (() => Promise.resolve({ transactionHash: undefined }));
+      ((): ReturnType<PublishHook> =>
+        Promise.resolve({ transactionHash: undefined }));
 
     ({ transactionHash } = await publishHook(transactionMeta, signedTx));
 
