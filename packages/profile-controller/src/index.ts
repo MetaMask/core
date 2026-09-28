@@ -26,10 +26,12 @@ export type {
 } from './ProfileController-method-action-types.js';
 export type {
   ProfileApiResponse,
-  CreateProfileInput,
-  ReplaceProfileInput,
-  UpdateProfileInput,
+  CreateProfileParams,
+  ReplaceProfileParams,
+  UpdateProfileParams,
+  ConnectXParams,
   UsernameAvailabilityResponse,
+  XAuthUrlResponse,
   XConnectResponse,
   XAccountResponse,
   ProfileServiceActions,
@@ -37,6 +39,7 @@ export type {
   ProfileServiceMessenger,
 } from './ProfileService.js';
 export { ProfileService, ProfileServiceErrorMessage } from './ProfileService.js';
+export { useGetProfile, useCheckUsernameAvailability } from './ProfileServiceHooks.js';
 export type {
   ProfileServiceCheckUsernameAvailabilityAction,
   ProfileServiceConnectXAction,

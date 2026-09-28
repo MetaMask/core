@@ -5,14 +5,18 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { ProfileServiceErrorMessage, serviceName } from './ProfileService.js';
-import type {
-  CreateProfileInput,
-  ProfileServiceMessenger,
-  ReplaceProfileInput,
-  UpdateProfileInput,
+import {
+  ProfileService,
+  ProfileServiceErrorMessage,
+  serviceName,
 } from './ProfileService.js';
-import { ProfileService } from './ProfileService.js';
+import type {
+  ConnectXParams,
+  CreateProfileParams,
+  ProfileServiceMessenger,
+  ReplaceProfileParams,
+  UpdateProfileParams,
+} from './ProfileService.js';
 
 const BASE_URL = 'https://profile.api.cx.metamask.io';
 const V1_URL = `${BASE_URL}/v1`;
@@ -155,13 +159,13 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(service.getProfile('profile-123')).rejects.toThrow(
-        ProfileServiceErrorMessage.GET_PROFILE_INVALID_RESPONSE,
+        'returned an unexpected response',
       );
     });
   });
 
   describe('createProfile', () => {
-    const input: CreateProfileInput = {
+    const input: CreateProfileParams = {
       profile_id: 'canonical-123',
       username: 'alice',
       display_name: 'Alice Wonderland',
@@ -208,13 +212,13 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(service.createProfile(input)).rejects.toThrow(
-        ProfileServiceErrorMessage.CREATE_PROFILE_INVALID_RESPONSE,
+        'returned an unexpected response',
       );
     });
   });
 
   describe('replaceProfile', () => {
-    const input: ReplaceProfileInput = {
+    const input: ReplaceProfileParams = {
       username: 'alice2',
       display_name: 'Alice 2',
       linked_addresses: ['eip155:1:0x1234567890abcdef1234567890abcdef12345678'],
@@ -267,14 +271,12 @@ describe('ProfileService', () => {
 
       await expect(
         service.replaceProfile('profile-123', input),
-      ).rejects.toThrow(
-        ProfileServiceErrorMessage.REPLACE_PROFILE_INVALID_RESPONSE,
-      );
+      ).rejects.toThrow('returned an unexpected response');
     });
   });
 
   describe('updateProfile', () => {
-    const input: UpdateProfileInput = {
+    const input: UpdateProfileParams = {
       username: 'alice2',
       display_name: 'Alice 2',
     };
@@ -326,9 +328,7 @@ describe('ProfileService', () => {
 
       await expect(
         service.updateProfile('profile-123', input),
-      ).rejects.toThrow(
-        ProfileServiceErrorMessage.UPDATE_PROFILE_INVALID_RESPONSE,
-      );
+      ).rejects.toThrow('returned an unexpected response');
     });
   });
 
@@ -416,9 +416,7 @@ describe('ProfileService', () => {
 
       await expect(
         service.checkUsernameAvailability('alice'),
-      ).rejects.toThrow(
-        ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_INVALID_RESPONSE,
-      );
+      ).rejects.toThrow('returned an unexpected response');
     });
   });
 
@@ -465,7 +463,7 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(service.getXAuthUrl()).rejects.toThrow(
-        ProfileServiceErrorMessage.GET_X_AUTH_URL_INVALID_RESPONSE,
+        'returned an unexpected response',
       );
     });
   });
@@ -478,8 +476,9 @@ describe('ProfileService', () => {
         json: () => Promise.resolve(mockXConnectResponse),
       });
 
+      const params: ConnectXParams = { code: 'auth-code-123', state: 'state-xyz' };
       const service = createService();
-      const result = await service.connectX('auth-code-123', 'state-xyz');
+      const result = await service.connectX(params);
 
       expect(result).toStrictEqual(mockXConnectResponse);
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/x/connect`, {
@@ -488,7 +487,7 @@ describe('ProfileService', () => {
           Authorization: `Bearer ${MOCK_TOKEN}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code: 'auth-code-123', state: 'state-xyz' }),
+        body: JSON.stringify(params),
       });
     });
 
@@ -498,7 +497,7 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(
-        service.connectX('auth-code-123', 'state-xyz'),
+        service.connectX({ code: 'auth-code-123', state: 'state-xyz' }),
       ).rejects.toThrow(
         `${ProfileServiceErrorMessage.CONNECT_X_FAILED}: 401`,
       );
@@ -514,8 +513,8 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(
-        service.connectX('auth-code-123', 'state-xyz'),
-      ).rejects.toThrow(ProfileServiceErrorMessage.CONNECT_X_INVALID_RESPONSE);
+        service.connectX({ code: 'auth-code-123', state: 'state-xyz' }),
+      ).rejects.toThrow('returned an unexpected response');
     });
   });
 
@@ -556,7 +555,7 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(service.getXAccount()).rejects.toThrow(
-        ProfileServiceErrorMessage.GET_X_ACCOUNT_INVALID_RESPONSE,
+        'returned an unexpected response',
       );
     });
   });

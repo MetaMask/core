@@ -8546,6 +8546,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^32.3.1"
+    "@metamask/react-data-query": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -8712,7 +8713,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/react-data-query@workspace:packages/react-data-query":
+"@metamask/react-data-query@npm:^2.0.0, @metamask/react-data-query@workspace:packages/react-data-query":
   version: 0.0.0-use.local
   resolution: "@metamask/react-data-query@workspace:packages/react-data-query"
   dependencies:

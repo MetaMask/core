@@ -19,6 +19,9 @@
     },
     {
       "path": "../profile-sync-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../react-data-query/tsconfig.lint.json"
     }
   ]
 }

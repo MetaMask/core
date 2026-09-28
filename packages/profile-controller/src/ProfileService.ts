@@ -10,13 +10,15 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   array,
+  assert,
   boolean,
   enums,
-  is,
   nullable,
+  optional,
   string,
   type as structType,
 } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 
 import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
 
@@ -28,22 +30,15 @@ export const serviceName = 'ProfileService';
 
 export const ProfileServiceErrorMessage = {
   GET_PROFILE_FAILED: 'ProfileService: failed to fetch profile',
-  GET_PROFILE_INVALID_RESPONSE: 'ProfileService: invalid response for getProfile',
   CREATE_PROFILE_FAILED: 'ProfileService: failed to create profile',
-  CREATE_PROFILE_INVALID_RESPONSE: 'ProfileService: invalid response for createProfile',
   REPLACE_PROFILE_FAILED: 'ProfileService: failed to replace profile',
-  REPLACE_PROFILE_INVALID_RESPONSE: 'ProfileService: invalid response for replaceProfile',
   UPDATE_PROFILE_FAILED: 'ProfileService: failed to update profile',
-  UPDATE_PROFILE_INVALID_RESPONSE: 'ProfileService: invalid response for updateProfile',
   DELETE_PROFILE_FAILED: 'ProfileService: failed to delete profile',
-  CHECK_USERNAME_AVAILABILITY_FAILED: 'ProfileService: failed to check username availability',
-  CHECK_USERNAME_AVAILABILITY_INVALID_RESPONSE: 'ProfileService: invalid response for checkUsernameAvailability',
+  CHECK_USERNAME_AVAILABILITY_FAILED:
+    'ProfileService: failed to check username availability',
   GET_X_AUTH_URL_FAILED: 'ProfileService: failed to get X authentication URL',
-  GET_X_AUTH_URL_INVALID_RESPONSE: 'ProfileService: invalid response for getXAuthUrl',
   CONNECT_X_FAILED: 'ProfileService: failed to connect X account',
-  CONNECT_X_INVALID_RESPONSE: 'ProfileService: invalid response for connectX',
   GET_X_ACCOUNT_FAILED: 'ProfileService: failed to get X account',
-  GET_X_ACCOUNT_INVALID_RESPONSE: 'ProfileService: invalid response for getXAccount',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -91,6 +86,38 @@ const XConnectResponseStruct = structType({
   updated_at: string(),
 });
 
+const ConnectXParamsStruct = structType({
+  code: string(),
+  state: string(),
+});
+
+const CreateProfileParamsStruct = structType({
+  profile_id: string(),
+  username: string(),
+  display_name: string(),
+  bio: optional(nullable(string())),
+  linked_addresses: optional(array(string())),
+  avatar_url: optional(string()),
+});
+
+const ReplaceProfileParamsStruct = structType({
+  username: string(),
+  display_name: string(),
+  bio: optional(nullable(string())),
+  linked_addresses: array(string()),
+  avatar_url: optional(string()),
+  trading_privacy: optional(enums(['public', 'private'] as const)),
+});
+
+const UpdateProfileParamsStruct = structType({
+  username: optional(string()),
+  display_name: optional(string()),
+  bio: optional(string()),
+  linked_addresses: optional(array(string())),
+  avatar_url: optional(string()),
+  trading_privacy: optional(enums(['public', 'private'] as const)),
+});
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -107,62 +134,25 @@ const MESSENGER_EXPOSED_METHODS = [
   'getXAccount',
 ] as const;
 
-export type ProfileApiResponse = {
-  profile_id: string;
-  username: string;
-  display_name: string;
-  bio: string | null;
-  linked_addresses: string[];
-  avatar_url: string | null;
-  trading_privacy: 'public' | 'private';
-  connected_to_x: boolean;
-  created_at: string;
-  updated_at: string;
-};
+export type ProfileApiResponse = Infer<typeof ProfileApiResponseStruct>;
 
-export type UsernameAvailabilityResponse = {
-  username: string;
-  available: boolean;
-  valid: boolean;
-  normalized: string;
-  errors: { code: string; message: string }[];
-};
+export type UsernameAvailabilityResponse = Infer<
+  typeof UsernameAvailabilityResponseStruct
+>;
 
-export type CreateProfileInput = {
-  profile_id: string;
-  username: string;
-  display_name: string;
-  bio?: string | null;
-  linked_addresses?: string[];
-  avatar_url?: string;
-};
+export type XConnectResponse = Infer<typeof XConnectResponseStruct>;
 
-export type ReplaceProfileInput = {
-  username: string;
-  display_name: string;
-  linked_addresses: string[];
-};
-
-export type UpdateProfileInput = {
-  username?: string;
-  display_name?: string;
-  bio?: string;
-  linked_addresses?: string[];
-  avatar_url?: string;
-  trading_privacy?: 'public' | 'private';
-};
-
-export type XConnectResponse = {
-  x_user_id: string;
-  x_profile_url: string;
-  username: string;
-  display_name: string;
-  avatar_url: string;
-  created_at: string;
-  updated_at: string;
-};
+export type XAuthUrlResponse = Infer<typeof XAuthUrlResponseStruct>;
 
 export type XAccountResponse = XConnectResponse;
+
+export type CreateProfileParams = Infer<typeof CreateProfileParamsStruct>;
+
+export type ReplaceProfileParams = Infer<typeof ReplaceProfileParamsStruct>;
+
+export type UpdateProfileParams = Infer<typeof UpdateProfileParamsStruct>;
+
+export type ConnectXParams = Infer<typeof ConnectXParamsStruct>;
 
 // ---------------------------------------------------------------------------
 // Messenger types
@@ -226,6 +216,12 @@ export class ProfileService extends BaseDataService<
     );
   }
 
+  #throwIfNotOk(response: Response, message: string): void {
+    if (!response.ok) {
+      throw new HttpError(response.status, `${message}: ${response.status}`);
+    }
+  }
+
   async #getAuthHeaders(): Promise<Record<string, string>> {
     const token = await this.messenger.call(
       'AuthenticationController:getBearerToken',
@@ -233,136 +229,123 @@ export class ProfileService extends BaseDataService<
     return { Authorization: `Bearer ${token}` };
   }
 
-  async getProfile(identifier: string): Promise<ProfileApiResponse> {
+  async getProfile(profileId: string): Promise<ProfileApiResponse> {
+    assert(profileId, string());
     const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
-      queryKey: [`${this.name}:getProfile`, identifier],
+      queryKey: [`${this.name}:getProfile`, profileId],
+      responseStruct: ProfileApiResponseStruct,
       queryFn: async () => {
         const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(identifier)}`,
+          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
         );
         const response = await fetch(url.toString(), { headers: authHeaders });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, ProfileApiResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.GET_PROFILE_INVALID_RESPONSE);
-        }
-        return data as ProfileApiResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.GET_PROFILE_FAILED,
+        );
+        return response.json();
       },
     });
   }
 
-  async createProfile(input: CreateProfileInput): Promise<ProfileApiResponse> {
+  async createProfile(
+    params: CreateProfileParams,
+  ): Promise<ProfileApiResponse> {
+    assert(params, CreateProfileParamsStruct);
     const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:createProfile`],
+      responseStruct: ProfileApiResponseStruct,
       mutationFn: async () => {
         const url = new URL(`${this.#v1Url}/profiles`);
         const response = await fetch(url.toString(), {
           method: 'POST',
           headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(input),
+          body: JSON.stringify(params),
         });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.CREATE_PROFILE_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, ProfileApiResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.CREATE_PROFILE_INVALID_RESPONSE);
-        }
-        return data as ProfileApiResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.CREATE_PROFILE_FAILED,
+        );
+        return response.json();
       },
     });
   }
 
   async replaceProfile(
-    identifier: string,
-    input: ReplaceProfileInput,
+    profileId: string,
+    params: ReplaceProfileParams,
   ): Promise<ProfileApiResponse> {
+    assert(profileId, string());
+    assert(params, ReplaceProfileParamsStruct);
     const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
-      mutationKey: [`${this.name}:replaceProfile`, identifier],
+      mutationKey: [`${this.name}:replaceProfile`, profileId],
+      responseStruct: ProfileApiResponseStruct,
       mutationFn: async () => {
         const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(identifier)}`,
+          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
         );
         const response = await fetch(url.toString(), {
           method: 'PUT',
           headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(input),
+          body: JSON.stringify(params),
         });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, ProfileApiResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.REPLACE_PROFILE_INVALID_RESPONSE);
-        }
-        return data as ProfileApiResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
+        );
+        return response.json();
       },
     });
   }
 
   async updateProfile(
-    identifier: string,
-    input: UpdateProfileInput,
+    profileId: string,
+    params: UpdateProfileParams,
   ): Promise<ProfileApiResponse> {
+    assert(profileId, string());
+    assert(params, UpdateProfileParamsStruct);
     const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
-      mutationKey: [`${this.name}:updateProfile`, identifier],
+      mutationKey: [`${this.name}:updateProfile`, profileId],
+      responseStruct: ProfileApiResponseStruct,
       mutationFn: async () => {
         const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(identifier)}`,
+          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
         );
         const response = await fetch(url.toString(), {
           method: 'PATCH',
           headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(input),
+          body: JSON.stringify(params),
         });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, ProfileApiResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.UPDATE_PROFILE_INVALID_RESPONSE);
-        }
-        return data as ProfileApiResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
+        );
+        return response.json();
       },
     });
   }
 
-  async deleteProfile(identifier: string): Promise<void> {
+  async deleteProfile(profileId: string): Promise<void> {
+    assert(profileId, string());
     const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
-      mutationKey: [`${this.name}:deleteProfile`, identifier],
+      mutationKey: [`${this.name}:deleteProfile`, profileId],
       mutationFn: async () => {
         const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(identifier)}`,
+          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
         );
         const response = await fetch(url.toString(), {
           method: 'DELETE',
           headers: authHeaders,
         });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.DELETE_PROFILE_FAILED}: ${response.status}`,
-          );
-        }
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
+        );
         return null;
       },
     });
@@ -371,28 +354,22 @@ export class ProfileService extends BaseDataService<
   async checkUsernameAvailability(
     username: string,
   ): Promise<UsernameAvailabilityResponse> {
+    assert(username, string());
     const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
       queryKey: [`${this.name}:checkUsernameAvailability`, username],
       staleTime: 0,
+      responseStruct: UsernameAvailabilityResponseStruct,
       queryFn: async () => {
         const url = new URL(
           `${this.#v1Url}/profiles/username/${encodeURIComponent(username)}/availability`,
         );
         const response = await fetch(url.toString(), { headers: authHeaders });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, UsernameAvailabilityResponseStruct)) {
-          throw new Error(
-            ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_INVALID_RESPONSE,
-          );
-        }
-        return data as UsernameAvailabilityResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED,
+        );
+        return response.json();
       },
     });
   }
@@ -402,46 +379,37 @@ export class ProfileService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getXAuthUrl`],
       staleTime: 0,
+      responseStruct: XAuthUrlResponseStruct,
       queryFn: async () => {
         const url = new URL(`${this.#v1Url}/profiles/x/authentication-url`);
         const response = await fetch(url.toString(), { headers: authHeaders });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, XAuthUrlResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.GET_X_AUTH_URL_INVALID_RESPONSE);
-        }
-        return data as { url: string; state: string };
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
+        );
+        return response.json();
       },
     });
   }
 
-  async connectX(code: string, xState: string): Promise<XConnectResponse> {
+  async connectX(params: ConnectXParams): Promise<XConnectResponse> {
+    assert(params, ConnectXParamsStruct);
     const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:connectX`],
+      responseStruct: XConnectResponseStruct,
       mutationFn: async () => {
         const url = new URL(`${this.#v1Url}/profiles/x/connect`);
         const response = await fetch(url.toString(), {
           method: 'POST',
           headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, state: xState }),
+          body: JSON.stringify(params),
         });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.CONNECT_X_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, XConnectResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.CONNECT_X_INVALID_RESPONSE);
-        }
-        return data as XConnectResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.CONNECT_X_FAILED,
+        );
+        return response.json();
       },
     });
   }
@@ -451,20 +419,15 @@ export class ProfileService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getXAccount`],
       staleTime: 0,
+      responseStruct: XConnectResponseStruct,
       queryFn: async () => {
         const url = new URL(`${this.#v1Url}/profiles/x/account`);
         const response = await fetch(url.toString(), { headers: authHeaders });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED}: ${response.status}`,
-          );
-        }
-        const data = await response.json();
-        if (!is(data, XConnectResponseStruct)) {
-          throw new Error(ProfileServiceErrorMessage.GET_X_ACCOUNT_INVALID_RESPONSE);
-        }
-        return data as XAccountResponse;
+        this.#throwIfNotOk(
+          response,
+          ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
+        );
+        return response.json();
       },
     });
   }

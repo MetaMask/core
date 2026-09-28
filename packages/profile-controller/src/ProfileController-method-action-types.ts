@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProfileController } from './ProfileController';
+import type { ProfileController } from './ProfileController.js';
 
 export type ProfileControllerGetMetaMaskProfileAction = {
   type: `ProfileController:getMetaMaskProfile`;

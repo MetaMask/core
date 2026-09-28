@@ -19,11 +19,12 @@ import type {
   ProfileServiceUpdateProfileAction,
 } from './ProfileService-method-action-types.js';
 import type {
-  CreateProfileInput,
+  CreateProfileParams,
   ProfileApiResponse,
-  ReplaceProfileInput,
-  UpdateProfileInput,
+  ReplaceProfileParams,
+  UpdateProfileParams,
   UsernameAvailabilityResponse,
+  XAuthUrlResponse,
   XConnectResponse,
 } from './ProfileService.js';
 
@@ -214,7 +215,7 @@ export class ProfileController extends BaseController<
     return this.state.xProfile;
   }
 
-  async createProfile(input: CreateProfileInput): Promise<void> {
+  async createProfile(input: CreateProfileParams): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:createProfile',
       input,
@@ -226,7 +227,7 @@ export class ProfileController extends BaseController<
 
   async replaceProfile(
     identifier: string,
-    input: ReplaceProfileInput,
+    input: ReplaceProfileParams,
   ): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:replaceProfile',
@@ -240,7 +241,7 @@ export class ProfileController extends BaseController<
 
   async updateProfile(
     identifier: string,
-    input: UpdateProfileInput,
+    input: UpdateProfileParams,
   ): Promise<void> {
     const response = await this.messenger.call(
       'ProfileService:updateProfile',
@@ -270,16 +271,15 @@ export class ProfileController extends BaseController<
     );
   }
 
-  async getXAuthUrl(): Promise<{ url: string; state: string }> {
+  async getXAuthUrl(): Promise<XAuthUrlResponse> {
     return this.messenger.call('ProfileService:getXAuthUrl');
   }
 
   async connectX(code: string, xState: string): Promise<void> {
-    const response = await this.messenger.call(
-      'ProfileService:connectX',
+    const response = await this.messenger.call('ProfileService:connectX', {
       code,
-      xState,
-    );
+      state: xState,
+    });
     this.update((state) => {
       state.xProfile = this.#mapXResponseToXProfile(response);
     });

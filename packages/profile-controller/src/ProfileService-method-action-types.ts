@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProfileService } from './ProfileService';
+import type { ProfileService } from './ProfileService.js';
 
 export type ProfileServiceGetProfileAction = {
   type: `ProfileService:getProfile`;

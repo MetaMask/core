@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ProfileController` for managing user profile state, exposing `getMetaMaskProfile`, `getXprofile`, `createProfile`, `updateProfile`, `deleteProfile`, and `checkUsernameAvailability` via the messenger
-- Add `ProfileService` for communicating with the MetaMask Profile API, exposing `getProfile`, `createProfile`, `updateProfile`, `deleteProfile`, and `checkUsernameAvailability` via the messenger
+- Add `ProfileController` for managing user profile state, exposing `getMetaMaskProfile`, `getXprofile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger
+- Add `ProfileService` for communicating with the MetaMask Profile API, exposing `getProfile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger, with superstruct validation on all inputs and responses
+- Add `useGetProfile` and `useCheckUsernameAvailability` React query hooks for reading profile data in UI components via `@metamask/react-data-query`
 
 [Unreleased]: https://github.com/MetaMask/core/

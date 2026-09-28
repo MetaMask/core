@@ -480,7 +480,7 @@ describe('ProfileController', () => {
       const { controller } = createController({ rootMessenger });
       await controller.connectX('auth-code-123', 'state-xyz');
 
-      expect(connectXMock).toHaveBeenCalledWith('auth-code-123', 'state-xyz');
+      expect(connectXMock).toHaveBeenCalledWith({ code: 'auth-code-123', state: 'state-xyz' });
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
     });
   });

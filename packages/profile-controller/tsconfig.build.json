@@ -19,6 +19,9 @@
     },
     {
       "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../react-data-query/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
