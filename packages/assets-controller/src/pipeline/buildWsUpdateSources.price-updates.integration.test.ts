@@ -373,20 +373,14 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       ).toBeUndefined();
     });
 
-    it('queues the held-but-unpriced asset for a price update', () => {
+    it('prices the held-but-unpriced asset in the same pass', () => {
       const queued =
         result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
         [];
       expect(queued).toStrictEqual([ETH_ASSET_ID]);
-    });
-
-    it('invokes the Price API for the held-but-unpriced asset', () => {
       expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
-    });
-
-    it('prices the held asset from the captured spot price', () => {
       expect(PRICES.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
         assetPriceType: 'fungible',
         price: ETH_SPOT_PRICE,
@@ -417,11 +411,8 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       ).toBeUndefined();
     });
 
-    it('does not queue the priced token for another price update', () => {
+    it('does not re-price the already-priced token', () => {
       expect(result.request.assetsForPriceUpdate ?? []).toStrictEqual([]);
-    });
-
-    it('does not invoke the Price API', () => {
       expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 

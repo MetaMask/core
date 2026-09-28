@@ -282,18 +282,15 @@ describe('AssetsController: websocket price updates', () => {
       });
     });
 
-    it('prices the held-but-unpriced asset from the captured Price API', () => {
+    it('prices the held-but-unpriced asset from the captured Price API in the same pass', () => {
+      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
+        new Set([ETH_ASSET_ID]),
+      );
       expect(PRICES.lookUp(result.state, ETH_ASSET_ID)).toMatchObject({
         assetPriceType: 'fungible',
         price: ETH_SPOT_PRICE,
         usdPrice: ETH_SPOT_PRICE,
       });
-    });
-
-    it('invoked the Price API for the held-but-unpriced asset', () => {
-      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
-        new Set([ETH_ASSET_ID]),
-      );
     });
   });
 
@@ -313,14 +310,11 @@ describe('AssetsController: websocket price updates', () => {
       ).toStrictEqual({ amount: USDC_WS_AMOUNT });
     });
 
-    it('keeps the seeded price untouched', () => {
+    it('does not re-price the already-priced token', () => {
+      expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
       expect(
         PRICES.lookUp(result.state, USDC_ASSET_ID_LOWERCASE),
       ).toStrictEqual(SEEDED_USDC_PRICE);
-    });
-
-    it('did not invoke the Price API for the priced token', () => {
-      expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 
     it('did not refetch metadata for the enriched token', () => {
