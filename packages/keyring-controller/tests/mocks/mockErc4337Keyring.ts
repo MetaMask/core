@@ -1,5 +1,6 @@
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Hex, Json } from '@metamask/utils';
+import { vi } from 'vitest';
 
 export class MockErc4337Keyring implements EthKeyring {
   static type = 'ERC-4337 Keyring';
@@ -22,9 +23,9 @@ export class MockErc4337Keyring implements EthKeyring {
     return [];
   }
 
-  prepareUserOperation = jest.fn();
+  prepareUserOperation = vi.fn();
 
-  patchUserOperation = jest.fn();
+  patchUserOperation = vi.fn();
 
-  signUserOperation = jest.fn();
+  signUserOperation = vi.fn();
 }
