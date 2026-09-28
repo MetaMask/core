@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import type { UpgradeConfig } from '../types.js';
 
 /**
  * Context supplied to each step when it is run.
@@ -14,6 +15,7 @@ export type StepContext = {
   delegatorImplAddress: Hex;
   erc20TransferAmountEnforcer: Hex;
   musdTokenAddress: Hex;
+  premiumVault?: UpgradeConfig['premiumVault'];
   redeemerEnforcer: Hex;
   valueLteEnforcer: Hex;
   vedaVaultAdapterAddress: Hex;
