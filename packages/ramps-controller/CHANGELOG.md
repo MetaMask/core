@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Treat a relay-approved KYC session as approved in `hydrateVbaOnboarding` even when the vendor-side `finalStatus` is still `pending`, so relay-approved users are no longer stranded on the pending screen ([#10497](https://github.com/MetaMask/core/pull/10497))
+
 ## [26.0.0]
 
 ### Changed

@@ -5,6 +5,18 @@ __metadata:
   version: 10
   cacheKey: 10
 
+"@11ty/gray-matter@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@11ty/gray-matter@npm:1.0.0"
+  dependencies:
+    js-yaml: "npm:^4.1.0"
+    kind-of: "npm:^6.0.3"
+    section-matter: "npm:^1.0.0"
+    strip-bom-string: "npm:^1.0.0"
+  checksum: 10/e3767a3c2eabe37ed14a4d5fccd50f3df9528113897d3c9a59a7de156866e3e4922a7b9c18582211cd0c79861fef7fcc7f1e50806680d2339d8aa34df9613f61
+  languageName: node
+  linkType: hard
+
 "@actions/core@npm:^3.0.1":
   version: 3.0.1
   resolution: "@actions/core@npm:3.0.1"
@@ -2588,9 +2600,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/babel@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/babel@npm:3.10.1"
+"@docusaurus/babel@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/babel@npm:3.10.2"
   dependencies:
     "@babel/core": "npm:^7.25.9"
     "@babel/generator": "npm:^7.25.9"
@@ -2601,25 +2613,25 @@ __metadata:
     "@babel/preset-typescript": "npm:^7.25.9"
     "@babel/runtime": "npm:^7.25.9"
     "@babel/traverse": "npm:^7.25.9"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
     babel-plugin-dynamic-import-node: "npm:^2.3.3"
     fs-extra: "npm:^11.1.1"
     tslib: "npm:^2.6.0"
-  checksum: 10/50c7c3e02c9cb5181fe32b0ec04b98eaa96ceaaa650861e1e5afe29f4a40c4ab7a49783ec664a4cb2886cf9fbf995104b391669809e128ed30c6c5d85dd2205e
+  checksum: 10/b08db10332a415a42021d5e6ebbe139b108aac5f71ea7cb833aa22b552c1738a0c9052fdd15a39fea540d8c79a2310716f0f8461cf4b88fae95f0dee7d1d2718
   languageName: node
   linkType: hard
 
-"@docusaurus/bundler@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/bundler@npm:3.10.1"
+"@docusaurus/bundler@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/bundler@npm:3.10.2"
   dependencies:
     "@babel/core": "npm:^7.25.9"
-    "@docusaurus/babel": "npm:3.10.1"
-    "@docusaurus/cssnano-preset": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
+    "@docusaurus/babel": "npm:3.10.2"
+    "@docusaurus/cssnano-preset": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
     babel-loader: "npm:^9.2.1"
     clean-css: "npm:^5.3.3"
     copy-webpack-plugin: "npm:^11.0.0"
@@ -2643,21 +2655,21 @@ __metadata:
   peerDependenciesMeta:
     "@docusaurus/faster":
       optional: true
-  checksum: 10/bb0401a1a24896457b23c1f101abc65f67a8148ba40649e5aeeec34cc2a8c97ad511e203406167b5a1d929e759efd4de6dd94fffa8b963b184e95d43b22a0edf
+  checksum: 10/be34e9e31f36a6fb2694c7247ca8cb497d5082e17519efd32e11dc85c887a27f381e155751ed15d84876fe4148b7c7185266c512d92d237d6f1f96bbefe3af8c
   languageName: node
   linkType: hard
 
-"@docusaurus/core@npm:3.10.1, @docusaurus/core@npm:^3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/core@npm:3.10.1"
+"@docusaurus/core@npm:3.10.2, @docusaurus/core@npm:^3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/core@npm:3.10.2"
   dependencies:
-    "@docusaurus/babel": "npm:3.10.1"
-    "@docusaurus/bundler": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/mdx-loader": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/babel": "npm:3.10.2"
+    "@docusaurus/bundler": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/mdx-loader": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     boxen: "npm:^6.2.1"
     chalk: "npm:^4.1.2"
     chokidar: "npm:^3.5.3"
@@ -2665,7 +2677,7 @@ __metadata:
     combine-promises: "npm:^1.1.0"
     commander: "npm:^5.1.0"
     core-js: "npm:^3.31.1"
-    detect-port: "npm:^1.5.1"
+    detect-port: "npm:^2.1.0"
     escape-html: "npm:^1.0.3"
     eta: "npm:^2.2.0"
     eval: "npm:^0.1.8"
@@ -2703,39 +2715,39 @@ __metadata:
       optional: true
   bin:
     docusaurus: bin/docusaurus.mjs
-  checksum: 10/097162b18d395d52e6d958f1cbadd13c276ce84a46de8187533f21060bcb13fc6ea93d9cc3019652d2e6e6c898093c5ce07d2368f1b4c3bbf6afba3b22d71dd9
+  checksum: 10/b30d02f5815b4d70515c00937cbdeeaeac5a9ec12e86e03769863a4a495082466fb0f5661c651b3ed937e92518983c33543bbac4b3572e4828f32dfbbf4c0beb
   languageName: node
   linkType: hard
 
-"@docusaurus/cssnano-preset@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/cssnano-preset@npm:3.10.1"
+"@docusaurus/cssnano-preset@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/cssnano-preset@npm:3.10.2"
   dependencies:
     cssnano-preset-advanced: "npm:^6.1.2"
     postcss: "npm:^8.5.4"
     postcss-sort-media-queries: "npm:^5.2.0"
     tslib: "npm:^2.6.0"
-  checksum: 10/caeb902202122b3536e3357c5d438c4e07c655a46304794be30051de179578ec524192789f268b3344306ee05504f3586e40613b4a45e0704f4b37166eb801a0
+  checksum: 10/d21ad10f642c03889f68025279e5d9d5e22a38a37f1b9b94138843ec5590d1ed86b236ea1d11e817d22a61dd3d655ac38e6f9fd79bce5e722764a089dd8171ee
   languageName: node
   linkType: hard
 
-"@docusaurus/logger@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/logger@npm:3.10.1"
+"@docusaurus/logger@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/logger@npm:3.10.2"
   dependencies:
     chalk: "npm:^4.1.2"
     tslib: "npm:^2.6.0"
-  checksum: 10/84adf6f031edc9483d0214de5922678cc7133201a3375bb6e34a1305119142a85b261d3b77f65c0389523d200e150092a75eaaee5ffb4cf7b065ef087849513f
+  checksum: 10/cb95fb35d6af203a2f1f98a52819c0a02ebbbd0ceba50ed7def39c233fdf1d3db5783a9d75c77084334bf1790536be10239cfb4f1e025d5013986e3ce660dd50
   languageName: node
   linkType: hard
 
-"@docusaurus/mdx-loader@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/mdx-loader@npm:3.10.1"
+"@docusaurus/mdx-loader@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/mdx-loader@npm:3.10.2"
   dependencies:
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     "@mdx-js/mdx": "npm:^3.0.0"
     "@slorber/remark-comment": "npm:^1.0.0"
     escape-html: "npm:^1.0.3"
@@ -2760,15 +2772,15 @@ __metadata:
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/71db855425b5bc0fdef6aaf73bf80a935fd439d41b0b9d6413646196e858a3055afefc643824fdd8d39ece97f6859870cf46efbd7bfc8b973b2b0a3ca86982a5
+  checksum: 10/3605698421f524da49adecd0e290c5ca3098d56de46583d9bbd20debca96f426ce6cb26ade07697f5c34428de40275821a2a232473b8acad3ccd4bc8dc10adc3
   languageName: node
   linkType: hard
 
-"@docusaurus/module-type-aliases@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/module-type-aliases@npm:3.10.1"
+"@docusaurus/module-type-aliases@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/module-type-aliases@npm:3.10.2"
   dependencies:
-    "@docusaurus/types": "npm:3.10.1"
+    "@docusaurus/types": "npm:3.10.2"
     "@types/history": "npm:^4.7.11"
     "@types/react": "npm:*"
     "@types/react-router-config": "npm:*"
@@ -2778,22 +2790,22 @@ __metadata:
   peerDependencies:
     react: "*"
     react-dom: "*"
-  checksum: 10/128232274fd2a5f559f9ddc7d459839d7a6a0518e573d6c1749b5301a71f269404a647b3dd80f30a7772f376c701edb6ce0581cd55bb25e835a3bf2f7197d01f
+  checksum: 10/3264af9abd91abc6a3f2079ea24af57e332e9ed42e779c150defceb9a89374ee01b650215a4f62b5b0c22b0a06ceabcc4430bfcb9ceaf81e92d398feca512c23
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-content-blog@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-content-blog@npm:3.10.1"
+"@docusaurus/plugin-content-blog@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-content-blog@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/mdx-loader": "npm:3.10.1"
-    "@docusaurus/theme-common": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/mdx-loader": "npm:3.10.2"
+    "@docusaurus/theme-common": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     cheerio: "npm:1.0.0-rc.12"
     combine-promises: "npm:^1.1.0"
     feed: "npm:^4.2.2"
@@ -2809,23 +2821,23 @@ __metadata:
     "@docusaurus/plugin-content-docs": "*"
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/ce9912a43ea17cc3d1344747498d14cd530050af0bd3a8909ae67b1605684e0e55bddb2a1413576383a83755f2479a551e9cfb94e222bb2e169586777126753d
+  checksum: 10/7c3e29a0c64ff5e6d398af5d4abd5798bd2c416e07f1b1c7faba3662ca828517520f8d4b9eef7cf1565fa743258ce677990846fa9c3a0849929b44d8de62cc6c
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-content-docs@npm:3.10.1, @docusaurus/plugin-content-docs@npm:^2 || ^3, @docusaurus/plugin-content-docs@npm:^3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-content-docs@npm:3.10.1"
+"@docusaurus/plugin-content-docs@npm:3.10.2, @docusaurus/plugin-content-docs@npm:^2 || ^3, @docusaurus/plugin-content-docs@npm:^3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-content-docs@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/mdx-loader": "npm:3.10.1"
-    "@docusaurus/module-type-aliases": "npm:3.10.1"
-    "@docusaurus/theme-common": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/mdx-loader": "npm:3.10.2"
+    "@docusaurus/module-type-aliases": "npm:3.10.2"
+    "@docusaurus/theme-common": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     "@types/react-router-config": "npm:^5.0.7"
     combine-promises: "npm:^1.1.0"
     fs-extra: "npm:^11.1.1"
@@ -2838,133 +2850,132 @@ __metadata:
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/1389487ec8b5a4d87be86e35a8fa319d15783f818e78b11f7a8bf559cac3b51cf6e8b386541dac4dd0a6bbb3e8236a1f737224e877bb7247dbdeaa3c588e841a
+  checksum: 10/2b60dcba9f486324e95837895bae3f65cbda8ac0ed26ecf9333bd68199c11db509929baddcf5a57cb08b10c9d88eaf1385afe408e98bdbf0184cc360972b5058
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-content-pages@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-content-pages@npm:3.10.1"
+"@docusaurus/plugin-content-pages@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-content-pages@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/mdx-loader": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/mdx-loader": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     fs-extra: "npm:^11.1.1"
     tslib: "npm:^2.6.0"
     webpack: "npm:^5.88.1"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/ba779e7bfcd324a095e26d9b757604efc63de9ec3bb503fe9a8493d8310d4f376eb0b4fc18931846472d97ffcd9ec396d124aafcf3b3edd4f0d42fb27efc638a
+  checksum: 10/1bc9f032308544599e0392eaec5a75a37f2d62f7accdd0117742499713fca5ca7ca40b2aeae0abe1402e5d466f4bb0f49ea34fa43e2da118580e7602cf3f447f
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-css-cascade-layers@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-css-cascade-layers@npm:3.10.1"
+"@docusaurus/plugin-css-cascade-layers@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-css-cascade-layers@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     tslib: "npm:^2.6.0"
-  checksum: 10/1cf2a4afa98e8d4b8ce12516f0effb5c893f468db6a5a4691d93c6ab0074fccbbd2e5e7dcea4348183af84e14f9e45acb4378305b6264134a41b2ed6deb4b6a6
+  checksum: 10/6857f884542c528970af5e012288d937a4b94474bba945dc7d634d03152aa4d8a5a1e70f55b7492b3e23539cbc20a0f6c62229e679019178c83bb40cccf78882
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-debug@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-debug@npm:3.10.1"
+"@docusaurus/plugin-debug@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-debug@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
     fs-extra: "npm:^11.1.1"
     react-json-view-lite: "npm:^2.3.0"
     tslib: "npm:^2.6.0"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/fb3f77d698fea7b6c35fa8b59596afaa8c9469d865a168912283456803ab2b9e202d470e721f7c56de32bfea6eec2f2a3db7b808516579a978f96f992e1483ca
+  checksum: 10/c8865261749803fb12dba8c96ed1604d405c0af4f8ba8d83ce48faddec4f9c994a85a31a953653d7eefdee1760e35fd419ae8dbddcf7c555c12f72eb372f5b60
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-google-analytics@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-google-analytics@npm:3.10.1"
+"@docusaurus/plugin-google-analytics@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-google-analytics@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     tslib: "npm:^2.6.0"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/4c9aae9a639ed75fd597af82f7a21a19bf241c27c977172092953fc0eb44704c7484965d8dd4536ad8b93a233de6b6fef64e3d3549268c1dc124a67afd762dc1
+  checksum: 10/e5e55d9c271ee2d8f088025f48849f8554926e8e2241e4c2e0c524cdfb0a5fe8957f85d38da4be1d73108eaff4580b643d69465e16f5d6f614bff56dc9fe720a
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-google-gtag@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-google-gtag@npm:3.10.1"
+"@docusaurus/plugin-google-gtag@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-google-gtag@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
-    "@types/gtag.js": "npm:^0.0.20"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     tslib: "npm:^2.6.0"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/5a2ce87d8ab4dac3d86d7ef497569a7bf2d699b519a1a5783234d7a8097c9a67b2c85ecfb31ad30263d7ad682aa6337b45cd42558ffe9fab185c85e7ae08b3a0
+  checksum: 10/c2549b31bbaa49df62f2b7161e9191f816adc625fda191b35dadb0bd661bb05e5ad8b60d449183497a77c143cd8db8b687dcde23b8e3b50b5ab71f2122408fa7
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-google-tag-manager@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-google-tag-manager@npm:3.10.1"
+"@docusaurus/plugin-google-tag-manager@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-google-tag-manager@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     tslib: "npm:^2.6.0"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/88b8d0718a14fcf7bd49f763d5c74d79053b11f259f04c8dcec4927e6ff415491a6ce71d32a34e0594136378d6607c50f65c6906c70c68269caa4e4096951214
+  checksum: 10/08cff3a177b2051ecd91e740e30d23bd618a998cfd03ac448b0fac0884790c265a6feed59933702b078de1ab6816fab0e697496f01a915b0c199f6077ab04f76
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-sitemap@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-sitemap@npm:3.10.1"
+"@docusaurus/plugin-sitemap@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-sitemap@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     fs-extra: "npm:^11.1.1"
     sitemap: "npm:^7.1.1"
     tslib: "npm:^2.6.0"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/6421d4ea3e5a72816d02be6d11243e0a366cb5ad698f5e543902f4b13d0d6c4dab2f59d4db4a1b35343da54b5424db579cb2ba0b6f81b0c01b1fa1c12679b770
+  checksum: 10/412a12b4d7a32f1004836c7d1388baa2ffa9e876ddcf9b500920483e50670d2b7477924cdcf44dd700bebf2ebc4e70bcb13e6d98fd7d575666183180166d7ba0
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-svgr@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/plugin-svgr@npm:3.10.1"
+"@docusaurus/plugin-svgr@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/plugin-svgr@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     "@svgr/core": "npm:8.1.0"
     "@svgr/webpack": "npm:^8.1.0"
     tslib: "npm:^2.6.0"
@@ -2972,53 +2983,53 @@ __metadata:
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/e7dd4c9994b2169cf9b4e1d09dfe2ef58753fca5142c32e106a36a263d71714333cd431b50130da56b7a058258b9b373d498ea00c2868498a3e40865c69d2c77
+  checksum: 10/fc9a0135f8d5b8db0df4485f59ab8d97f180d5cb87c5ab98c65446c8f4b037688cca55c76eadede441979b7c3a7f607cf9036fa9898f4088ef1c1eeef2e3ac60
   languageName: node
   linkType: hard
 
-"@docusaurus/preset-classic@npm:^3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/preset-classic@npm:3.10.1"
+"@docusaurus/preset-classic@npm:^3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/preset-classic@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/plugin-content-blog": "npm:3.10.1"
-    "@docusaurus/plugin-content-docs": "npm:3.10.1"
-    "@docusaurus/plugin-content-pages": "npm:3.10.1"
-    "@docusaurus/plugin-css-cascade-layers": "npm:3.10.1"
-    "@docusaurus/plugin-debug": "npm:3.10.1"
-    "@docusaurus/plugin-google-analytics": "npm:3.10.1"
-    "@docusaurus/plugin-google-gtag": "npm:3.10.1"
-    "@docusaurus/plugin-google-tag-manager": "npm:3.10.1"
-    "@docusaurus/plugin-sitemap": "npm:3.10.1"
-    "@docusaurus/plugin-svgr": "npm:3.10.1"
-    "@docusaurus/theme-classic": "npm:3.10.1"
-    "@docusaurus/theme-common": "npm:3.10.1"
-    "@docusaurus/theme-search-algolia": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/plugin-content-blog": "npm:3.10.2"
+    "@docusaurus/plugin-content-docs": "npm:3.10.2"
+    "@docusaurus/plugin-content-pages": "npm:3.10.2"
+    "@docusaurus/plugin-css-cascade-layers": "npm:3.10.2"
+    "@docusaurus/plugin-debug": "npm:3.10.2"
+    "@docusaurus/plugin-google-analytics": "npm:3.10.2"
+    "@docusaurus/plugin-google-gtag": "npm:3.10.2"
+    "@docusaurus/plugin-google-tag-manager": "npm:3.10.2"
+    "@docusaurus/plugin-sitemap": "npm:3.10.2"
+    "@docusaurus/plugin-svgr": "npm:3.10.2"
+    "@docusaurus/theme-classic": "npm:3.10.2"
+    "@docusaurus/theme-common": "npm:3.10.2"
+    "@docusaurus/theme-search-algolia": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/e4590afaa98d40f465e6348c0cb912fbd7d4e18ee401c6ae5c7b378f76753624b50f033cac02f22850288cad6055b88315cc22bc8c212cc633af909900d5849b
+  checksum: 10/bc3ecbe6ceea4f31ba186cd8c96c8bd67e341257dde88bd41fd9e3c049c720aaf72a136413b5fd9300839b6a8fbc170559064ec9e5fe04906926b9acd884baa8
   languageName: node
   linkType: hard
 
-"@docusaurus/theme-classic@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/theme-classic@npm:3.10.1"
+"@docusaurus/theme-classic@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/theme-classic@npm:3.10.2"
   dependencies:
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/mdx-loader": "npm:3.10.1"
-    "@docusaurus/module-type-aliases": "npm:3.10.1"
-    "@docusaurus/plugin-content-blog": "npm:3.10.1"
-    "@docusaurus/plugin-content-docs": "npm:3.10.1"
-    "@docusaurus/plugin-content-pages": "npm:3.10.1"
-    "@docusaurus/theme-common": "npm:3.10.1"
-    "@docusaurus/theme-translations": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/mdx-loader": "npm:3.10.2"
+    "@docusaurus/module-type-aliases": "npm:3.10.2"
+    "@docusaurus/plugin-content-blog": "npm:3.10.2"
+    "@docusaurus/plugin-content-docs": "npm:3.10.2"
+    "@docusaurus/plugin-content-pages": "npm:3.10.2"
+    "@docusaurus/theme-common": "npm:3.10.2"
+    "@docusaurus/theme-translations": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     "@mdx-js/react": "npm:^3.0.0"
     clsx: "npm:^2.0.0"
     copy-text-to-clipboard: "npm:^3.2.0"
@@ -3035,18 +3046,18 @@ __metadata:
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/58e68b868ea9b7b7bbd7e81abb46c3afee60f721c86862895bdd270731745bad417fef3696a9c73fbe1f60947dc25283271fb25ada3ab48207e43f3f9b1a6142
+  checksum: 10/6ca472514d3607caa93e08ee50c06b534c18edee2422163969b034a3a98fe7a61acdca461310967de86b8a7a079857fdf116df6ed5e376c2d44f15b55a9b4be2
   languageName: node
   linkType: hard
 
-"@docusaurus/theme-common@npm:3.10.1, @docusaurus/theme-common@npm:^3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/theme-common@npm:3.10.1"
+"@docusaurus/theme-common@npm:3.10.2, @docusaurus/theme-common@npm:^3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/theme-common@npm:3.10.2"
   dependencies:
-    "@docusaurus/mdx-loader": "npm:3.10.1"
-    "@docusaurus/module-type-aliases": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
+    "@docusaurus/mdx-loader": "npm:3.10.2"
+    "@docusaurus/module-type-aliases": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
     "@types/history": "npm:^4.7.11"
     "@types/react": "npm:*"
     "@types/react-router-config": "npm:*"
@@ -3059,23 +3070,23 @@ __metadata:
     "@docusaurus/plugin-content-docs": "*"
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/37a59244d6c0b8a09da1dc689e8d14255d7ccc8e06bf0096b85fd462d12e30130340435059fdfeb5796363f1b3fd39f2ca12cdc0da4e2dce522eb704861297e3
+  checksum: 10/cd0ffbea3eb547215867ee09f43a34832955304390b42365f11f1b4177e70e35ab6903f70ae76c70f01dd82dfebb3b63f8b5438c20f5ec35e6244f2ccf6a523a
   languageName: node
   linkType: hard
 
-"@docusaurus/theme-search-algolia@npm:3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/theme-search-algolia@npm:3.10.1"
+"@docusaurus/theme-search-algolia@npm:3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/theme-search-algolia@npm:3.10.2"
   dependencies:
     "@algolia/autocomplete-core": "npm:^1.19.2"
     "@docsearch/react": "npm:^3.9.0 || ^4.3.2"
-    "@docusaurus/core": "npm:3.10.1"
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/plugin-content-docs": "npm:3.10.1"
-    "@docusaurus/theme-common": "npm:3.10.1"
-    "@docusaurus/theme-translations": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-validation": "npm:3.10.1"
+    "@docusaurus/core": "npm:3.10.2"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/plugin-content-docs": "npm:3.10.2"
+    "@docusaurus/theme-common": "npm:3.10.2"
+    "@docusaurus/theme-translations": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-validation": "npm:3.10.2"
     algoliasearch: "npm:^5.37.0"
     algoliasearch-helper: "npm:^3.26.0"
     clsx: "npm:^2.0.0"
@@ -3087,23 +3098,23 @@ __metadata:
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/c2aa55218af15b90be28c276794f461cd2590b9049819bed4c8060b5359f84e7f932b5e535da62be42ebe287743e0e2597452d38ecde8cc0035743f52b413dc3
+  checksum: 10/14fdefa1e5b1d3401291b9134730e21f8d78c6e018bf1b00389b2240781fb7e5f6c22c02da9ec3a9f5c0c98f0938ec0820c3fd50cd66d0326a991da27e9c9fae
   languageName: node
   linkType: hard
 
-"@docusaurus/theme-translations@npm:3.10.1, @docusaurus/theme-translations@npm:^2 || ^3":
-  version: 3.10.1
-  resolution: "@docusaurus/theme-translations@npm:3.10.1"
+"@docusaurus/theme-translations@npm:3.10.2, @docusaurus/theme-translations@npm:^2 || ^3":
+  version: 3.10.2
+  resolution: "@docusaurus/theme-translations@npm:3.10.2"
   dependencies:
     fs-extra: "npm:^11.1.1"
     tslib: "npm:^2.6.0"
-  checksum: 10/eeebe25b79a59896fb438e09adc6499eb22c47bdace4aec73d7ebe3c73185eb8e590d93f71f57dbd2fe508d6aae9eac89d4de548f566678fb4cbb9c0d987a8f3
+  checksum: 10/a9486cf0fd0e78e5b75ef811b3f086e2b236c9027ceddaa5e1eabbf505cf4e92919b3740afd39df734a76545691edd931ab9b7c91cbb95572b0a32fca82be290
   languageName: node
   linkType: hard
 
-"@docusaurus/types@npm:3.10.1, @docusaurus/types@npm:^3.10.1":
-  version: 3.10.1
-  resolution: "@docusaurus/types@npm:3.10.1"
+"@docusaurus/types@npm:3.10.2, @docusaurus/types@npm:^3.10.2":
+  version: 3.10.2
+  resolution: "@docusaurus/types@npm:3.10.2"
   dependencies:
     "@mdx-js/mdx": "npm:^3.0.0"
     "@types/history": "npm:^4.7.11"
@@ -3118,50 +3129,50 @@ __metadata:
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10/0c4c641e18a677db2f4fe44ef472b6345e81df9baa08cb4855aced30c79d826f78d79d79475421c5aeca9008a29c090134090c818a2b5ba5b447d232adb55cc1
+  checksum: 10/64577c9c7552dc924d346b8e8eceee11b1d91f898fbaaa7e1e299da9da62444bdcff1bb2e67635ee04c83747c8c8e28e6c443f50a68e1c70ccf91935a534ccfe
   languageName: node
   linkType: hard
 
-"@docusaurus/utils-common@npm:3.10.1, @docusaurus/utils-common@npm:^2 || ^3":
-  version: 3.10.1
-  resolution: "@docusaurus/utils-common@npm:3.10.1"
+"@docusaurus/utils-common@npm:3.10.2, @docusaurus/utils-common@npm:^2 || ^3":
+  version: 3.10.2
+  resolution: "@docusaurus/utils-common@npm:3.10.2"
   dependencies:
-    "@docusaurus/types": "npm:3.10.1"
+    "@docusaurus/types": "npm:3.10.2"
     tslib: "npm:^2.6.0"
-  checksum: 10/db7a0aac5aed2a86cd510f226390c8e80b7c52eb4b326e8a2c75572e71b0ea8099c80e665d4e0e20396f526e1cc79c56a0d7c2f92fa6ca5cedd88f3ce3ea1040
+  checksum: 10/b84811c5e9afac66ec51b411035e9d89d76de3ca8ad97757d1b09e176d254c854e99d4a4c78ce43b9b24b92c7fffc0aad7ff5a5ed57c106c5ef97b3229d69d03
   languageName: node
   linkType: hard
 
-"@docusaurus/utils-validation@npm:3.10.1, @docusaurus/utils-validation@npm:^2 || ^3":
-  version: 3.10.1
-  resolution: "@docusaurus/utils-validation@npm:3.10.1"
+"@docusaurus/utils-validation@npm:3.10.2, @docusaurus/utils-validation@npm:^2 || ^3":
+  version: 3.10.2
+  resolution: "@docusaurus/utils-validation@npm:3.10.2"
   dependencies:
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/utils": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/utils": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
     fs-extra: "npm:^11.2.0"
     joi: "npm:^17.9.2"
     js-yaml: "npm:^4.1.0"
     lodash: "npm:^4.17.21"
     tslib: "npm:^2.6.0"
-  checksum: 10/e1c69deb39ff8e6c8c2e76e776e92b1fcc61cf29961760b56b5467bb3089c2d2b6802ef25f169dcfb8efc838dde9cca214dfa7e82b6a19063856d76b30ce074a
+  checksum: 10/36d6d47e271b57db511be264c6bedb657d519ba2241b379288fd9c094c2c47f547c42a881bf59e5115da891ff981f4f5d659a06bf96d3a475cbc53b5f1e58272
   languageName: node
   linkType: hard
 
-"@docusaurus/utils@npm:3.10.1, @docusaurus/utils@npm:^2 || ^3":
-  version: 3.10.1
-  resolution: "@docusaurus/utils@npm:3.10.1"
+"@docusaurus/utils@npm:3.10.2, @docusaurus/utils@npm:^2 || ^3":
+  version: 3.10.2
+  resolution: "@docusaurus/utils@npm:3.10.2"
   dependencies:
-    "@docusaurus/logger": "npm:3.10.1"
-    "@docusaurus/types": "npm:3.10.1"
-    "@docusaurus/utils-common": "npm:3.10.1"
+    "@11ty/gray-matter": "npm:^1.0.0"
+    "@docusaurus/logger": "npm:3.10.2"
+    "@docusaurus/types": "npm:3.10.2"
+    "@docusaurus/utils-common": "npm:3.10.2"
     escape-string-regexp: "npm:^4.0.0"
     execa: "npm:^5.1.1"
     file-loader: "npm:^6.2.0"
     fs-extra: "npm:^11.1.1"
     github-slugger: "npm:^1.5.0"
     globby: "npm:^11.1.0"
-    gray-matter: "npm:^4.0.3"
     jiti: "npm:^1.20.0"
     js-yaml: "npm:^4.1.0"
     lodash: "npm:^4.17.21"
@@ -3173,7 +3184,7 @@ __metadata:
     url-loader: "npm:^4.1.1"
     utility-types: "npm:^3.10.0"
     webpack: "npm:^5.88.1"
-  checksum: 10/b8a2a7c1f546030d176fd13b4bd5c747fe45fb1a012fde026baf76d7e93c822c2825b50137dd7f82e30d7381fa677db4b944b0fb72dd3291bae53e3b9a936b43
+  checksum: 10/28b2e56886ce0f1c5b8b45127ba94fd7c0dc4e21fa596ea81ef3e719eec8efd32f50235d74055f9968eb40a6cd87605ece53f45ac1726506bbb63b5055626455
   languageName: node
   linkType: hard
 
@@ -4513,35 +4524,35 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@inquirer/ansi@npm:^2.0.7":
-  version: 2.0.7
-  resolution: "@inquirer/ansi@npm:2.0.7"
-  checksum: 10/ae4ff228412f1f67d78aa9a7410e07e692eeb7c9b75034825f1039898821b02505dfe934be53d6ee4ce5bde9e7ff6b4ce7547bacc1c9aa441396cb9b99717e0f
+"@inquirer/ansi@npm:^2.0.8":
+  version: 2.0.8
+  resolution: "@inquirer/ansi@npm:2.0.8"
+  checksum: 10/43b9de6f56ed7972d56475299727432a5bb505d34e376ecb6cb81b0b40c0e9fd273846473091d6df7abde8948600e52284f15db33d785c125912964b2aebd6a1
   languageName: node
   linkType: hard
 
-"@inquirer/confirm@npm:^6.0.11":
-  version: 6.1.1
-  resolution: "@inquirer/confirm@npm:6.1.1"
+"@inquirer/confirm@npm:^6.3.2":
+  version: 6.3.2
+  resolution: "@inquirer/confirm@npm:6.3.2"
   dependencies:
-    "@inquirer/core": "npm:^11.2.1"
-    "@inquirer/type": "npm:^4.0.7"
+    "@inquirer/core": "npm:^12.0.3"
+    "@inquirer/type": "npm:4.1.1"
   peerDependencies:
     "@types/node": ">=18"
   peerDependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10/631d35403438949abe073ba6b7823682d4bd995a582226df0c8d18fd2b069a42e415bc40988fd10b138984701d585da32086da6d90814ec50eaa8a2778dc6bfb
+  checksum: 10/d82547615909120232db1fdeb6d8bedac7231ca0137a0de87d1d37ca65b12f329eb09c9cc4ec179454d234c3d0552467bbf35caecb3d2b1caaebc5631b3aaaa0
   languageName: node
   linkType: hard
 
-"@inquirer/core@npm:^11.2.1":
-  version: 11.2.1
-  resolution: "@inquirer/core@npm:11.2.1"
+"@inquirer/core@npm:^12.0.3":
+  version: 12.0.3
+  resolution: "@inquirer/core@npm:12.0.3"
   dependencies:
-    "@inquirer/ansi": "npm:^2.0.7"
-    "@inquirer/figures": "npm:^2.0.7"
-    "@inquirer/type": "npm:^4.0.7"
+    "@inquirer/ansi": "npm:^2.0.8"
+    "@inquirer/figures": "npm:^2.0.9"
+    "@inquirer/type": "npm:4.1.1"
     cli-width: "npm:^4.1.0"
     fast-wrap-ansi: "npm:^0.2.0"
     mute-stream: "npm:^3.0.0"
@@ -4551,42 +4562,42 @@ __metadata:
   peerDependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10/687c2ee50985a8eb3142c902e99dd888176e66af2eed0781238e7b4b1f327737d4db053345a20b74c7fefa47da539238eea0afcd1e59e577409ca5ead94aa6d1
+  checksum: 10/3aab1fc0efeb519054e31eb74d091fc6025e281c70c27b7145df261a072001a23b11225a844ed33274993089445e19f5c22a31bd3bbc1616c50e702264a1b3d1
   languageName: node
   linkType: hard
 
-"@inquirer/figures@npm:^2.0.7":
-  version: 2.0.7
-  resolution: "@inquirer/figures@npm:2.0.7"
-  checksum: 10/145d74307b17712807ccd561787ecd1a72d574165b4d07a146e0d815f8e0320ffd39fb07f81a33910a4d2f0e098862b35b87614c4d3da740a29fa42c38dcb768
+"@inquirer/figures@npm:^2.0.9":
+  version: 2.0.9
+  resolution: "@inquirer/figures@npm:2.0.9"
+  checksum: 10/22a325d1da578f3971252f0b4151110b37b86cd4cf0fc8def15aed366ee420eb44585c1dc5c6c0761972b36f4d99647aaeb20cd3d5a4635765874dded69ebac5
   languageName: node
   linkType: hard
 
-"@inquirer/password@npm:^5.1.1":
-  version: 5.1.1
-  resolution: "@inquirer/password@npm:5.1.1"
+"@inquirer/password@npm:^5.2.2":
+  version: 5.2.2
+  resolution: "@inquirer/password@npm:5.2.2"
   dependencies:
-    "@inquirer/ansi": "npm:^2.0.7"
-    "@inquirer/core": "npm:^11.2.1"
-    "@inquirer/type": "npm:^4.0.7"
+    "@inquirer/ansi": "npm:^2.0.8"
+    "@inquirer/core": "npm:^12.0.3"
+    "@inquirer/type": "npm:4.1.1"
   peerDependencies:
     "@types/node": ">=18"
   peerDependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10/b0b9994de1b49096cc1bf47910b122dd1704cd12434de304081f09090f42d83af699c202e5b8b0c12eb5f87acb7cc4c62a6d97a8781aefe7352b4695eb2b242f
+  checksum: 10/edfe2c4d4604cb6a79ae51507cf84892f83f1b254bf284593af5a66267409adf8f30eed368a6589199380f7438bd4001a7cd83fb40cdaeca53f9ad2faaa6a696
   languageName: node
   linkType: hard
 
-"@inquirer/type@npm:^4.0.7":
-  version: 4.0.7
-  resolution: "@inquirer/type@npm:4.0.7"
+"@inquirer/type@npm:4.1.1":
+  version: 4.1.1
+  resolution: "@inquirer/type@npm:4.1.1"
   peerDependencies:
     "@types/node": ">=18"
   peerDependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10/97769b74264a2575c12c231e3d4acf98b4ae237fc987cec6b459f88b907b1729623403b8d9fe0cf2ca21743114777c64e3031fbeff72e9da37fbf4c8985f587f
+  checksum: 10/789b1fcc1d27bb75c4baa17666fb3427d30c41143a24eb77a121e4b64a41ca1753b9203e71a10bc26eefdf3c7d3d3ff619b82641e302afb38f9b23c5d9db38e7
   languageName: node
   linkType: hard
 
@@ -5298,37 +5309,37 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lavamoat/aa@npm:^4.3.6":
-  version: 4.3.6
-  resolution: "@lavamoat/aa@npm:4.3.6"
+"@lavamoat/aa@npm:^5.0.1":
+  version: 5.0.1
+  resolution: "@lavamoat/aa@npm:5.0.1"
   dependencies:
-    resolve: "npm:1.22.10"
+    resolve: "npm:1.22.12"
   bin:
     lavamoat-ls: src/cli.js
-  checksum: 10/6c6636962527054e5c25f801721c49c6b03c6173e86a7c048a8061f18f9c2c4628413cdfa1c928c8e028ac7128891d54f545fa61751c93e4689891393f0be3ec
+  checksum: 10/a93db450b850dde46e5ae12383086bc85244c00c2e380fe04f5c59d1d064a6329c3d7eed3d3e15c926a72c6d72976716d2164fee8c8b00254b03a68ce9c9963f
   languageName: node
   linkType: hard
 
-"@lavamoat/allow-scripts@npm:^3.4.3":
-  version: 3.4.3
-  resolution: "@lavamoat/allow-scripts@npm:3.4.3"
+"@lavamoat/allow-scripts@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "@lavamoat/allow-scripts@npm:5.1.0"
   dependencies:
-    "@lavamoat/aa": "npm:^4.3.6"
-    "@npmcli/run-script": "npm:10.0.3"
+    "@lavamoat/aa": "npm:^5.0.1"
+    "@npmcli/run-script": "npm:10.0.4"
     bin-links: "npm:4.0.4"
     npm-normalize-package-bin: "npm:3.0.1"
     type-fest: "npm:4.41.0"
-    yargs: "npm:17.7.2"
+    yargs: "npm:17.7.3"
   bin:
     allow-scripts: src/cli.js
-  checksum: 10/75a6156efa5f76d97ddfd21cdeaf68f256fc5b1adc9be2bfa0691abd38c0c4769a511eda20d5a4700b05629423a26e02b3cbb84c3407c26d5287a19cf4630967
+  checksum: 10/8667aad4c2505796744f7276df7eaa8f155523525c1554a62123f65d35cd6450ae1d73d62670eb1bd851c0fe62ca827d5c65058464682358cef79b72b5081966
   languageName: node
   linkType: hard
 
-"@lavamoat/preinstall-always-fail@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "@lavamoat/preinstall-always-fail@npm:2.1.0"
-  checksum: 10/385c3fac828b9edff2d8b5825bd29ea475206046984cdb3217518ad655f145ff37046414041534960d92cbe0759f0dc675f7c7dcf39a95003ae715a834fbd750
+"@lavamoat/preinstall-always-fail@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@lavamoat/preinstall-always-fail@npm:3.0.0"
+  checksum: 10/7d4e60bd7d37fcc154f78cc341ece13d4242c87bc4b69708b8e19f951d5bda5e57e3584801e6d134c6a8a8185ff8991d29ca6295a148976234afc604d96b6135
   languageName: node
   linkType: hard
 
@@ -5459,7 +5470,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5499,7 +5510,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5537,7 +5548,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5558,7 +5569,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5581,7 +5592,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5605,7 +5616,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5625,7 +5636,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5652,7 +5663,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5675,7 +5686,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5739,7 +5750,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5814,7 +5825,7 @@ __metadata:
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
     single-call-balance-checker-abi: "npm:^1.0.0"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5877,7 +5888,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5921,7 +5932,7 @@ __metadata:
     immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5960,7 +5971,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -5980,7 +5991,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6029,7 +6040,7 @@ __metadata:
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6066,7 +6077,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6096,7 +6107,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6121,7 +6132,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6129,7 +6140,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chomp-api-service@npm:^5.0.0, @metamask/chomp-api-service@workspace:packages/chomp-api-service":
+"@metamask/chomp-api-service@npm:^6.0.0, @metamask/chomp-api-service@workspace:packages/chomp-api-service":
   version: 0.0.0-use.local
   resolution: "@metamask/chomp-api-service@workspace:packages/chomp-api-service"
   dependencies:
@@ -6146,7 +6157,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6173,7 +6184,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6194,7 +6205,7 @@ __metadata:
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6218,10 +6229,10 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    eth-chainlist: "npm:^0.0.840"
+    eth-chainlist: "npm:^0.0.844"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6245,7 +6256,7 @@ __metadata:
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6267,7 +6278,7 @@ __metadata:
     immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6279,7 +6290,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/config-registry-controller@workspace:packages/config-registry-controller"
   dependencies:
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -6296,7 +6307,7 @@ __metadata:
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6317,7 +6328,7 @@ __metadata:
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6402,7 +6413,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6433,7 +6444,7 @@ __metadata:
     jest: "npm:^30.4.2"
     jest-environment-jsdom: "npm:^30.4.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6449,8 +6460,8 @@ __metadata:
     "@actions/core": "npm:^3.0.1"
     "@actions/github": "npm:^9.1.1"
     "@jest/globals": "npm:^30.4.1"
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/create-release-branch": "npm:^4.2.2"
     "@metamask/network-controller": "npm:^37.0.0"
@@ -6478,7 +6489,7 @@ __metadata:
     isomorphic-fetch: "npm:^3.0.0"
     jest: "npm:^30.4.2"
     jest-silent-reporter: "npm:^0.6.0"
-    knip: "npm:^6.37.0"
+    knip: "npm:^6.38.0"
     lodash: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     oxfmt: "npm:^0.44.0"
@@ -6487,8 +6498,8 @@ __metadata:
     prettier: "npm:^3.3.3"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
-    simple-git-hooks: "npm:^2.8.0"
-    ts-jest: "npm:^29.4.12"
+    simple-git-hooks: "npm:^2.14.0"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -6538,7 +6549,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6560,7 +6571,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6607,7 +6618,7 @@ __metadata:
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6634,7 +6645,7 @@ __metadata:
     klona: "npm:^2.0.6"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6657,7 +6668,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6682,7 +6693,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6706,7 +6717,7 @@ __metadata:
     jest: "npm:^30.4.2"
     json-rpc-random-id: "npm:^1.0.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6780,7 +6791,7 @@ __metadata:
     klona: "npm:^2.0.6"
     rimraf: "npm:^6.1.3"
     safe-stable-stringify: "npm:^2.5.0"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6820,7 +6831,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7037,7 +7048,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     tar: "npm:^7.5.22"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7074,7 +7085,7 @@ __metadata:
     jest-when: "npm:^4.0.3"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7089,8 +7100,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/gator-permissions-controller@workspace:packages/gator-permissions-controller"
   dependencies:
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/7715-permission-types": "npm:^1.0.0"
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -7109,7 +7120,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7130,7 +7141,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7149,7 +7160,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7178,8 +7189,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
   dependencies:
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
@@ -7193,7 +7204,7 @@ __metadata:
     jest: "npm:^30.4.2"
     klona: "npm:^2.0.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7228,7 +7239,7 @@ __metadata:
     jest: "npm:^30.4.2"
     readable-stream: "npm:^3.6.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7269,8 +7280,8 @@ __metadata:
     "@ethereumjs/common": "npm:^4.4.0"
     "@ethereumjs/tx": "npm:^5.4.0"
     "@ethereumjs/util": "npm:^9.1.0"
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
@@ -7293,7 +7304,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7415,7 +7426,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     tweetnacl: "npm:^1.0.3"
     typedoc: "npm:^0.25.13"
@@ -7435,7 +7446,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7457,7 +7468,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7482,7 +7493,7 @@ __metadata:
     jest: "npm:^30.4.2"
     jsonschema: "npm:^1.4.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7507,7 +7518,7 @@ __metadata:
     oxfmt: "npm:^0.44.0"
     prettier: "npm:^3.3.3"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     yargs: "npm:^17.7.3"
@@ -7550,7 +7561,7 @@ __metadata:
     immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tstyche: "npm:^7.2.5"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
@@ -7585,7 +7596,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7615,7 +7626,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7642,7 +7653,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7657,13 +7668,13 @@ __metadata:
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
-    "@metamask/chomp-api-service": "npm:^5.0.0"
+    "@metamask/chomp-api-service": "npm:^6.0.0"
     "@metamask/delegation-controller": "npm:^4.0.0"
     "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/money-account-utils": "npm:^2.0.1"
+    "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -7672,7 +7683,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7680,7 +7691,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-utils@npm:^2.0.1, @metamask/money-account-utils@workspace:packages/money-account-utils":
+"@metamask/money-account-utils@npm:^2.1.0, @metamask/money-account-utils@workspace:packages/money-account-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-utils@workspace:packages/money-account-utils"
   dependencies:
@@ -7695,7 +7706,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7736,7 +7747,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7775,7 +7786,7 @@ __metadata:
     jest: "npm:^30.4.2"
     jsonschema: "npm:^1.4.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7808,7 +7819,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7839,7 +7850,7 @@ __metadata:
     immer: "npm:^11.1.18"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7863,7 +7874,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7890,7 +7901,7 @@ __metadata:
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7939,7 +7950,7 @@ __metadata:
     node-fetch: "npm:^2.7.0"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7970,7 +7981,7 @@ __metadata:
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -7995,8 +8006,8 @@ __metadata:
   resolution: "@metamask/notification-services-controller@workspace:packages/notification-services-controller"
   dependencies:
     "@contentful/rich-text-html-renderer": "npm:^16.5.2"
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -8021,7 +8032,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8113,7 +8124,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8140,7 +8151,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8207,7 +8218,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8232,7 +8243,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8269,7 +8280,7 @@ __metadata:
     jest: "npm:^30.4.2"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8301,7 +8312,7 @@ __metadata:
     nock: "npm:^13.5.6"
     punycode: "npm:^2.3.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8313,11 +8324,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/platform-api-docs@workspace:packages/platform-api-docs"
   dependencies:
-    "@docusaurus/core": "npm:^3.10.1"
-    "@docusaurus/plugin-content-docs": "npm:^3.10.1"
-    "@docusaurus/preset-classic": "npm:^3.10.1"
-    "@docusaurus/theme-common": "npm:^3.10.1"
-    "@docusaurus/types": "npm:^3.10.1"
+    "@docusaurus/core": "npm:^3.10.2"
+    "@docusaurus/plugin-content-docs": "npm:^3.10.2"
+    "@docusaurus/preset-classic": "npm:^3.10.2"
+    "@docusaurus/theme-common": "npm:^3.10.2"
+    "@docusaurus/types": "npm:^3.10.2"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
     "@jest/globals": "npm:^30.4.1"
     "@mdx-js/react": "npm:^3.1.1"
@@ -8337,7 +8348,7 @@ __metadata:
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     ts-morph: "npm:^28.0.0"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -8361,7 +8372,7 @@ __metadata:
     fast-json-stable-stringify: "npm:^2.1.0"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8392,7 +8403,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8426,7 +8437,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8439,8 +8450,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/address-book-controller": "npm:^8.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -8470,7 +8481,7 @@ __metadata:
     loglevel: "npm:^1.8.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8521,7 +8532,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8543,7 +8554,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8567,7 +8578,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8589,7 +8600,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller"
   dependencies:
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8601,7 +8612,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8646,7 +8657,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8668,8 +8679,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller"
   dependencies:
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/auth-network-utils": "npm:^0.3.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -8690,7 +8701,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8719,7 +8730,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8744,7 +8755,7 @@ __metadata:
     jest: "npm:^30.4.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8757,8 +8768,8 @@ __metadata:
   resolution: "@metamask/shield-controller@workspace:packages/shield-controller"
   dependencies:
     "@babel/runtime": "npm:^7.23.9"
-    "@lavamoat/allow-scripts": "npm:^3.4.3"
-    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@lavamoat/allow-scripts": "npm:^5.1.0"
+    "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.1.0"
@@ -8776,7 +8787,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8808,7 +8819,7 @@ __metadata:
     jsonschema: "npm:^1.4.1"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8863,7 +8874,7 @@ __metadata:
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -8894,7 +8905,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9035,7 +9046,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9054,7 +9065,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9081,7 +9092,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9111,7 +9122,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9128,14 +9139,14 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.1.0"
-    "@metamask/chomp-api-service": "npm:^5.0.0"
+    "@metamask/chomp-api-service": "npm:^6.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/delegation-controller": "npm:^4.0.0"
     "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-balance-service": "npm:^3.1.0"
-    "@metamask/money-account-utils": "npm:^2.0.1"
+    "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^33.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
@@ -9151,7 +9162,7 @@ __metadata:
     jest: "npm:^30.4.2"
     jest-environment-node: "npm:^30.4.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9238,7 +9249,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9281,7 +9292,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9316,7 +9327,7 @@ __metadata:
     jest: "npm:^30.4.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9361,7 +9372,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.17.25"
     "@typescript/native": "npm:typescript@^7.0.2"
-    debug: "npm:^4.3.4"
+    debug: "npm:^4.4.3"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     jest-when: "npm:^4.0.3"
@@ -9370,7 +9381,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
     stdio-mock: "npm:^1.2.0"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tstyche: "npm:^7.2.5"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
@@ -9402,8 +9413,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/wallet-cli@workspace:packages/wallet-cli"
   dependencies:
-    "@inquirer/confirm": "npm:^6.0.11"
-    "@inquirer/password": "npm:^5.1.1"
+    "@inquirer/confirm": "npm:^6.3.2"
+    "@inquirer/password": "npm:^5.2.2"
     "@metamask/analytics-controller": "npm:^3.2.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -9428,7 +9439,7 @@ __metadata:
     jest-environment-node: "npm:^30.4.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
@@ -9440,11 +9451,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/wallet-framework-docs@workspace:packages/wallet-framework-docs"
   dependencies:
-    "@docusaurus/core": "npm:^3.10.1"
-    "@docusaurus/plugin-content-docs": "npm:^3.10.1"
-    "@docusaurus/preset-classic": "npm:^3.10.1"
-    "@docusaurus/theme-common": "npm:^3.10.1"
-    "@docusaurus/types": "npm:^3.10.1"
+    "@docusaurus/core": "npm:^3.10.2"
+    "@docusaurus/plugin-content-docs": "npm:^3.10.2"
+    "@docusaurus/preset-classic": "npm:^3.10.2"
+    "@docusaurus/theme-common": "npm:^3.10.2"
+    "@docusaurus/types": "npm:^3.10.2"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
     "@mdx-js/react": "npm:^3.1.1"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -9464,7 +9475,7 @@ __metadata:
     raw-loader: "npm:^4.0.2"
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -9502,7 +9513,7 @@ __metadata:
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.4.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.12"
+    ts-jest: "npm:^29.4.14"
     tsx: "npm:^4.23.15"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9911,17 +9922,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@npmcli/run-script@npm:10.0.3":
-  version: 10.0.3
-  resolution: "@npmcli/run-script@npm:10.0.3"
+"@npmcli/run-script@npm:10.0.4":
+  version: 10.0.4
+  resolution: "@npmcli/run-script@npm:10.0.4"
   dependencies:
     "@npmcli/node-gyp": "npm:^5.0.0"
     "@npmcli/package-json": "npm:^7.0.0"
     "@npmcli/promise-spawn": "npm:^9.0.0"
     node-gyp: "npm:^12.1.0"
     proc-log: "npm:^6.0.0"
-    which: "npm:^6.0.0"
-  checksum: 10/3b2b6b02a40c7470a900e8d77d23e2239608c08e919d6ddee7849fc7093be0999d9eb2c9dec871988e80165a64f9d8c55430f0a699690e555ebd3e81bf1dbd35
+  checksum: 10/dd5f92aa6c50761c125eb836432497edfe57a32ddde175218167515bc8f54ba82b7fa8b89b8f73eda69c3a88d1ffe97e14080b316aefdddc264c450e24c32c8b
   languageName: node
   linkType: hard
 
@@ -11906,13 +11916,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/gtag.js@npm:^0.0.20":
-  version: 0.0.20
-  resolution: "@types/gtag.js@npm:0.0.20"
-  checksum: 10/5582c540adaec49e0fdf308e0d9921397257c34371b2d0d5acb00e3775aa1aa44e2b19b2ede4cd8ca1eba1df2e3f54aee56eb82ab147846036d6460e4993c8db
-  languageName: node
-  linkType: hard
-
 "@types/hast@npm:^3.0.0":
   version: 3.0.4
   resolution: "@types/hast@npm:3.0.4"
@@ -13665,10 +13668,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"address@npm:^1.0.1":
-  version: 1.2.2
-  resolution: "address@npm:1.2.2"
-  checksum: 10/57d80a0c6ccadc8769ad3aeb130c1599e8aee86a8d25f671216c40df9b8489d6c3ef879bc2752b40d1458aa768f947c2d91e5b2fedfe63cf702c40afdfda9ba9
+"address@npm:^2.0.1":
+  version: 2.0.3
+  resolution: "address@npm:2.0.3"
+  checksum: 10/b367b0166fc3b295f742a71989f333c62f2b6a1e0ad30355e8d003fd6ed034792c353a6edf28b279c2d9eba992931c4f6c9e4f0b5ebca7b924e04689326f6faa
   languageName: node
   linkType: hard
 
@@ -16252,16 +16255,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"detect-port@npm:^1.5.1":
-  version: 1.6.1
-  resolution: "detect-port@npm:1.6.1"
+"detect-port@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "detect-port@npm:2.1.0"
   dependencies:
-    address: "npm:^1.0.1"
-    debug: "npm:4"
+    address: "npm:^2.0.1"
   bin:
-    detect: bin/detect-port.js
-    detect-port: bin/detect-port.js
-  checksum: 10/0429fa423abb15fc453face64e6ffa406e375f51f5b4421a7886962e680dc05824eae9b6ee4594ba273685c3add415ad00982b5da54802ac3de6f846173284c3
+    detect: dist/commonjs/bin/detect-port.js
+    detect-port: dist/commonjs/bin/detect-port.js
+  checksum: 10/09b0ae8d692b20770bea9d3ca3530ec68d61ee9fc66962d95e17e38280741e59acbfd9648807c2efcea8cc2ffc35c4cbed2e33d2d65705c3f2c4508a7a45ad04
   languageName: node
   linkType: hard
 
@@ -17028,10 +17030,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-chainlist@npm:^0.0.840":
-  version: 0.0.840
-  resolution: "eth-chainlist@npm:0.0.840"
-  checksum: 10/b4511e61eec45432594cd18e07decd830e5100293340b307f21d02fd61a425612d070d5e295242507b50cd51e2a97e7fe7c4636c146646f28d7438884734b682
+"eth-chainlist@npm:^0.0.844":
+  version: 0.0.844
+  resolution: "eth-chainlist@npm:0.0.844"
+  checksum: 10/a0aef2a7b43f0c631c9eb32c5b93d0cf39a654d0d5be1cd82c3ad9e266b4e9c2d21ef4f0764b9723a49d10cfbb8d408d05c38a6b65323bc33ac01e9865998b3d
   languageName: node
   linkType: hard
 
@@ -18222,18 +18224,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"gray-matter@npm:^4.0.3":
-  version: 4.0.3
-  resolution: "gray-matter@npm:4.0.3"
-  dependencies:
-    js-yaml: "npm:^3.13.1"
-    kind-of: "npm:^6.0.2"
-    section-matter: "npm:^1.0.0"
-    strip-bom-string: "npm:^1.0.0"
-  checksum: 10/9a8f146a7a918d2524d5d60e0b4d45729f5bca54aa41247f971d9e4bc984943fda58159435763d463ec2abc8a0e238e807bd9b05e3a48f4a613a325c9dd5ad0c
-  languageName: node
-  linkType: hard
-
 "gzip-size@npm:^6.0.0":
   version: 6.0.0
   resolution: "gzip-size@npm:6.0.0"
@@ -19140,7 +19130,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"is-core-module@npm:^2.16.0, is-core-module@npm:^2.16.1":
+"is-core-module@npm:^2.16.1":
   version: 2.17.0
   resolution: "is-core-module@npm:2.17.0"
   dependencies:
@@ -20402,7 +20392,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"kind-of@npm:^6.0.0, kind-of@npm:^6.0.2":
+"kind-of@npm:^6.0.0, kind-of@npm:^6.0.2, kind-of@npm:^6.0.3":
   version: 6.0.3
   resolution: "kind-of@npm:6.0.3"
   checksum: 10/5873d303fb36aad875b7538798867da2ae5c9e328d67194b0162a3659a627d22f742fc9c4ae95cd1704132a24b00cae5041fc00c0f6ef937dc17080dc4dbb962
@@ -20432,9 +20422,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"knip@npm:^6.37.0":
-  version: 6.37.0
-  resolution: "knip@npm:6.37.0"
+"knip@npm:^6.38.0":
+  version: 6.38.0
+  resolution: "knip@npm:6.38.0"
   dependencies:
     fdir: "npm:^6.5.0"
     formatly: "npm:^0.7.0"
@@ -20452,7 +20442,7 @@ __metadata:
   bin:
     knip: bin/knip.js
     knip-bun: bin/knip-bun.js
-  checksum: 10/14135bf24972ac137b1afd1476b1f40907152d5441c269a2d6a721d3bca53d18944bda67a47f76256d947b1f200564e73974bbb34cca9a1d3e4860ccf25150b5
+  checksum: 10/c66af85bcb66201687b742397287c20035d0580be11064cf311e865880465b00ac927b2ee961584d41e99149106b8012542802961e33a5e78240e7698284488b
   languageName: node
   linkType: hard
 
@@ -25150,20 +25140,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve@npm:1.22.10":
-  version: 1.22.10
-  resolution: "resolve@npm:1.22.10"
-  dependencies:
-    is-core-module: "npm:^2.16.0"
-    path-parse: "npm:^1.0.7"
-    supports-preserve-symlinks-flag: "npm:^1.0.0"
-  bin:
-    resolve: bin/resolve
-  checksum: 10/0a398b44da5c05e6e421d70108822c327675febb880eebe905587628de401854c61d5df02866ff34fc4cb1173a51c9f0e84a94702738df3611a62e2acdc68181
-  languageName: node
-  linkType: hard
-
-"resolve@npm:^1.22.11":
+"resolve@npm:1.22.12, resolve@npm:^1.22.11":
   version: 1.22.12
   resolution: "resolve@npm:1.22.12"
   dependencies:
@@ -25177,20 +25154,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>":
-  version: 1.22.10
-  resolution: "resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>::version=1.22.10&hash=9bd1a5"
-  dependencies:
-    is-core-module: "npm:^2.16.0"
-    path-parse: "npm:^1.0.7"
-    supports-preserve-symlinks-flag: "npm:^1.0.0"
-  bin:
-    resolve: bin/resolve
-  checksum: 10/c202d86f0b7090886c41427c7161c781169fafe20c9389c5feb0bc021a83e29db8f691c02fcd7d9730db2e7de6ef608a45d0e509733e7e54060d64f0e38521a5
-  languageName: node
-  linkType: hard
-
-"resolve@patch:resolve@npm%3A^1.22.11#optional!builtin<compat/resolve>":
+"resolve@patch:resolve@npm%3A1.22.12#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.22.11#optional!builtin<compat/resolve>":
   version: 1.22.12
   resolution: "resolve@patch:resolve@npm%3A1.22.12#optional!builtin<compat/resolve>::version=1.22.12&hash=9bd1a5"
   dependencies:
@@ -25794,12 +25758,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"simple-git-hooks@npm:^2.8.0":
-  version: 2.11.1
-  resolution: "simple-git-hooks@npm:2.11.1"
+"simple-git-hooks@npm:^2.14.0":
+  version: 2.14.0
+  resolution: "simple-git-hooks@npm:2.14.0"
   bin:
     simple-git-hooks: cli.js
-  checksum: 10/b19b1edaca3af95442a35e3963fa54955ddd58f481dde25da4f7a48353ae5e35bc875ae381e214fe2889be494e6fe01cc1c5f24aebb9558cee496deda3d026a4
+  checksum: 10/e404d1cc520f24515fb33807730d32e0d38d65ebf1866d485061845f6748958636aa3f3709a731410e1ac6a731e03477b6a342ce22096055449c49e4e1cffea1
   languageName: node
   linkType: hard
 
@@ -26732,9 +26696,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-jest@npm:^29.4.12":
-  version: 29.4.12
-  resolution: "ts-jest@npm:29.4.12"
+"ts-jest@npm:^29.4.14":
+  version: 29.4.14
+  resolution: "ts-jest@npm:29.4.14"
   dependencies:
     bs-logger: "npm:^0.2.6"
     fast-json-stable-stringify: "npm:^2.1.0"
@@ -26746,7 +26710,7 @@ __metadata:
     type-fest: "npm:^4.41.0"
     yargs-parser: "npm:^21.1.1"
   peerDependencies:
-    "@babel/core": ">=7.0.0-beta.0 <8"
+    "@babel/core": ">=7.0.0-beta.0 <9"
     "@jest/transform": ^29.0.0 || ^30.0.0
     "@jest/types": ^29.0.0 || ^30.0.0
     babel-jest: ^29.0.0 || ^30.0.0
@@ -26768,7 +26732,7 @@ __metadata:
       optional: true
   bin:
     ts-jest: cli.js
-  checksum: 10/640678eb12d0911d99b0a2ac52ebfbf0ab170ba24ab73697d71de0e00ee95f2f468299a877a5e27dadf08265d5588e8cc982a6945c16b8893657390de7baa662
+  checksum: 10/d93f8829cb9842fe5bcfe302c12d45d284afdc8467fc9906bf4b07c9c860a9fc4f97d58b42435ad48b83b754a24c4b7460c65c7de01b1a0974186e512e551759
   languageName: node
   linkType: hard
 
@@ -28558,9 +28522,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yargs@npm:17.7.2":
-  version: 17.7.2
-  resolution: "yargs@npm:17.7.2"
+"yargs@npm:17.7.3, yargs@npm:^17.0.1, yargs@npm:^17.7.1, yargs@npm:^17.7.2, yargs@npm:^17.7.3":
+  version: 17.7.3
+  resolution: "yargs@npm:17.7.3"
   dependencies:
     cliui: "npm:^8.0.1"
     escalade: "npm:^3.1.1"
@@ -28569,7 +28533,7 @@ __metadata:
     string-width: "npm:^4.2.3"
     y18n: "npm:^5.0.5"
     yargs-parser: "npm:^21.1.1"
-  checksum: 10/abb3e37678d6e38ea85485ed86ebe0d1e3464c640d7d9069805ea0da12f69d5a32df8e5625e370f9c96dd1c2dc088ab2d0a4dd32af18222ef3c4224a19471576
+  checksum: 10/a3826798c03b159e139d0580a3b2733953889a9a1bac8e4e1ca7a1a249b55315b213c323a6a1dbdb305f6e59496a9eaa810742c87e34abcf1a0584d8f59212a1
   languageName: node
   linkType: hard
 
@@ -28588,21 +28552,6 @@ __metadata:
     y18n: "npm:^4.0.0"
     yargs-parser: "npm:^13.1.2"
   checksum: 10/608ba2e62ac2c7c4572b9c6f7a2d3ef76e2deaad8c8082788ed29ae3ef33e9f68e087f07eb804ed5641de2bc4eab977405d3833b1d11ae8dbbaf5847584d96be
-  languageName: node
-  linkType: hard
-
-"yargs@npm:^17.0.1, yargs@npm:^17.7.1, yargs@npm:^17.7.2, yargs@npm:^17.7.3":
-  version: 17.7.3
-  resolution: "yargs@npm:17.7.3"
-  dependencies:
-    cliui: "npm:^8.0.1"
-    escalade: "npm:^3.1.1"
-    get-caller-file: "npm:^2.0.5"
-    require-directory: "npm:^2.1.1"
-    string-width: "npm:^4.2.3"
-    y18n: "npm:^5.0.5"
-    yargs-parser: "npm:^21.1.1"
-  checksum: 10/a3826798c03b159e139d0580a3b2733953889a9a1bac8e4e1ca7a1a249b55315b213c323a6a1dbdb305f6e59496a9eaa810742c87e34abcf1a0584d8f59212a1
   languageName: node
   linkType: hard
 
