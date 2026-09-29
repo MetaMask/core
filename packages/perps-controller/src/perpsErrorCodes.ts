@@ -94,6 +94,9 @@ export const PERPS_ERROR_CODES = {
   SUBSCRIPTION_CLIENT_NOT_AVAILABLE: 'SUBSCRIPTION_CLIENT_NOT_AVAILABLE',
   // Wallet/account errors
   NO_ACCOUNT_SELECTED: 'NO_ACCOUNT_SELECTED',
+  // The signer could not sign: a locked keyring or account signer, or, with
+  // HyperLiquid agent signing, an agent that is unavailable or that the venue
+  // rejected. Retryable.
   KEYRING_LOCKED: 'KEYRING_LOCKED',
   INVALID_ADDRESS_FORMAT: 'INVALID_ADDRESS_FORMAT',
   // Wallet has no account on the exchange yet (HyperLiquid creates accounts

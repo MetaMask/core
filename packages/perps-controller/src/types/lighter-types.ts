@@ -299,14 +299,6 @@ export type LighterTxResult = {
 // ============================================================================
 
 /**
- * Signs an EIP-191 personal message and resolves with the 65-byte signature
- * as a 0x-prefixed hex string. Injected for headless use; when a messenger
- * is available the wallet service routes through
- * `KeyringController:signPersonalMessage` instead.
- */
-export type LighterPersonalSigner = (message: string) => Promise<string>;
-
-/**
  * Lighter auth/config passed at construction time.
  */
 export type LighterAuthConfig = {
@@ -316,10 +308,6 @@ export type LighterAuthConfig = {
   accountIndex?: number;
   /** API key slot to register/use (0-254). */
   apiKeyIndex?: number;
-  /** L1 address owning the Lighter account. */
-  l1Address?: string;
-  /** Headless personal_sign implementation for L1 ChangePubKey approval. */
-  personalSigner?: LighterPersonalSigner;
 };
 
 // ============================================================================
