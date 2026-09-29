@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `DiscountType.SUBSCRIPTION` (`'subscription'`) for subscription-based quote discounts.
+- Add `DiscountType.SUBSCRIPTION` (`'subscription'`) for subscription-based quote discounts. ([#10560](https://github.com/MetaMask/core/pull/10560))
 
 ### Changed
 
