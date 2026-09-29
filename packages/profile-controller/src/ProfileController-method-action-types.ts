@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProfileController } from './ProfileController.js';
+import type { ProfileController } from './ProfileController';
 
 /**
  * Returns the current MetaMask profile from state, or undefined if none has been created.
@@ -26,7 +26,8 @@ export type ProfileControllerGetXprofileAction = {
 };
 
 /**
- * Creates a new MetaMask profile and updates state.
+ * Creates a new MetaMask profile, updates state, and returns the created profile.
+ * If the user had previously connected X, also updates xProfile in state.
  *
  * @param params - The profile creation parameters.
  * @returns The created MetaMask profile.
@@ -37,10 +38,10 @@ export type ProfileControllerCreateProfileAction = {
 };
 
 /**
- * Fully replaces an existing profile and updates state.
+ * Fully replaces the current profile and updates state.
  *
- * @param profileId - The profile identifier (the canonical profile ID).
  * @param input - The replacement profile data.
+ * @throws If no profile has been created yet.
  */
 export type ProfileControllerReplaceProfileAction = {
   type: `ProfileController:replaceProfile`;
@@ -48,10 +49,10 @@ export type ProfileControllerReplaceProfileAction = {
 };
 
 /**
- * Partially updates an existing profile and updates state.
+ * Partially updates the current profile and updates state.
  *
- * @param profileId - The profile identifier (the canonical profile ID).
  * @param input - The fields to update.
+ * @throws If no profile has been created yet.
  */
 export type ProfileControllerUpdateProfileAction = {
   type: `ProfileController:updateProfile`;
@@ -59,9 +60,9 @@ export type ProfileControllerUpdateProfileAction = {
 };
 
 /**
- * Deletes a profile and resets state, including clearing any linked X profile.
+ * Deletes the current profile and resets state, including clearing any linked X profile.
  *
- * @param profileId - The profile identifier (the canonical profile ID) to delete.
+ * @throws If no profile has been created yet.
  */
 export type ProfileControllerDeleteProfileAction = {
   type: `ProfileController:deleteProfile`;
@@ -90,19 +91,23 @@ export type ProfileControllerGetXAuthUrlAction = {
 };
 
 /**
- * Completes the X OAuth PKCE flow and updates the X profile in state.
+ * Completes the X OAuth PKCE flow, updates xProfile in state, and returns the X profile.
  *
- * @param params - The parameters for the X OA  uth PKCE flow.
+ * @param params - The parameters for the X OAuth PKCE flow.
  * @param params.code - The OAuth authorization code from the X redirect.
  * @param params.state - The state parameter returned by the X redirect.
- * @returns The X profile.
+ * @returns The linked X profile.
  */
 export type ProfileControllerConnectXAction = {
   type: `ProfileController:connectX`;
   handler: ProfileController['connectX'];
 };
 
-/** Fetches the X account linked to the current profile and updates state. */
+/**
+ * Fetches the X account linked to the current profile, updates state, and returns the X profile.
+ *
+ * @returns The linked X profile.
+ */
 export type ProfileControllerFetchAndUpdateXAccountAction = {
   type: `ProfileController:fetchAndUpdateXAccount`;
   handler: ProfileController['fetchAndUpdateXAccount'];
