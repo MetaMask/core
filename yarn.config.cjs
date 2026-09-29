@@ -238,12 +238,12 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs',
-          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs:fix',
-          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 

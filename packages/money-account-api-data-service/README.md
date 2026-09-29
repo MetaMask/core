@@ -1,6 +1,6 @@
 # `@metamask/money-account-api-data-service`
 
-Data service for fetching Money account positions, interest, cash-flow history, and vault rate history from the Money Account API.
+Data service for fetching Money account positions, interest, cash-flow history, vault rate history, and the current vault exchange rate from the Money Account API.
 
 ## Installation
 
@@ -18,6 +18,7 @@ This package exports a `MoneyAccountApiDataService` class that exposes the follo
 - **`fetchInterest`** — Fetch interest earned over a time window.
 - **`fetchHistory`** — Fetch cursor-paginated cash-flow history.
 - **`fetchRateHistory`** — Fetch vault exchange-rate time series.
+- **`fetchVaultRate`** — Fetch a vault's current exchange rate.
 
 See the [main `MoneyAccountApiDataService` source](./src/money-account-api-data-service.ts) for full API details.
 

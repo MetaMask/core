@@ -44,3 +44,10 @@ export type RateHistoryOptions = {
   from?: string;
   to?: string;
 };
+
+/**
+ * Options for the `fetchVaultRate` method.
+ */
+export type VaultRateOptions = {
+  chainId?: number;
+};
