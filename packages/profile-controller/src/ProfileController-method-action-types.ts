@@ -81,16 +81,6 @@ export type ProfileControllerCheckUsernameAvailabilityAction = {
 };
 
 /**
- * Fetches the X OAuth authorization URL to begin the PKCE flow.
- *
- * @returns An object containing the authorization URL and its associated state token.
- */
-export type ProfileControllerGetXAuthUrlAction = {
-  type: `ProfileController:getXAuthUrl`;
-  handler: ProfileController['getXAuthUrl'];
-};
-
-/**
  * Completes the X OAuth PKCE flow, updates xProfile in state, and returns the X profile.
  *
  * @param params - The parameters for the X OAuth PKCE flow.
@@ -124,6 +114,5 @@ export type ProfileControllerMethodActions =
   | ProfileControllerUpdateProfileAction
   | ProfileControllerDeleteProfileAction
   | ProfileControllerCheckUsernameAvailabilityAction
-  | ProfileControllerGetXAuthUrlAction
   | ProfileControllerConnectXAction
   | ProfileControllerFetchAndUpdateXAccountAction;

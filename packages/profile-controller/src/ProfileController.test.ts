@@ -94,7 +94,6 @@ function getMessenger(
       'ProfileService:updateProfile',
       'ProfileService:deleteProfile',
       'ProfileService:checkUsernameAvailability',
-      'ProfileService:getXAuthUrl',
       'ProfileService:connectX',
       'ProfileService:getXAccount',
     ],
@@ -496,41 +495,6 @@ describe('ProfileController', () => {
       const { controller } = createController({ rootMessenger });
       const stateBefore = controller.state;
       await controller.checkUsernameAvailability('alice');
-
-      expect(controller.state).toStrictEqual(stateBefore);
-    });
-  });
-
-  describe('getXAuthUrl', () => {
-    it('delegates to ProfileService:getXAuthUrl and returns result', async () => {
-      const mockAuthUrl = {
-        url: 'https://twitter.com/i/oauth2/authorize?state=xyz',
-        state: 'xyz',
-      };
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getXAuthUrl',
-        jest.fn().mockResolvedValue(mockAuthUrl),
-      );
-
-      const { controller } = createController({ rootMessenger });
-      const result = await controller.getXAuthUrl();
-
-      expect(result).toStrictEqual(mockAuthUrl);
-    });
-
-    it('does not update state', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getXAuthUrl',
-        jest.fn().mockResolvedValue({ url: 'https://x.com', state: 'abc' }),
-      );
-
-      const { controller } = createController({ rootMessenger });
-      const stateBefore = controller.state;
-      await controller.getXAuthUrl();
 
       expect(controller.state).toStrictEqual(stateBefore);
     });

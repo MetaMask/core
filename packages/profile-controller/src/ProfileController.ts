@@ -14,7 +14,6 @@ import type {
   ProfileServiceCreateProfileAction,
   ProfileServiceDeleteProfileAction,
   ProfileServiceGetXAccountAction,
-  ProfileServiceGetXAuthUrlAction,
   ProfileServiceReplaceProfileAction,
   ProfileServiceUpdateProfileAction,
 } from './ProfileService-method-action-types.js';
@@ -25,7 +24,6 @@ import type {
   ReplaceProfileParams,
   UpdateProfileParams,
   UsernameAvailabilityResponse,
-  XAuthUrlResponse,
   XConnectResponse,
 } from './ProfileService.js';
 
@@ -109,7 +107,6 @@ type AllowedActions =
   | ProfileServiceUpdateProfileAction
   | ProfileServiceDeleteProfileAction
   | ProfileServiceCheckUsernameAvailabilityAction
-  | ProfileServiceGetXAuthUrlAction
   | ProfileServiceConnectXAction
   | ProfileServiceGetXAccountAction;
 
@@ -169,7 +166,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateProfile',
   'deleteProfile',
   'checkUsernameAvailability',
-  'getXAuthUrl',
   'connectX',
   'fetchAndUpdateXAccount',
 ] as const;
@@ -380,15 +376,6 @@ export class ProfileController extends BaseController<
       'ProfileService:checkUsernameAvailability',
       username,
     );
-  }
-
-  /**
-   * Fetches the X OAuth authorization URL to begin the PKCE flow.
-   *
-   * @returns An object containing the authorization URL and its associated state token.
-   */
-  async getXAuthUrl(): Promise<XAuthUrlResponse> {
-    return await this.messenger.call('ProfileService:getXAuthUrl');
   }
 
   /**
