@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test(assets-controller): add ws price-update snapshot source of truth tests ([#10543](https://github.com/MetaMask/core/pull/10543))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- test(assets-controller): add record snapshots to v6 integration suites ([#10490](https://github.com/MetaMask/core/pull/10490))
+- test(assets-controller): websocket price-update integration tests ([#10476](https://github.com/MetaMask/core/pull/10476))
+- test(assets-controller): add v6 integration test suite ([#10406](https://github.com/MetaMask/core/pull/10406))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
