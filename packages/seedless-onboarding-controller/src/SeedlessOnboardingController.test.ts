@@ -32,7 +32,6 @@ import type {
   KeyPair,
   RecoverEncryptionKeyResult,
   ToprfSecureBackup,
-  FetchedSecretDataItem,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
@@ -3137,16 +3136,16 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ baseMessenger, toprfClient }) => {
           jest
-              .spyOn(toprfClient, 'fetchAllSecretDataItems')
-              .mockImplementationOnce(() => {
-                // Mock the recover enc key for second time
-                mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-                // First call fails with token expired error
-                throw new TOPRFError(
-                  TOPRFErrorCode.AuthTokenExpired,
-                  'Auth token expired',
-                );
-              });
+            .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            .mockImplementationOnce(() => {
+              // Mock the recover enc key for second time
+              mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+              // First call fails with token expired error
+              throw new TOPRFError(
+                TOPRFErrorCode.AuthTokenExpired,
+                'Auth token expired',
+              );
+            });
           await baseMessenger.call(
             'SeedlessOnboardingController:submitPassword',
             MOCK_PASSWORD,
@@ -3686,8 +3685,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should identify a primary SRP mismatch after unlocking', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
-      const mockEncryptionKey =
-        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const mockEncryptionKey = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
       const mockPasswordEncryptionKey =
         mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
       const mockAuthKeyPair =
@@ -3729,7 +3727,7 @@ describe('SeedlessOnboardingController', () => {
                 }).toBytes(),
                 itemId: 'remote-primary-srp',
                 version: 'v1',
-              } as FetchedSecretDataItem,
+              },
             ]);
 
           await baseMessenger.call(

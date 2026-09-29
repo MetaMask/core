@@ -59,7 +59,6 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
-  ToprfKeyDeriver,
 } from './types.js';
 import {
   assertIsEncryptedKeyringEncryptionKeySet,
@@ -839,7 +838,9 @@ export class SeedlessOnboardingController<
 
       this.#setUnlocked();
 
-      void identifyIncompleteMetadataBackup({
+      // Identify incomplete metadata backup after successful unlock
+      // Run this async to avoid blocking the main thread
+      identifyIncompleteMetadataBackup({
         fetchAllSecretDataFn: () =>
           this.toprfClient.fetchAllSecretDataItems({
             decKey: deserializedVaultData.toprfEncryptionKey,

@@ -6,9 +6,10 @@ We have found a production bug where new social login users can ran into the TOP
 In short, the `Primary SRP` was left out in the remote backup and it is only present in that device.
 If users never export that SRP from the wallet, they have the risk of **the permanent wallet loss**, especially when users lost access to the device.
 
-For more information, please check [this document]((https://docs.google.com/document/d/1Z2-hBnrYC4Q5d35_maG3uUyn297ODgmrikZDJljRqBE/edit?tab=t.0#heading=h.ic7lth3mlv9b)).
+For more information, please check [this document](<(https://docs.google.com/document/d/1Z2-hBnrYC4Q5d35_maG3uUyn297ODgmrikZDJljRqBE/edit?tab=t.0#heading=h.ic7lth3mlv9b)>).
 
 As the follow up remediation, we have two steps plan for the existing users in the production ~
+
 1. Identify the users affected by this issue
 2. Fix the incomplete remote metadata backup (Will be worked on [#10219](https://github.com/MetaMask/core/pull/10219))
 
@@ -68,24 +69,27 @@ flowchart TB
 4. If remote Primary SRP is missing or not match with the local keyring state, we can confirm that user's remote metadata needs the repair.
 
 > We cannot assume that the V2 migrations has already run for all the users in the product.. Migrations won't be ran if `Primary SRP` isn't available in the remote backup.
-E.g. Step 2.B above. The migrations were designed to run asynchronously and errors aren't visible to the users either.
+> E.g. Step 2.B above. The migrations were designed to run asynchronously and errors aren't visible to the users either.
 
 ### Different Remote Metadata Scenarios
 
-We can't automatically assume that users don't have the metadata issue just because the `Primary SRP` is available. 
+We can't automatically assume that users don't have the metadata issue just because the `Primary SRP` is available.
 We have to inspect it manually and compare it with local keyring.
 
 #### Missing Primary SRP
+
 Simplest among three, users do not have any other SRP metadata in the remote backup.
 Private Keys might be available but they aren't qualify for the Primary SRP selections.
 
 We can simply conclude this case as `METADATA REPAIR REQUIRED`.
 
 #### V1 Primary SRP
+
 For the legacy V1 schema type, `Primary SRP` is determined based on the backup creation timestamp in the client side.
 The earliest SRP (Mnemonic) item is classified as `Primary SRP`.
 
 Take this as a sample case;
+
 - User created a Social Login wallet with Torpf init failure. The Primary SRP was not backup to remote.
 - User imported new SRPs and they were added to the remote backup.
 
@@ -135,8 +139,8 @@ flowchart TB
 If the user restores the social login wallet in another device, the user gets the incorrect/incomplete wallet.
 In this case; `Legacy_PrimarySrp1` become `PrimarySrp`, which is not correct.
 
-
 #### V2 Primary SRP
+
 For the latest V2 schema, `PrimarySrp` type is attached explicitly to the backup item during the account creation time.
 V2 schema is used by default for the new users. For the existing users, the schema migration runs when user adds new Secret Metadata Item (SRP or PrivateKey).
 

@@ -1,9 +1,9 @@
+import type { AnalyticsControllerTrackEventAction } from '@metamask/analytics-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
-import type { AnalyticsControllerTrackEventAction } from '@metamask/analytics-controller';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
@@ -34,7 +34,9 @@ export type SeedlessOnboardingControllerActions =
   | SeedlessOnboardingControllerGetStateAction
   | SeedlessOnboardingControllerMethodActions;
 
-type AllowedActions = AnalyticsControllerTrackEventAction | KeyringControllerExportSeedPhraseAction;
+type AllowedActions =
+  | AnalyticsControllerTrackEventAction
+  | KeyringControllerExportSeedPhraseAction;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =

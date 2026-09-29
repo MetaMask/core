@@ -1,12 +1,17 @@
-import type { AnalyticsContext, AnalyticsTrackingEvent } from '@metamask/analytics-controller';
+import type {
+  AnalyticsContext,
+  AnalyticsTrackingEvent,
+} from '@metamask/analytics-controller';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
 import { InvalidPrimarySecretDataTypeError } from '../errors.js';
 import { parseAndSortSecretMetadata } from './secret-data-utils.js';
 
-export const SeedlessPrimarySrpMissingEventName = 'Seedless Onboarding Primary SRP Missing';
-export const SeedlessPrimarySrpMismatchEventName = 'Seedless Onboarding Primary SRP Mismatch';
+export const SeedlessPrimarySrpMissingEventName =
+  'Seedless Onboarding Primary SRP Missing';
+export const SeedlessPrimarySrpMismatchEventName =
+  'Seedless Onboarding Primary SRP Mismatch';
 
 /**
  * Identify whether the local primary SRP is missing from or differs from the
@@ -65,28 +70,24 @@ export async function identifyIncompleteMetadataBackup({
       return;
     }
 
-    await trackEventSafely(
-      {
-        name: SeedlessPrimarySrpMismatchEventName,
-        properties: {},
-        sensitiveProperties: {},
-        saveDataRecording: false,
-        hasProperties: false,
-      },
-    );
+    await trackEventSafely({
+      name: SeedlessPrimarySrpMismatchEventName,
+      properties: {},
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: false,
+    });
   } catch (error) {
     if (error instanceof InvalidPrimarySecretDataTypeError) {
-      await trackEventSafely(
-        {
-          name: SeedlessPrimarySrpMissingEventName,
-          properties: {
-            error: error.message,
-          },
-          sensitiveProperties: {},
-          saveDataRecording: false,
-          hasProperties: true,
+      await trackEventSafely({
+        name: SeedlessPrimarySrpMissingEventName,
+        properties: {
+          error: error.message,
         },
-      );
+        sensitiveProperties: {},
+        saveDataRecording: false,
+        hasProperties: true,
+      });
 
       return;
     }

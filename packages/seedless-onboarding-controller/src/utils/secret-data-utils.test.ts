@@ -3,10 +3,7 @@ import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { stringToBytes } from '@metamask/utils';
 
-import {
-  SeedlessOnboardingControllerErrorMessage,
-  SecretType,
-} from '../constants.js';
+import { SecretType } from '../constants.js';
 import { InvalidPrimarySecretDataTypeError } from '../errors.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import {

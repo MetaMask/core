@@ -36,17 +36,12 @@ function createFetchedSecretDataItemMock({
     itemId,
     version: version ?? (dataType === undefined ? 'v1' : 'v2'),
     dataType,
-  } as FetchedSecretDataItem;
+  };
 }
 
-function expectEvent(
-  trackEvent: jest.Mock,
-  name: string,
-): void {
+function expectEvent(trackEvent: jest.Mock, name: string): void {
   expect(trackEvent).toHaveBeenCalledTimes(1);
-  expect(trackEvent).toHaveBeenCalledWith(
-    expect.objectContaining({ name }),
-  );
+  expect(trackEvent).toHaveBeenCalledWith(expect.objectContaining({ name }));
 }
 
 describe('identifyIncompleteMetadataBackup', () => {
@@ -197,25 +192,26 @@ describe('identifyIncompleteMetadataBackup', () => {
         }),
       ],
     },
-  ])('tracks a missing-primary event for $description', async ({
-    secretDataItems,
-  }) => {
-    const fetchAllSecretDataFn = jest.fn().mockResolvedValue(secretDataItems);
-    const getPrimaryKeyringSeedPhraseFn = jest.fn();
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+  ])(
+    'tracks a missing-primary event for $description',
+    async ({ secretDataItems }) => {
+      const fetchAllSecretDataFn = jest.fn().mockResolvedValue(secretDataItems);
+      const getPrimaryKeyringSeedPhraseFn = jest.fn();
+      const trackEvent = jest.fn();
+      const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn,
-      trackEvent,
-      logFn,
-    });
+      await identifyIncompleteMetadataBackup({
+        fetchAllSecretDataFn,
+        getPrimaryKeyringSeedPhraseFn,
+        trackEvent,
+        logFn,
+      });
 
-    expectEvent(trackEvent, SeedlessPrimarySrpMissingEventName);
-    expect(getPrimaryKeyringSeedPhraseFn).not.toHaveBeenCalled();
-    expect(logFn).not.toHaveBeenCalled();
-  });
+      expectEvent(trackEvent, SeedlessPrimarySrpMissingEventName);
+      expect(getPrimaryKeyringSeedPhraseFn).not.toHaveBeenCalled();
+      expect(logFn).not.toHaveBeenCalled();
+    },
+  );
 
   it('logs fetch failures without tracking an affected-user event', async () => {
     const error = new Error('network failure');
@@ -293,14 +289,12 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn().mockRejectedValue(trackError);
     const logFn = jest.fn();
 
-    await expect(
-      identifyIncompleteMetadataBackup({
-        fetchAllSecretDataFn,
-        getPrimaryKeyringSeedPhraseFn: jest.fn(),
-        trackEvent,
-        logFn,
-      }),
-    ).resolves.toBeUndefined();
+    await identifyIncompleteMetadataBackup({
+      fetchAllSecretDataFn,
+      getPrimaryKeyringSeedPhraseFn: jest.fn(),
+      trackEvent,
+      logFn,
+    });
 
     expect(trackEvent).toHaveBeenCalledWith(
       expect.objectContaining({ name: SeedlessPrimarySrpMissingEventName }),

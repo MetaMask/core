@@ -33,7 +33,7 @@ import { assertIsValidVaultData } from './assertions.js';
  * @returns The decoded node auth token.
  */
 export function decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-  return JSON.parse(bytesToUtf8(base64ToBytes(token)));
+  return JSON.parse(bytesToUtf8(base64ToBytes(token))) as DecodedNodeAuthToken;
 }
 
 /**
@@ -53,8 +53,9 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
   const payload = parts[1];
   // Add padding if needed for base64 decoding
   const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-  const decoded = JSON.parse(bytesToUtf8(base64ToBytes(paddedPayload)));
-  return decoded as DecodedBaseJWTToken;
+  return JSON.parse(
+    bytesToUtf8(base64ToBytes(paddedPayload)),
+  ) as DecodedBaseJWTToken;
 }
 
 /**
@@ -142,7 +143,10 @@ export function serializeToprfAuthKeyPair(keyPair: KeyPair): string {
  * @returns The deserialized authentication key pair.
  */
 export function deserializeAuthKeyPair(value: string): KeyPair {
-  const parsedKeyPair = JSON.parse(value);
+  const parsedKeyPair = JSON.parse(value) as {
+    sk: string;
+    pk: string;
+  };
   return {
     sk: hexToBigInt(parsedKeyPair.sk),
     pk: base64ToBytes(parsedKeyPair.pk),
