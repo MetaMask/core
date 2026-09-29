@@ -127,12 +127,12 @@
       "$root$": true,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "@lavamoat/preinstall-always-fail": false,
-      "babel-runtime>core-js": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
       "jest>@jest/core>jest-resolve>unrs-resolver": false,
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false,
+      "jest>@jest/core>jest-haste-map>@parcel/watcher#2.6.0": false
     }
   }
 }
