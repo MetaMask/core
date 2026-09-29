@@ -184,6 +184,9 @@
       "path": "./packages/money-account-controller"
     },
     {
+      "path": "./packages/money-account-lifecycle-controller"
+    },
+    {
       "path": "./packages/money-account-upgrade-controller"
     },
     {
@@ -215,6 +218,9 @@
     },
     {
       "path": "./packages/notification-services-controller"
+    },
+    {
+      "path": "./packages/package-template"
     },
     {
       "path": "./packages/passkey-controller"
@@ -317,9 +323,6 @@
     },
     {
       "path": "./packages/wallet-framework-docs"
-    },
-    {
-      "path": "./packages/package-template"
     }
   ],
   "files": [],
