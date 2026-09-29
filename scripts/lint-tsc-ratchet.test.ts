@@ -3,11 +3,11 @@ import { jest } from '@jest/globals';
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported
 // dynamically afterwards.
-jest.unstable_mockModule('./lib/lint-tsc-ratchet.js', () => ({
+jest.unstable_mockModule('./lib/lint-tsc-ratchet.ts', () => ({
   lintTscRatchet: jest.fn(),
 }));
 
-const { lintTscRatchet } = await import('./lib/lint-tsc-ratchet.js');
+const { lintTscRatchet } = await import('./lib/lint-tsc-ratchet.ts');
 
 describe('lint-tsc-ratchet', () => {
   let originalProcess: typeof globalThis.process;
@@ -28,7 +28,7 @@ describe('lint-tsc-ratchet', () => {
     jest.spyOn(console, 'error').mockReturnValue(undefined);
 
     // Importing the entry point runs it, which is the behaviour under test.
-    await import('./lint-tsc-ratchet.js');
+    await import('./lint-tsc-ratchet.ts');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(lintTscRatchet).toHaveBeenCalledTimes(1);

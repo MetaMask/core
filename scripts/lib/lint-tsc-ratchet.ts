@@ -5,8 +5,8 @@ import {
   findAddedSuppressions,
   printAddedSuppressions,
   readSuppressions,
-} from './tsc-suppressions.js';
-import type { TscSuppressions } from './tsc-suppressions.js';
+} from './tsc-suppressions.ts';
+import type { TscSuppressions } from './tsc-suppressions.ts';
 
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 

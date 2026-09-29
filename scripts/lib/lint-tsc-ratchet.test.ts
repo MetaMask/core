@@ -7,15 +7,15 @@ jest.unstable_mockModule('execa', () => ({
   execa: jest.fn(),
 }));
 
-jest.unstable_mockModule('./tsc-suppressions.js', () => ({
+jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
   findAddedSuppressions: jest.fn(),
   printAddedSuppressions: jest.fn(),
   readSuppressions: jest.fn(),
 }));
 
 const { execa } = await import('execa');
-const tscSuppressions = await import('./tsc-suppressions.js');
-const { lintTscRatchet } = await import('./lint-tsc-ratchet.js');
+const tscSuppressions = await import('./tsc-suppressions.ts');
+const { lintTscRatchet } = await import('./lint-tsc-ratchet.ts');
 
 const BASE = { 'a.ts': { TS2322: { count: 2 } } };
 const CURRENT = { 'a.ts': { TS2322: { count: 1 } } };
