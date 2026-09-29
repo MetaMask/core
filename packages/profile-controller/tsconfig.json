@@ -17,9 +17,6 @@
       "path": "../profile-sync-controller/tsconfig.json"
     },
     {
-      "path": "../react-data-query/tsconfig.json"
-    },
-    {
       "path": "../controller-utils/tsconfig.json"
     }
   ],
