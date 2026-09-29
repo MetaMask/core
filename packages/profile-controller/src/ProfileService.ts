@@ -275,7 +275,7 @@ export class ProfileService extends BaseDataService<
    * @returns The parsed JSON response.
    * @throws {HttpError} If the response is not a 2xx status code.
    */
-  async #fetch<T extends Json>(
+  async #fetch<ResponseType extends Json>(
     endpoint: string,
     {
       method = 'GET',
@@ -286,7 +286,7 @@ export class ProfileService extends BaseDataService<
       error: string;
       json?: unknown;
     },
-  ): Promise<T> {
+  ): Promise<ResponseType> {
     const authHeaders = await this.#getAuthHeaders();
     const url = new URL(`${this.#v1Url}/${endpoint}`);
     const response = await fetch(url.toString(), {
@@ -300,7 +300,7 @@ export class ProfileService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(response.status, `${error}: ${response.status}`);
     }
-    return (await response.json()) as T;
+    return (await response.json()) as ResponseType;
   }
 
   /**
@@ -316,9 +316,12 @@ export class ProfileService extends BaseDataService<
       queryKey: [`${this.name}:getProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       queryFn: async () =>
-        this.#fetch<ProfileApiResponse>(`profiles/${encodeURIComponent(profileId)}`, {
-          error: ProfileServiceErrorMessage.GET_PROFILE_FAILED,
-        }),
+        this.#fetch<ProfileApiResponse>(
+          `profiles/${encodeURIComponent(profileId)}`,
+          {
+            error: ProfileServiceErrorMessage.GET_PROFILE_FAILED,
+          },
+        ),
     });
   }
 
@@ -365,11 +368,14 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:replaceProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       mutationFn: async () =>
-        this.#fetch<ProfileApiResponse>(`profiles/${encodeURIComponent(profileId)}`, {
-          method: 'PUT',
-          error: ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
-          json: params,
-        }),
+        this.#fetch<ProfileApiResponse>(
+          `profiles/${encodeURIComponent(profileId)}`,
+          {
+            method: 'PUT',
+            error: ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
+            json: params,
+          },
+        ),
     });
   }
 
@@ -392,11 +398,14 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:updateProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       mutationFn: async () =>
-        this.#fetch<ProfileApiResponse>(`profiles/${encodeURIComponent(profileId)}`, {
-          method: 'PATCH',
-          error: ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
-          json: params,
-        }),
+        this.#fetch<ProfileApiResponse>(
+          `profiles/${encodeURIComponent(profileId)}`,
+          {
+            method: 'PATCH',
+            error: ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
+            json: params,
+          },
+        ),
     });
   }
 
