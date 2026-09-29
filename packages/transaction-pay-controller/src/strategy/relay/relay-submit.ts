@@ -30,8 +30,8 @@ import {
   logGasPaymentOutcome,
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -240,7 +240,7 @@ async function executeSingleQuote(
 /**
  * Runs the second leg of a non-atomic Relay quote. Resolves the settled amount
  * from the on-chain Transfer log, then submits the batch via
- * `submitMoneyAccountVaultDeposit`. Post-quote flows fetch pre-built calls via
+ * `submitSecondLeg` on the target chain. Post-quote flows fetch pre-built calls via
  * the client `getPaymentOverrideData` callback; non-post-quote flows fall
  * through to the transaction's own nested calls re-encoded via
  * `getAmountData`. Funds settled on `quote.request.recipient`, derived at
@@ -288,13 +288,13 @@ async function submitPostNonAtomic({
   const recipient =
     override?.recipient ?? quote.request.recipient ?? quote.request.from;
 
-  return submitMoneyAccountVaultDeposit({
+  return await submitSecondLeg({
+    calls: override?.calls,
+    chainId: quote.request.targetChainId,
+    from: recipient,
     messenger,
-    moneyAccountAddress: recipient,
-    depositCalls: override?.calls,
     sourceAmountRaw,
     transaction,
-    vaultDisabled: false,
   });
 }
 
@@ -305,7 +305,7 @@ async function submitPostNonAtomic({
  *
  * The callback MUST return a non-empty batch. Post-quote parent metas (e.g.
  * Perps/Predict withdraws) carry no vault-side nested calls, so falling back
- * to `getAmountData` in `resolveVaultDepositBatch` cannot recover the second
+ * to `getAmountData` in `resolveSecondLegCalls` cannot recover the second
  * leg once Relay has already settled funds to the recipient. Throw eagerly so
  * the failure surfaces at the correct call site with an actionable message.
  *
