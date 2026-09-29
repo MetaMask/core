@@ -29,6 +29,9 @@
       "path": "../money-account-balance-service"
     },
     {
+      "path": "../money-account-upgrade-controller"
+    },
+    {
       "path": "../money-account-utils"
     },
     {

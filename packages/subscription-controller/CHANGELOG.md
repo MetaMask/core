@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stop adding the `ValueLteEnforcer` caveat to cash-subscription delegations created by `SubscriptionDelegationService:prepareDelegation`, because CHOMP only accepts `ERC20PeriodTransferEnforcer` and `AllowedCalldataEnforcer` for this intent type. ([#10427](https://github.com/MetaMask/core/pull/10427))
   - Stored delegations that still include a `ValueLteEnforcer` caveat are no longer reused; a new delegation is created and signed instead.
 - Add `@ethersproject/abi` `^5.7.0` as a dependency ([#10427](https://github.com/MetaMask/core/pull/10427))
+- Add `@metamask/money-account-upgrade-controller` `^5.1.0` as a dependency ([#10339](https://github.com/MetaMask/core/pull/10339))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 - Bump `@metamask/money-account-balance-service` from `^3.0.0` to `^3.1.1` ([#10502](https://github.com/MetaMask/core/pull/10502), [#10544](https://github.com/MetaMask/core/pull/10544))

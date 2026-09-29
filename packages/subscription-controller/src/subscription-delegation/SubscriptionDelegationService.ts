@@ -18,6 +18,7 @@ import { hashDelegation } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
 import type { MoneyAccountBalanceServiceFetchBalanceWithFallbackAction } from '@metamask/money-account-balance-service';
+import type { MoneyAccountUpgradeControllerForceUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
 import {
   getMoneyAccountVaultConfig,
   MUSD_DECIMALS,
@@ -53,7 +54,6 @@ import {
   makeMatchesSubscriptionDelegation,
   pickLatestMatchingSubscriptionDelegation,
 } from './fingerprint.js';
-import type { MoneyAccountUpgradeControllerForceUpgradeAccountAction } from './money-account-contracts.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import {
   buildDelegationTypedData,

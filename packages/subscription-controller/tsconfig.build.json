@@ -33,6 +33,9 @@
       "path": "../money-account-balance-service/tsconfig.build.json"
     },
     {
+      "path": "../money-account-upgrade-controller/tsconfig.build.json"
+    },
+    {
       "path": "../money-account-utils/tsconfig.build.json"
     },
     {
