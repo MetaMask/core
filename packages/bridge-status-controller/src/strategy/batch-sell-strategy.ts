@@ -63,7 +63,7 @@ export async function* submitBatchSellHandler(
       gasIncluded,
       isDelegatedAccount,
     ),
-    isGasFeeSponsored: gasSponsored,
+    forceIsGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
     batchId: batchIdParam,
     skipInitialGasEstimate: gasIncluded7702

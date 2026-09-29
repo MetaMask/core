@@ -45,7 +45,7 @@ export async function* submitBatchHandler(
       quoteResponse.quote.gasIncluded,
       isDelegatedAccount,
     ),
-    isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
+    forceIsGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
     isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
   });
 

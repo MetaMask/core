@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Pass `forceIsGasFeeSponsored` instead of `isGasFeeSponsored` when submitting gasless batch transactions ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+
 ## [76.3.3]
 
 ### Changed
