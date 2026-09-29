@@ -293,6 +293,7 @@ linkStyle default opacity:0.5
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> multichain_transactions_controller;
   assets_controller --> network_controller;
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
