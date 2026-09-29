@@ -47,7 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HyperLiquid writes that fail because the keyring is locked now fail with `KEYRING_LOCKED` and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
   - Before, they failed with the SDK's "Failed to sign the typed data using the wallet" message, or with `TPSL_UPDATE_FAILED` for a TP/SL update whose builder fee was not approved yet
   - Covers orders, edits, single and batch cancels (TWAP, scale and chase cancels included), position closes, TP/SL updates and clears, margin updates, withdrawals and transfers between DEXs, including the HIP-3 transfers around an order
-- A HyperLiquid referral skipped during trading setup because the wallet has not deposited yet is attempted again at the next trading setup once the wallet has deposited, instead of after the provider reconnects ([#10559](https://github.com/MetaMask/core/pull/10559))
 - HyperLiquid `cancelOrders` reports each order of a batch with its own result when an entry fails: orders the venue cancelled are no longer reported as failed with the batch's error ([#10559](https://github.com/MetaMask/core/pull/10559))
 
 ## [18.0.1]

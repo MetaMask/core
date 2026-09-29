@@ -698,69 +698,68 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     });
   });
 
-  it('releases a binding to an agent the venue rejects even when the host onAgentRejected throws', async () => {
-    onAgentRejected.mockImplementation(() => {
-      throw new Error('host callback failed');
-    });
-    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
-    mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
-    const { controller, call } = createController();
-    await controller.init();
-    controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
-
-    const cancelled = await controller.cancelOrder({
-      orderId: '1',
-      symbol: 'BTC',
-    });
-    const placed = await placeOrder(controller);
-
-    expect(cancelled).toStrictEqual({
-      success: false,
-      orderId: '1',
-      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-    });
-    // The binding is gone, so the host's getAgentSigner answers.
-    expect(placed).toStrictEqual(PLACED_ORDER);
-    expect(signedWrites()).toStrictEqual([
-      ['cancel', OTHER_AGENT_ADDRESS],
-      ['order', AGENT_ADDRESS],
-    ]);
-    expectHostSaw(call, {
-      agentRequests: [MAINNET_ACCOUNT],
+  // Hosts whose onAgentRejected does not take the rejection: it throws, or
+  // there is none.
+  const REJECTION_HOSTS: {
+    host: string;
+    credentials: () => HyperLiquidCredentials;
+    rejectedAgents: [PerpsAgentAccount, Hex][];
+  }[] = [
+    {
+      host: 'whose onAgentRejected throws',
+      credentials: (): HyperLiquidCredentials => ({
+        getAgentSigner,
+        onAgentRejected: onAgentRejected.mockImplementation(() => {
+          throw new Error('host callback failed');
+        }),
+      }),
       rejectedAgents: [[MAINNET_ACCOUNT, OTHER_AGENT_ADDRESS]],
-    });
-  });
+    },
+    {
+      host: 'without onAgentRejected',
+      credentials: (): HyperLiquidCredentials => ({ getAgentSigner }),
+      // The suite's onAgentRejected is not wired, so it stays uncalled.
+      rejectedAgents: [],
+    },
+  ];
 
-  it('releases a binding to an agent the venue rejects for a host without onAgentRejected', async () => {
-    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
-    mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
-    const { controller, call } = createController({
-      hyperliquid: { getAgentSigner },
-    });
-    await controller.init();
-    controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
+  it.each(REJECTION_HOSTS)(
+    'releases a binding to an agent the venue rejects for a host $host',
+    async ({ credentials, rejectedAgents }) => {
+      const boundAgent = createAgent(
+        OTHER_AGENT_ADDRESS,
+        OTHER_AGENT_SIGNATURE,
+      );
+      mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
+      const { controller, call } = createController({
+        hyperliquid: credentials(),
+      });
+      await controller.init();
+      controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
 
-    const cancelled = await controller.cancelOrder({
-      orderId: '1',
-      symbol: 'BTC',
-    });
-    const placed = await placeOrder(controller);
+      const cancelled = await controller.cancelOrder({
+        orderId: '1',
+        symbol: 'BTC',
+      });
+      const placed = await placeOrder(controller);
 
-    expect(cancelled).toStrictEqual({
-      success: false,
-      orderId: '1',
-      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-    });
-    // The binding is gone, so the host's getAgentSigner answers.
-    expect(placed).toStrictEqual(PLACED_ORDER);
-    expect(signedWrites()).toStrictEqual([
-      ['cancel', OTHER_AGENT_ADDRESS],
-      ['order', AGENT_ADDRESS],
-    ]);
-    // The host has no onAgentRejected to observe.
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    expectQuietHost(call);
-  });
+      expect(cancelled).toStrictEqual({
+        success: false,
+        orderId: '1',
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      // The binding is gone, so the host's getAgentSigner answers.
+      expect(placed).toStrictEqual(PLACED_ORDER);
+      expect(signedWrites()).toStrictEqual([
+        ['cancel', OTHER_AGENT_ADDRESS],
+        ['order', AGENT_ADDRESS],
+      ]);
+      expectHostSaw(call, {
+        agentRequests: [MAINNET_ACCOUNT],
+        rejectedAgents,
+      });
+    },
+  );
 
   it('prepares nothing and reports KEYRING_LOCKED while the account signer is not ready', async () => {
     const { controller, call } = createController({

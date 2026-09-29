@@ -2913,9 +2913,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #tradingSetupComplete = false;
 
-  // Set when the referral could not be written yet (its signer could not
-  // sign, or the wallet has no HyperLiquid account yet), so trading setup is
-  // not marked complete and the referral is attempted again.
+  // Set when the referral's signer could not sign it, so trading setup is not
+  // marked complete and the referral is attempted again.
   #referralSetupNeedsRetry = false;
 
   // Set when the builder's referral code was not ready. It is not the user's
@@ -3009,21 +3008,27 @@ export class HyperLiquidProvider implements PerpsProvider {
   #ensureReadyForTrading(options: {
     requiresBuilderFee: true;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    recheckPendingReferral?: boolean;
   }): Promise<BuilderFeeSetupContext>;
 
   #ensureReadyForTrading(options: {
     requiresBuilderFee: false;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    recheckPendingReferral?: boolean;
   }): Promise<undefined>;
 
   #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    recheckPendingReferral?: boolean;
   }): Promise<BuilderFeeSetupContext | undefined>;
 
   async #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    // Run the shared setup again to check a builder referral code that was
+    // not ready. Only preparation asks for it; orders do not.
+    recheckPendingReferral?: boolean;
   }): Promise<BuilderFeeSetupContext | undefined> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
@@ -3033,6 +3038,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     // already-migrated or already-rejected users are not re-prompted.
     await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
 
+    // Reset right before the check, with no await in between, so a failure
+    // above does not leave the setup for an order to run.
+    if (options.recheckPendingReferral && this.#referralAwaitsBuilderCode) {
+      this.#tradingSetupComplete = false;
+    }
     if (!this.#tradingSetupComplete && !this.#tradingSetupPromise) {
       const lifecycleGeneration = this.#lifecycleGeneration;
       this.#deps.debugLogger.log(
@@ -5008,6 +5018,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     if (!result.success) {
+      // The signer could not sign the transfer: retryable, not a defect.
+      if (result.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      }
       throw new Error(
         `Auto-transfer failed: ${result.error ?? 'Unknown error'}`,
       );
@@ -5311,7 +5325,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             if (transferResult.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
               this.#deps.debugLogger.log(
                 'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX',
-                { dex: dexName, excessAmount: excessAmount.toFixed(2) },
+                { dex: dexName, excessAmount },
               );
               return false;
             }
@@ -5415,10 +5429,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // The signer could not sign the transfer: retryable, not a defect.
         this.#deps.debugLogger.log(
           'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX',
-          {
-            dex: dexName,
-            amount: transferInfo.amount.toFixed(USDC_DECIMALS),
-          },
+          { dex: dexName, amount: transferInfo.amount },
         );
       } else {
         this.#deps.logger.error(
@@ -14676,11 +14687,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
         }
       };
-      // Run the shared setup again to check the builder's referral code.
-      if (this.#referralAwaitsBuilderCode) {
-        this.#tradingSetupComplete = false;
-      }
-      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+      await this.#ensureReadyForTrading({
+        requiresBuilderFee: false,
+        recheckPendingReferral: true,
+      });
       const network = this.#clientService.isTestnetMode()
         ? 'testnet'
         : 'mainnet';
@@ -15848,8 +15858,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         '[ensureReferralSet] Wallet not yet on Hyperliquid, deferring referral setup',
         { network },
       );
-      // Attempt it again once the wallet has deposited.
-      this.#referralSetupNeedsRetry = true;
       return;
     }
 
@@ -15979,7 +15987,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           '[ensureReferralSet] Wallet not on Hyperliquid (race/stale-cache), deferring referral',
           { network, user: userAddress },
         );
-        this.#referralSetupNeedsRetry = true;
         completeInFlight();
         return;
       }

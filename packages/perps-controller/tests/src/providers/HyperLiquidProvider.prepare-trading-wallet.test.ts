@@ -31,7 +31,10 @@ import {
   referralAttempted,
   setUpAccountSignerSuite,
 } from '../../helpers/hyperLiquidAccountSignerFixture.js';
-import { createDeferred } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockEvmAccount,
+} from '../../helpers/serviceMocks.js';
 
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
@@ -646,7 +649,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(loggerError).not.toHaveBeenCalled();
     });
 
-    it('sets the referral once a wallet prepared before its first deposit has deposited', async () => {
+    it('leaves the referral of a wallet prepared before its first deposit to the next provider, as orders do', async () => {
       let deposited = false;
       const { accountSignerProvider, exchangeClient } =
         createAccountSignerProvider({
@@ -669,9 +672,9 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       });
       expect(afterDeposit).toStrictEqual({ ready: true });
-      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
-        REFERRAL_WRITE,
-      ]);
+      // Not attempted and not recorded, so the next provider attempts it.
+      expect(exchangeClient.setReferrer).not.toHaveBeenCalled();
+      expect(referralAttempted()).toBe(false);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -700,7 +703,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(loggerError).not.toHaveBeenCalled();
     });
 
-    it('attempts the referral again when the venue rejects the wallet as unknown despite the probe', async () => {
+    it('leaves a referral the venue rejects as an unknown wallet unrecorded, for the next provider', async () => {
       const { accountSignerProvider, exchangeClient } =
         createAccountSignerProvider({ abstraction: 'unifiedAccount' });
       // The probe sees a deposit, but the venue has not caught up yet.
@@ -709,16 +712,15 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       );
 
       const rejected = await accountSignerProvider.prepareTradingWallet();
-      const referralAfterRejection = referralAttempted();
-      const retried = await accountSignerProvider.prepareTradingWallet();
+      const preparedAgain = await accountSignerProvider.prepareTradingWallet();
 
-      expect(rejected).toStrictEqual({ ready: false });
-      expect(referralAfterRejection).toBe(false);
-      expect(retried).toStrictEqual({ ready: true });
+      // The referral is non-blocking, and this provider does not ask again.
+      expect(rejected).toStrictEqual({ ready: true });
+      expect(preparedAgain).toStrictEqual({ ready: true });
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
-        REFERRAL_WRITE,
       ]);
+      expect(referralAttempted()).toBe(false);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -745,6 +747,53 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
 
       expect(beforeReady).toStrictEqual({ ready: true });
       expect(afterReady).toStrictEqual({ ready: true });
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('leaves the referral to the next preparation, not to an order, when a preparation fails before its setup', async () => {
+      let codeReady = false;
+      const referral = jest.fn(async () => ({
+        referrerState: codeReady
+          ? { stage: 'ready', data: { code: REFERRAL_CONFIG.MainnetCode } }
+          : { stage: 'not_ready', data: null },
+      }));
+      const {
+        accountSignerProvider,
+        call,
+        deselectAccount,
+        exchangeClient,
+        selectAccount,
+      } = createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+        info: { referral },
+      });
+      const pending = await accountSignerProvider.prepareTradingWallet();
+      codeReady = true;
+      // The account is deselected right after preparation reads it, so the
+      // migration check fails before the shared setup runs.
+      call.mockImplementationOnce(() => {
+        deselectAccount();
+        return { ...createMockEvmAccount(), scopes: ['eip155:0'] };
+      });
+
+      const failed = await accountSignerProvider.prepareTradingWallet();
+      selectAccount(MAIN_ADDRESS);
+      const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+      const referralCallsAfterOrder =
+        exchangeClient.setReferrer.mock.calls.slice();
+      const prepared = await accountSignerProvider.prepareTradingWallet();
+
+      expect(pending).toStrictEqual({ ready: true });
+      expect(failed).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+      });
+      expect(order.success).toBe(true);
+      expect(referralCallsAfterOrder).toStrictEqual([]);
+      expect(prepared).toStrictEqual({ ready: true });
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
       ]);

@@ -632,11 +632,7 @@ describe('LighterProvider with a KeyringController', () => {
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
-    expect(
-      call.mock.calls.filter(([action]: [string]) =>
-        action.startsWith('KeyringController:'),
-      ),
-    ).toStrictEqual([['KeyringController:getState']]);
+    expect(keyringCalls(call)).toStrictEqual(['KeyringController:getState']);
     expect(calls).toStrictEqual([]);
     expect(client.getNextNonce).not.toHaveBeenCalled();
     expect(client.sendTx).not.toHaveBeenCalled();

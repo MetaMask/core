@@ -21,6 +21,7 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  keyringCalls,
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
@@ -899,8 +900,9 @@ describe('PerpsController', () => {
       const MockLighterConstructor = jest.fn(() =>
         createMockHyperLiquidProvider(),
       );
+      const messenger = createMockMessenger();
       controller = new TestablePerpsController({
-        messenger: createMockMessenger(),
+        messenger,
         state: getDefaultPerpsControllerState(),
         clientConfig: {
           providerCredentials: {
@@ -917,16 +919,21 @@ describe('PerpsController', () => {
       );
 
       expect(controller.state.isTestnet).toBe(false);
-      expect(MockLighterConstructor).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isTestnet: true,
-          lighterAuthConfig: {
-            enabled: undefined,
-            accountIndex: 2,
-            apiKeyIndex: undefined,
+      expect(MockLighterConstructor.mock.calls).toStrictEqual([
+        [
+          {
+            isTestnet: true,
+            platformDependencies: mockInfrastructure,
+            messenger,
+            signerBridge: undefined,
+            lighterAuthConfig: {
+              enabled: undefined,
+              accountIndex: 2,
+              apiKeyIndex: undefined,
+            },
           },
-        }),
-      );
+        ],
+      ]);
     });
 
     it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
@@ -975,15 +982,23 @@ describe('PerpsController', () => {
       selectedAccount = createMockEvmAccount(),
     }: {
       isUnlocked: boolean;
-      // An account with an empty address stands for no selection.
-      selectedAccount?: { address: string } | null;
+      // An account with an empty address stands for no selection. A getter
+      // answers with the account selected at each call.
+      selectedAccount?:
+        | { address: string }
+        | null
+        | (() => { address: string } | null);
     }): jest.Mock {
       return jest.fn().mockImplementation((action: string) => {
         if (action === 'KeyringController:getState') {
           return { isUnlocked };
         }
         if (action === 'AccountsController:getSelectedAccount') {
-          return selectedAccount ?? undefined;
+          const account =
+            typeof selectedAccount === 'function'
+              ? selectedAccount()
+              : selectedAccount;
+          return account ?? undefined;
         }
         return undefined;
       });
@@ -1254,9 +1269,9 @@ describe('PerpsController', () => {
 
         expect(result).toStrictEqual(expected);
         // Only a host without an account signer is asked for its keyring.
-        expect(
-          call.mock.calls.filter(([action]) => action.startsWith('Keyring')),
-        ).toStrictEqual(usesKeyring ? [['KeyringController:getState']] : []);
+        expect(keyringCalls(call)).toStrictEqual(
+          usesKeyring ? ['KeyringController:getState'] : [],
+        );
       },
     );
 
@@ -1301,9 +1316,9 @@ describe('PerpsController', () => {
           [],
         ]);
         // Only a host without an account signer is asked for its keyring.
-        expect(
-          call.mock.calls.filter(([action]) => action.startsWith('Keyring')),
-        ).toStrictEqual(usesKeyring ? [['KeyringController:getState']] : []);
+        expect(keyringCalls(call)).toStrictEqual(
+          usesKeyring ? ['KeyringController:getState'] : [],
+        );
       },
     );
 
@@ -1342,32 +1357,50 @@ describe('PerpsController', () => {
         ]);
       },
     );
+
     it.each([
       {
+        change: 'selected',
+        // No account is selected when the preparation starts.
+        startAccount: { ...createMockEvmAccount(), address: '' },
+        nextAccount: createMockEvmAccount(),
+        providerResult: { ready: true },
+      },
+      {
         change: 'switched',
+        startAccount: createMockEvmAccount(),
         nextAccount: { ...createMockEvmAccount(), address: OTHER_MAIN_ADDRESS },
+        providerResult: { ready: true },
       },
       {
         change: 'deselected',
+        startAccount: createMockEvmAccount(),
         nextAccount: { ...createMockEvmAccount(), address: '' },
+        providerResult: { ready: true },
+      },
+      {
+        change: 'switched',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: OTHER_MAIN_ADDRESS },
+        // A not-ready result was prepared for the previous account too.
+        providerResult: {
+          ready: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        },
       },
     ])(
-      'reports PROVIDER_LIFECYCLE_STALE when the account is $change while the provider prepares',
-      async ({ nextAccount }) => {
-        let selectedAccount: { address: string } = createMockEvmAccount();
-        const call = jest.fn().mockImplementation((action: string) => {
-          if (action === 'KeyringController:getState') {
-            return { isUnlocked: true };
-          }
-          return action === 'AccountsController:getSelectedAccount'
-            ? selectedAccount
-            : undefined;
+      'reports PROVIDER_LIFECYCLE_STALE when the account is $change while the provider prepares (provider ready: $providerResult.ready)',
+      async ({ startAccount, nextAccount, providerResult }) => {
+        let selectedAccount: { address: string } = startAccount;
+        const call = createHostCall({
+          isUnlocked: true,
+          selectedAccount: () => selectedAccount,
         });
         // For example an aggregated provider preparing one provider after
         // another.
         mockProvider.prepareTradingWallet = jest.fn(async () => {
           selectedAccount = nextAccount;
-          return { ready: true };
+          return providerResult;
         });
         controller = new TestablePerpsController({
           messenger: createMockMessenger({ call }),
@@ -1384,6 +1417,33 @@ describe('PerpsController', () => {
         });
       },
     );
+
+    it('returns the prepared result when only the casing of the selected address changes', async () => {
+      const { address } = createMockEvmAccount();
+      let selectedAccount = { ...createMockEvmAccount(), address };
+      const call = createHostCall({
+        isUnlocked: true,
+        selectedAccount: () => selectedAccount,
+      });
+      const prepared = { ready: true };
+      mockProvider.prepareTradingWallet = jest.fn(async () => {
+        selectedAccount = {
+          ...selectedAccount,
+          address: `0x${address.slice(2).toUpperCase()}`,
+        };
+        return prepared;
+      });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({ call }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toBe(prepared);
+    });
 
     it('returns a provider result that is not ready for another reason unchanged, without asking the keyring', async () => {
       const notReady = {
@@ -1409,9 +1469,7 @@ describe('PerpsController', () => {
         ready: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       });
-      expect(
-        call.mock.calls.filter(([action]) => action.startsWith('Keyring')),
-      ).toStrictEqual([]);
+      expect(keyringCalls(call)).toStrictEqual([]);
     });
   });
 

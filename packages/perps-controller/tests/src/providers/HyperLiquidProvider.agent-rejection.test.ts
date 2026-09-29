@@ -74,6 +74,20 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         isPositionTpsl: true,
       });
 
+      // The position's stop loss, resting on the venue.
+      const STOP_LOSS_ORDER = createFrontendOpenOrder({
+        side: 'A',
+        limitPx: '42000',
+        oid: 457,
+        orderType: 'Stop Market',
+        tif: null,
+        isTrigger: true,
+        triggerPx: '42000',
+        triggerCondition: 'Price below 42000',
+        reduceOnly: true,
+        isPositionTpsl: true,
+      });
+
       // The agent getAgentSigner answers once the rejected one is dropped.
       const REPLACEMENT_AGENT = {
         address: OTHER_AGENT_ADDRESS,
@@ -430,49 +444,46 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(loggerError).not.toHaveBeenCalled();
       });
 
-      it('keeps the old protection and fails with KEYRING_LOCKED when its cancel is rejected in a status entry', async () => {
-        const {
-          accountSignerProvider,
-          exchangeClient,
-          infoClient,
-          sdkWallet,
-          onAgentRejected,
-        } = createRejectingProvider('cancel');
-        infoClient.frontendOpenOrders.mockResolvedValue([TAKE_PROFIT_ORDER]);
-        await accountSignerProvider.getMarketDataWithPrices();
-        const wallet = sdkWallet();
-        exchangeClient.cancel.mockImplementation(async () => {
-          await wallet.signTypedData(L1_PAYLOAD);
-          return {
-            status: 'ok',
-            response: {
-              data: {
-                statuses: [
-                  { error: unknownWalletError(AGENT_ADDRESS).message },
-                ],
-              },
-            },
-          };
-        });
+      it.each(CANCEL_DELIVERIES)(
+        'keeps the old protection and fails with KEYRING_LOCKED when its cancel is rejected in a status entry ($label)',
+        async ({ delivery }) => {
+          const {
+            accountSignerProvider,
+            exchangeClient,
+            infoClient,
+            sdkWallet,
+            onAgentRejected,
+          } = createRejectingProvider('cancel');
+          infoClient.frontendOpenOrders.mockResolvedValue([TAKE_PROFIT_ORDER]);
+          await accountSignerProvider.getMarketDataWithPrices();
+          const wallet = sdkWallet();
+          exchangeClient.cancel.mockImplementation(async () => {
+            await wallet.signTypedData(L1_PAYLOAD);
+            return cancelStatusesResponse(
+              [{ error: unknownWalletError(AGENT_ADDRESS).message }],
+              delivery,
+            );
+          });
 
-        const result = await accountSignerProvider.updatePositionTPSL({
-          symbol: 'BTC',
-          takeProfitPrice: '60000',
-        });
+          const result = await accountSignerProvider.updatePositionTPSL({
+            symbol: 'BTC',
+            takeProfitPrice: '60000',
+          });
 
-        expect(result).toStrictEqual({
-          success: false,
-          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-        });
-        expect(exchangeClient.cancel.mock.calls).toStrictEqual([
-          [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
-        ]);
-        expect(exchangeClient.order).not.toHaveBeenCalled();
-        expect(onAgentRejected.mock.calls).toStrictEqual([
-          [MAINNET_ACCOUNT, AGENT_ADDRESS],
-        ]);
-        expect(loggerError).not.toHaveBeenCalled();
-      });
+          expect(result).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          });
+          expect(exchangeClient.cancel.mock.calls).toStrictEqual([
+            [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
+          ]);
+          expect(exchangeClient.order).not.toHaveBeenCalled();
+          expect(onAgentRejected.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          ]);
+          expect(loggerError).not.toHaveBeenCalled();
+        },
+      );
 
       it.each(CANCEL_DELIVERIES)(
         'fails only the batch cancel entries that name the rejected agent with KEYRING_LOCKED, and maps the others ($label)',
@@ -530,18 +541,6 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       it.each(CANCEL_DELIVERIES)(
         'restores the leg it cancelled and fails with KEYRING_LOCKED when the venue cancels one leg and rejects the agent on the other ($label)',
         async ({ delivery }) => {
-          const STOP_LOSS_ORDER = createFrontendOpenOrder({
-            side: 'A',
-            limitPx: '42000',
-            oid: 457,
-            orderType: 'Stop Market',
-            tif: null,
-            isTrigger: true,
-            triggerPx: '42000',
-            triggerCondition: 'Price below 42000',
-            reduceOnly: true,
-            isPositionTpsl: true,
-          });
           const {
             accountSignerProvider,
             agentSigner,
@@ -631,21 +630,10 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       );
 
       it('reports the protection lost, without logging, when the leg the venue cancelled cannot be restored after the other names the rejected agent', async () => {
-        const STOP_LOSS_ORDER = createFrontendOpenOrder({
-          side: 'A',
-          limitPx: '42000',
-          oid: 457,
-          orderType: 'Stop Market',
-          tif: null,
-          isTrigger: true,
-          triggerPx: '42000',
-          triggerCondition: 'Price below 42000',
-          reduceOnly: true,
-          isPositionTpsl: true,
-        });
         const {
           accountSignerProvider,
           exchangeClient,
+          getAgentSigner,
           infoClient,
           sdkWallet,
           onAgentRejected,
@@ -680,6 +668,16 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
           childOrderIds: [String(STOP_LOSS_ORDER.oid)],
         });
+        expect(exchangeClient.cancel.mock.calls).toStrictEqual([
+          [
+            {
+              cancels: [
+                { a: 0, o: TAKE_PROFIT_ORDER.oid },
+                { a: 0, o: STOP_LOSS_ORDER.oid },
+              ],
+            },
+          ],
+        ]);
         // Only the restoration of the cancelled take profit was attempted.
         expect(
           exchangeClient.order.mock.calls.map(
@@ -692,6 +690,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+        // Asked again after each rejection dropped the agent.
+        expect(getAgentSigner.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT],
+          [MAINNET_ACCOUNT],
         ]);
         expect(loggerError).not.toHaveBeenCalled();
       });

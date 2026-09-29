@@ -5969,6 +5969,16 @@ export class PerpsController extends BaseController<
     const result = (await provider.prepareTradingWallet?.()) ?? {
       ready: true,
     };
+    const address = readSelectedAddress();
+    // The steps ran for the account selected when they started (in aggregated
+    // mode, one provider after another), so their result is not the current
+    // account's.
+    if (address !== addressAtStart) {
+      return {
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      };
+    }
     if (!result.ready) {
       return result;
     }
@@ -5982,17 +5992,8 @@ export class PerpsController extends BaseController<
     ) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
-    const address = readSelectedAddress();
-    if (!address && !addressAtStart) {
+    if (!address) {
       return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
-    }
-    // The steps ran for the account selected when they started (in aggregated
-    // mode, one provider after another).
-    if (address !== addressAtStart) {
-      return {
-        ready: false,
-        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-      };
     }
     return result;
   }

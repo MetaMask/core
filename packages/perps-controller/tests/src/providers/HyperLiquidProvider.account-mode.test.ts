@@ -743,12 +743,8 @@ describe('HyperLiquidProvider', () => {
           attempted: true,
           success: true,
         });
-        // Keyring is locked
-        (
-          mockWalletService as unknown as {
-            isMainAccountSignerReady: jest.Mock;
-          }
-        ).isMainAccountSignerReady.mockReturnValue(false);
+        // The main account cannot sign.
+        mockWalletService.isMainAccountSignerReady.mockReturnValue(false);
 
         // Act
         await testableProvider.ensureReadyForTrading();

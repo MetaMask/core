@@ -78,8 +78,9 @@ describe('HyperLiquidWalletService with accountSigner', () => {
       .signTypedData(L1_PAYLOAD);
 
     expect(signature).toBe(MAIN_SIGNATURE);
-    expect(signer.signTypedData).toHaveBeenCalledTimes(1);
-    expect(signer.signTypedData).toHaveBeenCalledWith(address, L1_PAYLOAD);
+    expect(signer.signTypedData.mock.calls).toStrictEqual([
+      [address, L1_PAYLOAD],
+    ]);
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 

@@ -5025,15 +5025,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
      */
     const useHip3MarketOrder = (
       orderResponse: Record<string, unknown>,
-    ): jest.SpyInstance => {
+    ): { transfer: jest.SpyInstance; order: jest.Mock } => {
       let ordered = false;
+      const order = jest.fn(async () => {
+        ordered = true;
+        return orderResponse;
+      });
       useStrategyClients({
-        exchange: {
-          order: jest.fn(async () => {
-            ordered = true;
-            return orderResponse;
-          }),
-        },
+        exchange: { order },
         info: {
           clearinghouseState: jest
             .fn()
@@ -5059,7 +5058,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      return jest.spyOn(provider, 'transferBetweenDexs');
+      return { transfer: jest.spyOn(provider, 'transferBetweenDexs'), order };
     };
 
     const HIP3_MARKET_ORDER = {
@@ -5086,6 +5085,23 @@ describe('HyperLiquidProvider - strategy order types', () => {
     };
     const REFUSED_ORDER = { status: 'err', response: 'venue busy' };
     const ORDER_FAILURE = `Order failed: ${JSON.stringify(REFUSED_ORDER)}`;
+    const ROLLBACK_NOT_SIGNED =
+      'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX';
+    const REBALANCE_NOT_SIGNED =
+      'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX';
+
+    /**
+     * The transfers noted as not signed, with their details.
+     *
+     * @returns Each note's message and details.
+     */
+    const unsignedTransferNotes = (): [unknown, unknown][] =>
+      (mockPlatformDependencies.debugLogger.log as jest.Mock).mock.calls
+        .filter(
+          ([message]: [unknown]) =>
+            message === ROLLBACK_NOT_SIGNED || message === REBALANCE_NOT_SIGNED,
+        )
+        .map(([message, details]: [unknown, unknown]) => [message, details]);
 
     /**
      * The errors reported, with the provider method named in each.
@@ -5100,10 +5116,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ]) => [error.message, options.context.data.method],
       );
 
+    it('fails a HIP-3 order with KEYRING_LOCKED, sending nothing, when its collateral transfer cannot be signed', async () => {
+      const { transfer, order } = useHip3MarketOrder(REFUSED_ORDER);
+      transfer.mockResolvedValueOnce({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+
+      const result = await provider.placeOrder(HIP3_MARKET_ORDER);
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      expect(transfer.mock.calls).toStrictEqual([[PRE_ORDER_TRANSFER]]);
+      expect(order).not.toHaveBeenCalled();
+      expect(reportedErrors()).toStrictEqual([]);
+    });
+
     it.each([
       {
         transferError: PERPS_ERROR_CODES.KEYRING_LOCKED,
         reported: [[ORDER_FAILURE, 'placeOrder']],
+        notes: [[ROLLBACK_NOT_SIGNED, { dex: 'xyz', amount: 154.9635 }]],
       },
       {
         transferError: 'transfer failed',
@@ -5111,11 +5146,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
           ['transfer failed', 'placeOrder:rollback'],
           [ORDER_FAILURE, 'placeOrder'],
         ],
+        notes: [],
       },
     ])(
       'reports the rollback of a failed HIP-3 order only when it fails for a reason other than the signer ($transferError)',
-      async ({ transferError, reported }) => {
-        const transfer = useHip3MarketOrder(REFUSED_ORDER);
+      async ({ transferError, reported, notes }) => {
+        const { transfer } = useHip3MarketOrder(REFUSED_ORDER);
         transfer
           .mockResolvedValueOnce({ success: true })
           .mockResolvedValueOnce({ success: false, error: transferError });
@@ -5128,19 +5164,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
           [ROLLBACK_TRANSFER],
         ]);
         expect(reportedErrors()).toStrictEqual(reported);
+        expect(unsignedTransferNotes()).toStrictEqual(notes);
       },
     );
 
     it.each([
-      { transferError: PERPS_ERROR_CODES.KEYRING_LOCKED, reported: [] },
+      {
+        transferError: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        reported: [],
+        notes: [[REBALANCE_NOT_SIGNED, { dex: 'xyz', excessAmount: 19.9 }]],
+      },
       {
         transferError: 'transfer failed',
         reported: [['transfer failed', 'placeOrder:autoRebalance']],
+        notes: [],
       },
     ])(
       'reports the rebalance after a HIP-3 order only when it fails for a reason other than the signer ($transferError)',
-      async ({ transferError, reported }) => {
-        const transfer = useHip3MarketOrder({
+      async ({ transferError, reported, notes }) => {
+        const { transfer } = useHip3MarketOrder({
           status: 'ok',
           response: {
             data: {
@@ -5167,6 +5209,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           [REBALANCE_TRANSFER],
         ]);
         expect(reportedErrors()).toStrictEqual(reported);
+        expect(unsignedTransferNotes()).toStrictEqual(notes);
       },
     );
   });
