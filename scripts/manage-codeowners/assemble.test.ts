@@ -1,5 +1,5 @@
-import { assembleCodeownersSections } from './assemble.js';
-import type { CodeownersConfig } from './types.js';
+import { assembleCodeownersSections } from './assemble.ts';
+import type { CodeownersConfig } from './types.ts';
 
 describe('assembleCodeownersSections', () => {
   it('groups all package rules in one alphabetized Packages section', () => {

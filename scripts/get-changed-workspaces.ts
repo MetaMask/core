@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-import { computeChangedWorkspaces } from './lib/workspaces.mjs';
+import { computeChangedWorkspaces } from './lib/workspaces.ts';
 
 /**
  * List workspaces that need to be checked given a merge base.
@@ -11,7 +11,7 @@ import { computeChangedWorkspaces } from './lib/workspaces.mjs';
  * - `locations`: workspace-relative paths (e.g. `packages/foo`) for the same set
  * - `hasRootChange`: true if any non-ignored root file changed (triggers a full run)
  *
- * Usage: `tsx scripts/get-changed-workspaces.mts --merge-base <sha> [--head-ref <ref>] [--include-dependencies]`
+ * Usage: `tsx scripts/get-changed-workspaces.ts --merge-base <sha> [--head-ref <ref>] [--include-dependencies]`
  */
 const argv = await yargs(hideBin(process.argv))
   .usage('$0 --merge-base <sha> [--head-ref <ref>] [--include-dependencies]')

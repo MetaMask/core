@@ -30,4 +30,4 @@ jobs:
       - name: Close inactive release PRs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn tsx scripts/close-stale-release-prs.mts
+        run: yarn tsx scripts/close-stale-release-prs.ts
