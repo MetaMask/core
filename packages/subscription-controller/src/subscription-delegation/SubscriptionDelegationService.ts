@@ -27,7 +27,11 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import { add0x, hexToNumber, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
+import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  SubscriptionControllerErrorMessage,
+  SubscriptionDelegationServiceErrorMessage,
+} from '../constants.js';
 import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
@@ -40,6 +44,7 @@ import type {
   ProductType,
   PricingCryptoPaymentMethod,
   RecurringInterval,
+  Subscription,
   TokenPaymentInfo,
 } from '../types.js';
 import {
@@ -270,6 +275,10 @@ export class SubscriptionDelegationService {
   /**
    * Runs the complete Money Account subscription checkout authorization flow.
    *
+   * Subscriptions are refreshed first. An active subscription for the product
+   * is rejected before Money Account upgrade, approval, delegation signing,
+   * persistence, or CHOMP registration.
+   *
    * Before the approval, `MoneyAccountUpgradeController` is asked to ensure
    * the Money Account vault delegations and CHOMP intents exist; the
    * Subscription API validates them server-side. The custom approval is the
@@ -306,7 +315,10 @@ export class SubscriptionDelegationService {
         SubscriptionDelegationServiceErrorMessage.MissingMusdTokenAddress,
       );
     }
-    await this.#messenger.call('SubscriptionController:getSubscriptions');
+    const subscriptions = await this.#messenger.call(
+      'SubscriptionController:getSubscriptions',
+    );
+    this.#assertUserNotSubscribed(subscriptions, request.product);
     const { trialedProducts } = this.#messenger.call(
       'SubscriptionController:getState',
     );
@@ -377,6 +389,27 @@ export class SubscriptionDelegationService {
     } catch (error) {
       approval?.resultCallbacks?.error(error as Error);
       throw error;
+    }
+  }
+
+  /**
+   * Rejects when the refreshed list already contains an active subscription
+   * for the product. Active includes `active`, `trialing`, and `provisional`.
+   *
+   * @param subscriptions - Subscriptions returned by the latest refresh.
+   * @param product - Product the caller is trying to start.
+   */
+  #assertUserNotSubscribed(
+    subscriptions: Subscription[],
+    product: ProductType,
+  ): void {
+    const alreadySubscribed = subscriptions.some(
+      (subscription) =>
+        ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status) &&
+        subscription.products.some((entry) => entry.name === product),
+    );
+    if (alreadySubscribed) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
     }
   }
 

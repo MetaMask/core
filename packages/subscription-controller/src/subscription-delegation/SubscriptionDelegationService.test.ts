@@ -19,18 +19,24 @@ import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
+import {
+  SubscriptionControllerErrorMessage,
+  SubscriptionDelegationServiceErrorMessage,
+} from '../constants.js';
 import type { SubscriptionController } from '../SubscriptionController.js';
 import {
   CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
+  SUBSCRIPTION_STATUSES,
 } from '../types.js';
 import type {
   PricingCryptoPaymentMethod,
   PricingResponse,
   ProductType,
+  Subscription,
+  SubscriptionStatus,
 } from '../types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 import {
@@ -131,6 +137,33 @@ const START_REQUEST: StartSubscriptionWithDelegationRequest = {
   chainId: CHAIN_ID,
 };
 
+function buildSubscription(
+  status: SubscriptionStatus,
+  product: ProductType = PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+): Subscription {
+  return {
+    id: 'sub_123',
+    products: [
+      {
+        name: product,
+        currency: 'usd',
+        unitAmount: PRICE.unitAmount,
+        unitDecimals: PRICE.unitDecimals,
+      },
+    ],
+    status,
+    interval: RECURRING_INTERVALS.month,
+    paymentMethod: {
+      type: PAYMENT_TYPES.byCrypto,
+      crypto: {
+        payerAddress: PAYER,
+        chainId: CHAIN_ID,
+        tokenSymbol: 'pvmUSD',
+      },
+    },
+  };
+}
+
 const PERIOD_AMOUNT = calculatePeriodAmount({
   unitAmount: PRICE.unitAmount,
   unitDecimals: PRICE.unitDecimals,
@@ -210,6 +243,7 @@ function setup(
     pricing?: PricingResponse;
     approvalResult?: unknown;
     trialedProducts?: ProductType[];
+    subscriptions?: Subscription[];
   } = {},
 ) {
   const mocks: Mocks = {
@@ -243,7 +277,7 @@ function setup(
       .fn()
       .mockResolvedValue(options.balance ?? SUFFICIENT_BALANCE),
     getPricing: jest.fn().mockResolvedValue(options.pricing ?? PRICING),
-    getSubscriptions: jest.fn().mockResolvedValue([]),
+    getSubscriptions: jest.fn().mockResolvedValue(options.subscriptions ?? []),
     getSubscriptionState: jest.fn().mockReturnValue({
       trialedProducts: options.trialedProducts ?? [
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
@@ -1311,6 +1345,56 @@ describe('SubscriptionDelegationService', () => {
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.ReusableDelegationInvalid,
       );
+    });
+
+    it.each([
+      ['active', SUBSCRIPTION_STATUSES.active],
+      ['trialing', SUBSCRIPTION_STATUSES.trialing],
+      ['provisional', SUBSCRIPTION_STATUSES.provisional],
+    ])(
+      'rejects an already %s subscription before funding or delegation side effects',
+      async (_name, status) => {
+        const { service, mocks } = setup({
+          subscriptions: [buildSubscription(status)],
+        });
+
+        await expect(
+          service.startSubscriptionWithDelegation(START_REQUEST),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+        );
+        expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
+        expect(mocks.forceUpgradeAccount).not.toHaveBeenCalled();
+        expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
+        expect(mocks.listDelegations).not.toHaveBeenCalled();
+        expect(mocks.signDelegation).not.toHaveBeenCalled();
+        expect(mocks.createDelegation).not.toHaveBeenCalled();
+        expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+        expect(mocks.createIntents).not.toHaveBeenCalled();
+        expect(mocks.startSubscriptionWithCrypto).not.toHaveBeenCalled();
+      },
+    );
+
+    it('continues when the existing subscription for the product is not active', async () => {
+      const { service, mocks } = setup({
+        subscriptions: [buildSubscription(SUBSCRIPTION_STATUSES.canceled)],
+      });
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
+    });
+
+    it('continues when another product has an active subscription', async () => {
+      const { service, mocks } = setup({
+        subscriptions: [
+          buildSubscription(SUBSCRIPTION_STATUSES.active, PRODUCT_TYPES.SHIELD),
+        ],
+      });
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
     });
 
     it('stops before approval when Money Account delegations cannot be made ready', async () => {
