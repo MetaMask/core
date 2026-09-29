@@ -24,7 +24,7 @@ export type ProfileServiceGetProfileAction = {
  * @param params - The profile creation parameters.
  * @returns The created profile data.
  * @throws {HttpError} If the API returns a non-2xx response.
- * @throws {StructError} If params or the response do not match the expected shape.
+ * @throws {StructError} If the response do not match the expected shape.
  */
 export type ProfileServiceCreateProfileAction = {
   type: `ProfileService:createProfile`;
@@ -38,7 +38,7 @@ export type ProfileServiceCreateProfileAction = {
  * @param params - The replacement profile data.
  * @returns The updated profile data.
  * @throws {HttpError} If the API returns a non-2xx response.
- * @throws {StructError} If params or the response do not match the expected shape.
+ * @throws {StructError} If the response do not match the expected shape.
  */
 export type ProfileServiceReplaceProfileAction = {
   type: `ProfileService:replaceProfile`;
@@ -52,7 +52,7 @@ export type ProfileServiceReplaceProfileAction = {
  * @param params - The fields to update.
  * @returns The updated profile data.
  * @throws {HttpError} If the API returns a non-2xx response.
- * @throws {StructError} If params or the response do not match the expected shape.
+ * @throws {StructError} If the response do not match the expected shape.
  */
 export type ProfileServiceUpdateProfileAction = {
   type: `ProfileService:updateProfile`;
@@ -65,7 +65,6 @@ export type ProfileServiceUpdateProfileAction = {
  * @param profileId - The identifier of the profile to delete.
  * @returns The result of the mutation.
  * @throws {HttpError} If the API returns a non-2xx response.
- * @throws {StructError} If the profileId is not a string.
  */
 export type ProfileServiceDeleteProfileAction = {
   type: `ProfileService:deleteProfile`;
@@ -78,7 +77,7 @@ export type ProfileServiceDeleteProfileAction = {
  * @param username - The username to check.
  * @returns Availability details including validity and normalized form.
  * @throws {HttpError} If the API returns a non-2xx response.
- * @throws {StructError} If the username or response do not match the expected shape.
+ * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceCheckUsernameAvailabilityAction = {
   type: `ProfileService:checkUsernameAvailability`;
@@ -103,7 +102,7 @@ export type ProfileServiceGetXAuthUrlAction = {
  * @param params - The OAuth callback code and state from the X redirect.
  * @returns The linked X account data.
  * @throws {HttpError} If the API returns a non-2xx response.
- * @throws {StructError} If params or the response do not match the expected shape.
+ * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceConnectXAction = {
   type: `ProfileService:connectX`;
