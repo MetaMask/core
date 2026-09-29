@@ -269,6 +269,9 @@ const config = {
     'preferences-controller': {
       teams: ['@MetaMask/core-platform'],
     },
+    'profile-controller': {
+      teams: ['@MetaMask/accounts-engineers'],
+    },
     'profile-metrics-controller': {
       teams: ['@MetaMask/mobile-platform', '@MetaMask/extension-platform'],
     },
