@@ -510,6 +510,11 @@
       "count": 3
     }
   },
+  "packages/cryptography/src/x25519.test.ts": {
+    "TS2345": {
+      "count": 14
+    }
+  },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
     "TS2322": {
       "count": 34
