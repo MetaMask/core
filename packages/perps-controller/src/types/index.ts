@@ -1139,7 +1139,8 @@ export type HyperLiquidCredentials = {
    * for example after the user approved another unnamed agent). The provider
    * has dropped it, with a `setAgentSigner` binding to it, and the next L1
    * action asks `getAgentSigner` again, so re-check the approval before
-   * answering. The rejected action failed with `KEYRING_LOCKED`. It is called
+   * answering. The rejected action failed with `KEYRING_LOCKED`. It gets the
+   * agent's `address` as the `PerpsAgentSigner` supplied it. It is called
    * once per rejected write, so writes already in flight with the same agent
    * call it again: prompt the user at most once per agent.
    */
@@ -2159,13 +2160,15 @@ export type PerpsProvider = {
   initialize(): Promise<InitializeResult>;
   isReadyToTrade(): Promise<ReadyToTradeResult>;
   /**
-   * Run the deferred setup that needs a main-account signature (for example
-   * account migration, builder fee, referral or venue-key registration) ahead
-   * of the first order, so the signatures surface in a guided session instead
-   * of at order time. Resolves `ready: true` when none of these steps will ask
-   * the main account to sign again before the first order (a read-only
-   * provider, which never asks, resolves it at once). Providers without such
-   * setup omit it.
+   * Run the deferred trading setup (for example account migration, builder
+   * fee, referral or venue-key registration) ahead of the first order, so its
+   * signatures happen in a guided session instead of at order time. User-signed
+   * steps need the main account; HyperLiquid L1 steps (the referral, the
+   * silent migration) are signed by an agent when one resolves. Resolves
+   * `ready: true` when none of these steps will need a signature again before
+   * the first order, and `ready: false` while one will be retried, including
+   * after an agent could not sign (a read-only provider, which never signs,
+   * resolves `ready: true` at once). Providers without such setup omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   /**

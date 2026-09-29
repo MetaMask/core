@@ -979,8 +979,7 @@ const deriveLighterExecutionPrice = (
     : referencePrice * (1 - slippageFraction);
 
 const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
-export const LIGHTER_SIGNER_UNAVAILABLE_ERROR =
-  'Lighter signer bridge not configured';
+const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
 const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
 const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.zklighter.elliot.ai';
 

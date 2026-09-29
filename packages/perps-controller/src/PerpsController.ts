@@ -5923,15 +5923,18 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Run the active provider's setup that needs a main-account signature
+   * Run the active provider's deferred trading setup ahead of the first order
    * (HyperLiquid account migration, builder fee and referral; Lighter
-   * venue-key registration) ahead of the first order, so a hardware wallet
-   * signs it in one guided session, such as agent setup, instead of at order
-   * time.
+   * venue-key registration), so its signatures happen in one guided session,
+   * such as agent setup, instead of at order time. The builder fee, the
+   * migration from `dexAbstraction` and Lighter's registration are signed by
+   * the main account; with an agent, the referral and the silent migration
+   * are L1 actions the agent signs.
    *
-   * @returns `ready: true` when none of these steps will ask the main account
-   * to sign again before the first order; providers without deferred setup
-   * are ready.
+   * @returns `ready: true` when none of these steps will need a signature
+   * again before the first order; `ready: false` while one will be retried
+   * (it was declined, or its signer, the main account or the agent, could not
+   * sign). Providers without deferred setup are ready.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
    * when no active provider is available.

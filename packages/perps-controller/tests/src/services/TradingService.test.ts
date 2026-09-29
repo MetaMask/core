@@ -1538,7 +1538,10 @@ describe('TradingService', () => {
         context: mockContext,
       });
 
-      expect(result.error).toBe(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
@@ -2292,7 +2295,10 @@ describe('TradingService', () => {
         reportOrderToDataLake: mockReportOrderToDataLake,
       });
 
-      expect(result.error).toBe(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });

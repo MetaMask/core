@@ -5,6 +5,8 @@
  */
 import { type HyperLiquidProvider } from '@metamask/perps-controller';
 
+import { REFERRAL_CONFIG } from '../../src/constants/hyperLiquidConfig.js';
+
 export const createMockHyperLiquidProvider =
   (): jest.Mocked<HyperLiquidProvider> =>
     ({
@@ -217,7 +219,7 @@ export const createMockInfoClient = (
   referral: jest.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',
-      data: { code: 'MMCSI' },
+      data: { code: REFERRAL_CONFIG.MainnetCode },
     },
   }),
   maxBuilderFee: jest.fn().mockResolvedValue(1),

@@ -255,7 +255,6 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     const initialize = jest.fn(async (wallet: HyperLiquidWalletParams) => {
       sdkWallet = wallet;
     });
-    Object.assign(mockClientService, { initialize });
     const signThroughSdkWallet =
       (
         payload: PerpsTypedDataPayload,
@@ -289,16 +288,15 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         .mockResolvedValue(options.abstraction ?? 'dexAbstraction'),
       ...options.info,
     });
-    mockClientService.getExchangeClient.mockReturnValue(
-      exchangeClient as unknown as ReturnType<
-        HyperLiquidClientService['getExchangeClient']
-      >,
-    );
-    mockClientService.getInfoClient.mockReturnValue(
-      infoClient as unknown as ReturnType<
-        HyperLiquidClientService['getInfoClient']
-      >,
-    );
+    // Each provider gets its own client service (and so its own SDK clients
+    // and wallet); the rest is shared with the suite's mock.
+    const clientService = {
+      ...mockClientService,
+      initialize,
+      getExchangeClient: jest.fn().mockReturnValue(exchangeClient),
+      getInfoClient: jest.fn().mockReturnValue(infoClient),
+    } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+    MockedHyperLiquidClientService.mockImplementationOnce(() => clientService);
     const accountSignerProvider = new HyperLiquidProvider({
       platformDependencies: options.keyring
         ? mockPlatformDependencies
@@ -338,7 +336,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
-  it('defers the init-time migration when accountSigner reports a hardware wallet', async () => {
+  it('defers the init-time migration when accountSigner requires signature confirmation', async () => {
     const { accountSignerProvider, accountSigner, call, exchangeClient } =
       createAccountSignerProvider({
         signer: { requiresSignatureConfirmation: () => true },
@@ -492,7 +490,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
   });
 
   describe('prepareTradingWallet', () => {
-    it('runs the deferred migration, builder fee and referral setup and reports ready', async () => {
+    it('runs the deferred migration and referral, finds the builder fee approved, and reports ready', async () => {
       const {
         accountSignerProvider,
         accountSigner,
@@ -516,10 +514,11 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
         [ACCOUNT_ADDRESS, L1_PAYLOAD],
       ]);
-      expect(infoClient.maxBuilderFee).toHaveBeenCalledWith({
-        user: ACCOUNT_ADDRESS,
-        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
-      });
+      // Already approved, so nothing is signed for it.
+      expect(infoClient.maxBuilderFee.mock.calls).toStrictEqual([
+        [{ user: ACCOUNT_ADDRESS, builder: BUILDER_FEE_CONFIG.MainnetBuilder }],
+      ]);
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
     it('signs every setup step, so the first order signs only itself', async () => {
@@ -665,16 +664,16 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const first = createAccountSignerProvider({
         abstraction: 'unifiedAccount',
       });
-      // Both providers write through the last fixture's exchange client.
-      const { accountSignerProvider: second, exchangeClient } =
-        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
+      const second = createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+      });
       const lock = holdReferralLock();
 
       let results;
       try {
         const preparing = [
           first.accountSignerProvider.prepareTradingWallet(),
-          second.prepareTradingWallet(),
+          second.accountSignerProvider.prepareTradingWallet(),
         ];
         await lock.waiting;
         // Let both providers reach the lock.
@@ -685,9 +684,13 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         lock.release();
       }
 
-      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
-        REFERRAL_WRITE,
-      ]);
+      // One referral write across both providers.
+      expect(
+        [first, second].flatMap(
+          ({ exchangeClient }): unknown[] =>
+            exchangeClient.setReferrer.mock.calls,
+        ),
+      ).toStrictEqual([REFERRAL_WRITE]);
       expect(results).toStrictEqual([{ ready: true }, { ready: true }]);
     });
 
@@ -1629,7 +1632,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         expect(loggerError).not.toHaveBeenCalled();
       });
 
-      it('drops an agent the venue rejects in a batch cancel status entry', async () => {
+      it('drops an agent the venue rejects in batch cancel status entries, and reports it once', async () => {
         const {
           accountSignerProvider,
           exchangeClient,
@@ -1647,7 +1650,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
               data: {
                 statuses: [
                   { error: rejection(AGENT_ADDRESS).message },
-                  'success',
+                  { error: rejection(AGENT_ADDRESS).message },
                 ],
               },
             },
@@ -1661,9 +1664,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         await wallet.signTypedData(L1_PAYLOAD);
 
         expect(result).toStrictEqual({
-          success: true,
-          successCount: 1,
-          failureCount: 1,
+          success: false,
+          successCount: 0,
+          failureCount: 2,
           results: [
             {
               orderId: '123',
@@ -1671,9 +1674,15 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
               success: false,
               error: PERPS_ERROR_CODES.KEYRING_LOCKED,
             },
-            { orderId: '124', symbol: 'BTC', success: true },
+            {
+              orderId: '124',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            },
           ],
         });
+        // One signed write, so the host is told once.
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
         ]);
@@ -2172,8 +2181,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
+        // The host gets its agent's address as it supplied it.
         expect(onAgentRejected.mock.calls).toStrictEqual([
-          [MAINNET_ACCOUNT, CHECKSUMMED_AGENT_ADDRESS.toLowerCase()],
+          [MAINNET_ACCOUNT, CHECKSUMMED_AGENT_ADDRESS],
         ]);
         // Dropped, so the next L1 action asks again.
         expect(getAgentSigner.mock.calls).toStrictEqual([

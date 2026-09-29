@@ -344,7 +344,6 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
-    expect(getAgentSigner).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 

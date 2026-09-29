@@ -1198,6 +1198,45 @@ describe('AggregatedPerpsProvider', () => {
       },
     );
 
+    it('tags a logged Lighter failure with the network while Lighter is not pinned to testnet', async () => {
+      jest.replaceProperty(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        false,
+      );
+      const networkProvider = new AggregatedPerpsProvider({
+        providers: new Map([['lighter', mockLighterProvider]]),
+        defaultProvider: 'lighter',
+        infrastructure: mockInfrastructure,
+        isTestnet: false,
+      });
+      const crash = new Error('provider crashed');
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+      });
+
+      await networkProvider.prepareTradingWallet();
+
+      expect(
+        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+      ).toStrictEqual([
+        [
+          crash,
+          {
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              provider: 'lighter',
+              network: 'mainnet',
+            },
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: { method: 'prepareTradingWallet', providerId: 'lighter' },
+            },
+          },
+        ],
+      ]);
+    });
+
     it('tags a logged Lighter failure with testnet while Lighter is pinned to testnet', async () => {
       jest.replaceProperty(
         PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
@@ -1239,11 +1278,12 @@ describe('AggregatedPerpsProvider', () => {
 
     it('prepares the next provider only after the previous one settles', async () => {
       const firstPreparation = createDeferred<{ ready: boolean }>();
+      const prepareHyperLiquid = jest.fn(
+        async () => await firstPreparation.promise,
+      );
       const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
-        prepareTradingWallet: jest.fn(
-          async () => await firstPreparation.promise,
-        ),
+        prepareTradingWallet: prepareHyperLiquid,
       });
       Object.assign(mockLighterProvider, {
         prepareTradingWallet: prepareLighter,
@@ -1251,12 +1291,15 @@ describe('AggregatedPerpsProvider', () => {
 
       const preparing = aggregatedProvider.prepareTradingWallet();
       await Promise.resolve();
-      const startedBeforeFirstSettled = prepareLighter.mock.calls.length;
+      const hyperLiquidCallsBeforeSettling = [...prepareHyperLiquid.mock.calls];
+      const lighterCallsBeforeSettling = [...prepareLighter.mock.calls];
       firstPreparation.resolve({ ready: true });
       const result = await preparing;
 
-      expect(startedBeforeFirstSettled).toBe(0);
-      expect(prepareLighter).toHaveBeenCalledTimes(1);
+      expect(hyperLiquidCallsBeforeSettling).toStrictEqual([[]]);
+      expect(lighterCallsBeforeSettling).toStrictEqual([]);
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
       expect(result).toStrictEqual({ ready: true });
     });
 

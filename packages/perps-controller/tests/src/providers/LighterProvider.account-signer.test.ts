@@ -342,6 +342,13 @@ describe('LighterProvider with accountSigner', () => {
     ['a "User rejected" message', new Error('User rejected the request.')],
     ['a "User denied" message', new Error('User denied message signature.')],
     ['a "User cancelled" message', new Error('User cancelled the request.')],
+    ['a "User canceled" message', new Error('User canceled the request.')],
+    [
+      'a rejection message wrapped in the cause chain',
+      new Error('Signing failed', {
+        cause: new Error('User rejected the request.'),
+      }),
+    ],
     [
       'a rejection code wrapped in the cause chain',
       new Error('Signing failed', {

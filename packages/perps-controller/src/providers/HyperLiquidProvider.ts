@@ -1572,10 +1572,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   // record rather than from the selected account, which may have changed
   // while the write was in flight. Kept across clearAgentSigners, so the
   // rejection of an agent that was replaced while its action was in flight is
-  // still recognized.
+  // still recognized. Keyed by the lowercased address the venue reports; the
+  // value keeps the agent's own address, as the host supplied it.
   readonly #agentSignedFor = new Map<
     string,
-    { key: string; account: PerpsAgentAccount }
+    { key: string; account: PerpsAgentAccount; agentAddress: Hex }
   >();
 
   readonly #onAgentRejected: HyperLiquidProviderOptions['onAgentRejected'];
@@ -2140,6 +2141,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#agentSignedFor.set(agentSigner.address.toLowerCase(), {
         key,
         account,
+        agentAddress: agentSigner.address,
       });
     } else {
       this.#agentSigners.delete(key);
@@ -2182,7 +2184,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * reads like a wallet with no account.
    *
    * @param error - The caught error.
-   * @returns The rejected agent with its account, or undefined.
+   * @returns The rejected agent, with its address as the host supplied it
+   * and the account it signed for, or undefined.
    */
   #findRejectedAgent(
     error: unknown,
@@ -2195,16 +2198,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       return undefined;
     }
-    const agentAddress = UNKNOWN_WALLET_ADDRESS_PATTERN.exec(
+    const reportedAddress = UNKNOWN_WALLET_ADDRESS_PATTERN.exec(
       ensureError(error, 'HyperLiquidProvider.findRejectedAgent').message,
-    )?.[1] as Hex | undefined;
-    const signedFor =
-      agentAddress === undefined
-        ? undefined
-        : this.#agentSignedFor.get(agentAddress.toLowerCase());
-    return agentAddress && signedFor
-      ? { ...signedFor, agentAddress }
-      : undefined;
+    )?.[1];
+    return reportedAddress === undefined
+      ? undefined
+      : this.#agentSignedFor.get(reportedAddress.toLowerCase());
   }
 
   /**
@@ -2221,10 +2220,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return false;
     }
     const { account, key, agentAddress } = rejected;
-    if (
-      this.#resolvedAgents.get(key)?.address.toLowerCase() ===
-      agentAddress.toLowerCase()
-    ) {
+    if (this.#resolvedAgents.get(key)?.address === agentAddress) {
       this.#agentSigners.delete(key);
       this.#resolvedAgents.delete(key);
     }
@@ -9648,6 +9644,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           result.status === 'ok' &&
           statuses.length === ordinaryOrders.length
         ) {
+          // One signature covers the batch, so a signer failure is classified
+          // (and reported to the host) once, and fails every entry.
+          const signerFailure = this.#classifyStatusSignerFailure(statuses);
           ordinaryOrders.forEach(({ index, order }, statusIndex) => {
             const status: unknown = statuses[statusIndex];
             const success = status === 'success';
@@ -9665,7 +9664,10 @@ export class HyperLiquidProvider implements PerpsProvider {
                     error:
                       statusError === undefined
                         ? PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
-                        : this.#mapStatusError(statusError).message,
+                        : (
+                            signerFailure ??
+                            this.#mapError(new Error(statusError))
+                          ).message,
                   }),
             };
           });
