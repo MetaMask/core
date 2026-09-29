@@ -292,7 +292,7 @@ function readAmount(value: unknown): string | undefined {
   if (value === null || typeof value !== 'object') {
     return undefined;
   }
-  const amount = (value as { amount?: unknown }).amount;
+  const { amount } = value as { amount?: unknown };
   return typeof amount === 'string' && amount.length > 0 ? amount : undefined;
 }
 
