@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.0]
+
 ### Changed
 
 - **BREAKING:** Delegate `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` from the wallet root messenger to `SeedlessOnboardingController`. ([#10568](https://github.com/MetaMask/core/pull/10568))
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Hosts that supply their own root messenger must allow these actions and register `MoneyAccountUpgradeController` before calling `SubscriptionDelegationService:startSubscriptionWithDelegation`.
 - Bump `@metamask/claims-controller` from `^1.0.1` to `^1.0.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/shield-controller` from `^7.0.2` to `^7.0.3` ([#10459](https://github.com/MetaMask/core/pull/10459))
-- Bump `@metamask/subscription-controller` from `^10.0.0` to `^10.0.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/subscription-controller` from `^10.0.0` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459), [#10570](https://github.com/MetaMask/core/pull/10570))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
 ## [15.0.1]
@@ -308,7 +310,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...@metamask/wallet@15.1.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...@metamask/wallet@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
 ### Added
 
 - Add `SubscriptionDelegationService:startSubscriptionWithDelegation` to orchestrate one immutable approval for MM Pay funding, recurring-payment delegation signing, CHOMP registration, and subscription creation ([#10339](https://github.com/MetaMask/core/pull/10339))
@@ -15,9 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bind recurring permissions to the token, amount, period, start, and zero native value, and verify reusable delegation hashes with CHOMP.
   - Derive trial timing from authoritative subscription state.
   - Add optional `skipApproval` to `StartSubscriptionWithDelegationRequest` to bypass the `ApprovalController:addRequest` consent and funding step; the caller is then responsible for consent and funding.
+- Add `SUBSCRIPTION_STATUSES.awaitingFunds` (`awaiting_funds`) for crypto subscriptions that are waiting for the payer to fund the first invoice ([#10566](https://github.com/MetaMask/core/pull/10566))
+  - `SubscriptionController:submitSubscriptionCryptoApproval` treats it like `past_due` / `unpaid`: a new approval updates the existing subscription's payment method.
 
 ### Changed
 
+- **BREAKING:** `StartCryptoSubscriptionResponse` (returned by `SubscriptionService:startSubscriptionWithCrypto`, `SubscriptionController:startSubscriptionWithCrypto`, and `SubscriptionDelegationService:startSubscriptionWithDelegation`) is now the created `Subscription` instead of `{ subscriptionId, status }`, matching what `POST /subscriptions/crypto` actually returns ([#10566](https://github.com/MetaMask/core/pull/10566))
+  - Read `response.id` instead of `response.subscriptionId`. `response.status` is unchanged.
+  - Previously the response failed validation on every successful call, so the crypto start flow always threw.
 - **BREAKING:** Widen `SubscriptionDelegationServiceMessenger` so `SubscriptionDelegationService:startSubscriptionWithDelegation` can call the actions it needs ([#10339](https://github.com/MetaMask/core/pull/10339))
   - The messenger must now allow `ApprovalController:addRequest`, `MoneyAccountUpgradeController:forceUpgradeAccount`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`.
   - Clients that construct this messenger must delegate those actions before calling `startSubscriptionWithDelegation`. A messenger typed against the previous `SubscriptionDelegationServiceMessenger` is no longer assignable.
@@ -35,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/chomp-api-service` from `^5.0.0` to `^6.0.0` ([#10505](https://github.com/MetaMask/core/pull/10505))
 - Bump `@metamask/money-account-utils` from `^2.0.1` to `^2.1.0` ([#10505](https://github.com/MetaMask/core/pull/10505))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+### Fixed
+
+- Stop rejecting Subscription API responses whose `lastInvoice` omits `updatedAt` or whose card payment method omits `displayBrand`; both fields are optional in the API and are now optional on `SubscriptionInvoice` and `SubscriptionCardPaymentMethod` ([#10566](https://github.com/MetaMask/core/pull/10566))
+  - Previously a subscription with a `lastInvoice` failed validation and `getSubscriptions` threw.
 
 ## [10.0.1]
 
@@ -573,7 +585,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.1...@metamask/subscription-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.0...@metamask/subscription-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...@metamask/subscription-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.1...@metamask/subscription-controller@9.1.0

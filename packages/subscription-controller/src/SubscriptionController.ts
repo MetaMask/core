@@ -1150,6 +1150,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       !subscription ||
       (
         [
+          SUBSCRIPTION_STATUSES.awaitingFunds,
           SUBSCRIPTION_STATUSES.pastDue,
           SUBSCRIPTION_STATUSES.unpaid,
           SUBSCRIPTION_STATUSES.paused,
