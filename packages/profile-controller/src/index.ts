@@ -19,7 +19,6 @@ export type {
   ProfileControllerDeleteProfileAction,
   ProfileControllerGetProfileAction,
   ProfileControllerFetchAndUpdateXAccountAction,
-  ProfileControllerGetXAuthUrlAction,
   ProfileControllerGetXProfileAction,
   ProfileControllerReplaceProfileAction,
   ProfileControllerUpdateProfileAction,
