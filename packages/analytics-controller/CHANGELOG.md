@@ -119,15 +119,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/v3.2.0...HEAD
-[3.2.0]: https://github.com/MetaMask/core/compare/v3.1.0...v3.2.0
-[3.1.0]: https://github.com/MetaMask/core/compare/v3.0.0...v3.1.0
-[3.0.0]: https://github.com/MetaMask/core/compare/v2.1.0...v3.0.0
-[2.1.0]: https://github.com/MetaMask/core/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/MetaMask/core/compare/v1.2.1...v2.0.0
-[1.2.1]: https://github.com/MetaMask/core/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/MetaMask/core/compare/v1.1.1...v1.2.0
-[1.1.1]: https://github.com/MetaMask/core/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/MetaMask/core/compare/v1.0.1...v1.1.0
-[1.0.1]: https://github.com/MetaMask/core/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/v1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.1.0...@metamask/analytics-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.0.0...@metamask/analytics-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.1.0...@metamask/analytics-controller@3.0.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.0.0...@metamask/analytics-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...@metamask/analytics-controller@2.0.0
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.0...@metamask/analytics-controller@1.2.1
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.1...@metamask/analytics-controller@1.2.0
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...@metamask/analytics-controller@1.1.1
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...@metamask/analytics-controller@1.1.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.0...@metamask/analytics-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/analytics-controller@1.0.0
