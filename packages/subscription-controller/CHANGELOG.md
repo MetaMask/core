@@ -15,12 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bind recurring permissions to the token, amount, period, start, and zero native value, and verify reusable delegation hashes with CHOMP.
   - Derive trial timing from authoritative subscription state.
   - Add optional `skipApproval` to `StartSubscriptionWithDelegationRequest` to bypass the `ApprovalController:addRequest` consent and funding step; the caller is then responsible for consent and funding.
-- Add `SUBSCRIPTION_STATUSES.awaitingFunds` (`awaiting_funds`) for crypto subscriptions that are waiting for the payer to fund the first invoice
+- Add `SUBSCRIPTION_STATUSES.awaitingFunds` (`awaiting_funds`) for crypto subscriptions that are waiting for the payer to fund the first invoice ([#10566](https://github.com/MetaMask/core/pull/10566))
   - `SubscriptionController:submitSubscriptionCryptoApproval` treats it like `past_due` / `unpaid`: a new approval updates the existing subscription's payment method.
 
 ### Changed
 
-- **BREAKING:** `StartCryptoSubscriptionResponse` (returned by `SubscriptionService:startSubscriptionWithCrypto`, `SubscriptionController:startSubscriptionWithCrypto`, and `SubscriptionDelegationService:startSubscriptionWithDelegation`) is now the created `Subscription` instead of `{ subscriptionId, status }`, matching what `POST /subscriptions/crypto` actually returns
+- **BREAKING:** `StartCryptoSubscriptionResponse` (returned by `SubscriptionService:startSubscriptionWithCrypto`, `SubscriptionController:startSubscriptionWithCrypto`, and `SubscriptionDelegationService:startSubscriptionWithDelegation`) is now the created `Subscription` instead of `{ subscriptionId, status }`, matching what `POST /subscriptions/crypto` actually returns ([#10566](https://github.com/MetaMask/core/pull/10566))
   - Read `response.id` instead of `response.subscriptionId`. `response.status` is unchanged.
   - Previously the response failed validation on every successful call, so the crypto start flow always threw.
 - **BREAKING:** Widen `SubscriptionDelegationServiceMessenger` so `SubscriptionDelegationService:startSubscriptionWithDelegation` can call the actions it needs ([#10339](https://github.com/MetaMask/core/pull/10339))
@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Stop rejecting Subscription API responses whose `lastInvoice` omits `updatedAt` or whose card payment method omits `displayBrand`; both fields are optional in the API and are now optional on `SubscriptionInvoice` and `SubscriptionCardPaymentMethod`
+- Stop rejecting Subscription API responses whose `lastInvoice` omits `updatedAt` or whose card payment method omits `displayBrand`; both fields are optional in the API and are now optional on `SubscriptionInvoice` and `SubscriptionCardPaymentMethod` ([#10566](https://github.com/MetaMask/core/pull/10566))
   - Previously a subscription with a `lastInvoice` failed validation and `getSubscriptions` threw.
 
 ## [10.0.1]
