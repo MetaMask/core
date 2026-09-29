@@ -1,6 +1,9 @@
 import { useQuery } from '@metamask/react-data-query';
 
-import type { ProfileApiResponse, UsernameAvailabilityResponse } from './ProfileService.js';
+import type {
+  ProfileApiResponse,
+  UsernameAvailabilityResponse,
+} from './ProfileService.js';
 import { serviceName } from './ProfileService.js';
 
 /**

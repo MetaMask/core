@@ -152,7 +152,9 @@ describe('ProfileController', () => {
     it('initializes with default state', () => {
       const { controller } = createController();
 
-      expect(controller.state).toStrictEqual(getDefaultProfileControllerState());
+      expect(controller.state).toStrictEqual(
+        getDefaultProfileControllerState(),
+      );
     });
 
     it('merges partial initial state with defaults', () => {
@@ -540,7 +542,10 @@ describe('ProfileController', () => {
       const { controller } = createController({ rootMessenger });
       await controller.connectX({ code: 'auth-code-123', state: 'state-xyz' });
 
-      expect(connectXMock).toHaveBeenCalledWith({ code: 'auth-code-123', state: 'state-xyz' });
+      expect(connectXMock).toHaveBeenCalledWith({
+        code: 'auth-code-123',
+        state: 'state-xyz',
+      });
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
     });
   });

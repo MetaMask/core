@@ -235,17 +235,14 @@ describe('ProfileService', () => {
       const result = await service.replaceProfile('profile-123', input);
 
       expect(result).toStrictEqual(mockProfileResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/profile-123`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${MOCK_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(input),
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/profile-123`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify(input),
+      });
     });
 
     it('throws HttpError on non-ok response', async () => {
@@ -292,17 +289,14 @@ describe('ProfileService', () => {
       const result = await service.updateProfile('profile-123', input);
 
       expect(result).toStrictEqual(mockProfileResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/profile-123`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${MOCK_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(input),
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/profile-123`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify(input),
+      });
     });
 
     it('throws HttpError on non-ok response', async () => {
@@ -310,9 +304,7 @@ describe('ProfileService', () => {
 
       const service = createService();
 
-      await expect(
-        service.updateProfile('profile-123', input),
-      ).rejects.toThrow(
+      await expect(service.updateProfile('profile-123', input)).rejects.toThrow(
         `${ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED}: 422`,
       );
     });
@@ -326,9 +318,9 @@ describe('ProfileService', () => {
 
       const service = createService();
 
-      await expect(
-        service.updateProfile('profile-123', input),
-      ).rejects.toThrow('returned an unexpected response');
+      await expect(service.updateProfile('profile-123', input)).rejects.toThrow(
+        'returned an unexpected response',
+      );
     });
   });
 
@@ -339,13 +331,10 @@ describe('ProfileService', () => {
       const service = createService();
       await service.deleteProfile('profile-123');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/profile-123`,
-        {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
-        },
-      );
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/profile-123`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('throws HttpError on non-ok response', async () => {
@@ -398,9 +387,7 @@ describe('ProfileService', () => {
 
       const service = createService();
 
-      await expect(
-        service.checkUsernameAvailability('alice'),
-      ).rejects.toThrow(
+      await expect(service.checkUsernameAvailability('alice')).rejects.toThrow(
         `${ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED}: 500`,
       );
     });
@@ -414,9 +401,9 @@ describe('ProfileService', () => {
 
       const service = createService();
 
-      await expect(
-        service.checkUsernameAvailability('alice'),
-      ).rejects.toThrow('returned an unexpected response');
+      await expect(service.checkUsernameAvailability('alice')).rejects.toThrow(
+        'returned an unexpected response',
+      );
     });
   });
 
@@ -476,7 +463,10 @@ describe('ProfileService', () => {
         json: () => Promise.resolve(mockXConnectResponse),
       });
 
-      const params: ConnectXParams = { code: 'auth-code-123', state: 'state-xyz' };
+      const params: ConnectXParams = {
+        code: 'auth-code-123',
+        state: 'state-xyz',
+      };
       const service = createService();
       const result = await service.connectX(params);
 
@@ -498,9 +488,7 @@ describe('ProfileService', () => {
 
       await expect(
         service.connectX({ code: 'auth-code-123', state: 'state-xyz' }),
-      ).rejects.toThrow(
-        `${ProfileServiceErrorMessage.CONNECT_X_FAILED}: 401`,
-      );
+      ).rejects.toThrow(`${ProfileServiceErrorMessage.CONNECT_X_FAILED}: 401`);
     });
 
     it('throws when response schema is invalid', async () => {
