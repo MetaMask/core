@@ -1,3 +1,4 @@
+import type { KeyPair } from './types.js';
 import { buildPKCS8Header, toPKCS8 } from './utils.js';
 
 const X25519_KEY_LENGTH = 32;
@@ -9,6 +10,36 @@ X25519_BASE_POINT[0] = 9;
 // https://www.rfc-editor.org/rfc/rfc8410#section-7
 // https://github.com/nodejs/node/blob/main/test/parallel/test-webcrypto-export-import-cfrg.js
 const X25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x6e]);
+
+/**
+ * Generate a new random X25519 key pair.
+ *
+ * @returns The raw 32-byte X25519 private key and 32-byte X25519 public key.
+ */
+export async function generateKey(): Promise<KeyPair> {
+  const keyPair = await globalThis.crypto.subtle.generateKey('X25519', true, [
+    'deriveBits',
+  ]);
+
+  // The WebCrypto API does not support exporting private keys in raw format,
+  // so the private key is extracted from the PKCS8 envelope instead.
+  const pkcs8PrivateKey = await globalThis.crypto.subtle.exportKey(
+    'pkcs8',
+    keyPair.privateKey,
+  );
+
+  const publicKey = await globalThis.crypto.subtle.exportKey(
+    'raw',
+    keyPair.publicKey,
+  );
+
+  return {
+    privateKey: new Uint8Array<ArrayBuffer>(
+      pkcs8PrivateKey.slice(X25519_PKCS8_HEADER.length),
+    ),
+    publicKey: new Uint8Array<ArrayBuffer>(publicKey),
+  };
+}
 
 /**
  * Perform scalar multiplication of a point by a private key,

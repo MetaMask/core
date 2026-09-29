@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `hmacSha256`, `hmacSha384`, and `hmacSha512` functions for computing HMAC digests exported via `@metamask/cryptography/hmac`
   - Add `pbkdf2Sha256`, `pbkdf2Sha384`, and `pbkdf2Sha512` functions for key derivation exported via `@metamask/cryptography/pbkdf2`
   - Add `hkdfSha256`, `hkdfSha384`, and `hkdfSha512` functions for key derivation exported via `@metamask/cryptography/hkdf`
-  - Add `getPublicKey` and `getSharedSecret` functions for X25519 key derivation exported via `@metamask/cryptography/x25519`
+  - Add `generateKeyPair`, `getPublicKey` and `getSharedSecret` functions for X25519 key derivation exported via `@metamask/cryptography/x25519`
   - Add `generateKeyPair`, `getPublicKey`, `sign`, and `verify` functions for Ed25519 exported via `@metamask/cryptography/ed25519`
   - Add `encrypt` and `decrypt` functions for AES-GCM symmetric encryption exported via `@metamask/cryptography/aes-gcm`
   - Add `getRandomBytes` function for generating cryptographically secure random bytes
