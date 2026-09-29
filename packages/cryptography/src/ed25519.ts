@@ -1,4 +1,4 @@
-import { toUint8Array } from './utils.js';
+import { buildPKCS8Header, wrapInPKCS8 } from './utils.js';
 
 // https://www.rfc-editor.org/rfc/rfc8032
 const ED25519_KEY_LENGTH = 32;
@@ -6,10 +6,7 @@ const ED25519_SIGNATURE_LENGTH = 64;
 
 // https://www.rfc-editor.org/rfc/rfc8410#section-7
 // https://github.com/nodejs/node/blob/main/test/parallel/test-webcrypto-export-import-cfrg.js
-const ED25519_PKCS8_HEADER = new Uint8Array([
-  0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04,
-  0x22, 0x04, 0x20,
-]);
+const ED25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x70]);
 
 /**
  * Derive the Ed25519 public key corresponding to the given private key.
@@ -26,15 +23,10 @@ export async function getPublicKey(
     );
   }
 
-  const pkcs8 = new Uint8Array(
-    ED25519_PKCS8_HEADER.length + ED25519_KEY_LENGTH,
-  );
-  pkcs8.set(ED25519_PKCS8_HEADER);
-  pkcs8.set(toUint8Array(privateKey), ED25519_PKCS8_HEADER.length);
-
+  // The WebCrypto API expects private keys to be in PKCS8 format.
   const subtlePrivateKey = await globalThis.crypto.subtle.importKey(
     'pkcs8',
-    pkcs8,
+    wrapInPKCS8(ED25519_PKCS8_HEADER, privateKey),
     { name: 'Ed25519' },
     true,
     ['sign'],
@@ -77,15 +69,9 @@ export async function sign(
   }
 
   // The WebCrypto API expects private keys to be in PKCS8 format.
-  const pkcs8 = new Uint8Array(
-    ED25519_PKCS8_HEADER.length + ED25519_KEY_LENGTH,
-  );
-  pkcs8.set(ED25519_PKCS8_HEADER);
-  pkcs8.set(toUint8Array(privateKey), ED25519_PKCS8_HEADER.length);
-
   const subtleKey = await globalThis.crypto.subtle.importKey(
     'pkcs8',
-    pkcs8,
+    wrapInPKCS8(ED25519_PKCS8_HEADER, privateKey),
     { name: 'Ed25519' },
     false,
     ['sign'],
