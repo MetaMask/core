@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Prefer a provider the user has previously completed an order with (most recent first) over API ranking order when `setSelectedProviderForAsset` switches providers ([#10536](https://github.com/MetaMask/core/pull/10536))
+
 ## [26.0.1]
 
 ### Fixed
