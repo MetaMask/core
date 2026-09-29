@@ -613,6 +613,12 @@ linkStyle default opacity:0.5
   polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
+  profile_controller --> base_controller;
+  profile_controller --> base_data_service;
+  profile_controller --> controller_utils;
+  profile_controller --> messenger;
+  profile_controller --> react_data_query;
+  profile_controller --> utils;
   profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
   profile_metrics_controller --> controller_utils;
