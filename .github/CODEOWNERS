@@ -536,13 +536,6 @@
 /packages/preferences-controller/tsconfig.*      @MetaMask/core-platform
 /packages/preferences-controller/typedoc.json    @MetaMask/core-platform
 
-### profile-controller
-/packages/profile-controller                 @MetaMask/accounts-engineers
-/packages/profile-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/profile-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/profile-controller/tsconfig.*      @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/profile-controller/typedoc.json    @MetaMask/accounts-engineers @MetaMask/core-platform
-
 ### profile-metrics-controller
 /packages/profile-metrics-controller                 @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/profile-metrics-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
