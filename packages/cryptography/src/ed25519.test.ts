@@ -33,7 +33,9 @@ describe('generateKey', () => {
     const first = await generateKey();
     const second = await generateKey();
 
-    expect(bytesToHex(first.privateKey)).not.toBe(bytesToHex(second.privateKey));
+    expect(bytesToHex(first.privateKey)).not.toBe(
+      bytesToHex(second.privateKey),
+    );
     expect(bytesToHex(first.publicKey)).not.toBe(bytesToHex(second.publicKey));
   });
 

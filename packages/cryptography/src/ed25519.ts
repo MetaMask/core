@@ -15,11 +15,10 @@ const ED25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x70]);
  * @returns The raw 32-byte Ed25519 private key and 32-byte Ed25519 public key.
  */
 export async function generateKey(): Promise<KeyPair> {
-  const keyPair = await globalThis.crypto.subtle.generateKey(
-    'Ed25519',
-    true,
-    ['sign', 'verify'],
-  );
+  const keyPair = await globalThis.crypto.subtle.generateKey('Ed25519', true, [
+    'sign',
+    'verify',
+  ]);
 
   // The WebCrypto API does not support exporting private keys in raw format,
   // so the seed is extracted from the PKCS8 envelope instead.
