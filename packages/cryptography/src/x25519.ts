@@ -1,4 +1,4 @@
-import { toUint8Array } from './utils.js';
+import { buildPKCS8Header, toPKCS8 } from './utils.js';
 
 const X25519_KEY_LENGTH = 32;
 
@@ -8,10 +8,7 @@ X25519_BASE_POINT[0] = 9;
 
 // https://www.rfc-editor.org/rfc/rfc8410#section-7
 // https://github.com/nodejs/node/blob/main/test/parallel/test-webcrypto-export-import-cfrg.js
-const X25519_PKCS8_HEADER = new Uint8Array([
-  0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04,
-  0x22, 0x04, 0x20,
-]);
+const X25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x6e]);
 
 /**
  * Perform scalar multiplication of a point by a private key,
@@ -38,13 +35,9 @@ async function scalarMultiply(
   }
 
   // The WebCrypto API expects private keys to be in PKCS8 format.
-  const pkcs8 = new Uint8Array(X25519_PKCS8_HEADER.length + X25519_KEY_LENGTH);
-  pkcs8.set(X25519_PKCS8_HEADER);
-  pkcs8.set(toUint8Array(privateKey), X25519_PKCS8_HEADER.length);
-
   const subtlePrivateKey = await globalThis.crypto.subtle.importKey(
     'pkcs8',
-    pkcs8,
+    toPKCS8(X25519_PKCS8_HEADER, privateKey),
     { name: 'X25519' },
     false,
     ['deriveBits'],
