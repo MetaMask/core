@@ -1925,6 +1925,18 @@ export type PerpsFeeResolution = {
   subscription: PerpsSubscriptionFeeWaiverStatus;
 
   /**
+   * Whether a targeted rewards discount was applied when the rewards source won.
+   *
+   * Omitted when rewards does not win, or when the rewards controller returns
+   * a legacy numeric response (in which case participation is unknown).
+   *
+   * `true` means a targeted grant was applied; `false` means the client reported
+   * no targeted participation despite the client-owned RewardsController
+   * combining grants into a final discount.
+   */
+  targetedDiscountApplied?: boolean;
+
+  /**
    * How much of the order the subscription allowance covered, when the
    * subscription source won.
    *
@@ -2848,6 +2860,23 @@ export type PerpsGlobalSnapshotResult = {
  * Cross-controller communication uses the messenger pattern (messenger.call).
  * Only rewards remains as DI because RewardsController is not yet in Core.
  */
+/**
+ * A rewards discount response from the RewardsController.
+ *
+ * When returned, the `discountBips` field contains the discount in basis
+ * points (e.g., 6500 = 65% discount), and `targetedDiscountApplied` indicates
+ * whether a targeted rewards grant (separate from VIP/season) was applied.
+ *
+ * The client owns the combination of VIP, season, and targeted discounts;
+ * this controller consumes only the combined result and never reconstructs it.
+ */
+export type RewardsDiscountResponse = {
+  /** Discount in basis points (e.g., 6500 = 65%) */
+  discountBips: number;
+  /** True when a targeted rewards grant was applied, false otherwise */
+  targetedDiscountApplied: boolean;
+};
+
 export type PerpsPlatformDependencies = {
   // === Observability (stateless utilities) ===
   logger: PerpsLogger;
@@ -2912,17 +2941,25 @@ export type PerpsPlatformDependencies = {
   rewards: {
     /**
      * Get fee discount for an account from the RewardsController.
-     * Returns discount in basis points (e.g., 6500 = 65% discount), or null
-     * when subscription state hasn't hydrated yet — callers should skip
-     * caching null results and retry on the next fee calculation.
+     *
+     * Returns either:
+     * - A numeric discount in basis points (e.g., 6500 = 65% discount) for legacy
+     *   VIP and season discounts (targeted participation is unknown)
+     * - A structured response with `discountBips` and `targetedDiscountApplied`
+     *   when targeted participation is available
+     * - `null` when subscription state hasn't hydrated yet
      *
      * Pass the perps MetaMask builder base fee in bips so the rewards
      * controller can convert an absolute VIP fee into a discount fraction.
+     *
+     * The client may return either the legacy numeric format or the structured
+     * format. The controller normalizes both and carries participation only when
+     * rewards wins the fee resolution.
      */
     getPerpsDiscountForAccount(
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
-    ): Promise<number | null>;
+    ): Promise<number | RewardsDiscountResponse | null>;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
