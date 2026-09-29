@@ -14,8 +14,11 @@ const mockSetState = jest.fn();
 const mockUseEffect = jest.fn();
 
 jest.mock('react', () => ({
-  useState: <T>(initial: T): [T, jest.Mock] => [initial, mockSetState],
-  useEffect: (...args: unknown[]) => mockUseEffect(...args),
+  useState: <TValue>(initial: TValue): [TValue, jest.Mock] => [
+    initial,
+    mockSetState,
+  ],
+  useEffect: (...args: unknown[]): void => mockUseEffect(...args),
 }));
 
 describe('useGetProfile', () => {
@@ -57,11 +60,9 @@ describe('useCheckUsernameAvailability', () => {
 
   it('cleanup cancels pending state update', () => {
     let capturedCleanup: (() => void) | void;
-    mockUseEffect.mockImplementationOnce(
-      (fn: () => (() => void) | void) => {
-        capturedCleanup = fn();
-      },
-    );
+    mockUseEffect.mockImplementationOnce((fn: () => (() => void) | void) => {
+      capturedCleanup = fn();
+    });
 
     useCheckUsernameAvailability('alice', 500);
     capturedCleanup?.();

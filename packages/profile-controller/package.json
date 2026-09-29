@@ -49,9 +49,6 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
-  "peerDependencies": {
-    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
-  },
   "dependencies": {
     "@metamask/base-controller": "^10.0.0",
     "@metamask/base-data-service": "^2.1.0",
@@ -75,6 +72,9 @@
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
   },
   "engines": {
     "node": "^22.14.0 || ^24"

@@ -37,7 +37,7 @@ export function useCheckUsernameAvailability(
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedUsername(username), debounceMs);
-    return () => clearTimeout(timer);
+    return (): void => clearTimeout(timer);
   }, [username, debounceMs]);
 
   return useQuery<UsernameAvailabilityResponse>({
