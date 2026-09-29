@@ -35,7 +35,10 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import {
+  RecommendedAction,
+  RequestSourceFlow,
+} from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -2299,6 +2302,7 @@ export class NftController extends BaseController<
           const bulkScanResponse = await this.messenger.call(
             'PhishingController:bulkScanUrls',
             batch,
+            RequestSourceFlow.NftDetection,
           );
 
           // Collect blocked URLs from this batch

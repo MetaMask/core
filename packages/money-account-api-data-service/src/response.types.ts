@@ -5,6 +5,7 @@ import type {
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
+  VaultRateResponseStruct,
 } from './structs.js';
 
 // All types in this file mirror the external Money Account API's snake_case
@@ -150,3 +151,12 @@ export type RateHistoryEntry = {
  * Derived from {@link RateHistoryResponseStruct} to ensure type/struct parity.
  */
 export type RateHistoryResponse = Infer<typeof RateHistoryResponseStruct>;
+
+/**
+ * Response from `GET /v1/vaults/:address/rate`.
+ * Derived from {@link VaultRateResponseStruct} to ensure type/struct parity.
+ *
+ * `rate` is the latest Accountant exchange rate as an 18-decimal string
+ * (assets per share). `timestamp` is when that rate was indexed.
+ */
+export type VaultRateResponse = Infer<typeof VaultRateResponseStruct>;
