@@ -380,7 +380,7 @@ describe('ProfileService', () => {
       await service.checkUsernameAvailability('alice smith');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/username/availability?username=alice%20smith`,
+        `${V1_URL}/profiles/username/availability?username=alice+smith`,
         expect.anything(),
       );
     });
