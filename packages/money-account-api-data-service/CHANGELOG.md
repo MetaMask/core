@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
+### Added
+
+- Add `fetchVaultRate`, which reads a vault's current Accountant exchange rate from `GET /v1/vaults/:address/rate` and is exposed as the `MoneyAccountApiDataService:fetchVaultRate` action. Export `VaultRateResponse`, `VaultRateOptions`, and `MoneyAccountApiDataServiceFetchVaultRateAction` ([#10504](https://github.com/MetaMask/core/pull/10504))
+
+### Changed
+
+- Response validation now tolerates unknown fields returned by the Money Account API instead of throwing `MoneyAccountApiResponseValidationError`, so additive backend changes no longer break clients ([#10538](https://github.com/MetaMask/core/pull/10538))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
 ## [2.0.0]
 
 ### Added
@@ -75,7 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...@metamask/money-account-api-data-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...@metamask/money-account-api-data-service@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.0...@metamask/money-account-api-data-service@0.4.1

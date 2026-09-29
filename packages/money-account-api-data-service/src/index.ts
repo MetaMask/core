@@ -12,6 +12,7 @@ export type {
   MoneyAccountApiDataServiceFetchInterestAction,
   MoneyAccountApiDataServiceFetchHistoryAction,
   MoneyAccountApiDataServiceFetchRateHistoryAction,
+  MoneyAccountApiDataServiceFetchVaultRateAction,
 } from './money-account-api-data-service-method-action-types.js';
 export type {
   PositionResponse,
@@ -20,6 +21,7 @@ export type {
   InterestResponse,
   HistoryResponse,
   RateHistoryResponse,
+  VaultRateResponse,
   VaultPosition,
   CashFlowEntry,
   RateHistoryEntry,
@@ -33,6 +35,7 @@ export type {
   FetchPositionsOptions,
   HistoryOptions,
   RateHistoryOptions,
+  VaultRateOptions,
 } from './types.js';
 export { Env } from './constants.js';
 export { MoneyAccountApiResponseValidationError } from './errors.js';

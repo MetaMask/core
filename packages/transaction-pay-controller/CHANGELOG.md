@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Read token metadata, balances, and prices directly from `AssetsController` state ([#10461](https://github.com/MetaMask/core/pull/10461))
+  - Consumers must delegate `AccountsController:getState`, `AssetsController:getState`, and `AssetsController:stateChange` to the Pay messenger, and unified asset state must be populated before using Pay.
+  - The `assetsUnifyState` feature flag branching and the `AssetsController:getStateForTransactionPay` action are no longer used, and the four separate asset `stateChange` subscriptions are replaced by a single `AssetsController:stateChange`.
+  - Replaced the `@metamask/assets-controllers` dependency with `@metamask/accounts-controller`.
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/ramps-controller` from `^26.0.0` to `^26.0.1` ([#10541](https://github.com/MetaMask/core/pull/10541))
 
 ### Fixed
 

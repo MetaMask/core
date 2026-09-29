@@ -19,7 +19,11 @@ import {
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
-import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
+import {
+  waitFor,
+  waitUntilStable,
+  withZeroedTimestamps,
+} from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 
@@ -191,6 +195,13 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
     it('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+  });
+
+  it('generates snapshot (source of truth)', async () => {
+    const { state } = await fetchWallet();
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(state)).toMatchSnapshot();
   });
 });
 

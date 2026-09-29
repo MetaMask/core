@@ -18,6 +18,7 @@ import {
 } from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
+import { withZeroedTimestamps } from '../__fixtures__/test-utils.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
@@ -302,6 +303,13 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
     it('answers with an authoritative full snapshot', () => {
       expect(response.updateMode).toBe('full');
     });
+  });
+
+  it('generates snapshot (source of truth)', async () => {
+    const { response } = await runPipeline(buildEmptyAssetsState());
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });
 
