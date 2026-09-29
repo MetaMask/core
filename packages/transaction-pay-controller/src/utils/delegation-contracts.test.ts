@@ -1,4 +1,4 @@
-import { chainHasDeleGatorContracts } from './delegation-contracts.js';
+import { chainHasDeleGatorContracts } from './delegation-contracts';
 
 describe('chainHasDeleGatorContracts', () => {
   it('returns true for a chain in the newest deployment', () => {
