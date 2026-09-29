@@ -676,11 +676,8 @@
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
-    "id-denylist": {
-      "count": 3
-    },
     "typescript/explicit-function-return-type": {
-      "count": 22
+      "count": 21
     },
     "typescript/no-unsafe-assignment": {
       "count": 5
