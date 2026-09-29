@@ -45,6 +45,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -68,6 +69,7 @@ import type {
   OrderResult,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsMarginModeLock,
   PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
@@ -329,6 +331,54 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     } catch (error) {
       this.#deps.debugLogger.log(
         '[AggregatedPerpsProvider] Order capabilities unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Resolve the margin-mode lock with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The lock reported by the selected provider.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getMarginModeLock) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const lock = await provider.getMarginModeLock({ ...params, providerId });
+      if (lock.providerId !== undefined && lock.providerId !== providerId) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...lock, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin mode lock unavailable',
         {
           providerId,
           error: error instanceof Error ? error.message : String(error),
