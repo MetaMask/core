@@ -20,7 +20,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -37,7 +37,12 @@ import { submitViaRelayExecute } from './relay-submit-execute.js';
 import { getRelaySubmitCalls, submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote } from './types.js';
 
-jest.mock('../../utils/ma-vault-deposit');
+jest.mock('../../utils/second-leg', () => ({
+  ...jest.requireActual<typeof import('../../utils/second-leg.js')>(
+    '../../utils/second-leg',
+  ),
+  submitSecondLeg: jest.fn(),
+}));
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
@@ -166,9 +171,7 @@ describe('Relay Submit Utils', () => {
   );
 
   const submitViaRelayExecuteMock = jest.mocked(submitViaRelayExecute);
-  const submitMoneyAccountVaultDepositMock = jest.mocked(
-    submitMoneyAccountVaultDeposit,
-  );
+  const submitSecondLegMock = jest.mocked(submitSecondLeg);
   const getTransferredAmountFromTxHashMock = jest.mocked(
     getTransferredAmountFromTxHash,
   );
@@ -1192,7 +1195,7 @@ describe('Relay Submit Utils', () => {
           PaymentOverride.MoneyAccount;
         request.quotes[0].request.atomic = false;
         request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash:
             '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
         });
@@ -2002,7 +2005,7 @@ describe('Relay Submit Utils', () => {
           minimumAmount: MINIMUM_AMOUNT_MOCK,
         };
 
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: VAULT_HASH_MOCK,
         });
 
@@ -2031,11 +2034,11 @@ describe('Relay Submit Utils', () => {
           tokenAddress: TARGET_TOKEN_ADDRESS_MOCK,
           walletAddress: RECIPIENT_MOCK,
         });
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({
+            chainId: TARGET_CHAIN_ID_MOCK,
+            from: RECIPIENT_MOCK,
             sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
-            moneyAccountAddress: RECIPIENT_MOCK,
-            vaultDisabled: false,
           }),
         );
         expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
@@ -2050,7 +2053,7 @@ describe('Relay Submit Utils', () => {
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Cannot resolve settled amount from on-chain transaction',
         );
-        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+        expect(submitSecondLegMock).not.toHaveBeenCalled();
       });
 
       it('propagates the error when the cross-chain on-chain read throws', async () => {
@@ -2059,7 +2062,7 @@ describe('Relay Submit Utils', () => {
         );
 
         await expect(submitRelayQuotes(request)).rejects.toThrow('rpc error');
-        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+        expect(submitSecondLegMock).not.toHaveBeenCalled();
       });
 
       it('skips on-chain read and uses quote minimum when targetHash is FALLBACK_HASH', async () => {
@@ -2075,7 +2078,7 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
 
         expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
         );
       });
@@ -2100,7 +2103,7 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
 
         expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
         );
       });
@@ -2124,7 +2127,7 @@ describe('Relay Submit Utils', () => {
             walletAddress: RECIPIENT_MOCK,
           }),
         );
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({ sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK }),
         );
       });
@@ -2151,7 +2154,7 @@ describe('Relay Submit Utils', () => {
           amountRaw: ON_CHAIN_AMOUNT_MOCK,
           blockNumber: undefined,
         });
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: undefined,
         });
 
@@ -2172,8 +2175,8 @@ describe('Relay Submit Utils', () => {
         expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
           expect.objectContaining({ walletAddress: FROM_MOCK }),
         );
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ moneyAccountAddress: FROM_MOCK }),
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
+          expect.objectContaining({ from: FROM_MOCK }),
         );
       });
 
@@ -2218,9 +2221,9 @@ describe('Relay Submit Utils', () => {
             }),
             transactionData: expect.anything(),
           });
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect(submitSecondLegMock).toHaveBeenCalledWith(
             expect.objectContaining({
-              depositCalls: DEPOSIT_CALLS_MOCK,
+              calls: DEPOSIT_CALLS_MOCK,
               sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
             }),
           );
@@ -2236,9 +2239,9 @@ describe('Relay Submit Utils', () => {
 
           await submitRelayQuotes(request);
 
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect(submitSecondLegMock).toHaveBeenCalledWith(
             expect.objectContaining({
-              moneyAccountAddress: CALLBACK_RECIPIENT_MOCK,
+              from: CALLBACK_RECIPIENT_MOCK,
             }),
           );
         });
@@ -2246,8 +2249,8 @@ describe('Relay Submit Utils', () => {
         it('falls back to the quote recipient when getPaymentOverrideData omits it', async () => {
           await submitRelayQuotes(request);
 
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({ moneyAccountAddress: RECIPIENT_MOCK }),
+          expect(submitSecondLegMock).toHaveBeenCalledWith(
+            expect.objectContaining({ from: RECIPIENT_MOCK }),
           );
         });
 
@@ -2257,7 +2260,7 @@ describe('Relay Submit Utils', () => {
           await expect(submitRelayQuotes(request)).rejects.toThrow(
             'Missing post-quote deposit calls',
           );
-          expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+          expect(submitSecondLegMock).not.toHaveBeenCalled();
         });
       });
 
@@ -2270,12 +2273,12 @@ describe('Relay Submit Utils', () => {
           });
         });
 
-        it('does not call getPaymentOverrideData and forwards no depositCalls', async () => {
+        it('does not call getPaymentOverrideData and forwards no calls', async () => {
           await submitRelayQuotes(request);
 
           expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({ depositCalls: undefined }),
+          expect(submitSecondLegMock).toHaveBeenCalledWith(
+            expect.objectContaining({ calls: undefined }),
           );
         });
       });
@@ -2355,7 +2358,7 @@ describe('Relay Submit Utils', () => {
 
         // Vault helper is NOT called separately - the vault calls are already
         // embedded in the promoted Relay quote's steps and submitted atomically.
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+        expect(submitSecondLegMock).toHaveBeenCalledTimes(0);
 
         // Relay execute is invoked exactly once with the promoted quote's
         // embedded calldata, not any stale parent calldata.
@@ -2375,7 +2378,7 @@ describe('Relay Submit Utils', () => {
 
       it('non-atomic success: still invokes the vault helper exactly once with the settled amount', async () => {
         configureNonAtomicMaxMaQuote();
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: VAULT_HASH_MOCK,
         });
         getTransferredAmountFromTxHashMock.mockResolvedValue({
@@ -2393,18 +2396,18 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(1);
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledTimes(1);
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({
             sourceAmountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
-            moneyAccountAddress: RECIPIENT_MOCK,
+            from: RECIPIENT_MOCK,
           }),
         );
       });
 
       it('non-atomic failure: does not invoke the vault helper when Relay reports a failed status', async () => {
         configureNonAtomicMaxMaQuote();
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: VAULT_HASH_MOCK,
         });
         successfulFetchMock.mockResolvedValue({
@@ -2419,7 +2422,7 @@ describe('Relay Submit Utils', () => {
           'Relay: Request failed with status: failure',
         );
 
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+        expect(submitSecondLegMock).toHaveBeenCalledTimes(0);
       });
     });
   });
