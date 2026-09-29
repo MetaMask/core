@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
 - Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run the deferred trading setup before the first order, so its signatures happen in a guided session: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
   - The builder fee, the migration from `dexAbstraction` and the Lighter registration are signed by the main account; with an agent, the HyperLiquid referral and silent migration are signed by the agent
-  - Resolves a `ReadyToTradeResult` that is `ready: true` once the main-account signer is ready and none of these steps will need a signature again before the first order, and `ready: false` while one will be retried, including after an agent could not sign; `ready: false` carries `KEYRING_LOCKED` while the signer is not ready and `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue yet; the aggregated provider prepares every provider in turn
+  - Resolves a `ReadyToTradeResult` that is `ready: true` once the main-account signer is ready and none of these steps will need a signature again before the first order, and `ready: false` while one will be retried, including after an agent could not sign; `ready: false` carries `KEYRING_LOCKED` while the signer is not ready, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue yet, `NO_ACCOUNT_SELECTED`, `PROVIDER_LIFECYCLE_STALE` when the provider or account changed during setup, or the message of the logged error that stopped setup; the aggregated provider prepares every provider in turn
+  - A HyperLiquid referral whose MetaMask referral code is not ready yet does not hold the result back; the next `prepareTradingWallet` checks the code again, and orders do not
   - Implemented by the exported `HyperLiquidProvider` and by the Lighter provider, which resolves `ready: true` at once when it is read-only (no signer bridge) and the main-account signer is ready
 - Add optional `isTestnet` to `AggregatedProviderConfig`, which tags the errors the aggregated provider logs with the network ([#10559](https://github.com/MetaMask/core/pull/10559))
 
@@ -46,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HyperLiquid writes that fail because the keyring is locked, or because the `accountSigner` is not ready, now fail with `KEYRING_LOCKED` and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
   - Before, they failed with the SDK's "Failed to sign the typed data using the wallet" message, or with `TPSL_UPDATE_FAILED` for a TP/SL update whose builder fee was not approved yet
   - Covers orders, edits, single and batch cancels (TWAP, scale and chase cancels included), position closes, TP/SL updates and clears, margin updates, withdrawals and transfers between DEXs
-- A HyperLiquid referral skipped during trading setup, because the wallet has not deposited yet or the referral code is not ready, is attempted again as soon as it can be set, instead of after the provider reconnects ([#10559](https://github.com/MetaMask/core/pull/10559))
+- A HyperLiquid referral skipped during trading setup because the wallet has not deposited yet is attempted again at the next trading setup once the wallet has deposited, instead of after the provider reconnects ([#10559](https://github.com/MetaMask/core/pull/10559))
 
 ## [18.0.1]
 

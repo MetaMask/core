@@ -61,6 +61,19 @@ describe('LighterWalletService with accountSigner', () => {
     expect(error).toHaveProperty('cause', hostError);
   });
 
+  it('rethrows an account signer rejection unchanged while the signer stays ready', async () => {
+    const rejection = new Error('User rejected the request.');
+    const signer = createSigner(() => true);
+    signer.signPersonalMessage.mockRejectedValue(rejection);
+    const { messenger } = createKeyringlessMessenger();
+    const service = new LighterWalletService(
+      { ...createMockInfrastructure(), accountSigner: signer },
+      { isTestnet: true, messenger },
+    );
+
+    await expect(service.signPersonalMessage('hello')).rejects.toBe(rejection);
+  });
+
   it('fails with KEYRING_LOCKED and does not sign when isReady returns false', async () => {
     const signer = createSigner(() => false);
     const { messenger, call } = createKeyringlessMessenger();

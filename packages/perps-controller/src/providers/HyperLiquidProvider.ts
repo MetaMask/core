@@ -2910,10 +2910,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   #tradingSetupComplete = false;
 
   // Set when the referral could not be written yet (its signer could not
-  // sign, the wallet has no HyperLiquid account yet, or the referral code is
-  // not ready), so trading setup is not marked complete and the referral is
-  // attempted again.
+  // sign, or the wallet has no HyperLiquid account yet), so trading setup is
+  // not marked complete and the referral is attempted again.
   #referralSetupNeedsRetry = false;
+
+  // Set when the builder's referral code was not ready. It is not the user's
+  // to fix, so it does not hold trading setup back: the next
+  // `prepareTradingWallet` checks it again, but orders do not.
+  #referralAwaitsBuilderCode = false;
 
   readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
 
@@ -4358,8 +4362,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * The signer failure a venue reported in cancel status entries rather than
-   * threw. One signature covers the whole request, so a rejected signer fails
-   * every entry.
+   * threw. One signature covers the whole request, so it is classified (and
+   * reported to the host) once for all its entries.
    *
    * @param statuses - The status entries.
    * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
@@ -6563,12 +6567,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
         const cancelStatus: unknown = cancelResult.response?.data?.status;
         // A rejected agent is dropped and reported; the TWAP stays live.
-        this.#classifyStatusSignerFailure([cancelStatus]);
+        if (
+          isStatusObject(cancelStatus) &&
+          typeof cancelStatus.error === 'string'
+        ) {
+          this.#evictRejectedAgent(new Error(cancelStatus.error));
+        }
         remainsLive =
           classifyCancelStatus(cancelStatus) === CancelChildOutcome.Refused;
       } catch (error) {
         // A rejected agent is dropped and reported; the TWAP stays live.
-        this.#classifySignerFailure(error);
+        this.#evictRejectedAgent(error);
         this.#deps.debugLogger.log(
           'Stale TWAP placement could not be retracted',
           {
@@ -7241,7 +7250,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         .then(() => this.#runChaseTick(sessionId))
         .catch((error: unknown) => {
           // A rejected agent is dropped so the next tick asks for another.
-          this.#classifySignerFailure(error);
+          this.#evictRejectedAgent(error);
           // Resolve the shared queue after every failure. Otherwise one
           // rejected tick prevents all later ticks and teardown from running.
           this.#deps.debugLogger.log('Chase tick failed', {
@@ -7926,7 +7935,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return outcome;
     } catch (error) {
       // A rejected agent is dropped and reported; the order stays resting.
-      this.#classifySignerFailure(error);
+      this.#evictRejectedAgent(error);
       this.#deps.debugLogger.log('Could not retract abandoned chase order', {
         orderId: session.orderId,
         error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
@@ -9671,7 +9680,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           statuses.length === ordinaryOrders.length
         ) {
           // One signature covers the batch, so a signer failure is classified
-          // (and reported to the host) once, and fails every entry.
+          // (and reported to the host) once, and is the error of every entry
+          // that reports one. Entries that succeeded keep their result.
           const signerFailure = this.#classifyStatusSignerFailure(statuses);
           ordinaryOrders.forEach(({ index, order }, statusIndex) => {
             const status: unknown = statuses[statusIndex];
@@ -14575,11 +14585,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns `ready: true` when the main-account signer is ready and none of
    * these steps will need a signature again before the first order; a step
    * the user declined counts, because the order path does not ask again
-   * either. `ready: false` carries `KEYRING_LOCKED` when the signer is not
-   * ready, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no HyperLiquid
-   * account yet (fund it first), the error when the steps could not run, and
-   * no error when a step will retry (a rejected builder fee, a transient
-   * failure, or an agent that could not sign).
+   * either, and so does a referral whose MetaMask referral code is not ready
+   * yet, which the next call checks again. `ready: false` carries
+   * `KEYRING_LOCKED` when the signer is not ready, `EXCHANGE_ACCOUNT_NOT_FOUND`
+   * for a wallet with no HyperLiquid account yet (fund it first),
+   * `NO_ACCOUNT_SELECTED` or `PROVIDER_LIFECYCLE_STALE` (neither logged), the
+   * logged error when the steps could not run, and no error when a step will
+   * retry (a rejected builder fee, a transient failure, or an agent that
+   * could not sign).
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     // Nothing can be signed, so run no setup (and log nothing) until it can.
@@ -14587,6 +14600,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
     try {
+      // Run the shared setup again to check the builder's referral code.
+      if (this.#referralAwaitsBuilderCode) {
+        this.#tradingSetupComplete = false;
+      }
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
       const network = this.#clientService.isTestnetMode()
         ? 'testnet'
@@ -15715,6 +15732,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #ensureReferralSet(): Promise<void> {
     this.#referralSetupNeedsRetry = false;
+    this.#referralAwaitsBuilderCode = false;
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const expectedReferralCode = this.#getReferralCode(isTestnet);
@@ -15804,14 +15822,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      const isReady = await this.#isReferralCodeReady();
-      if (!isReady) {
+      const codeStatus = await this.#getReferralCodeStatus();
+      if (codeStatus !== 'ready') {
         this.#deps.debugLogger.log(
           '[ensureReferralSet] Builder referral not ready, skipping',
-          { network },
+          { network, codeStatus },
         );
-        // Don't cache: attempt it again once the code is ready.
-        this.#referralSetupNeedsRetry = true;
+        // Don't cache. A failed lookup (already logged) waits for the next
+        // setup; a code that is not ready yet, for the next preparation.
+        this.#referralAwaitsBuilderCode = codeStatus === 'pending';
         completeInFlight();
         return;
       }
@@ -15909,11 +15928,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Check if the referral code is ready to be used
+   * Check whether the builder's referral code can be used.
    *
-   * @returns Promise resolving to true if referral code is ready
+   * @returns `ready`, `pending` while the builder's code is not ready yet, or
+   * `failed` when the lookup failed or the code on file does not match (logged).
    */
-  async #isReferralCodeReady(): Promise<boolean> {
+  async #getReferralCodeStatus(): Promise<'ready' | 'pending' | 'failed'> {
     try {
       const infoClient = this.#clientService.getInfoClient();
       const isTestnet = this.#clientService.isTestnetMode();
@@ -15931,7 +15951,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             `Ready for referrals but there is a config code mismatch ${onFile} vs ${code}`,
           );
         }
-        return true;
+        return 'ready';
       }
 
       // Not ready yet - log as debugLogger since this is expected during setup phase
@@ -15943,7 +15963,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           referrerAddr,
         },
       );
-      return false;
+      return 'pending';
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.isReferralCodeReady'),
@@ -15954,7 +15974,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           ),
         }),
       );
-      return false;
+      return 'failed';
     }
   }
 

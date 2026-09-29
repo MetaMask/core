@@ -321,15 +321,36 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   }
 
   /**
-   * The typed-data signatures the host's KeyringController was asked for.
+   * Assert what the host saw during a flow: the accounts `getAgentSigner` was
+   * asked for, the agents reported to `onAgentRejected`, the
+   * KeyringController actions called, and no reported error.
    *
    * @param call - A spy on the host messenger's `call`.
-   * @returns The `KeyringController:signTypedMessage` calls.
+   * @param expected - What the host saw.
+   * @param expected.agentRequests - The accounts `getAgentSigner` was asked
+   * for, in order.
+   * @param expected.rejectedAgents - The account and agent of each rejection.
+   * @param expected.keyringActions - The KeyringController actions called; a
+   * host with an account signer has none.
    */
-  function keyringSignatureRequests(call: jest.SpyInstance): unknown[][] {
-    return call.mock.calls
-      .map((args: unknown[]) => args)
-      .filter(([action]) => action === 'KeyringController:signTypedMessage');
+  function expectHostSaw(
+    call: jest.SpyInstance,
+    {
+      agentRequests,
+      rejectedAgents = [],
+      keyringActions = [],
+    }: {
+      agentRequests: PerpsAgentAccount[];
+      rejectedAgents?: [PerpsAgentAccount, Hex][];
+      keyringActions?: string[];
+    },
+  ): void {
+    expect(getAgentSigner.mock.calls).toStrictEqual(
+      agentRequests.map((account) => [account]),
+    );
+    expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
+    expect(keyringCalls(call)).toStrictEqual(keyringActions);
+    expect(loggerError).not.toHaveBeenCalled();
   }
 
   /**
@@ -387,14 +408,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['approveBuilderFee', MAIN_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
     ]);
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 
   it('signs L1 actions with the main account when the host has no getAgentSigner', async () => {
@@ -408,8 +426,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [] });
   });
 
   it('signs L1 actions with the agent and user-signed actions through KeyringController for a host without accountSigner', async () => {
@@ -428,7 +445,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['approveBuilderFee', MAIN_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expect(keyringSignatureRequests(call)).toStrictEqual([
+    expect(
+      call.mock.calls.filter(
+        ([action]) => action === 'KeyringController:signTypedMessage',
+      ),
+    ).toStrictEqual([
       [
         'KeyringController:signTypedMessage',
         { from: MAIN_ADDRESS, data: APPROVE_BUILDER_FEE_PAYLOAD },
@@ -436,9 +457,14 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ],
     ]);
     expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, {
+      agentRequests: [MAINNET_ACCOUNT],
+      keyringActions: [
+        'KeyringController:getState',
+        'KeyringController:getState',
+        'KeyringController:signTypedMessage',
+      ],
+    });
   });
 
   it('prepares nothing and reports KEYRING_LOCKED while the host keyring is locked', async () => {
@@ -454,10 +480,12 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
+    expect(mockVenue.networks).toStrictEqual([]);
     expect(mockVenue.writes).toStrictEqual([]);
-    expect(keyringSignatureRequests(call)).toStrictEqual([]);
-    expect(getAgentSigner).not.toHaveBeenCalled();
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, {
+      agentRequests: [],
+      keyringActions: ['KeyringController:getState'],
+    });
   });
 
   it('pins L1 actions to the main account with setAgentSigner(null) until clearAgentSigners', async () => {
@@ -477,10 +505,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['order', MAIN_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 
   it('keeps a setAgentSigner binding when the HyperLiquid provider is re-created', async () => {
@@ -510,15 +535,12 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['order', MAIN_ADDRESS],
       ['order', OTHER_AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([
-      [{ ...MAINNET_ACCOUNT, isTestnet: true }],
-    ]);
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, {
+      agentRequests: [{ ...MAINNET_ACCOUNT, isTestnet: true }],
+    });
   });
 
   it('honors a setAgentSigner binding made before init', async () => {
@@ -532,10 +554,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
     expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([['order', OTHER_AGENT_ADDRESS]]);
-    expect(getAgentSigner).not.toHaveBeenCalled();
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [] });
   });
 
   it('forgets a setAgentSigner binding cleared before init', async () => {
@@ -549,10 +568,8 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
     expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([['order', AGENT_ADDRESS]]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(boundAgent.signTypedData).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 
   it('signs with the agent bound through setAgentSigner after another was resolved', async () => {
@@ -579,10 +596,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['order', OTHER_AGENT_ADDRESS],
       ['order', MAIN_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 
   it('tells the host about an agent the venue rejects and asks for another', async () => {
@@ -608,21 +622,15 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       orderId: '1',
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
-    expect(onAgentRejected.mock.calls).toStrictEqual([
-      [MAINNET_ACCOUNT, AGENT_ADDRESS],
-    ]);
     expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([
       ['cancel', AGENT_ADDRESS],
       ['order', OTHER_AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([
-      [MAINNET_ACCOUNT],
-      [MAINNET_ACCOUNT],
-    ]);
-    // Nothing reports the retryable signer failure.
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, {
+      agentRequests: [MAINNET_ACCOUNT, MAINNET_ACCOUNT],
+      rejectedAgents: [[MAINNET_ACCOUNT, AGENT_ADDRESS]],
+    });
   });
 
   it('releases a setAgentSigner binding to an agent the venue rejects', async () => {
@@ -643,18 +651,16 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       orderId: '1',
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
-    expect(onAgentRejected.mock.calls).toStrictEqual([
-      [MAINNET_ACCOUNT, OTHER_AGENT_ADDRESS],
-    ]);
     // The binding is gone, so the host's getAgentSigner answers.
     expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([
       ['cancel', OTHER_AGENT_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, {
+      agentRequests: [MAINNET_ACCOUNT],
+      rejectedAgents: [[MAINNET_ACCOUNT, OTHER_AGENT_ADDRESS]],
+    });
   });
 
   it('releases a binding to an agent the venue rejects for a host without onAgentRejected', async () => {
@@ -683,15 +689,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['cancel', OTHER_AGENT_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    // Nothing threw while telling the host about the rejection.
-    expect(
-      (infrastructure.debugLogger.log as jest.Mock).mock.calls.filter(
-        ([message]) => message === 'HyperLiquidProvider: onAgentRejected threw',
-      ),
-    ).toStrictEqual([]);
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 
   it('prepares nothing and reports KEYRING_LOCKED while the account signer is not ready', async () => {
@@ -709,10 +707,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(mockVenue.networks).toStrictEqual([]);
     expect(mockVenue.writes).toStrictEqual([]);
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
-    expect(getAgentSigner).not.toHaveBeenCalled();
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [] });
   });
 
   it('prepares the migration and builder fee on the main account and the referral on the agent', async () => {
@@ -755,9 +750,6 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
     ]);
     expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
-    expect(onAgentRejected).not.toHaveBeenCalled();
-    expect(keyringCalls(call)).toStrictEqual([]);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 });

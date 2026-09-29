@@ -1323,9 +1323,9 @@ export class LighterProvider implements PerpsProvider {
    * when no account is selected, with `EXCHANGE_ACCOUNT_NOT_FOUND` when the
    * wallet has no Lighter account yet (fund it first), without an error when
    * the user declined the signature (the order path asks again), with
-   * `PROVIDER_LIFECYCLE_STALE` (unlogged) when the
-   * provider disconnected or the wallet switched accounts meanwhile, and with
-   * the logged error when registration failed.
+   * `PROVIDER_LIFECYCLE_STALE` (unlogged) when the provider disconnected or
+   * the wallet switched accounts meanwhile, and with the logged error when
+   * registration failed.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {
@@ -1358,12 +1358,7 @@ export class LighterProvider implements PerpsProvider {
         return { ready: false };
       }
       // Nothing can be registered before the wallet has a Lighter account.
-      if (
-        hasErrorInCauseChain(
-          caughtError,
-          (current) => current instanceof LighterAccountNotFoundError,
-        )
-      ) {
+      if (caughtError instanceof LighterAccountNotFoundError) {
         return {
           ready: false,
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,

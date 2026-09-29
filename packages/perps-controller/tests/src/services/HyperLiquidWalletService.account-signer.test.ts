@@ -1,8 +1,9 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 import type * as HyperLiquidExchange from '@nktkas/hyperliquid/api/exchange';
 import type * as HyperLiquidSigning from '@nktkas/hyperliquid/signing';
 import { recoverTypedDataAddress } from 'viem';
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 
 import {
   ARBITRUM_SEPOLIA_CHAIN_ID,
@@ -28,9 +29,9 @@ import {
 } from '../../helpers/agentFixtures.js';
 import {
   createKeyringlessMessenger,
+  createKeyringMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
-  createMockMessenger,
   keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
@@ -135,7 +136,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   it("requires signature confirmation when the account signer's requiresSignatureConfirmation says so, whatever the keyring type", () => {
     const { service } = buildService(
       { requiresSignatureConfirmation: () => true },
-      'HD Key Tree',
+      KeyringTypes.hd,
     );
 
     expect(service.requiresSignatureConfirmation()).toBe(true);
@@ -144,15 +145,15 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   it("does not require signature confirmation when the account signer's requiresSignatureConfirmation says so, whatever the keyring type", () => {
     const { service } = buildService(
       { requiresSignatureConfirmation: () => false },
-      'Ledger Hardware',
+      KeyringTypes.ledger,
     );
 
     expect(service.requiresSignatureConfirmation()).toBe(false);
   });
 
   it.each([
-    ['Ledger Hardware', true],
-    ['HD Key Tree', false],
+    [KeyringTypes.ledger, true],
+    [KeyringTypes.hd, false],
   ])(
     'falls back to the %s keyring type when requiresSignatureConfirmation is omitted',
     (keyringType, expected) => {
@@ -236,7 +237,7 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     const { adapter, resolveAgent, agentSign, mainSign } = buildAdapter();
     const lookalike = {
       ...L1_PAYLOAD,
-      domain: { ...L1_PAYLOAD.domain, name: 'HyperliquidSignTransaction' },
+      domain: { ...L1_PAYLOAD.domain, name: USER_SIGNED_PAYLOAD.domain.name },
     };
 
     const signature = await adapter.signTypedData(lookalike);
@@ -344,8 +345,7 @@ describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', 
     agentSign: jest.Mock;
     call: jest.SpyInstance;
   } {
-    const messenger = createMockMessenger();
-    const call = jest.spyOn(messenger, 'call');
+    const { messenger, call } = createKeyringMessenger(MAIN_SIGNATURE);
     const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
     const service = new HyperLiquidWalletService(
       createMockInfrastructure(),
@@ -375,13 +375,19 @@ describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', 
 
     const signature = await adapter.signTypedData(USER_SIGNED_PAYLOAD);
 
-    expect(signature).toBe('0xSignatureResult');
+    expect(signature).toBe(MAIN_SIGNATURE);
     expect(agentSign).not.toHaveBeenCalled();
-    expect(call).toHaveBeenCalledWith(
-      'KeyringController:signTypedMessage',
-      { from: mainAddress, data: USER_SIGNED_PAYLOAD },
-      'V4',
-    );
+    expect(
+      call.mock.calls.filter(
+        ([action]) => action === 'KeyringController:signTypedMessage',
+      ),
+    ).toStrictEqual([
+      [
+        'KeyringController:signTypedMessage',
+        { from: mainAddress, data: USER_SIGNED_PAYLOAD },
+        'V4',
+      ],
+    ]);
   });
 });
 
@@ -399,8 +405,9 @@ describeWithSdk(
     // Drive the adapter through the SDK's own signing functions and recover the
     // signer from each signature, so the routing holds for the payloads the SDK
     // builds (including its EIP712Domain entry) and for its wallet detection.
-    const mainAccount = privateKeyToAccount(generatePrivateKey());
-    const agentAccount = privateKeyToAccount(generatePrivateKey());
+    // Fixed keys, so every run signs and recovers the same bytes.
+    const mainAccount = privateKeyToAccount(`0x${'11'.repeat(32)}`);
+    const agentAccount = privateKeyToAccount(`0x${'22'.repeat(32)}`);
     let signing: typeof HyperLiquidSigning;
     let exchange: typeof HyperLiquidExchange;
 
@@ -477,10 +484,6 @@ describeWithSdk(
         signature,
       });
     }
-
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
 
     it('signs an SDK L1 action with the agent', async () => {
       const { adapter, signatures, agentSignatures } = buildSdkAdapter();

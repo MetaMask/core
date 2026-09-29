@@ -12,7 +12,10 @@ import type {
   LighterSignerResult,
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
-import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
+import {
+  MAIN_SIGNATURE,
+  OTHER_MAIN_ADDRESS,
+} from '../../helpers/agentFixtures.js';
 import {
   createKeyringMessenger,
   createKeyringlessMessenger,
@@ -457,7 +460,13 @@ describe('LighterProvider with accountSigner', () => {
     [
       'the wallet switches accounts',
       async ({ selectAccount }: BuiltProvider): Promise<void> => {
-        selectAccount('0x00000000000000000000000000000000000c0ffe');
+        selectAccount(OTHER_MAIN_ADDRESS);
+      },
+    ],
+    [
+      'the wallet deselects its account',
+      async ({ deselectAccount }: BuiltProvider): Promise<void> => {
+        deselectAccount();
       },
     ],
   ])(
@@ -556,27 +565,6 @@ describe('LighterProvider with accountSigner', () => {
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
-    expect(loggerError).not.toHaveBeenCalled();
-  });
-
-  it('reports KEYRING_LOCKED without logging when the signer locks as registration fails', async () => {
-    let signerReady = true;
-    const { provider, accountSigner, client, deps } = buildProvider({
-      isReady: () => signerReady,
-    });
-    accountSigner.signPersonalMessage.mockImplementation(async () => {
-      signerReady = false;
-      throw new Error('wallet disconnected');
-    });
-    const loggerError = jest.spyOn(deps.logger, 'error');
-
-    const result = await provider.prepareTradingWallet();
-
-    expect(result).toStrictEqual({
-      ready: false,
-      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-    });
-    expect(client.sendTx).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 

@@ -345,7 +345,7 @@ describe('HyperLiquidWalletService', () => {
       expect(address).toBe(mockEvmAccount.address);
     });
 
-    it('returns false for software wallet', () => {
+    it('requires no signature confirmation for an HD keyring account', () => {
       expect(service.requiresSignatureConfirmation()).toBe(false);
     });
 
@@ -355,7 +355,7 @@ describe('HyperLiquidWalletService', () => {
       'OneKey Hardware',
       'Lattice Hardware',
       'QR Hardware Wallet Device',
-    ])('returns true for %s wallet', (keyringType) => {
+    ])('requires signature confirmation for %s', (keyringType) => {
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'

@@ -6,19 +6,14 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MessengerActions,
-  MessengerEvents,
-  MockAnyNamespace,
-} from '@metamask/messenger';
-
-import { AGENT_ADDRESS } from '../helpers/agentFixtures.js';
+import { AGENT_ADDRESS, MAIN_SIGNATURE } from '../helpers/agentFixtures.js';
 import {
   createMockHyperLiquidProvider,
   createMockPosition,
 } from '../helpers/providerMocks.js';
 import {
+  createKeyringMessenger,
+  createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
@@ -33,16 +28,14 @@ import {
   PERPS_CONSTANTS,
   PERPS_DISK_CACHE_MARKETS,
   PERPS_DISK_CACHE_USER_DATA,
+  PROVIDER_CONFIG,
 } from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
 } from '../../src/PerpsController.js';
-import type {
-  PerpsControllerMessenger,
-  PerpsControllerState,
-} from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import * as AggregatedPerpsProviderModule from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
@@ -892,6 +885,45 @@ describe('PerpsController', () => {
       );
     });
 
+    it('registerLighterProvider builds Lighter on testnet with its testnet account while Lighter is pinned to testnet', () => {
+      jest.replaceProperty(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        true,
+      );
+      const MockLighterConstructor = jest.fn(() =>
+        createMockHyperLiquidProvider(),
+      );
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: {
+            lighter: { accountIndexMainnet: 1, accountIndexTestnet: 2 },
+          },
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      expect(controller.state.isTestnet).toBe(false);
+      expect(MockLighterConstructor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTestnet: true,
+          lighterAuthConfig: {
+            enabled: undefined,
+            accountIndex: 2,
+            apiKeyIndex: undefined,
+          },
+        }),
+      );
+    });
+
     it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
       const moduleError = Object.assign(
         new Error('Cannot find module ./providers/LighterProvider'),
@@ -925,7 +957,7 @@ describe('PerpsController', () => {
 
   describe('account and agent signers', () => {
     const account = {
-      mainAddress: '0x1234567890123456789012345678901234567890',
+      mainAddress: createMockEvmAccount().address,
       isTestnet: false,
     } as const;
 
@@ -1036,19 +1068,13 @@ describe('PerpsController', () => {
 
     it('runs the agent and preparation actions called through the messenger after init', async () => {
       const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
-      const rootMessenger = new Messenger<
-        MockAnyNamespace,
-        MessengerActions<PerpsControllerMessenger>,
-        MessengerEvents<PerpsControllerMessenger>
-      >({ namespace: MOCK_ANY_NAMESPACE });
+      // A keyring host, unlocked.
+      const { messenger, rootMessenger } =
+        createKeyringMessenger(MAIN_SIGNATURE);
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
         () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
       );
-      const messenger: PerpsControllerMessenger = new Messenger({
-        namespace: 'PerpsController',
-        parent: rootMessenger,
-      });
       rootMessenger.delegate({
         actions: ['RemoteFeatureFlagController:getState'],
         events: [
@@ -1088,22 +1114,12 @@ describe('PerpsController', () => {
     });
 
     it('drops resolved agents on every provider in aggregated mode, skipping one without clearAgentSigners', async () => {
-      const RealAggregatedPerpsProvider =
-        AggregatedPerpsProviderModule.AggregatedPerpsProvider;
-      let providerIdsAtConstruction: string[] = [];
-      const aggregatedConstructor = jest
-        .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
-        .mockImplementation((config) => {
-          providerIdsAtConstruction = [...config.providers.keys()];
-          return new RealAggregatedPerpsProvider(config);
-        });
       mockProvider.clearAgentSigners = jest.fn();
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
         state: {
           ...getDefaultPerpsControllerState(),
           activeProvider: 'aggregated',
-          isTestnet: true,
         },
         infrastructure: mockInfrastructure,
       });
@@ -1117,6 +1133,31 @@ describe('PerpsController', () => {
       expect([...providers.keys()]).toStrictEqual(['hyperliquid', 'lighter']);
       expect(providers.get('lighter')).not.toHaveProperty('clearAgentSigners');
       expect(mockProvider.clearAgentSigners.mock.calls).toStrictEqual([[], []]);
+    });
+
+    it("builds the aggregated provider on the controller's network and live provider map", async () => {
+      const RealAggregatedPerpsProvider =
+        AggregatedPerpsProviderModule.AggregatedPerpsProvider;
+      let providerIdsAtConstruction: string[] = [];
+      const aggregatedConstructor = jest
+        .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
+        .mockImplementation((config) => {
+          providerIdsAtConstruction = [...config.providers.keys()];
+          return new RealAggregatedPerpsProvider(config);
+        });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      await controller.init();
+      registerMockLighterProvider(controller);
+
       expect(aggregatedConstructor.mock.calls).toStrictEqual([
         [
           {
@@ -1131,7 +1172,11 @@ describe('PerpsController', () => {
       // map it shares with the controller.
       expect(providerIdsAtConstruction).toStrictEqual(['hyperliquid']);
       const [[constructedWith]] = aggregatedConstructor.mock.calls;
-      expect(constructedWith.providers).toBe(providers);
+      expect(constructedWith.providers).toBe(controller.testGetProviders());
+      expect([...constructedWith.providers.keys()]).toStrictEqual([
+        'hyperliquid',
+        'lighter',
+      ]);
     });
 
     it.each([
@@ -1186,6 +1231,52 @@ describe('PerpsController', () => {
         expect(
           call.mock.calls.filter(([action]) => action.startsWith('Keyring')),
         ).toStrictEqual(usesKeyring ? [['KeyringController:getState']] : []);
+      },
+    );
+
+    it.each([
+      { signer: 'the account signer', usesKeyring: false },
+      { signer: 'the keyring', usesKeyring: true },
+    ])(
+      'reports KEYRING_LOCKED when the provider reports ready while $signer cannot sign',
+      async ({ usesKeyring }) => {
+        const call = jest
+          .fn()
+          .mockImplementation((action: string) =>
+            action === 'KeyringController:getState'
+              ? { isUnlocked: false }
+              : undefined,
+          );
+        // For example an aggregated provider whose providers have nothing to
+        // prepare, so none of them checked the signer.
+        mockProvider.prepareTradingWallet = jest
+          .fn()
+          .mockResolvedValue({ ready: true });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: usesKeyring
+            ? mockInfrastructure
+            : {
+                ...mockInfrastructure,
+                accountSigner: {
+                  signTypedData: jest.fn(),
+                  signPersonalMessage: jest.fn(),
+                  isReady: (): boolean => false,
+                },
+              },
+        });
+        await controller.init();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
+          [],
+        ]);
       },
     );
   });

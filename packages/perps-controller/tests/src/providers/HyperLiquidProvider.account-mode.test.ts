@@ -1696,7 +1696,7 @@ describe('HyperLiquidProvider', () => {
       ).toHaveBeenCalledWith(USER_ADDRESS, 'unifiedAccount');
     });
 
-    it('records unifiedAccount mode after migrating software-wallet dexAbstraction on init', async () => {
+    it('records unifiedAccount mode after migrating dexAbstraction on init when signatures need no confirmation', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
           userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
@@ -1714,7 +1714,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it.each(['dexAbstraction', 'default', 'disabled'] as const)(
-      'defers %s migration on init for hardware wallets',
+      'defers %s migration on init when every signature needs confirmation',
       async (currentMode) => {
         // Arrange
         mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);

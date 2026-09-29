@@ -5,6 +5,11 @@ import { createMockEvmAccount } from './serviceMocks.js';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
+// The payloads below spell out the SDK's domain names, primary types and fee
+// rate instead of reading HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
+// HYPERLIQUID_L1_ACTION_PRIMARY_TYPE or BUILDER_FEE_CONFIG, so the routing
+// tests fail if one of those constants drifts from what the SDK signs.
+
 // The SDK adds the domain type to every payload it signs.
 const EIP712_DOMAIN_TYPE = [
   { name: 'name', type: 'string' },
@@ -105,36 +110,6 @@ export const L1_PAYLOAD: PerpsTypedDataPayload = {
   primaryType: 'Agent',
   message: { source: 'a', connectionId: `0x${'22'.repeat(32)}` },
 };
-
-/**
- * An order as HyperLiquid's `frontendOpenOrders` returns it.
- *
- * @param overrides - Fields that differ from a resting BTC limit buy.
- * @returns The open order.
- */
-export function createFrontendOpenOrder(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
-  return {
-    coin: 'BTC',
-    side: 'B',
-    limitPx: '49000',
-    sz: '0.1',
-    origSz: '0.1',
-    oid: 123,
-    timestamp: 1,
-    orderType: 'Limit',
-    tif: 'Gtc',
-    isTrigger: false,
-    triggerPx: '0',
-    triggerCondition: 'N/A',
-    reduceOnly: false,
-    isPositionTpsl: false,
-    cloid: null,
-    children: [],
-    ...overrides,
-  };
-}
 
 /**
  * The error the HyperLiquid SDK throws when the wallet fails to sign, with

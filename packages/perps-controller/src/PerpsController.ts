@@ -39,7 +39,6 @@ import type {
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
-  PROVIDER_CONFIG,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
@@ -59,6 +58,7 @@ import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
 import { MarketDataService } from './services/MarketDataService.js';
+import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
 import { TerminalMarketService } from './services/TerminalMarketService.js';
@@ -2427,8 +2427,10 @@ export class PerpsController extends BaseController<
       signerBridge?: LighterSignerBridge;
     }) => PerpsProvider,
   ): void {
-    const lighterIsTestnet =
-      PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || this.state.isTestnet;
+    const lighterIsTestnet = isProviderOnTestnet(
+      'lighter',
+      this.state.isTestnet,
+    );
     const lighter =
       this.#options.clientConfig?.providerCredentials?.lighter ?? {};
     const lighterProvider = new LighterProviderClass({
@@ -5933,29 +5935,43 @@ export class PerpsController extends BaseController<
    * are L1 actions the agent signs.
    *
    * @returns `ready: true` when none of these steps will need a signature
-   * again before the first order, including a step the user declined that is
-   * not asked again (the HyperLiquid migration); `ready: false` while one will
-   * be asked again: a declined builder fee or Lighter registration, or a step
-   * whose signer (the main account or the agent) could not sign
-   * (`KEYRING_LOCKED`), or a wallet with no account on the venue yet
-   * (`EXCHANGE_ACCOUNT_NOT_FOUND`). Providers without deferred setup are
-   * ready while the main account can sign.
+   * again before the first order, and only while the main account can sign,
+   * whichever provider answered (including providers without deferred setup,
+   * for example in aggregated mode). A declined HyperLiquid migration is not
+   * asked again, and a HyperLiquid referral whose MetaMask referral code is
+   * not ready yet is checked again at the next call, not before orders, so
+   * neither holds it back. Otherwise `ready: false`, without an error while a
+   * step will be asked again (a declined builder fee or Lighter registration,
+   * or a step the agent could not sign), or with:
+   * - `KEYRING_LOCKED` when the main account cannot sign, before or during
+   * setup;
+   * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
+   * yet;
+   * - `NO_ACCOUNT_SELECTED` when no account is selected;
+   * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
+   * changed during setup;
+   * - otherwise the message of the error that stopped setup, which is logged.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
    * when no active provider is available.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     const provider = await this.#getActiveProviderWhenReady();
-    if (provider.prepareTradingWallet) {
-      return await provider.prepareTradingWallet();
+    const result = (await provider.prepareTradingWallet?.()) ?? {
+      ready: true,
+    };
+    // A provider with nothing to prepare, alone or aggregated, does not check
+    // the signer.
+    if (
+      result.ready &&
+      !isMainAccountSignerReady(
+        this.#options.infrastructure.accountSigner,
+        () => this.messenger.call('KeyringController:getState').isUnlocked,
+      )
+    ) {
+      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
-    // Nothing to prepare, but ready still needs a main account that can sign.
-    return isMainAccountSignerReady(
-      this.#options.infrastructure.accountSigner,
-      () => this.messenger.call('KeyringController:getState').isUnlocked,
-    )
-      ? { ready: true }
-      : { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    return result;
   }
 
   /**

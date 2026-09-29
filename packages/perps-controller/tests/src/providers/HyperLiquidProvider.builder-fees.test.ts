@@ -1661,13 +1661,13 @@ describe('HyperLiquidProvider', () => {
         createMockExchangeClient({
           approveBuilderFee: jest
             .fn()
-            .mockRejectedValue(new Error('KEYRING_LOCKED')),
+            .mockRejectedValue(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED)),
         }),
       );
 
       // Act - rethrows, so the caller reports a retryable failure
       await expect(testableProvider.ensureBuilderFeeApproval()).rejects.toThrow(
-        'KEYRING_LOCKED',
+        PERPS_ERROR_CODES.KEYRING_LOCKED,
       );
 
       // Assert - cache should NOT be set (so it retries when unlocked)

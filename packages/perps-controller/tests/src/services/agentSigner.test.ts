@@ -10,11 +10,16 @@ import {
   OTHER_MAIN_ADDRESS,
   sdkSigningError,
 } from '../../helpers/agentFixtures.js';
+import { createMockEvmAccount } from '../../helpers/serviceMocks.js';
 
 const ACCOUNT: PerpsAgentAccount = {
-  mainAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+  mainAddress: createMockEvmAccount().address,
   isTestnet: false,
 };
+// The same main account, spelled in upper case.
+const UPPER_CASE_MAIN_ADDRESS = `0x${ACCOUNT.mainAddress
+  .slice(2)
+  .toUpperCase()}` as const;
 const AGENT = {
   address: AGENT_ADDRESS,
   signTypedData: jest.fn(),
@@ -32,7 +37,7 @@ describe('AgentBindings', () => {
     const bindings = new AgentBindings(getAgentSigner);
     const otherAccount: PerpsAgentAccount = {
       ...ACCOUNT,
-      mainAddress: '0x9999999999999999999999999999999999999999',
+      mainAddress: OTHER_MAIN_ADDRESS,
     };
     const testnetAccount: PerpsAgentAccount = { ...ACCOUNT, isTestnet: true };
 
@@ -56,7 +61,7 @@ describe('AgentBindings', () => {
     expect(
       await bindings.resolve({
         ...ACCOUNT,
-        mainAddress: '0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD',
+        mainAddress: UPPER_CASE_MAIN_ADDRESS,
       }),
     ).toBe(AGENT);
     expect(getAgentSigner).not.toHaveBeenCalled();
@@ -89,7 +94,7 @@ describe('AgentBindings', () => {
     bindings.set(ACCOUNT, AGENT);
 
     bindings.release(
-      { ...ACCOUNT, mainAddress: '0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD' },
+      { ...ACCOUNT, mainAddress: UPPER_CASE_MAIN_ADDRESS },
       AGENT.address.toUpperCase().replace('0X', '0x'),
     );
 

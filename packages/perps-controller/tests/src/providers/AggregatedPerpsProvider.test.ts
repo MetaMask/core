@@ -1161,6 +1161,49 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it.each([
+      [
+        'nothing',
+        undefined,
+        'Unknown error (no details provided) [AggregatedPerpsProvider.prepareTradingWallet]',
+      ],
+      ['a string', 'provider crashed', 'provider crashed'],
+    ])(
+      'reports and logs a provider that throws %s instead of an Error',
+      async (_thrown, thrown, message) => {
+        Object.assign(mockHLProvider, {
+          prepareTradingWallet: jest.fn().mockRejectedValue(thrown),
+        });
+        Object.assign(mockLighterProvider, {
+          prepareTradingWallet: jest.fn().mockResolvedValue({ ready: true }),
+        });
+
+        const result = await aggregatedProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({ ready: false, error: message });
+        expect(
+          (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        ).toStrictEqual([
+          [
+            new Error(message),
+            {
+              tags: {
+                feature: PERPS_CONSTANTS.FeatureName,
+                provider: 'hyperliquid',
+              },
+              context: {
+                name: 'AggregatedPerpsProvider',
+                data: {
+                  method: 'prepareTradingWallet',
+                  providerId: 'hyperliquid',
+                },
+              },
+            },
+          ],
+        ]);
+      },
+    );
+
+    it.each([
       [true, 'testnet'],
       [false, 'mainnet'],
     ])(

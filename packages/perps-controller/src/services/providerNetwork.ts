@@ -11,10 +11,10 @@ import type { PerpsProviderType } from '../types/index.js';
  * @returns True on testnet, false on mainnet, and undefined when the
  * provider follows a network that is not known.
  */
-export function isProviderOnTestnet(
+export function isProviderOnTestnet<IsTestnet extends boolean | undefined>(
   providerId: PerpsProviderType,
-  isTestnet: boolean | undefined,
-): boolean | undefined {
+  isTestnet: IsTestnet,
+): true | IsTestnet {
   return providerId === 'lighter' && PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY
     ? true
     : isTestnet;

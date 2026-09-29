@@ -122,6 +122,36 @@ export const createMockPosition = (overrides = {}) => ({
 });
 
 // HyperLiquid SDK info and exchange client mocks for provider tests.
+/**
+ * An order as HyperLiquid's `frontendOpenOrders` returns it.
+ *
+ * @param overrides - Fields that differ from a resting BTC limit buy.
+ * @returns The open order.
+ */
+export function createFrontendOpenOrder(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    coin: 'BTC',
+    side: 'B',
+    limitPx: '49000',
+    sz: '0.1',
+    origSz: '0.1',
+    oid: 123,
+    timestamp: 1,
+    orderType: 'Limit',
+    tif: 'Gtc',
+    isTrigger: false,
+    triggerPx: '0',
+    triggerCondition: 'N/A',
+    reduceOnly: false,
+    isPositionTpsl: false,
+    cloid: null,
+    children: [],
+    ...overrides,
+  };
+}
+
 export const createMockInfoClient = (
   overrides: Record<string, unknown> = {},
 ) => ({
