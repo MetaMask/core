@@ -3,7 +3,7 @@ import type {
   CodeownersRule,
   CodeownersSection,
   PackageInfo,
-} from './types.js';
+} from './types.ts';
 
 const CORE_PLATFORM_TEAM = '@MetaMask/core-platform';
 

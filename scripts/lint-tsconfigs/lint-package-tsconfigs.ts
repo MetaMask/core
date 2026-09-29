@@ -3,7 +3,7 @@ import type {
   TsconfigLintMetaReport,
   Workspace,
   Workspaces,
-} from './utils.mjs';
+} from './utils.ts';
 import {
   ensureTsconfigsUpdated,
   getAllNonRootWorkspaces,
@@ -11,7 +11,7 @@ import {
   printReport,
   readPackageManifest,
   readTsconfig,
-} from './utils.mjs';
+} from './utils.ts';
 
 /**
  * Lints a package's development, build, and lint TypeScript configs to ensure

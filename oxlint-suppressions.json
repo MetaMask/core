@@ -7658,7 +7658,7 @@
       "count": 2
     }
   },
-  "scripts/lib/workspaces.mts": {
+  "scripts/lib/workspaces.ts": {
     "jsdoc/require-param": {
       "count": 1
     },
@@ -7683,7 +7683,7 @@
       "count": 2
     }
   },
-  "scripts/lint-tsconfigs/utils.mts": {
+  "scripts/lint-tsconfigs/utils.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
     },
