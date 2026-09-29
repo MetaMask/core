@@ -22,8 +22,6 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import {
   ToprfSecureBackup,
-  TOPRFErrorCode,
-  TOPRFError,
   EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
 import {
@@ -37,12 +35,6 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import {
-  assertIsPasswordOutdatedCacheValid,
-  assertIsSeedlessOnboardingUserAuthenticated,
-  assertIsValidPassword,
-  assertIsValidVaultData,
-} from './assertions.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
@@ -53,7 +45,6 @@ import {
   Web3AuthNetwork,
 } from './constants.js';
 import {
-  InvalidPrimarySecretDataTypeError,
   PasswordSyncError,
   RecoveryError,
   SeedlessOnboardingError,
@@ -74,12 +65,25 @@ import type {
   ToprfKeyDeriver,
 } from './types.js';
 import {
+  assertIsEncryptedKeyringEncryptionKeySet,
+  assertIsEncryptedSeedlessEncryptionKeySet,
+  assertIsPasswordOutdatedCacheValid,
+  assertIsSeedlessOnboardingUserAuthenticated,
+  assertIsValidPassword,
   compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
+  getDataTypeMigrationUpdates,
+  getNewSocialBackupsMetadata,
+  isAuthTokenError,
+  isMaxKeyChainLengthError,
+  isTokenNearExpiry,
+  parseVaultData,
+  parseAndSortSecretMetadata,
   serializeVaultData,
-} from './utils.js';
+} from './utils/index.js';
+import type { SecretBackupData } from './utils/index.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -835,50 +839,7 @@ export class SeedlessOnboardingController<
         throw error;
       }
 
-      let hasPrimarySrp = secretDatas.some(
-        (secret) =>
-          secret.itemId &&
-          secret.itemId !== 'PW_BACKUP' &&
-          secret.dataType === EncAccountDataType.PrimarySrp,
-      );
-
-      const updates: { itemId: string; dataType: EncAccountDataType }[] = [];
-
-      for (const secret of secretDatas) {
-        if (!secret.itemId || secret.itemId === 'PW_BACKUP') {
-          continue;
-        }
-
-        // Skip items that are already migrated (v2 with dataType set)
-        // Check both storageVersion and dataType since this migration is specific to dataType
-        const isAlreadyMigrated =
-          secret.storageVersion === 'v2' &&
-          secret.dataType !== undefined &&
-          secret.dataType !== null;
-        if (isAlreadyMigrated) {
-          continue;
-        }
-
-        let dataType: EncAccountDataType;
-
-        if (SecretMetadata.matchesType(secret, SecretType.Mnemonic)) {
-          // Preserve existing PrimarySrp designation
-          if (secret.dataType === EncAccountDataType.PrimarySrp) {
-            dataType = EncAccountDataType.PrimarySrp;
-          } else if (hasPrimarySrp) {
-            dataType = EncAccountDataType.ImportedSrp;
-          } else {
-            dataType = EncAccountDataType.PrimarySrp;
-            hasPrimarySrp = true;
-          }
-        } else if (SecretMetadata.matchesType(secret, SecretType.PrivateKey)) {
-          dataType = EncAccountDataType.ImportedPrivateKey;
-        } else {
-          continue;
-        }
-
-        updates.push({ itemId: secret.itemId, dataType });
-      }
+      const updates = getDataTypeMigrationUpdates(secretDatas);
 
       if (updates.length === 1) {
         await this.toprfClient.updateSecretDataItem({
@@ -1283,10 +1244,10 @@ export class SeedlessOnboardingController<
         decryptedVaultData.accessToken,
       );
     } catch (error) {
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
-      if (this.#isMaxKeyChainLengthError(error)) {
+      if (isMaxKeyChainLengthError(error)) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
         );
@@ -1469,7 +1430,7 @@ export class SeedlessOnboardingController<
         authPubKey,
       });
     } catch (error) {
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
       log('Error persisting local encryption key', error);
@@ -1616,7 +1577,7 @@ export class SeedlessOnboardingController<
       return recoverEncKeyResult;
     } catch (error) {
       // throw token expired error for token refresh handler
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
 
@@ -1637,7 +1598,7 @@ export class SeedlessOnboardingController<
       });
     } catch (error) {
       log('Error fetching secret data', error);
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
       throw new SeedlessOnboardingError(
@@ -1650,33 +1611,7 @@ export class SeedlessOnboardingController<
 
     // user must have at least one secret data
     if (secretDataItems?.length > 0) {
-      const results: SecretMetadata[] = secretDataItems.map((item) =>
-        SecretMetadata.fromRawMetadata(item.data, {
-          itemId: item.itemId,
-          dataType: item.dataType,
-          createdAt: item.createdAt,
-          storageVersion: item.version,
-        }),
-      );
-
-      // Sort: PrimarySrp first, then by client timestamp (oldest first)
-      results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
-
-      const primaryIndex = results.findIndex(
-        (result) =>
-          SecretMetadata.matchesType(result, SecretType.Mnemonic) &&
-          (result.dataType === undefined ||
-            result.dataType === null ||
-            result.dataType === EncAccountDataType.PrimarySrp),
-      );
-      if (primaryIndex === -1) {
-        throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
-      }
-      if (primaryIndex !== 0) {
-        const [primary] = results.splice(primaryIndex, 1);
-        results.unshift(primary);
-      }
-      return results;
+      return parseAndSortSecretMetadata(secretDataItems);
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
@@ -1827,7 +1762,7 @@ export class SeedlessOnboardingController<
 
       return secretMetadata;
     } catch (error) {
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
       log('Error encrypting and storing secret data backup', error);
@@ -1942,7 +1877,7 @@ export class SeedlessOnboardingController<
       vaultEncryptionSalt = result.salt;
     }
 
-    const vaultData = this.#parseVaultData(decryptedVaultData);
+    const vaultData = parseVaultData(decryptedVaultData);
 
     return {
       vaultData,
@@ -1969,10 +1904,8 @@ export class SeedlessOnboardingController<
    * @throws Rethrows any errors from the callback with additional logging
    */
   async #withPersistedSecretMetadataBackupsState(
-    createSecretMetadataBackupCallback: () => Promise<
-      Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }
-    >,
-  ): Promise<Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }> {
+    createSecretMetadataBackupCallback: () => Promise<SecretBackupData>,
+  ): Promise<SecretBackupData> {
     try {
       const newBackup = await createSecretMetadataBackupCallback();
 
@@ -1995,43 +1928,12 @@ export class SeedlessOnboardingController<
    * @param secretData.type - The type of the secret data.
    */
   #filterDupesAndUpdateSocialBackupsMetadata(
-    secretData:
-      | {
-          data: Uint8Array;
-          keyringId?: string;
-          type: SecretType;
-        }
-      | {
-          data: Uint8Array;
-          keyringId?: string;
-          type: SecretType;
-        }[],
+    secretData: SecretBackupData | SecretBackupData[],
   ): void {
-    const currentBackupsMetadata = this.state.socialBackupsMetadata;
-
-    const newBackupsMetadata = Array.isArray(secretData)
-      ? secretData
-      : [secretData];
-    const filteredNewBackupsMetadata: SocialBackupsMetadata[] = [];
-
-    // filter out the backed up metadata that already exists in the state
-    // to prevent duplicates
-    newBackupsMetadata.forEach((item) => {
-      const { keyringId, data, type } = item;
-      const backupHash = keccak256AndHexify(data);
-
-      const backupStateAlreadyExisted = currentBackupsMetadata.some(
-        (backup) => backup.hash === backupHash && backup.type === type,
-      );
-
-      if (!backupStateAlreadyExisted) {
-        filteredNewBackupsMetadata.push({
-          keyringId,
-          hash: backupHash,
-          type,
-        });
-      }
-    });
+    const filteredNewBackupsMetadata = getNewSocialBackupsMetadata(
+      this.state.socialBackupsMetadata,
+      secretData,
+    );
 
     if (filteredNewBackupsMetadata.length > 0) {
       this.update((state) => {
@@ -2272,30 +2174,6 @@ export class SeedlessOnboardingController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return await withLock(this.#vaultOperationMutex, callback);
-  }
-
-  /**
-   * Parse and deserialize the authentication data from the vault.
-   *
-   * @param data - The decrypted vault data.
-   * @returns The parsed authentication data.
-   * @throws If the vault data is not valid.
-   */
-  #parseVaultData(data: unknown): VaultData {
-    if (typeof data !== 'string') {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
-    }
-
-    let parsedVaultData: unknown;
-    try {
-      parsedVaultData = JSON.parse(data);
-    } catch {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
-    }
-
-    assertIsValidVaultData(parsedVaultData);
-
-    return parsedVaultData;
   }
 
   #assertIsUnlocked(): void {
@@ -2703,41 +2581,6 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Check if the provided error is an auth token error.
-   *
-   * This method checks if the error is a TOPRF error with AuthTokenExpired code or InvalidAuthToken code.
-   *
-   * @param error - The error to check.
-   * @returns True if the error indicates auth token error, false otherwise.
-   */
-  #isAuthTokenError(error: unknown): boolean {
-    if (error instanceof TOPRFError) {
-      return (
-        error.code === TOPRFErrorCode.AuthTokenExpired ||
-        error.code === TOPRFErrorCode.InvalidAuthToken
-      );
-    }
-
-    return false;
-  }
-
-  /**
-   * Check if the provided error is a max key chain length error.
-   *
-   * This method checks if the error is a TOPRF error with MaxKeyChainLength code.
-   *
-   * @param error - The error to check.
-   * @returns True if the error indicates max key chain length has been exceeded, false otherwise.
-   */
-  #isMaxKeyChainLengthError(error: unknown): boolean {
-    if (error instanceof TOPRFError) {
-      return error.code === TOPRFErrorCode.MaxKeyChainLengthExceeded;
-    }
-
-    return false;
-  }
-
-  /**
    * Executes an operation with automatic token refresh on expiration.
    *
    * This wrapper method automatically handles token expiration by refreshing tokens
@@ -2765,7 +2608,7 @@ export class SeedlessOnboardingController<
       return await operation();
     } catch (error) {
       // Check if this is a token expiration error
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         log(
           `Token expired during ${operationName}, attempting to refresh tokens`,
           error,
@@ -2869,33 +2712,6 @@ export class SeedlessOnboardingController<
 }
 
 /**
- * Determine whether a token should be proactively refreshed.
- *
- * When `iat` is provided: returns `true` when less than 10% of the token's
- * lifetime remains (i.e. we are in the last 10% before expiry).
- * When `iat` is omitted (e.g. node auth tokens): returns `true` when the token
- * is already expired.
- *
- * @param exp - Token expiration time in seconds (Unix epoch).
- * @param iat - Optional issued-at time in seconds (Unix epoch). Required for 10% threshold.
- * @returns True if the token should be refreshed.
- */
-function isTokenNearExpiry(exp: number, iat?: number): boolean {
-  const now = Date.now() / 1000;
-  if (iat === undefined) {
-    return now >= exp;
-  }
-  const lifetime = exp - iat;
-  // Guard against malformed tokens where iat >= exp (zero or negative lifetime).
-  // Fall back to exact-expiry check so bad tokens are always considered stale.
-  if (lifetime <= 0) {
-    return now >= exp;
-  }
-  const remaining = exp - now;
-  return remaining <= 0.1 * lifetime;
-}
-
-/**
  * Lock the given mutex before executing the given function,
  * and release it after the function is resolved or after an
  * error is thrown.
@@ -2914,37 +2730,5 @@ async function withLock<Result>(
     return await callback({ releaseLock });
   } finally {
     releaseLock();
-  }
-}
-
-/**
- * Assert that the provided encrypted keyring encryption key is a valid non-empty string.
- *
- * @param encryptedKeyringEncryptionKey - The encrypted keyring encryption key to check.
- * @throws If the encrypted keyring encryption key is not a valid string.
- */
-function assertIsEncryptedKeyringEncryptionKeySet(
-  encryptedKeyringEncryptionKey: string | undefined,
-): asserts encryptedKeyringEncryptionKey is string {
-  if (!encryptedKeyringEncryptionKey) {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.EncryptedKeyringEncryptionKeyNotSet,
-    );
-  }
-}
-
-/**
- * Assert that the provided encrypted seedless encryption key is a valid non-empty string.
- *
- * @param encryptedSeedlessEncryptionKey - The encrypted seedless encryption key to check.
- * @throws If the encrypted seedless encryption key is not a valid string.
- */
-function assertIsEncryptedSeedlessEncryptionKeySet(
-  encryptedSeedlessEncryptionKey: string | undefined,
-): asserts encryptedSeedlessEncryptionKey is string {
-  if (!encryptedSeedlessEncryptionKey) {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.EncryptedSeedlessEncryptionKeyNotSet,
-    );
   }
 }

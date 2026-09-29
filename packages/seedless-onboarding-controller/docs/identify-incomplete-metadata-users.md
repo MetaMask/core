@@ -33,7 +33,7 @@ flowchart TB
     n7 --> n10["Compare"]
     n1["Keyring:getPrimaryHdKeyring"] --> n10
     n10 --> n11["Primary SRP Different"]
-    n11 --> n14["Yes"] & n15["No"]
+    n11 --> n14["NO"] & n15["YES"]
     n14 --> n12["Healthy User"]
     n15 --> n13["User with Issue"]
     n16 --> n13
