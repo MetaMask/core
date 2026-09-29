@@ -3226,6 +3226,31 @@ describe('Relay Quotes Utils', () => {
         expect(result[0].original.metamask.isExecute).toBe(true);
       });
 
+      it('drops isExecute and keeps source network fees when the source chain is not in the EIP-7702 flag', async () => {
+        isEIP7702ChainMock.mockReturnValue(false);
+
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+        quoteMock.metamask.isExecute = true;
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => quoteMock,
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].original.metamask.isExecute).toBe(false);
+        expect(result[0].fees.sourceNetwork).not.toStrictEqual({
+          estimate: ZERO_AMOUNT,
+          max: ZERO_AMOUNT,
+        });
+      });
+
       it('does not zero source network fees when quote does not have isExecute', async () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,

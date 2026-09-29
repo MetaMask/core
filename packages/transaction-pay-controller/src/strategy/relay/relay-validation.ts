@@ -15,6 +15,7 @@ import type {
 } from '../../types.js';
 import {
   getEIP7702UpgradeContractAddress,
+  isEIP7702Chain,
   isRelayValidationEnabled,
 } from '../../utils/feature-flags.js';
 import {
@@ -123,15 +124,29 @@ async function buildValidationSimulation(
     transaction: request.transaction,
   });
 
-  const executeRequest = quote.original.metamask.isExecute
-    ? await getRelayExecuteRequest({
-        allParams: calls,
-        messenger: request.messenger,
-        quote,
-        requestId: quote.original.steps[0].requestId,
-        transaction: request.transaction,
-      })
-    : undefined;
+  let executeRequest: Omit<RelayExecuteRequest, 'metamask'> | undefined;
+  const sourceChainAllowsExecute = isEIP7702Chain(
+    request.messenger,
+    quote.request.sourceChainId,
+  );
+
+  if (quote.original.metamask.isExecute && sourceChainAllowsExecute) {
+    executeRequest = await getRelayExecuteRequest({
+      allParams: calls,
+      messenger: request.messenger,
+      quote,
+      requestId: quote.original.steps[0].requestId,
+      transaction: request.transaction,
+    });
+  } else if (quote.original.metamask.isExecute) {
+    log(
+      'Skipping Relay execute simulation: source chain is not in the EIP-7702 flag',
+      {
+        sourceChainId: quote.request.sourceChainId,
+      },
+    );
+    quote.original.metamask.isExecute = false;
+  }
 
   return buildRelayValidationSimulation(
     request.messenger,

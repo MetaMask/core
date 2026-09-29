@@ -24,6 +24,7 @@ import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import { getNetworkClientId } from '../../utils/provider.js';
@@ -661,13 +662,26 @@ async function submitTransactions(
     transaction,
   });
 
-  if (quote.original.metamask.isExecute) {
+  if (
+    quote.original.metamask.isExecute &&
+    isEIP7702Chain(messenger, quote.request.sourceChainId)
+  ) {
     return await submitViaRelayExecute(
       quote,
       transaction,
       messenger,
       allParams,
     );
+  }
+
+  if (quote.original.metamask.isExecute) {
+    log(
+      'Skipping Relay execute submit: source chain is not in the EIP-7702 flag',
+      {
+        sourceChainId: quote.request.sourceChainId,
+      },
+    );
+    quote.original.metamask.isExecute = false;
   }
 
   return await submitViaTransactionController(
@@ -930,10 +944,15 @@ async function submitViaTransactionController(
   const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
+    // An execute quote has no gas limits because the relayer was expected to
+    // pay gas. When that quote is submitted normally, leave gas unset so the
+    // TransactionController estimates it.
+    const gasLimit = gasLimits[0];
+
     const transactionParams = {
       ...allParams[0],
       authorizationList,
-      gas: toHex(gasLimits[0]),
+      gas: gasLimit === undefined ? undefined : toHex(gasLimit),
     };
 
     result = await messenger.call(
