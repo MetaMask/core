@@ -481,13 +481,14 @@ describe('LighterProvider with accountSigner', () => {
 
   it('reports KEYRING_LOCKED when the signer locks once the venue key is registered', async () => {
     let signerReady = true;
-    const { provider, accountSigner, client } = buildProvider({
+    const { provider, accountSigner, client, deps } = buildProvider({
       isReady: () => signerReady,
     });
     accountSigner.signPersonalMessage.mockImplementation(async () => {
       signerReady = false;
       return MAIN_SIGNATURE;
     });
+    const loggerError = jest.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -496,6 +497,30 @@ describe('LighterProvider with accountSigner', () => {
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('reports KEYRING_LOCKED without logging when the signer locked after signing and the submission fails', async () => {
+    let signerReady = true;
+    const { provider, accountSigner, client, deps } = buildProvider({
+      isReady: () => signerReady,
+    });
+    // The signature succeeds; the lock and the failure come after it.
+    accountSigner.signPersonalMessage.mockImplementation(async () => {
+      signerReady = false;
+      return MAIN_SIGNATURE;
+    });
+    client.sendTx.mockRejectedValue(new Error('venue unavailable'));
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(client.sendTx.mock.calls).toStrictEqual([CHANGE_PUB_KEY_TX]);
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('reports KEYRING_LOCKED without logging when the signer locks as registration fails', async () => {

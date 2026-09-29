@@ -144,7 +144,16 @@ class MockExchangeClient {
     params: unknown,
     payload: PerpsTypedDataPayload,
   ): Promise<void> {
-    const signer = SIGNERS.get(await this.#wallet.signTypedData(payload));
+    let signature: string;
+    try {
+      signature = await this.#wallet.signTypedData(payload);
+    } catch (error) {
+      // Like the SDK, which keeps the wallet error as the cause.
+      throw new Error('Failed to sign the typed data using the wallet', {
+        cause: error,
+      });
+    }
+    const signer = SIGNERS.get(signature);
     mockVenue.writes.push({ write, params, signer });
     if (signer && mockVenue.revokedAgents.has(signer)) {
       throw new Error(`User or API Wallet ${signer} does not exist.`);

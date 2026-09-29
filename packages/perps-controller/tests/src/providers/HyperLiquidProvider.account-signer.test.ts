@@ -264,7 +264,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         if (!sdkWallet) {
           throw new Error('SDK used before initialize');
         }
-        await sdkWallet.signTypedData(payload);
+        try {
+          await sdkWallet.signTypedData(payload);
+        } catch (error) {
+          // Like the SDK, which keeps the wallet error as the cause.
+          throw new Error('Failed to sign the typed data using the wallet', {
+            cause: error,
+          });
+        }
         return response;
       };
     const exchangeClient = createMockExchangeClient({
@@ -397,6 +404,29 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
     expect(referralAttempted()).toBe(false);
+  });
+
+  it('fails a TP/SL update with KEYRING_LOCKED without logging while the builder fee cannot be approved', async () => {
+    const { accountSignerProvider, accountSigner, exchangeClient } =
+      createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+        signer: { isReady: () => false },
+        // Not approved yet, and the locked signer cannot approve it.
+        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+      });
+
+    const result = await accountSignerProvider.updatePositionTPSL({
+      symbol: 'BTC',
+      takeProfitPrice: '60000',
+    });
+
+    expect(result).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+    expect(exchangeClient.order).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   describe('when the signer locks before a user-signed write', () => {
@@ -861,11 +891,18 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(loggerError).not.toHaveBeenCalled();
     });
 
-    it('signs the deferred setup through the keyring without accountSigner', async () => {
+    it('signs the migration at connect and the referral in preparation through the keyring without accountSigner', async () => {
       const { accountSignerProvider, accountSigner, call, exchangeClient } =
         createAccountSignerProvider({ keyring: true });
-      await accountSignerProvider.getMarketDataWithPrices();
+      const typedDataSignatures = (): unknown[] =>
+        call.mock.calls.filter(
+          ([action]) => action === 'KeyringController:signTypedMessage',
+        );
 
+      // A software keyring is not deferred: the migration signs at connect.
+      await accountSignerProvider.getMarketDataWithPrices();
+      const connectSignatures = typedDataSignatures();
+      call.mockClear();
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
@@ -876,17 +913,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         REFERRAL_WRITE,
       ]);
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
-      // Migration, then referral.
-      expect(
-        call.mock.calls.filter(
-          ([action]) => action === 'KeyringController:signTypedMessage',
-        ),
-      ).toStrictEqual([
+      expect(connectSignatures).toStrictEqual([
         [
           'KeyringController:signTypedMessage',
           { from: ACCOUNT_ADDRESS, data: USER_SIGNED_PAYLOAD },
           'V4',
         ],
+      ]);
+      expect(typedDataSignatures()).toStrictEqual([
         [
           'KeyringController:signTypedMessage',
           { from: ACCOUNT_ADDRESS, data: L1_PAYLOAD },
@@ -995,6 +1029,8 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           abstraction: 'default',
           info: {
             userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
+            // Not approved: the venue would reject the approval anyway.
+            maxBuilderFee: jest.fn().mockResolvedValue(0),
           },
         });
 
@@ -1003,6 +1039,24 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(result).toStrictEqual({ ready: false });
       expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
       expect(exchangeClient.setReferrer).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('reports NO_ACCOUNT_SELECTED without logging when no account is selected', async () => {
+      const { accountSignerProvider, accountSigner, selectAccount } =
+        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
+      await accountSignerProvider.getMarketDataWithPrices();
+      // An empty selection: the wallet service finds no account.
+      selectAccount('' as Hex);
+
+      const result = await accountSignerProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+      });
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -1362,6 +1416,37 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       expect(getAgentSigner.mock.calls).toStrictEqual([
         [{ mainAddress: ACCOUNT_ADDRESS, isTestnet: true }],
+      ]);
+    });
+
+    it('does not reuse the mainnet agent after the provider switches to testnet', async () => {
+      const getAgentSigner = jest.fn();
+      const { accountSignerProvider, accountSigner, agentSigner, initialize } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+        });
+      // An agent is approved on mainnet only.
+      getAgentSigner.mockImplementation(async (account: PerpsAgentAccount) =>
+        account.isTestnet ? null : agentSigner,
+      );
+      await accountSignerProvider.getMarketDataWithPrices();
+      const [[wallet]] = initialize.mock.calls;
+      await wallet.signTypedData(L1_PAYLOAD);
+
+      mockClientService.isTestnetMode.mockReturnValue(true);
+      await wallet.signTypedData(L1_PAYLOAD);
+
+      expect(getAgentSigner.mock.calls).toStrictEqual([
+        [MAINNET_ACCOUNT],
+        [{ mainAddress: ACCOUNT_ADDRESS, isTestnet: true }],
+      ]);
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+      ]);
+      // The testnet action signs on the main account.
+      expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+        [ACCOUNT_ADDRESS, L1_PAYLOAD],
       ]);
     });
 
@@ -2859,6 +2944,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
             provider,
             twapOrder,
             twapCancel,
+            getAgentSigner,
             onAgentRejected,
             signL1Action,
           } = createStrategyProvider('rejected');
@@ -2887,6 +2973,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
             twapDuration: 30,
           });
           await disconnected;
+          await signL1Action();
 
           // The retraction was refused, so the TWAP is reported as live.
           expect(placed).toStrictEqual({
@@ -2899,6 +2986,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           expect(onAgentRejected.mock.calls).toStrictEqual([
             [MAINNET_ACCOUNT, AGENT_ADDRESS],
           ]);
+          // Dropped, so the next L1 action asks again.
+          expect(getAgentSigner.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT],
+            [MAINNET_ACCOUNT],
+          ]);
+          expect(loggerError).not.toHaveBeenCalled();
         },
       );
 
@@ -2915,8 +3008,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       ])(
         'drops an agent the venue rejects while retracting an abandoned chase order (%s)',
         async (_how, answerCancel) => {
-          const { provider, order, cancel, onAgentRejected, signL1Action } =
-            createStrategyProvider('rejected');
+          const {
+            provider,
+            order,
+            cancel,
+            getAgentSigner,
+            onAgentRejected,
+            signL1Action,
+          } = createStrategyProvider('rejected');
           let disconnected: Promise<unknown> | undefined;
           // The provider is torn down while the chase order is placed, so it
           // retracts it.
@@ -2935,6 +3034,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
             orderType: 'chase',
           });
           await disconnected;
+          await signL1Action();
 
           // The retraction was refused, so the order is reported as resting.
           expect(placed).toStrictEqual({
@@ -2949,6 +3049,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           expect(onAgentRejected.mock.calls).toStrictEqual([
             [MAINNET_ACCOUNT, AGENT_ADDRESS],
           ]);
+          // Dropped, so the next L1 action asks again.
+          expect(getAgentSigner.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT],
+            [MAINNET_ACCOUNT],
+          ]);
+          expect(loggerError).not.toHaveBeenCalled();
         },
       );
 

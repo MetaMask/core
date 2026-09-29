@@ -2953,6 +2953,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#builderFeeSetupPromises.set(setupKey, pendingApproval);
     }
 
+    // An approval the signer could not sign is retryable, not a failure.
+    const approvalFailure = (code: PerpsErrorCode): Error =>
+      new Error(
+        this.#walletService.isMainAccountSignerReady()
+          ? code
+          : PERPS_ERROR_CODES.KEYRING_LOCKED,
+      );
+
     try {
       await pendingApproval;
     } catch (error) {
@@ -2961,7 +2969,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
       );
       if (approvalFailureCode) {
-        throw new Error(approvalFailureCode);
+        throw approvalFailure(approvalFailureCode);
       }
     } finally {
       if (this.#builderFeeSetupPromises.get(setupKey) === pendingApproval) {
@@ -2970,7 +2978,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (approvalFailureCode && !this.#builderFeeCheckCache.has(cacheKey)) {
-      throw new Error(approvalFailureCode);
+      throw approvalFailure(approvalFailureCode);
     }
 
     return context;
@@ -14563,9 +14571,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
     try {
-      const { network, userAddress } = await this.#ensureReadyForTrading({
-        requiresBuilderFee: true,
-      });
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+      const network = this.#clientService.isTestnetMode()
+        ? 'testnet'
+        : 'mainnet';
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      // The venue rejects every write from a wallet with no HyperLiquid account
+      // yet, so it is not asked to sign a builder fee approval either.
+      if (!(await this.#isWalletOnHyperliquid(userAddress, network))) {
+        return { ready: false };
+      }
+      await this.#ensureBuilderFeeSetup();
       if (!this.#walletService.isMainAccountSignerReady()) {
         return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
       }
@@ -14586,6 +14602,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (caughtError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
         this.#deps.debugLogger.log(
           '[prepareTradingWallet] Provider replaced during preparation',
+        );
+      } else if (
+        caughtError.message === PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED
+      ) {
+        this.#deps.debugLogger.log(
+          '[prepareTradingWallet] No account selected',
         );
       } else {
         this.#deps.logger.error(
