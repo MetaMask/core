@@ -1389,14 +1389,28 @@ describe('server-quotes', () => {
   });
 
   describe('supportsDeferredCalls', () => {
-    it('opts in when the calls are embedded, so providers that cannot run them still quote', async () => {
+    const SPONSORED_TRANSACTION_MOCK = {
+      ...CONTRACT_CALL_TRANSACTION_MOCK,
+      chainId: QUOTE_REQUEST_MOCK.targetChainId,
+      isGasFeeSponsored: true,
+    } as TransactionMeta;
+
+    beforeEach(() => {
+      isEIP7702ChainMock.mockReturnValue(true);
+    });
+
+    it('opts in when we can run the embedded calls ourselves', async () => {
       await getServerQuotes({
         accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
-        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+        transaction: SPONSORED_TRANSACTION_MOCK,
       });
 
+      expect(isEIP7702ChainMock).toHaveBeenCalledWith(
+        messenger,
+        QUOTE_REQUEST_MOCK.targetChainId,
+      );
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
         expect.objectContaining({ supportsDeferredCalls: true }),
@@ -1405,23 +1419,51 @@ describe('server-quotes', () => {
     });
 
     it.each([
-      ['the calls are left out of the quote', { atomic: false }],
-      ['the flow submits its own calls', { isPostQuote: true }],
-    ])('is omitted when %s', async (_title, overrides) => {
-      await getServerQuotes({
-        accountSupports7702: true,
-        messenger,
-        requests: [{ ...QUOTE_REQUEST_MOCK, ...overrides }],
-        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
-      });
+      ['the calls are left out of the quote', { request: { atomic: false } }],
+      ['the flow submits its own calls', { request: { isPostQuote: true } }],
+      [
+        'the account cannot sign EIP-7702 authorizations',
+        { accountSupports7702: false },
+      ],
+      ['gas is not sponsored', { transaction: { isGasFeeSponsored: false } }],
+      [
+        'the transaction is not on the target chain',
+        { transaction: { chainId: '0x3' } },
+      ],
+      ['the target chain does not support EIP-7702', { eip7702Chain: false }],
+    ])(
+      'is omitted when %s',
+      async (
+        _title,
+        {
+          accountSupports7702 = true,
+          eip7702Chain = true,
+          request = {},
+          transaction = {},
+        }: {
+          accountSupports7702?: boolean;
+          eip7702Chain?: boolean;
+          request?: Partial<QuoteRequest>;
+          transaction?: Partial<TransactionMeta>;
+        },
+      ) => {
+        isEIP7702ChainMock.mockReturnValue(eip7702Chain);
 
-      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
-        messenger,
-        expect.not.objectContaining({
-          supportsDeferredCalls: expect.anything(),
-        }),
-        undefined,
-      );
-    });
+        await getServerQuotes({
+          accountSupports7702,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, ...request }],
+          transaction: { ...SPONSORED_TRANSACTION_MOCK, ...transaction },
+        });
+
+        expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+          messenger,
+          expect.not.objectContaining({
+            supportsDeferredCalls: expect.anything(),
+          }),
+          undefined,
+        );
+      },
+    );
   });
 });
