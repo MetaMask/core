@@ -22,4 +22,10 @@ describe('getRandomBytes', () => {
     expect(spy).toHaveBeenCalledWith(expect.any(Uint8Array));
     expect(bytes).toStrictEqual(new Uint8Array([0xab, 0xab, 0xab, 0xab]));
   });
+
+  it('throws if the length is zero', () => {
+    expect(() => getRandomBytes(0)).toThrow(
+      'Invalid length: Length must be greater than 0.',
+    );
+  });
 });
