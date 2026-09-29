@@ -99,16 +99,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
-    "TS2724": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
-    "TS2322": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
       "count": 12
@@ -138,6 +128,16 @@
       "count": 4
     },
     "TS2820": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
+    "TS2724": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
+    "TS2322": {
       "count": 1
     }
   },
@@ -495,6 +495,11 @@
       "count": 1
     }
   },
+  "packages/cryptography/src/ed25519.test.ts": {
+    "TS2345": {
+      "count": 18
+    }
+  },
   "packages/cryptography/src/hkdf.test.ts": {
     "TS2345": {
       "count": 20
@@ -538,19 +543,19 @@
       "count": 8
     }
   },
-  "packages/json-rpc-engine/src/v2/compatibility-utils.test.ts": {
-    "TS2322": {
-      "count": 1
-    },
-    "TS2578": {
-      "count": 1
-    }
-  },
   "packages/json-rpc-engine/src/v2/JsonRpcEngineV2.test.ts": {
     "TS2769": {
       "count": 1
     },
     "TS7031": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/compatibility-utils.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2578": {
       "count": 1
     }
   },
@@ -644,6 +649,11 @@
       "count": 1
     }
   },
+  "packages/network-controller/tests/NetworkController.test.ts": {
+    "TS2339": {
+      "count": 3
+    }
+  },
   "packages/network-controller/tests/network-client/block-hash-in-response.ts": {
     "TS2339": {
       "count": 4
@@ -660,23 +670,18 @@
       "count": 4
     }
   },
-  "packages/network-controller/tests/NetworkController.test.ts": {
-    "TS2339": {
-      "count": 3
-    }
-  },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
     "TS6305": {
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
-    "TS2769": {
+  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
+    "TS2739": {
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
-    "TS2739": {
+  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
+    "TS2769": {
       "count": 3
     }
   },
@@ -704,11 +709,6 @@
   "packages/perps-controller/tests/helpers/serviceMocks.ts": {
     "TS2322": {
       "count": 1
-    }
-  },
-  "packages/perps-controller/tests/src/aggregation/SubscriptionMultiplexer.test.ts": {
-    "TS2741": {
-      "count": 10
     }
   },
   "packages/perps-controller/tests/src/PerpsController.lifecycle.test.ts": {
@@ -768,6 +768,11 @@
     },
     "TS7034": {
       "count": 6
+    }
+  },
+  "packages/perps-controller/tests/src/aggregation/SubscriptionMultiplexer.test.ts": {
+    "TS2741": {
+      "count": 10
     }
   },
   "packages/perps-controller/tests/src/providers/AggregatedPerpsProvider.test.ts": {
@@ -936,6 +941,27 @@
       "count": 1
     }
   },
+  "packages/ramps-controller/src/RampsController.order-syncing.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
+    "TS2739": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/RampsController.test.ts": {
+    "TS2345": {
+      "count": 3
+    }
+  },
+  "packages/ramps-controller/src/TransakService.test.ts": {
+    "TS2739": {
+      "count": 16
+    },
+    "TS2740": {
+      "count": 1
+    }
+  },
   "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
     "TS2352": {
       "count": 3
@@ -952,29 +978,8 @@
       "count": 1
     }
   },
-  "packages/ramps-controller/src/RampsController.order-syncing.test.ts": {
-    "TS2345": {
-      "count": 1
-    },
-    "TS2739": {
-      "count": 2
-    }
-  },
-  "packages/ramps-controller/src/RampsController.test.ts": {
-    "TS2345": {
-      "count": 3
-    }
-  },
   "packages/ramps-controller/src/selectors.test.ts": {
     "TS2322": {
-      "count": 1
-    }
-  },
-  "packages/ramps-controller/src/TransakService.test.ts": {
-    "TS2739": {
-      "count": 16
-    },
-    "TS2740": {
       "count": 1
     }
   },
@@ -1045,6 +1050,27 @@
       "count": 2
     }
   },
+  "packages/subscription-controller/src/subscription-delegation/typed-data.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
+    "TS2345": {
+      "count": 4
+    }
+  },
+  "packages/transaction-controller/src/TransactionController.test.ts": {
+    "TS2322": {
+      "count": 6
+    },
+    "TS2345": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
+    "TS2344": {
+      "count": 1
+    }
+  },
   "packages/transaction-controller/src/gas-flows/DefaultGasFeeFlow.test.ts": {
     "TS2353": {
       "count": 4
@@ -1062,19 +1088,6 @@
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.test.ts": {
     "TS2353": {
-      "count": 1
-    }
-  },
-  "packages/transaction-controller/src/TransactionController.test.ts": {
-    "TS2322": {
-      "count": 6
-    },
-    "TS2345": {
-      "count": 2
-    }
-  },
-  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
-    "TS2344": {
       "count": 1
     }
   },
@@ -1114,6 +1127,14 @@
       "count": 1
     }
   },
+  "packages/transaction-pay-controller/src/strategy/across/AcrossStrategy.test.ts": {
+    "TS2352": {
+      "count": 5
+    },
+    "TS2741": {
+      "count": 2
+    }
+  },
   "packages/transaction-pay-controller/src/strategy/across/across-quotes.test.ts": {
     "TS2339": {
       "count": 3
@@ -1133,12 +1154,12 @@
       "count": 9
     }
   },
-  "packages/transaction-pay-controller/src/strategy/across/AcrossStrategy.test.ts": {
-    "TS2352": {
-      "count": 5
+  "packages/transaction-pay-controller/src/strategy/fiat/FiatStrategy.test.ts": {
+    "TS2739": {
+      "count": 1
     },
     "TS2741": {
-      "count": 2
+      "count": 4
     }
   },
   "packages/transaction-pay-controller/src/strategy/fiat/fiat-quotes.test.ts": {
@@ -1154,12 +1175,20 @@
       "count": 5
     }
   },
-  "packages/transaction-pay-controller/src/strategy/fiat/FiatStrategy.test.ts": {
+  "packages/transaction-pay-controller/src/strategy/relay/RelayBridge.test.ts": {
     "TS2739": {
       "count": 1
     },
     "TS2741": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/RelayStrategy.test.ts": {
+    "TS2352": {
       "count": 4
+    },
+    "TS2741": {
+      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.test.ts": {
@@ -1216,20 +1245,9 @@
       "count": 1
     }
   },
-  "packages/transaction-pay-controller/src/strategy/relay/RelayBridge.test.ts": {
-    "TS2739": {
-      "count": 1
-    },
+  "packages/transaction-pay-controller/src/strategy/server/ServerStrategy.test.ts": {
     "TS2741": {
       "count": 1
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/relay/RelayStrategy.test.ts": {
-    "TS2352": {
-      "count": 4
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
@@ -1249,11 +1267,6 @@
     },
     "TS7031": {
       "count": 6
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/server/ServerStrategy.test.ts": {
-    "TS2741": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/ma-vault-deposit.test.ts": {
@@ -1365,6 +1378,23 @@
       "count": 1
     }
   },
+  "packages/wallet/src/Wallet.test.ts": {
+    "TS2322": {
+      "count": 2
+    },
+    "TS2352": {
+      "count": 1
+    },
+    "TS2740": {
+      "count": 1
+    },
+    "TS2741": {
+      "count": 1
+    },
+    "TS2769": {
+      "count": 1
+    }
+  },
   "packages/wallet/src/initialization/instances/claims-controller/claims-controller.test.ts": {
     "TS2353": {
       "count": 1
@@ -1410,23 +1440,6 @@
       "count": 1
     },
     "TS2741": {
-      "count": 1
-    }
-  },
-  "packages/wallet/src/Wallet.test.ts": {
-    "TS2322": {
-      "count": 2
-    },
-    "TS2352": {
-      "count": 1
-    },
-    "TS2740": {
-      "count": 1
-    },
-    "TS2741": {
-      "count": 1
-    },
-    "TS2769": {
       "count": 1
     }
   }
