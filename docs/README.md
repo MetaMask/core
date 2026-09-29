@@ -20,6 +20,7 @@ Hi! Welcome to the contributor documentation for the `core` monorepo.
   - [Reviewing release PRs](./processes/reviewing-release-prs.md)
 - [Testing changes to packages in other projects](./processes/testing-changes-in-other-projects.md)
 - [Building packages](./processes/building.md)
+- [Choosing dependency upgrade tooling](./processes/dependency-upgrade-tooling.md)
 - [Adding new packages to the monorepo](./processes/adding-new-packages.md)
 - [Migrating external packages to the monorepo](./processes/package-migration-process-guide.md)
 
