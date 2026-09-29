@@ -17,6 +17,7 @@ import type {
   PerpsPlatformDependencies,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionFeeWaiverStatus,
+  RewardsDiscountResponse,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
@@ -46,6 +47,16 @@ type BenefitsSnapshot = {
 };
 
 /**
+ * A normalized rewards discount response.
+ */
+type NormalizedRewardsDiscount = {
+  /** Discount in basis points */
+  discountBips: number;
+  /** Whether a targeted rewards grant was applied, when known */
+  targetedDiscountApplied?: boolean;
+};
+
+/**
  * RewardsIntegrationService
  *
  * Owns the unified perps fee resolver: it considers every fee source and
@@ -53,9 +64,10 @@ type BenefitsSnapshot = {
  *
  * Sources, all in fee basis points (lowest wins):
  * - `default` — {@link BUILDER_FEE_CONFIG}, the fee with no reductions.
- * - `rewards` — VIP and season, collapsed into one discount by
+ * - `rewards` — VIP, season, and targeted, collapsed into one discount by
  *   `RewardsController` (`rewards.getPerpsDiscountForAccount`), so this service
- *   does not re-derive the VIP/season split.
+ *   does not re-derive the split. The client mayreport targeted participation
+ *   via a structured response with a boolean flag.
  * - `subscription` — `0` bips, but only when the eligibility gate passes on a
  *   cached read of the profile's benefits.
  *
@@ -185,22 +197,25 @@ export class RewardsIntegrationService {
    * @returns The winning fee, its source, and the subscription gate outcome.
    */
   async resolveFee(orderNotionalUsd?: number): Promise<PerpsFeeResolution> {
-    const rewardsDiscountBips = await this.#calculateRewardsDiscount();
+    const rewardsDiscount = await this.#calculateRewardsDiscount();
     // Pure cache read: subscription benefits must never start a network request
     // while an order is being prepared for signing.
     const subscription = this.getSubscriptionFeeWaiverStatus();
 
     let feeBips = DEFAULT_FEE_BIPS;
     let source: PerpsFeeSource = 'default';
+    let targetedDiscountApplied: boolean | undefined;
 
-    if (rewardsDiscountBips !== undefined) {
+    if (rewardsDiscount !== undefined) {
       const rewardsFeeBips =
-        DEFAULT_FEE_BIPS * (1 - rewardsDiscountBips / BASIS_POINTS_DIVISOR);
+        DEFAULT_FEE_BIPS * (1 - rewardsDiscount.discountBips / BASIS_POINTS_DIVISOR);
       // `<=` so an equal rewards fee still reports the rewards source, keeping
       // a resolved 0% discount distinguishable from an unresolved one.
       if (rewardsFeeBips <= feeBips) {
         feeBips = rewardsFeeBips;
         source = 'rewards';
+        // Only carry participation when rewards wins
+        targetedDiscountApplied = rewardsDiscount.targetedDiscountApplied;
       }
     }
 
@@ -259,12 +274,14 @@ export class RewardsIntegrationService {
       feeBips,
       discountBips,
       defaultFeeBips: DEFAULT_FEE_BIPS,
-      rewardsDiscountBips,
+      rewardsDiscountBips: rewardsDiscount?.discountBips,
+      rewardsTargetedDiscountApplied: rewardsDiscount?.targetedDiscountApplied,
       orderNotionalUsd,
       subscriptionEligible: subscription.eligible,
       subscriptionReason: subscription.reason,
       subscriptionWaiverKind,
       subscriptionCoveredNotionalUsd,
+      targetedDiscountApplied,
     });
 
     return {
@@ -272,6 +289,7 @@ export class RewardsIntegrationService {
       discountBips,
       source,
       subscription,
+      targetedDiscountApplied,
       subscriptionWaiverKind,
       subscriptionCoveredNotionalUsd,
     };
@@ -714,11 +732,12 @@ export class RewardsIntegrationService {
   }
 
   /**
-   * Resolve the rewards (VIP + season) discount for the selected account.
+   * Resolve the rewards (VIP + season + targeted) discount for the selected account.
    *
-   * @returns The discount in basis points, or undefined when unavailable.
+   * @returns A normalized discount with discountBips and optionally targetedDiscountApplied,
+   * or undefined when unavailable.
    */
-  async #calculateRewardsDiscount(): Promise<number | undefined> {
+  async #calculateRewardsDiscount(): Promise<NormalizedRewardsDiscount | undefined> {
     try {
       const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
@@ -778,14 +797,14 @@ export class RewardsIntegrationService {
       // Use rewards via DI (no RewardsController in Core yet).
       // The rewards controller needs the perps MetaMask builder base fee in
       // bips to convert an absolute VIP fee into a discount fraction.
-      const discountBips = await this.#deps.rewards.getPerpsDiscountForAccount(
+      const discountResponse = await this.#deps.rewards.getPerpsDiscountForAccount(
         caipAccountId,
         DEFAULT_FEE_BIPS,
       );
 
       // null = subscription state not hydrated yet; surface as undefined so
       // callers don't treat it as a definitive "no discount" answer.
-      if (discountBips === null) {
+      if (discountResponse === null) {
         this.#deps.debugLogger.log(
           'RewardsIntegrationService: Fee discount unavailable (subscription state not hydrated)',
           { address: evmAccount.address, caipAccountId },
@@ -793,17 +812,27 @@ export class RewardsIntegrationService {
         return undefined;
       }
 
+      // Normalize both legacy numeric responses and structured responses
+      const normalizedDiscount: NormalizedRewardsDiscount =
+        typeof discountResponse === 'number'
+          ? { discountBips: discountResponse }
+          : {
+              discountBips: discountResponse.discountBips,
+              targetedDiscountApplied: discountResponse.targetedDiscountApplied,
+            };
+
       this.#deps.debugLogger.log(
         'RewardsIntegrationService: Fee discount calculated',
         {
           address: evmAccount.address,
           caipAccountId,
-          discountBips,
-          discountPercentage: discountBips / 100,
+          discountBips: normalizedDiscount.discountBips,
+          discountPercentage: normalizedDiscount.discountBips / 100,
+          targetedDiscountApplied: normalizedDiscount.targetedDiscountApplied,
         },
       );
 
-      return discountBips;
+      return normalizedDiscount;
     } catch (error) {
       this.#deps.logger.error(
         ensureError(
