@@ -64,6 +64,7 @@ jest.mock('../../../src/utils/standaloneInfoClient', () => ({
 }));
 
 jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  ...jest.requireActual('../../../src/utils/hyperLiquidValidation'),
   validateOrderParams: jest.fn(),
   validateWithdrawalParams: jest.fn(),
   validateDepositParams: jest.fn(),
@@ -80,11 +81,6 @@ jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: jest.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
 }));
 
 // Mock adapter functions
@@ -521,13 +517,6 @@ describe('HyperLiquidProvider', () => {
       chainId: 'eip155:42161',
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
-    hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
     const hyperLiquidAdapter = jest.requireMock(
       '../../../src/utils/hyperLiquidAdapter',
     );
@@ -725,6 +714,25 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
+    });
+
+    it('maps an immediate-match rejection to IOC_CANCEL with a code', async () => {
+      (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mockRejectedValueOnce(new Error('Order could not immediately match'));
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.IOC_CANCEL,
+        errorCode: PERPS_ERROR_CODES.IOC_CANCEL,
+      });
     });
 
     it('edits an order successfully', async () => {
@@ -2415,10 +2423,10 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
     });
 
-    it('rejects a full close whose price moved beyond maxSlippageBps', async () => {
-      // A full close submits the exact live size rather than a USD-derived one,
-      // but the caller's staleness guard must still apply: priceAtCalculation is
-      // 50000 and the live price is 40000, a 2000 bps move against a 300 bps cap
+    it('submits a full close when the local price snapshot is stale', async () => {
+      // A full close submits the exact live size rather than a USD-derived one.
+      // The venue-side slippage-capped price remains the execution protection,
+      // so the redundant local snapshot guard is skipped.
       primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
 
       const result = await provider.closePosition({
@@ -2430,11 +2438,12 @@ describe('HyperLiquidProvider', () => {
         position: createPositionSnapshot({ size: '0.1' }),
       });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Price moved too much');
-      expect(
-        mockClientService.getExchangeClient().order,
-      ).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({
+        p: '38800',
+        s: '0.1',
+        r: true,
+      });
     });
 
     it('submits the exact live size for a full close inside maxSlippageBps', async () => {
@@ -2792,6 +2801,7 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(
         mockClientService.getExchangeClient().order,
@@ -2917,6 +2927,7 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(mockOrder).not.toHaveBeenCalled();
     });
@@ -3146,6 +3157,7 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(
         mockClientService.getExchangeClient().order,

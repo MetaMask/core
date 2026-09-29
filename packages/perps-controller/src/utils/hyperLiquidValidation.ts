@@ -12,12 +12,15 @@ import {
   HYPERLIQUID_ORDER_LIMITS,
   HYPERLIQUID_TWAP_LIMITS,
 } from '../constants/perpsConfig.js';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { PerpsControllerError } from '../errors.js';
+import type { PerpsErrorResultFields } from '../errors.js';
+import { isPerpsErrorCode, PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   GetSupportedPathsParams,
   PerpsDebugLogger,
 } from '../types/index.js';
 import type { OrderType, TpslLinkage } from '../types/perps-types.js';
+import { ensureError } from './errorUtils.js';
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
@@ -46,12 +49,24 @@ export type ValidationDebugLogger = PerpsDebugLogger | undefined;
  */
 export function createErrorResult<
   TValue extends { success: boolean; error?: string },
->(error: unknown, defaultResponse: TValue): TValue {
+>(error: unknown, defaultResponse: TValue): TValue & PerpsErrorResultFields {
+  const normalizedError = ensureError(error, 'createErrorResult');
+  let errorFields: PerpsErrorResultFields = {};
+
+  if (error instanceof PerpsControllerError) {
+    errorFields = {
+      errorCode: error.errorCode,
+      errorDetails: error.errorDetails,
+    };
+  } else if (isPerpsErrorCode(normalizedError.message)) {
+    errorFields = { errorCode: normalizedError.message };
+  }
+
   return {
     ...defaultResponse,
     success: false,
-    error:
-      error instanceof Error ? error.message : PERPS_ERROR_CODES.UNKNOWN_ERROR,
+    error: normalizedError.message,
+    ...errorFields,
   };
 }
 
