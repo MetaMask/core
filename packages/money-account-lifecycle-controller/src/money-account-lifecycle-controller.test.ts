@@ -36,6 +36,31 @@ describe('MoneyAccountLifecycleController', () => {
       );
     });
   });
+
+  describe('init', () => {
+    it('does not change state', async () => {
+      await withController(({ controller }) => {
+        controller.init();
+
+        expect(controller.state).toStrictEqual({});
+      });
+    });
+  });
+
+  describe('MoneyAccountLifecycleController:init', () => {
+    it('calls init on the controller', async () => {
+      const initSpy = jest.spyOn(
+        MoneyAccountLifecycleController.prototype,
+        'init',
+      );
+
+      await withController(({ rootMessenger }) => {
+        rootMessenger.call('MoneyAccountLifecycleController:init');
+
+        expect(initSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
 
 type RootMessenger = Messenger<
