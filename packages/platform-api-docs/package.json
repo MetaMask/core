@@ -54,8 +54,8 @@
     "execa": "^10.0.1",
     "npm-which": "^3.0.1",
     "prism-react-renderer": "^2.4.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "ts-morph": "^28.0.0",
     "yargs": "^17.7.3"
   },
