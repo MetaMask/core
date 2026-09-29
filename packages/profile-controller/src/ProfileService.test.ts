@@ -169,6 +169,8 @@ describe('ProfileService', () => {
       profile_id: 'canonical-123',
       username: 'alice',
       display_name: 'Alice Wonderland',
+      linked_addresses: ['eip155:1:0x1234567890abcdef1234567890abcdef12345678'],
+      trading_privacy: 'public',
     };
 
     it('posts to the profiles endpoint with correct body', async () => {
@@ -222,6 +224,7 @@ describe('ProfileService', () => {
       username: 'alice2',
       display_name: 'Alice 2',
       linked_addresses: ['eip155:1:0x1234567890abcdef1234567890abcdef12345678'],
+      trading_privacy: 'public',
     };
 
     it('puts to the profile endpoint with correct body', async () => {

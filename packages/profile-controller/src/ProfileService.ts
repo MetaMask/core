@@ -106,8 +106,9 @@ const CreateProfileParamsStruct = structType({
   username: string(),
   display_name: string(),
   bio: optional(nullable(string())),
-  linked_addresses: optional(array(string())),
+  linked_addresses: array(string()),
   avatar_url: optional(string()),
+  trading_privacy: TradingPrivacyStruct,
 });
 
 const ReplaceProfileParamsStruct = structType({
@@ -116,7 +117,7 @@ const ReplaceProfileParamsStruct = structType({
   bio: optional(nullable(string())),
   linked_addresses: array(string()),
   avatar_url: optional(string()),
-  trading_privacy: optional(TradingPrivacyStruct),
+  trading_privacy: TradingPrivacyStruct,
 });
 
 const UpdateProfileParamsStruct = structType({
