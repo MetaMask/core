@@ -184,6 +184,9 @@
       "path": "./packages/money-account-controller"
     },
     {
+      "path": "./packages/money-account-lifecycle-controller"
+    },
+    {
       "path": "./packages/money-account-upgrade-controller"
     },
     {
