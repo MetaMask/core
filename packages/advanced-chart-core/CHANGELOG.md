@@ -26,6 +26,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Correct barrel imports that resolved to package directories so the compiled output loads the intended `index` modules ([#9762](https://github.com/MetaMask/core/pull/9762))
-
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.0.0...HEAD
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/advanced-chart-core@1.0.0
