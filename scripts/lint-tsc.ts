@@ -2,7 +2,7 @@
  * Entry point file for the `lint:tsc:check` and `lint:tsc:suppress` scripts.
  */
 
-import { lintTsc } from './lib/lint-tsc.js';
+import { lintTsc } from './lib/lint-tsc.ts';
 
 lintTsc(process.argv.slice(2)).catch((error) => {
   console.error(error);

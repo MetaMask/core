@@ -7,7 +7,7 @@ jest.unstable_mockModule('execa', () => ({
   execa: jest.fn(),
 }));
 
-jest.unstable_mockModule('./tsc-suppressions.js', () => ({
+jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
   parseTscOutput: jest.fn(),
   findFilelessDiagnostics: jest.fn(),
   buildSuppressions: jest.fn(),
@@ -18,8 +18,8 @@ jest.unstable_mockModule('./tsc-suppressions.js', () => ({
 }));
 
 const { execa } = await import('execa');
-const tscSuppressions = await import('./tsc-suppressions.js');
-const { lintTsc } = await import('./lint-tsc.js');
+const tscSuppressions = await import('./tsc-suppressions.ts');
+const { lintTsc } = await import('./lint-tsc.ts');
 
 const ERROR = { filePath: 'a.ts', code: 'TS2322', message: 'Nope.' };
 

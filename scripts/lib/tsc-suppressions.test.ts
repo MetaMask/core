@@ -15,7 +15,7 @@ import {
   printReport,
   readSuppressions,
   writeSuppressions,
-} from './tsc-suppressions.js';
+} from './tsc-suppressions.ts';
 
 const { withinSandbox } = createSandbox('lib/tsc-suppressions');
 

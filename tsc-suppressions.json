@@ -566,7 +566,7 @@
   },
   "packages/money-account-api-data-service/src/money-account-api-data-service.test.ts": {
     "TS2322": {
-      "count": 7
+      "count": 8
     }
   },
   "packages/multichain-account-service/src/MultichainAccountService.test.ts": {

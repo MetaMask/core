@@ -3,11 +3,11 @@ import { jest } from '@jest/globals';
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported
 // dynamically afterwards.
-jest.unstable_mockModule('./lib/lint-tsc.js', () => ({
+jest.unstable_mockModule('./lib/lint-tsc.ts', () => ({
   lintTsc: jest.fn(),
 }));
 
-const { lintTsc } = await import('./lib/lint-tsc.js');
+const { lintTsc } = await import('./lib/lint-tsc.ts');
 
 describe('lint-tsc', () => {
   let originalProcess: typeof globalThis.process;
@@ -28,7 +28,7 @@ describe('lint-tsc', () => {
     jest.spyOn(console, 'error').mockReturnValue(undefined);
 
     // Importing the entry point runs it, which is the behaviour under test.
-    await import('./lint-tsc.js');
+    await import('./lint-tsc.ts');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(lintTsc).toHaveBeenCalledTimes(1);

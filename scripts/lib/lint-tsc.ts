@@ -9,7 +9,7 @@ import {
   printReport,
   readSuppressions,
   writeSuppressions,
-} from './tsc-suppressions.js';
+} from './tsc-suppressions.ts';
 
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 
