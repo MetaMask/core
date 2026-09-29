@@ -700,7 +700,12 @@ const TEST_SCRIPTS_BY_RUNNER = {
   },
   vitest: {
     run: 'vitest run --reporter=dot',
-    clean: 'vitest run --no-cache',
+    // Vitest has no equivalent of `jest --clearCache`, so clear its cache
+    // directly. `vitest run --no-cache` would bypass the cache and run the whole
+    // suite rather than clearing it and exiting, which would make the root
+    // `test:clean` (every workspace's `test:clean`, then `yarn test`) run
+    // migrated packages twice.
+    clean: 'rimraf node_modules/.vite',
     verbose: 'vitest run --reporter=verbose',
     watch: 'vitest watch',
   },
