@@ -5,7 +5,11 @@ import { cleanAll } from 'nock';
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
-import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
+import {
+  waitFor,
+  waitUntilStable,
+  withZeroedTimestamps,
+} from './__fixtures__/test-utils.js';
 import { mockWsApis } from './__fixtures__/ws-price-updates/api-responses/index.js';
 import { registerWsControllerActions } from './__fixtures__/ws-price-updates/messenger.js';
 import {
@@ -265,6 +269,16 @@ describe('AssetsController: websocket price updates', () => {
       });
     },
   );
+
+  it('generates snapshot (source of truth)', async () => {
+    const { state } = await runWsEvent({
+      state: buildEmptyAssetsState(),
+      event: buildEthAndUsdcBalanceUpdatedEvent(),
+    });
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(state)).toMatchSnapshot();
+  });
 
   describe('held-but-unpriced native asset: ETH in state without a price', () => {
     let result: WsEventResult;

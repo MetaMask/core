@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1297.0.0",
+  "version": "1299.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -40,9 +40,9 @@
     "lint:tsc": "tsc --build tsconfig.lint.json",
     "lint:tsc:clean": "yarn lint:tsc:only-clean && yarn lint:tsc",
     "lint:tsc:only-clean": "rimraf -g 'packages/*/.tsc-lint-cache' '.tsc-lint-cache'",
-    "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
-    "lint:tsconfigs:fix": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "lint:tsconfigs:fix": "tsx scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "lint:tsconfigs:fix:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs:fix",
     "messenger-action-types:check": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:check",
     "messenger-action-types:generate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:generate",
@@ -65,7 +65,7 @@
   "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
-    "@jest/globals": "^30.4.1",
+    "@jest/globals": "^30.5.2",
     "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^3.0.0",
     "@metamask/auto-changelog": "^6.2.1",
@@ -93,7 +93,7 @@
     "eslint-plugin-n": "^18.3.0",
     "execa": "^10.0.1",
     "isomorphic-fetch": "^3.0.0",
-    "jest": "^30.4.2",
+    "jest": "^30.5.2",
     "jest-silent-reporter": "^0.6.0",
     "knip": "^6.38.0",
     "lodash": "^4.18.1",
@@ -127,12 +127,12 @@
       "$root$": true,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "@lavamoat/preinstall-always-fail": false,
-      "babel-runtime>core-js": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
       "jest>@jest/core>jest-resolve>unrs-resolver": false,
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false,
+      "jest>@jest/core>jest-haste-map>@parcel/watcher#2.6.0": false
     }
   }
 }

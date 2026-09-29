@@ -707,11 +707,13 @@ linkStyle default opacity:0.5
   social_controllers --> base_controller;
   social_controllers --> base_data_service;
   social_controllers --> controller_utils;
+  social_controllers --> core_backend;
   social_controllers --> messenger;
   social_controllers --> profile_sync_controller;
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   storage_service --> utils;
+  subscription_controller --> approval_controller;
   subscription_controller --> authenticated_user_storage;
   subscription_controller --> base_controller;
   subscription_controller --> base_data_service;
@@ -720,6 +722,7 @@ linkStyle default opacity:0.5
   subscription_controller --> delegation_controller;
   subscription_controller --> messenger;
   subscription_controller --> money_account_balance_service;
+  subscription_controller --> money_account_upgrade_controller;
   subscription_controller --> money_account_utils;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
@@ -739,8 +742,8 @@ linkStyle default opacity:0.5
   transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
+  transaction_pay_controller --> accounts_controller;
   transaction_pay_controller --> assets_controller;
-  transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
