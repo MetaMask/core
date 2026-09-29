@@ -18,7 +18,9 @@ jest.mock('react', () => ({
     initial,
     mockSetState,
   ],
-  useEffect: (...args: unknown[]): void => mockUseEffect(...args),
+  useEffect: (...args: unknown[]): void => {
+    mockUseEffect(...args);
+  },
 }));
 
 describe('useGetProfile', () => {
