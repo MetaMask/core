@@ -4613,9 +4613,12 @@ export class TransactionController extends BaseController<
       networkClientId,
     );
 
+    // Gas fee token estimates always intend to pay with a token, so clients
+    // can include EIP-7702 gas fee tokens.
     const transaction = {
       chainId,
       delegationAddress,
+      isGasFeeTokenIgnoredIfBalance: true,
       txParams: {
         data,
         from,
