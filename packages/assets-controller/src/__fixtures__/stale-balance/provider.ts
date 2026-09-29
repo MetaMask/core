@@ -23,7 +23,6 @@ const MULTICALL3_ABI = [
     ],
     name: 'aggregate3',
     outputs: [
-      { internalType: 'uint256', name: 'blockNumber', type: 'uint256' },
       {
         components: [
           { internalType: 'bool', name: 'success', type: 'bool' },
@@ -148,7 +147,7 @@ function isFailingToken(
  *
  * @param state - The provider state.
  * @param callData - The `aggregate3` call data.
- * @returns The ABI-encoded `(blockNumber, Result[])` response.
+ * @returns The ABI-encoded `Result[]` response.
  */
 function answerAggregate3(
   state: StaleBalanceProviderState,
@@ -192,10 +191,7 @@ function answerAggregate3(
     }
   });
 
-  return defaultAbiCoder.encode(
-    ['uint256', 'tuple(bool,bytes)[]'],
-    [1, results],
-  );
+  return defaultAbiCoder.encode(['tuple(bool,bytes)[]'], [results]);
 }
 
 /**

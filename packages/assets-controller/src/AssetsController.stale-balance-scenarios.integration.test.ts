@@ -29,7 +29,6 @@ import {
   buildEmptyStaleBalanceState,
   buildMainnetAccount,
   buildSolanaSnapAccount,
-  getIgnoringCase,
 } from './__fixtures__/stale-balance/staleBalanceWallet.js';
 import {
   BNB_ASSET_ID,
@@ -55,7 +54,11 @@ import {
   USDT_ASSET_ID_CHECKSUM,
   USDT_CONTRACT,
 } from './__fixtures__/stale-balance/wallet.js';
-import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
+import {
+  getIgnoringCase,
+  waitFor,
+  waitUntilStable,
+} from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 import { normalizeAmountString } from './utils/normalizeAmountString.js';
@@ -135,19 +138,26 @@ const expectedAmount = (
   assetId: string,
 ): string => normalizedAmount(captured[assetId.toLowerCase()]);
 
+type StateSurface = {
+  surface: string;
+  lookUp: (state: AssetsControllerState, assetId: string) => unknown;
+};
+
 /**
- * Assert one asset's landed amount.
+ * Assert one asset's landed amount through a balances surface.
  *
- * @param balances - The account's balances from controller state.
+ * @param state - The controller state to read.
+ * @param surface - The balances surface of the account holding the asset.
  * @param assetId - The asset ID to look up, any casing.
  * @param expected - The expected amount string.
  */
 const expectAmount = (
-  balances: Record<string, unknown>,
+  state: AssetsControllerState,
+  surface: StateSurface,
   assetId: string,
   expected: string,
 ): void => {
-  expect(getIgnoringCase(balances, assetId)).toMatchObject({
+  expect(surface.lookUp(state, assetId)).toMatchObject({
     amount: expected,
   });
 };
@@ -302,6 +312,11 @@ async function fetchSolanaSnapWallet({
 describe('AssetsController stale-balance scenarios: Solana keyring snap', () => {
   // Scenario tables: "Stale balance scenarios (`full`)" rows 1-3, plus
   // "Stale balance scenarios (`merge`)" row 4 (the snap live event).
+  const BALANCES: StateSurface = {
+    surface: 'balances',
+    lookUp: (state, assetId) =>
+      getIgnoringCase(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}, assetId),
+  };
 
   afterEach(() => {
     cleanAll();
@@ -318,9 +333,9 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
 
     const balances = unreachable.assetsBalance[SOLANA_ACCOUNT_ID] ?? {};
     // Every holding keeps the last successful read.
-    expectAmount(balances, SOL_ASSET_ID, '3.25');
-    expectAmount(balances, SOLANA_JUP_ASSET_ID, '40.25');
-    expectAmount(balances, SOLANA_USDC_ASSET_ID, '125.5');
+    expectAmount(unreachable, BALANCES, SOL_ASSET_ID, '3.25');
+    expectAmount(unreachable, BALANCES, SOLANA_JUP_ASSET_ID, '40.25');
+    expectAmount(unreachable, BALANCES, SOLANA_USDC_ASSET_ID, '125.5');
     // And nothing else landed while the snap was down.
     expect(lowerKeySet(balances)).toStrictEqual(
       lowerKeySet(seeded.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}),
@@ -341,9 +356,9 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
     });
 
     const balances = skipped.assetsBalance[SOLANA_ACCOUNT_ID] ?? {};
-    expectAmount(balances, SOLANA_JUP_ASSET_ID, '45.5');
-    expectAmount(balances, SOL_ASSET_ID, '3.25');
-    expectAmount(balances, SOLANA_USDC_ASSET_ID, '125.5');
+    expectAmount(skipped, BALANCES, SOLANA_JUP_ASSET_ID, '45.5');
+    expectAmount(skipped, BALANCES, SOL_ASSET_ID, '3.25');
+    expectAmount(skipped, BALANCES, SOLANA_USDC_ASSET_ID, '125.5');
     expect(lowerKeySet(balances)).toStrictEqual(
       lowerKeySet(seeded.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}),
     );
@@ -359,10 +374,10 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
     });
 
     const balances = zeroed.assetsBalance[SOLANA_ACCOUNT_ID] ?? {};
-    expectAmount(balances, SOLANA_JUP_ASSET_ID, '40.25');
+    expectAmount(zeroed, BALANCES, SOLANA_JUP_ASSET_ID, '40.25');
     // The placeholder zeros are not stale — there is no earlier amount.
-    expectAmount(balances, SOL_ASSET_ID, '0');
-    expectAmount(balances, SOLANA_USDC_ASSET_ID, '0');
+    expectAmount(zeroed, BALANCES, SOL_ASSET_ID, '0');
+    expectAmount(zeroed, BALANCES, SOLANA_USDC_ASSET_ID, '0');
     expect(lowerKeySet(balances)).toStrictEqual(
       new Set([
         SOL_ASSET_ID.toLowerCase(),
@@ -398,17 +413,12 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
           },
         });
         await waitFor(() => {
-          expectAmount(
-            controller.state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {},
-            SOLANA_JUP_ASSET_ID,
-            '50',
-          );
+          expectAmount(controller.state, BALANCES, SOLANA_JUP_ASSET_ID, '50');
         });
 
         // The skipped holdings keep their last full-fetch amounts.
-        const balances = controller.state.assetsBalance[SOLANA_ACCOUNT_ID];
-        expectAmount(balances, SOL_ASSET_ID, '3.25');
-        expectAmount(balances, SOLANA_USDC_ASSET_ID, '125.5');
+        expectAmount(controller.state, BALANCES, SOL_ASSET_ID, '3.25');
+        expectAmount(controller.state, BALANCES, SOLANA_USDC_ASSET_ID, '125.5');
 
         // SOL moves on-chain; only the next full fetch sees it, because
         // the event only ever names the tokens the snap itself reported.
@@ -423,11 +433,12 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
         });
         await waitUntilStable(() => controller.state);
 
-        const refreshed = controller.state.assetsBalance[SOLANA_ACCOUNT_ID];
-        expectAmount(refreshed, SOL_ASSET_ID, '4');
+        expectAmount(controller.state, BALANCES, SOL_ASSET_ID, '4');
         // The event's amount for JUP is overwritten by the full fetch too.
-        expectAmount(refreshed, SOLANA_JUP_ASSET_ID, '40.25');
-        expect(lowerKeySet(refreshed)).toStrictEqual(
+        expectAmount(controller.state, BALANCES, SOLANA_JUP_ASSET_ID, '40.25');
+        expect(
+          lowerKeySet(controller.state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}),
+        ).toStrictEqual(
           new Set([
             SOL_ASSET_ID.toLowerCase(),
             SOLANA_JUP_ASSET_ID.toLowerCase(),
@@ -493,6 +504,11 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
   // pass has the API report BNB Chain unprocessed, so the RPC provider
   // answers for it — with the wallet's holdings doubled, so a recovered
   // read is provably fresh.
+  const BALANCES: StateSurface = {
+    surface: 'balances',
+    lookUp: (state, assetId) =>
+      getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
+  };
 
   afterEach(() => {
     cleanAll();
@@ -515,7 +531,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       ...BSC_DOUBLED,
       [USDT_ASSET_ID_LOWER]: BSC_CAPTURED[USDT_ASSET_ID_LOWER],
     })) {
-      expectAmount(balances, assetId, normalizedAmount(captured));
+      expectAmount(after, BALANCES, assetId, normalizedAmount(captured));
     }
     expect(lowerKeySet(balances)).toStrictEqual(
       lowerKeySet(seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {}),
@@ -529,7 +545,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       apiMutations: { setBalances: { [USDT_ASSET_ID_LOWER]: '0' } },
     });
     const seededBalances = seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {};
-    expectAmount(seededBalances, USDT_ASSET_ID_CHECKSUM, '0');
+    expectAmount(seeded, BALANCES, USDT_ASSET_ID_CHECKSUM, '0');
     cleanAll();
 
     const after = await fetchBscWallet({
@@ -541,7 +557,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     const balances = after.assetsBalance[BSC_ACCOUNT_ID] ?? {};
     // The unused token disappears; everything else updates to its doubled
     // amount.
-    expect(getIgnoringCase(balances, USDT_ASSET_ID_CHECKSUM)).toBeUndefined();
+    expect(BALANCES.lookUp(after, USDT_ASSET_ID_CHECKSUM)).toBeUndefined();
     expect(lowerKeySet(balances)).toStrictEqual(
       new Set(
         [...lowerKeySet(seededBalances)].filter(
@@ -553,7 +569,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       if (assetId === USDT_ASSET_ID_LOWER) {
         continue;
       }
-      expectAmount(balances, assetId, normalizedAmount(captured));
+      expectAmount(after, BALANCES, assetId, normalizedAmount(captured));
     }
   });
 
@@ -570,7 +586,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     const balances = after.assetsBalance[BSC_ACCOUNT_ID] ?? {};
     // The whole chain is unreadable; every captured amount survives.
     for (const [assetId, captured] of Object.entries(BSC_CAPTURED)) {
-      expectAmount(balances, assetId, normalizedAmount(captured));
+      expectAmount(after, BALANCES, assetId, normalizedAmount(captured));
     }
     expect(lowerKeySet(balances)).toStrictEqual(
       lowerKeySet(seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {}),
@@ -590,7 +606,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     // The chain failed over to RPC, which reads every holding at its
     // (doubled) fresh amount.
     for (const [assetId, captured] of Object.entries(BSC_DOUBLED)) {
-      expectAmount(balances, assetId, normalizedAmount(captured));
+      expectAmount(after, BALANCES, assetId, normalizedAmount(captured));
     }
     expect(lowerKeySet(balances)).toStrictEqual(
       lowerKeySet(seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {}),
@@ -677,6 +693,11 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
   // Scenario table: "Stale balance scenarios (`merge`)", rows 1-3. The
   // controller is seeded through a full Accounts API poll; the events then
   // overlay single tokens on top of it.
+  const BALANCES: StateSurface = {
+    surface: 'balances',
+    lookUp: (state, assetId) =>
+      getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
+  };
 
   afterEach(() => {
     cleanAll();
@@ -709,12 +730,14 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       const balances = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
       // Before the event, both tokens sit at their captured amounts.
       expectAmount(
-        balances,
+        controller.state,
+        BALANCES,
         GTAI_ASSET_ID_CHECKSUM,
         expectedAmount(BSC_CAPTURED, GTAI_ASSET_ID_CHECKSUM),
       );
       expectAmount(
-        balances,
+        controller.state,
+        BALANCES,
         USDT_ASSET_ID_CHECKSUM,
         expectedAmount(BSC_CAPTURED, USDT_ASSET_ID_CHECKSUM),
       );
@@ -725,7 +748,8 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       ]);
       await waitFor(() => {
         expectAmount(
-          controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {},
+          controller.state,
+          BALANCES,
           GTAI_ASSET_ID_CHECKSUM,
           GTAI_EVENT_AMOUNTS.fresh,
         );
@@ -735,12 +759,14 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       // amounts.
       const after = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
       expectAmount(
-        after,
+        controller.state,
+        BALANCES,
         USDT_ASSET_ID_CHECKSUM,
         expectedAmount(BSC_CAPTURED, USDT_ASSET_ID_CHECKSUM),
       );
       expectAmount(
-        after,
+        controller.state,
+        BALANCES,
         BNB_ASSET_ID,
         expectedAmount(BSC_CAPTURED, BNB_ASSET_ID),
       );
@@ -773,7 +799,8 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       ]);
       await waitFor(() => {
         expectAmount(
-          controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {},
+          controller.state,
+          BALANCES,
           GTAI_ASSET_ID_CHECKSUM,
           GTAI_EVENT_AMOUNTS.validAmongMalformed,
         );
@@ -783,12 +810,14 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       // keep the last full poll's values.
       const after = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
       expectAmount(
-        after,
+        controller.state,
+        BALANCES,
         USDT_ASSET_ID_CHECKSUM,
         expectedAmount(BSC_CAPTURED, USDT_ASSET_ID_CHECKSUM),
       );
       expectAmount(
-        after,
+        controller.state,
+        BALANCES,
         BNB_ASSET_ID,
         expectedAmount(BSC_CAPTURED, BNB_ASSET_ID),
       );
@@ -812,7 +841,8 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       ]);
       await waitFor(() => {
         expectAmount(
-          controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {},
+          controller.state,
+          BALANCES,
           GTAI_ASSET_ID_CHECKSUM,
           GTAI_EVENT_AMOUNTS.wrong,
         );
@@ -825,7 +855,8 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       });
       await waitUntilStable(() => controller.state);
       expectAmount(
-        controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {},
+        controller.state,
+        BALANCES,
         GTAI_ASSET_ID_CHECKSUM,
         expectedAmount(BSC_CAPTURED, GTAI_ASSET_ID_CHECKSUM),
       );
@@ -875,6 +906,11 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
   // balances come only from the staking source's reads — the captured
   // Accounts API response has no vault rows — so every assertion here is
   // about what the last staking read reported.
+  const BALANCES: StateSurface = {
+    surface: 'balances',
+    lookUp: (state, assetId) =>
+      getIgnoringCase(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}, assetId),
+  };
 
   afterEach(() => {
     cleanAll();
@@ -919,15 +955,15 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         // vaults' staked ETH from the staking source's initial read.
         await waitFor(
           () => {
-            const balances =
-              controller.state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {};
             expectAmount(
-              balances,
+              controller.state,
+              BALANCES,
               MAINNET_STAKED_ETH_ASSET_ID,
               STAKED_AMOUNTS.mainnetSeed,
             );
             expectAmount(
-              balances,
+              controller.state,
+              BALANCES,
               HOODI_STAKED_ETH_ASSET_ID,
               STAKED_AMOUNTS.hoodi,
             );
@@ -955,7 +991,8 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         await waitFor(
           () => {
             expectAmount(
-              controller.state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {},
+              controller.state,
+              BALANCES,
               MAINNET_STAKED_ETH_ASSET_ID,
               STAKED_AMOUNTS.mainnetAfterTx,
             );
@@ -964,7 +1001,8 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         );
         await waitUntilStable(() => controller.state, { timeoutMs: 5000 });
         expectAmount(
-          controller.state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {},
+          controller.state,
+          BALANCES,
           HOODI_STAKED_ETH_ASSET_ID,
           STAKED_AMOUNTS.hoodi,
         );
@@ -980,19 +1018,26 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         const balances =
           controller.state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {};
         expectAmount(
-          balances,
+          controller.state,
+          BALANCES,
           MAINNET_STAKED_ETH_ASSET_ID,
           STAKED_AMOUNTS.mainnetAfterTx,
         );
-        expectAmount(balances, HOODI_STAKED_ETH_ASSET_ID, STAKED_AMOUNTS.hoodi);
+        expectAmount(
+          controller.state,
+          BALANCES,
+          HOODI_STAKED_ETH_ASSET_ID,
+          STAKED_AMOUNTS.hoodi,
+        );
         // The poll's own surfaces landed too: the captured mainnet ETH and
         // the Hoodi native ETH the RPC fallback read.
         expectAmount(
-          balances,
+          controller.state,
+          BALANCES,
           ETH_ASSET_ID,
           expectedAmount(MAINNET_CAPTURED, ETH_ASSET_ID),
         );
-        expectAmount(balances, HOODI_NATIVE_ASSET_ID, '0.75');
+        expectAmount(controller.state, BALANCES, HOODI_NATIVE_ASSET_ID, '0.75');
         // Both vaults survived a token poll that never includes them.
         expect(lowerKeySet(balances)).toContain(
           MAINNET_STAKED_ETH_ASSET_ID.toLowerCase(),

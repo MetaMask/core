@@ -1,6 +1,7 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AssetsControllerState } from '../../types.js';
+import { createMockInternalAccount } from '../MockAssetControllerMessenger.js';
 import {
   BSC_ACCOUNT_ID,
   BSC_CHAIN_ID,
@@ -27,21 +28,14 @@ import {
 export function buildBscAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
-  return {
+  const { metadata, ...rest } = overrides ?? {};
+  return createMockInternalAccount({
     id: BSC_ACCOUNT_ID,
     address: STALE_WALLET_ADDRESS,
-    options: {},
-    methods: [],
-    type: 'eip155:eoa',
     scopes: [BSC_CHAIN_ID],
-    metadata: {
-      name: 'Stale Balance Wallet',
-      keyring: { type: 'HD Key Tree' },
-      importTime: 1_756_100_000_000,
-      lastSelected: 1_756_200_000_000,
-    },
-    ...overrides,
-  };
+    metadata: { name: 'Stale Balance Wallet', ...metadata },
+    ...rest,
+  });
 }
 
 /**
@@ -56,21 +50,14 @@ export function buildBscAccount(
 export function buildMainnetAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
-  return {
+  const { metadata, ...rest } = overrides ?? {};
+  return createMockInternalAccount({
     id: MAINNET_ACCOUNT_ID,
     address: STALE_WALLET_ADDRESS,
-    options: {},
-    methods: [],
-    type: 'eip155:eoa',
     scopes: [MAINNET_CHAIN_ID, HOODI_CHAIN_ID],
-    metadata: {
-      name: 'Stale Balance Wallet',
-      keyring: { type: 'HD Key Tree' },
-      importTime: 1_756_100_000_000,
-      lastSelected: 1_756_200_000_000,
-    },
-    ...overrides,
-  };
+    metadata: { name: 'Stale Balance Wallet', ...metadata },
+    ...rest,
+  });
 }
 
 /**
@@ -86,22 +73,20 @@ export function buildMainnetAccount(
 export function buildSolanaSnapAccount(
   overrides?: Partial<InternalAccount>,
 ): InternalAccount {
-  return {
+  const { metadata, ...rest } = overrides ?? {};
+  return createMockInternalAccount({
     id: SOLANA_ACCOUNT_ID,
     address: SOLANA_WALLET_ADDRESS,
-    options: {},
-    methods: [],
     type: 'solana:data-account',
     scopes: [SOLANA_CHAIN_ID],
     metadata: {
       name: 'Solana Snap Account',
       keyring: { type: 'Snap Keyring' },
-      importTime: 1_756_100_000_000,
-      lastSelected: 1_756_200_000_000,
       snap: { id: SOLANA_SNAP_ID },
+      ...metadata,
     },
-    ...overrides,
-  };
+    ...rest,
+  });
 }
 
 /**
@@ -151,22 +136,4 @@ export function buildEmptySolanaSnapState(
     customAssets: { [SOLANA_ACCOUNT_ID]: [SOLANA_USDC_ASSET_ID] },
     ...overrides,
   });
-}
-
-/**
- * Look up a record entry ignoring CAIP-19 address casing.
- *
- * @param record - The record to search.
- * @param assetId - The asset ID to look up, any casing.
- * @returns The matching entry, or `undefined` when absent.
- */
-export function getIgnoringCase(
-  record: Record<string, unknown>,
-  assetId: string,
-): unknown {
-  const lowerId = assetId.toLowerCase();
-  const match = Object.keys(record).find(
-    (key) => key.toLowerCase() === lowerId,
-  );
-  return match === undefined ? undefined : record[match];
 }
