@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const ROOT_DIR = path.resolve(import.meta.dirname, '..', '..', '..');
-const TSX_PATH = path.join(ROOT_DIR, 'node_modules', '.bin', 'tsx');
+const RESOLVER_PATH = path.join(ROOT_DIR, 'scripts', 'resolver', 'register.ts');
 const CLI_PATH = path.join(
   ROOT_DIR,
   'packages',
@@ -22,11 +22,21 @@ const CLI_PATH = path.join(
  * @returns The execa result.
  */
 async function runCLI(args: string[]): Promise<Result> {
-  return await execa(TSX_PATH, [CLI_PATH, ...args], {
-    cwd: ROOT_DIR,
-    reject: false,
-    all: true,
-  });
+  return await execa(
+    'node',
+    [
+      '--import',
+      RESOLVER_PATH,
+      '--experimental-transform-types',
+      CLI_PATH,
+      ...args,
+    ],
+    {
+      cwd: ROOT_DIR,
+      reject: false,
+      all: true,
+    },
+  );
 }
 
 const { withinSandbox } = createSandbox('platform-api-docs/cli');
