@@ -1,25 +1,16 @@
-# Seedless Onboarding Repair and Remediation — Implementation Design
+# TOPRF Init Failure Repair Plan
 
 ## Background context
 
-This document defines the implementation plan and design for remediating production accounts affected by [inconsistent seedless onboarding backup state](https://docs.google.com/document/d/1Z2-hBnrYC4Q5d35_maG3uUyn297ODgmrikZDJljRqBE/edit?tab=t.0#heading=h.ic7lth3mlv9b).
+In document, we will define the next step after we determined [the decision from identifying the Social Login user with the incomplete/incorrect remote backup metadata](./identify-users-with-toprf-init-failure.md).
+The goal of this document is to define the clear implementation plan to repair the user's remote backup metadata.
 
-During seedless onboarding, the primary SRP is written to the metadata service before the TOPRF key shares and local vault are fully persisted. If key-share persistence fails, the metadata write and local backup-state update can remain even though the initialization is incomplete. A later retry can generate a different TOPRF key, skip writing the SRP because local state reports it as already backed up, and persist the new key instead. The resulting recoverable key can point to secret metadata without the primary SRP, preventing wallet rehydration on another device.
-
-The issue can be reproduced with the following sequence:
-
-1. Start seedless onboarding and generate TOPRF key 1.
-2. Successfully write the primary SRP to metadata and update `socialBackupsMetadata`.
-3. Make TOPRF key-share persistence fail after the metadata write.
-4. Retry onboarding with the same password and SRP after the failed attempt.
-5. Generate TOPRF key 2. The local duplicate check finds the existing SRP hash and skips the second SRP metadata write.
-6. Successfully persist key 2 and create the local vault.
-7. Add imported secrets, which are written under key 2’s secret metadata namespace.
-8. Attempt recovery on another device. The recovered key 2 fetches the imported secrets but not the primary SRP, causing the strict primary-secret validation to fail.
-
-The implementation must safely restore the primary SRP backup, handle users with different secret metadata versions, complete any required data migration, avoid duplicate or conflicting records, and verify the final state before reporting success.
-
-The incident investigation and historical analysis are maintained separately. This document is intentionally limited to the remediation design, including its scope, acceptance criteria, implementation approaches, failure handling, and rollout considerations.
+The implementation must 
+- safely restore the primary SRP backup
+- handle users with different secret metadata versions
+- complete any required data migration
+- avoid duplicate or conflicting records
+- verify the final state before reporting success.
 
 ## Scope
 
