@@ -1312,20 +1312,12 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Register the venue key ahead of the first order, so its main-account
-   * `personal_sign` surfaces in a guided session instead of at order time.
+   * `personal_sign` happens in a guided session. A read-only provider (no
+   * signer bridge) has nothing to prepare and resolves `ready: true` while an
+   * account is selected and the main-account signer is ready.
    *
-   * @returns `ready: true` once the venue key is registered, or at once for a
-   * read-only provider (no signer bridge) while the main-account signer is
-   * ready and an account is selected: it has nothing to prepare, so it does
-   * not hold back an aggregated result, and `isReadyToTrade` still reports
-   * that it cannot trade. Otherwise `ready: false`: with `KEYRING_LOCKED`
-   * whenever the main-account signer is not ready (even with a registered
-   * venue key), with `NO_ACCOUNT_SELECTED` when no account is selected, with
-   * `EXCHANGE_ACCOUNT_NOT_FOUND` when the wallet has no Lighter account yet
-   * (fund it first), without an error when the user declined the signature
-   * (the order path asks again), with `PROVIDER_LIFECYCLE_STALE` (unlogged)
-   * when the provider disconnected or the wallet switched accounts meanwhile,
-   * and with the logged error when registration failed.
+   * @returns The readiness result described on
+   * `PerpsController.prepareTradingWallet`.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {

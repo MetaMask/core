@@ -1116,20 +1116,15 @@ export type HyperLiquidCredentials = {
   /** Dedicated subscription waiver builder for mainnet. */
   subscriptionBuilderAddressMainnet?: string;
   /**
-   * Resolves the agent approved for a main account on a network, or null
-   * when there is none (for example while the wallet is locked). Called when
-   * an L1 action (order, cancel, leverage, ...) is signed for that account and
-   * network, including the unified-account migration the provider may sign
-   * while connecting. Not called for an account and network bound through
-   * `PerpsController:setAgentSigner`. An agent it returns is kept for the
-   * lifetime of the HyperLiquid provider instance, or until
-   * `setAgentSigner`/`clearAgentSigners`; null is not kept, so it is asked
-   * again at the next L1 action. With an agent, L1 actions are signed by the
-   * agent key and user-signed actions (builder fee, withdraw, ...) by the main
-   * account. If `getAgentSigner` rejects or throws, that action fails and it
-   * is asked again at the next one. An agent whose `signTypedData` rejects
-   * fails that action and stays in use, so call
-   * `PerpsController:clearAgentSigners` when the agent key locks.
+   * Resolves the agent approved for a main account on a network, or null to
+   * sign with the main account (for example while the wallet is locked). Asked
+   * when an L1 action (order, cancel, leverage, ...) is signed, unless the
+   * account and network are bound through `PerpsController:setAgentSigner`.
+   * An agent is kept until `setAgentSigner`, `clearAgentSigners` or a venue
+   * rejection; null and failures are asked again at the next L1 action.
+   * User-signed actions (builder fee, withdraw, ...) stay on the main account.
+   * An agent whose signing throws stays in use: call
+   * `PerpsController:clearAgentSigners` when its key locks.
    */
   getAgentSigner?: (
     account: PerpsAgentAccount,
@@ -2160,21 +2155,10 @@ export type PerpsProvider = {
   initialize(): Promise<InitializeResult>;
   isReadyToTrade(): Promise<ReadyToTradeResult>;
   /**
-   * Run the deferred trading setup (for example account migration, builder
-   * fee, referral or venue-key registration) ahead of the first order, so its
-   * signatures happen in a guided session instead of at order time. User-signed
-   * steps need the main account; HyperLiquid L1 steps (the referral, the
-   * silent migration) are signed by an agent when one resolves. Resolves
-   * `ready: true` when none of these steps will need a signature again before
-   * the first order (a read-only provider, which never signs, resolves it at
-   * once while an account is selected and the main-account signer is ready).
-   * Otherwise `ready: false`, without an error while a step will be retried
-   * (including after an agent could not sign), or with `KEYRING_LOCKED` when
-   * the main-account signer cannot sign, `EXCHANGE_ACCOUNT_NOT_FOUND` for a
-   * wallet with no account on the venue yet, `NO_ACCOUNT_SELECTED`,
-   * `PROVIDER_LIFECYCLE_STALE` when the provider or account changed during
-   * setup, or the message of the logged error that stopped setup. Providers
-   * without such setup omit it.
+   * Run the provider's deferred trading setup (for example account migration,
+   * builder fee, referral or venue-key registration) ahead of the first
+   * order. The result is described on `PerpsController.prepareTradingWallet`.
+   * Providers without such setup omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   /**

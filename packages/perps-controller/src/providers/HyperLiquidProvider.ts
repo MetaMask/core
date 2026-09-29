@@ -1568,15 +1568,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     { answer: Promise<PerpsAgentSigner | null>; agent?: PerpsAgentSigner }
   >();
 
-  // The account and network each agent address was last resolved to sign an
-  // L1 action for. One entry per address is enough: an L1 signature covers
-  // no user, so the venue resolves the account from the agent address, and an
-  // agent acts for a single account. A rejection is attributed from this
-  // record rather than from the selected account, which may have changed
-  // while the write was in flight. Kept across clearAgentSigners, so the
-  // rejection of an agent that was replaced while its action was in flight is
-  // still recognized. Keyed by the lowercased address the venue reports; the
-  // value keeps the agent's own address, as the host supplied it.
+  // The account and network each agent last signed an L1 action for, keyed by
+  // the lowercased address the venue reports. A rejection is attributed from
+  // it rather than from the selected account, which may have changed while
+  // the write was in flight; an L1 signature names no user, so one agent acts
+  // for one account. Kept across clearAgentSigners, so an agent replaced while
+  // its action was in flight is still recognized.
   readonly #agentSignedFor = new Map<
     string,
     { key: string; account: PerpsAgentAccount; agentAddress: Hex }
@@ -14646,24 +14643,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Run the deferred trading-readiness steps (account migration, builder fee
-   * and referral setup) ahead of the first order, so their signatures happen
-   * in one guided session instead of at order time. The builder fee and the
-   * migration from `dexAbstraction` are signed by the main account; with an
-   * agent, the referral and the silent migration are L1 actions the agent
-   * signs. Results are cached, so an already-ready account signs nothing.
+   * Run the deferred account migration, builder fee and referral setup ahead
+   * of the first order. Results are cached, so an already-ready account signs
+   * nothing. A declined migration is not asked again, and a referral whose
+   * MetaMask code is not ready yet is checked again by the next call rather
+   * than by orders.
    *
-   * @returns `ready: true` when the main-account signer is ready and none of
-   * these steps will need a signature again before the first order; a step
-   * the user declined counts, because the order path does not ask again
-   * either, and so does a referral whose MetaMask referral code is not ready
-   * yet, which the next call checks again. `ready: false` carries
-   * `KEYRING_LOCKED` when the signer is not ready, `EXCHANGE_ACCOUNT_NOT_FOUND`
-   * for a wallet with no HyperLiquid account yet (fund it first),
-   * `NO_ACCOUNT_SELECTED` or `PROVIDER_LIFECYCLE_STALE` (neither logged), the
-   * logged error when the steps could not run, and no error when a step will
-   * retry (a rejected builder fee, a transient failure, or an agent that
-   * could not sign).
+   * @returns The readiness result described on
+   * `PerpsController.prepareTradingWallet`.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     // Nothing can be signed, so run no setup (and log nothing) until it can.
