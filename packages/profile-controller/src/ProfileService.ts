@@ -284,7 +284,12 @@ export class ProfileService extends BaseDataService<
 
   async #fetch<ResponseType extends Json>(
     endpoint: string,
-    options: { method?: string; error: string; json?: unknown },
+    options: {
+      method?: string;
+      error: string;
+      json?: unknown;
+      searchParams?: Record<string, string>;
+    },
   ): Promise<ResponseType>;
 
   async #fetch<ResponseType extends Json>(
@@ -293,14 +298,21 @@ export class ProfileService extends BaseDataService<
       method = 'GET',
       error,
       json,
+      searchParams,
     }: {
       method?: string;
       error: string;
       json?: unknown;
+      searchParams?: Record<string, string>;
     },
   ): Promise<ResponseType | null> {
     const authHeaders = await this.#getAuthHeaders();
     const url = new URL(`${this.#v1Url}/${endpoint}`);
+    if (searchParams) {
+      for (const [key, value] of Object.entries(searchParams)) {
+        url.searchParams.append(key, value);
+      }
+    }
     const response = await fetch(url.toString(), {
       ...(method === 'GET' ? {} : { method }),
       headers: {
@@ -454,10 +466,11 @@ export class ProfileService extends BaseDataService<
       responseStruct: UsernameAvailabilityResponseStruct,
       queryFn: async () =>
         this.#fetch<UsernameAvailabilityResponse>(
-          `profiles/username/availability?username=${encodeURIComponent(username)}`,
+          'profiles/username/availability',
           {
             error:
               ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED,
+            searchParams: { username },
           },
         ),
     });
