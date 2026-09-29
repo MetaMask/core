@@ -7680,6 +7680,8 @@ __metadata:
   resolution: "@metamask/money-account-lifecycle-controller@workspace:packages/money-account-lifecycle-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/base-controller": "npm:^10.0.0"
+    "@metamask/messenger": "npm:^3.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"

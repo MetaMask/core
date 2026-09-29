@@ -3792,6 +3792,11 @@
       "count": 1
     }
   },
+  "packages/money-account-lifecycle-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/money-account-upgrade-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
