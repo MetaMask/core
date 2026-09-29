@@ -26,6 +26,7 @@ export type {
 } from './ProfileController-method-action-types.js';
 export type {
   ProfileApiResponse,
+  CreateProfileResponse,
   CreateProfileParams,
   ReplaceProfileParams,
   UpdateProfileParams,

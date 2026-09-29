@@ -13,10 +13,12 @@ import {
   assert,
   boolean,
   enums,
+  intersection,
   nullable,
   optional,
   string,
   type as structType,
+  union,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
@@ -87,6 +89,14 @@ const XConnectResponseStruct = structType({
   updated_at: string(),
 });
 
+const CreateProfileResponseStruct = union([
+  ProfileApiResponseStruct,
+  intersection([
+    ProfileApiResponseStruct,
+    structType({ x_profile: XConnectResponseStruct }),
+  ]),
+]);
+
 const ConnectXParamsStruct = structType({
   code: string(),
   state: string(),
@@ -137,6 +147,9 @@ const MESSENGER_EXPOSED_METHODS = [
 
 /** The shape of a profile returned by the MetaMask Profile API. */
 export type ProfileApiResponse = Infer<typeof ProfileApiResponseStruct>;
+
+/** The response shape for createProfile — includes an optional linked X profile if the user had already connected X. */
+export type CreateProfileResponse = Infer<typeof CreateProfileResponseStruct>;
 
 /** The response shape for a username availability check. */
 export type UsernameAvailabilityResponse = Infer<
@@ -303,12 +316,12 @@ export class ProfileService extends BaseDataService<
    */
   async createProfile(
     params: CreateProfileParams,
-  ): Promise<ProfileApiResponse> {
+  ): Promise<CreateProfileResponse> {
     assert(params, CreateProfileParamsStruct);
     const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:createProfile`],
-      responseStruct: ProfileApiResponseStruct,
+      responseStruct: CreateProfileResponseStruct,
       mutationFn: async () => {
         const url = new URL(`${this.#v1Url}/profiles`);
         const response = await fetch(url.toString(), {

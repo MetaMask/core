@@ -299,6 +299,27 @@ describe('ProfileController', () => {
       expect(controller.state.metamaskProfile.connectedToX).toBe(true);
     });
 
+    it('also updates xProfile in state when x_profile is included in the response', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:createProfile',
+        jest.fn().mockResolvedValue({
+          ...mockProfileResponse,
+          x_profile: mockXConnectResponse,
+        }),
+      );
+
+      const { controller } = createController({ rootMessenger });
+      await controller.createProfile({
+        profile_id: 'canonical-123',
+        username: 'alice',
+        display_name: 'Alice Wonderland',
+      });
+
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+    });
+
     it('is callable via messenger action', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
