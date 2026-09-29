@@ -211,6 +211,12 @@ export type TransactionMeta = {
    */
   firstRetryBlockNumber?: string;
 
+  /**
+   * Whether the creator of the transaction requires gas fee sponsorship.
+   * Provided to client hooks, which decide whether sponsorship is used.
+   */
+  forceIsGasFeeSponsored?: boolean;
+
   /** Available tokens that can be used to pay for gas. */
   gasFeeTokens?: GasFeeToken[];
 
@@ -225,9 +231,19 @@ export type TransactionMeta = {
   isFirstTimeInteraction?: boolean;
 
   /**
-   * Whether the transaction is sponsored meaning the user does not pay the gas fee.
+   * Whether the gas fee of the transaction was sponsored when it was published,
+   * meaning the user did not pay the gas fee.
+   *
+   * Set once from the publish hook result. This is a record of what happened and
+   * does not control signing or publication.
    */
   isGasFeeSponsored?: boolean;
+
+  /**
+   * Whether gas fee sponsorship is available for the transaction, based on
+   * transaction simulation. Clients decide whether sponsorship is used.
+   */
+  isGasFeeSponsoredAvailable?: boolean;
 
   /**
    * Whether the transaction has no lifecycle and is not signed or published.
@@ -264,12 +280,6 @@ export type TransactionMeta = {
    * Generated UUID associated with this transaction.
    */
   id: string;
-
-  /**
-   * Whether the transaction is signed externally.
-   * No signing will be performed in the client and the `nonce` will be `undefined`.
-   */
-  isExternalSign?: boolean;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
@@ -1805,6 +1815,9 @@ export type TransactionBatchSingleRequest = {
 
     /** Optional callback to be invoked once the transaction is published. */
     onPublish?: (request: {
+      /** Whether the gas fee was sponsored when the transaction was published. */
+      isGasFeeSponsored?: boolean;
+
       /** Updated signature for the transaction, if applicable. */
       newSignature?: Hex;
 
@@ -1877,8 +1890,8 @@ export type TransactionBatchRequest = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
-  /** Whether MetaMask will sponsor the gas fee for the transaction. */
-  isGasFeeSponsored?: boolean;
+  /** Whether the gas fee sponsorship is required for the transaction. */
+  forceIsGasFeeSponsored?: boolean;
 
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
@@ -1978,6 +1991,12 @@ export type UpdateCustodialTransactionRequest = {
  * Data returned from custom logic to publish a transaction.
  */
 export type PublishHookResult = {
+  /**
+   * Whether the gas fee was sponsored when the transaction was published.
+   * Recorded as `TransactionMeta.isGasFeeSponsored`.
+   */
+  isGasFeeSponsored?: boolean;
+
   /**
    * The hash of the transaction on the network.
    */
@@ -2136,8 +2155,9 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed before a transaction is signed.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
+ * Preparation logic to execute before deciding whether to sign locally.
+ * Runs even when {@link ShouldSignHook} returns false and can optionally update
+ * the transaction by returning the `updateTransaction` callback.
  */
 export type BeforeSignHook = (request: {
   transactionMeta: TransactionMeta;
@@ -2147,6 +2167,14 @@ export type BeforeSignHook = (request: {
     }
   | undefined
 >;
+
+/**
+ * Policy logic to determine whether to reserve a nonce and sign locally.
+ * Use {@link BeforeSignHook} for transaction preparation instead.
+ */
+export type ShouldSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{ shouldSign: boolean }>;
 
 /**
  * The total fiat values of the transaction, to support client metrics.
@@ -2244,8 +2272,8 @@ export type AddTransactionOptions = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
-  /** Whether MetaMask will sponsor the gas fee for the transaction. */
-  isGasFeeSponsored?: boolean;
+  /** Whether the gas fee sponsorship is required for the transaction. */
+  forceIsGasFeeSponsored?: boolean;
 
   /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
   /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */

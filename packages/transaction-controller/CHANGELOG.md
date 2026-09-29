@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `shouldSign` hook to decide whether a transaction reserves a nonce and is signed locally ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+  - Defaults to signing locally when omitted.
+  - `beforeSign` runs before `shouldSign`, including when local signing is skipped.
+  - A `publish` hook is required when `shouldSign` returns `false`; the controller no longer falls back to `eth_sendRawTransaction` with an unsigned payload.
+- Add `forceIsGasFeeSponsored` to `AddTransactionOptions`, `TransactionBatchRequest`, and `TransactionMeta` so transaction creators can require gas fee sponsorship from client hooks ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+- Add `isGasFeeSponsoredAvailable` to `TransactionMeta`, set from simulation and refreshed on approval when simulation is enabled ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+- Add optional `isGasFeeSponsored` to `PublishHookResult` and the `onPublish` callback of existing batch transactions ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+
 ### Changed
+
+- **BREAKING:** Gas fee sponsorship no longer controls signing or publication ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+  - `TransactionMeta.isGasFeeSponsored` is now set once when the transaction is published, from the `isGasFeeSponsored` value returned by the publish hook. Simulation no longer sets it.
+  - Replace `isGasFeeSponsored` in `addTransaction` and `addTransactionBatch` options with `forceIsGasFeeSponsored`, and decide sponsorship in client hooks.
+  - Nonce reservation now happens after `beforeSign` and the gas fee token check, and only when signing locally. Existing nonces are kept when local signing is skipped.
+- **BREAKING:** `hooks` is now optional in `TransactionControllerOptions` and `hooks.publish` uses the `PublishHook` type ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+
+### Removed
+
+- **BREAKING:** Remove `isExternalSign` from `TransactionMeta` ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+  - Use the `shouldSign` hook to skip local signing.
 
 - Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
