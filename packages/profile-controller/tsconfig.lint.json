@@ -22,6 +22,9 @@
     },
     {
       "path": "../react-data-query/tsconfig.lint.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.lint.json"
     }
   ]
 }

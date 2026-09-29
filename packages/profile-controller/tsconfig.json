@@ -18,6 +18,9 @@
     },
     {
       "path": "../react-data-query/tsconfig.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.json"
     }
   ],
   "include": ["../../types", "./src"]
