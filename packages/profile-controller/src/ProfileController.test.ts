@@ -13,6 +13,10 @@ import {
   ProfileController,
   getDefaultProfileControllerState,
 } from './ProfileController.js';
+import type {
+  CreateProfileParams,
+  ReplaceProfileParams,
+} from './ProfileService.js';
 
 const controllerName = 'ProfileController';
 
@@ -193,6 +197,12 @@ describe('ProfileController', () => {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       });
 
       expect(controller.getProfile()).toStrictEqual(mockMappedProfile);
@@ -233,10 +243,16 @@ describe('ProfileController', () => {
         createProfileMock,
       );
 
-      const input = {
+      const input: CreateProfileParams = {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       };
       const { controller } = createController({ rootMessenger });
       await controller.createProfile(input);
@@ -258,6 +274,12 @@ describe('ProfileController', () => {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       });
 
       expect(controller.state.profile.bio).toBe('');
@@ -278,6 +300,12 @@ describe('ProfileController', () => {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       });
 
       expect(controller.state.profile.avatarUrl).toBe('');
@@ -298,6 +326,12 @@ describe('ProfileController', () => {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       });
 
       expect(controller.state.profile.connectedToX).toBe(true);
@@ -319,6 +353,12 @@ describe('ProfileController', () => {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       });
 
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
@@ -338,6 +378,12 @@ describe('ProfileController', () => {
         profile_id: 'canonical-123',
         username: 'alice',
         display_name: 'Alice Wonderland',
+        linked_addresses: [
+          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+        ],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       });
 
       expect(controller.state.profile).toStrictEqual(mockMappedProfile);
@@ -356,10 +402,13 @@ describe('ProfileController', () => {
         replaceProfileMock,
       );
 
-      const input = {
+      const input: ReplaceProfileParams = {
         username: 'alice2',
         display_name: 'Alice 2',
         linked_addresses: ['eip155:1:0xabc'],
+        trading_privacy: 'public',
+        bio: 'MetaMask user',
+        avatar_url: 'https://example.com/avatar.png',
       };
       const { controller } = createController({
         rootMessenger,
@@ -383,7 +432,12 @@ describe('ProfileController', () => {
         controller.replaceProfile({
           username: 'alice2',
           display_name: 'Alice 2',
-          linked_addresses: [],
+          linked_addresses: [
+            'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+          ],
+          trading_privacy: 'public',
+          bio: 'MetaMask user',
+          avatar_url: 'https://example.com/avatar.png',
         }),
       ).rejects.toThrow('ProfileController: no profile found in state');
     });
