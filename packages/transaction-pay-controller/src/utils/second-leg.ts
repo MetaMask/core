@@ -13,6 +13,7 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../types.js';
+import { withChompRecovery } from './chomp.js';
 import { prefixError } from './error-prefix.js';
 import { getNetworkClientId } from './provider.js';
 import {
@@ -26,18 +27,6 @@ import {
 const log = createModuleLogger(projectLogger, 'second-leg');
 
 export const SECOND_LEG_ERROR_PREFIX = 'Second leg: ';
-
-/**
- * Hook invoked when the second-leg batch submission fails, letting callers
- * recover when an external actor has already performed the equivalent work
- * (e.g. an automated vaulting service winning the race).
- *
- * Return a transaction hash to treat the second leg as satisfied, or
- * `undefined` to surface the original error.
- */
-export type SecondLegErrorRecovery = (
-  error: unknown,
-) => Promise<Hex | undefined>;
 
 /**
  * Resolves the account the transaction's own calls execute from, when it
@@ -258,20 +247,22 @@ export async function resolveSecondLegCalls({
  * Submits the second leg of a non-atomic flow: the calls that the quote could
  * not execute itself, run on the target chain once the first leg has settled.
  *
- * Provider-agnostic — the caller decides the chain, the submitting account, the
- * calls, and whether gas is sponsored.
+ * The single entrypoint for every strategy. The caller decides the chain, the
+ * submitting account, the calls, and whether gas is sponsored, while
+ * transaction-type-specific handling (e.g. {@link withChompRecovery}) is
+ * applied here so it holds whichever strategy settled the funds.
  *
  * @param options - Submit options.
  * @param options.calls - Pre-built batch. Derived from the parent transaction's
  * nested calls when omitted.
  * @param options.chainId - Chain to submit the batch on.
- * @param options.errorPrefix - Prefix applied to submission errors.
  * @param options.from - Account submitting the batch, which must hold the
  * settled funds.
+ * @param options.fromBlock - Block at or after which the funds settled. Lets
+ * type-specific handling detect work already done by external actors (e.g.
+ * CHOMP auto-vaulting a Money Account deposit).
  * @param options.messenger - Controller messenger.
  * @param options.note - Note recorded against the parent transaction update.
- * @param options.onError - Optional recovery hook, see
- * {@link SecondLegErrorRecovery}.
  * @param options.sourceAmountRaw - Settled amount in raw units.
  * @param options.sponsored - Whether gas is sponsored. Defaults to `true`,
  * since second legs run on chains where MetaMask sponsors gas; submission
@@ -282,28 +273,26 @@ export async function resolveSecondLegCalls({
 export async function submitSecondLeg({
   calls,
   chainId,
-  errorPrefix = SECOND_LEG_ERROR_PREFIX,
   from,
+  fromBlock,
   messenger,
   note,
-  onError,
   sourceAmountRaw,
   sponsored = true,
   transaction,
 }: {
   calls?: BatchTransactionParams[];
   chainId: Hex;
-  errorPrefix?: string;
   from: Hex;
+  fromBlock?: Hex;
   messenger: TransactionPayControllerMessenger;
   note?: string;
-  onError?: SecondLegErrorRecovery;
   sourceAmountRaw: string;
   sponsored?: boolean;
   transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
-  const transactionId = transaction.id;
-
+  // Resolved up front so the parent transaction reflects the settled amount
+  // even when type-specific handling short-circuits the submission.
   const nestedTransactions = await resolveSecondLegCalls({
     calls,
     messenger,
@@ -312,6 +301,57 @@ export async function submitSecondLeg({
     transaction,
   });
 
+  try {
+    return await withChompRecovery(
+      { from, fromBlock, messenger, sourceAmountRaw, transaction },
+      async () =>
+        await submitBatch({
+          chainId,
+          from,
+          messenger,
+          nestedTransactions,
+          sourceAmountRaw,
+          sponsored,
+          transaction,
+        }),
+    );
+  } catch (error) {
+    throw prefixError(error, SECOND_LEG_ERROR_PREFIX);
+  }
+}
+
+/**
+ * Submits the second-leg batch and waits for every child transaction to
+ * confirm.
+ *
+ * @param options - Submit options.
+ * @param options.chainId - Chain to submit the batch on.
+ * @param options.from - Account submitting the batch.
+ * @param options.messenger - Controller messenger.
+ * @param options.nestedTransactions - Calls to submit.
+ * @param options.sourceAmountRaw - Settled amount in raw units, for logging.
+ * @param options.sponsored - Whether gas is sponsored.
+ * @param options.transaction - Parent transaction meta.
+ * @returns Hash of the final submitted child transaction.
+ */
+async function submitBatch({
+  chainId,
+  from,
+  messenger,
+  nestedTransactions,
+  sourceAmountRaw,
+  sponsored,
+  transaction,
+}: {
+  chainId: Hex;
+  from: Hex;
+  messenger: TransactionPayControllerMessenger;
+  nestedTransactions: NestedTransactionMetadata[];
+  sourceAmountRaw: string;
+  sponsored: boolean;
+  transaction: TransactionMeta;
+}): Promise<{ transactionHash: Hex }> {
+  const transactionId = transaction.id;
   const networkClientId = getNetworkClientId(messenger, chainId);
   const transactionIds: string[] = [];
 
@@ -366,14 +406,6 @@ export async function submitSecondLeg({
             : TransactionType.contractInteraction,
       })),
     });
-  } catch (error) {
-    const recoveredHash = await onError?.(error);
-
-    if (recoveredHash) {
-      return { transactionHash: recoveredHash };
-    }
-
-    throw prefixError(error, errorPrefix);
   } finally {
     end();
   }

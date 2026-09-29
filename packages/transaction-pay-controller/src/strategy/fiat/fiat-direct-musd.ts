@@ -17,7 +17,7 @@ import type {
 } from '../../types.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import { getFiatVaultDisabled } from '../../utils/feature-flags.js';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
@@ -135,6 +135,7 @@ export async function submitDirectMusdAfterFiatCompletion({
   request: PayStrategyExecuteRequest<FiatQuote>;
 }): Promise<{ transactionHash?: Hex }> {
   const { messenger, transaction } = request;
+  const moneyAccountAddress = transaction.txParams.from as Hex;
 
   try {
     validateOrderAsset({
@@ -148,15 +149,28 @@ export async function submitDirectMusdAfterFiatCompletion({
         messenger,
         order,
         fiatAsset: MUSD_MONAD_FIAT_ASSET,
-        walletAddress: transaction.txParams.from as Hex,
+        walletAddress: moneyAccountAddress,
       });
 
-    return await submitMoneyAccountVaultDeposit({
+    // Kill switch: leave the on-ramped mUSD in the Money Account rather than
+    // depositing it into the vault.
+    if (getFiatVaultDisabled(messenger)) {
+      log('Skipping vault deposit because the fiat vault is disabled', {
+        moneyAccountAddress,
+        sourceAmountRaw,
+        transactionId: transaction.id,
+      });
+
+      return { transactionHash: '0x' };
+    }
+
+    return await submitSecondLeg({
+      chainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      from: moneyAccountAddress,
       fromBlock,
       messenger,
       sourceAmountRaw,
       transaction,
-      vaultDisabled: getFiatVaultDisabled(messenger),
     });
   } catch (error) {
     throw prefixError(error, DIRECT_MUSD_ERROR_PREFIX);

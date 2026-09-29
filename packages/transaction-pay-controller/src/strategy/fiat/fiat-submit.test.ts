@@ -1111,7 +1111,11 @@ describe('submitFiatQuotes', () => {
       id: TRANSACTION_ID_MOCK,
       nestedTransactions: [
         { data: '0xoldApprove', to: '0xapprove' },
-        { data: '0xoldDeposit', to: '0xdeposit' },
+        {
+          data: '0xoldDeposit',
+          to: '0xdeposit',
+          type: TransactionType.moneyAccountDeposit,
+        },
       ],
       txParams: { from: MONEY_ACCOUNT_ADDRESS },
       type: 'batch',
@@ -1198,7 +1202,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Money Account vault deposit: update vault amount',
+          note: 'Second leg: update amount',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1257,7 +1261,7 @@ describe('submitFiatQuotes', () => {
       });
 
       await expect(submitFiatQuotes(request)).rejects.toThrow(
-        'Post-Ramp: Direct mUSD: Missing transaction hash',
+        'Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
       );
     });
 
@@ -1322,7 +1326,7 @@ describe('submitFiatQuotes', () => {
       });
 
       await expect(submitFiatQuotes(request)).rejects.toThrow(
-        'Post-Ramp: Direct mUSD: Vault: batch failed',
+        'Post-Ramp: Direct mUSD: Second leg: Vault: batch failed',
       );
     });
 
