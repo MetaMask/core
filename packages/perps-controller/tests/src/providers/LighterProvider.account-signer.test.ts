@@ -17,11 +17,12 @@ import {
   OTHER_MAIN_ADDRESS,
 } from '../../helpers/agentFixtures.js';
 import {
-  createKeyringMessenger,
   createKeyringlessMessenger,
+  createKeyringMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
   keyringCalls,
+  NOW,
 } from '../../helpers/serviceMocks.js';
 
 // The wallet service stays real. The venue REST client and the WASM signer
@@ -40,8 +41,6 @@ const MockedClientService = LighterClientService as jest.MockedClass<
 const ACCOUNT_INDEX = 28;
 const API_KEY_INDEX = 7;
 const NEXT_NONCE = 42;
-// A fixed clock, so the signed transaction is deterministic.
-const NOW = 1_700_000_000_000;
 // Expiry of the mocked signed transaction; only needs to be in the future.
 const TX_EXPIRY_MS = 9 * 60 * 1000;
 const CHANGE_PUB_KEY_BODY =

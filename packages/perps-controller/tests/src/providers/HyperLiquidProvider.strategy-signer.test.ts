@@ -10,6 +10,7 @@ import {
   unknownWalletError,
 } from '../../helpers/agentFixtures.js';
 import {
+  CANCEL_DELIVERIES,
   NOW,
   RESTING_ORDER_ID,
   cancelStatusesResponse,
@@ -325,9 +326,9 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
         },
       );
 
-      it.each(['returned', 'thrown'] as const)(
-        'keeps only the rungs a cancel by client order ID left resting when the venue cancels one and rejects the agent on the other (%s by the SDK)',
-        async (delivery) => {
+      it.each(CANCEL_DELIVERIES)(
+        'keeps only the rungs a cancel by client order ID left resting when the venue cancels one and rejects the agent on the other ($label)',
+        async ({ delivery }) => {
           const {
             provider,
             order,

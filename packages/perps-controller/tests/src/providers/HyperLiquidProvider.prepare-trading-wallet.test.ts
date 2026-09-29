@@ -454,22 +454,42 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(loggerError).not.toHaveBeenCalled();
     });
 
-    it('reports a preparation whose account was switched meanwhile as stale, without logging', async () => {
-      const { accountSignerProvider, infoClient, selectAccount } =
-        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
-      infoClient.maxBuilderFee.mockImplementation(async () => {
-        selectAccount(OTHER_MAIN_ADDRESS);
-        return 1;
-      });
+    it.each([
+      {
+        change: 'switched',
+        changeAccount: ({
+          selectAccount,
+        }: ReturnType<typeof createAccountSignerProvider>): void =>
+          selectAccount(OTHER_MAIN_ADDRESS),
+      },
+      {
+        change: 'deselected',
+        changeAccount: ({
+          deselectAccount,
+        }: ReturnType<typeof createAccountSignerProvider>): void =>
+          deselectAccount(),
+      },
+    ])(
+      'reports a preparation whose account was $change meanwhile as stale, without logging',
+      async ({ changeAccount }) => {
+        const fixture = createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+        });
+        fixture.infoClient.maxBuilderFee.mockImplementation(async () => {
+          changeAccount(fixture);
+          return 1;
+        });
 
-      const result = await accountSignerProvider.prepareTradingWallet();
+        const result =
+          await fixture.accountSignerProvider.prepareTradingWallet();
 
-      expect(result).toStrictEqual({
-        ready: false,
-        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-      });
-      expect(loggerError).not.toHaveBeenCalled();
-    });
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        });
+        expect(loggerError).not.toHaveBeenCalled();
+      },
+    );
 
     it('signs the migration at connect and the referral in preparation through the keyring without accountSigner', async () => {
       const { accountSignerProvider, call, exchangeClient } =

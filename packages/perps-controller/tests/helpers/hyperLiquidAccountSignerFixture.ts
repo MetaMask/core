@@ -72,7 +72,7 @@ const MockedHyperLiquidSubscriptionService =
   >;
 
 // A fixed clock for cache timestamps.
-export const NOW = 1_700_000_000_000;
+export { NOW } from './serviceMocks.js';
 
 // The ID of every order the mocked exchange places.
 export const RESTING_ORDER_ID = 123;
@@ -103,13 +103,20 @@ export const BUILDER_FEE_WRITE = [
   },
 ];
 
+// The two ways a cancel response reaches the provider, for it.each.
+export const CANCEL_DELIVERIES = [
+  { delivery: 'thrown', label: 'thrown by the SDK' },
+  { delivery: 'returned', label: 'returned, which the SDK does not do' },
+] as const;
+
 /**
- * A cancel the venue answered with one status per entry, handed over the way
- * the SDK does: returned, or thrown as the `ApiRequestError` it raises when an
- * entry failed, whose message names the failed entries.
+ * A cancel the venue answered with one status per entry. The SDK (0.33.1)
+ * throws it as an `ApiRequestError` whenever an entry has an error, with a
+ * `cancel N: <error>` message per failed entry; `returned` hands the same
+ * response back instead, which the provider still accepts defensively.
  *
  * @param statuses - The entries' statuses.
- * @param delivery - Whether the SDK returns the response or throws it.
+ * @param delivery - Whether the SDK throws the response or returns it.
  * @returns The response, when it is returned.
  */
 export function cancelStatusesResponse(
@@ -125,12 +132,10 @@ export function cancelStatusesResponse(
   }
   const failures = statuses.flatMap((status, index) =>
     typeof status === 'object' && status !== null && 'error' in status
-      ? [`Order ${index}: ${String(status.error)}`]
+      ? [`cancel ${index}: ${String(status.error)}`]
       : [],
   );
-  const error = new HyperliquidError(
-    `Cannot process API request: ${failures.join(', ')}`,
-  );
+  const error = new HyperliquidError(failures.join(', '));
   error.name = 'ApiRequestError';
   throw Object.assign(error, { response });
 }

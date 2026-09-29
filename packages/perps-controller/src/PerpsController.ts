@@ -5958,6 +5958,14 @@ export class PerpsController extends BaseController<
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     const provider = await this.#getActiveProviderWhenReady();
+    // With nothing selected, the AccountsController answers an empty account.
+    const readSelectedAddress = (): string | undefined => {
+      const address = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      )?.address;
+      return address ? address.toLowerCase() : undefined;
+    };
+    const addressAtStart = readSelectedAddress();
     const result = (await provider.prepareTradingWallet?.()) ?? {
       ready: true,
     };
@@ -5974,9 +5982,17 @@ export class PerpsController extends BaseController<
     ) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
-    // With nothing selected, the AccountsController answers an empty account.
-    if (!getSelectedEvmAccountFromMessenger(this.messenger)?.address) {
+    const address = readSelectedAddress();
+    if (!address && !addressAtStart) {
       return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
+    }
+    // The steps ran for the account selected when they started (in aggregated
+    // mode, one provider after another).
+    if (address !== addressAtStart) {
+      return {
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      };
     }
     return result;
   }

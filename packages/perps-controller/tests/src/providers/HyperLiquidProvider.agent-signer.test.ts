@@ -452,7 +452,7 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
       ]);
     });
 
-    it('asks getAgentSigner again once the bindings are cleared', async () => {
+    it('asks getAgentSigner, instead of keeping the main-account pin, once the bindings are cleared', async () => {
       const getAgentSigner = jest.fn();
       const bindings = new AgentBindings(getAgentSigner);
       const { accountSignerProvider, accountSigner, agentSigner, sdkWallet } =

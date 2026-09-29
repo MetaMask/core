@@ -2265,11 +2265,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
    */
   #classifySignerFailure(error: unknown): Error | undefined {
-    if (!this.#isSignerFailure(error)) {
-      return undefined;
-    }
-    this.#evictRejectedAgent(error);
-    return new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    const rejectedAgent = this.#evictRejectedAgent(error);
+    return rejectedAgent ||
+      isKeyringLockedError(error) ||
+      isAgentSignerUnavailableError(error)
+      ? new Error(PERPS_ERROR_CODES.KEYRING_LOCKED)
+      : undefined;
   }
 
   /**
@@ -5306,6 +5307,14 @@ export class HyperLiquidProvider implements PerpsProvider {
             amount: excessAmount.toFixed(USDC_DECIMALS),
           });
           if (!transferResult.success) {
+            // The signer could not sign the transfer: retryable, not a defect.
+            if (transferResult.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+              this.#deps.debugLogger.log(
+                'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX',
+                { dex: dexName, excessAmount: excessAmount.toFixed(2) },
+              );
+              return false;
+            }
             throw new Error(
               transferResult.error ?? PERPS_ERROR_CODES.TRANSFER_FAILED,
             );
@@ -5400,6 +5409,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           {
             amount: transferInfo.amount.toFixed(USDC_DECIMALS),
             returnedTo: transferInfo.sourceDex || 'main',
+          },
+        );
+      } else if (rollbackResult.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+        // The signer could not sign the transfer: retryable, not a defect.
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX',
+          {
+            dex: dexName,
+            amount: transferInfo.amount.toFixed(USDC_DECIMALS),
           },
         );
       } else {
@@ -14650,9 +14668,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           lifecycleGeneration,
           'Trading wallet preparation',
         );
-        const currentAddress =
-          await this.#walletService.getUserAddressWithDefault();
-        if (currentAddress.toLowerCase() !== userAddress.toLowerCase()) {
+        // A deselected account changed too.
+        const currentAddress = await this.#walletService
+          .getUserAddressWithDefault()
+          .catch(() => undefined);
+        if (currentAddress?.toLowerCase() !== userAddress.toLowerCase()) {
           throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
         }
       };

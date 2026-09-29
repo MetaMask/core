@@ -6,18 +6,15 @@ import {
 import type { PerpsAgentAccount } from '../../../src/types/index.js';
 import {
   AGENT_ADDRESS,
+  MAINNET_ACCOUNT,
   OTHER_AGENT_ADDRESS,
   OTHER_MAIN_ADDRESS,
   sdkSigningError,
+  TESTNET_ACCOUNT,
 } from '../../helpers/agentFixtures.js';
-import { createMockEvmAccount } from '../../helpers/serviceMocks.js';
 
-const ACCOUNT: PerpsAgentAccount = {
-  mainAddress: createMockEvmAccount().address,
-  isTestnet: false,
-};
 // The same main account, spelled in upper case.
-const UPPER_CASE_MAIN_ADDRESS = `0x${ACCOUNT.mainAddress
+const UPPER_CASE_MAIN_ADDRESS = `0x${MAINNET_ACCOUNT.mainAddress
   .slice(2)
   .toUpperCase()}` as const;
 const AGENT = {
@@ -29,26 +26,25 @@ describe('AgentBindings', () => {
   it('resolves no agent without getAgentSigner or a binding', async () => {
     const bindings = new AgentBindings(undefined);
 
-    expect(await bindings.resolve(ACCOUNT)).toBeNull();
+    expect(await bindings.resolve(MAINNET_ACCOUNT)).toBeNull();
   });
 
   it('answers with a binding for its account and network only, and asks getAgentSigner for the others', async () => {
     const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
     const otherAccount: PerpsAgentAccount = {
-      ...ACCOUNT,
+      ...MAINNET_ACCOUNT,
       mainAddress: OTHER_MAIN_ADDRESS,
     };
-    const testnetAccount: PerpsAgentAccount = { ...ACCOUNT, isTestnet: true };
 
-    bindings.set(ACCOUNT, AGENT);
+    bindings.set(MAINNET_ACCOUNT, AGENT);
 
-    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
+    expect(await bindings.resolve(MAINNET_ACCOUNT)).toBe(AGENT);
     expect(await bindings.resolve(otherAccount)).toBeNull();
-    expect(await bindings.resolve(testnetAccount)).toBeNull();
+    expect(await bindings.resolve(TESTNET_ACCOUNT)).toBeNull();
     expect(getAgentSigner.mock.calls).toStrictEqual([
       [otherAccount],
-      [testnetAccount],
+      [TESTNET_ACCOUNT],
     ]);
   });
 
@@ -56,11 +52,11 @@ describe('AgentBindings', () => {
     const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
 
-    bindings.set(ACCOUNT, AGENT);
+    bindings.set(MAINNET_ACCOUNT, AGENT);
 
     expect(
       await bindings.resolve({
-        ...ACCOUNT,
+        ...MAINNET_ACCOUNT,
         mainAddress: UPPER_CASE_MAIN_ADDRESS,
       }),
     ).toBe(AGENT);
@@ -71,19 +67,19 @@ describe('AgentBindings', () => {
     const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
     const otherAccount: PerpsAgentAccount = {
-      ...ACCOUNT,
+      ...MAINNET_ACCOUNT,
       mainAddress: OTHER_MAIN_ADDRESS,
     };
-    bindings.set(ACCOUNT, null);
+    bindings.set(MAINNET_ACCOUNT, null);
     bindings.set(otherAccount, AGENT);
 
     bindings.clear();
 
-    expect(await bindings.resolve(ACCOUNT)).toBeNull();
+    expect(await bindings.resolve(MAINNET_ACCOUNT)).toBeNull();
     expect(await bindings.resolve(otherAccount)).toBeNull();
     // Both now fall through to the host.
     expect(getAgentSigner.mock.calls).toStrictEqual([
-      [ACCOUNT],
+      [MAINNET_ACCOUNT],
       [otherAccount],
     ]);
   });
@@ -91,43 +87,41 @@ describe('AgentBindings', () => {
   it('releases a binding to the rejected agent whatever the address casing', async () => {
     const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
-    bindings.set(ACCOUNT, AGENT);
+    bindings.set(MAINNET_ACCOUNT, AGENT);
 
     bindings.release(
-      { ...ACCOUNT, mainAddress: UPPER_CASE_MAIN_ADDRESS },
+      { ...MAINNET_ACCOUNT, mainAddress: UPPER_CASE_MAIN_ADDRESS },
       AGENT.address.toUpperCase().replace('0X', '0x'),
     );
 
-    expect(await bindings.resolve(ACCOUNT)).toBeNull();
-    expect(getAgentSigner.mock.calls).toStrictEqual([[ACCOUNT]]);
+    expect(await bindings.resolve(MAINNET_ACCOUNT)).toBeNull();
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
   });
 
   it("releases only the rejecting account's binding to the agent", async () => {
     const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
-    const testnetAccount: PerpsAgentAccount = { ...ACCOUNT, isTestnet: true };
-    bindings.set(ACCOUNT, AGENT);
-    bindings.set(testnetAccount, AGENT);
+    bindings.set(MAINNET_ACCOUNT, AGENT);
+    bindings.set(TESTNET_ACCOUNT, AGENT);
 
-    bindings.release(testnetAccount, AGENT.address);
+    bindings.release(TESTNET_ACCOUNT, AGENT.address);
 
-    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
-    expect(await bindings.resolve(testnetAccount)).toBeNull();
-    expect(getAgentSigner.mock.calls).toStrictEqual([[testnetAccount]]);
+    expect(await bindings.resolve(MAINNET_ACCOUNT)).toBe(AGENT);
+    expect(await bindings.resolve(TESTNET_ACCOUNT)).toBeNull();
+    expect(getAgentSigner.mock.calls).toStrictEqual([[TESTNET_ACCOUNT]]);
   });
 
   it('keeps a binding to another agent and a pin when an agent is rejected', async () => {
     const getAgentSigner = jest.fn().mockResolvedValue(AGENT);
     const bindings = new AgentBindings(getAgentSigner);
-    const otherAccount: PerpsAgentAccount = { ...ACCOUNT, isTestnet: true };
-    bindings.set(ACCOUNT, AGENT);
-    bindings.set(otherAccount, null);
+    bindings.set(MAINNET_ACCOUNT, AGENT);
+    bindings.set(TESTNET_ACCOUNT, null);
 
-    bindings.release(ACCOUNT, OTHER_AGENT_ADDRESS);
-    bindings.release(otherAccount, AGENT.address);
+    bindings.release(MAINNET_ACCOUNT, OTHER_AGENT_ADDRESS);
+    bindings.release(TESTNET_ACCOUNT, AGENT.address);
 
-    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
-    expect(await bindings.resolve(otherAccount)).toBeNull();
+    expect(await bindings.resolve(MAINNET_ACCOUNT)).toBe(AGENT);
+    expect(await bindings.resolve(TESTNET_ACCOUNT)).toBeNull();
     expect(getAgentSigner).not.toHaveBeenCalled();
   });
 });

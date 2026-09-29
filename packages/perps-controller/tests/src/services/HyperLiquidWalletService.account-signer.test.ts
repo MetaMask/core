@@ -110,11 +110,9 @@ describe('HyperLiquidWalletService with accountSigner', () => {
       .signTypedData(L1_PAYLOAD)
       .catch((caught: unknown) => caught);
 
-    // Jest's Error equality ignores `cause`, so match both fields.
-    expect(error).toMatchObject({
-      message: PERPS_ERROR_CODES.KEYRING_LOCKED,
-      cause: hostError,
-    });
+    expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
+    // Jest's Error equality ignores `cause`, so check it by identity.
+    expect((error as Error).cause).toBe(hostError);
   });
 
   it('reports ready when isReady is omitted', () => {

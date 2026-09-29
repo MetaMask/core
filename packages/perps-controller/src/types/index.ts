@@ -1126,10 +1126,10 @@ export type HyperLiquidCredentials = {
    * `setAgentSigner`/`clearAgentSigners`; null is not kept, so it is asked
    * again at the next L1 action. With an agent, L1 actions are signed by the
    * agent key and user-signed actions (builder fee, withdraw, ...) by the main
-   * account. A rejection fails that action and is asked again at the next
-   * one. An agent whose `signTypedData` rejects fails that action and stays
-   * in use, so call `PerpsController:clearAgentSigners` when the agent key
-   * locks.
+   * account. If `getAgentSigner` rejects or throws, that action fails and it
+   * is asked again at the next one. An agent whose `signTypedData` rejects
+   * fails that action and stays in use, so call
+   * `PerpsController:clearAgentSigners` when the agent key locks.
    */
   getAgentSigner?: (
     account: PerpsAgentAccount,

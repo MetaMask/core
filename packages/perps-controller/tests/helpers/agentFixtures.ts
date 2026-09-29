@@ -32,6 +32,12 @@ export const MAINNET_ACCOUNT: PerpsAgentAccount = {
   isTestnet: false,
 };
 
+/** The main account on testnet. */
+export const TESTNET_ACCOUNT: PerpsAgentAccount = {
+  mainAddress: MAIN_ADDRESS,
+  isTestnet: true,
+};
+
 /** A second main account, for account-switch and scoping cases. */
 export const OTHER_MAIN_ADDRESS =
   '0x00000000000000000000000000000000000b0b01' as const;

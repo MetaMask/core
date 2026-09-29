@@ -32,6 +32,7 @@ import {
   OTHER_AGENT_ADDRESS,
   OTHER_AGENT_SIGNATURE,
   signThroughWallet,
+  TESTNET_ACCOUNT,
   unknownWalletError,
   USER_SIGNED_PAYLOAD,
 } from '../helpers/agentFixtures.js';
@@ -573,7 +574,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
     expectHostSaw(call, {
-      agentRequests: [{ ...MAINNET_ACCOUNT, isTestnet: true }],
+      agentRequests: [TESTNET_ACCOUNT],
     });
   });
 

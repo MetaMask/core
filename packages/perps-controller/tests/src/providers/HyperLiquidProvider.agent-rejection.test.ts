@@ -19,6 +19,7 @@ import {
 } from '../../helpers/agentFixtures.js';
 import {
   BTC_MARKET_ORDER,
+  CANCEL_DELIVERIES,
   REFERRAL_WRITE,
   RESTING_ORDER_ID,
   SILENT_MIGRATION_WRITE,
@@ -250,9 +251,9 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(loggerError).not.toHaveBeenCalled();
       });
 
-      it.each(['returned', 'thrown'] as const)(
-        'keeps the entries of a batch cancel that succeeded when another reports a rejected agent (%s by the SDK)',
-        async (delivery) => {
+      it.each(CANCEL_DELIVERIES)(
+        'keeps the entries of a batch cancel that succeeded when another reports a rejected agent ($label)',
+        async ({ delivery }) => {
           const {
             accountSignerProvider,
             exchangeClient,
@@ -473,47 +474,62 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(loggerError).not.toHaveBeenCalled();
       });
 
-      it('fails only the batch cancel entries that name the rejected agent with KEYRING_LOCKED, and maps the others', async () => {
-        const { accountSignerProvider, exchangeClient, sdkWallet } =
-          createRejectingProvider('cancel');
-        await accountSignerProvider.getMarketDataWithPrices();
-        const wallet = sdkWallet();
-        exchangeClient.cancel.mockImplementation(async () => {
-          await wallet.signTypedData(L1_PAYLOAD);
-          return cancelStatusesResponse(
-            [
-              { error: unknownWalletError(AGENT_ADDRESS).message },
-              { error: 'multi-sig required' },
+      it.each(CANCEL_DELIVERIES)(
+        'fails only the batch cancel entries that name the rejected agent with KEYRING_LOCKED, and maps the others ($label)',
+        async ({ delivery }) => {
+          const {
+            accountSignerProvider,
+            exchangeClient,
+            sdkWallet,
+            onAgentRejected,
+          } = createRejectingProvider('cancel');
+          await accountSignerProvider.getMarketDataWithPrices();
+          const wallet = sdkWallet();
+          exchangeClient.cancel.mockImplementation(async () => {
+            await wallet.signTypedData(L1_PAYLOAD);
+            return cancelStatusesResponse(
+              [
+                { error: unknownWalletError(AGENT_ADDRESS).message },
+                { error: 'multi-sig required' },
+              ],
+              delivery,
+            );
+          });
+
+          const result = await accountSignerProvider.cancelOrders([
+            { orderId: '123', symbol: 'BTC' },
+            { orderId: '124', symbol: 'BTC' },
+          ]);
+
+          expect(result).toStrictEqual({
+            success: false,
+            successCount: 0,
+            failureCount: 2,
+            results: [
+              {
+                orderId: '123',
+                symbol: 'BTC',
+                success: false,
+                error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              },
+              {
+                orderId: '124',
+                symbol: 'BTC',
+                success: false,
+                error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+              },
             ],
-            'thrown',
-          );
-        });
+          });
+          expect(onAgentRejected.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          ]);
+          expect(loggerError).not.toHaveBeenCalled();
+        },
+      );
 
-        const result = await accountSignerProvider.cancelOrders([
-          { orderId: '123', symbol: 'BTC' },
-          { orderId: '124', symbol: 'BTC' },
-        ]);
-
-        expect(result.results).toStrictEqual([
-          {
-            orderId: '123',
-            symbol: 'BTC',
-            success: false,
-            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-          },
-          {
-            orderId: '124',
-            symbol: 'BTC',
-            success: false,
-            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
-          },
-        ]);
-        expect(loggerError).not.toHaveBeenCalled();
-      });
-
-      it.each(['returned', 'thrown'] as const)(
-        'restores the leg it cancelled and fails with KEYRING_LOCKED when the venue cancels one leg and rejects the agent on the other (%s by the SDK)',
-        async (delivery) => {
+      it.each(CANCEL_DELIVERIES)(
+        'restores the leg it cancelled and fails with KEYRING_LOCKED when the venue cancels one leg and rejects the agent on the other ($label)',
+        async ({ delivery }) => {
           const STOP_LOSS_ORDER = createFrontendOpenOrder({
             side: 'A',
             limitPx: '42000',
@@ -614,6 +630,72 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         },
       );
 
+      it('reports the protection lost, without logging, when the leg the venue cancelled cannot be restored after the other names the rejected agent', async () => {
+        const STOP_LOSS_ORDER = createFrontendOpenOrder({
+          side: 'A',
+          limitPx: '42000',
+          oid: 457,
+          orderType: 'Stop Market',
+          tif: null,
+          isTrigger: true,
+          triggerPx: '42000',
+          triggerCondition: 'Price below 42000',
+          reduceOnly: true,
+          isPositionTpsl: true,
+        });
+        const {
+          accountSignerProvider,
+          exchangeClient,
+          infoClient,
+          sdkWallet,
+          onAgentRejected,
+        } = createRejectingProvider('cancel');
+        infoClient.frontendOpenOrders.mockResolvedValue([
+          TAKE_PROFIT_ORDER,
+          STOP_LOSS_ORDER,
+        ]);
+        await accountSignerProvider.getMarketDataWithPrices();
+        const wallet = sdkWallet();
+        exchangeClient.cancel.mockImplementation(async () => {
+          await wallet.signTypedData(L1_PAYLOAD);
+          return cancelStatusesResponse(
+            ['success', { error: unknownWalletError(AGENT_ADDRESS).message }],
+            'thrown',
+          );
+        });
+        // getAgentSigner answers the same agent, which the venue rejects again.
+        exchangeClient.order.mockImplementation(async () => {
+          await wallet.signTypedData(L1_PAYLOAD);
+          throw unknownWalletError(AGENT_ADDRESS);
+        });
+
+        const result = await accountSignerProvider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          stopLossPrice: '40000',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          childOrderIds: [String(STOP_LOSS_ORDER.oid)],
+        });
+        // Only the restoration of the cancelled take profit was attempted.
+        expect(
+          exchangeClient.order.mock.calls.map(
+            ([request]: [{ orders: { t: unknown }[] }]) =>
+              request.orders.map((order) => order.t),
+          ),
+        ).toStrictEqual([
+          [{ trigger: { isMarket: true, triggerPx: '58000', tpsl: 'tp' } }],
+        ]);
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+        expect(loggerError).not.toHaveBeenCalled();
+      });
+
       it('restores the cancelled protection with a new agent and fails with KEYRING_LOCKED when the replacement order is rejected', async () => {
         const {
           accountSignerProvider,
@@ -688,6 +770,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         const {
           accountSignerProvider,
           exchangeClient,
+          getAgentSigner,
           infoClient,
           sdkWallet,
           onAgentRejected,
@@ -710,8 +793,21 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
           childOrderIds: [],
         });
-        // The replacement and the restoration are both rejected.
-        expect(exchangeClient.order).toHaveBeenCalledTimes(2);
+        // The replacement and the restoration are both rejected: the agent is
+        // asked again after the first rejection and answers the same agent.
+        expect(
+          exchangeClient.order.mock.calls.map(
+            ([request]: [{ orders: { t: unknown }[] }]) =>
+              request.orders.map((order) => order.t),
+          ),
+        ).toStrictEqual([
+          [{ trigger: { isMarket: false, triggerPx: '60000', tpsl: 'tp' } }],
+          [{ trigger: { isMarket: true, triggerPx: '58000', tpsl: 'tp' } }],
+        ]);
+        expect(getAgentSigner.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT],
+          [MAINNET_ACCOUNT],
+        ]);
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1128,7 +1224,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           throw unknownWalletError(agentSigner.address);
         });
 
-        await accountSignerProvider.cancelOrder({
+        const result = await accountSignerProvider.cancelOrder({
           orderId: '123',
           symbol: 'BTC',
         });
@@ -1137,6 +1233,12 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         selectAccount(MAIN_ADDRESS);
         await wallet.signTypedData(L1_PAYLOAD);
 
+        expect(result).toStrictEqual({
+          success: false,
+          orderId: '123',
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(loggerError).not.toHaveBeenCalled();
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
         ]);
@@ -1229,30 +1331,33 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(referralAttempted()).toBe(false);
         expect(loggerError).not.toHaveBeenCalled();
       });
+    });
+  });
 
-      it('keeps treating a rejected main account as a wallet with no HyperLiquid account', async () => {
-        const getAgentSigner = jest.fn().mockResolvedValue(null);
-        const onAgentRejected = jest.fn();
-        const { accountSignerProvider, exchangeClient, sdkWallet } =
-          createAccountSignerProvider({
-            abstraction: 'unifiedAccount',
-            getAgentSigner,
-            onAgentRejected,
-          });
-        exchangeClient.order.mockImplementation(async () => {
-          await sdkWallet().signTypedData(L1_PAYLOAD);
-          throw unknownWalletError(MAIN_ADDRESS);
+  describe('without an agent', () => {
+    it('keeps treating a rejected main account as a wallet with no HyperLiquid account', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(null);
+      const onAgentRejected = jest.fn();
+      const { accountSignerProvider, exchangeClient, sdkWallet } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+          onAgentRejected,
         });
-        await accountSignerProvider.getMarketDataWithPrices();
-
-        const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
-
-        expect(order).toStrictEqual({
-          success: false,
-          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
-        });
-        expect(onAgentRejected).not.toHaveBeenCalled();
+      exchangeClient.order.mockImplementation(async () => {
+        await sdkWallet().signTypedData(L1_PAYLOAD);
+        throw unknownWalletError(MAIN_ADDRESS);
       });
+      await accountSignerProvider.getMarketDataWithPrices();
+
+      const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+
+      expect(order).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      });
+      expect(onAgentRejected).not.toHaveBeenCalled();
+      expect(loggerError).not.toHaveBeenCalled();
     });
   });
 });

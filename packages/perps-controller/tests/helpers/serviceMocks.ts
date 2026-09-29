@@ -18,6 +18,9 @@ import {
   type PerpsPlatformDependencies,
 } from '@metamask/perps-controller';
 
+/** A fixed clock, in milliseconds, for tests that pin `Date.now()`. */
+export const NOW = 1_700_000_000_000;
+
 export type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T | PromiseLike<T>) => void;

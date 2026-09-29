@@ -4306,9 +4306,7 @@ describe('HyperLiquidProvider', () => {
       it('keeps the orders the venue cancelled when the SDK throws for a failed entry', async () => {
         const statuses = ['success', { error: 'multi-sig required' }];
         const sdkError = Object.assign(
-          new HyperliquidError(
-            'Cannot process API request: Order 1: multi-sig required',
-          ),
+          new HyperliquidError('cancel 1: multi-sig required'),
           {
             name: 'ApiRequestError',
             response: {
