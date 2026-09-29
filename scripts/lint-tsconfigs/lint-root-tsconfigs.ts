@@ -4,7 +4,7 @@ import {
   lintTsconfigs,
   printReport,
   readTsconfig,
-} from './utils.mjs';
+} from './utils.ts';
 
 /**
  * Lints the root development, build, and lint TypeScript configs to ensure they

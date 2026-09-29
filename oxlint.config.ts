@@ -100,5 +100,22 @@ export default createConfig({
         'n/hashbang': 'off',
       },
     },
+
+    {
+      files: ['scripts/**/*.ts'],
+      rules: {
+        'import/extensions': [
+          'error',
+          'ignorePackages',
+          {
+            checkTypeImports: true,
+            pattern: {
+              ts: 'ignorePackages',
+              js: 'never',
+            },
+          },
+        ],
+      },
+    },
   ],
 });
