@@ -12,21 +12,14 @@ export type SnapBalanceRow = {
 export type StaleBalanceSnapState = {
   /** Asset IDs the snap lists for the account (`keyring_listAccountAssets`). */
   listedAssetIds: string[];
-  /**
-   * Balances the snap reports for asked-for assets
-   * (`keyring_getAccountBalances`). Assets that are asked for but not in
-   * this map are skipped by the snap — the ommissions the stale-balance
-   * scenarios are about.
-   */
+  /** Balances the snap reports (`keyring_getAccountBalances`); asked-for assets absent here are skipped. */
   balances: Record<string, SnapBalanceRow>;
   /** When set, every snap call rejects (the snap is unreachable). */
   failAll: boolean;
 };
 
 /**
- * Build a mutable, scenario-shaped keyring-snap response state. Tests
- * change fields between passes to move what the snap reports — or break
- * the snap entirely — without rebuilding the messenger actions.
+ * Build a mutable, scenario-shaped keyring-snap response state.
  *
  * @param partial - Initial state.
  * @returns The snap state with defaults filled in.
@@ -43,7 +36,7 @@ export function buildSnapState(
 }
 
 /**
- * Build the `SnapController:handleRequest` action handler for the solana
+ * Build the `SnapController:handleRequest` action handler for the Solana
  * keyring snap, from mutable state.
  *
  * @param state - The snap response state.
@@ -72,8 +65,7 @@ export function createSnapHandler(state: StaleBalanceSnapState) {
           state.balances as unknown as Record<string, Json> as Json,
         );
       }
-      // Only assets the snap actually reports are answered; the rest are
-      // skipped, exactly like a snap that omits assets it has no data for.
+      // Asked-for assets the snap has no data for are skipped, like a real snap.
       const answered = Object.fromEntries(
         requested
           .filter((assetId) => assetId in state.balances)

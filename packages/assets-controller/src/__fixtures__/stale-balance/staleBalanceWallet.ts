@@ -17,10 +17,7 @@ import {
 } from './wallet.js';
 
 /**
- * Build the BNB Chain `InternalAccount`.
- *
- * Scoped to BNB Chain only, so `accountsWithSupportedChains` resolves to the
- * one chain under test in the RPC fallback scenarios.
+ * Build the BNB Chain `InternalAccount`, scoped to BNB Chain only.
  *
  * @param overrides - Fields to override on the account.
  * @returns The internal account.
@@ -39,10 +36,7 @@ export function buildBscAccount(
 }
 
 /**
- * Build the mainnet `InternalAccount`.
- *
- * The same EOA as the BNB Chain account, scoped to mainnet and Hoodi — the
- * two chains with known staking contracts — for the staked ETH scenarios.
+ * Build the mainnet `InternalAccount`, scoped to mainnet and Hoodi.
  *
  * @param overrides - Fields to override on the account.
  * @returns The internal account.
@@ -61,11 +55,8 @@ export function buildMainnetAccount(
 }
 
 /**
- * Build the Solana `InternalAccount` owned by the keyring snap.
- *
- * The `metadata.snap.id` link is what routes the account to
- * `SnapDataSource`; the `snap` chain caveat (registered in the messenger
- * mocks) is what makes the snap claim the chain.
+ * Build the Solana `InternalAccount` owned by the keyring snap;
+ * `metadata.snap.id` routes it to `SnapDataSource`.
  *
  * @param overrides - Fields to override on the account.
  * @returns The internal account.
@@ -90,9 +81,7 @@ export function buildSolanaSnapAccount(
 }
 
 /**
- * All three accounts, as `AccountTreeController:getAccountsFromSelectedAccountGroup`
- * reports them. Scenarios pass the specific account they care about to
- * `getAssets`, but the subscription paths see all of them.
+ * All three accounts, as the selected account group reports them.
  *
  * @returns The accounts of the selected account group.
  */
@@ -101,8 +90,7 @@ export function buildStaleBalanceAccounts(): InternalAccount[] {
 }
 
 /**
- * A fresh wallet: no balances, metadata, prices or custom assets yet, so
- * the first pipeline pass sees every holding as newly detected.
+ * A fresh wallet: no balances, metadata, prices or custom assets yet.
  *
  * @param overrides - State slices to override.
  * @returns The starting state.
@@ -123,8 +111,7 @@ export function buildEmptyStaleBalanceState(
 
 /**
  * A fresh Solana wallet with USDC imported as a custom asset (the user's
- * "pin"): the snap never lists it, but the pin makes it visible so it is
- * always fetched and kept.
+ * pin).
  *
  * @param overrides - State slices to override.
  * @returns The starting state for the Solana scenarios.

@@ -37,10 +37,7 @@ import {
   SOLANA_SNAP_ID,
 } from './wallet.js';
 
-/**
- * The keyring and assets permissions that make the Solana snap a keyring
- * snap that claims the Solana chain.
- */
+/** Keyring and assets permissions that make the snap a keyring snap claiming the Solana chain. */
 const SOLANA_SNAP_PERMISSIONS = {
   'endowment:keyring': {
     id: 'mock-solana-keyring-permission-id',
@@ -59,9 +56,7 @@ const SOLANA_SNAP_PERMISSIONS = {
 } as const;
 
 /**
- * NetworkController state with BNB Chain, mainnet and Hoodi configured — the
- * three EVM chains the suite's wallet lives on. The providers behind the
- * network client IDs answer from the per-chain provider states.
+ * NetworkController state with BNB Chain, mainnet and Hoodi configured.
  *
  * @returns The network state.
  */
@@ -128,8 +123,7 @@ function buildStaleBalanceNetworkState(): NetworkState {
 }
 
 /**
- * Provider states for the suite's three EVM chains, ready to be mutated by a
- * scenario between pipeline passes.
+ * Provider states for the suite's three EVM chains, mutable between passes.
  *
  * @param overrides - Token balances / staking responses per chain.
  * @returns The per-chain provider states, keyed by network client ID.
@@ -162,8 +156,7 @@ export function buildStaleBalanceProviderStates(overrides: {
 
 /**
  * Register the NetworkController, NetworkEnablement and ConfigRegistry
- * action handlers for the suite's three EVM chains. Each chain's provider
- * answers from its (mutable) provider state.
+ * action handlers for the suite's three EVM chains.
  *
  * @param rootMessenger - The root messenger to register handlers on.
  * @param providerStates - Provider states keyed by network client ID, as
@@ -229,7 +222,7 @@ export function registerStaleBalanceNetwork(
 /**
  * Register the SnapController / PermissionController action handlers that
  * make the Solana keyring snap discoverable, plus its `handleRequest`
- * handler. The snap answers from (mutable) state.
+ * handler.
  *
  * @param rootMessenger - The root messenger to register handlers on.
  * @param snapState - The snap response state.
@@ -260,9 +253,8 @@ export function registerSolanaSnap(
 }
 
 /**
- * Register every external action `AssetsController` needs to boot the suite's
- * wallet: lifecycle, the three accounts, the three EVM chains' networks, and
- * the Solana keyring snap.
+ * Register every external action `AssetsController` needs to boot the
+ * suite's wallet.
  *
  * @param rootMessenger - The root messenger to register handlers on.
  * @param opts - Providers, snap state, and lifecycle / flag options.

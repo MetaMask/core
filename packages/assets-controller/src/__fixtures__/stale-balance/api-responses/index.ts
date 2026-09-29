@@ -31,14 +31,8 @@ for (const capture of [
 }
 
 /**
- * Occurrence count stamped on every captured `/v3/assets` entry.
- *
- * The captures predate `AssetsController` requesting occurrence counts, so
- * they carry none; the token spam filter treats a missing count as zero and
- * would drop every captured ERC-20 from the response. This suite covers
- * stale-balance scenarios — spam filtering has its own coverage in
- * `AssetsController.bsc-spam-token-filtering.integration.test.ts` — so the
- * counts are stamped above any per-chain suggested floor.
+ * Occurrence count stamped on every captured `/v3/assets` entry so spam
+ * filtering does not drop them (it has its own suite).
  */
 const OCCURRENCES_ABOVE_FLOOR = 10_000;
 
@@ -73,10 +67,9 @@ function mockChainIdNetwork(): nock.Scope {
 }
 
 /**
- * Intercept `GET {ACCOUNTS}/v2/supportedNetworks`, which
- * `AccountsApiDataSource` reads to decide which chains it claims. The capture
- * claims BNB Chain and mainnet; solana was trimmed so the keyring snap owns
- * it, and Hoodi was never supported so the RPC fallback owns it.
+ * Intercept `GET {ACCOUNTS}/v2/supportedNetworks`. The capture claims BNB
+ * Chain and mainnet; solana was trimmed so the keyring snap owns it, and
+ * Hoodi was never supported so the RPC fallback owns it.
  *
  * @returns The nock scope.
  */
@@ -88,9 +81,8 @@ function mockAccountsSupportedNetworks(): nock.Scope {
 }
 
 /**
- * Intercept `GET {TOKENS}/v2/supportedNetworks`. BNB Chain and mainnet are
- * both in the captured `fullSupport` list, so their assets genuinely reach
- * the occurrence filter rather than being skipped as unsupported.
+ * Intercept `GET {TOKENS}/v2/supportedNetworks` (BNB Chain and mainnet are
+ * both in the captured `fullSupport` list).
  *
  * @returns The nock scope.
  */
@@ -102,8 +94,8 @@ function mockTokensSupportedNetworks(): nock.Scope {
 }
 
 /**
- * Intercept `GET {TOKEN}/v1/suggestedOccurrenceFloors`. The capture has no
- * `56` entry, so BNB Chain falls back to `TokenDataSource`'s floor of three.
+ * Intercept `GET {TOKEN}/v1/suggestedOccurrenceFloors` (the capture has no
+ * `56` entry, so BNB Chain falls back to `TokenDataSource`'s floor).
  *
  * @returns The nock scope.
  */
@@ -129,9 +121,7 @@ function mockPricesSupportedNetworks(): nock.Scope {
 
 /**
  * Intercept `GET {TOKENS}/v3/assets`, answering each batch from the captured
- * per-asset entries and preserving the API's lower-case `assetId` echo. Assets
- * the API does not carry are answered as empty stubs, as it does for tokens on
- * chains it does not index.
+ * entries and stubbing assets the API does not carry.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -155,9 +145,7 @@ export function mockV3Assets(): {
 }
 
 /**
- * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices
- * and keying the response lower-case as the live API does. Assets with no
- * captured price are simply absent, as they are upstream.
+ * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -192,16 +180,11 @@ export function mockV3SpotPrices(): {
 /**
  * Intercept `GET {ACCOUNTS}/v6/multiaccount/balances` with the captured
  * balances of whichever wallets the request asked about, plus the scenario's
- * mutations.
- *
- * Every requested `includeAssetIds` entry is answered, as the live backend
- * does, even when the wallet holds none of it — a default tracked asset such
- * as mUSD arrives as a zero row rather than as an unresolved include that
- * would fail the whole chain.
+ * mutations. Every requested `includeAssetIds` entry is answered, as the live
+ * backend does.
  *
  * @param mutations - Scenario mutations of the captured balances.
- * @param mutations.omitAssetIds - Asset IDs (any casing) to drop, simulating
- * a token the Accounts API does not index for this wallet.
+ * @param mutations.omitAssetIds - Asset IDs (any casing) to drop.
  * @param mutations.setBalances - Asset IDs (any casing) whose captured balance
  * should be replaced, keyed lower-cased.
  * @param mutations.unprocessedNetworks - CAIP-2 chain IDs the API should
@@ -245,9 +228,8 @@ export function mockV6MultiAccountBalances({
       const balances: V6BalanceEntry[] = [];
       const coveredLowerIds = new Set<string>();
       for (const accountId of accountIds) {
-        // An account on a chain the API could not process is answered with
-        // nothing, as the live API does; the chain itself is reported in
-        // `unprocessedNetworks` and handed to the RPC fallback.
+        // An account on a chain the API could not process is answered
+        // with nothing; the chain is reported in `unprocessedNetworks`.
         const accountChainId = accountId.split(':').slice(0, 2).join(':');
         if (unprocessedNetworks.includes(accountChainId)) {
           continue;
@@ -308,12 +290,9 @@ export function mockV6MultiAccountBalances({
 }
 
 /**
- * Register every interceptor the fast fetch lane needs for the suite's
- * wallets, plus the solana snap scenario shims. Also answers
- * `chainid.network/chains.json`, which `AssetsController` fetches on boot.
- *
- * All interceptors persist, so batch composition and cache misses cannot make
- * a test fail for want of an interceptor.
+ * Register every interceptor the suite's wallets need. All interceptors
+ * persist, so batch composition and cache misses cannot make a test fail
+ * for want of an interceptor.
  *
  * @param options - Options for shaping the intercepted v6 balances response.
  * @param options.omitAssetIds - Asset IDs (any casing) to drop from the

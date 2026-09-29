@@ -8,10 +8,8 @@ import type { V6BalanceEntry } from './api-responses/index.js';
 export type CapturedBalance = { balance: string; decimals: number };
 
 /**
- * Double a decimal balance string, exactly. The doubled balances model the
- * wallet's holdings moving between the two pipeline passes of a scenario:
- * the Accounts API seed pass reports the captured amounts, and the RPC
- * fallback pass reports the doubled ones.
+ * Double a decimal balance string, exactly, modeling the wallet's holdings
+ * moving between a scenario's passes.
  *
  * @param balance - The decimal balance string, as captured.
  * @returns The doubled balance string.
@@ -22,7 +20,7 @@ export function doubleBalance(balance: string): string {
 
 /**
  * Convert a decimal balance string to its smallest-unit integer amount,
- * exactly, as an `eth_call` / `aggregate3` response would carry it.
+ * as an `eth_call` / `aggregate3` response would carry it.
  *
  * @param balance - The decimal balance string.
  * @param decimals - The asset's smallest-unit precision.
@@ -48,8 +46,7 @@ function getBscNativeEntry(): V6BalanceEntry {
 }
 
 /**
- * The captured BNB Chain balances, keyed by lower-cased asset ID, as the
- * Accounts API seed pass should land them (before normalization).
+ * The captured BNB Chain balances, keyed by lower-cased asset ID.
  *
  * @returns The captured raw amounts.
  */
@@ -65,8 +62,7 @@ export function buildCapturedBscBalances(): Record<string, CapturedBalance> {
 }
 
 /**
- * The captured mainnet balances, keyed by lower-cased asset ID, as the
- * Accounts API seed pass should land them (before normalization).
+ * The captured mainnet balances, keyed by lower-cased asset ID.
  *
  * @returns The captured raw amounts.
  */
@@ -85,8 +81,8 @@ export function buildCapturedMainnetBalances(): Record<
 }
 
 /**
- * The state amounts a doubled-BNB Chain RPC pass should land, keyed by
- * lower-cased asset ID, before normalization.
+ * The doubled BNB Chain balances the RPC pass should land, keyed by
+ * lower-cased asset ID.
  *
  * @returns The expected raw amounts.
  */
@@ -102,11 +98,10 @@ export function buildDoubledBscBalances(): Record<string, CapturedBalance> {
 }
 
 /**
- * Token balances for the BNB Chain provider state, modeled as the wallet's
- * captured ERC-20 holdings doubled: every token has exactly twice what the
- * Accounts API seed pass reported.
+ * Token balances for the BNB Chain provider state, as the captured ERC-20
+ * holdings doubled, keyed by lower-cased contract address.
  *
- * @returns Balances in smallest units, keyed by lower-cased token address.
+ * @returns Balances in smallest units.
  */
 export function buildDoubledBscTokenBalances(): Record<string, string> {
   const tokenBalancesWei: Record<string, string> = {};
@@ -124,10 +119,10 @@ export function buildDoubledBscTokenBalances(): Record<string, string> {
 }
 
 /**
- * The smallest-unit amount of the BNB Chain native balance, doubled, as the
- * provider state's `nativeBalanceWei`.
+ * The doubled BNB Chain native balance, in wei, as the provider state's
+ * `nativeBalanceWei`.
  *
- * @returns The doubled native balance, in wei.
+ * @returns The doubled native balance.
  */
 export function buildDoubledBscNativeBalance(): string {
   const native = getBscNativeEntry();

@@ -94,27 +94,19 @@ export type StaleBalanceProviderState = {
   nativeBalanceWei: string;
   /** ERC-20 balances in wei, keyed by lower-cased contract address. */
   tokenBalancesWei: Record<string, string>;
-  /**
-   * Lower-cased contract addresses whose `balanceOf` read should fail.
-   * In an `aggregate3` batch the entry is answered as failed; a single
-   * `balanceOf` call to one of these rejects.
-   */
+  /** Lower-cased contract addresses whose `balanceOf` read should fail (batched entries are answered as failed; single calls reject). */
   failingTokens: string[];
   /** Staking responses keyed by lower-cased staking contract address. */
   stakingByContract: Record<string, StakingResponses>;
-  /**
-   * When set, every `eth_call` and `eth_getBalance` rejects, simulating the
-   * chain's RPC endpoint being entirely unreachable.
-   */
+  /** When set, every `eth_call` and `eth_getBalance` rejects. */
   failAll: boolean;
 };
 
 /**
- * Build a mutable, scenario-shaped EVM RPC provider state. Tests change
- * fields between passes to move the wallet's on-chain state (or break it)
- * without rebuilding the messenger actions.
+ * Build a mutable, scenario-shaped EVM RPC provider state.
  *
- * @param partial - Initial state.
+ * @param partial - Initial state (requires `chainIdHex` and
+ * `nativeBalanceWei`).
  * @returns The provider state with defaults filled in.
  */
 export function buildProviderState(
