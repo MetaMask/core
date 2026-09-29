@@ -7,4 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Initial release ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Add `MoneyAccountLifecycleController` and `getDefaultMoneyAccountLifecycleControllerState`
+  - Add `MoneyAccountLifecycleControllerActions`, `MoneyAccountLifecycleControllerEvents`, `MoneyAccountLifecycleControllerGetStateAction`, `MoneyAccountLifecycleControllerMessenger`, `MoneyAccountLifecycleControllerState`, and `MoneyAccountLifecycleControllerStateChangeEvent` types
+
 [Unreleased]: https://github.com/MetaMask/core/

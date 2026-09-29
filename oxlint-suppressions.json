@@ -3722,6 +3722,11 @@
       "count": 1
     }
   },
+  "packages/money-account-lifecycle-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/money-account-mfa-whitelist/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1

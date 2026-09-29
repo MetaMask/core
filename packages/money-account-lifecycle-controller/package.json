@@ -49,6 +49,10 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "dependencies": {
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/messenger": "^3.0.0"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
