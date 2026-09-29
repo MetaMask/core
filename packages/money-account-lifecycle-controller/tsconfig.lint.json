@@ -10,6 +10,15 @@
     },
     {
       "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
     }
   ]
 }
