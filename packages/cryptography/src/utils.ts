@@ -46,7 +46,7 @@ export function buildPKCS8Header(
  * @param key - The raw key bytes to wrap.
  * @returns The complete PKCS8 envelope.
  */
-export function wrapInPKCS8(
+export function toPKCS8(
   header: Uint8Array,
   key: BufferSource,
 ): Uint8Array<ArrayBuffer> {

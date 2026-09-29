@@ -1,4 +1,4 @@
-import { buildPKCS8Header, wrapInPKCS8 } from './utils.js';
+import { buildPKCS8Header, toPKCS8 } from './utils.js';
 
 const X25519_KEY_LENGTH = 32;
 
@@ -37,7 +37,7 @@ async function scalarMultiply(
   // The WebCrypto API expects private keys to be in PKCS8 format.
   const subtlePrivateKey = await globalThis.crypto.subtle.importKey(
     'pkcs8',
-    wrapInPKCS8(X25519_PKCS8_HEADER, privateKey),
+    toPKCS8(X25519_PKCS8_HEADER, privateKey),
     { name: 'X25519' },
     false,
     ['deriveBits'],
