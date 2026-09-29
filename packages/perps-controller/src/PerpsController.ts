@@ -5937,12 +5937,13 @@ export class PerpsController extends BaseController<
    * @returns `ready: true` when none of these steps will need a signature
    * again before the first order, and only while an account is selected and
    * the main account can sign, whichever provider answered (including
-   * providers without deferred setup, for example in aggregated mode). A declined HyperLiquid migration is not
-   * asked again, and a HyperLiquid referral whose MetaMask referral code is
-   * not ready yet is checked again at the next call, not before orders, so
-   * neither holds it back. Otherwise `ready: false`, without an error while a
-   * step will be asked again (a declined builder fee or Lighter registration,
-   * or a step the agent could not sign), or with:
+   * providers without deferred setup, for example in aggregated mode). A
+   * declined HyperLiquid migration is not asked again, and a HyperLiquid
+   * referral whose MetaMask referral code is not ready yet is checked again at
+   * the next call, not before orders, so neither holds it back. Otherwise
+   * `ready: false`, without an error while a step will be asked again (a
+   * declined builder fee or Lighter registration, or a step the agent could
+   * not sign), or with:
    * - `KEYRING_LOCKED` when the main account cannot sign, before or during
    * setup;
    * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
@@ -5960,11 +5961,11 @@ export class PerpsController extends BaseController<
     const result = (await provider.prepareTradingWallet?.()) ?? {
       ready: true,
     };
-    // A provider with nothing to prepare, alone or aggregated, checks neither
-    // the signer nor the selected account.
     if (!result.ready) {
       return result;
     }
+    // A provider with nothing to prepare, alone or aggregated, checks neither
+    // the signer nor the selected account.
     if (
       !isMainAccountSignerReady(
         this.#options.infrastructure.accountSigner,
@@ -5973,7 +5974,8 @@ export class PerpsController extends BaseController<
     ) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
-    if (!getSelectedEvmAccountFromMessenger(this.messenger)) {
+    // With nothing selected, the AccountsController answers an empty account.
+    if (!getSelectedEvmAccountFromMessenger(this.messenger)?.address) {
       return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
     }
     return result;

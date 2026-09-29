@@ -970,7 +970,8 @@ describe('PerpsController', () => {
       selectedAccount = createMockEvmAccount(),
     }: {
       isUnlocked: boolean;
-      selectedAccount?: ReturnType<typeof createMockEvmAccount> | null;
+      // An account with an empty address stands for no selection.
+      selectedAccount?: { address: string } | null;
     }): jest.Mock {
       return jest.fn().mockImplementation((action: string) => {
         if (action === 'KeyringController:getState') {
@@ -1302,27 +1303,41 @@ describe('PerpsController', () => {
       },
     );
 
-    it('reports NO_ACCOUNT_SELECTED when the provider reports ready while no account is selected', async () => {
-      // For example a provider without deferred setup, which checks no account.
-      mockProvider.prepareTradingWallet = jest
-        .fn()
-        .mockResolvedValue({ ready: true });
-      controller = new TestablePerpsController({
-        messenger: createMockMessenger({
-          call: createHostCall({ isUnlocked: true, selectedAccount: null }),
-        }),
-        state: getDefaultPerpsControllerState(),
-        infrastructure: mockInfrastructure,
-      });
-      await controller.init();
+    it.each([
+      { selection: 'no account', selectedAccount: null },
+      {
+        // What the AccountsController answers with nothing selected.
+        selection: 'an empty account',
+        selectedAccount: { ...createMockEvmAccount(), address: '' },
+      },
+    ])(
+      'reports NO_ACCOUNT_SELECTED when the provider reports ready while $selection is selected',
+      async ({ selectedAccount }) => {
+        // For example a provider without deferred setup, which checks no
+        // account.
+        mockProvider.prepareTradingWallet = jest
+          .fn()
+          .mockResolvedValue({ ready: true });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({
+            call: createHostCall({ isUnlocked: true, selectedAccount }),
+          }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        await controller.init();
 
-      const result = await controller.prepareTradingWallet();
+        const result = await controller.prepareTradingWallet();
 
-      expect(result).toStrictEqual({
-        ready: false,
-        error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
-      });
-    });
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        });
+        expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
+          [],
+        ]);
+      },
+    );
   });
 
   describe('getOpenOrders with standalone mode', () => {

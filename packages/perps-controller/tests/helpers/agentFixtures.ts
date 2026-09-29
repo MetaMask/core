@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { BUILDER_FEE_CONFIG } from '../../src/constants/hyperLiquidConfig.js';
 import type {
   PerpsAgentAccount,
   PerpsTypedDataPayload,
@@ -8,10 +9,11 @@ import { createMockEvmAccount } from './serviceMocks.js';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
-// The payloads below spell out the SDK's domain names, primary types and fee
-// rate instead of reading HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
-// HYPERLIQUID_L1_ACTION_PRIMARY_TYPE or BUILDER_FEE_CONFIG, so the routing
-// tests fail if one of those constants drifts from what the SDK signs.
+// The payloads below spell out the SDK's domain names and primary types
+// instead of reading HYPERLIQUID_L1_ACTION_DOMAIN_NAME or
+// HYPERLIQUID_L1_ACTION_PRIMARY_TYPE, so the wallet adapter's routing tests
+// fail if one of those constants drifts from what the SDK signs. Their
+// messages only give each payload a realistic SDK shape.
 
 // The SDK adds the domain type to every payload it signs.
 const EIP712_DOMAIN_TYPE = [
@@ -74,15 +76,16 @@ export const USER_SIGNED_PAYLOAD: PerpsTypedDataPayload = {
   primaryType: 'HyperliquidTransaction:UserSetAbstraction',
   message: {
     hyperliquidChain: 'Mainnet',
-    user: createMockEvmAccount().address,
+    user: MAIN_ADDRESS,
     abstraction: 'unifiedAccount',
     nonce: 1,
   },
 };
 
 /**
- * A builder fee approval as the HyperLiquid SDK builds it: user-signed, like
- * the migration, but a different action.
+ * A builder fee approval as the HyperLiquid SDK builds it for the mainnet
+ * builder and fee rate the provider requests: user-signed, like the
+ * migration, but a different action.
  */
 export const APPROVE_BUILDER_FEE_PAYLOAD: PerpsTypedDataPayload = {
   domain: USER_SIGNED_PAYLOAD.domain,
@@ -98,8 +101,8 @@ export const APPROVE_BUILDER_FEE_PAYLOAD: PerpsTypedDataPayload = {
   primaryType: 'HyperliquidTransaction:ApproveBuilderFee',
   message: {
     hyperliquidChain: 'Mainnet',
-    maxFeeRate: '0.1%',
-    builder: ZERO_ADDRESS,
+    maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
+    builder: BUILDER_FEE_CONFIG.MainnetBuilder,
     nonce: 1,
   },
 };

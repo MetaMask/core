@@ -84,15 +84,14 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   });
 
   it('propagates account signer rejections', async () => {
+    const rejection = new Error('User rejected the request.');
     const { service } = buildService({
-      signTypedData: jest
-        .fn()
-        .mockRejectedValue(new Error('User rejected the request.')),
+      signTypedData: jest.fn().mockRejectedValue(rejection),
     });
 
     await expect(
       service.createWalletAdapter().signTypedData(L1_PAYLOAD),
-    ).rejects.toThrow('User rejected the request.');
+    ).rejects.toBe(rejection);
   });
 
   it('fails with KEYRING_LOCKED, keeping the host error as its cause, when the signer locks while signing', async () => {
@@ -287,11 +286,10 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
 
   it('propagates agent resolution failures', async () => {
     const { adapter, resolveAgent, mainSign } = buildAdapter();
-    resolveAgent.mockRejectedValue(new Error('agent store unavailable'));
+    const failure = new Error('agent store unavailable');
+    resolveAgent.mockRejectedValue(failure);
 
-    await expect(adapter.signTypedData(L1_PAYLOAD)).rejects.toThrow(
-      'agent store unavailable',
-    );
+    await expect(adapter.signTypedData(L1_PAYLOAD)).rejects.toBe(failure);
     expect(mainSign).not.toHaveBeenCalled();
   });
 

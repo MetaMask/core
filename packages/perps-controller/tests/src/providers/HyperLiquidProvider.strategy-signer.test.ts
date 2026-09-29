@@ -11,6 +11,8 @@ import {
 } from '../../helpers/agentFixtures.js';
 import {
   NOW,
+  RESTING_ORDER_ID,
+  cancelStatusesResponse,
   createAccountSignerProvider,
   orderIdOf,
   setUpAccountSignerSuite,
@@ -103,9 +105,10 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
 
       /**
        * A provider whose strategy orders are placed while signing works, and
-       * whose later cancels sign through the SDK wallet: `failSigning` locks
-       * the keyring (no agent), makes the agent fail to sign, or has the venue
-       * reject the agent, by throwing or in the cancel status entries.
+       * whose later cancels sign through the SDK wallet: `failSigning` makes
+       * the account signer not ready (no agent), makes the agent fail to sign,
+       * or has the venue reject the agent, by throwing or in the cancel status
+       * entries.
        *
        * @param failure - How the cancel fails to be signed.
        * @returns The provider, its endpoints and the failure switch.
@@ -220,7 +223,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
       }
 
       const SIGNER_FAILURES = [
-        { name: 'a locked keyring', failure: 'locked', rejectedAgents: [] },
+        {
+          name: 'an account signer that is not ready',
+          failure: 'locked',
+          rejectedAgents: [],
+        },
         {
           name: 'an agent that cannot sign',
           failure: 'unavailable',
@@ -318,65 +325,74 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
         },
       );
 
-      it('keeps only the rungs a cancel by client order ID left resting when the venue cancels one and rejects the agent on the other', async () => {
-        const {
-          provider,
-          order,
-          cancelByCloid,
-          onAgentRejected,
-          signL1Action,
-        } = createStrategyProvider('reported');
-        // Neither rung rests, and the cleanup cannot cancel them, so the
-        // ladder stays registered by client order ID.
-        order.mockResolvedValueOnce(
-          withStatuses('waitingForFill', 'waitingForFill'),
-        );
-        cancelByCloid.mockResolvedValueOnce(
-          withStatuses({ error: 'Busy' }, { error: 'Busy' }),
-        );
-        const placed = await provider.placeOrder(SCALE_ORDER);
-        const [[{ orders }]] = order.mock.calls as [[{ orders: { c: Hex }[] }]];
-        loggerError.mockClear();
-        cancelByCloid.mockImplementationOnce(async () => {
-          await signL1Action();
-          return withStatuses('success', {
-            error: unknownWalletError(AGENT_ADDRESS).message,
+      it.each(['returned', 'thrown'] as const)(
+        'keeps only the rungs a cancel by client order ID left resting when the venue cancels one and rejects the agent on the other (%s by the SDK)',
+        async (delivery) => {
+          const {
+            provider,
+            order,
+            cancelByCloid,
+            onAgentRejected,
+            signL1Action,
+          } = createStrategyProvider('reported');
+          // Neither rung rests, and the cleanup cannot cancel them, so the
+          // ladder stays registered by client order ID.
+          order.mockResolvedValueOnce(
+            withStatuses('waitingForFill', 'waitingForFill'),
+          );
+          cancelByCloid.mockResolvedValueOnce(
+            withStatuses({ error: 'Busy' }, { error: 'Busy' }),
+          );
+          const placed = await provider.placeOrder(SCALE_ORDER);
+          const [[{ orders }]] = order.mock.calls as [
+            [{ orders: { c: Hex }[] }],
+          ];
+          loggerError.mockClear();
+          cancelByCloid.mockImplementationOnce(async () => {
+            await signL1Action();
+            return cancelStatusesResponse(
+              ['success', { error: unknownWalletError(AGENT_ADDRESS).message }],
+              delivery,
+            );
           });
-        });
 
-        const result = await provider.cancelOrder({
-          orderId: orderIdOf(placed),
-          symbol: 'ETH',
-          orderType: 'scale',
-        });
-        cancelByCloid.mockResolvedValueOnce(withStatuses('success'));
-        const retry = await provider.cancelOrder({
-          orderId: orderIdOf(placed),
-          symbol: 'ETH',
-          orderType: 'scale',
-        });
+          const result = await provider.cancelOrder({
+            orderId: orderIdOf(placed),
+            symbol: 'ETH',
+            orderType: 'scale',
+          });
+          cancelByCloid.mockResolvedValueOnce(withStatuses('success'));
+          const retry = await provider.cancelOrder({
+            orderId: orderIdOf(placed),
+            symbol: 'ETH',
+            orderType: 'scale',
+          });
 
-        expect(result).toStrictEqual({
-          success: false,
-          orderId: placed.orderId,
-          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-        });
-        expect(retry).toStrictEqual({ success: true, orderId: placed.orderId });
-        const bothRungs = {
-          cancels: orders.map(({ c }) => ({ asset: 1, cloid: c })),
-        };
-        // The placement's cleanup, the cancel, then the retry of the rung
-        // that was not cancelled.
-        expect(cancelByCloid.mock.calls).toStrictEqual([
-          [bothRungs],
-          [bothRungs],
-          [{ cancels: [{ asset: 1, cloid: orders[1].c }] }],
-        ]);
-        expect(onAgentRejected.mock.calls).toStrictEqual([
-          [MAINNET_ACCOUNT, AGENT_ADDRESS],
-        ]);
-        expect(loggerError).not.toHaveBeenCalled();
-      });
+          expect(result).toStrictEqual({
+            success: false,
+            orderId: placed.orderId,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          });
+          expect(retry).toStrictEqual({
+            success: true,
+            orderId: placed.orderId,
+          });
+          const bothRungs = {
+            cancels: orders.map(({ c }) => ({ asset: 1, cloid: c })),
+          };
+          // The placement's cleanup, the cancel, then the retry of the rung
+          // that was not cancelled.
+          expect(cancelByCloid.mock.calls).toStrictEqual([
+            [bothRungs],
+            [bothRungs],
+            [{ cancels: [{ asset: 1, cloid: orders[1].c }] }],
+          ]);
+          expect(onAgentRejected.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          ]);
+          expect(loggerError).not.toHaveBeenCalled();
+        },
+      );
 
       it.each(SIGNER_FAILURES)(
         'fails a scale cancel by client order ID with KEYRING_LOCKED, for $name',
@@ -464,7 +480,7 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
           });
           expect(cancel.mock.calls).toStrictEqual([
-            [{ cancels: [{ a: 1, o: 123 }] }],
+            [{ cancels: [{ a: 1, o: RESTING_ORDER_ID }] }],
           ]);
           expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
           expect(loggerError).not.toHaveBeenCalled();
@@ -575,7 +591,7 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           order.mockImplementation(async () => {
             await signL1Action();
             disconnected = provider.disconnect();
-            return withStatuses({ resting: { oid: 123 } });
+            return withStatuses({ resting: { oid: RESTING_ORDER_ID } });
           });
           cancel.mockImplementation(async () => {
             await signL1Action();
@@ -594,10 +610,10 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
             submittedSize: '1',
-            childOrderIds: ['123'],
+            childOrderIds: [String(RESTING_ORDER_ID)],
           });
           expect(cancel.mock.calls).toStrictEqual([
-            [{ cancels: [{ a: 1, o: 123 }] }],
+            [{ cancels: [{ a: 1, o: RESTING_ORDER_ID }] }],
           ]);
           expect(onAgentRejected.mock.calls).toStrictEqual([
             [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -643,7 +659,7 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           await signL1Action();
 
           expect(cancel.mock.calls).toStrictEqual([
-            [{ cancels: [{ a: 1, o: 123 }] }],
+            [{ cancels: [{ a: 1, o: RESTING_ORDER_ID }] }],
           ]);
           expect(onAgentRejected.mock.calls).toStrictEqual([
             [MAINNET_ACCOUNT, AGENT_ADDRESS],

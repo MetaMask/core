@@ -1318,15 +1318,14 @@ export class LighterProvider implements PerpsProvider {
    * read-only provider (no signer bridge) while the main-account signer is
    * ready and an account is selected: it has nothing to prepare, so it does
    * not hold back an aggregated result, and `isReadyToTrade` still reports
-   * that it cannot trade. Otherwise
-   * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
-   * not ready (even with a registered venue key), with `NO_ACCOUNT_SELECTED`
-   * when no account is selected, with `EXCHANGE_ACCOUNT_NOT_FOUND` when the
-   * wallet has no Lighter account yet (fund it first), without an error when
-   * the user declined the signature (the order path asks again), with
-   * `PROVIDER_LIFECYCLE_STALE` (unlogged) when the provider disconnected or
-   * the wallet switched accounts meanwhile, and with the logged error when
-   * registration failed.
+   * that it cannot trade. Otherwise `ready: false`: with `KEYRING_LOCKED`
+   * whenever the main-account signer is not ready (even with a registered
+   * venue key), with `NO_ACCOUNT_SELECTED` when no account is selected, with
+   * `EXCHANGE_ACCOUNT_NOT_FOUND` when the wallet has no Lighter account yet
+   * (fund it first), without an error when the user declined the signature
+   * (the order path asks again), with `PROVIDER_LIFECYCLE_STALE` (unlogged)
+   * when the provider disconnected or the wallet switched accounts meanwhile,
+   * and with the logged error when registration failed.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {

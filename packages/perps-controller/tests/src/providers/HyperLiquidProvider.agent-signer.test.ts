@@ -374,11 +374,13 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
 
     it('asks getAgentSigner with the network of the provider', async () => {
       const getAgentSigner = jest.fn().mockResolvedValue(null);
+      // A testnet provider, over a testnet client service.
+      mockClientService.isTestnetMode.mockReturnValue(true);
       const { accountSignerProvider } = createAccountSignerProvider({
         abstraction: 'default',
         getAgentSigner,
+        isTestnet: true,
       });
-      mockClientService.isTestnetMode.mockReturnValue(true);
 
       await accountSignerProvider.getMarketDataWithPrices();
 

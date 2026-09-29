@@ -182,6 +182,37 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(loggerError).not.toHaveBeenCalled();
   });
 
+  it('fails a TP/SL update with KEYRING_LOCKED without logging when the builder fee approval fails as the signer locks', async () => {
+    let signerReady = true;
+    const { accountSignerProvider, exchangeClient } =
+      createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+        signer: { isReady: () => signerReady },
+        // Not approved yet.
+        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+      });
+    // The venue fails the approval for its own reason while the signer locks.
+    exchangeClient.approveBuilderFee.mockImplementation(async () => {
+      signerReady = false;
+      throw new Error('venue busy');
+    });
+
+    const result = await accountSignerProvider.updatePositionTPSL({
+      symbol: 'BTC',
+      takeProfitPrice: '60000',
+    });
+
+    expect(result).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+      BUILDER_FEE_WRITE,
+    ]);
+    expect(exchangeClient.order).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
   it('fails a TP/SL update with KEYRING_LOCKED when the builder fee approval of another provider ended without one while the signer is locked', async () => {
     const { accountSignerProvider, exchangeClient } =
       createAccountSignerProvider({

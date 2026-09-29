@@ -15,6 +15,7 @@
  * jest.mock('../../../src/services/HyperLiquidSubscriptionService');
  */
 import type { Hex } from '@metamask/utils';
+import { HyperliquidError } from '@nktkas/hyperliquid';
 
 import {
   BUILDER_FEE_CONFIG,
@@ -73,6 +74,9 @@ const MockedHyperLiquidSubscriptionService =
 // A fixed clock for cache timestamps.
 export const NOW = 1_700_000_000_000;
 
+// The ID of every order the mocked exchange places.
+export const RESTING_ORDER_ID = 123;
+
 export const BTC_MARKET_ORDER = {
   symbol: 'BTC',
   isBuy: true,
@@ -98,6 +102,38 @@ export const BUILDER_FEE_WRITE = [
     maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
   },
 ];
+
+/**
+ * A cancel the venue answered with one status per entry, handed over the way
+ * the SDK does: returned, or thrown as the `ApiRequestError` it raises when an
+ * entry failed, whose message names the failed entries.
+ *
+ * @param statuses - The entries' statuses.
+ * @param delivery - Whether the SDK returns the response or throws it.
+ * @returns The response, when it is returned.
+ */
+export function cancelStatusesResponse(
+  statuses: unknown[],
+  delivery: 'returned' | 'thrown',
+): Record<string, unknown> {
+  const response = {
+    status: 'ok',
+    response: { type: 'cancel', data: { statuses } },
+  };
+  if (delivery === 'returned') {
+    return response;
+  }
+  const failures = statuses.flatMap((status, index) =>
+    typeof status === 'object' && status !== null && 'error' in status
+      ? [`Order ${index}: ${String(status.error)}`]
+      : [],
+  );
+  const error = new HyperliquidError(
+    `Cannot process API request: ${failures.join(', ')}`,
+  );
+  error.name = 'ApiRequestError';
+  throw Object.assign(error, { response });
+}
 
 /**
  * The order ID a placement returned.
@@ -336,7 +372,9 @@ export function createAccountSignerProvider(
     order: jest.fn(
       signThroughSdkWallet(L1_PAYLOAD, {
         status: 'ok',
-        response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+        response: {
+          data: { statuses: [{ resting: { oid: RESTING_ORDER_ID } }] },
+        },
       }),
     ),
     ...options.exchange,

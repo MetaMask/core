@@ -132,6 +132,8 @@ type BuildOptions = {
   isReady?: () => boolean;
   // Sign through a KeyringController instead of accountSigner.
   keyring?: boolean;
+  // Whether that KeyringController is unlocked.
+  keyringUnlocked?: boolean;
   // Find the account by L1 address instead of a configured index.
   findAccountByAddress?: boolean;
   withoutBridge?: boolean;
@@ -140,6 +142,7 @@ type BuildOptions = {
 function buildProvider({
   isReady,
   keyring = false,
+  keyringUnlocked = true,
   findAccountByAddress = false,
   withoutBridge = false,
 }: BuildOptions = {}): BuiltProvider {
@@ -178,7 +181,7 @@ function buildProvider({
     isReady,
   };
   const { messenger, call, selectAccount, deselectAccount } = keyring
-    ? createKeyringMessenger(MAIN_SIGNATURE)
+    ? createKeyringMessenger(MAIN_SIGNATURE, keyringUnlocked)
     : createKeyringlessMessenger();
   const { bridge, calls } = createBridge();
   const deps = keyring
@@ -616,6 +619,30 @@ describe('LighterProvider with accountSigner', () => {
 
 describe('LighterProvider with a KeyringController', () => {
   beforeEach(pinClock);
+
+  it('prepares nothing and reports KEYRING_LOCKED while the keyring is locked', async () => {
+    const { provider, client, call, calls, deps } = buildProvider({
+      keyring: true,
+      keyringUnlocked: false,
+    });
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(
+      call.mock.calls.filter(([action]: [string]) =>
+        action.startsWith('KeyringController:'),
+      ),
+    ).toStrictEqual([['KeyringController:getState']]);
+    expect(calls).toStrictEqual([]);
+    expect(client.getNextNonce).not.toHaveBeenCalled();
+    expect(client.sendTx).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
 
   it('registers the venue key through prepareTradingWallet with a keyring signature', async () => {
     const { provider, address, client, call, calls } = buildProvider({

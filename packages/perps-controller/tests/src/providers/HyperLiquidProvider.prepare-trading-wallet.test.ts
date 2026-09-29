@@ -14,6 +14,7 @@ import {
   L1_PAYLOAD,
   MAIN_ADDRESS,
   MAIN_SIGNATURE,
+  OTHER_MAIN_ADDRESS,
   USER_SIGNED_PAYLOAD,
   unknownWalletError,
 } from '../../helpers/agentFixtures.js';
@@ -24,6 +25,7 @@ import {
   MIGRATION_WRITE,
   NOW,
   REFERRAL_WRITE,
+  RESTING_ORDER_ID,
   createAccountSignerProvider,
   migrationAttempted,
   referralAttempted,
@@ -110,7 +112,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       ]);
       expect(order).toStrictEqual({
         success: true,
-        orderId: '123',
+        orderId: String(RESTING_ORDER_ID),
         submittedSize: '0.1',
         averagePrice: undefined,
         filledSize: undefined,
@@ -449,6 +451,23 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
       });
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('reports a preparation whose account was switched meanwhile as stale, without logging', async () => {
+      const { accountSignerProvider, infoClient, selectAccount } =
+        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
+      infoClient.maxBuilderFee.mockImplementation(async () => {
+        selectAccount(OTHER_MAIN_ADDRESS);
+        return 1;
+      });
+
+      const result = await accountSignerProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
       expect(loggerError).not.toHaveBeenCalled();
     });
 

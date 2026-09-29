@@ -12,6 +12,7 @@ import type { PerpsControllerMessenger } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import type { HyperLiquidWalletParams } from '../../src/services/HyperLiquidClientService.js';
 import { TradingReadinessCache } from '../../src/services/TradingReadinessCache.js';
+import { HL_ABSTRACTION_WIRE } from '../../src/types/hyperliquid-types.js';
 import type {
   HyperLiquidCredentials,
   OrderResult,
@@ -316,9 +317,26 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   }
 
   /**
-   * Assert what the host saw during a flow: the accounts `getAgentSigner` was
-   * asked for, the agents reported to `onAgentRejected`, the
-   * KeyringController actions called, and no reported error.
+   * Assert the KeyringController actions a flow called, and that it reported
+   * no error.
+   *
+   * @param call - A spy on the host messenger's `call`.
+   * @param keyringActions - The KeyringController actions called; a host with
+   * an account signer has none.
+   */
+  function expectQuietHost(
+    call: jest.SpyInstance,
+    keyringActions: string[] = [],
+  ): void {
+    expect(keyringCalls(call)).toStrictEqual(keyringActions);
+    expect(loggerError).not.toHaveBeenCalled();
+  }
+
+  /**
+   * Assert what a host with both agent callbacks saw during a flow: the
+   * accounts `getAgentSigner` was asked for, the agents reported to
+   * `onAgentRejected`, the KeyringController actions called, and no reported
+   * error.
    *
    * @param call - A spy on the host messenger's `call`.
    * @param expected - What the host saw.
@@ -344,8 +362,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       agentRequests.map((account) => [account]),
     );
     expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
-    expect(keyringCalls(call)).toStrictEqual(keyringActions);
-    expect(loggerError).not.toHaveBeenCalled();
+    expectQuietHost(call, keyringActions);
   }
 
   /**
@@ -410,6 +427,27 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 
+  it('signs the silent unified-account migration with the agent, and nothing with the main account', async () => {
+    // An account in default mode, which the agent migrates without a prompt.
+    mockVenue.infoClient.userAbstraction.mockResolvedValue('default');
+    const { controller, call } = createController();
+    await controller.init();
+
+    const result = await controller.prepareTradingWallet();
+
+    expect(result).toStrictEqual({ ready: true });
+    expect(mockVenue.writes).toStrictEqual([
+      {
+        write: 'agentSetAbstraction',
+        params: { abstraction: HL_ABSTRACTION_WIRE.unifiedAccount },
+        signer: AGENT_ADDRESS,
+      },
+    ]);
+    expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
+    expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
+  });
+
   it('signs L1 actions with the main account when the host has no getAgentSigner', async () => {
     const { controller, call } = createController({ hyperliquid: {} });
     await controller.init();
@@ -421,7 +459,8 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
-    expectHostSaw(call, { agentRequests: [] });
+    // The host has no agent callbacks to observe.
+    expectQuietHost(call);
   });
 
   it('signs L1 actions with the agent and user-signed actions through KeyringController for a host without accountSigner', async () => {
@@ -717,7 +756,9 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['cancel', OTHER_AGENT_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
+    // The host has no onAgentRejected to observe.
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expectQuietHost(call);
   });
 
   it('prepares nothing and reports KEYRING_LOCKED while the account signer is not ready', async () => {
