@@ -8743,6 +8743,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
+    "@metamask/analytics-controller": "npm:^3.2.0"
     "@metamask/auth-network-utils": "npm:^0.3.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
