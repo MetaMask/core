@@ -1,4 +1,4 @@
-import { readJsonFile, writeFile } from '@metamask/utils/node';
+import fs from 'fs/promises';
 
 /**
  * A diagnostic reported by `tsc`. Most belong to a file; those that report a
@@ -270,9 +270,16 @@ export async function readSuppressions(
   filePath: string,
 ): Promise<TscSuppressions> {
   try {
-    return await readJsonFile<TscSuppressions>(filePath);
+    return JSON.parse(await fs.readFile(filePath, 'utf8')) as TscSuppressions;
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    // Checked structurally rather than with `instanceof`, as the errors Node
+    // raises do not always come from the same realm as this code.
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
       return {};
     }
     throw error;
@@ -294,7 +301,7 @@ export async function writeSuppressions({
   filePath: string;
   suppressions: TscSuppressions;
 }): Promise<void> {
-  await writeFile(filePath, `${JSON.stringify(suppressions, null, 2)}\n`);
+  await fs.writeFile(filePath, `${JSON.stringify(suppressions, null, 2)}\n`);
 }
 
 /**

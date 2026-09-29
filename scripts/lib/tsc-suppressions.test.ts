@@ -284,8 +284,10 @@ describe('readSuppressions', () => {
 
     await withinSandbox(async (sandbox) => {
       // A directory can be opened but not read as a file.
+      // Reading a directory as a file fails with EISDIR, which the code
+      // passes through rather than treating as a missing file.
       await expect(readSuppressions(sandbox.directoryPath)).rejects.toThrow(
-        Error,
+        'EISDIR',
       );
     });
   });
