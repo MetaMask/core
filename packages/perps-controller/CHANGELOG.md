@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
   - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
 
+### Fixed
+
+- Keep HyperLiquid order placement working while the WebSocket reconnects, instead of failing with `CLIENT_NOT_INITIALIZED` or a 3x leverage cap ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Pre-order reads now go over HTTP, which stays available during a reconnect: the margin-mode lock (open orders, TWAP history, asset data), HIP-3 DEX balances and spot metadata, unified-account and referral setup, and asset-map rebuilds.
+  - `getMaxLeverage` no longer requires the WebSocket clients, so orders are validated against the market's maximum leverage rather than the conservative fallback.
+- Wait up to `PERPS_CONSTANTS.ConnectionTimeoutMs` for the client's follow-up `init()` when a controller action (such as `placeOrder`) was waiting on a `disconnect()`, so an order submitted during a disconnect-then-init reconnect is placed instead of failing with `CLIENT_NOT_INITIALIZED` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [18.0.1]
 
 ### Fixed

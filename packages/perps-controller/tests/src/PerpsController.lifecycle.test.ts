@@ -15,7 +15,10 @@ import {
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 
-import { PERPS_DISK_CACHE_MARKETS } from '../../src/constants/perpsConfig.js';
+import {
+  PERPS_CONSTANTS,
+  PERPS_DISK_CACHE_MARKETS,
+} from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -1282,23 +1285,106 @@ describe('PerpsController', () => {
         return { success: true };
       });
 
-      const disconnectPromise = controller.disconnect();
-      await disconnectStarted.promise;
-      const orderPromise = controller.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-      });
-      await Promise.resolve();
+      jest.useFakeTimers();
+      try {
+        const disconnectPromise = controller.disconnect();
+        await disconnectStarted.promise;
+        const orderPromise = controller.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        });
+        const orderRejection = expect(orderPromise).rejects.toThrow(
+          PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+        );
+        await Promise.resolve();
 
-      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
-      pendingDisconnect.resolve();
-      await disconnectPromise;
-      await expect(orderPromise).rejects.toThrow(
-        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
-      );
-      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        pendingDisconnect.resolve();
+        await disconnectPromise;
+        // No init follows this disconnect: the order fails once the bounded
+        // wait for a reconnect runs out.
+        await jest.advanceTimersByTimeAsync(
+          PERPS_CONSTANTS.ConnectionTimeoutMs,
+        );
+        await orderRejection;
+        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    describe('TAT-4041: order submitted during a client reconnect', () => {
+      it('places an order submitted while a disconnect is followed by init', async () => {
+        await controller.init();
+        const disconnectStarted = createDeferred<void>();
+        const pendingDisconnect = createDeferred<void>();
+        mockProvider.disconnect.mockImplementationOnce(async () => {
+          disconnectStarted.resolve();
+          await pendingDisconnect.promise;
+          return { success: true };
+        });
+        jest
+          .spyOn(mockTradingServiceInstance, 'placeOrder')
+          .mockResolvedValue({ success: true, orderId: '123' });
+
+        // Clients reconnect with disconnect() then init(), with async work
+        // (for example a cleanup delay) between the two calls.
+        const reconnect = (async (): Promise<void> => {
+          await controller.disconnect();
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          await controller.init();
+        })();
+        await disconnectStarted.promise;
+        const orderPromise = controller.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        });
+        pendingDisconnect.resolve();
+        await reconnect;
+
+        await expect(orderPromise).resolves.toStrictEqual(
+          expect.objectContaining({ success: true, orderId: '123' }),
+        );
+        expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledTimes(1);
+      });
+
+      it('bounds the wait for init after a disconnect', async () => {
+        await controller.init();
+        jest.useFakeTimers();
+        try {
+          const disconnectPromise = controller.disconnect();
+          const orderPromise = controller.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+          });
+          let settled = false;
+          orderPromise
+            .catch(() => undefined)
+            .finally(() => {
+              settled = true;
+            });
+          await disconnectPromise;
+
+          await jest.advanceTimersByTimeAsync(
+            PERPS_CONSTANTS.ConnectionTimeoutMs - 1,
+          );
+          expect(settled).toBe(false);
+
+          await jest.advanceTimersByTimeAsync(1);
+          await expect(orderPromise).rejects.toThrow(
+            PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+          );
+          expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        } finally {
+          jest.useRealTimers();
+        }
+      });
     });
 
     it('keeps init queued when disconnect starts during reinitialization', async () => {

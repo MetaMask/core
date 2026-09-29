@@ -2136,7 +2136,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     try {
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const ledger = await infoClient.userNonFundingLedgerUpdates({
         user: userAddress,
         startTime: 0,
@@ -2181,7 +2181,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const signers = await infoClient.userToMultiSigSigners({
         user: userAddress,
       });
@@ -2329,7 +2329,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
 
       // Check current abstraction mode on-chain
       currentMode = await infoClient.userAbstraction({
@@ -2630,8 +2630,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // This awaits WebSocket transport.ready() to ensure connection is established
       await this.#ensureClientsInitialized();
 
-      // Verify clients are properly initialized
-      this.#clientService.ensureInitialized();
+      // Verify the clients are initialized. Setup reads and exchange writes go
+      // over HTTP, which survives a WebSocket reconnect, so do not require the
+      // WebSocket clients here: that fails orders the exchange can still take.
+      this.#clientService.getInfoClient({ useHttp: true });
 
       // Build asset mapping on first call, or retry if DEX discovery previously failed
       if (this.#symbolToAssetId.size === 0 || !this.#dexDiscoveryComplete) {
@@ -3080,7 +3082,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Fetch all available DEXs from HyperLiquid
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     let allDexs;
     try {
       allDexs = await infoClient.perpDexs();
@@ -3473,7 +3475,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const lifecycleGeneration = this.#lifecycleGeneration;
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const spotMeta = await infoClient.spotMeta();
 
     if (
@@ -3853,7 +3855,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Fetch metadata for each DEX in parallel using metaAndAssetCtxs
     // Optimization: Check cache first - getMarketDataWithPrices may have already fetched
     // If not cached, fetch via metaAndAssetCtxs and populate cache for other methods
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const allMetas = await Promise.allSettled(
       dexsToMap.map((dex) => {
         // Check if already cached (e.g., by getMarketDataWithPrices running in parallel)
@@ -4591,7 +4593,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #getBalanceForDex(params: { dex: string | null }): Promise<number> {
     const { dex } = params;
     const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
 
     const queryParams = dex
       ? { user: userAddress, dex }
@@ -5257,7 +5259,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (position) {
       return { marginMode: position.leverage.type, reason: 'position' };
     }
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const [orders, twapHistory] = await Promise.all([
       this.#fetchOpenOrders({ dexName }),
       infoClient.twapHistory({ user }),
@@ -8801,7 +8803,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null;
   }): Promise<FrontendOrder[]> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
-    return await this.#clientService.getInfoClient().frontendOpenOrders({
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    return await infoClient.frontendOpenOrders({
       user: userAddress,
       dex: params.dexName ?? undefined,
     });
@@ -14390,9 +14393,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // Read-only operation: only need client initialization, not full ensureReady()
-      // (no DEX abstraction, referral, or builder fee needed for metadata)
+      // (no DEX abstraction, referral, or builder fee needed for metadata).
+      // Metadata is read over HTTP, so a WebSocket reconnect must not force the
+      // conservative default leverage onto an order.
       await this.#ensureClientsInitialized();
-      this.#clientService.ensureInitialized();
 
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(asset);
@@ -15427,7 +15431,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #isReferralCodeReady(): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const isTestnet = this.#clientService.isTestnetMode();
       const code = this.#getReferralCode(isTestnet);
       const referrerAddr = this.#getBuilderAddress(isTestnet);
@@ -15477,7 +15481,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #checkReferralSet(): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const userAddress = await this.#walletService.getUserAddressWithDefault();
 
       // Call HyperLiquid API to check if user has a referral set

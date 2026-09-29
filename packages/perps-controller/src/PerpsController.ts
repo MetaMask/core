@@ -1031,6 +1031,9 @@ export class PerpsController extends BaseController<
 
   #initializationPromise: Promise<void> | null = null;
 
+  // Actions that saw a disconnect wait here for the client's follow-up init().
+  readonly #initializationStartWaiters = new Set<() => void>();
+
   #isReinitializing = false;
 
   #reinitializationOperationPromise: Promise<void> | null = null;
@@ -2177,7 +2180,31 @@ export class PerpsController extends BaseController<
     }
 
     this.#initializationPromise = this.#performInitialization();
+    this.#initializationStartWaiters.forEach((notifyStarted) =>
+      notifyStarted(),
+    );
     return this.#initializationPromise;
+  }
+
+  /**
+   * Resolve once a new initialization starts, or after the timeout.
+   *
+   * @param timeoutMs - Longest time to wait for init() to be called.
+   * @returns A promise that resolves when init starts or the timeout elapses.
+   */
+  async #waitForInitializationStart(timeoutMs: number): Promise<void> {
+    let notifyStarted = (): void => undefined;
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    this.#initializationStartWaiters.add(notifyStarted);
+    const timeout = setTimeout(notifyStarted, timeoutMs);
+    try {
+      await started;
+    } finally {
+      clearTimeout(timeout);
+      this.#initializationStartWaiters.delete(notifyStarted);
+    }
   }
 
   /**
@@ -2691,15 +2718,19 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
+    let awaitedLifecycleOperation = false;
+    let awaitedInitializationStart = false;
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
+        awaitedLifecycleOperation = true;
         await pendingDisconnect;
         continue;
       }
 
       const pendingReinitialization = this.#reinitializationOperationPromise;
       if (pendingReinitialization) {
+        awaitedLifecycleOperation = true;
         await pendingReinitialization;
         continue;
       }
@@ -2710,6 +2741,23 @@ export class PerpsController extends BaseController<
         pendingInitialization
       ) {
         await pendingInitialization;
+        continue;
+      }
+
+      // Clients reconnect with disconnect() followed by init(), and the
+      // disconnect settles before init() is called. Give that init a bounded
+      // window to start rather than failing an action the reconnect will
+      // serve. Nothing here starts a connection the client did not ask for.
+      if (
+        awaitedLifecycleOperation &&
+        !awaitedInitializationStart &&
+        !this.isInitialized &&
+        !pendingInitialization
+      ) {
+        awaitedInitializationStart = true;
+        await this.#waitForInitializationStart(
+          PERPS_CONSTANTS.ConnectionTimeoutMs,
+        );
         continue;
       }
 
