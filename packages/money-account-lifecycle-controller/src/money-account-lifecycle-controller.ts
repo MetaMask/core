@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import type { ChompApiServiceGetDerivedIdentitiesAction } from './chomp-api-service-derived-identities.js';
+import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
@@ -19,6 +20,8 @@ export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLi
   return {};
 }
 
+const MESSENGER_EXPOSED_METHODS = ['init'] as const;
+
 export type MoneyAccountLifecycleControllerGetStateAction =
   ControllerGetStateAction<
     typeof CONTROLLER_NAME,
@@ -26,7 +29,8 @@ export type MoneyAccountLifecycleControllerGetStateAction =
   >;
 
 export type MoneyAccountLifecycleControllerActions =
-  MoneyAccountLifecycleControllerGetStateAction;
+  | MoneyAccountLifecycleControllerGetStateAction
+  | MoneyAccountLifecycleControllerMethodActions;
 
 type AllowedActions = ChompApiServiceGetDerivedIdentitiesAction;
 
@@ -68,5 +72,17 @@ export class MoneyAccountLifecycleController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Initializes the controller.
+   */
+  init(): void {
+    // Intentionally empty until the lifecycle behaviour is implemented.
   }
 }
