@@ -20,7 +20,6 @@ import type {
 } from './ProfileService-method-action-types.js';
 import type {
   CreateProfileParams,
-  CreateProfileResponse,
   ProfileApiResponse,
   ReplaceProfileParams,
   UpdateProfileParams,
@@ -303,10 +302,10 @@ export class ProfileController extends BaseController<
    * @returns The created MetaMask profile.
    */
   async createProfile(params: CreateProfileParams): Promise<MetaMaskProfile> {
-    const response = (await this.messenger.call(
+    const response = await this.messenger.call(
       'ProfileService:createProfile',
       params,
-    )) as CreateProfileResponse;
+    );
     const mapped = this.#mapApiResponseToProfile(response);
     this.update((state) => {
       state.metamaskProfile = mapped;
@@ -331,9 +330,7 @@ export class ProfileController extends BaseController<
       input,
     );
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(
-        response as ProfileApiResponse,
-      );
+      state.metamaskProfile = this.#mapApiResponseToProfile(response);
     });
   }
 
@@ -351,9 +348,7 @@ export class ProfileController extends BaseController<
       input,
     );
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(
-        response as ProfileApiResponse,
-      );
+      state.metamaskProfile = this.#mapApiResponseToProfile(response);
     });
   }
 
@@ -381,10 +376,10 @@ export class ProfileController extends BaseController<
   async checkUsernameAvailability(
     username: string,
   ): Promise<UsernameAvailabilityResponse> {
-    return this.messenger.call(
+    return await this.messenger.call(
       'ProfileService:checkUsernameAvailability',
       username,
-    ) as UsernameAvailabilityResponse;
+    );
   }
 
   /**
@@ -393,9 +388,7 @@ export class ProfileController extends BaseController<
    * @returns An object containing the authorization URL and its associated state token.
    */
   async getXAuthUrl(): Promise<XAuthUrlResponse> {
-    return this.messenger.call(
-      'ProfileService:getXAuthUrl',
-    ) as XAuthUrlResponse;
+    return await this.messenger.call('ProfileService:getXAuthUrl');
   }
 
   /**
@@ -411,7 +404,7 @@ export class ProfileController extends BaseController<
       'ProfileService:connectX',
       params,
     );
-    return this.#mapXResponseToXProfile(response as XConnectResponse);
+    return this.#mapXResponseToXProfile(response);
   }
 
   /**
@@ -420,9 +413,7 @@ export class ProfileController extends BaseController<
    * @returns The linked X profile.
    */
   async fetchAndUpdateXAccount(): Promise<XProfile> {
-    const response = (await this.messenger.call(
-      'ProfileService:getXAccount',
-    )) as XConnectResponse;
+    const response = await this.messenger.call('ProfileService:getXAccount');
     const mapped = this.#mapXResponseToXProfile(response);
     this.update((state) => {
       state.xProfile = mapped;
