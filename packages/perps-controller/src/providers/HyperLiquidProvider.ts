@@ -99,6 +99,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -154,6 +155,9 @@ import type {
   PerpsReadOptions,
   PerpsUserDataSnapshot,
   PerpsFeeResolution,
+  MarginMode,
+  MarginModeLockReason,
+  PerpsMarginModeLock,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
@@ -1684,19 +1688,88 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return provider-owned strategy support for a routed market.
-   * HyperLiquid metadata has no per-market strategy flags. This provider
-   * advertises its implemented strategies uniformly after confirming the
-   * routed market exists.
+   * Return provider-owned strategy and margin-mode support for a routed
+   * market. HyperLiquid metadata has no per-market strategy flags. This
+   * provider advertises its implemented strategies uniformly after confirming
+   * the routed market exists; margin modes follow the market's metadata.
    *
    * @param params - Required market route context.
-   * @returns Supported strategy order types.
+   * @returns Supported strategy order types and margin modes.
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
     const result = await this.#getOrderCapabilityMarket(params.symbol);
-    return result.status === 'ready' ? HYPERLIQUID_ORDER_CAPABILITIES : result;
+    if (result.status === 'unavailable') {
+      return result;
+    }
+    const supportedMarginModes: readonly MarginMode[] = Object.freeze(
+      this.#isCrossMarginSupported(params.symbol, result.market)
+        ? ['isolated', 'cross']
+        : ['isolated'],
+    );
+    return Object.freeze({
+      ...HYPERLIQUID_ORDER_CAPABILITIES,
+      supportedMarginModes,
+    });
+  }
+
+  /**
+   * Whether the venue accepts Cross margin for a market. Both SDK
+   * `marginMode` values (strictIsolated and noCross) prohibit Cross, and any
+   * future restriction value is treated as unsupported until handled
+   * explicitly. HIP-3 collateral transfers still assume isolated margin, so
+   * Cross stays unavailable there until that account-mode-aware path is
+   * supported.
+   *
+   * @param symbol - Market symbol, including its DEX route when applicable.
+   * @param asset - Venue margin metadata for the market.
+   * @param asset.onlyIsolated - Whether the market only allows isolated margin.
+   * @param asset.marginMode - Venue margin-mode restriction, if any.
+   * @returns True when Cross margin orders are accepted.
+   */
+  #isCrossMarginSupported(
+    symbol: string,
+    asset: { onlyIsolated?: boolean; marginMode?: string },
+  ): boolean {
+    const { dex } = parseAssetName(symbol);
+    return !asset.onlyIsolated && !asset.marginMode && dex === null;
+  }
+
+  /**
+   * Report the margin mode HyperLiquid currently binds to a market, so
+   * clients can match what order placement will accept.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The current lock, or unavailable when it cannot be read.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+      const lock = await this.#readMarginModeLock(params.symbol);
+      this.#assertProviderLifecycleCurrent(
+        lifecycleGeneration,
+        'Margin mode lock read',
+      );
+      return lock
+        ? { status: 'locked', providerId: this.protocolId, ...lock }
+        : { status: 'unlocked', providerId: this.protocolId };
+    } catch (error) {
+      this.#deps.debugLogger.log('HyperLiquid: Margin mode lock unavailable', {
+        symbol: params.symbol,
+        error: ensureError(error, 'HyperLiquidProvider.getMarginModeLock')
+          .message,
+      });
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
   }
 
   /**
@@ -5135,34 +5208,61 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (!Number.isInteger(params.leverage) || (params.leverage ?? 0) < 1) {
       throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
     }
-    const { dex: dexName } = parseAssetName(params.symbol);
-    // Both SDK marginMode values (strictIsolated and noCross) prohibit Cross.
-    // Treat any future restriction value as unsupported until handled explicitly.
     if (
       params.marginMode === 'cross' &&
-      (assetInfo.onlyIsolated || assetInfo.marginMode || dexName !== null)
+      !this.#isCrossMarginSupported(params.symbol, assetInfo)
     ) {
-      // HIP-3 collateral transfers still assume isolated margin. Keep Cross
-      // unavailable there until that account-mode-aware path is supported.
       throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
     }
+    const lock = await this.#readMarginModeLock(params.symbol);
+    if (lock && lock.marginMode !== params.marginMode) {
+      throw new Error(
+        lock.reason === 'position'
+          ? PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN
+          : PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+      );
+    }
+  }
+
+  /**
+   * Read the margin mode the venue currently binds to an asset. An open
+   * position fixes it first; otherwise a resting order or active TWAP fixes
+   * the mode reported by the asset's leverage data.
+   *
+   * @param symbol - Market symbol, including its DEX route when applicable.
+   * @returns The locked mode and its cause, or null when nothing locks it.
+   * @throws When the target DEX positions cannot be read, or when the
+   * selected account changes during the read.
+   */
+  async #readMarginModeLock(
+    symbol: string,
+  ): Promise<{ marginMode: MarginMode; reason: MarginModeLockReason } | null> {
+    const { dex: dexName } = parseAssetName(symbol);
+    // Each venue read resolves the selected account on its own. Pin one
+    // account for the whole read so positions and orders from different
+    // accounts can never be combined.
+    const user = await this.#walletService.getUserAddressWithDefault();
+    const assertSameAccount = async (): Promise<void> => {
+      const current = await this.#walletService.getUserAddressWithDefault();
+      if (current.toLowerCase() !== user.toLowerCase()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+    };
     const { answered, positions } = await this.#queryDexPositions(dexName);
     if (!answered) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
-    const position = positions.find((item) => item.symbol === params.symbol);
+    await assertSameAccount();
+    const position = positions.find((item) => item.symbol === symbol);
     if (position) {
-      if (position.leverage.type !== params.marginMode) {
-        throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN);
-      }
-      return;
+      return { marginMode: position.leverage.type, reason: 'position' };
     }
-    const user = await this.#walletService.getUserAddressWithDefault();
     const infoClient = this.#clientService.getInfoClient();
     const [orders, twapHistory] = await Promise.all([
       this.#fetchOpenOrders({ dexName }),
       infoClient.twapHistory({ user }),
     ]);
+    await assertSameAccount();
     // Native TWAP schedules are absent from frontendOpenOrders before a slice
     // rests or fills. Read history directly: getTwapOrders can rebalance HIP-3
     // collateral, which must not run as part of pre-sign validation.
@@ -5171,7 +5271,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       HyperLiquidTwapHistoryEntry
     >();
     for (const entry of twapHistory) {
-      if (entry.state.coin !== params.symbol) {
+      if (entry.state.coin !== symbol) {
         continue;
       }
       const previous = latestTwaps.get(entry.twapId);
@@ -5195,15 +5295,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           return true;
       }
     });
-    if (orders.some((order) => order.coin === params.symbol) || hasActiveTwap) {
+    if (orders.some((order) => order.coin === symbol) || hasActiveTwap) {
       const asset = await infoClient.activeAssetData({
         user,
-        coin: params.symbol,
+        coin: symbol,
       });
-      if (asset.leverage.type !== params.marginMode) {
-        throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN);
-      }
+      await assertSameAccount();
+      return { marginMode: asset.leverage.type, reason: 'open_order' };
     }
+    return null;
   }
 
   /**
