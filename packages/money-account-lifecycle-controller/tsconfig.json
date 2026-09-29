@@ -1,5 +1,21 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "references": [{ "path": "../base-controller" }, { "path": "../messenger" }],
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
