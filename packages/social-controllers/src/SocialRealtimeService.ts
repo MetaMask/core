@@ -70,6 +70,8 @@ export class SocialRealtimeService {
 
   #subscription: WebSocketSubscription | undefined;
 
+  #subscriptionPromise: Promise<void> | undefined;
+
   #wasDisconnected = false;
 
   constructor({
@@ -128,46 +130,47 @@ export class SocialRealtimeService {
       return;
     }
 
-    try {
-      await this.#messenger.call('BackendWebSocketService:connect');
+    if (this.#subscriptionPromise) {
+      await this.#subscriptionPromise;
+      return;
+    }
 
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          SOCIAL_FEED_CHANNEL,
-        )
-      ) {
-        const existingSubscription = this.#messenger.call(
-          'BackendWebSocketService:getSubscriptionsByChannel',
-          SOCIAL_FEED_CHANNEL,
-        )[0];
+    const subscriptionPromise = Promise.resolve().then(
+      async (): Promise<void> => {
+        try {
+          await this.#messenger.call('BackendWebSocketService:connect');
 
-        if (existingSubscription) {
-          this.#subscription = existingSubscription;
+          // Each service needs its own callback and subscription lifecycle.
+          const subscription = await this.#messenger.call(
+            'BackendWebSocketService:subscribe',
+            {
+              channels: [SOCIAL_FEED_CHANNEL],
+              channelType: SOCIAL_FEED_CHANNEL_TYPE,
+              callback: (notification: ServerNotificationMessage) => {
+                this.#handleNotification(notification);
+              },
+            },
+          );
+
+          if (!this.#active) {
+            await subscription.unsubscribe();
+            return;
+          }
+
+          this.#subscription = subscription;
+        } catch {
+          this.#subscription = undefined;
         }
+      },
+    );
+    this.#subscriptionPromise = subscriptionPromise;
 
-        return;
+    try {
+      await subscriptionPromise;
+    } finally {
+      if (this.#subscriptionPromise === subscriptionPromise) {
+        this.#subscriptionPromise = undefined;
       }
-
-      const subscription = await this.#messenger.call(
-        'BackendWebSocketService:subscribe',
-        {
-          channels: [SOCIAL_FEED_CHANNEL],
-          channelType: SOCIAL_FEED_CHANNEL_TYPE,
-          callback: (notification: ServerNotificationMessage) => {
-            this.#handleNotification(notification);
-          },
-        },
-      );
-
-      if (!this.#active) {
-        await subscription.unsubscribe();
-        return;
-      }
-
-      this.#subscription = subscription;
-    } catch {
-      this.#subscription = undefined;
     }
   }
 

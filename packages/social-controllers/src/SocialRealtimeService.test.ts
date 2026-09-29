@@ -181,10 +181,12 @@ describe('SocialRealtimeService', () => {
     );
   });
 
-  it('reuses an existing backend subscription for the feed channel', async () => {
+  it('creates an owned subscription when the feed channel already has one', async () => {
     const { call, service, unsubscribe } = createService();
+    const listener = jest.fn();
+    const existingUnsubscribe = jest.fn().mockResolvedValue(undefined);
     const existingSubscription = {
-      unsubscribe,
+      unsubscribe: existingUnsubscribe,
     } as unknown as WebSocketSubscription;
     call.mockImplementation((action: string, _options?: unknown): unknown => {
       if (action === 'BackendWebSocketService:connect') {
@@ -202,17 +204,26 @@ describe('SocialRealtimeService', () => {
       return Promise.resolve({ unsubscribe });
     });
 
+    service.addListener(listener);
     await service.setActive(true);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNEL,
+      data: event,
+    });
     await service.setActive(false);
 
-    expect(call).not.toHaveBeenCalledWith(
+    expect(call).toHaveBeenCalledWith(
       'BackendWebSocketService:subscribe',
-      expect.anything(),
+      expect.objectContaining({
+        channels: [SOCIAL_FEED_CHANNEL],
+      }),
     );
+    expect(listener).toHaveBeenCalledWith(event);
+    expect(existingUnsubscribe).not.toHaveBeenCalled();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('does not retain an empty backend subscription lookup', async () => {
+  it('creates a subscription when the backend lookup is empty', async () => {
     const { call, service, unsubscribe } = createService();
     call.mockImplementation((action: string, _options?: unknown): unknown => {
       if (action === 'BackendWebSocketService:connect') {
@@ -233,7 +244,13 @@ describe('SocialRealtimeService', () => {
     await service.setActive(true);
     await service.setActive(false);
 
-    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(call).toHaveBeenCalledWith(
+      'BackendWebSocketService:subscribe',
+      expect.objectContaining({
+        channels: [SOCIAL_FEED_CHANNEL],
+      }),
+    );
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it('avoids creating a second subscription while already active', async () => {
@@ -241,6 +258,36 @@ describe('SocialRealtimeService', () => {
 
     await service.setActive(true);
     await service.setActive(true);
+
+    expect(
+      call.mock.calls.filter(
+        ([action]) => action === 'BackendWebSocketService:subscribe',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('avoids duplicate subscriptions when connect reports connected synchronously', async () => {
+    const { call, connectionStateHandler, service, unsubscribe } =
+      createService();
+    let hasReportedConnected = false;
+    call.mockImplementation((action: string, _options?: unknown): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        if (!hasReportedConnected) {
+          hasReportedConnected = true;
+          connectionStateHandler()?.({ state: WebSocketState.CONNECTED });
+        }
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:channelHasSubscription') {
+        return false;
+      }
+
+      return Promise.resolve({ unsubscribe });
+    });
+
+    await service.setActive(true);
+    await Promise.resolve();
 
     expect(
       call.mock.calls.filter(
