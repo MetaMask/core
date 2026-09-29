@@ -17,6 +17,7 @@ import {
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import { getMoneyAccountDepositAssetAddress } from '@metamask/money-account-utils';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -58,7 +59,6 @@ import {
 } from './types.js';
 
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
-const MUSD = '0x8888888888888888888888888888888888888888' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const PAYER = '0x5555555555555555555555555555555555555555' as Hex;
 const TREASURY = '0x8888888888888888888888888888888888888888' as Hex;
@@ -76,7 +76,6 @@ const MONEY_ACCOUNT_VAULT_CONFIG = {
   tellerAddress: '0x2222222222222222222222222222222222222222',
   accountantAddress: '0x6666666666666666666666666666666666666666',
   lensAddress: '0x7777777777777777777777777777777777777777',
-  underlyingToken: MUSD,
 };
 
 const REMOTE_FEATURE_FLAGS: Record<string, unknown> = {
@@ -1217,7 +1216,10 @@ describe('SubscriptionDelegationService', () => {
             useCase: 'subscription',
             destinationAccount: PAYER,
             chainId: CHAIN_ID,
-            targetToken: { symbol: 'mUSD', address: MUSD },
+            targetToken: {
+              symbol: 'mUSD',
+              address: getMoneyAccountDepositAssetAddress(CHAIN_ID),
+            },
             targetAmount: '30000000',
           },
         },
@@ -1493,24 +1495,6 @@ describe('SubscriptionDelegationService', () => {
       );
       expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
-    });
-
-    it('does not approve when the Money Account mUSD address is missing', async () => {
-      const { service, mocks } = setup({
-        remoteFeatureFlags: {
-          moneyAccountVaultConfig: {
-            ...MONEY_ACCOUNT_VAULT_CONFIG,
-            underlyingToken: undefined,
-          },
-        },
-      });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.MissingMusdTokenAddress,
-      );
-      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
     });
 
     it('is callable through the messenger', async () => {

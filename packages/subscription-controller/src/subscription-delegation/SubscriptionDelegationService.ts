@@ -20,6 +20,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { MoneyAccountBalanceServiceFetchBalanceWithFallbackAction } from '@metamask/money-account-balance-service';
 import type { MoneyAccountUpgradeControllerForceUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
 import {
+  getMoneyAccountDepositAssetAddress,
   getMoneyAccountVaultConfig,
   MUSD_DECIMALS,
 } from '@metamask/money-account-utils';
@@ -188,7 +189,7 @@ type ResolvedSubscriptionDelegationConfig = {
   delegationManager: Hex;
   paymentAddress: Hex;
   enforcers: SubscriptionDelegationEnforcers;
-  musdAddress?: Hex;
+  musdAddress: Hex;
   price: ProductPrice;
   token: TokenPaymentInfo;
 };
@@ -307,11 +308,6 @@ export class SubscriptionDelegationService {
     );
     if (!equalsIgnoreCase(request.chainId, config.chainId)) {
       throw new Error(SubscriptionDelegationServiceErrorMessage.ChainMismatch);
-    }
-    if (!config.musdAddress) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.MissingMusdTokenAddress,
-      );
     }
     const subscriptions = await this.#messenger.call(
       'SubscriptionController:getSubscriptions',
@@ -987,7 +983,7 @@ export class SubscriptionDelegationService {
           .DelegationManager,
       paymentAddress: chain.paymentAddress,
       enforcers,
-      musdAddress: vaultConfig.underlyingToken,
+      musdAddress: getMoneyAccountDepositAssetAddress(chainId),
       price,
       token,
     };
