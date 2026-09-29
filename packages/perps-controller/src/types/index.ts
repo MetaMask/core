@@ -1139,7 +1139,9 @@ export type HyperLiquidCredentials = {
    * for example after the user approved another unnamed agent). The provider
    * has dropped it, with a `setAgentSigner` binding to it, and the next L1
    * action asks `getAgentSigner` again, so re-check the approval before
-   * answering. The rejected action failed with `KEYRING_LOCKED`.
+   * answering. The rejected action failed with `KEYRING_LOCKED`. It is called
+   * once per rejected write, so writes already in flight with the same agent
+   * call it again: prompt the user at most once per agent.
    */
   onAgentRejected?: (account: PerpsAgentAccount, agentAddress: Hex) => void;
 };
@@ -2161,8 +2163,9 @@ export type PerpsProvider = {
    * account migration, builder fee, referral or venue-key registration) ahead
    * of the first order, so the signatures surface in a guided session instead
    * of at order time. Resolves `ready: true` when none of these steps will ask
-   * the main account to sign again before the first order. Providers without
-   * such setup omit it.
+   * the main account to sign again before the first order (a read-only
+   * provider, which never asks, resolves it at once). Providers without such
+   * setup omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   /**

@@ -1960,11 +1960,12 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `cancelOrders batch failure: ${reportedFailures.length}/${operationResult.results.length} failed - ${failureSummary}`,
+            `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
           this.#getErrorContext('cancelOrders', {
             successCount: operationResult.successCount,
-            failureCount: reportedFailures.length,
+            failureCount: operationResult.failureCount,
+            reportedFailureCount: reportedFailures.length,
             cancelAll: params.cancelAll,
           }),
         );
@@ -2337,11 +2338,12 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `closePositions batch failure: ${reportedFailures.length}/${operationResult.results.length} failed - ${failureSummary}`,
+            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
           this.#getErrorContext('closePositions', {
             successCount: operationResult.successCount,
-            failureCount: reportedFailures.length,
+            failureCount: operationResult.failureCount,
+            reportedFailureCount: reportedFailures.length,
             symbols: params.symbols?.length ?? 0,
             closeAll: params.closeAll,
           }),

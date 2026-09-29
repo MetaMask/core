@@ -1,5 +1,8 @@
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
-import { PROVIDER_CONFIG } from '../../../src/constants/perpsConfig.js';
+import {
+  PERPS_CONSTANTS,
+  PROVIDER_CONFIG,
+} from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
@@ -1136,7 +1139,10 @@ describe('AggregatedPerpsProvider', () => {
         [
           crash,
           {
-            tags: { feature: 'perps', provider: 'hyperliquid' },
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              provider: 'hyperliquid',
+            },
             context: {
               name: 'AggregatedPerpsProvider',
               data: {
@@ -1161,27 +1167,34 @@ describe('AggregatedPerpsProvider', () => {
           infrastructure: mockInfrastructure,
           isTestnet,
         });
+        const crash = new Error('provider crashed');
         Object.assign(mockHLProvider, {
-          prepareTradingWallet: jest
-            .fn()
-            .mockRejectedValue(new Error('provider crashed')),
+          prepareTradingWallet: jest.fn().mockRejectedValue(crash),
         });
 
         await networkProvider.prepareTradingWallet();
 
-        expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
-          new Error('provider crashed'),
-          {
-            tags: { feature: 'perps', provider: 'hyperliquid', network },
-            context: {
-              name: 'AggregatedPerpsProvider',
-              data: {
-                method: 'prepareTradingWallet',
-                providerId: 'hyperliquid',
+        expect(
+          (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        ).toStrictEqual([
+          [
+            crash,
+            {
+              tags: {
+                feature: PERPS_CONSTANTS.FeatureName,
+                provider: 'hyperliquid',
+                network,
+              },
+              context: {
+                name: 'AggregatedPerpsProvider',
+                data: {
+                  method: 'prepareTradingWallet',
+                  providerId: 'hyperliquid',
+                },
               },
             },
-          },
-        );
+          ],
+        ]);
       },
     );
 
@@ -1197,24 +1210,31 @@ describe('AggregatedPerpsProvider', () => {
         infrastructure: mockInfrastructure,
         isTestnet: false,
       });
+      const crash = new Error('provider crashed');
       Object.assign(mockLighterProvider, {
-        prepareTradingWallet: jest
-          .fn()
-          .mockRejectedValue(new Error('provider crashed')),
+        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
       });
 
       await networkProvider.prepareTradingWallet();
 
-      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
-        new Error('provider crashed'),
-        {
-          tags: { feature: 'perps', provider: 'lighter', network: 'testnet' },
-          context: {
-            name: 'AggregatedPerpsProvider',
-            data: { method: 'prepareTradingWallet', providerId: 'lighter' },
+      expect(
+        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+      ).toStrictEqual([
+        [
+          crash,
+          {
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              provider: 'lighter',
+              network: 'testnet',
+            },
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: { method: 'prepareTradingWallet', providerId: 'lighter' },
+            },
           },
-        },
-      );
+        ],
+      ]);
     });
 
     it('prepares the next provider only after the previous one settles', async () => {

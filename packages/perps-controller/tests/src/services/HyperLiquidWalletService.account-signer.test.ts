@@ -4,6 +4,10 @@ import type * as HyperLiquidSigning from '@nktkas/hyperliquid/signing';
 import { recoverTypedDataAddress } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
+import {
+  ARBITRUM_SEPOLIA_CHAIN_ID,
+  BUILDER_FEE_CONFIG,
+} from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   AgentSignerUnavailableError,
@@ -189,8 +193,8 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     const signature = await adapter.signTypedData(L1_PAYLOAD);
 
     expect(signature).toBe(AGENT_SIGNATURE);
-    expect(resolveAgent).toHaveBeenCalledWith(mainAddress);
-    expect(agentSign).toHaveBeenCalledWith(L1_PAYLOAD);
+    expect(resolveAgent.mock.calls).toStrictEqual([[mainAddress]]);
+    expect(agentSign.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(mainSign).not.toHaveBeenCalled();
     expect(keyringCalls(call)).toStrictEqual([]);
   });
@@ -250,8 +254,7 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     selectAccount(OTHER_MAIN_ADDRESS);
     await adapter.signTypedData(L1_PAYLOAD);
 
-    expect(resolveAgent).toHaveBeenCalledWith(OTHER_MAIN_ADDRESS);
-    expect(resolveAgent).not.toHaveBeenCalledWith(mainAddress);
+    expect(resolveAgent.mock.calls).toStrictEqual([[OTHER_MAIN_ADDRESS]]);
   });
 
   it('propagates agent resolution failures', async () => {
@@ -339,7 +342,7 @@ describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', 
     const signature = await adapter.signTypedData(L1_PAYLOAD);
 
     expect(signature).toBe(AGENT_SIGNATURE);
-    expect(agentSign).toHaveBeenCalledWith(L1_PAYLOAD);
+    expect(agentSign.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
@@ -479,9 +482,9 @@ describeWithSdk(
         wallet: adapter,
         action: {
           type: 'approveBuilderFee',
-          signatureChainId: '0x66eee',
+          signatureChainId: ARBITRUM_SEPOLIA_CHAIN_ID,
           hyperliquidChain: 'Testnet',
-          maxFeeRate: '0.1%',
+          maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
           builder: agentAccount.address,
           nonce: 1,
         },

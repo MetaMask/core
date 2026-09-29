@@ -1833,17 +1833,21 @@ describe('TradingService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(mockDeps.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining(
-            'cancelOrders batch failure: 2/2 failed',
+      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+        [
+          new Error(
+            'cancelOrders batch failure: 2/2 failed (2 reported) - BTC/order-1: rate limit; ETH/order-2: not found',
           ),
-        }),
-        expect.objectContaining({
-          controller: 'TradingService',
-          method: 'cancelOrders',
-        }),
-      );
+          {
+            controller: 'TradingService',
+            method: 'cancelOrders',
+            successCount: 0,
+            failureCount: 2,
+            reportedFailureCount: 2,
+            cancelAll: true,
+          },
+        ],
+      ]);
     });
 
     it('does not log a batch cancel that failed only because the signer could not sign', async () => {
@@ -1917,13 +1921,14 @@ describe('TradingService', () => {
       expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
         [
           new Error(
-            'cancelOrders batch failure: 1/2 failed - ETH/order-2: rate limit',
+            'cancelOrders batch failure: 2/2 failed (1 reported) - ETH/order-2: rate limit',
           ),
           {
             controller: 'TradingService',
             method: 'cancelOrders',
             successCount: 0,
-            failureCount: 1,
+            failureCount: 2,
+            reportedFailureCount: 1,
             cancelAll: true,
           },
         ],
@@ -2592,17 +2597,22 @@ describe('TradingService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(mockDeps.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining(
-            'closePositions batch failure: 2/2 failed',
+      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+        [
+          new Error(
+            'closePositions batch failure: 2/2 failed (2 reported) - BTC: insufficient liquidity; ETH: min size',
           ),
-        }),
-        expect.objectContaining({
-          controller: 'TradingService',
-          method: 'closePositions',
-        }),
-      );
+          {
+            controller: 'TradingService',
+            method: 'closePositions',
+            successCount: 0,
+            failureCount: 2,
+            reportedFailureCount: 2,
+            symbols: 0,
+            closeAll: true,
+          },
+        ],
+      ]);
     });
 
     it('does not log a batch close that failed only because the signer could not sign', async () => {
@@ -2658,12 +2668,15 @@ describe('TradingService', () => {
 
       expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
         [
-          new Error('closePositions batch failure: 1/2 failed - ETH: min size'),
+          new Error(
+            'closePositions batch failure: 2/2 failed (1 reported) - ETH: min size',
+          ),
           {
             controller: 'TradingService',
             method: 'closePositions',
             successCount: 0,
-            failureCount: 1,
+            failureCount: 2,
+            reportedFailureCount: 1,
             symbols: 0,
             closeAll: true,
           },

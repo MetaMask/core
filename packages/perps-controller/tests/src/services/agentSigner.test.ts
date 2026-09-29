@@ -19,6 +19,58 @@ const AGENT = {
 } as const;
 
 describe('AgentBindings', () => {
+  it('resolves no agent without getAgentSigner or a binding', async () => {
+    const bindings = new AgentBindings(undefined);
+
+    expect(await bindings.resolve(ACCOUNT)).toBeNull();
+  });
+
+  it('answers with a binding for its account and network only, and asks getAgentSigner for the others', async () => {
+    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const bindings = new AgentBindings(getAgentSigner);
+    const otherAccount: PerpsAgentAccount = {
+      ...ACCOUNT,
+      mainAddress: '0x9999999999999999999999999999999999999999',
+    };
+    const testnetAccount: PerpsAgentAccount = { ...ACCOUNT, isTestnet: true };
+
+    bindings.set(ACCOUNT, AGENT);
+
+    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
+    expect(await bindings.resolve(otherAccount)).toBeNull();
+    expect(await bindings.resolve(testnetAccount)).toBeNull();
+    expect(getAgentSigner.mock.calls).toStrictEqual([
+      [otherAccount],
+      [testnetAccount],
+    ]);
+  });
+
+  it('matches a binding whatever the main address casing', async () => {
+    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const bindings = new AgentBindings(getAgentSigner);
+
+    bindings.set(ACCOUNT, AGENT);
+
+    expect(
+      await bindings.resolve({
+        ...ACCOUNT,
+        mainAddress: '0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD',
+      }),
+    ).toBe(AGENT);
+    expect(getAgentSigner).not.toHaveBeenCalled();
+  });
+
+  it('forgets bindings and pins once cleared', async () => {
+    const getAgentSigner = jest.fn().mockResolvedValue(AGENT);
+    const bindings = new AgentBindings(getAgentSigner);
+    bindings.set(ACCOUNT, null);
+
+    bindings.clear();
+
+    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
+    expect(getAgentSigner.mock.calls).toStrictEqual([[ACCOUNT]]);
+  });
+
   it('releases a binding to the rejected agent whatever the address casing', async () => {
     const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
@@ -30,7 +82,21 @@ describe('AgentBindings', () => {
     );
 
     expect(await bindings.resolve(ACCOUNT)).toBeNull();
-    expect(getAgentSigner).toHaveBeenCalledWith(ACCOUNT);
+    expect(getAgentSigner.mock.calls).toStrictEqual([[ACCOUNT]]);
+  });
+
+  it("releases only the rejecting account's binding to the agent", async () => {
+    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const bindings = new AgentBindings(getAgentSigner);
+    const testnetAccount: PerpsAgentAccount = { ...ACCOUNT, isTestnet: true };
+    bindings.set(ACCOUNT, AGENT);
+    bindings.set(testnetAccount, AGENT);
+
+    bindings.release(testnetAccount, AGENT.address);
+
+    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
+    expect(await bindings.resolve(testnetAccount)).toBeNull();
+    expect(getAgentSigner.mock.calls).toStrictEqual([[testnetAccount]]);
   });
 
   it('keeps a binding to another agent and a pin when an agent is rejected', async () => {

@@ -13,10 +13,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import {
-  AGENT_ADDRESS,
-  OTHER_AGENT_ADDRESS,
-} from '../helpers/agentFixtures.js';
+import { AGENT_ADDRESS } from '../helpers/agentFixtures.js';
 import {
   createMockHyperLiquidProvider,
   createMockPosition,
@@ -997,133 +994,10 @@ describe('PerpsController', () => {
       );
     }
 
-    /**
-     * Build a controller whose host resolves agents with `getAgentSigner`.
-     *
-     * @param getAgentSigner - The host resolver.
-     * @returns The controller.
-     */
-    function createAgentController(
-      getAgentSigner?: HyperLiquidCredentials['getAgentSigner'],
-    ): TestablePerpsController {
-      return new TestablePerpsController({
-        messenger: createMockMessenger(),
-        state: getDefaultPerpsControllerState(),
-        clientConfig: {
-          providerCredentials: { hyperliquid: { getAgentSigner } },
-        },
-        infrastructure: mockInfrastructure,
-      });
-    }
-
-    it("asks the host's getAgentSigner through the HyperLiquid provider's resolver", async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
-      controller = createAgentController(getAgentSigner);
-      await controller.init();
-
-      const resolved = await getProviderAgentResolver()(account);
-
-      expect(resolved).toBe(agentSigner);
-      expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
-    });
-
-    it('resolves no agent without getAgentSigner or a binding', async () => {
-      controller = createAgentController();
-      await controller.init();
-
-      expect(await getProviderAgentResolver()(account)).toBeNull();
-    });
-
-    it('answers with a setAgentSigner binding for that account and network only', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(null);
-      controller = createAgentController(getAgentSigner);
-      await controller.init();
-      const resolve = getProviderAgentResolver();
-
-      controller.setAgentSigner(account, agentSigner);
-
-      expect(await resolve(account)).toBe(agentSigner);
-      expect(
-        await resolve({
-          ...account,
-          mainAddress: '0x9999999999999999999999999999999999999999',
-        }),
-      ).toBeNull();
-      expect(await resolve({ ...account, isTestnet: true })).toBeNull();
-      expect(getAgentSigner.mock.calls).toStrictEqual([
-        [
-          {
-            ...account,
-            mainAddress: '0x9999999999999999999999999999999999999999',
-          },
-        ],
-        [{ ...account, isTestnet: true }],
-      ]);
-    });
-
-    it('matches a binding whatever the main address casing', async () => {
-      controller = createAgentController(jest.fn().mockResolvedValue(null));
-      await controller.init();
-
-      controller.setAgentSigner(
-        {
-          mainAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-          isTestnet: false,
-        },
-        agentSigner,
-      );
-
-      expect(
-        await getProviderAgentResolver()({
-          mainAddress: '0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD',
-          isTestnet: false,
-        }),
-      ).toBe(agentSigner);
-    });
-
-    it('drops only a binding to the agent the venue rejected', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(null);
-      controller = createAgentController(getAgentSigner);
-      await controller.init();
-      const { calls } = (
-        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
-      ).mock;
-      const { onAgentRejected } = calls[calls.length - 1][0];
-      const resolve = getProviderAgentResolver();
-
-      controller.setAgentSigner(account, agentSigner);
-      onAgentRejected?.(account, OTHER_AGENT_ADDRESS);
-      const keptForOtherAgent = await resolve(account);
-      onAgentRejected?.(account, agentSigner.address);
-      const afterRejection = await resolve(account);
-      controller.setAgentSigner(account, null);
-      onAgentRejected?.(account, agentSigner.address);
-      const pinKept = await resolve(account);
-
-      expect(keptForOtherAgent).toBe(agentSigner);
-      expect(afterRejection).toBeNull();
-      expect(pinKept).toBeNull();
-      expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
-    });
-
     it('rejects trading wallet preparation before init like other provider actions', async () => {
-      controller = createAgentController();
-
       await expect(controller.prepareTradingWallet()).rejects.toThrow(
         PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
       );
-    });
-
-    it('forgets agent bindings cleared before init', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
-      controller = createAgentController(getAgentSigner);
-      controller.setAgentSigner(account, null);
-
-      controller.clearAgentSigners();
-      await controller.init();
-
-      expect(await getProviderAgentResolver()(account)).toBe(agentSigner);
-      expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
     });
 
     it('runs the agent and preparation actions called through the messenger after init', async () => {
@@ -1182,11 +1056,13 @@ describe('PerpsController', () => {
     it('drops resolved agents on every provider in aggregated mode, skipping one without clearAgentSigners', async () => {
       const RealAggregatedPerpsProvider =
         AggregatedPerpsProviderModule.AggregatedPerpsProvider;
+      let providerIdsAtConstruction: string[] = [];
       const aggregatedConstructor = jest
         .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
-        .mockImplementation(
-          (config) => new RealAggregatedPerpsProvider(config),
-        );
+        .mockImplementation((config) => {
+          providerIdsAtConstruction = [...config.providers.keys()];
+          return new RealAggregatedPerpsProvider(config);
+        });
       mockProvider.clearAgentSigners = jest.fn();
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -1210,29 +1086,18 @@ describe('PerpsController', () => {
       expect(aggregatedConstructor.mock.calls).toStrictEqual([
         [
           {
-            providers,
+            providers: expect.any(Map),
             defaultProvider: 'hyperliquid',
             infrastructure: mockInfrastructure,
             isTestnet: true,
           },
         ],
       ]);
-    });
-
-    it("returns the active provider's trading wallet readiness", async () => {
-      mockProvider.prepareTradingWallet = jest.fn().mockResolvedValue({
-        ready: false,
-        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-      });
-      await controller.init();
-
-      const result = await controller.prepareTradingWallet();
-
-      expect(result).toStrictEqual({
-        ready: false,
-        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-      });
-      expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([[]]);
+      // Lighter registered after the aggregated provider was built, into the
+      // map it shares with the controller.
+      expect(providerIdsAtConstruction).toStrictEqual(['hyperliquid']);
+      const [[constructedWith]] = aggregatedConstructor.mock.calls;
+      expect(constructedWith.providers).toBe(providers);
     });
 
     it('reports a trading wallet ready when the provider has no deferred setup', async () => {

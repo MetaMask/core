@@ -1006,10 +1006,11 @@ class LighterSessionCancelledError extends Error {
 }
 
 // EIP-1193 `userRejectedRequest` error code.
-const USER_REJECTED_REQUEST_CODE = 4001;
+export const USER_REJECTED_REQUEST_CODE = 4001;
 
-// How wallets word a declined signature when they set no code.
-const USER_REJECTED_MESSAGE_PATTERN = /user (rejected|denied)/iu;
+// How wallets word a declined signature when they set no code (the same
+// wordings the controller's deposit flow treats as a cancellation).
+const USER_REJECTED_MESSAGE_PATTERN = /user (rejected|denied|cancell?ed)/iu;
 
 /**
  * Whether preparing the wallet stopped in a way the order path retries: the
@@ -1316,25 +1317,29 @@ export class LighterProvider implements PerpsProvider {
    * Register the venue key ahead of the first order, so its main-account
    * `personal_sign` surfaces in a guided session instead of at order time.
    *
-   * @returns `ready: true` once the venue key is registered; otherwise
+   * @returns `ready: true` once the venue key is registered, or at once for a
+   * read-only provider (no signer bridge): it has nothing to prepare and
+   * never asks the signer, so it does not hold back an aggregated result, and
+   * `isReadyToTrade` still reports that it cannot trade. Otherwise
    * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
-   * not ready (even with a registered venue key), without an error when the
-   * order path will ask again (the user declined the signature, or the
-   * wallet has no Lighter account yet), with `PROVIDER_LIFECYCLE_STALE`
-   * (unlogged) when the provider disconnected or the wallet switched accounts
-   * meanwhile, and with the logged error when registration failed.
+   * not ready (even with a registered venue key), with `NO_ACCOUNT_SELECTED`
+   * when no account is selected, without an error when the order path will
+   * ask again (the user declined the signature, or the wallet has no Lighter
+   * account yet), with `PROVIDER_LIFECYCLE_STALE` (unlogged) when the
+   * provider disconnected or the wallet switched accounts meanwhile, and with
+   * the logged error when registration failed.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
     if (!this.#signerBridge) {
-      // The host enabled Lighter without its signer: a configuration error.
-      this.#deps.logger.error(
-        new Error(LIGHTER_SIGNER_UNAVAILABLE_ERROR),
-        this.#getErrorContext('prepareTradingWallet'),
-      );
-      return { ready: false, error: LIGHTER_SIGNER_UNAVAILABLE_ERROR };
+      return { ready: true };
+    }
+    try {
+      this.#walletService.getUserAddress();
+    } catch {
+      return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
     }
     try {
       await this.#ensureSignerReady();

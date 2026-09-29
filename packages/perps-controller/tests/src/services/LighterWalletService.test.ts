@@ -1,4 +1,5 @@
 import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
 import {
@@ -79,7 +80,7 @@ describe('LighterWalletService', () => {
     it('rejects when the keyring is locked', async () => {
       const { service } = buildMessengerService(false);
       await expect(service.signPersonalMessage('nope')).rejects.toThrow(
-        'KEYRING_LOCKED',
+        PERPS_ERROR_CODES.KEYRING_LOCKED,
       );
     });
   });
@@ -90,7 +91,7 @@ describe('LighterWalletService', () => {
         isTestnet: true,
       });
       await expect(service.signPersonalMessage('x')).rejects.toThrow(
-        'NO_ACCOUNT_SELECTED',
+        PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
       );
     });
 
@@ -98,7 +99,9 @@ describe('LighterWalletService', () => {
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
       });
-      expect(() => service.getUserAddress()).toThrow('NO_ACCOUNT_SELECTED');
+      expect(() => service.getUserAddress()).toThrow(
+        PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+      );
     });
   });
 });

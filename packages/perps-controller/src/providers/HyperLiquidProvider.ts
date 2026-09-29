@@ -4342,6 +4342,28 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * The signer failure a venue reported in cancel status entries rather than
+   * threw. One signature covers the whole request, so a rejected signer fails
+   * every entry.
+   *
+   * @param statuses - The status entries.
+   * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
+   */
+  #classifyStatusSignerFailure(statuses: unknown[]): Error | undefined {
+    for (const status of statuses) {
+      if (isStatusObject(status) && typeof status.error === 'string') {
+        const signerFailure = this.#classifySignerFailure(
+          new Error(status.error),
+        );
+        if (signerFailure) {
+          return signerFailure;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Get error context for logging with searchable tags and context.
    * Enables Sentry dashboard filtering by feature, provider, and network.
    *
@@ -7849,7 +7871,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw error;
     }
 
-    return classifyCancelStatus(result.response?.data?.statuses?.[0]);
+    const status: unknown = result.response?.data?.statuses?.[0];
+    const signerFailure = this.#classifyStatusSignerFailure([status]);
+    if (signerFailure) {
+      throw signerFailure;
+    }
+    return classifyCancelStatus(status);
   }
 
   /**
@@ -8674,12 +8701,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { remainingClientOrderIds: [] };
     }
 
-    const getRemainingClientOrderIds = (statuses: unknown[]): Hex[] =>
-      requests.flatMap((request, index) =>
-        classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
-          ? [request.cloid]
-          : [],
-      );
+    const classifyStatuses = (
+      statuses: unknown[],
+    ): { remainingClientOrderIds: Hex[]; signerFailure?: Error } => {
+      const signerFailure = this.#classifyStatusSignerFailure(statuses);
+      if (signerFailure) {
+        return {
+          remainingClientOrderIds: requests.map((request) => request.cloid),
+          signerFailure,
+        };
+      }
+      return {
+        remainingClientOrderIds: requests.flatMap((request, index) =>
+          classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
+            ? [request.cloid]
+            : [],
+        ),
+      };
+    };
 
     try {
       const result = await exchangeClient.cancelByCloid({
@@ -8692,7 +8731,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      return { remainingClientOrderIds: getRemainingClientOrderIds(statuses) };
+      return classifyStatuses(statuses);
     } catch (error) {
       // The signer could not sign, so nothing was cancelled.
       const signerFailure = this.#classifySignerFailure(error);
@@ -8704,9 +8743,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
-        return {
-          remainingClientOrderIds: getRemainingClientOrderIds(statuses),
-        };
+        return classifyStatuses(statuses);
       }
       this.#deps.debugLogger.log('Order cancellation by CLOID failed', {
         error: ensureError(
@@ -8742,6 +8779,15 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const classifyStatuses = (statuses: unknown[]): CancelOrderBatchOutcome => {
+      const signerFailure = this.#classifyStatusSignerFailure(statuses);
+      if (signerFailure) {
+        return {
+          remainingOrderIds: requests.map((request) => request.o),
+          cancelledOrderIds: [],
+          responseComplete: false,
+          signerFailure,
+        };
+      }
       const remainingOrderIds: number[] = [];
       const cancelledOrderIds: number[] = [];
       requests.forEach((request, index) => {
@@ -15659,20 +15705,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
-    // Check if another provider is currently attempting this
-    const inFlightPromise = PerpsSigningCache.isInFlight(
+    // Wait while another provider attempts it. That attempt may end without
+    // caching a result (its signer could not sign), so take the lock once it
+    // is free and re-check the cache under it. The lock is checked and taken
+    // with no await in between, so only one of several waiters gets it.
+    let inFlightPromise = PerpsSigningCache.isInFlight(
       'referral',
       network,
       userAddress,
     );
-    if (inFlightPromise) {
+    while (inFlightPromise) {
       this.#deps.debugLogger.log(
         '[ensureReferralSet] Global in-flight, waiting...',
         { network },
       );
-      // The other attempt may end without caching a result (the signer could
-      // not sign); the re-check below, under our own lock, uses one it cached.
       await inFlightPromise;
+      inFlightPromise = PerpsSigningCache.isInFlight(
+        'referral',
+        network,
+        userAddress,
+      );
     }
 
     // Set global in-flight lock

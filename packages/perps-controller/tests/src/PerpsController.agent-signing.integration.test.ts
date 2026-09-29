@@ -12,6 +12,8 @@ import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import type { HyperLiquidWalletParams } from '../../src/services/HyperLiquidClientService.js';
 import { TradingReadinessCache } from '../../src/services/TradingReadinessCache.js';
 import type {
+  HyperLiquidCredentials,
+  OrderResult,
   PerpsAccountSigner,
   PerpsAgentAccount,
   PerpsAgentSigner,
@@ -47,6 +49,14 @@ const SIGNERS = new Map<string, Hex>([
   [OTHER_AGENT_SIGNATURE, OTHER_AGENT_ADDRESS],
 ]);
 const OK_RESPONSE = { status: 'ok' } as const;
+// What the controller returns for an order the fake venue rests, unfilled.
+const PLACED_ORDER: OrderResult = {
+  success: true,
+  orderId: '7',
+  submittedSize: '0.1',
+  filledSize: undefined,
+  averagePrice: undefined,
+};
 
 type VenueWrite = {
   write: string;
@@ -147,6 +157,8 @@ class MockExchangeClient {
 // flows subscribes, so the fake SubscriptionClient has no methods. Jest
 // hoists this above the imports; the fakes are only built once a test runs.
 jest.mock('@nktkas/hyperliquid', () => ({
+  // The provider tells SDK errors apart with instanceof.
+  HyperliquidError: class HyperliquidError extends Error {},
   HttpTransport: function HttpTransport(options: {
     isTestnet: boolean;
   }): MockHttpTransport {
@@ -241,19 +253,17 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    * agents with `getAgentSigner`.
    *
    * @param signer - The host's account signer.
+   * @param hyperliquid - The host's HyperLiquid credentials.
    * @returns The controller.
    */
   function createController(
     signer: PerpsAccountSigner = accountSigner,
+    hyperliquid: HyperLiquidCredentials = { getAgentSigner, onAgentRejected },
   ): PerpsController {
     return new PerpsController({
       messenger: createMessenger(),
       state: getDefaultPerpsControllerState(),
-      clientConfig: {
-        providerCredentials: {
-          hyperliquid: { getAgentSigner, onAgentRejected },
-        },
-      },
+      clientConfig: { providerCredentials: { hyperliquid } },
       infrastructure: { ...infrastructure, accountSigner: signer },
       deferEligibilityCheck: true,
     });
@@ -280,17 +290,16 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    * Place a BTC market buy through the controller.
    *
    * @param controller - The initialized controller.
-   * @returns Whether the venue accepted it.
+   * @returns The order result.
    */
-  async function placeOrder(controller: PerpsController): Promise<boolean> {
-    const result = await controller.placeOrder({
+  async function placeOrder(controller: PerpsController): Promise<OrderResult> {
+    return await controller.placeOrder({
       symbol: 'BTC',
       isBuy: true,
       size: '0.1',
       orderType: 'market',
       currentPrice: 50000,
     });
-    return result.success === true;
   }
 
   /**
@@ -310,7 +319,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
     const placed = await placeOrder(controller);
 
-    expect(placed).toBe(true);
+    expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([
       ['approveBuilderFee', MAIN_ADDRESS],
       ['order', AGENT_ADDRESS],
@@ -320,6 +329,22 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
     ]);
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('signs L1 actions with the main account when the host has no getAgentSigner', async () => {
+    const controller = createController(accountSigner, {});
+    await controller.init();
+
+    const placed = await placeOrder(controller);
+
+    expect(placed).toStrictEqual(PLACED_ORDER);
+    expect(signedWrites()).toStrictEqual([['order', MAIN_ADDRESS]]);
+    expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+      [MAIN_ADDRESS, L1_PAYLOAD],
+    ]);
+    expect(getAgentSigner).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -332,12 +357,16 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     controller.clearAgentSigners();
     const clearedPlaced = await placeOrder(controller);
 
-    expect([pinnedPlaced, clearedPlaced]).toStrictEqual([true, true]);
+    expect([pinnedPlaced, clearedPlaced]).toStrictEqual([
+      PLACED_ORDER,
+      PLACED_ORDER,
+    ]);
     expect(signedWrites()).toStrictEqual([
       ['order', MAIN_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(onAgentRejected).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -348,11 +377,15 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     await controller.init();
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
 
-    await placeOrder(controller);
+    const placedBefore = await placeOrder(controller);
     await controller.toggleTestnet();
     await controller.toggleTestnet();
-    await placeOrder(controller);
+    const placedAfter = await placeOrder(controller);
 
+    expect([placedBefore, placedAfter]).toStrictEqual([
+      PLACED_ORDER,
+      PLACED_ORDER,
+    ]);
     // The original and the re-created mainnet provider each built SDK
     // clients.
     expect(mockVenue.networks).toStrictEqual(['mainnet', 'mainnet']);
@@ -362,6 +395,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     ]);
     expect(getAgentSigner).not.toHaveBeenCalled();
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -374,9 +408,26 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     await controller.init();
     const placed = await placeOrder(controller);
 
-    expect(placed).toBe(true);
+    expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([['order', OTHER_AGENT_ADDRESS]]);
     expect(getAgentSigner).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('forgets a setAgentSigner binding cleared before init', async () => {
+    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
+    const controller = createController();
+    controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
+
+    controller.clearAgentSigners();
+    await controller.init();
+    const placed = await placeOrder(controller);
+
+    expect(placed).toStrictEqual(PLACED_ORDER);
+    expect(signedWrites()).toStrictEqual([['order', AGENT_ADDRESS]]);
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(boundAgent.signTypedData).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -388,18 +439,24 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     const controller = createController();
     await controller.init();
 
-    await placeOrder(controller);
+    const resolvedPlaced = await placeOrder(controller);
     controller.setAgentSigner(MAINNET_ACCOUNT, reboundAgent);
-    await placeOrder(controller);
+    const reboundPlaced = await placeOrder(controller);
     controller.setAgentSigner(MAINNET_ACCOUNT, null);
-    await placeOrder(controller);
+    const pinnedPlaced = await placeOrder(controller);
 
+    expect([resolvedPlaced, reboundPlaced, pinnedPlaced]).toStrictEqual([
+      PLACED_ORDER,
+      PLACED_ORDER,
+      PLACED_ORDER,
+    ]);
     expect(signedWrites()).toStrictEqual([
       ['order', AGENT_ADDRESS],
       ['order', OTHER_AGENT_ADDRESS],
       ['order', MAIN_ADDRESS],
     ]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(onAgentRejected).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -429,7 +486,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(onAgentRejected.mock.calls).toStrictEqual([
       [MAINNET_ACCOUNT, AGENT_ADDRESS],
     ]);
-    expect(placed).toBe(true);
+    expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([
       ['cancel', AGENT_ADDRESS],
       ['order', OTHER_AGENT_ADDRESS],
@@ -464,7 +521,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       [MAINNET_ACCOUNT, OTHER_AGENT_ADDRESS],
     ]);
     // The binding is gone, so the host's getAgentSigner answers.
-    expect(placed).toBe(true);
+    expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([
       ['cancel', OTHER_AGENT_ADDRESS],
       ['order', AGENT_ADDRESS],
@@ -490,6 +547,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(mockVenue.writes).toStrictEqual([]);
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(getAgentSigner).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -534,6 +592,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     ]);
     expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(onAgentRejected).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 });
