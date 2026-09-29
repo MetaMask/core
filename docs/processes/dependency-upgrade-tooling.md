@@ -20,36 +20,29 @@ Both feed the same repair workflow, [`repair-dependency-upgrade-pull-requests.ym
 
 ## Differences that decide it
 
-### 1. Security updates ignore most configuration
+### 1. Security updates split version ranges across workspaces
 
-This is the single biggest problem with Dependabot here, and it is documented behaviour, not a bug.
+Dependabot security updates walk manifests one at a time. [#9369](https://github.com/MetaMask/core/pull/9369) is one dependency across 23 directories, [#8849](https://github.com/MetaMask/core/pull/8849) is 20 dependencies in one. Because each manifest is updated on its own, a shared dependency ends up with a different version range per workspace, which fails our `yarn constraints` consistency rule. That is the defect: not what Dependabot chooses to update, but how it writes the update.
+
+Renovate updates every manifest that declares a dependency in a single branch, so ranges stay consistent by construction.
+
+**What is not a problem, so nobody has to relitigate it.** Security updates deliberately ignore `cooldown`, `open-pull-requests-limit` and `allow`. That is correct: you want a patch as early as possible, you do not want security fixes queued behind a cap, and you do want them for dependencies outside the allowlist. GitHub documents the first two explicitly:
 
 > The `cooldown` option is only available for _version_ updates, not _security_ updates.
 
-> _Security update_ pull requests are not subject to this limit and do not count toward it. There is no limit on the number of open pull requests for security updates.
+> _Security update_ pull requests are not subject to this limit and do not count toward it.
 
-Source: [Dependabot options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference).
+Source: [Dependabot options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference). `allow` behaves the same way, which is why [#8849](https://github.com/MetaMask/core/pull/8849) bumps 20 dependencies our allowlist does not cover.
 
-The `allow` list does not gate them either. Our config allows only `@metamask/*` and `@lavamoat/*`, yet [#8849](https://github.com/MetaMask/core/pull/8849) bumps 20 unrelated dependencies. So the knobs we rely on for version updates simply do not exist for the pull requests we care about most.
+Renovate does the same thing by default, so this is not a difference between the two. Its `vulnerabilityAlerts` defaults are `minimumReleaseAge: null`, `prConcurrentLimit: 0`, `dependencyDashboardApproval: false`, `prCreation: immediate` ([docs](https://docs.renovatebot.com/configuration-options/#vulnerabilityalerts)). The only real distinction is that Renovate lets you narrow those if you ever want to, and Dependabot does not, which is a footnote rather than a reason to switch.
 
-Renovate applies one configuration to both. Its security behaviour is a `vulnerabilityAlerts` object with defaults, all overridable ([configuration options](https://docs.renovatebot.com/configuration-options/#vulnerabilityalerts)):
+One consequence that applies to **both** tools and is worth knowing: because security fixes skip the age gate, they can propose a version younger than `npmMinimalAgeGate: 4320` in [`.yarnrc.yml`](../../.yarnrc.yml), and the install then fails. It is rare and loud. Do not engineer around it.
 
-```
-dependencyDashboardApproval: false
-minimumReleaseAge: null
-prCreation: immediate
-prConcurrentLimit: 0
-rangeStrategy: update-lockfile
-commitMessageSuffix: [SECURITY]
-```
+### 2. Recovering from a rotted batch
 
-Note the honest version of a claim we got wrong earlier: Renovate also exempts security fixes from the age gate **by default**, exactly like Dependabot. The difference is that Renovate lets you change that and Dependabot does not.
+Dependabot cannot rebase or recreate a grouped pull request once the configuration that produced it has changed, and closing one does not produce a replacement. We closed [#10177](https://github.com/MetaMask/core/pull/10177) and [#10157](https://github.com/MetaMask/core/pull/10157) and neither came back, which is why [#9369](https://github.com/MetaMask/core/pull/9369) and [#8849](https://github.com/MetaMask/core/pull/8849) are still open from July and May. Combined with the range splitting above, a batch that fails CI once is effectively stuck.
 
-### 2. One pull request per dependency, or one per manifest
-
-Dependabot security updates walk manifests one at a time. [#9369](https://github.com/MetaMask/core/pull/9369) is one dependency across 23 directories. Because each manifest is updated separately, the version range for a shared dependency ends up different per workspace, which fails our `yarn constraints` consistency rule.
-
-Renovate updates every manifest that declares a dependency in a single branch, so ranges stay consistent by construction.
+Renovate regenerates a branch on demand from the dashboard, and stops touching a branch once someone else commits to it (`isBranchModified`). That second behaviour is load bearing for us: the repair workflow commits as `github-actions[bot]` specifically so Renovate leaves the repairs alone ([#10322](https://github.com/MetaMask/core/pull/10322)).
 
 ### 3. Grouping
 
@@ -72,13 +65,7 @@ That is the whole config for it ([#10495](https://github.com/MetaMask/core/pull/
 
 ### 4. Volume control
 
-Renovate's dependency dashboard opens nothing until a checkbox is ticked (`dependencyDashboardApproval`, [docs](https://docs.renovatebot.com/configuration-options/#dependencydashboardapproval)). That is how we are able to run it on every dependency right now without drowning. Dependabot has `open-pull-requests-limit` and nothing else, and as quoted above it does not apply to security updates.
-
-### 5. Recovering from a bad batch
-
-Dependabot cannot rebase or recreate a grouped pull request once the config that produced it changed, and closing one does not produce a replacement. We closed [#10177](https://github.com/MetaMask/core/pull/10177) and [#10157](https://github.com/MetaMask/core/pull/10157) and neither came back, which is why [#9369](https://github.com/MetaMask/core/pull/9369) and [#8849](https://github.com/MetaMask/core/pull/8849) are still open from July and May.
-
-Renovate regenerates a branch on demand from the dashboard, and stops touching a branch once someone else commits to it (`isBranchModified`). That second behaviour is load bearing for us: the repair workflow commits as `github-actions[bot]` specifically so Renovate leaves the repairs alone ([#10322](https://github.com/MetaMask/core/pull/10322)).
+Renovate's dependency dashboard opens nothing until a checkbox is ticked (`dependencyDashboardApproval`, [docs](https://docs.renovatebot.com/configuration-options/#dependencydashboardapproval)). That is how we can point it at every dependency in the repo right now without drowning, and it is why we can drop the allowlist in one step rather than widening it a scope at a time. Dependabot's only equivalent is `open-pull-requests-limit`, which caps the queue but gives no way to choose what comes out of it.
 
 ## What Renovate costs
 
@@ -100,9 +87,11 @@ The allowlist. Every dependency outside `@metamask/*` and `@lavamoat/*` is eithe
 
 ## Recommendation
 
-Renovate, for one reason that is hard to work around: **Dependabot's security updates are the pull requests we most need to be correct, and they are the ones its configuration cannot reach.** No amount of `dependabot.yml` fixes the per manifest range splitting, the missing cooldown or the unbounded pull request count, because those are documented as out of scope for security updates.
+Renovate, for one reason: **Dependabot writes security updates in a shape this repo cannot merge, and no configuration changes that shape.** It updates one manifest at a time, which splits version ranges across workspaces and fails `yarn constraints`, and once a batch has rotted it cannot be regenerated. That is why 126 fixable alerts sit behind two stuck pull requests.
 
-Everything Renovate cost us is one time setup that is now merged. What Dependabot costs is ongoing and unbounded.
+Everything Renovate cost us was one time setup, and it is merged. What Dependabot costs is per advisory, forever.
+
+The counterargument deserves stating plainly: Dependabot is hosted, needs no token, no App permissions, no version pinning and no upstream bug watching, and that is worth real money. If the range splitting were fixable from `dependabot.yml` the answer would be to stay. It is not.
 
 Two things worth deciding alongside this:
 
