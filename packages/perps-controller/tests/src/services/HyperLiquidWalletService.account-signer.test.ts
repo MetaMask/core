@@ -93,6 +93,26 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     ).rejects.toThrow('User rejected the request.');
   });
 
+  it('fails with KEYRING_LOCKED, keeping the host error as its cause, when the signer locks while signing', async () => {
+    let ready = true;
+    const hostError = new Error('Wallet is locked');
+    const { service } = buildService({
+      isReady: () => ready,
+      signTypedData: jest.fn(async () => {
+        ready = false;
+        throw hostError;
+      }),
+    });
+
+    const error: unknown = await service
+      .createWalletAdapter()
+      .signTypedData(L1_PAYLOAD)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
+    expect((error as Error).cause).toBe(hostError);
+  });
+
   it('reports ready when isReady is omitted', () => {
     const { service, call } = buildService();
 

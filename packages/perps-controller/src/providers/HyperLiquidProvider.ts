@@ -2107,14 +2107,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const pendingEntry = entry;
-    // A clear, or another answer stored while this one was pending, wins.
-    const isSuperseded = (): boolean => {
-      const latest = this.#agentSigners.get(key);
-      return (
-        generation !== this.#agentSignersGeneration ||
-        (latest !== undefined && latest !== pendingEntry)
-      );
-    };
+    // A clear while this answer was pending wins, so it is asked again. Only a
+    // clear replaces a pending answer: every other removal happens once it
+    // settled, after all its callers resumed.
+    const isSuperseded = (): boolean =>
+      generation !== this.#agentSignersGeneration;
 
     let agentSigner: PerpsAgentSigner | null;
     try {
@@ -6541,10 +6538,14 @@ export class HyperLiquidProvider implements PerpsProvider {
           a: assetId,
           t: running.twapId,
         });
+        const cancelStatus: unknown = cancelResult.response?.data?.status;
+        // A rejected agent is dropped and reported; the TWAP stays live.
+        this.#classifyStatusSignerFailure([cancelStatus]);
         remainsLive =
-          classifyCancelStatus(cancelResult.response?.data?.status) ===
-          CancelChildOutcome.Refused;
+          classifyCancelStatus(cancelStatus) === CancelChildOutcome.Refused;
       } catch (error) {
+        // A rejected agent is dropped and reported; the TWAP stays live.
+        this.#classifySignerFailure(error);
         this.#deps.debugLogger.log(
           'Stale TWAP placement could not be retracted',
           {
@@ -7901,6 +7902,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
       return outcome;
     } catch (error) {
+      // A rejected agent is dropped and reported; the order stays resting.
+      this.#classifySignerFailure(error);
       this.#deps.debugLogger.log('Could not retract abandoned chase order', {
         orderId: session.orderId,
         error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
@@ -14539,18 +14542,20 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Run the deferred trading-readiness steps (account migration with user
-   * signing, builder fee and referral setup) ahead of the first order, so a
-   * hardware wallet signs them in one guided session instead of at order
-   * time. Results are cached, so an already-ready account signs nothing.
+   * Run the deferred trading-readiness steps (account migration, builder fee
+   * and referral setup) ahead of the first order, so their signatures happen
+   * in one guided session instead of at order time. The builder fee and the
+   * migration from `dexAbstraction` are signed by the main account; with an
+   * agent, the referral and the silent migration are L1 actions the agent
+   * signs. Results are cached, so an already-ready account signs nothing.
    *
    * @returns `ready: true` when the main-account signer is ready and none of
-   * these steps will ask it to sign again before the first order; a step the
-   * user declined counts, because the order path does not ask again either.
-   * `ready: false` carries `KEYRING_LOCKED` when the signer is not ready, the
-   * error when the steps could not run, and no error when a step will retry
-   * (a rejected builder fee, a transient failure, or a wallet with no
-   * HyperLiquid account yet).
+   * these steps will need a signature again before the first order; a step
+   * the user declined counts, because the order path does not ask again
+   * either. `ready: false` carries `KEYRING_LOCKED` when the signer is not
+   * ready, the error when the steps could not run, and no error when a step
+   * will retry (a rejected builder fee, a transient failure, a wallet with no
+   * HyperLiquid account yet, or an agent that could not sign).
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     // Nothing can be signed, so run no setup (and log nothing) until it can.

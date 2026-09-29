@@ -102,7 +102,15 @@ export class LighterWalletService {
       this.#deps.debugLogger.log('LighterWalletService: personal_sign', {
         address,
       });
-      return await accountSigner.signPersonalMessage(address, message);
+      try {
+        return await accountSigner.signPersonalMessage(address, message);
+      } catch (error) {
+        // A signer that locked while signing throws its own error.
+        if (!isAccountSignerReady(accountSigner)) {
+          throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED, { cause: error });
+        }
+        throw error;
+      }
     }
 
     if (this.#messenger) {

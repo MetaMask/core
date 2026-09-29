@@ -1103,20 +1103,25 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('reports the first not-ready provider when several are not ready', async () => {
+      const prepareHyperLiquid = jest
+        .fn()
+        .mockResolvedValue({ ready: false, error: 'first' });
+      const prepareLighter = jest
+        .fn()
+        .mockResolvedValue({ ready: false, error: 'second' });
       Object.assign(mockHLProvider, {
-        prepareTradingWallet: jest
-          .fn()
-          .mockResolvedValue({ ready: false, error: 'first' }),
+        prepareTradingWallet: prepareHyperLiquid,
       });
       Object.assign(mockLighterProvider, {
-        prepareTradingWallet: jest
-          .fn()
-          .mockResolvedValue({ ready: false, error: 'second' }),
+        prepareTradingWallet: prepareLighter,
       });
 
       const result = await aggregatedProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: false, error: 'first' });
+      // Lighter is still prepared after HyperLiquid reported not ready.
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
     });
 
     it('still prepares the other providers when one throws', async () => {

@@ -186,7 +186,15 @@ export class HyperLiquidWalletService {
       if (!isAccountSignerReady(accountSigner)) {
         throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
       }
-      return await accountSigner.signTypedData(mainAddress, params);
+      try {
+        return await accountSigner.signTypedData(mainAddress, params);
+      } catch (error) {
+        // A signer that locked while signing throws its own error.
+        if (!isAccountSignerReady(accountSigner)) {
+          throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED, { cause: error });
+        }
+        throw error;
+      }
     }
 
     const signature = await this.#signTypedMessage({

@@ -1005,7 +1005,7 @@ class LighterSessionCancelledError extends Error {
 }
 
 // EIP-1193 `userRejectedRequest` error code.
-export const USER_REJECTED_REQUEST_CODE = 4001;
+const USER_REJECTED_REQUEST_CODE = 4001;
 
 // How wallets word a declined signature when they set no code (the same
 // wordings the controller's deposit flow treats as a cancellation).
@@ -1317,9 +1317,9 @@ export class LighterProvider implements PerpsProvider {
    * `personal_sign` surfaces in a guided session instead of at order time.
    *
    * @returns `ready: true` once the venue key is registered, or at once for a
-   * read-only provider (no signer bridge): it has nothing to prepare and
-   * never asks the signer, so it does not hold back an aggregated result, and
-   * `isReadyToTrade` still reports that it cannot trade. Otherwise
+   * read-only provider (no signer bridge) while the main-account signer is
+   * ready: it has nothing to prepare, so it does not hold back an aggregated
+   * result, and `isReadyToTrade` still reports that it cannot trade. Otherwise
    * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
    * not ready (even with a registered venue key), with `NO_ACCOUNT_SELECTED`
    * when no account is selected, without an error when the order path will

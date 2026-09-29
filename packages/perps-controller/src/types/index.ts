@@ -2168,7 +2168,8 @@ export type PerpsProvider = {
    * `ready: true` when none of these steps will need a signature again before
    * the first order, and `ready: false` while one will be retried, including
    * after an agent could not sign (a read-only provider, which never signs,
-   * resolves `ready: true` at once). Providers without such setup omit it.
+   * resolves `ready: true` at once while the main-account signer is ready).
+   * Providers without such setup omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   /**

@@ -33,11 +33,32 @@ describe('LighterWalletService with accountSigner', () => {
     const signature = await service.signPersonalMessage('hello');
 
     expect(signature).toBe(MAIN_SIGNATURE);
-    expect(signer.signPersonalMessage).toHaveBeenCalledWith(
-      createMockEvmAccount().address,
-      'hello',
-    );
+    expect(signer.signPersonalMessage.mock.calls).toStrictEqual([
+      [createMockEvmAccount().address, 'hello'],
+    ]);
     expect(keyringCalls(call)).toStrictEqual([]);
+  });
+
+  it('fails with KEYRING_LOCKED, keeping the host error as its cause, when the signer locks while signing', async () => {
+    let ready = true;
+    const hostError = new Error('Wallet is locked');
+    const signer = createSigner(() => ready);
+    signer.signPersonalMessage.mockImplementation(async () => {
+      ready = false;
+      throw hostError;
+    });
+    const { messenger } = createKeyringlessMessenger();
+    const service = new LighterWalletService(
+      { ...createMockInfrastructure(), accountSigner: signer },
+      { isTestnet: true, messenger },
+    );
+
+    const error: unknown = await service
+      .signPersonalMessage('hello')
+      .catch((caught: unknown) => caught);
+
+    expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
+    expect((error as Error).cause).toBe(hostError);
   });
 
   it('fails with KEYRING_LOCKED and does not sign when isReady returns false', async () => {

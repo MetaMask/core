@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run the deferred trading setup before the first order, so its signatures happen in a guided session: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
   - The builder fee, the migration from `dexAbstraction` and the Lighter registration are signed by the main account; with an agent, the HyperLiquid referral and silent migration are signed by the agent
   - Resolves a `ReadyToTradeResult` that is `ready: true` once the main-account signer is ready and none of these steps will need a signature again before the first order, and `ready: false` while one will be retried, including after an agent could not sign; the aggregated provider prepares every provider in turn
-  - Implemented by the exported `HyperLiquidProvider` and by the Lighter provider, which resolves `ready: true` at once when it is read-only (no signer bridge)
+  - Implemented by the exported `HyperLiquidProvider` and by the Lighter provider, which resolves `ready: true` at once when it is read-only (no signer bridge) and the main-account signer is ready
 - Add optional `isTestnet` to `AggregatedProviderConfig`, which tags the errors the aggregated provider logs with the network ([#10559](https://github.com/MetaMask/core/pull/10559))
 
 ### Removed

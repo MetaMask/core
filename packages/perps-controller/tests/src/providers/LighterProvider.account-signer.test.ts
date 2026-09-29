@@ -3,10 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { LIGHTER_TX_TYPE_CHANGE_PUB_KEY } from '../../../src/constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import {
-  LighterProvider,
-  USER_REJECTED_REQUEST_CODE,
-} from '../../../src/providers/LighterProvider.js';
+import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import {
   LighterApiError,
   LighterClientService,
@@ -48,6 +45,8 @@ const CHANGE_PUB_KEY_BODY =
   'Register Lighter Account\n\npubkey: 0x9c...\nOnly sign this message for a trusted client!';
 // Lighter's API error code for an L1 address with no account.
 const ACCOUNT_NOT_FOUND_CODE = 21100;
+// EIP-1193 `userRejectedRequest`, pinned here independently of the provider.
+const EIP1193_USER_REJECTED_CODE = 4001;
 // The registration transaction the mocked signer submits.
 const CHANGE_PUB_KEY_TX = [
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
@@ -274,7 +273,7 @@ describe('LighterProvider with accountSigner', () => {
     expect(loggerError).not.toHaveBeenCalled();
   });
 
-  it('reports KEYRING_LOCKED without logging a missing signer bridge while the account signer is locked', async () => {
+  it('reports KEYRING_LOCKED for a read-only provider while the account signer is locked: the lock check comes first', async () => {
     const { provider, deps } = buildProvider({
       isReady: () => false,
       withoutBridge: true,
@@ -336,7 +335,7 @@ describe('LighterProvider with accountSigner', () => {
     [
       'an EIP-1193 rejection code',
       Object.assign(new Error('Rejected'), {
-        code: USER_REJECTED_REQUEST_CODE,
+        code: EIP1193_USER_REJECTED_CODE,
       }),
     ],
     ['a "User rejected" message', new Error('User rejected the request.')],
@@ -353,7 +352,7 @@ describe('LighterProvider with accountSigner', () => {
       'a rejection code wrapped in the cause chain',
       new Error('Signing failed', {
         cause: Object.assign(new Error('Rejected'), {
-          code: USER_REJECTED_REQUEST_CODE,
+          code: EIP1193_USER_REJECTED_CODE,
         }),
       }),
     ],
@@ -520,19 +519,32 @@ describe('LighterProvider with accountSigner', () => {
     expect(loggerError).not.toHaveBeenCalled();
   });
 
-  it('reports KEYRING_LOCKED when the account signer locks during registration', async () => {
-    const { provider, accountSigner, deps } = buildProvider();
-    accountSigner.signPersonalMessage.mockRejectedValue(
-      new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
-    );
+  it('registers on the next preparation after the account signer locked during registration', async () => {
+    let signerReady = true;
+    const { provider, address, accountSigner, client, deps } = buildProvider({
+      isReady: () => signerReady,
+    });
+    // The host's signer locks while signing and throws its own error.
+    accountSigner.signPersonalMessage.mockImplementationOnce(async () => {
+      signerReady = false;
+      throw new Error('Wallet is locked');
+    });
     const loggerError = jest.spyOn(deps.logger, 'error');
 
-    const result = await provider.prepareTradingWallet();
+    const lockedResult = await provider.prepareTradingWallet();
+    signerReady = true;
+    const retriedResult = await provider.prepareTradingWallet();
 
-    expect(result).toStrictEqual({
+    expect(lockedResult).toStrictEqual({
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
+    expect(retriedResult).toStrictEqual({ ready: true });
+    expect(accountSigner.signPersonalMessage.mock.calls).toStrictEqual([
+      [address, CHANGE_PUB_KEY_BODY],
+      [address, CHANGE_PUB_KEY_BODY],
+    ]);
+    expect(client.sendTx.mock.calls).toStrictEqual([CHANGE_PUB_KEY_TX]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 });

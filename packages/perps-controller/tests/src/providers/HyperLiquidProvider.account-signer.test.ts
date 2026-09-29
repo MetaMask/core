@@ -62,9 +62,9 @@ import {
 // client service, so the module itself is never loaded.
 jest.mock('@nktkas/hyperliquid', () => ({}));
 
-// Only the I/O boundaries are mocked: the REST/exchange/info clients and the
-// WebSocket subscriptions. The wallet service, the signing caches and the
-// validation run for real.
+// The client and subscription services are mocked: they own the SDK's
+// REST/exchange/info clients and the WebSocket subscriptions. The wallet
+// service, the signing caches and the validation run for real.
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
 
@@ -576,11 +576,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     /**
      * Have another provider hold the real referral lock until released.
      *
-     * @returns Resolves once this provider finds the lock and waits on it,
-     * and the release.
+     * @param waiters - How many lookups must find the lock before `waiting`
+     * resolves.
+     * @returns Resolves once that many providers found the lock and wait on
+     * it, the number of lookups that found it, and the release.
      */
-    function holdReferralLock(): {
+    function holdReferralLock(waiters = 1): {
       waiting: Promise<void>;
+      lookupsWhileHeld: () => number;
       release: () => void;
     } {
       const release = PerpsSigningCache.setInFlight(
@@ -589,6 +592,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         ACCOUNT_ADDRESS,
       );
       const waiting = createDeferred<void>();
+      let lookupsWhileHeld = 0;
       const isInFlight = PerpsSigningCache.isInFlight.bind(PerpsSigningCache);
       // Only observes the lookup: the lock and its answer are real.
       jest
@@ -596,11 +600,18 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         .mockImplementation((operationType, network, userAddress) => {
           const pending = isInFlight(operationType, network, userAddress);
           if (operationType === 'referral' && pending) {
-            waiting.resolve();
+            lookupsWhileHeld += 1;
+            if (lookupsWhileHeld >= waiters) {
+              waiting.resolve();
+            }
           }
           return pending;
         });
-      return { waiting: waiting.promise, release };
+      return {
+        waiting: waiting.promise,
+        lookupsWhileHeld: (): number => lookupsWhileHeld,
+        release,
+      };
     }
 
     it('makes its own referral attempt when another provider ended without a result', async () => {
@@ -667,22 +678,25 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const second = createAccountSignerProvider({
         abstraction: 'unifiedAccount',
       });
-      const lock = holdReferralLock();
+      const lock = holdReferralLock(2);
 
       let results;
+      let waitersAtRelease;
       try {
         const preparing = [
           first.accountSignerProvider.prepareTradingWallet(),
           second.accountSignerProvider.prepareTradingWallet(),
         ];
+        // Both providers found the lock and wait on it.
         await lock.waiting;
-        // Let both providers reach the lock.
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        waitersAtRelease = lock.lookupsWhileHeld();
         lock.release();
         results = await Promise.all(preparing);
       } finally {
         lock.release();
       }
+
+      expect(waitersAtRelease).toBe(2);
 
       // One referral write across both providers.
       expect(
@@ -882,20 +896,29 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     });
 
     it('attempts the referral again when the signer locks while signing it', async () => {
+      let signerReady = true;
       const { accountSignerProvider, accountSigner, exchangeClient } =
-        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
-      // The signer still reports ready, but this signature fails as locked.
-      accountSigner.signTypedData.mockRejectedValueOnce(
-        new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
-      );
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          signer: { isReady: () => signerReady },
+        });
+      // The host's signer locks while signing and throws its own error.
+      accountSigner.signTypedData.mockImplementationOnce(async () => {
+        signerReady = false;
+        throw new Error('Wallet is locked');
+      });
 
-      const firstResult = await accountSignerProvider.prepareTradingWallet();
+      const lockedResult = await accountSignerProvider.prepareTradingWallet();
       const referralAfterLock = referralAttempted();
-      const secondResult = await accountSignerProvider.prepareTradingWallet();
+      signerReady = true;
+      const retriedResult = await accountSignerProvider.prepareTradingWallet();
 
-      expect(firstResult).toStrictEqual({ ready: false });
+      expect(lockedResult).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
       expect(referralAfterLock).toBe(false);
-      expect(secondResult).toStrictEqual({ ready: true });
+      expect(retriedResult).toStrictEqual({ ready: true });
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
         REFERRAL_WRITE,
@@ -1418,7 +1441,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
     it('leaves the referral to retry, unrecorded, when the agent fails to sign', async () => {
       const getAgentSigner = jest.fn();
-      const { accountSignerProvider, agentSigner, exchangeClient } =
+      const { accountSignerProvider, agentSigner, exchangeClient, initialize } =
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           getAgentSigner,
@@ -1429,12 +1452,23 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       getAgentSigner.mockResolvedValue(agentSigner);
 
       const result = await accountSignerProvider.prepareTradingWallet();
+      const [[wallet]] = initialize.mock.calls;
+      const nextSigning = await wallet
+        .signTypedData(L1_PAYLOAD)
+        .catch((error: unknown) => error);
 
       expect(result).toStrictEqual({ ready: false });
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
       ]);
       expect(referralAttempted()).toBe(false);
+      // The agent stays in use: the next L1 action asks it again, not the host.
+      expect(nextSigning).toBeInstanceOf(AgentSignerUnavailableError);
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+        [L1_PAYLOAD],
+      ]);
+      expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -2192,6 +2226,43 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         ]);
       });
 
+      it('keeps the agent when the venue reports an unknown wallet without an address', async () => {
+        const getAgentSigner = jest.fn();
+        const onAgentRejected = jest.fn();
+        const {
+          accountSignerProvider,
+          agentSigner,
+          exchangeClient,
+          initialize,
+        } = createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+          onAgentRejected,
+        });
+        getAgentSigner.mockResolvedValue(agentSigner);
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+        exchangeClient.cancel.mockImplementation(async () => {
+          await wallet.signTypedData(L1_PAYLOAD);
+          throw new Error('User or API Wallet does not exist.');
+        });
+
+        const result = await accountSignerProvider.cancelOrder({
+          orderId: '123',
+          symbol: 'BTC',
+        });
+        await wallet.signTypedData(L1_PAYLOAD);
+
+        expect(result).toStrictEqual({
+          success: false,
+          orderId: '123',
+          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        });
+        expect(onAgentRejected).not.toHaveBeenCalled();
+        // Kept, so the next L1 action does not ask again.
+        expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+      });
+
       it('fails a batch cancel with KEYRING_LOCKED without logging it', async () => {
         const { accountSignerProvider, onAgentRejected } =
           createRejectingProvider('cancel');
@@ -2471,6 +2542,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         cancel: jest.Mock;
         cancelByCloid: jest.Mock;
         twapCancel: jest.Mock;
+        twapOrder: jest.Mock;
         l2Book: jest.Mock;
         getAgentSigner: jest.Mock;
         onAgentRejected: jest.Mock;
@@ -2481,6 +2553,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         const cancel = jest.fn();
         const cancelByCloid = jest.fn();
         const twapCancel = jest.fn();
+        const twapOrder = jest.fn();
         const l2Book = jest.fn().mockResolvedValue(bookAt('2999'));
         const getAgentSigner = jest.fn();
         const onAgentRejected = jest.fn();
@@ -2489,7 +2562,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           signer: { isReady: () => signerReady },
           getAgentSigner,
           onAgentRejected,
-          exchange: { cancel, cancelByCloid, twapCancel },
+          exchange: { cancel, cancelByCloid, twapCancel, twapOrder },
           info: {
             twapHistory: jest.fn().mockResolvedValue(TWAP_HISTORY),
             userTwapSliceFills: jest.fn().mockResolvedValue([]),
@@ -2547,6 +2620,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           cancel,
           cancelByCloid,
           twapCancel,
+          twapOrder,
           l2Book,
           getAgentSigner,
           onAgentRejected,
@@ -2760,6 +2834,121 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           ]);
           expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
           expect(loggerError).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each([
+        [
+          'thrown',
+          (): Promise<never> => Promise.reject(rejection(AGENT_ADDRESS)),
+        ],
+        [
+          'in its status entry',
+          async (): Promise<Record<string, unknown>> => ({
+            status: 'ok',
+            response: {
+              type: 'twapCancel',
+              data: { status: { error: rejection(AGENT_ADDRESS).message } },
+            },
+          }),
+        ],
+      ])(
+        'drops an agent the venue rejects while retracting a stale TWAP (%s)',
+        async (_how, answerCancel) => {
+          const {
+            provider,
+            twapOrder,
+            twapCancel,
+            onAgentRejected,
+            signL1Action,
+          } = createStrategyProvider('rejected');
+          let disconnected: Promise<unknown> | undefined;
+          // The provider is torn down while the TWAP is placed, so it
+          // retracts it.
+          twapOrder.mockImplementation(async () => {
+            await signL1Action();
+            disconnected = provider.disconnect();
+            return {
+              status: 'ok',
+              response: {
+                type: 'twapOrder',
+                data: { status: { running: { twapId: 987 } } },
+              },
+            };
+          });
+          twapCancel.mockImplementation(async () => {
+            await signL1Action();
+            return await answerCancel();
+          });
+
+          const placed = await provider.placeOrder({
+            ...ETH_ORDER,
+            orderType: 'twap',
+            twapDuration: 30,
+          });
+          await disconnected;
+
+          // The retraction was refused, so the TWAP is reported as live.
+          expect(placed).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            submittedSize: '1',
+            orderId: '987',
+          });
+          expect(twapCancel.mock.calls).toStrictEqual([[{ a: 1, t: 987 }]]);
+          expect(onAgentRejected.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          ]);
+        },
+      );
+
+      it.each([
+        [
+          'thrown',
+          (): Promise<never> => Promise.reject(rejection(AGENT_ADDRESS)),
+        ],
+        [
+          'in its status entry',
+          async (): Promise<Record<string, unknown>> =>
+            withStatuses({ error: rejection(AGENT_ADDRESS).message }),
+        ],
+      ])(
+        'drops an agent the venue rejects while retracting an abandoned chase order (%s)',
+        async (_how, answerCancel) => {
+          const { provider, order, cancel, onAgentRejected, signL1Action } =
+            createStrategyProvider('rejected');
+          let disconnected: Promise<unknown> | undefined;
+          // The provider is torn down while the chase order is placed, so it
+          // retracts it.
+          order.mockImplementation(async () => {
+            await signL1Action();
+            disconnected = provider.disconnect();
+            return withStatuses({ resting: { oid: 123 } });
+          });
+          cancel.mockImplementation(async () => {
+            await signL1Action();
+            return await answerCancel();
+          });
+
+          const placed = await provider.placeOrder({
+            ...ETH_ORDER,
+            orderType: 'chase',
+          });
+          await disconnected;
+
+          // The retraction was refused, so the order is reported as resting.
+          expect(placed).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+            submittedSize: '1',
+            childOrderIds: ['123'],
+          });
+          expect(cancel.mock.calls).toStrictEqual([
+            [{ cancels: [{ a: 1, o: 123 }] }],
+          ]);
+          expect(onAgentRejected.mock.calls).toStrictEqual([
+            [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          ]);
         },
       );
 

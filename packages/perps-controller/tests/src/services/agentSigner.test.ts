@@ -61,14 +61,24 @@ describe('AgentBindings', () => {
   });
 
   it('forgets bindings and pins once cleared', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(AGENT);
+    const getAgentSigner = jest.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
+    const otherAccount: PerpsAgentAccount = {
+      ...ACCOUNT,
+      mainAddress: '0x00000000000000000000000000000000000b0b01',
+    };
     bindings.set(ACCOUNT, null);
+    bindings.set(otherAccount, AGENT);
 
     bindings.clear();
 
-    expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);
-    expect(getAgentSigner.mock.calls).toStrictEqual([[ACCOUNT]]);
+    expect(await bindings.resolve(ACCOUNT)).toBeNull();
+    expect(await bindings.resolve(otherAccount)).toBeNull();
+    // Both now fall through to the host.
+    expect(getAgentSigner.mock.calls).toStrictEqual([
+      [ACCOUNT],
+      [otherAccount],
+    ]);
   });
 
   it('releases a binding to the rejected agent whatever the address casing', async () => {
