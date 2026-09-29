@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ProfileController } from './ProfileController';
+import type { ProfileController } from './ProfileController.js';
 
 /**
  * Returns the current MetaMask profile from state, or undefined if none has been created.
