@@ -266,7 +266,16 @@ async function buildServerQuoteRequest(
     // the calls run as `from`, which is also the recipient, so we can submit
     // them ourselves once the funds land. Post-quote flows submit their own
     // calls and must not opt in.
-    body.supportsDeferredCalls = true;
+    if (
+      canDeferCalls({
+        accountSupports7702,
+        messenger,
+        targetChainId,
+        transaction,
+      })
+    ) {
+      body.supportsDeferredCalls = true;
+    }
 
     if (delegation.authorizationList?.length) {
       body.authorizationList = normalizeAuthorizationList(
@@ -289,6 +298,42 @@ async function buildServerQuoteRequest(
     amount: body.amount ?? pricing.amount,
     tradeType: pricing.tradeType,
   };
+}
+
+/**
+ * Whether we can run the calls ourselves after the quote settles without
+ * involving the user, so a funds-only quote is acceptable.
+ *
+ * The second leg is an internal, sponsored EIP-7702 batch on the target chain,
+ * so the account must be able to sign EIP-7702 authorizations, the target chain
+ * must support EIP-7702, and MetaMask must sponsor gas for the transaction on
+ * that chain. Otherwise the user would need native gas on the target chain.
+ *
+ * @param options - Check options.
+ * @param options.accountSupports7702 - Whether the account can sign EIP-7702
+ * authorizations.
+ * @param options.messenger - Controller messenger.
+ * @param options.targetChainId - Chain the second leg would run on.
+ * @param options.transaction - Transaction being paid for.
+ * @returns Whether the calls can be deferred to a second leg.
+ */
+function canDeferCalls({
+  accountSupports7702,
+  messenger,
+  targetChainId,
+  transaction,
+}: {
+  accountSupports7702: boolean;
+  messenger: TransactionPayControllerMessenger;
+  targetChainId: Hex;
+  transaction: TransactionMeta;
+}): boolean {
+  return (
+    accountSupports7702 &&
+    transaction.isGasFeeSponsored === true &&
+    transaction.chainId === targetChainId &&
+    isEIP7702Chain(messenger, targetChainId)
+  );
 }
 
 function normalizeAuthorizationList(
