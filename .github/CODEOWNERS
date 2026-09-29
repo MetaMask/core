@@ -403,6 +403,13 @@
 /packages/money-account-controller/tsconfig.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/typedoc.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 
+### money-account-lifecycle-controller
+/packages/money-account-lifecycle-controller                 @MetaMask/earn
+/packages/money-account-lifecycle-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/package.json    @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/typedoc.json    @MetaMask/core-platform @MetaMask/earn
+
 ### money-account-upgrade-controller
 /packages/money-account-upgrade-controller                 @MetaMask/delegation @MetaMask/earn
 /packages/money-account-upgrade-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
