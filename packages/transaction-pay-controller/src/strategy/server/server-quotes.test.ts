@@ -1352,7 +1352,7 @@ describe('server-quotes', () => {
         results: [
           {
             ...FULFILLED_RESULT_MOCK,
-            quote: { ...FULFILLED_RESULT_MOCK.quote, callsSupported: false },
+            quote: { ...FULFILLED_RESULT_MOCK.quote, callsDeferred: true },
           },
         ],
       });
@@ -1367,12 +1367,12 @@ describe('server-quotes', () => {
       expect(result[0].requiresSecondLeg).toBe(true);
     });
 
-    it('is false when the provider confirms it will execute the embedded calls', async () => {
+    it('is false when the provider confirms it will not defer the embedded calls', async () => {
       fetchServerQuoteMock.mockResolvedValue({
         results: [
           {
             ...FULFILLED_RESULT_MOCK,
-            quote: { ...FULFILLED_RESULT_MOCK.quote, callsSupported: true },
+            quote: { ...FULFILLED_RESULT_MOCK.quote, callsDeferred: false },
           },
         ],
       });
@@ -1388,7 +1388,7 @@ describe('server-quotes', () => {
     });
   });
 
-  describe('isCallsOptional', () => {
+  describe('supportsDeferredCalls', () => {
     it('opts in when the calls are embedded, so providers that cannot run them still quote', async () => {
       await getServerQuotes({
         accountSupports7702: true,
@@ -1399,7 +1399,7 @@ describe('server-quotes', () => {
 
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
-        expect.objectContaining({ isCallsOptional: true }),
+        expect.objectContaining({ supportsDeferredCalls: true }),
         undefined,
       );
     });
@@ -1417,7 +1417,9 @@ describe('server-quotes', () => {
 
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
-        expect.not.objectContaining({ isCallsOptional: expect.anything() }),
+        expect.not.objectContaining({
+          supportsDeferredCalls: expect.anything(),
+        }),
         undefined,
       );
     });

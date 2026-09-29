@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Submit a quote's target calls as a second leg when the provider cannot execute them ([#10501](https://github.com/MetaMask/core/pull/10501))
-  - Server quotes now request calls as optional, so a provider that cannot execute them returns a funds-only quote flagged `callsSupported: false` instead of declining the request. Those quotes set the new `TransactionPayQuote.requiresSecondLeg`, and the calls are submitted on the target chain once the quote settles.
+  - Server quotes now opt in to deferred calls, so a provider that cannot execute them returns a funds-only quote flagged `callsDeferred: true` instead of declining the request. Those quotes set the new `TransactionPayQuote.requiresSecondLeg`, and the calls are submitted on the target chain once the quote settles.
   - The second leg spends the amount read from the settlement transaction's transfer logs rather than the quoted amount, since slippage and fees mean the landed amount is only known after settlement.
   - Non-atomic quotes now settle on the account that executes the calls rather than the account that funded the quote, so a Money Account deposit no longer leaves its deposit calls with nothing to spend.
   - `ServerStrategy` no longer declines non-atomic requests.
