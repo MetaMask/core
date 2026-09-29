@@ -289,12 +289,12 @@ export class ProfileService extends BaseDataService<
     const authHeaders = await this.#getAuthHeaders();
     const url = new URL(`${this.#v1Url}/${endpoint}`);
     const response = await fetch(url.toString(), {
-      ...(method !== 'GET' ? { method } : {}),
+      ...(method === 'GET' ? {} : { method }),
       headers: {
         ...authHeaders,
-        ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
-      ...(json !== undefined ? { body: JSON.stringify(json) } : {}),
+      ...(json === undefined ? {} : { body: JSON.stringify(json) }),
     });
     if (!response.ok) {
       throw new HttpError(response.status, `${error}: ${response.status}`);
@@ -450,7 +450,10 @@ export class ProfileService extends BaseDataService<
       queryFn: async () =>
         this.#fetch(
           `profiles/username/availability?username=${encodeURIComponent(username)}`,
-          { error: ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED },
+          {
+            error:
+              ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED,
+          },
         ),
     });
   }
