@@ -158,6 +158,28 @@ export function isMoneyKeyringType(
 }
 
 /**
+ * Check if a keyring type is a MPC keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is a MPC keyring, false otherwise.
+ */
+export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
+  return keyringType === (KeyringTypes.mpc as string);
+}
+
+/**
+ * Check if a keyring type is a skipped keyring (Money or MPC keyring).
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a skipped keyring, false otherwise.
+ */
+export function isSkippedKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return isMoneyKeyringType(keyringType) || isMpcKeyringType(keyringType);
+}
+
+/**
  * Get the derivation path for the index of an account within a EVM HD keyring.
  *
  * @param index - The account index.
