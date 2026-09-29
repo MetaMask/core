@@ -73,6 +73,7 @@ import {
   deserializeVaultData,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  identifyIncompleteMetadataBackup,
   isAuthTokenError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
@@ -837,6 +838,21 @@ export class SeedlessOnboardingController<
       }
 
       this.#setUnlocked();
+
+      void identifyIncompleteMetadataBackup({
+        fetchAllSecretDataFn: () =>
+          this.toprfClient.fetchAllSecretDataItems({
+            decKey: deserializedVaultData.toprfEncryptionKey,
+            authKeyPair: deserializedVaultData.toprfAuthKeyPair,
+          }),
+        getPrimaryKeyringSeedPhraseFn: () =>
+          this.messenger.call('KeyringController:exportSeedPhrase', {
+            password,
+          }),
+        trackEvent: (event) =>
+          this.messenger.call('AnalyticsController:trackEvent', event),
+        logFn: log,
+      });
     });
   }
 
