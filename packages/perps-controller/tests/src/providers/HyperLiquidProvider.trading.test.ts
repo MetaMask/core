@@ -5151,6 +5151,48 @@ describe('HyperLiquidProvider', () => {
       expectOnlyHttpInfoReads();
     });
 
+    it('retries a rate-limited pre-order read with backoff', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const rateLimited = Object.assign(new Error('429 Too Many Requests'), {
+        name: 'HttpRequestError',
+        response: { status: 429 },
+      });
+      const twapHistory = jest
+        .fn()
+        .mockRejectedValueOnce(rateLimited)
+        .mockResolvedValue([]);
+      const frontendOpenOrders = jest
+        .fn()
+        .mockRejectedValueOnce(rateLimited)
+        .mockResolvedValue([]);
+      const clearinghouseState = jest
+        .fn()
+        .mockRejectedValueOnce(rateLimited)
+        .mockResolvedValue({ assetPositions: [] });
+      const httpInfoClient = createMockInfoClient({
+        clearinghouseState,
+        frontendOpenOrders,
+        twapHistory,
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'limit',
+        price: '49000',
+        leverage: 5,
+        marginMode: 'isolated',
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(twapHistory).toHaveBeenCalledTimes(2);
+      expect(frontendOpenOrders).toHaveBeenCalledTimes(2);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+    });
+
     it('places a HIP-3 order that needs a margin transfer over HTTP', async () => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,

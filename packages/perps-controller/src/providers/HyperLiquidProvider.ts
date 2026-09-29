@@ -237,6 +237,7 @@ import {
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
+import { withRateLimitRetry } from '../utils/rateLimitRetry.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -2889,8 +2890,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       { symbol },
     );
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    const mids = await infoClient.allMids(
-      dexName ? { dex: dexName } : undefined,
+    const mids = await withRateLimitRetry(() =>
+      infoClient.allMids(dexName ? { dex: dexName } : undefined),
     );
     const price = parseFloat(mids[symbol] || '0');
 
@@ -3239,7 +3240,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     // Pass dex only for HIP-3 DEXs; omit for main DEX (empty string).
     // Testnet API returns null when dex="" is explicitly sent.
-    const meta = await infoClient.meta(dexName ? { dex: dexName } : undefined);
+    const meta = await withRateLimitRetry(() =>
+      infoClient.meta(dexName ? { dex: dexName } : undefined),
+    );
 
     // Defensive validation before caching
     if (!meta?.universe || !Array.isArray(meta.universe)) {
@@ -3476,7 +3479,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const lifecycleGeneration = this.#lifecycleGeneration;
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    const spotMeta = await infoClient.spotMeta();
+    const spotMeta = await withRateLimitRetry(() => infoClient.spotMeta());
 
     if (
       this.#isCacheWriteLifecycleCurrent(
@@ -4599,7 +4602,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       ? { user: userAddress, dex }
       : { user: userAddress };
 
-    const accountState = await infoClient.clearinghouseState(queryParams);
+    const accountState = await withRateLimitRetry(() =>
+      infoClient.clearinghouseState(queryParams),
+    );
     const adapted = adaptAccountStateFromSDK(accountState);
     return parseFloat(adapted.withdrawableBalance);
   }
@@ -5262,7 +5267,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const [orders, twapHistory] = await Promise.all([
       this.#fetchOpenOrders({ dexName }),
-      infoClient.twapHistory({ user }),
+      withRateLimitRetry(() => infoClient.twapHistory({ user })),
     ]);
     await assertSameAccount();
     // Native TWAP schedules are absent from frontendOpenOrders before a slice
@@ -5298,10 +5303,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     });
     if (orders.some((order) => order.coin === symbol) || hasActiveTwap) {
-      const asset = await infoClient.activeAssetData({
-        user,
-        coin: symbol,
-      });
+      const asset = await withRateLimitRetry(() =>
+        infoClient.activeAssetData({ user, coin: symbol }),
+      );
       await assertSameAccount();
       return { marginMode: asset.leverage.type, reason: 'open_order' };
     }
@@ -8804,10 +8808,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   }): Promise<FrontendOrder[]> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    return await infoClient.frontendOpenOrders({
-      user: userAddress,
-      dex: params.dexName ?? undefined,
-    });
+    return await withRateLimitRetry(() =>
+      infoClient.frontendOpenOrders({
+        user: userAddress,
+        dex: params.dexName ?? undefined,
+      }),
+    );
   }
 
   /**
@@ -11185,8 +11191,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#ensureClientsInitialized();
       const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const userAddress = await this.#walletService.getUserAddressWithDefault();
-      const state = await infoClient.clearinghouseState(
-        dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
+      const state = await withRateLimitRetry(() =>
+        infoClient.clearinghouseState(
+          dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
+        ),
       );
       if (!Array.isArray(state.assetPositions)) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
