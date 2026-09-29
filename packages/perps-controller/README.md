@@ -89,6 +89,24 @@ write fails with `KEYRING_LOCKED`, the agent is dropped and
 registration) before the first order, so a hardware or external wallet signs
 it in one guided session.
 
+## Lighter trading keys
+
+Lighter orders are not signed by the wallet. A Lighter account (owned by the
+wallet's address) holds trading keys, called API keys, in numbered slots. The
+client's signer bridge generates the key for the slot set in
+`providerCredentials.lighter.apiKeyIndex` (default `7`) and keeps its private
+half on the device. The wallet signs one `personal_sign` message to register it
+in that slot, during `PerpsController:prepareTradingWallet` or before the first
+order; after that, orders are signed with the key and need no wallet prompt.
+
+A key only works where it was generated, so give each device or app instance
+its own slot. When the slot already holds a key this signer did not create,
+the provider stops with "Lighter API key slot N already contains a different
+key" instead of replacing it, since that key may still be in use elsewhere. Use
+a free slot instead: the Lighter API answers "api key not found" for
+`GET /api/v1/apikeys?account_index=<account>&api_key_index=<slot>` when the
+slot is free.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
