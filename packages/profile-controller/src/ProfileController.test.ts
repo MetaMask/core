@@ -211,7 +211,7 @@ describe('ProfileController', () => {
       );
 
       const { controller } = createController({ rootMessenger });
-      await controller.connectX('auth-code', 'state-xyz');
+      await controller.connectX({ code: 'auth-code', state: 'state-xyz' });
 
       expect(controller.getXprofile()).toStrictEqual(mockMappedXProfile);
     });
@@ -421,7 +421,7 @@ describe('ProfileController', () => {
         rootMessenger,
         state: { metamaskProfile: mockMappedProfile },
       });
-      await controller.connectX('auth-code', 'state-xyz');
+      await controller.connectX({ code: 'auth-code', state: 'state-xyz' });
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
 
       await controller.deleteProfile();
@@ -517,7 +517,7 @@ describe('ProfileController', () => {
       mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
 
       const { controller } = createController({ rootMessenger });
-      await controller.connectX('auth-code-123', 'state-xyz');
+      await controller.connectX({ code: 'auth-code-123', state: 'state-xyz' });
 
       expect(connectXMock).toHaveBeenCalledWith({ code: 'auth-code-123', state: 'state-xyz' });
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);

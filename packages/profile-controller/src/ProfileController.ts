@@ -211,6 +211,11 @@ export class ProfileController extends BaseController<
     );
   }
 
+  /**
+   * Returns true if a profile has been created and exists in state.
+   *
+   * @returns True if a profile exists, false otherwise.
+   */
   #hasProfile(): boolean {
     return this.state.metamaskProfile.profileId !== '';
   }
@@ -290,18 +295,21 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Creates a new MetaMask profile and updates state.
+   * Creates a new MetaMask profile, updates state, and returns the created profile.
    *
    * @param params - The profile creation parameters.
+   * @returns The created MetaMask profile.
    */
-  async createProfile(params: CreateProfileParams): Promise<void> {
+  async createProfile(params: CreateProfileParams): Promise<MetaMaskProfile> {
     const response = await this.messenger.call(
       'ProfileService:createProfile',
       params,
     );
+    const mapped = this.#mapApiResponseToProfile(response);
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(response);
+      state.metamaskProfile = mapped;
     });
+    return mapped;
   }
 
   /**
@@ -380,28 +388,36 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Completes the X OAuth PKCE flow and updates xProfile in state.
+   * Completes the X OAuth PKCE flow, updates xProfile in state, and returns the X profile.
    *
-   * @param code - The OAuth authorization code from the X redirect.
-   * @param xState - The state parameter returned by the X redirect.
+   * @param params - The parameters for the X OAuth PKCE flow.
+   * @param params.code - The OAuth authorization code from the X redirect.
+   * @param params.state - The state parameter returned by the X redirect.
+   * @returns The linked X profile.
    */
-  async connectX(code: string, xState: string): Promise<void> {
-    const response = await this.messenger.call('ProfileService:connectX', {
-      code,
-      state: xState,
-    });
+  async connectX(params: { code: string; state: string }): Promise<XProfile> {
+    const response = await this.messenger.call(
+      'ProfileService:connectX',
+      params,
+    );
+    const mapped = this.#mapXResponseToXProfile(response);
     this.update((state) => {
-      state.xProfile = this.#mapXResponseToXProfile(response);
+      state.xProfile = mapped;
     });
+    return mapped;
   }
 
   /**
-   * Fetches the X account linked to the current profile and updates state.
+   * Fetches the X account linked to the current profile, updates state, and returns the X profile.
+   *
+   * @returns The linked X profile.
    */
-  async fetchAndUpdateXAccount(): Promise<void> {
+  async fetchAndUpdateXAccount(): Promise<XProfile> {
     const response = await this.messenger.call('ProfileService:getXAccount');
+    const mapped = this.#mapXResponseToXProfile(response);
     this.update((state) => {
-      state.xProfile = this.#mapXResponseToXProfile(response);
+      state.xProfile = mapped;
     });
+    return mapped;
   }
 }
