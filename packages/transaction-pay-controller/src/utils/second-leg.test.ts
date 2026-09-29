@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '../types.js';
+import { withChompRecovery } from './chomp.js';
 import { getNetworkClientId } from './provider.js';
 import {
   resolveExecutionAccount,
@@ -20,12 +21,14 @@ import {
   waitForTransactionConfirmed,
 } from './transaction.js';
 
+jest.mock('./chomp');
 jest.mock('./provider');
 jest.mock('./transaction');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const CHAIN_ID_MOCK = '0x279f' as Hex;
+const FROM_BLOCK_MOCK = '0x100' as Hex;
 const TOKEN_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const SETTLEMENT_HASH_MOCK = '0xsettlement' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'network-client-id-mock';
@@ -86,9 +89,14 @@ describe('second-leg', () => {
   const waitForTransactionConfirmedMock = jest.mocked(
     waitForTransactionConfirmed,
   );
+  const withChompRecoveryMock = jest.mocked(withChompRecovery);
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    withChompRecoveryMock.mockImplementation(
+      async (_options, submit) => await submit(),
+    );
 
     getNetworkClientIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
 
@@ -513,55 +521,107 @@ describe('second-leg', () => {
       ).rejects.toThrow('Second leg: submit failed');
     });
 
-    it('uses a custom error prefix when provided', async () => {
-      const callMock = buildAmountDataCallMock({
-        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
+    it('records each submitted child transaction as required by the parent', async () => {
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
       });
 
-      await expect(
-        submitSecondLeg({
-          chainId: CHAIN_ID_MOCK,
-          errorPrefix: 'Custom: ',
-          from: FROM_MOCK,
-          messenger: buildMessenger(callMock),
-          sourceAmountRaw: AMOUNT_MOCK,
-          transaction: TRANSACTION_MOCK,
-        }),
-      ).rejects.toThrow('Custom: submit failed');
+      const parent = {} as TransactionMeta;
+
+      for (const [options, updater] of updateTransactionMock.mock.calls) {
+        if (
+          options.note ===
+          'Add required transaction ID from second leg submission'
+        ) {
+          updater(parent);
+        }
+      }
+
+      expect(parent.requiredTransactionIds).toStrictEqual([
+        'child-1',
+        'child-2',
+      ]);
     });
 
-    it('returns the recovered hash when onError resolves the failure', async () => {
-      const callMock = buildAmountDataCallMock({
-        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
+    it('applies type-specific handling with the submission context', async () => {
+      const messenger = buildMessenger(buildAmountDataCallMock());
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        fromBlock: FROM_BLOCK_MOCK,
+        messenger,
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
       });
+
+      expect(withChompRecoveryMock).toHaveBeenCalledWith(
+        {
+          from: FROM_MOCK,
+          fromBlock: FROM_BLOCK_MOCK,
+          messenger,
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        },
+        expect.any(Function),
+      );
+    });
+
+    it('updates the parent transaction even when type-specific handling skips submission', async () => {
+      withChompRecoveryMock.mockResolvedValue({
+        transactionHash: '0xexternal',
+      });
+
+      const callMock = buildAmountDataCallMock();
 
       const result = await submitSecondLeg({
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         messenger: buildMessenger(callMock),
-        onError: async () => '0xrecovered',
         sourceAmountRaw: AMOUNT_MOCK,
         transaction: TRANSACTION_MOCK,
       });
 
-      expect(result).toStrictEqual({ transactionHash: '0xrecovered' });
+      expect(result).toStrictEqual({ transactionHash: '0xexternal' });
+      expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+      expect(callMock).not.toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.anything(),
+      );
     });
 
-    it('throws the original error when onError cannot recover', async () => {
-      const callMock = buildAmountDataCallMock({
-        addTransactionBatch: () => Promise.reject(new Error('submit failed')),
-      });
+    it('prefixes errors raised by type-specific handling', async () => {
+      withChompRecoveryMock.mockRejectedValue(
+        new Error('Vault: submit failed'),
+      );
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(buildAmountDataCallMock()),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow(/^Second leg: Vault: submit failed$/u);
+    });
+
+    it('does not prefix errors resolving the calls', async () => {
+      const callMock = jest.fn().mockResolvedValue({ updates: [] });
 
       await expect(
         submitSecondLeg({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           messenger: buildMessenger(callMock),
-          onError: async () => undefined,
           sourceAmountRaw: AMOUNT_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow('Second leg: submit failed');
+      ).rejects.toThrow(/^No amount updates$/u);
     });
 
     it('throws when no child transactions were submitted', async () => {
@@ -575,7 +635,7 @@ describe('second-leg', () => {
           sourceAmountRaw: AMOUNT_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow('No transactions submitted');
+      ).rejects.toThrow('Second leg: No transactions submitted');
     });
 
     it('throws when the submitted transaction has no hash', async () => {
@@ -591,7 +651,7 @@ describe('second-leg', () => {
           sourceAmountRaw: AMOUNT_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow('Missing transaction hash');
+      ).rejects.toThrow('Second leg: Missing transaction hash');
     });
   });
 });
