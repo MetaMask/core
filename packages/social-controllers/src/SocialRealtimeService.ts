@@ -171,9 +171,7 @@ export class SocialRealtimeService {
     try {
       await subscriptionPromise;
     } finally {
-      if (this.#subscriptionPromise === subscriptionPromise) {
-        this.#subscriptionPromise = undefined;
-      }
+      this.#subscriptionPromise = undefined;
     }
   }
 
