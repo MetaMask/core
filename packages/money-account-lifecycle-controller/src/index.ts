@@ -10,3 +10,4 @@ export type {
   MoneyAccountLifecycleControllerState,
   MoneyAccountLifecycleControllerStateChangeEvent,
 } from './money-account-lifecycle-controller.js';
+export type { MoneyAccountLifecycleControllerInitAction } from './money-account-lifecycle-controller-method-action-types.js';
