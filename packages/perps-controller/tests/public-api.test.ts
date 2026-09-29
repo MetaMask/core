@@ -15,6 +15,12 @@ import type {
   PerpsTypedDataPayload,
 } from '../src/index.js';
 
+// The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
+// entrypoint only needs its error class to be defined.
+jest.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class MockHyperliquidError extends Error {},
+}));
+
 describe('@metamask/perps-controller public API', () => {
   it('exports the EIP-712 shape of a HyperLiquid L1 action', () => {
     expect(HYPERLIQUID_L1_ACTION_DOMAIN_NAME).toBe('Exchange');
