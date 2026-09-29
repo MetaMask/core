@@ -1012,18 +1012,16 @@ const USER_REJECTED_REQUEST_CODE = 4001;
 const USER_REJECTED_MESSAGE_PATTERN = /user (rejected|denied|cancell?ed)/iu;
 
 /**
- * Whether preparing the wallet stopped in a way the order path retries: the
- * user declined the venue-key signature, or the wallet has no Lighter account
- * yet.
+ * Whether the user declined the venue-key signature; the order path asks
+ * again.
  *
  * @param error - The caught error.
- * @returns True when registration will be asked again, not a failure.
+ * @returns True for a declined signature.
  */
-const isRetryablePreparationStop = (error: unknown): boolean =>
+const isDeclinedRegistration = (error: unknown): boolean =>
   hasErrorInCauseChain(
     error,
     (current) =>
-      current instanceof LighterAccountNotFoundError ||
       (current as { code?: unknown }).code === USER_REJECTED_REQUEST_CODE ||
       USER_REJECTED_MESSAGE_PATTERN.test(current.message),
   );
@@ -1322,9 +1320,10 @@ export class LighterProvider implements PerpsProvider {
    * result, and `isReadyToTrade` still reports that it cannot trade. Otherwise
    * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
    * not ready (even with a registered venue key), with `NO_ACCOUNT_SELECTED`
-   * when no account is selected, without an error when the order path will
-   * ask again (the user declined the signature, or the wallet has no Lighter
-   * account yet), with `PROVIDER_LIFECYCLE_STALE` (unlogged) when the
+   * when no account is selected, with `EXCHANGE_ACCOUNT_NOT_FOUND` when the
+   * wallet has no Lighter account yet (fund it first), without an error when
+   * the user declined the signature (the order path asks again), with
+   * `PROVIDER_LIFECYCLE_STALE` (unlogged) when the
    * provider disconnected or the wallet switched accounts meanwhile, and with
    * the logged error when registration failed.
    */
@@ -1355,8 +1354,20 @@ export class LighterProvider implements PerpsProvider {
       ) {
         return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
       }
-      if (isRetryablePreparationStop(caughtError)) {
+      if (isDeclinedRegistration(caughtError)) {
         return { ready: false };
+      }
+      // Nothing can be registered before the wallet has a Lighter account.
+      if (
+        hasErrorInCauseChain(
+          caughtError,
+          (current) => current instanceof LighterAccountNotFoundError,
+        )
+      ) {
+        return {
+          ready: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        };
       }
       // The session moved on while registering; the next preparation
       // starts over for the current account.

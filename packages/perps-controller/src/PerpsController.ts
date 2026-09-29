@@ -5936,8 +5936,10 @@ export class PerpsController extends BaseController<
    * again before the first order, including a step the user declined that is
    * not asked again (the HyperLiquid migration); `ready: false` while one will
    * be asked again: a declined builder fee or Lighter registration, or a step
-   * whose signer (the main account or the agent) could not sign. Providers
-   * without deferred setup are ready while the main account can sign.
+   * whose signer (the main account or the agent) could not sign
+   * (`KEYRING_LOCKED`), or a wallet with no account on the venue yet
+   * (`EXCHANGE_ACCOUNT_NOT_FOUND`). Providers without deferred setup are
+   * ready while the main account can sign.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
    * when no active provider is available.

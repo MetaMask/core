@@ -58,7 +58,7 @@ describe('LighterWalletService with accountSigner', () => {
       .catch((caught: unknown) => caught);
 
     expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
-    expect((error as Error).cause).toBe(hostError);
+    expect(error).toHaveProperty('cause', hostError);
   });
 
   it('fails with KEYRING_LOCKED and does not sign when isReady returns false', async () => {

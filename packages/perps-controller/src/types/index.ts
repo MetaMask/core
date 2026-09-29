@@ -2167,7 +2167,8 @@ export type PerpsProvider = {
    * silent migration) are signed by an agent when one resolves. Resolves
    * `ready: true` when none of these steps will need a signature again before
    * the first order, and `ready: false` while one will be retried, including
-   * after an agent could not sign (a read-only provider, which never signs,
+   * after an agent could not sign, with `EXCHANGE_ACCOUNT_NOT_FOUND` for a
+   * wallet with no account on the venue yet (a read-only provider, which never signs,
    * resolves `ready: true` at once while the main-account signer is ready).
    * Providers without such setup omit it.
    */

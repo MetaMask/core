@@ -393,7 +393,7 @@ describe('LighterProvider with accountSigner', () => {
     },
   );
 
-  it('reports a wallet with no Lighter account yet as a retry without logging', async () => {
+  it('reports EXCHANGE_ACCOUNT_NOT_FOUND without logging for a wallet with no Lighter account yet, then registers once it exists', async () => {
     const { provider, client, deps } = buildProvider({
       findAccountByAddress: true,
     });
@@ -406,7 +406,10 @@ describe('LighterProvider with accountSigner', () => {
     // The account now exists (funded through the bridge).
     const retried = await provider.prepareTradingWallet();
 
-    expect(missing).toStrictEqual({ ready: false });
+    expect(missing).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+    });
     expect(retried).toStrictEqual({ ready: true });
     expect(client.sendTx.mock.calls).toStrictEqual([CHANGE_PUB_KEY_TX]);
     expect(loggerError).not.toHaveBeenCalled();

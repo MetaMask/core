@@ -13,6 +13,10 @@ const EIP712_DOMAIN_TYPE = [
   { name: 'verifyingContract', type: 'address' },
 ];
 
+/** A second main account, for account-switch and scoping cases. */
+export const OTHER_MAIN_ADDRESS =
+  '0x00000000000000000000000000000000000b0b01' as const;
+
 /** An agent address that is not the mock main account. */
 export const AGENT_ADDRESS =
   '0x00000000000000000000000000000000000a9e17' as const;

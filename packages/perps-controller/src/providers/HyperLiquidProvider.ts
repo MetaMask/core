@@ -2910,8 +2910,9 @@ export class HyperLiquidProvider implements PerpsProvider {
   #tradingSetupComplete = false;
 
   // Set when the referral could not be written yet (its signer could not
-  // sign, or the wallet has no HyperLiquid account yet), so trading setup is
-  // not marked complete and the referral is attempted again.
+  // sign, the wallet has no HyperLiquid account yet, or the referral code is
+  // not ready), so trading setup is not marked complete and the referral is
+  // attempted again.
   #referralSetupNeedsRetry = false;
 
   readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
@@ -2924,10 +2925,15 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param approvalFailureCode - Operation-specific error to throw when
    * approval is unavailable or fails.
+   * @param options - Options.
+   * @param options.reportSignerFailure - Throw `KEYRING_LOCKED` when the
+   * signer could not sign the approval, even without an approval failure
+   * code (the approval is otherwise non-blocking).
    * @returns The account, network, and configured builder for the action.
    */
   async #ensureBuilderFeeSetup(
     approvalFailureCode?: PerpsErrorCode,
+    options: { reportSignerFailure?: boolean } = {},
   ): Promise<BuilderFeeSetupContext> {
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
@@ -2969,11 +2975,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         '[ensureBuilderFeeSetup] Builder fee approval failed',
         error,
       );
+      // A signer that could not sign is retryable, not an approval failure.
+      if (approvalFailureCode || options.reportSignerFailure) {
+        const signerFailure = this.#classifySignerFailure(error);
+        if (signerFailure) {
+          throw signerFailure;
+        }
+      }
       if (approvalFailureCode) {
-        throw (
-          this.#classifySignerFailure(error) ??
-          approvalFailure(approvalFailureCode)
-        );
+        throw approvalFailure(approvalFailureCode);
       }
     } finally {
       if (this.#builderFeeSetupPromises.get(setupKey) === pendingApproval) {
@@ -14566,9 +14576,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * these steps will need a signature again before the first order; a step
    * the user declined counts, because the order path does not ask again
    * either. `ready: false` carries `KEYRING_LOCKED` when the signer is not
-   * ready, the error when the steps could not run, and no error when a step
-   * will retry (a rejected builder fee, a transient failure, a wallet with no
-   * HyperLiquid account yet, or an agent that could not sign).
+   * ready, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no HyperLiquid
+   * account yet (fund it first), the error when the steps could not run, and
+   * no error when a step will retry (a rejected builder fee, a transient
+   * failure, or an agent that could not sign).
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     // Nothing can be signed, so run no setup (and log nothing) until it can.
@@ -14584,11 +14595,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The venue rejects every write from a wallet with no HyperLiquid account
       // yet, so it is not asked to sign a builder fee approval either.
       if (!(await this.#isWalletOnHyperliquid(userAddress, network))) {
-        return this.#walletService.isMainAccountSignerReady()
-          ? { ready: false }
-          : { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+        return {
+          ready: false,
+          error: this.#walletService.isMainAccountSignerReady()
+            ? PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND
+            : PERPS_ERROR_CODES.KEYRING_LOCKED,
+        };
       }
-      await this.#ensureBuilderFeeSetup();
+      await this.#ensureBuilderFeeSetup(undefined, {
+        reportSignerFailure: true,
+      });
       if (!this.#walletService.isMainAccountSignerReady()) {
         return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
       }
@@ -14598,8 +14614,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#builderFeeCheckCache.has(this.#getCacheKey(network, userAddress));
       return { ready };
     } catch (error) {
-      // The signer locked while a step ran, so that step failed for it.
-      if (!this.#walletService.isMainAccountSignerReady()) {
+      // A step failed because the signer could not sign it (or locked while
+      // it ran): retryable, not logged.
+      if (
+        isKeyringLockedError(error) ||
+        !this.#walletService.isMainAccountSignerReady()
+      ) {
         return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
       }
       const caughtError = ensureError(
@@ -15790,8 +15810,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           '[ensureReferralSet] Builder referral not ready, skipping',
           { network },
         );
+        // Don't cache: attempt it again once the code is ready.
+        this.#referralSetupNeedsRetry = true;
         completeInFlight();
-        return; // Don't cache - retry when ready
+        return;
       }
 
       // Check if user already has a referral on-chain

@@ -42,6 +42,7 @@ import {
   MAIN_SIGNATURE,
   OTHER_AGENT_ADDRESS,
   OTHER_AGENT_SIGNATURE,
+  OTHER_MAIN_ADDRESS,
   USER_SIGNED_PAYLOAD,
   createFrontendOpenOrder,
   signThroughWallet,
@@ -143,8 +144,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
   // boundary: like the SDK, it signs through the wallet the provider
   // initialized it with.
   const ACCOUNT_ADDRESS = createMockEvmAccount().address;
-  const OTHER_ACCOUNT_ADDRESS =
-    '0x00000000000000000000000000000000000b0b01' as const;
+  const OTHER_ACCOUNT_ADDRESS = OTHER_MAIN_ADDRESS;
 
   // A fixed clock for cache timestamps.
   const NOW = 1_700_000_000_000;
@@ -471,6 +471,50 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
     ]);
+    expect(exchangeClient.order).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('fails a TP/SL update with KEYRING_LOCKED when the builder fee approval of another provider ended without one while the signer is locked', async () => {
+    const { accountSignerProvider, exchangeClient } =
+      createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+        signer: { isReady: () => false },
+        // Not approved yet.
+        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+      });
+    // Another provider holds the approval and ends without caching one.
+    const release = PerpsSigningCache.setInFlight(
+      'builderFee',
+      'mainnet',
+      ACCOUNT_ADDRESS,
+    );
+    const isInFlight = PerpsSigningCache.isInFlight.bind(PerpsSigningCache);
+    jest
+      .spyOn(PerpsSigningCache, 'isInFlight')
+      .mockImplementation((operationType, network, userAddress) => {
+        const pending = isInFlight(operationType, network, userAddress);
+        if (operationType === 'builderFee' && pending) {
+          release();
+        }
+        return pending;
+      });
+
+    let result;
+    try {
+      result = await accountSignerProvider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+      });
+    } finally {
+      release();
+    }
+
+    expect(result).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     expect(exchangeClient.order).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
@@ -935,7 +979,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     });
 
     it('signs the migration at connect and the referral in preparation through the keyring without accountSigner', async () => {
-      const { accountSignerProvider, accountSigner, call, exchangeClient } =
+      const { accountSignerProvider, call, exchangeClient } =
         createAccountSignerProvider({ keyring: true });
       const typedDataSignatures = (): unknown[] =>
         call.mock.calls.filter(
@@ -955,7 +999,6 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
       ]);
-      expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(connectSignatures).toStrictEqual([
         [
           'KeyringController:signTypedMessage',
@@ -1066,7 +1109,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(loggerError).not.toHaveBeenCalled();
     });
 
-    it('reports not ready, without an error, for a wallet with no HyperLiquid account yet', async () => {
+    it('reports EXCHANGE_ACCOUNT_NOT_FOUND without signing for a wallet with no HyperLiquid account yet', async () => {
       const { accountSignerProvider, accountSigner, exchangeClient } =
         createAccountSignerProvider({
           abstraction: 'default',
@@ -1079,7 +1122,10 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       const result = await accountSignerProvider.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: false });
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      });
       expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
       expect(exchangeClient.setReferrer).not.toHaveBeenCalled();
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
@@ -1105,7 +1151,10 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       deposited = true;
       const afterDeposit = await accountSignerProvider.prepareTradingWallet();
 
-      expect(beforeDeposit).toStrictEqual({ ready: false });
+      expect(beforeDeposit).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      });
       expect(afterDeposit).toStrictEqual({ ready: true });
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
@@ -1135,6 +1184,86 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('attempts the referral again when the venue rejects the wallet as unknown despite the probe', async () => {
+      const { accountSignerProvider, exchangeClient } =
+        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
+      // The probe sees a deposit, but the venue has not caught up yet.
+      exchangeClient.setReferrer.mockRejectedValueOnce(
+        unknownWalletError(ACCOUNT_ADDRESS),
+      );
+
+      const rejected = await accountSignerProvider.prepareTradingWallet();
+      const referralAfterRejection = referralAttempted();
+      const retried = await accountSignerProvider.prepareTradingWallet();
+
+      expect(rejected).toStrictEqual({ ready: false });
+      expect(referralAfterRejection).toBe(false);
+      expect(retried).toStrictEqual({ ready: true });
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+        REFERRAL_WRITE,
+      ]);
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('sets the referral once the referral code becomes ready', async () => {
+      let codeReady = false;
+      const { accountSignerProvider, exchangeClient } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          info: {
+            referral: jest.fn(async () => ({
+              referrerState: codeReady
+                ? {
+                    stage: 'ready',
+                    data: { code: REFERRAL_CONFIG.MainnetCode },
+                  }
+                : { stage: 'not_ready', data: null },
+            })),
+          },
+        });
+
+      const beforeReady = await accountSignerProvider.prepareTradingWallet();
+      codeReady = true;
+      const afterReady = await accountSignerProvider.prepareTradingWallet();
+
+      expect(beforeReady).toStrictEqual({ ready: false });
+      expect(afterReady).toStrictEqual({ ready: true });
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('reports KEYRING_LOCKED without logging when the builder fee signature is rejected as locked', async () => {
+      const { accountSignerProvider, accountSigner, exchangeClient } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          // Not approved yet.
+          info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        });
+      // The signer reports ready, but rejects the approval as locked.
+      accountSigner.signTypedData.mockImplementation(
+        async (_address: string, payload: PerpsTypedDataPayload) => {
+          if (payload === APPROVE_BUILDER_FEE_PAYLOAD) {
+            throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+          }
+          return MAIN_SIGNATURE;
+        },
+      );
+
+      const result = await accountSignerProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+        BUILDER_FEE_WRITE,
+      ]);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -1480,7 +1609,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     it('keeps an agent bound while a failing getAgentSigner answer is pending', async () => {
       const { getAgentSigner, answer, asked } = createPendingResolver();
       const bindings = new AgentBindings(getAgentSigner);
-      const { accountSignerProvider, agentSigner } =
+      const { accountSignerProvider, agentSigner, exchangeClient } =
         createAccountSignerProvider({
           abstraction: 'default',
           getAgentSigner: bindings.resolve,
@@ -1491,8 +1620,15 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       bind(accountSignerProvider, bindings, MAINNET_ACCOUNT, agentSigner);
       answer.reject(new Error('agent store unavailable'));
       await reading;
+      // The connect-time migration signed with the bound agent, at once.
+      const migrationsAtConnect =
+        exchangeClient.agentSetAbstraction.mock.calls.slice();
+      const agentSignaturesAtConnect =
+        agentSigner.signTypedData.mock.calls.slice();
       await accountSignerProvider.prepareTradingWallet();
 
+      expect(migrationsAtConnect).toStrictEqual([SILENT_MIGRATION_WRITE]);
+      expect(agentSignaturesAtConnect).toStrictEqual([[L1_PAYLOAD]]);
       expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
       expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
         [L1_PAYLOAD],
@@ -1581,7 +1717,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     it('asks getAgentSigner again once the bindings are cleared', async () => {
       const getAgentSigner = jest.fn();
       const bindings = new AgentBindings(getAgentSigner);
-      const { accountSignerProvider, agentSigner, initialize } =
+      const { accountSignerProvider, accountSigner, agentSigner, initialize } =
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           getAgentSigner: bindings.resolve,
@@ -1590,15 +1726,22 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       bindings.set(MAINNET_ACCOUNT, null);
       await accountSignerProvider.getMarketDataWithPrices();
       const [[wallet]] = initialize.mock.calls;
+      // Pinned to the main account while the null binding holds.
+      await wallet.signTypedData(L1_PAYLOAD);
+      const pinnedSignatures = accountSigner.signTypedData.mock.calls.slice();
 
       bindings.clear();
       accountSignerProvider.clearAgentSigners();
       await wallet.signTypedData(L1_PAYLOAD);
 
+      expect(pinnedSignatures).toStrictEqual([[ACCOUNT_ADDRESS, L1_PAYLOAD]]);
       expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
       expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
         [L1_PAYLOAD],
       ]);
+      expect(accountSigner.signTypedData.mock.calls).toStrictEqual(
+        pinnedSignatures,
+      );
     });
 
     it('leaves the referral to retry, unrecorded, when getAgentSigner rejects', async () => {

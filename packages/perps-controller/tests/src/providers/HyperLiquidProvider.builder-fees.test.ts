@@ -1646,7 +1646,7 @@ describe('HyperLiquidProvider', () => {
       expect(mockCompleteInFlight).toHaveBeenCalled();
     });
 
-    it('skips cache when KEYRING_LOCKED error is thrown', async () => {
+    it('skips cache and rethrows when KEYRING_LOCKED error is thrown', async () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
@@ -1665,8 +1665,10 @@ describe('HyperLiquidProvider', () => {
         }),
       );
 
-      // Act - should resolve without throwing
-      await testableProvider.ensureBuilderFeeApproval();
+      // Act - rethrows, so the caller reports a retryable failure
+      await expect(testableProvider.ensureBuilderFeeApproval()).rejects.toThrow(
+        'KEYRING_LOCKED',
+      );
 
       // Assert - cache should NOT be set (so it retries when unlocked)
       expect(

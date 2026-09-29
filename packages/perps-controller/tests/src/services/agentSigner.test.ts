@@ -7,6 +7,7 @@ import type { PerpsAgentAccount } from '../../../src/types/index.js';
 import {
   AGENT_ADDRESS,
   OTHER_AGENT_ADDRESS,
+  OTHER_MAIN_ADDRESS,
   sdkSigningError,
 } from '../../helpers/agentFixtures.js';
 
@@ -66,7 +67,7 @@ describe('AgentBindings', () => {
     const bindings = new AgentBindings(getAgentSigner);
     const otherAccount: PerpsAgentAccount = {
       ...ACCOUNT,
-      mainAddress: '0x00000000000000000000000000000000000b0b01',
+      mainAddress: OTHER_MAIN_ADDRESS,
     };
     bindings.set(ACCOUNT, null);
     bindings.set(otherAccount, AGENT);

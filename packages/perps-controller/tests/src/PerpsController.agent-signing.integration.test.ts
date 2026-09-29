@@ -8,6 +8,7 @@ import {
   getDefaultPerpsControllerState,
   PerpsController,
 } from '../../src/PerpsController.js';
+import type { PerpsControllerMessenger } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import type { HyperLiquidWalletParams } from '../../src/services/HyperLiquidClientService.js';
 import { TradingReadinessCache } from '../../src/services/TradingReadinessCache.js';
@@ -33,9 +34,11 @@ import {
 } from '../helpers/agentFixtures.js';
 import { createMockInfoClient } from '../helpers/providerMocks.js';
 import {
+  createKeyringlessMessenger,
+  createKeyringMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
-  createMockMessenger,
+  keyringCalls,
 } from '../helpers/serviceMocks.js';
 
 const MAIN_ADDRESS = createMockEvmAccount().address;
@@ -200,13 +203,19 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     // An account already on the unified account, with the builder fee
     // approved and the referral set, so only the tested write signs.
     mockVenue.infoClient = createMockInfoClient({
-      referral: jest.fn().mockResolvedValue({
+      // MetaMask's referral code is ready on each network.
+      referral: jest.fn(async ({ user }: { user: string }) => ({
         referredBy: { code: REFERRAL_CONFIG.MainnetCode },
         referrerState: {
           stage: 'ready',
-          data: { code: REFERRAL_CONFIG.MainnetCode },
+          data: {
+            code:
+              user === BUILDER_FEE_CONFIG.TestnetBuilder
+                ? REFERRAL_CONFIG.TestnetCode
+                : REFERRAL_CONFIG.MainnetCode,
+          },
         },
-      }),
+      })),
     });
     mockVenue.networks = [];
     mockVenue.writes = [];
@@ -223,44 +232,60 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   });
 
   /**
-   * A messenger that answers the host actions these flows call: an empty
-   * remote feature flag state, so the controller reads its defaults, the
-   * selected account, and the network the fee discount looks up. With
-   * `keyring`, it is also the host's KeyringController, which signs as the
-   * main account.
+   * A real host messenger. It delegates only what the host answers: the
+   * selected account, an empty remote feature flag state (so the controller
+   * reads its defaults), the network the fee discount looks up, no synced
+   * watchlist, no data-lake session (so orders are not reported) and, with
+   * `keyring`, the KeyringController that signs as the main account. Any
+   * other action throws.
    *
    * @param keyring - The KeyringController the host exposes, if any.
    * @param keyring.isUnlocked - Whether the keyring is unlocked.
-   * @returns The messenger.
+   * @returns The messenger and a spy on its `call`.
    */
-  function createMessenger(keyring?: {
-    isUnlocked: boolean;
-  }): ReturnType<typeof createMockMessenger> {
-    const keyringAnswers: Record<string, unknown> = keyring
-      ? {
-          'KeyringController:getState': { isUnlocked: keyring.isUnlocked },
-          'KeyringController:signTypedMessage': Promise.resolve(MAIN_SIGNATURE),
-        }
-      : {};
-    const answers: Record<string, unknown> = {
-      ...keyringAnswers,
-      'RemoteFeatureFlagController:getState': {
-        remoteFeatureFlags: {},
-        cacheTimestamp: 0,
-      },
-      'AccountTreeController:getAccountsFromSelectedAccountGroup': [
-        createMockEvmAccount(),
+  function createHost(keyring?: { isUnlocked: boolean }): {
+    messenger: PerpsControllerMessenger;
+    call: jest.SpyInstance;
+  } {
+    const { messenger, rootMessenger, call } = keyring
+      ? createKeyringMessenger(MAIN_SIGNATURE, keyring.isUnlocked)
+      : createKeyringlessMessenger();
+    rootMessenger.registerActionHandler(
+      'RemoteFeatureFlagController:getState',
+      () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+    );
+    rootMessenger.registerActionHandler(
+      'NetworkController:getState',
+      jest.fn().mockReturnValue({ selectedNetworkClientId: 'mainnet' }),
+    );
+    rootMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      jest.fn().mockReturnValue({ configuration: { chainId: '0x1' } }),
+    );
+    rootMessenger.registerActionHandler(
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+      async () => null,
+    );
+    rootMessenger.registerActionHandler(
+      'AuthenticationController:getBearerToken',
+      async () => '',
+    );
+    rootMessenger.delegate({
+      actions: [
+        'RemoteFeatureFlagController:getState',
+        'NetworkController:getState',
+        'NetworkController:getNetworkClientById',
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+        'AuthenticationController:getBearerToken',
       ],
-      'NetworkController:getState': { selectedNetworkClientId: 'mainnet' },
-      'NetworkController:getNetworkClientById': {
-        configuration: { chainId: '0x1' },
-      },
-    };
-    return createMockMessenger({
-      call: jest
-        .fn()
-        .mockImplementation((action: string): unknown => answers[action]),
+      events: [
+        'RemoteFeatureFlagController:stateChange',
+        'AccountsController:selectedAccountChange',
+        'AccountTreeController:selectedAccountGroupChange',
+      ],
+      messenger,
     });
+    return { messenger, call };
   }
 
   /**
@@ -271,20 +296,20 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    * @param options.signer - The host's account signer; null for a host that
    * signs through its KeyringController.
    * @param options.hyperliquid - The host's HyperLiquid credentials.
-   * @param options.messenger - The host's messenger.
-   * @returns The controller.
+   * @param options.host - The host's messenger.
+   * @returns The controller and a spy on the host messenger's `call`.
    */
   function createController({
     signer = accountSigner,
     hyperliquid = { getAgentSigner, onAgentRejected },
-    messenger = createMessenger(),
+    host = createHost(),
   }: {
     signer?: PerpsAccountSigner | null;
     hyperliquid?: HyperLiquidCredentials;
-    messenger?: ReturnType<typeof createMockMessenger>;
-  } = {}): PerpsController {
-    return new PerpsController({
-      messenger,
+    host?: ReturnType<typeof createHost>;
+  } = {}): { controller: PerpsController; call: jest.SpyInstance } {
+    const controller = new PerpsController({
+      messenger: host.messenger,
       state: getDefaultPerpsControllerState(),
       clientConfig: { providerCredentials: { hyperliquid } },
       infrastructure: signer
@@ -292,20 +317,19 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
         : infrastructure,
       deferEligibilityCheck: true,
     });
+    return { controller, call: host.call };
   }
 
   /**
    * The typed-data signatures the host's KeyringController was asked for.
    *
-   * @param messenger - The host's messenger.
+   * @param call - A spy on the host messenger's `call`.
    * @returns The `KeyringController:signTypedMessage` calls.
    */
-  function keyringSignatureRequests(
-    messenger: ReturnType<typeof createMockMessenger>,
-  ): unknown[][] {
-    return messenger.call.mock.calls.filter(
-      ([action]) => action === 'KeyringController:signTypedMessage',
-    );
+  function keyringSignatureRequests(call: jest.SpyInstance): unknown[][] {
+    return call.mock.calls
+      .map((args: unknown[]) => args)
+      .filter(([action]) => action === 'KeyringController:signTypedMessage');
   }
 
   /**
@@ -353,7 +377,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   it("signs L1 actions with the host's agent and user-signed actions with the main account", async () => {
     // The builder fee is not approved yet, so the first order approves it.
     mockVenue.infoClient.maxBuilderFee.mockResolvedValueOnce(0);
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
 
     const placed = await placeOrder(controller);
@@ -369,11 +393,12 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
     ]);
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('signs L1 actions with the main account when the host has no getAgentSigner', async () => {
-    const controller = createController({ hyperliquid: {} });
+    const { controller, call } = createController({ hyperliquid: {} });
     await controller.init();
 
     const placed = await placeOrder(controller);
@@ -383,14 +408,17 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('signs L1 actions with the agent and user-signed actions through KeyringController for a host without accountSigner', async () => {
     // The builder fee is not approved yet, so the first order approves it.
     mockVenue.infoClient.maxBuilderFee.mockResolvedValueOnce(0);
-    const messenger = createMessenger({ isUnlocked: true });
-    const controller = createController({ signer: null, messenger });
+    const { controller, call } = createController({
+      signer: null,
+      host: createHost({ isUnlocked: true }),
+    });
     await controller.init();
 
     const placed = await placeOrder(controller);
@@ -400,7 +428,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['approveBuilderFee', MAIN_ADDRESS],
       ['order', AGENT_ADDRESS],
     ]);
-    expect(keyringSignatureRequests(messenger)).toStrictEqual([
+    expect(keyringSignatureRequests(call)).toStrictEqual([
       [
         'KeyringController:signTypedMessage',
         { from: MAIN_ADDRESS, data: APPROVE_BUILDER_FEE_PAYLOAD },
@@ -414,8 +442,10 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   });
 
   it('prepares nothing and reports KEYRING_LOCKED while the host keyring is locked', async () => {
-    const messenger = createMessenger({ isUnlocked: false });
-    const controller = createController({ signer: null, messenger });
+    const { controller, call } = createController({
+      signer: null,
+      host: createHost({ isUnlocked: false }),
+    });
     await controller.init();
 
     const result = await controller.prepareTradingWallet();
@@ -425,13 +455,13 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
     expect(mockVenue.writes).toStrictEqual([]);
-    expect(keyringSignatureRequests(messenger)).toStrictEqual([]);
+    expect(keyringSignatureRequests(call)).toStrictEqual([]);
     expect(getAgentSigner).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('pins L1 actions to the main account with setAgentSigner(null) until clearAgentSigners', async () => {
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
 
     controller.setAgentSigner(MAINNET_ACCOUNT, null);
@@ -449,42 +479,52 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     ]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('keeps a setAgentSigner binding when the HyperLiquid provider is re-created', async () => {
     getAgentSigner.mockResolvedValue(null);
     const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
 
     const placedBefore = await placeOrder(controller);
     await controller.toggleTestnet();
+    const placedOnTestnet = await placeOrder(controller);
     await controller.toggleTestnet();
     const placedAfter = await placeOrder(controller);
 
-    expect([placedBefore, placedAfter]).toStrictEqual([
+    expect([placedBefore, placedOnTestnet, placedAfter]).toStrictEqual([
+      PLACED_ORDER,
       PLACED_ORDER,
       PLACED_ORDER,
     ]);
-    // The original and the re-created mainnet provider each built SDK
-    // clients.
-    expect(mockVenue.networks).toStrictEqual(['mainnet', 'mainnet']);
+    // Each provider built its own SDK clients.
+    expect(mockVenue.networks).toStrictEqual(['mainnet', 'testnet', 'mainnet']);
+    // The binding is for mainnet only: on testnet the host has no agent, so
+    // the main account signs.
     expect(signedWrites()).toStrictEqual([
       ['order', OTHER_AGENT_ADDRESS],
+      ['order', MAIN_ADDRESS],
       ['order', OTHER_AGENT_ADDRESS],
     ]);
-    expect(getAgentSigner).not.toHaveBeenCalled();
-    expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+    expect(getAgentSigner.mock.calls).toStrictEqual([
+      [{ ...MAINNET_ACCOUNT, isTestnet: true }],
+    ]);
+    expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+      [MAIN_ADDRESS, L1_PAYLOAD],
+    ]);
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('honors a setAgentSigner binding made before init', async () => {
     getAgentSigner.mockResolvedValue(null);
     const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
-    const controller = createController();
+    const { controller, call } = createController();
 
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
     await controller.init();
@@ -494,12 +534,13 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(signedWrites()).toStrictEqual([['order', OTHER_AGENT_ADDRESS]]);
     expect(getAgentSigner).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('forgets a setAgentSigner binding cleared before init', async () => {
     const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
-    const controller = createController();
+    const { controller, call } = createController();
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
 
     controller.clearAgentSigners();
@@ -510,6 +551,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(signedWrites()).toStrictEqual([['order', AGENT_ADDRESS]]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(boundAgent.signTypedData).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -518,7 +560,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       OTHER_AGENT_ADDRESS,
       OTHER_AGENT_SIGNATURE,
     );
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
 
     const resolvedPlaced = await placeOrder(controller);
@@ -539,6 +581,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     ]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -551,7 +594,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       .mockResolvedValueOnce(agentSigner)
       .mockResolvedValueOnce(replacementAgent);
     mockVenue.revokedAgents.add(AGENT_ADDRESS);
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
 
     const cancelled = await controller.cancelOrder({
@@ -578,13 +621,14 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       [MAINNET_ACCOUNT],
     ]);
     // Nothing reports the retryable signer failure.
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('releases a setAgentSigner binding to an agent the venue rejects', async () => {
     const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
     mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
 
@@ -609,11 +653,49 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       ['order', AGENT_ADDRESS],
     ]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(keyringCalls(call)).toStrictEqual([]);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('releases a binding to an agent the venue rejects for a host without onAgentRejected', async () => {
+    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
+    mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
+    const { controller, call } = createController({
+      hyperliquid: { getAgentSigner },
+    });
+    await controller.init();
+    controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
+
+    const cancelled = await controller.cancelOrder({
+      orderId: '1',
+      symbol: 'BTC',
+    });
+    const placed = await placeOrder(controller);
+
+    expect(cancelled).toStrictEqual({
+      success: false,
+      orderId: '1',
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    // The binding is gone, so the host's getAgentSigner answers.
+    expect(placed).toStrictEqual(PLACED_ORDER);
+    expect(signedWrites()).toStrictEqual([
+      ['cancel', OTHER_AGENT_ADDRESS],
+      ['order', AGENT_ADDRESS],
+    ]);
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    // Nothing threw while telling the host about the rejection.
+    expect(
+      (infrastructure.debugLogger.log as jest.Mock).mock.calls.filter(
+        ([message]) => message === 'HyperLiquidProvider: onAgentRejected threw',
+      ),
+    ).toStrictEqual([]);
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('prepares nothing and reports KEYRING_LOCKED while the account signer is not ready', async () => {
-    const controller = createController({
+    const { controller, call } = createController({
       signer: { ...accountSigner, isReady: (): boolean => false },
     });
     await controller.init();
@@ -629,6 +711,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(getAgentSigner).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -639,7 +722,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
       maxBuilderFee: jest.fn().mockResolvedValueOnce(0).mockResolvedValue(1),
     });
-    const controller = createController();
+    const { controller, call } = createController();
     await controller.init();
 
     const result = await controller.prepareTradingWallet();
@@ -674,6 +757,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 });

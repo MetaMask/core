@@ -23,6 +23,7 @@ import {
   AGENT_SIGNATURE,
   L1_PAYLOAD,
   MAIN_SIGNATURE,
+  OTHER_MAIN_ADDRESS,
   USER_SIGNED_PAYLOAD,
 } from '../../helpers/agentFixtures.js';
 import {
@@ -110,7 +111,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
       .catch((caught: unknown) => caught);
 
     expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
-    expect((error as Error).cause).toBe(hostError);
+    expect(error).toHaveProperty('cause', hostError);
   });
 
   it('reports ready when isReady is omitted', () => {
@@ -164,7 +165,6 @@ describe('HyperLiquidWalletService with accountSigner', () => {
 
 describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   const { address: mainAddress } = createMockEvmAccount();
-  const OTHER_MAIN_ADDRESS = '0x00000000000000000000000000000000000b0b01';
   function buildAdapter(agentAvailable = true): {
     adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
     resolveAgent: jest.Mock;
@@ -225,7 +225,9 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     const signature = await adapter.signTypedData(USER_SIGNED_PAYLOAD);
 
     expect(signature).toBe(MAIN_SIGNATURE);
-    expect(mainSign).toHaveBeenCalledWith(mainAddress, USER_SIGNED_PAYLOAD);
+    expect(mainSign.mock.calls).toStrictEqual([
+      [mainAddress, USER_SIGNED_PAYLOAD],
+    ]);
     expect(resolveAgent).not.toHaveBeenCalled();
     expect(agentSign).not.toHaveBeenCalled();
   });
@@ -237,8 +239,9 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
       domain: { ...L1_PAYLOAD.domain, name: 'HyperliquidSignTransaction' },
     };
 
-    await adapter.signTypedData(lookalike);
+    const signature = await adapter.signTypedData(lookalike);
 
+    expect(signature).toBe(MAIN_SIGNATURE);
     expect(mainSign.mock.calls).toStrictEqual([[mainAddress, lookalike]]);
     expect(resolveAgent).not.toHaveBeenCalled();
     expect(agentSign).not.toHaveBeenCalled();
@@ -251,8 +254,9 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
       domain: L1_PAYLOAD.domain,
     };
 
-    await adapter.signTypedData(lookalike);
+    const signature = await adapter.signTypedData(lookalike);
 
+    expect(signature).toBe(MAIN_SIGNATURE);
     expect(mainSign.mock.calls).toStrictEqual([[mainAddress, lookalike]]);
     expect(resolveAgent).not.toHaveBeenCalled();
     expect(agentSign).not.toHaveBeenCalled();
@@ -326,7 +330,7 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
       .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(AgentSignerUnavailableError);
-    expect((error as Error).cause).toBe(failure);
+    expect(error).toHaveProperty('cause', failure);
     expect(mainSign).not.toHaveBeenCalled();
   });
 });

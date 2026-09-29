@@ -1135,31 +1135,57 @@ describe('PerpsController', () => {
     });
 
     it.each([
-      { signerReady: true, expected: { ready: true } },
       {
-        signerReady: false,
+        signer: 'the account signer',
+        canSign: true,
+        expected: { ready: true },
+      },
+      {
+        signer: 'the account signer',
+        canSign: false,
+        expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
+      },
+      { signer: 'the keyring', canSign: true, expected: { ready: true } },
+      {
+        signer: 'the keyring',
+        canSign: false,
         expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
       },
     ])(
-      'reports readiness from the main-account signer when the provider has no deferred setup (signer ready: $signerReady)',
-      async ({ signerReady, expected }) => {
+      'reports readiness from $signer when the provider has no deferred setup (can sign: $canSign)',
+      async ({ signer, canSign, expected }) => {
+        const usesKeyring = signer === 'the keyring';
+        const call = jest
+          .fn()
+          .mockImplementation((action: string) =>
+            action === 'KeyringController:getState'
+              ? { isUnlocked: canSign }
+              : undefined,
+          );
         controller = new TestablePerpsController({
-          messenger: createMockMessenger(),
+          messenger: createMockMessenger({ call }),
           state: getDefaultPerpsControllerState(),
-          infrastructure: {
-            ...mockInfrastructure,
-            accountSigner: {
-              signTypedData: jest.fn(),
-              signPersonalMessage: jest.fn(),
-              isReady: (): boolean => signerReady,
-            },
-          },
+          infrastructure: usesKeyring
+            ? mockInfrastructure
+            : {
+                ...mockInfrastructure,
+                accountSigner: {
+                  signTypedData: jest.fn(),
+                  signPersonalMessage: jest.fn(),
+                  isReady: (): boolean => canSign,
+                },
+              },
         });
         await controller.init();
+        call.mockClear();
 
         const result = await controller.prepareTradingWallet();
 
         expect(result).toStrictEqual(expected);
+        // Only a host without an account signer is asked for its keyring.
+        expect(
+          call.mock.calls.filter(([action]) => action.startsWith('Keyring')),
+        ).toStrictEqual(usesKeyring ? [['KeyringController:getState']] : []);
       },
     );
   });
