@@ -25,8 +25,8 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-framework-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-framework-docs",
     "dev": "docusaurus start site",
-    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "lint:tsconfigs": "node ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --esm --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -64,7 +64,6 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ts-jest": "^29.4.14",
-    "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {

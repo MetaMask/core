@@ -1,5 +1,5 @@
-import { generateActionTypesContent } from './generate-content.js';
-import type { SourceInfo } from './parse-source.js';
+import { generateActionTypesContent } from './generate-content.ts';
+import type { SourceInfo } from './parse-source.ts';
 
 describe('generateActionTypesContent', () => {
   it('generates action types for a controller with one method', async () => {

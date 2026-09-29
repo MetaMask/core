@@ -1,8 +1,8 @@
 import { assertExhaustive, getErrorMessage } from '@metamask/utils';
 import * as path from 'node:path';
 
-import type { SourceInfo } from './parse-source.js';
-import { Formatter } from './types.js';
+import type { SourceInfo } from './parse-source.ts';
+import type { Formatter } from './types.ts';
 
 /**
  * The default options used by Oxfmt and Prettier when formatting the generated
