@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+## [6.0.0]
+
 ### Added
 
 - Add `ChompIntentType` export, covering every vault and subscription CHOMP intent type ([#10430](https://github.com/MetaMask/core/pull/10430))
@@ -100,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...@metamask/chomp-api-service@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.2...@metamask/chomp-api-service@5.0.0
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.1...@metamask/chomp-api-service@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...@metamask/chomp-api-service@4.0.1

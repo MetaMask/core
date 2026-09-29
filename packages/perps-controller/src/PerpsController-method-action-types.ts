@@ -1272,6 +1272,30 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
+ * Get the saved margin mode (Isolated/Cross) for a market on the current
+ * network. Clients should still let a venue-enforced mode take priority.
+ *
+ * @param symbol - Market symbol
+ * @returns The saved margin mode or undefined if not set
+ */
+export type PerpsControllerGetMarginModeAction = {
+  type: `PerpsController:getMarginMode`;
+  handler: PerpsController['getMarginMode'];
+};
+
+/**
+ * Save the margin mode (Isolated/Cross) picked for a market on the current
+ * network. Values other than `isolated` or `cross` are ignored.
+ *
+ * @param symbol - Market symbol
+ * @param marginMode - Margin mode to persist
+ */
+export type PerpsControllerSaveMarginModeAction = {
+  type: `PerpsController:saveMarginMode`;
+  handler: PerpsController['saveMarginMode'];
+};
+
+/**
  * Toggle watchlist status for a market.
  *
  * Updates local state immediately (optimistic UI) and then syncs the new
@@ -1463,6 +1487,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
   | PerpsControllerSaveOrderBookGroupingAction
+  | PerpsControllerGetMarginModeAction
+  | PerpsControllerSaveMarginModeAction
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction

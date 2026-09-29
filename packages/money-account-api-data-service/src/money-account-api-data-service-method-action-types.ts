@@ -65,10 +65,26 @@ export type MoneyAccountApiDataServiceFetchRateHistoryAction = {
 };
 
 /**
+ * Fetches the current Accountant exchange rate for a vault.
+ *
+ * The server returns 404 when the vault is not in the deployment registry
+ * or has no indexed rate yet.
+ *
+ * @param vaultAddress - The vault's Ethereum address.
+ * @param options - Optional chain ID filter. Omitted requests use the API default.
+ * @returns The current vault rate response.
+ */
+export type MoneyAccountApiDataServiceFetchVaultRateAction = {
+  type: `MoneyAccountApiDataService:fetchVaultRate`;
+  handler: MoneyAccountApiDataService['fetchVaultRate'];
+};
+
+/**
  * Union of all MoneyAccountApiDataService action types.
  */
 export type MoneyAccountApiDataServiceMethodActions =
   | MoneyAccountApiDataServiceFetchPositionsAction
   | MoneyAccountApiDataServiceFetchInterestAction
   | MoneyAccountApiDataServiceFetchHistoryAction
-  | MoneyAccountApiDataServiceFetchRateHistoryAction;
+  | MoneyAccountApiDataServiceFetchRateHistoryAction
+  | MoneyAccountApiDataServiceFetchVaultRateAction;

@@ -297,6 +297,11 @@
       "count": 3
     }
   },
+  "packages/advanced-chart-core/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/ai-controllers/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
