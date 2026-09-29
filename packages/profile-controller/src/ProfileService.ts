@@ -10,12 +10,12 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   array,
-  assert,
   boolean,
   enums,
   intersection,
   nullable,
   optional,
+  sensitive,
   string,
   type as structType,
 } from '@metamask/superstruct';
@@ -78,8 +78,8 @@ const UsernameAvailabilityResponseStruct = structType({
 });
 
 const XAuthUrlResponseStruct = structType({
-  url: string(),
-  state: string(),
+  url: sensitive(string()),
+  state: sensitive(string()),
 });
 
 const XConnectResponseStruct = structType({
@@ -98,8 +98,8 @@ const CreateProfileResponseStruct = intersection([
 ]);
 
 const ConnectXParamsStruct = structType({
-  code: string(),
-  state: string(),
+  code: sensitive(string()),
+  state: sensitive(string()),
 });
 
 const CreateProfileParamsStruct = structType({
