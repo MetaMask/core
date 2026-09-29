@@ -65,7 +65,7 @@
   "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
-    "@jest/globals": "^30.4.1",
+    "@jest/globals": "^30.5.2",
     "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^3.0.0",
     "@metamask/auto-changelog": "^6.2.1",
@@ -93,7 +93,7 @@
     "eslint-plugin-n": "^18.3.0",
     "execa": "^10.0.1",
     "isomorphic-fetch": "^3.0.0",
-    "jest": "^30.4.2",
+    "jest": "^30.5.2",
     "jest-silent-reporter": "^0.6.0",
     "knip": "^6.38.0",
     "lodash": "^4.18.1",
