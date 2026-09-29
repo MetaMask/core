@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replace `isGasFeeSponsored` in `addTransaction` and `addTransactionBatch` options with `forceIsGasFeeSponsored`, and decide sponsorship in client hooks.
   - Nonce reservation now happens after `beforeSign` and the gas fee token check, and only when signing locally. Existing nonces are kept when local signing is skipped.
 - **BREAKING:** `hooks` is now optional in `TransactionControllerOptions` and `hooks.publish` uses the `PublishHook` type ([#10575](https://github.com/MetaMask/core/pull/10575))
+- `getGasFeeTokens` now sets `isGasFeeTokenIgnoredIfBalance` on the transaction passed to `isEIP7702GasFeeTokensEnabled`, so clients can include EIP-7702 gas fee tokens for gas fee token estimates ([#10575](https://github.com/MetaMask/core/pull/10575))
 
 ### Removed
 

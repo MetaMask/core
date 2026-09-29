@@ -9298,6 +9298,27 @@ describe('TransactionController', () => {
           }),
         );
       });
+
+      it('marks the request as paying with a gas fee token', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce(
+          createGasFeeTokensResult([GAS_FEE_TOKEN_MOCK]),
+        );
+
+        await messenger.call('TransactionController:getGasFeeTokens', {
+          chainId: CHAIN_ID_MOCK,
+          data: DATA_MOCK,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        expect(
+          getGasFeeTokensMock.mock.calls[0][0].transactionMeta
+            .isGasFeeTokenIgnoredIfBalance,
+        ).toBe(true);
+      });
     });
 
     describe('TransactionController:transactionApproved event', () => {
