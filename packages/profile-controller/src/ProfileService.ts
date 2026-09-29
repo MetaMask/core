@@ -300,7 +300,9 @@ export class ProfileService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(response.status, `${error}: ${response.status}`);
     }
-    if (method === 'DELETE') return null as ResponseType;
+    if (method === 'DELETE') {
+      return null as ResponseType;
+    }
     return (await response.json()) as ResponseType;
   }
 
