@@ -82,6 +82,11 @@ const USDT_ASSET_ID_LOWER = USDT_ASSET_ID_CHECKSUM.toLowerCase();
 type StateSurface = {
   surface: string;
   lookUp: (state: AssetsControllerState, assetId: string) => unknown;
+  getAssetIds: (state: AssetsControllerState) => Set<string>;
+  lookupAmount: (
+    state: AssetsControllerState,
+    assetId: string,
+  ) => string | undefined;
 };
 
 type StaleBalanceHarnessOptions = {
@@ -214,6 +219,19 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
     surface: 'balances',
     lookUp: (state, assetId) =>
       getIgnoringCase(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}, assetId),
+    getAssetIds: (state) =>
+      new Set(
+        Object.keys(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
+          key.toLowerCase(),
+        ),
+      ),
+    lookupAmount: (state, assetId) =>
+      (
+        getIgnoringCase(
+          state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {},
+          assetId,
+        ) as { amount?: string } | undefined
+      )?.amount,
   };
 
   afterEach(() => {
@@ -233,27 +251,15 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
       snap: { failAll: true },
     });
 
-    expect(BALANCES.lookUp(unreachable, SOL_ASSET_ID)).toMatchObject({
-      amount: '3.25',
-    });
-    expect(BALANCES.lookUp(unreachable, SOLANA_JUP_ASSET_ID)).toMatchObject({
-      amount: '40.25',
-    });
-    expect(BALANCES.lookUp(unreachable, SOLANA_USDC_ASSET_ID)).toMatchObject({
-      amount: '125.5',
-    });
-    expect(
-      new Set(
-        Object.keys(unreachable.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map(
-          (key) => key.toLowerCase(),
-        ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        Object.keys(seeded.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
+    expect(BALANCES.lookupAmount(unreachable, SOL_ASSET_ID)).toBe('3.25');
+    expect(BALANCES.lookupAmount(unreachable, SOLANA_JUP_ASSET_ID)).toBe(
+      '40.25',
+    );
+    expect(BALANCES.lookupAmount(unreachable, SOLANA_USDC_ASSET_ID)).toBe(
+      '125.5',
+    );
+    expect(BALANCES.getAssetIds(unreachable)).toStrictEqual(
+      BALANCES.getAssetIds(seeded),
     );
   });
 
@@ -272,27 +278,11 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
       },
     });
 
-    expect(BALANCES.lookUp(skipped, SOLANA_JUP_ASSET_ID)).toMatchObject({
-      amount: '45.5',
-    });
-    expect(BALANCES.lookUp(skipped, SOL_ASSET_ID)).toMatchObject({
-      amount: '3.25',
-    });
-    expect(BALANCES.lookUp(skipped, SOLANA_USDC_ASSET_ID)).toMatchObject({
-      amount: '125.5',
-    });
-    expect(
-      new Set(
-        Object.keys(skipped.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        Object.keys(seeded.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
+    expect(BALANCES.lookupAmount(skipped, SOLANA_JUP_ASSET_ID)).toBe('45.5');
+    expect(BALANCES.lookupAmount(skipped, SOL_ASSET_ID)).toBe('3.25');
+    expect(BALANCES.lookupAmount(skipped, SOLANA_USDC_ASSET_ID)).toBe('125.5');
+    expect(BALANCES.getAssetIds(skipped)).toStrictEqual(
+      BALANCES.getAssetIds(seeded),
     );
   });
 
@@ -303,28 +293,9 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
       },
     });
 
-    expect(BALANCES.lookUp(zeroed, SOLANA_JUP_ASSET_ID)).toMatchObject({
-      amount: '40.25',
-    });
-    expect(BALANCES.lookUp(zeroed, SOL_ASSET_ID)).toMatchObject({
-      amount: '0',
-    });
-    expect(BALANCES.lookUp(zeroed, SOLANA_USDC_ASSET_ID)).toMatchObject({
-      amount: '0',
-    });
-    expect(
-      new Set(
-        Object.keys(zeroed.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        [SOL_ASSET_ID, SOLANA_JUP_ASSET_ID, SOLANA_USDC_ASSET_ID].map(
-          (assetId) => assetId.toLowerCase(),
-        ),
-      ),
-    );
+    expect(BALANCES.lookupAmount(zeroed, SOLANA_JUP_ASSET_ID)).toBe('40.25');
+    expect(BALANCES.lookupAmount(zeroed, SOL_ASSET_ID)).toBe('0');
+    expect(BALANCES.lookupAmount(zeroed, SOLANA_USDC_ASSET_ID)).toBe('0');
   });
 
   it('11: overlays only the holdings the snap event names, and the next full fetch refreshes the skipped one', async () => {
@@ -352,16 +323,16 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
         });
         await waitFor(() => {
           expect(
-            BALANCES.lookUp(controller.state, SOLANA_JUP_ASSET_ID),
-          ).toMatchObject({ amount: '50' });
+            BALANCES.lookupAmount(controller.state, SOLANA_JUP_ASSET_ID),
+          ).toBe('50');
         });
 
-        expect(BALANCES.lookUp(controller.state, SOL_ASSET_ID)).toMatchObject({
-          amount: '3.25',
-        });
+        expect(BALANCES.lookupAmount(controller.state, SOL_ASSET_ID)).toBe(
+          '3.25',
+        );
         expect(
-          BALANCES.lookUp(controller.state, SOLANA_USDC_ASSET_ID),
-        ).toMatchObject({ amount: '125.5' });
+          BALANCES.lookupAmount(controller.state, SOLANA_USDC_ASSET_ID),
+        ).toBe('125.5');
 
         snapState.balances = {
           [SOL_ASSET_ID]: { amount: '4', unit: 'SOL' },
@@ -374,25 +345,13 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
         });
         await waitUntilStable(() => controller.state);
 
-        expect(BALANCES.lookUp(controller.state, SOL_ASSET_ID)).toMatchObject({
-          amount: '4',
-        });
+        expect(BALANCES.lookupAmount(controller.state, SOL_ASSET_ID)).toBe('4');
         expect(
-          BALANCES.lookUp(controller.state, SOLANA_JUP_ASSET_ID),
-        ).toMatchObject({ amount: '40.25' });
+          BALANCES.lookupAmount(controller.state, SOLANA_JUP_ASSET_ID),
+        ).toBe('40.25');
         expect(
-          new Set(
-            Object.keys(
-              controller.state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {},
-            ).map((key) => key.toLowerCase()),
-          ),
-        ).toStrictEqual(
-          new Set(
-            [SOL_ASSET_ID, SOLANA_JUP_ASSET_ID, SOLANA_USDC_ASSET_ID].map(
-              (assetId) => assetId.toLowerCase(),
-            ),
-          ),
-        );
+          BALANCES.lookupAmount(controller.state, SOLANA_USDC_ASSET_ID),
+        ).toBe('125.5');
       },
     );
   });
@@ -447,6 +406,18 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     surface: 'balances',
     lookUp: (state, assetId) =>
       getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
+    getAssetIds: (state) =>
+      new Set(
+        Object.keys(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
+          key.toLowerCase(),
+        ),
+      ),
+    lookupAmount: (state, assetId) =>
+      (
+        getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId) as
+          | { amount?: string }
+          | undefined
+      )?.amount,
   };
 
   afterEach(() => {
@@ -471,22 +442,12 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       ...BSC_DOUBLED,
       [USDT_ASSET_ID_LOWER]: BSC_CAPTURED[USDT_ASSET_ID_LOWER],
     })) {
-      expect(BALANCES.lookUp(after, assetId)).toMatchObject({
-        amount: normalizeAmountString(captured.balance, captured.decimals),
-      });
+      expect(BALANCES.lookupAmount(after, assetId)).toBe(
+        normalizeAmountString(captured.balance, captured.decimals),
+      );
     }
-    expect(
-      new Set(
-        Object.keys(after.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        Object.keys(seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
+    expect(BALANCES.getAssetIds(after)).toStrictEqual(
+      BALANCES.getAssetIds(seeded),
     );
   });
 
@@ -494,10 +455,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     const seeded = await fetchBscWallet({
       apiMutations: { setBalances: { [USDT_ASSET_ID_LOWER]: '0' } },
     });
-    const seededBalances = seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {};
-    expect(BALANCES.lookUp(seeded, USDT_ASSET_ID_CHECKSUM)).toMatchObject({
-      amount: '0',
-    });
+    expect(BALANCES.lookupAmount(seeded, USDT_ASSET_ID_CHECKSUM)).toBe('0');
     cleanAll();
 
     const after = await fetchBscWallet({
@@ -510,27 +468,23 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       bscProvider: { failingTokens: [USDT_CONTRACT] },
     });
 
-    expect(BALANCES.lookUp(after, USDT_ASSET_ID_CHECKSUM)).toBeUndefined();
     expect(
+      BALANCES.lookupAmount(after, USDT_ASSET_ID_CHECKSUM),
+    ).toBeUndefined();
+    expect(BALANCES.getAssetIds(after)).toStrictEqual(
       new Set(
-        Object.keys(after.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
+        [...BALANCES.getAssetIds(seeded)].filter(
+          (assetId) => assetId !== USDT_ASSET_ID_LOWER,
         ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        Object.keys(seededBalances)
-          .map((key) => key.toLowerCase())
-          .filter((assetId) => assetId !== USDT_ASSET_ID_LOWER),
       ),
     );
     for (const [assetId, captured] of Object.entries(BSC_DOUBLED)) {
       if (assetId === USDT_ASSET_ID_LOWER) {
         continue;
       }
-      expect(BALANCES.lookUp(after, assetId)).toMatchObject({
-        amount: normalizeAmountString(captured.balance, captured.decimals),
-      });
+      expect(BALANCES.lookupAmount(after, assetId)).toBe(
+        normalizeAmountString(captured.balance, captured.decimals),
+      );
     }
   });
 
@@ -549,22 +503,12 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     });
 
     for (const [assetId, captured] of Object.entries(BSC_CAPTURED)) {
-      expect(BALANCES.lookUp(after, assetId)).toMatchObject({
-        amount: normalizeAmountString(captured.balance, captured.decimals),
-      });
+      expect(BALANCES.lookupAmount(after, assetId)).toBe(
+        normalizeAmountString(captured.balance, captured.decimals),
+      );
     }
-    expect(
-      new Set(
-        Object.keys(after.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        Object.keys(seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
+    expect(BALANCES.getAssetIds(after)).toStrictEqual(
+      BALANCES.getAssetIds(seeded),
     );
   });
 
@@ -582,22 +526,12 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
     });
 
     for (const [assetId, captured] of Object.entries(BSC_DOUBLED)) {
-      expect(BALANCES.lookUp(after, assetId)).toMatchObject({
-        amount: normalizeAmountString(captured.balance, captured.decimals),
-      });
+      expect(BALANCES.lookupAmount(after, assetId)).toBe(
+        normalizeAmountString(captured.balance, captured.decimals),
+      );
     }
-    expect(
-      new Set(
-        Object.keys(after.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    ).toStrictEqual(
-      new Set(
-        Object.keys(seeded.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
+    expect(BALANCES.getAssetIds(after)).toStrictEqual(
+      BALANCES.getAssetIds(seeded),
     );
   });
 });
@@ -682,6 +616,18 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
     surface: 'balances',
     lookUp: (state, assetId) =>
       getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
+    getAssetIds: (state) =>
+      new Set(
+        Object.keys(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
+          key.toLowerCase(),
+        ),
+      ),
+    lookupAmount: (state, assetId) =>
+      (
+        getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId) as
+          | { amount?: string }
+          | undefined
+      )?.amount,
   };
 
   afterEach(() => {
@@ -712,41 +658,38 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
 
   it('8: overlays only the token the event names; the omitted token keeps its last amount', async () => {
     await withBscLiveController(async ({ controller, messenger }) => {
-      const balances = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
+      const before = controller.state;
       expect(
-        BALANCES.lookUp(controller.state, GTAI_ASSET_ID_CHECKSUM),
-      ).toMatchObject({ amount: CAPTURED_AMOUNTS[GTAI_ASSET_ID_CHECKSUM] });
+        BALANCES.lookupAmount(controller.state, GTAI_ASSET_ID_CHECKSUM),
+      ).toBe(CAPTURED_AMOUNTS[GTAI_ASSET_ID_CHECKSUM]);
       expect(
-        BALANCES.lookUp(controller.state, USDT_ASSET_ID_CHECKSUM),
-      ).toMatchObject({ amount: CAPTURED_AMOUNTS[USDT_ASSET_ID_CHECKSUM] });
+        BALANCES.lookupAmount(controller.state, USDT_ASSET_ID_CHECKSUM),
+      ).toBe(CAPTURED_AMOUNTS[USDT_ASSET_ID_CHECKSUM]);
 
       publishBalanceUpdated(messenger, [
         balanceUpdateRow(GTAI_ASSET_ID_CHECKSUM, GTAI_WEI.fresh),
       ]);
       await waitFor(() => {
         expect(
-          BALANCES.lookUp(controller.state, GTAI_ASSET_ID_CHECKSUM),
-        ).toMatchObject({ amount: GTAI_EVENT_AMOUNTS.fresh });
+          BALANCES.lookupAmount(controller.state, GTAI_ASSET_ID_CHECKSUM),
+        ).toBe(GTAI_EVENT_AMOUNTS.fresh);
       });
 
-      const after = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
       expect(
-        BALANCES.lookUp(controller.state, USDT_ASSET_ID_CHECKSUM),
-      ).toMatchObject({ amount: CAPTURED_AMOUNTS[USDT_ASSET_ID_CHECKSUM] });
-      expect(BALANCES.lookUp(controller.state, BNB_ASSET_ID)).toMatchObject({
-        amount: CAPTURED_AMOUNTS[BNB_ASSET_ID],
-      });
-      expect(
-        new Set(Object.keys(after).map((key) => key.toLowerCase())),
-      ).toStrictEqual(
-        new Set(Object.keys(balances).map((key) => key.toLowerCase())),
+        BALANCES.lookupAmount(controller.state, USDT_ASSET_ID_CHECKSUM),
+      ).toBe(CAPTURED_AMOUNTS[USDT_ASSET_ID_CHECKSUM]);
+      expect(BALANCES.lookupAmount(controller.state, BNB_ASSET_ID)).toBe(
+        CAPTURED_AMOUNTS[BNB_ASSET_ID],
+      );
+      expect(BALANCES.getAssetIds(controller.state)).toStrictEqual(
+        BALANCES.getAssetIds(before),
       );
     });
   });
 
   it('9: writes nothing for malformed rows, and nothing at all for an empty event', async () => {
     await withBscLiveController(async ({ controller, messenger }) => {
-      const before = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
+      const before = controller.state;
 
       publishBalanceUpdated(messenger, [
         malformedBalanceUpdateRow(
@@ -765,21 +708,19 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       ]);
       await waitFor(() => {
         expect(
-          BALANCES.lookUp(controller.state, GTAI_ASSET_ID_CHECKSUM),
-        ).toMatchObject({ amount: GTAI_EVENT_AMOUNTS.validAmongMalformed });
+          BALANCES.lookupAmount(controller.state, GTAI_ASSET_ID_CHECKSUM),
+        ).toBe(GTAI_EVENT_AMOUNTS.validAmongMalformed);
       });
 
       const after = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
       expect(
-        BALANCES.lookUp(controller.state, USDT_ASSET_ID_CHECKSUM),
-      ).toMatchObject({ amount: CAPTURED_AMOUNTS[USDT_ASSET_ID_CHECKSUM] });
-      expect(BALANCES.lookUp(controller.state, BNB_ASSET_ID)).toMatchObject({
-        amount: CAPTURED_AMOUNTS[BNB_ASSET_ID],
-      });
-      expect(
-        new Set(Object.keys(after).map((key) => key.toLowerCase())),
-      ).toStrictEqual(
-        new Set(Object.keys(before).map((key) => key.toLowerCase())),
+        BALANCES.lookupAmount(controller.state, USDT_ASSET_ID_CHECKSUM),
+      ).toBe(CAPTURED_AMOUNTS[USDT_ASSET_ID_CHECKSUM]);
+      expect(BALANCES.lookupAmount(controller.state, BNB_ASSET_ID)).toBe(
+        CAPTURED_AMOUNTS[BNB_ASSET_ID],
+      );
+      expect(BALANCES.getAssetIds(controller.state)).toStrictEqual(
+        BALANCES.getAssetIds(before),
       );
 
       publishBalanceUpdated(messenger, []);
@@ -792,15 +733,15 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
 
   it('10: overwrites a wrong event amount at the next full poll', async () => {
     await withBscLiveController(async ({ controller, messenger }) => {
-      const before = controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {};
+      const before = controller.state;
 
       publishBalanceUpdated(messenger, [
         balanceUpdateRow(GTAI_ASSET_ID_CHECKSUM, GTAI_WEI.wrong),
       ]);
       await waitFor(() => {
         expect(
-          BALANCES.lookUp(controller.state, GTAI_ASSET_ID_CHECKSUM),
-        ).toMatchObject({ amount: GTAI_EVENT_AMOUNTS.wrong });
+          BALANCES.lookupAmount(controller.state, GTAI_ASSET_ID_CHECKSUM),
+        ).toBe(GTAI_EVENT_AMOUNTS.wrong);
       });
 
       await controller.getAssets([buildBscAccount()], {
@@ -809,16 +750,10 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
       });
       await waitUntilStable(() => controller.state);
       expect(
-        BALANCES.lookUp(controller.state, GTAI_ASSET_ID_CHECKSUM),
-      ).toMatchObject({ amount: CAPTURED_AMOUNTS[GTAI_ASSET_ID_CHECKSUM] });
-      expect(
-        new Set(
-          Object.keys(controller.state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map(
-            (key) => key.toLowerCase(),
-          ),
-        ),
-      ).toStrictEqual(
-        new Set(Object.keys(before).map((key) => key.toLowerCase())),
+        BALANCES.lookupAmount(controller.state, GTAI_ASSET_ID_CHECKSUM),
+      ).toBe(CAPTURED_AMOUNTS[GTAI_ASSET_ID_CHECKSUM]);
+      expect(BALANCES.getAssetIds(controller.state)).toStrictEqual(
+        BALANCES.getAssetIds(before),
       );
     });
   });
@@ -861,6 +796,19 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
     surface: 'balances',
     lookUp: (state, assetId) =>
       getIgnoringCase(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}, assetId),
+    getAssetIds: (state) =>
+      new Set(
+        Object.keys(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}).map((key) =>
+          key.toLowerCase(),
+        ),
+      ),
+    lookupAmount: (state, assetId) =>
+      (
+        getIgnoringCase(
+          state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {},
+          assetId,
+        ) as { amount?: string } | undefined
+      )?.amount,
   };
 
   afterEach(() => {
@@ -903,11 +851,17 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         await waitFor(
           () => {
             expect(
-              BALANCES.lookUp(controller.state, MAINNET_STAKED_ETH_ASSET_ID),
-            ).toMatchObject({ amount: STAKED_AMOUNTS.mainnetSeed });
+              BALANCES.lookupAmount(
+                controller.state,
+                MAINNET_STAKED_ETH_ASSET_ID,
+              ),
+            ).toBe(STAKED_AMOUNTS.mainnetSeed);
             expect(
-              BALANCES.lookUp(controller.state, HOODI_STAKED_ETH_ASSET_ID),
-            ).toMatchObject({ amount: STAKED_AMOUNTS.hoodi });
+              BALANCES.lookupAmount(
+                controller.state,
+                HOODI_STAKED_ETH_ASSET_ID,
+              ),
+            ).toBe(STAKED_AMOUNTS.hoodi);
           },
           { timeoutMs: 5000 },
         );
@@ -928,15 +882,18 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         await waitFor(
           () => {
             expect(
-              BALANCES.lookUp(controller.state, MAINNET_STAKED_ETH_ASSET_ID),
-            ).toMatchObject({ amount: STAKED_AMOUNTS.mainnetAfterTx });
+              BALANCES.lookupAmount(
+                controller.state,
+                MAINNET_STAKED_ETH_ASSET_ID,
+              ),
+            ).toBe(STAKED_AMOUNTS.mainnetAfterTx);
           },
           { timeoutMs: 5000 },
         );
         await waitUntilStable(() => controller.state, { timeoutMs: 5000 });
         expect(
-          BALANCES.lookUp(controller.state, HOODI_STAKED_ETH_ASSET_ID),
-        ).toMatchObject({ amount: STAKED_AMOUNTS.hoodi });
+          BALANCES.lookupAmount(controller.state, HOODI_STAKED_ETH_ASSET_ID),
+        ).toBe(STAKED_AMOUNTS.hoodi);
 
         await controller.getAssets([buildMainnetAccount()], {
           chainIds: [MAINNET_CHAIN_ID, HOODI_CHAIN_ID],
@@ -944,27 +901,25 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         });
         await waitUntilStable(() => controller.state, { timeoutMs: 5000 });
 
-        const balances =
-          controller.state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {};
         expect(
-          BALANCES.lookUp(controller.state, MAINNET_STAKED_ETH_ASSET_ID),
-        ).toMatchObject({ amount: STAKED_AMOUNTS.mainnetAfterTx });
+          BALANCES.lookupAmount(controller.state, MAINNET_STAKED_ETH_ASSET_ID),
+        ).toBe(STAKED_AMOUNTS.mainnetAfterTx);
         expect(
-          BALANCES.lookUp(controller.state, HOODI_STAKED_ETH_ASSET_ID),
-        ).toMatchObject({ amount: STAKED_AMOUNTS.hoodi });
+          BALANCES.lookupAmount(controller.state, HOODI_STAKED_ETH_ASSET_ID),
+        ).toBe(STAKED_AMOUNTS.hoodi);
         // The poll's own surfaces: the captured mainnet ETH and the Hoodi
         // native ETH the RPC fallback read.
-        expect(BALANCES.lookUp(controller.state, ETH_ASSET_ID)).toMatchObject({
-          amount: MAINNET_ETH_CAPTURED_AMOUNT,
-        });
+        expect(BALANCES.lookupAmount(controller.state, ETH_ASSET_ID)).toBe(
+          MAINNET_ETH_CAPTURED_AMOUNT,
+        );
         expect(
-          BALANCES.lookUp(controller.state, HOODI_NATIVE_ASSET_ID),
-        ).toMatchObject({ amount: '0.75' });
+          BALANCES.lookupAmount(controller.state, HOODI_NATIVE_ASSET_ID),
+        ).toBe('0.75');
         expect(
-          getIgnoringCase(balances, MAINNET_STAKED_ETH_ASSET_ID),
+          BALANCES.lookUp(controller.state, MAINNET_STAKED_ETH_ASSET_ID),
         ).toBeDefined();
         expect(
-          getIgnoringCase(balances, HOODI_STAKED_ETH_ASSET_ID),
+          BALANCES.lookUp(controller.state, HOODI_STAKED_ETH_ASSET_ID),
         ).toBeDefined();
       },
     );
