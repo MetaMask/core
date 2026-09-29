@@ -22,6 +22,7 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -841,6 +842,116 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().updateLeverage,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('omitted margin mode', () => {
+    // Mirrors TradingService.flipPosition, which sends leverage without a mode.
+    const order: OrderParams = {
+      symbol: 'BTC',
+      isBuy: false,
+      size: '0.2',
+      orderType: 'market',
+      currentPrice: 50000,
+      leverage: 10,
+    };
+
+    const mockInfoClient = (overrides: Record<string, unknown>): void => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient(overrides) as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+    };
+
+    it.each(['cross', 'isolated'] as const)(
+      'keeps the open %s position mode when updating leverage',
+      async (positionMode) => {
+        mockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '0',
+                  marginUsed: '500',
+                  leverage: { type: positionMode, value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '0',
+                  cumFunding: {
+                    allTime: '0',
+                    sinceOpen: '0',
+                    sinceChange: '0',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+        });
+
+        const result = await provider.placeOrder(order);
+
+        expect(result.success).toBe(true);
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).toHaveBeenCalledWith({
+          asset: 0,
+          isCross: positionMode === 'cross',
+          leverage: 10,
+        });
+      },
+    );
+
+    it('reads the open position mode from fresh cached positions', async () => {
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+      });
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        createMockPosition({ leverage: { type: 'cross', value: 10 } }),
+      ]);
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(true);
+      expect(
+        mockSubscriptionService.getCachedPositionsForDex,
+      ).toHaveBeenCalledWith('');
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 10 });
+    });
+
+    it('defaults to isolated without an open position in the market', async () => {
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        createMockPosition({ symbol: 'ETH' }),
+      ]);
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+      });
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 10 });
+    });
+
+    it('defaults to isolated when positions cannot be read', async () => {
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockRejectedValue(new Error('offline')),
+      });
+
+      await provider.placeOrder(order);
+
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 10 });
     });
   });
 

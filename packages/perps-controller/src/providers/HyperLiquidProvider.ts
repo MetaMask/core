@@ -5697,11 +5697,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #prepareAssetForTrading(
     params: PrepareAssetForTradingParams,
   ): Promise<void> {
-    const { symbol, assetId, leverage, marginMode = 'isolated' } = params;
+    const { symbol, assetId, leverage } = params;
 
     if (!leverage) {
       return;
     }
+
+    const marginMode =
+      params.marginMode ?? (await this.#resolveDefaultMarginMode(symbol));
 
     this.#deps.debugLogger.log('Updating leverage before order:', {
       symbol,
@@ -5727,6 +5730,38 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol,
       leverage,
     });
+  }
+
+  /**
+   * Resolve the margin mode for an order that omits one. HyperLiquid refuses
+   * to switch mode while a position is open, so an open position's mode wins
+   * over the isolated default (e.g. flipping a Cross position).
+   *
+   * @param symbol - Market symbol, including its DEX route when applicable.
+   * @returns The open position's mode, or isolated when there is none or it
+   * cannot be read.
+   */
+  async #resolveDefaultMarginMode(symbol: string): Promise<MarginMode> {
+    const { dex: dexName } = parseAssetName(symbol);
+    try {
+      const positions = await this.#getPositionsForOperation(dexName ?? '');
+      return (
+        positions.find((position) => position.symbol === symbol)?.leverage
+          .type ?? 'isolated'
+      );
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Open position margin mode unavailable: defaulting to isolated',
+        {
+          symbol,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.resolveDefaultMarginMode',
+          ).message,
+        },
+      );
+      return 'isolated';
+    }
   }
 
   /**
