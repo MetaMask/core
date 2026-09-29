@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getPixDepositInstructions` and `listAutorampTransactions` so a client can show a PIX BR Code and poll autoramp transaction status
+- Add `buildBrazilMusdAutorampRequest` for a standing BRL to mUSD autoramp on Monad
+
+### Fixed
+
+- `hydrateVbaOnboarding` creates that BRL to mUSD autoramp instead of posting an empty body
+- `getAutoramps` accepts MoonPay's paged `{ items }` list
+
 ## [26.1.0]
 
 ### Changed

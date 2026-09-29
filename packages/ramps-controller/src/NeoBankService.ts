@@ -14,6 +14,8 @@ import packageJson from '../package.json';
 import type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
+  AutorampTransactionSummary,
+  PixDepositInstructions,
 } from './autoramp-types.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
@@ -212,6 +214,86 @@ export function mapNeoBankAutorampToRemoteSnapshot(
     status: response.status,
     depositRailsSummary,
   };
+}
+
+/**
+ * Reads a MoonPay paged list (an object with an items array) or a raw array.
+ *
+ * @param response - Proxy JSON body.
+ * @param malformedMessage - Error when the body is neither shape.
+ * @returns Item list.
+ */
+function readPagedItems(
+  response: unknown,
+  malformedMessage: string,
+): unknown[] {
+  if (Array.isArray(response)) {
+    return response;
+  }
+  if (
+    response !== null &&
+    typeof response === 'object' &&
+    Array.isArray((response as { items?: unknown }).items)
+  ) {
+    return (response as { items: unknown[] }).items;
+  }
+  throw new Error(malformedMessage);
+}
+
+/**
+ * Pulls the PIX deposit rail out of an autoramp `deposit_rails` array.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns PIX instructions, or null when no usable PIX rail is present.
+ */
+export function extractPixDepositInstructions(
+  depositRails: unknown,
+): PixDepositInstructions | null {
+  if (!Array.isArray(depositRails)) {
+    return null;
+  }
+  for (const rail of depositRails) {
+    if (rail === null || typeof rail !== 'object') {
+      continue;
+    }
+    const record = rail as Record<string, unknown>;
+    if (record.type !== 'Pix') {
+      continue;
+    }
+    if (
+      typeof record.br_code !== 'string' ||
+      record.br_code.length === 0 ||
+      typeof record.instruction !== 'string'
+    ) {
+      continue;
+    }
+    const instructions: PixDepositInstructions = {
+      brCode: record.br_code,
+      instruction: record.instruction,
+    };
+    if (typeof record.pix_key === 'string' && record.pix_key.length > 0) {
+      instructions.pixKey = record.pix_key;
+    }
+    if (typeof record.expires_at === 'string' && record.expires_at.length > 0) {
+      instructions.expiresAt = record.expires_at;
+    }
+    return instructions;
+  }
+  return null;
+}
+
+/**
+ * Reads a decimal amount from a MoonPay `Amount` object.
+ *
+ * @param value - `source_amount` or `destination_amount`.
+ * @returns Decimal string, or undefined.
+ */
+function readAmount(value: unknown): string | undefined {
+  if (value === null || typeof value !== 'object') {
+    return undefined;
+  }
+  const amount = (value as { amount?: unknown }).amount;
+  return typeof amount === 'string' && amount.length > 0 ? amount : undefined;
 }
 
 /**
@@ -428,14 +510,89 @@ export class NeoBankService {
    */
   async getAutoramps(): Promise<AutorampRemoteSnapshot[]> {
     const response = await this.#getJson<unknown>('autoramps');
-    if (!Array.isArray(response)) {
-      throw new Error(
-        'Malformed response received from neo-bank autoramps API',
-      );
-    }
-    return response.map((autoramp) =>
+    const autoramps = readPagedItems(
+      response,
+      'Malformed response received from neo-bank autoramps API',
+    );
+    return autoramps.map((autoramp) =>
       this.#mapAutorampResponse(autoramp as NeoBankAutorampResponse),
     );
+  }
+
+  /**
+   * Loads PIX deposit instructions for an autoramp.
+   *
+   * Calls `GET /neobank/autoramps/{id}` and reads the `type: Pix` rail
+   * (`br_code`, `instruction`, optional `pix_key`). Returns null until MoonPay
+   * has attached deposit rails (typically once the autoramp is Approved).
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns PIX instructions, or null when the rail is not ready.
+   */
+  async getPixDepositInstructions(
+    autorampId: string,
+  ): Promise<PixDepositInstructions | null> {
+    const response = await this.#getJson<NeoBankAutorampResponse>(
+      `autoramps/${encodeURIComponent(autorampId)}`,
+    );
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from neo-bank autoramp API');
+    }
+    return extractPixDepositInstructions(response.deposit_rails);
+  }
+
+  /**
+   * Lists transactions for one autoramp via
+   * `GET /neobank/autoramp-transactions?autoramp_id=`.
+   *
+   * Poll `status` (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns Transaction summaries, newest-first as returned by the proxy.
+   */
+  async listAutorampTransactions(
+    autorampId: string,
+  ): Promise<AutorampTransactionSummary[]> {
+    const response = await this.#getJson<unknown>('autoramp-transactions', {
+      autoramp_id: autorampId,
+    });
+    const transactions = readPagedItems(
+      response,
+      'Malformed response received from neo-bank autoramp transactions API',
+    );
+    return transactions.map((transaction) => {
+      if (
+        transaction === null ||
+        typeof transaction !== 'object' ||
+        typeof (transaction as { id?: unknown }).id !== 'string'
+      ) {
+        throw new Error(
+          'Malformed response received from neo-bank autoramp transactions API',
+        );
+      }
+      const record = transaction as {
+        id: string;
+        autoramp_id?: unknown;
+        status?: unknown;
+        source_amount?: unknown;
+        destination_amount?: unknown;
+      };
+      if (typeof record.status !== 'string') {
+        throw new Error(
+          'Malformed response received from neo-bank autoramp transactions API',
+        );
+      }
+      return {
+        id: record.id,
+        autorampId:
+          typeof record.autoramp_id === 'string'
+            ? record.autoramp_id
+            : autorampId,
+        status: record.status,
+        sourceAmount: readAmount(record.source_amount),
+        destinationAmount: readAmount(record.destination_amount),
+      };
+    });
   }
 
   /**
