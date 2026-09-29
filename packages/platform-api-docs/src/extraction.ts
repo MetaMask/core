@@ -18,7 +18,7 @@ import { Node as NodeGuards } from 'ts-morph';
 import type {
   MessengerCapabilityPacket,
   DocumentedParameter,
-} from './types.ts';
+} from './types.js';
 
 // ---------------------------------------------------------------------------
 // NOTE: `ts-morph` is used heavily in this file to parse and extract

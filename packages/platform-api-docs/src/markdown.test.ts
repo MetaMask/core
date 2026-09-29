@@ -3,8 +3,8 @@ import {
   generateItemMarkdown,
   generateNamespacePage,
   generateSidebars,
-} from './markdown.ts';
-import type { MessengerCapabilityPacket, NamespaceGroup } from './types.ts';
+} from './markdown.js';
+import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 const makeItem = (
   overrides: Partial<MessengerCapabilityPacket> = {},

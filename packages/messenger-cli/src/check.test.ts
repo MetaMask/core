@@ -3,9 +3,9 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { checkActionTypesFiles } from './check.ts';
-import { generateActionTypesContent } from './generate-content.ts';
-import type { SourceInfo } from './parse-source.ts';
+import { checkActionTypesFiles } from './check.js';
+import { generateActionTypesContent } from './generate-content.js';
+import type { SourceInfo } from './parse-source.js';
 
 const { withinSandbox } = createSandbox('messenger/check-action-types');
 

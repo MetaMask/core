@@ -2,9 +2,9 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { extractFromSourceFile } from './extraction.ts';
-import { createProject } from './ts-project.ts';
-import { MessengerCapabilityPacket } from './types.ts';
+import { extractFromSourceFile } from './extraction.js';
+import { createProject } from './ts-project.js';
+import { MessengerCapabilityPacket } from './types.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/extraction');
 
