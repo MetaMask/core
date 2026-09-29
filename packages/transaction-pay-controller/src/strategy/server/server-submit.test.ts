@@ -692,23 +692,18 @@ describe('submitServerQuotes', () => {
       overrides: Partial<ServerQuote> = {},
     ): PayStrategyExecuteRequest<ServerQuote> => {
       const sponsoredRequest = buildNonGaslessRequest(overrides);
-      const { chainId } = sponsoredRequest.transaction;
 
-      // Sponsorship only applies when the quote never leaves the parent
-      // transaction's chain.
-      sponsoredRequest.quotes[0].request.sourceChainId = chainId;
-      sponsoredRequest.quotes[0].request.targetChainId = chainId;
-      sponsoredRequest.transaction.isGasFeeSponsored = true;
+      sponsoredRequest.quotes[0].original.client.isSourceGasFeeSponsored = true;
 
       return sponsoredRequest;
     };
 
-    it('passes isGasFeeSponsored when the parent is sponsored and the route is same-chain', async () => {
+    it('forces sponsorship when the quote was sponsored', async () => {
       await submitServerQuotes(buildSponsoredRequest());
 
       expect(addTxMock).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ isGasFeeSponsored: true }),
+        expect.objectContaining({ forceIsGasFeeSponsored: true }),
       );
     });
 
@@ -723,12 +718,12 @@ describe('submitServerQuotes', () => {
 
       const [, options] = addTxMock.mock.calls[0];
 
-      expect(options).toMatchObject({ isGasFeeSponsored: true });
+      expect(options).toMatchObject({ forceIsGasFeeSponsored: true });
       expect(options?.gasFeeToken).toBeUndefined();
       expect(options?.excludeNativeTokenForFee).toBeUndefined();
     });
 
-    it('passes isGasFeeSponsored to the batch when sponsored', async () => {
+    it('forces sponsorship on the batch when the quote was sponsored', async () => {
       await submitServerQuotes(
         buildSponsoredRequest({
           steps: [
@@ -745,41 +740,16 @@ describe('submitServerQuotes', () => {
       );
 
       expect(addTxBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({ isGasFeeSponsored: true }),
+        expect.objectContaining({ forceIsGasFeeSponsored: true }),
       );
     });
 
-    it('passes isGasFeeSponsored as false when the parent is explicitly unsponsored', async () => {
-      const unsponsoredRequest = buildSponsoredRequest();
-      unsponsoredRequest.transaction.isGasFeeSponsored = false;
-
-      await submitServerQuotes(unsponsoredRequest);
-
-      // An explicit `false` and an absent flag are not equivalent to the
-      // `TransactionController`, so the evaluated result must be forwarded.
-      expect(addTxMock).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ isGasFeeSponsored: false }),
-      );
-    });
-
-    it('omits isGasFeeSponsored when the parent sponsorship is unknown', async () => {
+    it('does not force sponsorship when the quote was not sponsored', async () => {
       await submitServerQuotes(buildNonGaslessRequest());
 
-      const [, options] = addTxMock.mock.calls[0];
-
-      expect(options?.isGasFeeSponsored).toBeUndefined();
-    });
-
-    it('does not sponsor a cross-chain route even when the parent is sponsored', async () => {
-      const crossChainRequest = buildSponsoredRequest();
-      crossChainRequest.quotes[0].request.sourceChainId = '0x89';
-
-      await submitServerQuotes(crossChainRequest);
-
       expect(addTxMock).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ isGasFeeSponsored: false }),
+        expect.objectContaining({ forceIsGasFeeSponsored: false }),
       );
     });
 

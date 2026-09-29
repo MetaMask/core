@@ -9,6 +9,7 @@ import {
   TransactionPayStrategy,
 } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayControllerIsGasFeeSponsoredAction } from '../../TransactionPayController-method-action-types.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
@@ -153,8 +154,19 @@ describe('server-quotes', () => {
     messenger,
   } = getMessengerMock();
 
+  const isGasFeeSponsoredMock: jest.MockedFn<
+    TransactionPayControllerIsGasFeeSponsoredAction['handler']
+  > = jest.fn();
+
+  messenger.registerActionHandler(
+    'TransactionPayController:isGasFeeSponsored',
+    isGasFeeSponsoredMock,
+  );
+
   beforeEach(() => {
     jest.resetAllMocks();
+
+    isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: false });
 
     fetchServerQuoteMock.mockResolvedValue({
       results: [FULFILLED_RESULT_MOCK],
@@ -651,7 +663,6 @@ describe('server-quotes', () => {
     describe('sponsored same-chain route', () => {
       const SPONSORED_TRANSACTION_MOCK = {
         chainId: '0x1',
-        isGasFeeSponsored: true,
         txParams: {},
       } as TransactionMeta;
 
@@ -662,6 +673,10 @@ describe('server-quotes', () => {
         sourceChainId: '0x1',
         targetChainId: '0x1',
       };
+
+      beforeEach(() => {
+        isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: true });
+      });
 
       it('zeroes source network fees', async () => {
         const result = await getServerQuotes({
@@ -691,6 +706,7 @@ describe('server-quotes', () => {
         // no user-paid gas is required.
         expect(result[0].original.client.gasLimits).toStrictEqual([0]);
         expect(result[0].original.client.is7702).toBe(true);
+        expect(result[0].original.client.isSourceGasFeeSponsored).toBe(true);
       });
 
       it('skips gas estimation entirely', async () => {
@@ -727,18 +743,23 @@ describe('server-quotes', () => {
         expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
       });
 
-      it('does not zero fees when the parent transaction is not sponsored', async () => {
+      it('does not zero fees when the client does not sponsor the transaction', async () => {
+        isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: false });
+
         const result = await getServerQuotes({
           accountSupports7702: true,
           messenger,
           requests: [SAME_CHAIN_REQUEST_MOCK],
-          transaction: {
-            ...SPONSORED_TRANSACTION_MOCK,
-            isGasFeeSponsored: false,
-          } as TransactionMeta,
+          transaction: SPONSORED_TRANSACTION_MOCK,
         });
 
+        expect(isGasFeeSponsoredMock).toHaveBeenCalledWith({
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
         expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+        expect(result[0].original.client).not.toHaveProperty(
+          'isSourceGasFeeSponsored',
+        );
       });
     });
 

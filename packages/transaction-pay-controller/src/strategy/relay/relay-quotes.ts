@@ -44,6 +44,7 @@ import {
 } from '../../utils/feature-flags.js';
 import {
   GasPaymentMode,
+  getGasFeeSponsorship,
   resolveGasPayment,
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
@@ -712,6 +713,7 @@ async function normalizeQuote(
     gasLimits,
     is7702,
     isGasFeeToken: isSourceGasFeeToken,
+    isSourceGasFeeSponsored,
     ...sourceNetwork
   } = await calculateSourceNetworkCost(
     quote,
@@ -748,6 +750,7 @@ async function normalizeQuote(
     ...quote.metamask,
     gasLimits: is7702 ? [gasLimits[0]] : gasLimits,
     is7702,
+    ...(isSourceGasFeeSponsored ? { isSourceGasFeeSponsored } : {}),
   };
 
   return {
@@ -870,6 +873,7 @@ async function calculateSourceNetworkCost(
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
     isGasFeeToken?: boolean;
+    isSourceGasFeeSponsored?: boolean;
     is7702: boolean;
   }
 > {
@@ -884,15 +888,18 @@ async function calculateSourceNetworkCost(
   const isHyperliquidWithdrawal = Boolean(request.isHyperliquidSource);
   const isPolymarketDepositWallet = Boolean(request.isPolymarketDepositWallet);
 
+  const isGasFeeSponsored = await getGasFeeSponsorship({
+    accountSupports7702,
+    messenger,
+    request,
+    transaction,
+  });
+
   const gasPayment = resolveGasPayment({
     isDelegated:
       isExecuteFlow || isHyperliquidWithdrawal || isPolymarketDepositWallet,
+    isGasFeeSponsored,
     sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702,
-      request,
-      transaction,
-    },
   });
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
@@ -920,6 +927,7 @@ async function calculateSourceNetworkCost(
       max: ZERO_AMOUNT,
       gasLimits: [0],
       is7702: true,
+      isSourceGasFeeSponsored: true,
     };
   }
 

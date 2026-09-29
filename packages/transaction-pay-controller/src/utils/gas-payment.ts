@@ -84,7 +84,7 @@ export type GasPayment = {
    * `TransactionController` omits the flag entirely rather than recording
    * `false`, so the distinction is carried through.
    */
-  isGasFeeSponsored?: boolean;
+  forceIsGasFeeSponsored?: boolean;
 
   /** The resolved mode. */
   mode: GasPaymentMode;
@@ -107,11 +107,12 @@ type GasPaymentRequest = {
   sourceTokenAddress: Hex;
 
   /**
-   * Inputs for the MetaMask sponsorship check. Omit for strategies that never
-   * sponsor, so `isGasFeeSponsored` is left unset rather than explicitly
-   * disabled.
+   * Whether MetaMask sponsors origin gas, from {@link getGasFeeSponsorship} at
+   * quote time or the decision recorded on the quote at submit time. Omit for
+   * strategies that never sponsor, so `forceIsGasFeeSponsored` is left unset
+   * rather than explicitly disabled.
    */
-  sponsorship?: SponsorshipRequest;
+  isGasFeeSponsored?: boolean;
 };
 
 /** Origin gas priced in source-token units by the gas station. */
@@ -172,9 +173,11 @@ type SponsorshipRequest = {
   /** Whether the paying account can sign EIP-7702 authorizations. */
   accountSupports7702: boolean | undefined;
 
+  messenger: TransactionPayControllerMessenger;
+
   request: Pick<QuoteRequest, 'sourceChainId' | 'targetChainId'>;
 
-  transaction: Pick<TransactionMeta, 'chainId' | 'isGasFeeSponsored'>;
+  transaction: TransactionMeta;
 };
 
 /**
@@ -290,6 +293,42 @@ export function resolveGasPayment(request: GasPaymentRequest): GasPayment {
 }
 
 /**
+ * Ask the client whether MetaMask sponsors origin gas for a route.
+ *
+ * Sponsorship runs through the EIP-7702 gas station hook, so the client is
+ * only asked for routes where the account can sign authorizations and the
+ * payment never leaves the transaction's own chain.
+ *
+ * @param request - Sponsorship request.
+ * @param request.accountSupports7702 - Whether the paying account can sign EIP-7702 authorizations.
+ * @param request.messenger - Controller messenger.
+ * @param request.request - Quote request fields identifying the route.
+ * @param request.transaction - Metadata of the transaction.
+ * @returns Whether the client sponsors the gas fee of the route.
+ */
+export async function getGasFeeSponsorship({
+  accountSupports7702,
+  messenger,
+  request,
+  transaction,
+}: SponsorshipRequest): Promise<boolean> {
+  if (
+    !accountSupports7702 ||
+    request.sourceChainId !== transaction.chainId ||
+    request.targetChainId !== transaction.chainId
+  ) {
+    return false;
+  }
+
+  const { isGasFeeSponsored } = await messenger.call(
+    'TransactionPayController:isGasFeeSponsored',
+    { transaction },
+  );
+
+  return isGasFeeSponsored;
+}
+
+/**
  * Log whether the `TransactionController` actually charged gas the way
  * {@link resolveGasPayment} asked it to.
  *
@@ -335,24 +374,22 @@ export function logGasPaymentOutcome(
 
 function getGasPayment({
   isDelegated,
+  isGasFeeSponsored,
   isSourceGasFeeToken,
   sourceTokenAddress,
-  sponsorship,
 }: GasPaymentRequest): GasPayment {
   if (isDelegated) {
     return { mode: GasPaymentMode.Delegation };
   }
 
-  const isSponsored = isSponsoredRoute(sponsorship);
-
-  if (isSponsored) {
-    return { isGasFeeSponsored: true, mode: GasPaymentMode.Sponsored };
+  if (isGasFeeSponsored) {
+    return { forceIsGasFeeSponsored: true, mode: GasPaymentMode.Sponsored };
   }
 
   // An absent flag and an explicit `false` are not equivalent to the
   // `TransactionController`, so only set it when sponsorship was evaluated.
   const unsponsored =
-    isSponsored === undefined ? {} : { isGasFeeSponsored: isSponsored };
+    isGasFeeSponsored === undefined ? {} : { forceIsGasFeeSponsored: false };
 
   if (isSourceGasFeeToken) {
     // Reaching this mode means the quote priced origin gas in the source token
@@ -604,39 +641,4 @@ function checkNativeBalance({
       new BigNumber(nativeBalanceRaw).isGreaterThanOrEqualTo(nativeGasCostRaw),
     nativeBalanceRaw,
   };
-}
-
-/**
- * Whether MetaMask sponsors origin gas for a route.
- *
- * Sponsorship runs through the EIP-7702 gas station hook, so it requires an
- * account that can sign authorizations and a payment that never leaves the
- * transaction's own chain.
- *
- * Returns `undefined` when there is nothing to evaluate, which callers keep
- * distinct from an explicit `false`.
- *
- * @param sponsorship - Sponsorship inputs, or `undefined` when the strategy never sponsors.
- * @returns Whether the route is sponsored.
- */
-function isSponsoredRoute(
-  sponsorship: SponsorshipRequest | undefined,
-): boolean | undefined {
-  if (!sponsorship) {
-    return undefined;
-  }
-
-  const { accountSupports7702, request, transaction } = sponsorship;
-  const { isGasFeeSponsored } = transaction;
-
-  if (isGasFeeSponsored === undefined) {
-    return undefined;
-  }
-
-  return (
-    isGasFeeSponsored &&
-    request.sourceChainId === transaction.chainId &&
-    request.targetChainId === transaction.chainId &&
-    Boolean(accountSupports7702)
-  );
 }

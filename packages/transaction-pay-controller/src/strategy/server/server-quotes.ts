@@ -29,6 +29,7 @@ import {
 } from '../../utils/feature-flags.js';
 import {
   GasPaymentMode,
+  getGasFeeSponsorship,
   resolveGasPayment,
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
@@ -79,6 +80,7 @@ type SourceNetworkCost = Pick<
 > & {
   gasLimits: number[];
   is7702: boolean;
+  isSourceGasFeeSponsored?: boolean;
   isSourceGasFeeToken?: boolean;
   maxFeePerGas: string | undefined;
   maxPriorityFeePerGas: string | undefined;
@@ -547,6 +549,9 @@ async function normalizeQuote(
       client: {
         gasLimits: sourceNetwork.gasLimits,
         is7702: sourceNetwork.is7702,
+        ...(sourceNetwork.isSourceGasFeeSponsored
+          ? { isSourceGasFeeSponsored: true }
+          : {}),
         maxFeePerGas: sourceNetwork.maxFeePerGas,
         maxPriorityFeePerGas: sourceNetwork.maxPriorityFeePerGas,
       },
@@ -617,14 +622,17 @@ async function calculateSourceNetworkCost({
 
   const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
 
+  const isGasFeeSponsored = await getGasFeeSponsorship({
+    accountSupports7702,
+    messenger,
+    request: quoteRequest,
+    transaction,
+  });
+
   const gasPayment = resolveGasPayment({
     isDelegated: gasless,
+    isGasFeeSponsored,
     sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702,
-      request: quoteRequest,
-      transaction,
-    },
   });
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
@@ -637,7 +645,12 @@ async function calculateSourceNetworkCost({
 
     // Gas limit is zero as sponsored transactions go through the EIP-7702
     // gas station hook and do not require user-paid gas.
-    return { ...noFees, gasLimits: [0], is7702: true };
+    return {
+      ...noFees,
+      gasLimits: [0],
+      is7702: true,
+      isSourceGasFeeSponsored: true,
+    };
   }
 
   const firstStep = steps[0];

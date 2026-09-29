@@ -169,6 +169,12 @@ type RelayQuoteMetamaskBase = {
 export type RelayQuoteMetamask = RelayQuoteMetamaskBase & {
   gasLimits: number[];
   is7702: boolean;
+
+  /**
+   * Whether the source network fee was quoted as sponsored.
+   * Submission uses the same decision so gas limits match the quote.
+   */
+  isSourceGasFeeSponsored?: boolean;
 };
 
 export type RelayExecuteMetamask = {

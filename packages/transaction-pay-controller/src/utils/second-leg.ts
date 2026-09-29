@@ -384,7 +384,7 @@ async function submitBatch({
       disableSequential: true,
       disableUpgrade: true,
       from,
-      isGasFeeSponsored: sponsored,
+      forceIsGasFeeSponsored: sponsored,
       isInternal: true,
       networkClientId,
       origin: ORIGIN_METAMASK,

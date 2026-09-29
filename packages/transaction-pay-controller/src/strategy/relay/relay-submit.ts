@@ -18,7 +18,6 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -825,14 +824,12 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
+  // Use the sponsorship decision from the quote so the submitted gas limits
+  // match the quoted source network fee.
   const gasPayment = resolveGasPayment({
+    isGasFeeSponsored: Boolean(quote.original.metamask.isSourceGasFeeSponsored),
     isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
     sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702: accountSupports7702(messenger, from),
-      request: quote.request,
-      transaction,
-    },
   });
 
   const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
@@ -891,7 +888,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         isInternal: true,
-        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
+        forceIsGasFeeSponsored: gasPayment.forceIsGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -991,7 +988,7 @@ function buildRelayTransactionBatchRequest({
     networkClientId,
     origin: ORIGIN_METAMASK,
     isInternal: true,
-    isGasFeeSponsored: gasPayment.isGasFeeSponsored,
+    forceIsGasFeeSponsored: gasPayment.forceIsGasFeeSponsored,
     overwriteUpgrade: true,
     requireApproval: false,
     transactions: buildRelayBatchTransactions({
