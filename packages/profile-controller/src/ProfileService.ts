@@ -47,6 +47,8 @@ export const ProfileServiceErrorMessage = {
 // Superstruct schemas
 // ---------------------------------------------------------------------------
 
+const TradingPrivacyStruct = enums(['public', 'private'] as const);
+
 const ProfileApiResponseStruct = structType({
   profile_id: string(),
   username: string(),
@@ -54,7 +56,7 @@ const ProfileApiResponseStruct = structType({
   bio: nullable(string()),
   linked_addresses: array(string()),
   avatar_url: nullable(string()),
-  trading_privacy: enums(['public', 'private'] as const),
+  trading_privacy: TradingPrivacyStruct,
   connected_to_x: boolean(),
   created_at: string(),
   updated_at: string(),
@@ -113,7 +115,7 @@ const ReplaceProfileParamsStruct = structType({
   bio: optional(nullable(string())),
   linked_addresses: array(string()),
   avatar_url: optional(string()),
-  trading_privacy: optional(enums(['public', 'private'] as const)),
+  trading_privacy: optional(TradingPrivacyStruct),
 });
 
 const UpdateProfileParamsStruct = structType({
@@ -122,7 +124,7 @@ const UpdateProfileParamsStruct = structType({
   bio: optional(nullable(string())),
   linked_addresses: optional(array(string())),
   avatar_url: optional(string()),
-  trading_privacy: optional(enums(['public', 'private'] as const)),
+  trading_privacy: optional(TradingPrivacyStruct),
 });
 
 // ---------------------------------------------------------------------------
@@ -250,19 +252,6 @@ export class ProfileService extends BaseDataService<
   }
 
   /**
-   * Throws an HttpError if the response is not a 2xx status code.
-   *
-   * @param response - The response to check.
-   * @param message - The message to include in the error.
-   * @throws {HttpError} If the response is not a 2xx status code.
-   */
-  #throwIfNotOk(response: Response, message: string): void {
-    if (!response.ok) {
-      throw new HttpError(response.status, `${message}: ${response.status}`);
-    }
-  }
-
-  /**
    * Gets the authentication headers for the request.
    *
    * @returns The authentication headers.
@@ -275,6 +264,45 @@ export class ProfileService extends BaseDataService<
   }
 
   /**
+   * Executes an authenticated HTTP request and returns the parsed JSON response.
+   *
+   * @param endpoint - The path relative to the v1 base URL.
+   * @param options - Request options.
+   * @param options.method - The HTTP method. Defaults to 'GET'.
+   * @param options.error - The error message to use if the response is not OK.
+   * @param options.json - Optional JSON body. If provided, sets Content-Type and serializes as body.
+   * @returns The parsed JSON response.
+   * @throws {HttpError} If the response is not a 2xx status code.
+   */
+  async #fetch(
+    endpoint: string,
+    {
+      method = 'GET',
+      error,
+      json,
+    }: {
+      method?: string;
+      error: string;
+      json?: unknown;
+    },
+  ): Promise<unknown> {
+    const authHeaders = await this.#getAuthHeaders();
+    const url = new URL(`${this.#v1Url}/${endpoint}`);
+    const response = await fetch(url.toString(), {
+      ...(method !== 'GET' ? { method } : {}),
+      headers: {
+        ...authHeaders,
+        ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(json !== undefined ? { body: JSON.stringify(json) } : {}),
+    });
+    if (!response.ok) {
+      throw new HttpError(response.status, `${error}: ${response.status}`);
+    }
+    return response.json() as unknown;
+  }
+
+  /**
    * Fetches a profile by its identifier.
    *
    * @param profileId - The profile identifier to fetch.
@@ -283,22 +311,13 @@ export class ProfileService extends BaseDataService<
    * @throws {StructError} If the response does not match the expected shape.
    */
   async getProfile(profileId: string): Promise<ProfileApiResponse> {
-    assert(profileId, string());
     return this.fetchQuery({
       queryKey: [`${this.name}:getProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
-      queryFn: async () => {
-        const authHeaders = await this.#getAuthHeaders();
-        const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
-        );
-        const response = await fetch(url.toString(), { headers: authHeaders });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.GET_PROFILE_FAILED,
-        );
-        return response.json() as Promise<ProfileApiResponse>;
-      },
+      queryFn: async () =>
+        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
+          error: ProfileServiceErrorMessage.GET_PROFILE_FAILED,
+        }),
     });
   }
 
@@ -314,23 +333,15 @@ export class ProfileService extends BaseDataService<
     params: CreateProfileParams,
   ): Promise<CreateProfileResponse> {
     assert(params, CreateProfileParamsStruct);
-    const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:createProfile`],
       responseStruct: CreateProfileResponseStruct,
-      mutationFn: async () => {
-        const url = new URL(`${this.#v1Url}/profiles`);
-        const response = await fetch(url.toString(), {
+      mutationFn: async () =>
+        this.#fetch('profiles', {
           method: 'POST',
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.CREATE_PROFILE_FAILED,
-        );
-        return response.json() as Promise<CreateProfileResponse>;
-      },
+          error: ProfileServiceErrorMessage.CREATE_PROFILE_FAILED,
+          json: params,
+        }),
     });
   }
 
@@ -349,25 +360,15 @@ export class ProfileService extends BaseDataService<
   ): Promise<ProfileApiResponse> {
     assert(profileId, string());
     assert(params, ReplaceProfileParamsStruct);
-    const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:replaceProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
-      mutationFn: async () => {
-        const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
-        );
-        const response = await fetch(url.toString(), {
+      mutationFn: async () =>
+        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
           method: 'PUT',
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
-        );
-        return response.json() as Promise<ProfileApiResponse>;
-      },
+          error: ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
+          json: params,
+        }),
     });
   }
 
@@ -386,25 +387,15 @@ export class ProfileService extends BaseDataService<
   ): Promise<ProfileApiResponse> {
     assert(profileId, string());
     assert(params, UpdateProfileParamsStruct);
-    const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:updateProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
-      mutationFn: async () => {
-        const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
-        );
-        const response = await fetch(url.toString(), {
+      mutationFn: async () =>
+        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
           method: 'PATCH',
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
-        );
-        return response.json() as Promise<ProfileApiResponse>;
-      },
+          error: ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
+          json: params,
+        }),
     });
   }
 
@@ -418,10 +409,10 @@ export class ProfileService extends BaseDataService<
    */
   async deleteProfile(profileId: string): Promise<void> {
     assert(profileId, string());
-    const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:deleteProfile`, profileId],
       mutationFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
         const url = new URL(
           `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
         );
@@ -429,10 +420,12 @@ export class ProfileService extends BaseDataService<
           method: 'DELETE',
           headers: authHeaders,
         });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
-        );
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `${ProfileServiceErrorMessage.DELETE_PROFILE_FAILED}: ${response.status}`,
+          );
+        }
         return null;
       },
     });
@@ -454,18 +447,11 @@ export class ProfileService extends BaseDataService<
       queryKey: [`${this.name}:checkUsernameAvailability`, username],
       staleTime: 0,
       responseStruct: UsernameAvailabilityResponseStruct,
-      queryFn: async () => {
-        const authHeaders = await this.#getAuthHeaders();
-        const url = new URL(
-          `${this.#v1Url}/profiles/username/${encodeURIComponent(username)}/availability`,
-        );
-        const response = await fetch(url.toString(), { headers: authHeaders });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED,
-        );
-        return response.json() as Promise<UsernameAvailabilityResponse>;
-      },
+      queryFn: async () =>
+        this.#fetch(
+          `profiles/username/availability?username=${encodeURIComponent(username)}`,
+          { error: ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED },
+        ),
     });
   }
 
@@ -477,19 +463,13 @@ export class ProfileService extends BaseDataService<
    * @throws {StructError} If the response does not match the expected shape.
    */
   async getXAuthUrl(): Promise<XAuthUrlResponse> {
-    const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:getXAuthUrl`],
       responseStruct: XAuthUrlResponseStruct,
-      mutationFn: async () => {
-        const url = new URL(`${this.#v1Url}/profiles/x/authentication-url`);
-        const response = await fetch(url.toString(), { headers: authHeaders });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
-        );
-        return response.json() as Promise<XAuthUrlResponse>;
-      },
+      mutationFn: async () =>
+        this.#fetch('profiles/x/authentication-url', {
+          error: ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
+        }),
     });
   }
 
@@ -503,23 +483,15 @@ export class ProfileService extends BaseDataService<
    */
   async connectX(params: ConnectXParams): Promise<XConnectResponse> {
     assert(params, ConnectXParamsStruct);
-    const authHeaders = await this.#getAuthHeaders();
     return this.executeMutation({
       mutationKey: [`${this.name}:connectX`],
       responseStruct: XConnectResponseStruct,
-      mutationFn: async () => {
-        const url = new URL(`${this.#v1Url}/profiles/x/connect`);
-        const response = await fetch(url.toString(), {
+      mutationFn: async () =>
+        this.#fetch('profiles/x/connect', {
           method: 'POST',
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.CONNECT_X_FAILED,
-        );
-        return response.json() as Promise<XConnectResponse>;
-      },
+          error: ProfileServiceErrorMessage.CONNECT_X_FAILED,
+          json: params,
+        }),
     });
   }
 
@@ -535,16 +507,10 @@ export class ProfileService extends BaseDataService<
       queryKey: [`${this.name}:getXAccount`],
       staleTime: 0,
       responseStruct: XConnectResponseStruct,
-      queryFn: async () => {
-        const authHeaders = await this.#getAuthHeaders();
-        const url = new URL(`${this.#v1Url}/profiles/x/account`);
-        const response = await fetch(url.toString(), { headers: authHeaders });
-        this.#throwIfNotOk(
-          response,
-          ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
-        );
-        return response.json() as Promise<XAccountResponse>;
-      },
+      queryFn: async () =>
+        this.#fetch('profiles/x/account', {
+          error: ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
+        }),
     });
   }
 }

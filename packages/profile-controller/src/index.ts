@@ -1,5 +1,5 @@
 export type {
-  MetaMaskProfile,
+  Profile,
   XProfile,
   ProfileControllerState,
   ProfileControllerGetStateAction,

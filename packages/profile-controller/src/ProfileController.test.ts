@@ -6,7 +6,7 @@ import type {
 } from '@metamask/messenger';
 
 import type {
-  MetaMaskProfile,
+  Profile,
   ProfileControllerMessenger,
 } from './ProfileController.js';
 import {
@@ -29,7 +29,7 @@ const mockProfileResponse = {
   updated_at: '2024-01-02T00:00:00Z',
 };
 
-const mockMappedProfile: MetaMaskProfile = {
+const mockMappedProfile: Profile = {
   profileId: 'profile-123',
   username: 'alice',
   displayName: 'Alice Wonderland',
@@ -135,7 +135,7 @@ describe('ProfileController', () => {
   describe('getDefaultProfileControllerState', () => {
     it('returns empty default state', () => {
       expect(getDefaultProfileControllerState()).toStrictEqual({
-        metamaskProfile: {
+        profile: {
           profileId: '',
           username: '',
           displayName: '',
@@ -163,14 +163,14 @@ describe('ProfileController', () => {
     it('merges partial initial state with defaults', () => {
       const { controller } = createController({
         state: {
-          metamaskProfile: {
-            ...getDefaultProfileControllerState().metamaskProfile,
+          profile: {
+            ...getDefaultProfileControllerState().profile,
             username: 'alice',
           },
         },
       });
 
-      expect(controller.state.metamaskProfile.username).toBe('alice');
+      expect(controller.state.profile.username).toBe('alice');
     });
   });
 
@@ -243,7 +243,7 @@ describe('ProfileController', () => {
       await controller.createProfile(input);
 
       expect(createProfileMock).toHaveBeenCalledWith(input);
-      expect(controller.state.metamaskProfile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
     });
 
     it('maps null bio to empty string', async () => {
@@ -261,7 +261,7 @@ describe('ProfileController', () => {
         display_name: 'Alice Wonderland',
       });
 
-      expect(controller.state.metamaskProfile.bio).toBe('');
+      expect(controller.state.profile.bio).toBe('');
     });
 
     it('maps null avatar_url to empty string', async () => {
@@ -281,7 +281,7 @@ describe('ProfileController', () => {
         display_name: 'Alice Wonderland',
       });
 
-      expect(controller.state.metamaskProfile.avatarUrl).toBe('');
+      expect(controller.state.profile.avatarUrl).toBe('');
     });
 
     it('maps connected_to_x from response', async () => {
@@ -301,7 +301,7 @@ describe('ProfileController', () => {
         display_name: 'Alice Wonderland',
       });
 
-      expect(controller.state.metamaskProfile.connectedToX).toBe(true);
+      expect(controller.state.profile.connectedToX).toBe(true);
     });
 
     it('also updates xProfile in state when x_profile is included in the response', async () => {
@@ -341,7 +341,7 @@ describe('ProfileController', () => {
         display_name: 'Alice Wonderland',
       });
 
-      expect(controller.state.metamaskProfile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
     });
   });
 
@@ -365,8 +365,8 @@ describe('ProfileController', () => {
       const { controller } = createController({
         rootMessenger,
         state: {
-          metamaskProfile: {
-            ...getDefaultProfileControllerState().metamaskProfile,
+          profile: {
+            ...getDefaultProfileControllerState().profile,
             profileId: 'profile-123',
           },
         },
@@ -374,7 +374,7 @@ describe('ProfileController', () => {
       await controller.replaceProfile(input);
 
       expect(replaceProfileMock).toHaveBeenCalledWith('profile-123', input);
-      expect(controller.state.metamaskProfile.username).toBe('alice2');
+      expect(controller.state.profile.username).toBe('alice2');
     });
 
     it('throws if no profile is set in state', async () => {
@@ -405,8 +405,8 @@ describe('ProfileController', () => {
       const { controller } = createController({
         rootMessenger,
         state: {
-          metamaskProfile: {
-            ...getDefaultProfileControllerState().metamaskProfile,
+          profile: {
+            ...getDefaultProfileControllerState().profile,
             profileId: 'profile-123',
           },
         },
@@ -416,7 +416,7 @@ describe('ProfileController', () => {
       expect(updateProfileMock).toHaveBeenCalledWith('profile-123', {
         username: 'alice2',
       });
-      expect(controller.state.metamaskProfile.username).toBe('alice2');
+      expect(controller.state.profile.username).toBe('alice2');
     });
 
     it('throws if no profile is set in state', async () => {
@@ -445,7 +445,7 @@ describe('ProfileController', () => {
 
       const { controller } = createController({
         rootMessenger,
-        state: { metamaskProfile: mockMappedProfile },
+        state: { profile: mockMappedProfile },
       });
       await controller.fetchAndUpdateXAccount();
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
@@ -453,8 +453,8 @@ describe('ProfileController', () => {
       await controller.deleteProfile();
 
       expect(deleteProfileMock).toHaveBeenCalledWith('profile-123');
-      expect(controller.state.metamaskProfile).toStrictEqual(
-        getDefaultProfileControllerState().metamaskProfile,
+      expect(controller.state.profile).toStrictEqual(
+        getDefaultProfileControllerState().profile,
       );
       expect(controller.state.xProfile).toBeUndefined();
     });

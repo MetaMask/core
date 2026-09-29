@@ -33,8 +33,8 @@ const controllerName = 'ProfileController';
 
 // === TYPES ===
 
-/** Representation of a MetaMask profile stored in controller state. */
-export type MetaMaskProfile = {
+/** Representation of a profile stored in controller state. */
+export type Profile = {
   /** The canonical profile ID connected to the profile. */
   profileId: string;
   /** The username for the profile. */
@@ -77,7 +77,7 @@ export type XProfile = {
 
 /** State managed by ProfileController. */
 export type ProfileControllerState = {
-  metamaskProfile: MetaMaskProfile;
+  profile: Profile;
   xProfile?: XProfile;
 };
 
@@ -125,14 +125,14 @@ export type ProfileControllerMessenger = Messenger<
 // === STATE ===
 
 const profileControllerMetadata = {
-  metamaskProfile: {
+  profile: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   xProfile: {
-    includeInStateLogs: true,
+    includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
@@ -146,7 +146,7 @@ const profileControllerMetadata = {
  */
 export function getDefaultProfileControllerState(): ProfileControllerState {
   return {
-    metamaskProfile: {
+    profile: {
       profileId: '',
       username: '',
       displayName: '',
@@ -218,7 +218,7 @@ export class ProfileController extends BaseController<
    * @returns True if a profile exists, false otherwise.
    */
   #hasProfile(): boolean {
-    return this.state.metamaskProfile.profileId !== '';
+    return this.state.profile.profileId !== '';
   }
 
   /**
@@ -228,7 +228,7 @@ export class ProfileController extends BaseController<
    * @throws If no profile has been created.
    */
   #getProfileIdOrThrow(): string {
-    const { profileId } = this.state.metamaskProfile;
+    const { profileId } = this.state.profile;
     if (!profileId) {
       throw new Error('ProfileController: no profile found in state');
     }
@@ -241,7 +241,7 @@ export class ProfileController extends BaseController<
    * @param response - The API response to map.
    * @returns The mapped MetaMask profile.
    */
-  #mapApiResponseToProfile(response: ProfileApiResponse): MetaMaskProfile {
+  #mapApiResponseToProfile(response: ProfileApiResponse): Profile {
     return {
       profileId: response.profile_id,
       username: response.username,
@@ -279,11 +279,11 @@ export class ProfileController extends BaseController<
    *
    * @returns The MetaMask profile, or undefined.
    */
-  getMetaMaskProfile(): MetaMaskProfile | undefined {
+  getMetaMaskProfile(): Profile | undefined {
     if (!this.#hasProfile()) {
       return undefined;
     }
-    return this.state.metamaskProfile;
+    return this.state.profile;
   }
 
   /**
@@ -302,14 +302,14 @@ export class ProfileController extends BaseController<
    * @param params - The profile creation parameters.
    * @returns The created MetaMask profile.
    */
-  async createProfile(params: CreateProfileParams): Promise<MetaMaskProfile> {
+  async createProfile(params: CreateProfileParams): Promise<Profile> {
     const response: CreateProfileResponse = await this.messenger.call(
       'ProfileService:createProfile',
       params,
     );
     const mapped = this.#mapApiResponseToProfile(response);
     this.update((state) => {
-      state.metamaskProfile = mapped;
+      state.profile = mapped;
       if (response.x_profile) {
         state.xProfile = this.#mapXResponseToXProfile(response.x_profile);
       }
@@ -331,7 +331,7 @@ export class ProfileController extends BaseController<
       input,
     );
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(response);
+      state.profile = this.#mapApiResponseToProfile(response);
     });
   }
 
@@ -349,7 +349,7 @@ export class ProfileController extends BaseController<
       input,
     );
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(response);
+      state.profile = this.#mapApiResponseToProfile(response);
     });
   }
 
@@ -362,8 +362,7 @@ export class ProfileController extends BaseController<
     const profileId = this.#getProfileIdOrThrow();
     await this.messenger.call('ProfileService:deleteProfile', profileId);
     this.update((state) => {
-      state.metamaskProfile =
-        getDefaultProfileControllerState().metamaskProfile;
+      state.profile = getDefaultProfileControllerState().profile;
       state.xProfile = undefined;
     });
   }

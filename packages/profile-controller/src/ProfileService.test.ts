@@ -361,7 +361,7 @@ describe('ProfileService', () => {
 
       expect(result).toStrictEqual(mockAvailabilityResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/username/alice/availability`,
+        `${V1_URL}/profiles/username/availability?username=alice`,
         { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
@@ -377,7 +377,7 @@ describe('ProfileService', () => {
       await service.checkUsernameAvailability('alice smith');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/username/alice%20smith/availability`,
+        `${V1_URL}/profiles/username/availability?username=alice%20smith`,
         expect.anything(),
       );
     });
