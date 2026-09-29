@@ -5935,9 +5935,9 @@ export class PerpsController extends BaseController<
    * are L1 actions the agent signs.
    *
    * @returns `ready: true` when none of these steps will need a signature
-   * again before the first order, and only while the main account can sign,
-   * whichever provider answered (including providers without deferred setup,
-   * for example in aggregated mode). A declined HyperLiquid migration is not
+   * again before the first order, and only while an account is selected and
+   * the main account can sign, whichever provider answered (including
+   * providers without deferred setup, for example in aggregated mode). A declined HyperLiquid migration is not
    * asked again, and a HyperLiquid referral whose MetaMask referral code is
    * not ready yet is checked again at the next call, not before orders, so
    * neither holds it back. Otherwise `ready: false`, without an error while a
@@ -5960,16 +5960,21 @@ export class PerpsController extends BaseController<
     const result = (await provider.prepareTradingWallet?.()) ?? {
       ready: true,
     };
-    // A provider with nothing to prepare, alone or aggregated, does not check
-    // the signer.
+    // A provider with nothing to prepare, alone or aggregated, checks neither
+    // the signer nor the selected account.
+    if (!result.ready) {
+      return result;
+    }
     if (
-      result.ready &&
       !isMainAccountSignerReady(
         this.#options.infrastructure.accountSigner,
         () => this.messenger.call('KeyringController:getState').isUnlocked,
       )
     ) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    }
+    if (!getSelectedEvmAccountFromMessenger(this.messenger)) {
+      return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
     }
     return result;
   }

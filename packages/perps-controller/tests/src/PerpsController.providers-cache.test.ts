@@ -956,6 +956,33 @@ describe('PerpsController', () => {
   });
 
   describe('account and agent signers', () => {
+    /**
+     * A host messenger `call` that answers the keyring state and the selected
+     * account, and nothing else.
+     *
+     * @param options - The host state.
+     * @param options.isUnlocked - Whether the keyring is unlocked.
+     * @param options.selectedAccount - The selected account, if any.
+     * @returns The `call` mock.
+     */
+    function createHostCall({
+      isUnlocked,
+      selectedAccount = createMockEvmAccount(),
+    }: {
+      isUnlocked: boolean;
+      selectedAccount?: ReturnType<typeof createMockEvmAccount> | null;
+    }): jest.Mock {
+      return jest.fn().mockImplementation((action: string) => {
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked };
+        }
+        if (action === 'AccountsController:getSelectedAccount') {
+          return selectedAccount ?? undefined;
+        }
+        return undefined;
+      });
+    }
+
     const account = {
       mainAddress: createMockEvmAccount().address,
       isTestnet: false,
@@ -1200,13 +1227,7 @@ describe('PerpsController', () => {
       'reports readiness from $signer when the provider has no deferred setup (can sign: $canSign)',
       async ({ signer, canSign, expected }) => {
         const usesKeyring = signer === 'the keyring';
-        const call = jest
-          .fn()
-          .mockImplementation((action: string) =>
-            action === 'KeyringController:getState'
-              ? { isUnlocked: canSign }
-              : undefined,
-          );
+        const call = createHostCall({ isUnlocked: canSign });
         controller = new TestablePerpsController({
           messenger: createMockMessenger({ call }),
           state: getDefaultPerpsControllerState(),
@@ -1240,13 +1261,9 @@ describe('PerpsController', () => {
     ])(
       'reports KEYRING_LOCKED when the provider reports ready while $signer cannot sign',
       async ({ usesKeyring }) => {
-        const call = jest
-          .fn()
-          .mockImplementation((action: string) =>
-            action === 'KeyringController:getState'
-              ? { isUnlocked: false }
-              : undefined,
-          );
+        // With an account signer, only the account signer is locked: the
+        // keyring would answer unlocked if it were asked.
+        const call = createHostCall({ isUnlocked: !usesKeyring });
         // For example an aggregated provider whose providers have nothing to
         // prepare, so none of them checked the signer.
         mockProvider.prepareTradingWallet = jest
@@ -1267,6 +1284,7 @@ describe('PerpsController', () => {
               },
         });
         await controller.init();
+        call.mockClear();
 
         const result = await controller.prepareTradingWallet();
 
@@ -1277,8 +1295,34 @@ describe('PerpsController', () => {
         expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
           [],
         ]);
+        // Only a host without an account signer is asked for its keyring.
+        expect(
+          call.mock.calls.filter(([action]) => action.startsWith('Keyring')),
+        ).toStrictEqual(usesKeyring ? [['KeyringController:getState']] : []);
       },
     );
+
+    it('reports NO_ACCOUNT_SELECTED when the provider reports ready while no account is selected', async () => {
+      // For example a provider without deferred setup, which checks no account.
+      mockProvider.prepareTradingWallet = jest
+        .fn()
+        .mockResolvedValue({ ready: true });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({
+          call: createHostCall({ isUnlocked: true, selectedAccount: null }),
+        }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+      });
+    });
   });
 
   describe('getOpenOrders with standalone mode', () => {

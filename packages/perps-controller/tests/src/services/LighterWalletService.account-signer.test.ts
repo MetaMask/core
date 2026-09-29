@@ -57,8 +57,11 @@ describe('LighterWalletService with accountSigner', () => {
       .signPersonalMessage('hello')
       .catch((caught: unknown) => caught);
 
-    expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
-    expect(error).toHaveProperty('cause', hostError);
+    // Jest's Error equality ignores `cause`, so match both fields.
+    expect(error).toMatchObject({
+      message: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      cause: hostError,
+    });
   });
 
   it('rethrows an account signer rejection unchanged while the signer stays ready', async () => {

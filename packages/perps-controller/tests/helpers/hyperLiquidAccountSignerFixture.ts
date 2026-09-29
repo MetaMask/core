@@ -3,6 +3,11 @@
  * provider, wallet service and signing caches over mocked client and
  * subscription services.
  *
+ * By default the messenger has no KeyringController (the `keyring` option
+ * adds one), so every main-account signature must reach the injected
+ * accountSigner. The SDK exchange client is the mocked boundary: like the
+ * SDK, it signs through the wallet the provider initialized it with.
+ *
  * Every test file that uses it must mock both services itself, since
  * jest.mock is hoisted per file:
  *
@@ -40,6 +45,7 @@ import {
   AGENT_SIGNATURE,
   APPROVE_BUILDER_FEE_PAYLOAD,
   L1_PAYLOAD,
+  MAIN_ADDRESS,
   MAIN_SIGNATURE,
   USER_SIGNED_PAYLOAD,
   signThroughWallet,
@@ -52,7 +58,6 @@ import {
   createDeferred,
   createKeyringMessenger,
   createKeyringlessMessenger,
-  createMockEvmAccount,
   createMockInfrastructure,
 } from './serviceMocks.js';
 
@@ -64,19 +69,6 @@ const MockedHyperLiquidSubscriptionService =
   HyperLiquidSubscriptionService as jest.MockedClass<
     typeof HyperLiquidSubscriptionService
   >;
-
-// The wallet service and the signing caches are real. By default the
-// messenger has no KeyringController (the `keyring` option adds one), so every
-// main-account signature must reach the injected accountSigner. The SDK
-// exchange client is the mocked boundary: like the SDK, it signs through the
-// wallet the provider initialized it with.
-export const ACCOUNT_ADDRESS = createMockEvmAccount().address;
-
-// The selected account on mainnet, as getAgentSigner is asked for it.
-export const MAINNET_ACCOUNT = {
-  mainAddress: ACCOUNT_ADDRESS,
-  isTestnet: false,
-} as const;
 
 // A fixed clock for cache timestamps.
 export const NOW = 1_700_000_000_000;
@@ -91,7 +83,7 @@ export const BTC_MARKET_ORDER = {
 
 // The SDK writes the provider makes for the selected account on mainnet.
 export const MIGRATION_WRITE = [
-  { user: ACCOUNT_ADDRESS, abstraction: HL_UNIFIED_ACCOUNT_MODE },
+  { user: MAIN_ADDRESS, abstraction: HL_UNIFIED_ACCOUNT_MODE },
 ];
 export const SILENT_MIGRATION_WRITE = [
   { abstraction: HL_ABSTRACTION_WIRE.unifiedAccount },
@@ -128,9 +120,7 @@ export function orderIdOf(result: { orderId?: string }): string {
  * @returns True once the migration result is cached.
  */
 export function migrationAttempted(): boolean {
-  return (
-    TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS)?.attempted ?? false
-  );
+  return TradingReadinessCache.get('mainnet', MAIN_ADDRESS)?.attempted ?? false;
 }
 
 /**
@@ -141,8 +131,7 @@ export function migrationAttempted(): boolean {
  */
 export function referralAttempted(): boolean {
   return (
-    PerpsSigningCache.getReferral('mainnet', ACCOUNT_ADDRESS)?.attempted ??
-    false
+    PerpsSigningCache.getReferral('mainnet', MAIN_ADDRESS)?.attempted ?? false
   );
 }
 
@@ -185,7 +174,7 @@ export function bind(
   provider.clearAgentSigners();
 }
 
-export type AccountSignerSuite = {
+type AccountSignerSuite = {
   mockClientService: jest.Mocked<HyperLiquidClientService>;
   loggerError: jest.SpyInstance;
   trackPerpsEvent: jest.SpyInstance;
@@ -258,7 +247,7 @@ export function setUpAccountSignerSuite(): AccountSignerSuite {
   return { mockClientService, loggerError, trackPerpsEvent };
 }
 
-export type AccountSignerOptions = {
+type AccountSignerOptions = {
   signer?: {
     isReady?: () => boolean;
     requiresSignatureConfirmation?: () => boolean;

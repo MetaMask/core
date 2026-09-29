@@ -2167,13 +2167,14 @@ export type PerpsProvider = {
    * silent migration) are signed by an agent when one resolves. Resolves
    * `ready: true` when none of these steps will need a signature again before
    * the first order (a read-only provider, which never signs, resolves it at
-   * once while the main-account signer is ready). Otherwise `ready: false`,
-   * without an error while a step will be retried (including after an agent
-   * could not sign), or with `KEYRING_LOCKED` when the main-account signer
-   * cannot sign, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on
-   * the venue yet, `NO_ACCOUNT_SELECTED`, `PROVIDER_LIFECYCLE_STALE` when the
-   * provider or account changed during setup, or the message of the logged
-   * error that stopped setup. Providers without such setup omit it.
+   * once while an account is selected and the main-account signer is ready).
+   * Otherwise `ready: false`, without an error while a step will be retried
+   * (including after an agent could not sign), or with `KEYRING_LOCKED` when
+   * the main-account signer cannot sign, `EXCHANGE_ACCOUNT_NOT_FOUND` for a
+   * wallet with no account on the venue yet, `NO_ACCOUNT_SELECTED`,
+   * `PROVIDER_LIFECYCLE_STALE` when the provider or account changed during
+   * setup, or the message of the logged error that stopped setup. Providers
+   * without such setup omit it.
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   /**

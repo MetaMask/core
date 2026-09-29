@@ -8,11 +8,11 @@ import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type { PerpsTypedDataPayload } from '../../../src/types/index.js';
 import {
   APPROVE_BUILDER_FEE_PAYLOAD,
+  MAIN_ADDRESS,
   MAIN_SIGNATURE,
   USER_SIGNED_PAYLOAD,
 } from '../../helpers/agentFixtures.js';
 import {
-  ACCOUNT_ADDRESS,
   BTC_MARKET_ORDER,
   BUILDER_FEE_WRITE,
   MIGRATION_WRITE,
@@ -37,7 +37,7 @@ jest.mock('@nktkas/hyperliquid', () => ({
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
 
-describe('HyperLiquidProvider with a real wallet service and accountSigner', () => {
+describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
   let loggerError: jest.SpyInstance;
   let trackPerpsEvent: jest.SpyInstance;
 
@@ -55,19 +55,28 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       MIGRATION_WRITE,
     ]);
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-      [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+      [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
     ]);
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
   it('defers the init-time migration when accountSigner requires signature confirmation', async () => {
-    const { accountSignerProvider, accountSigner, call, exchangeClient } =
-      createAccountSignerProvider({
-        signer: { requiresSignatureConfirmation: () => true },
-      });
+    const {
+      accountSignerProvider,
+      accountSigner,
+      call,
+      exchangeClient,
+      infoClient,
+    } = createAccountSignerProvider({
+      signer: { requiresSignatureConfirmation: () => true },
+    });
 
     await accountSignerProvider.getMarketDataWithPrices();
 
+    // Connect reached the migration step and found the account needs one.
+    expect(infoClient.userAbstraction.mock.calls).toStrictEqual([
+      [{ user: MAIN_ADDRESS }],
+    ]);
     expect(exchangeClient.userSetAbstraction).not.toHaveBeenCalled();
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(keyringCalls(call)).toStrictEqual([]);
@@ -185,7 +194,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     const release = PerpsSigningCache.setInFlight(
       'builderFee',
       'mainnet',
-      ACCOUNT_ADDRESS,
+      MAIN_ADDRESS,
     );
     const isInFlight = PerpsSigningCache.isInFlight.bind(PerpsSigningCache);
     jest
@@ -258,7 +267,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       const result = await accountSignerProvider.withdraw({
         amount: '10',
-        destination: ACCOUNT_ADDRESS,
+        destination: MAIN_ADDRESS,
         assetId,
       });
 
@@ -267,7 +276,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
       expect(withdraw3.mock.calls).toStrictEqual([
-        [{ destination: ACCOUNT_ADDRESS, amount: '10' }],
+        [{ destination: MAIN_ADDRESS, amount: '10' }],
       ]);
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
@@ -292,7 +301,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(exchangeClient.sendAsset.mock.calls).toStrictEqual([
         [
           {
-            destination: ACCOUNT_ADDRESS,
+            destination: MAIN_ADDRESS,
             sourceDex: '',
             destinationDex: 'xyz',
             token: 'USDC:0xdef456',

@@ -1316,8 +1316,9 @@ export class LighterProvider implements PerpsProvider {
    *
    * @returns `ready: true` once the venue key is registered, or at once for a
    * read-only provider (no signer bridge) while the main-account signer is
-   * ready: it has nothing to prepare, so it does not hold back an aggregated
-   * result, and `isReadyToTrade` still reports that it cannot trade. Otherwise
+   * ready and an account is selected: it has nothing to prepare, so it does
+   * not hold back an aggregated result, and `isReadyToTrade` still reports
+   * that it cannot trade. Otherwise
    * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
    * not ready (even with a registered venue key), with `NO_ACCOUNT_SELECTED`
    * when no account is selected, with `EXCHANGE_ACCOUNT_NOT_FOUND` when the
@@ -1331,13 +1332,13 @@ export class LighterProvider implements PerpsProvider {
     if (!this.#walletService.isMainAccountSignerReady()) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
-    if (!this.#signerBridge) {
-      return { ready: true };
-    }
     try {
       this.#walletService.getUserAddress();
     } catch {
       return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
+    }
+    if (!this.#signerBridge) {
+      return { ready: true };
     }
     try {
       await this.#ensureSignerReady();

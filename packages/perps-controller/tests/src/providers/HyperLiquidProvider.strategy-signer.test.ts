@@ -5,11 +5,11 @@ import type { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProv
 import {
   AGENT_ADDRESS,
   L1_PAYLOAD,
+  MAIN_ADDRESS,
+  MAINNET_ACCOUNT,
   unknownWalletError,
 } from '../../helpers/agentFixtures.js';
 import {
-  ACCOUNT_ADDRESS,
-  MAINNET_ACCOUNT,
   NOW,
   createAccountSignerProvider,
   orderIdOf,
@@ -30,7 +30,7 @@ jest.mock('@nktkas/hyperliquid', () => ({
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
 
-describe('HyperLiquidProvider with a real wallet service and accountSigner', () => {
+describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
   let loggerError: jest.SpyInstance;
 
   beforeEach(() => {
@@ -66,7 +66,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
             side: 'B',
             sz: '1',
             timestamp: NOW,
-            user: ACCOUNT_ADDRESS,
+            user: MAIN_ADDRESS,
           },
           status: { status: 'activated' },
         },
@@ -317,6 +317,66 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           expect(loggerError).not.toHaveBeenCalled();
         },
       );
+
+      it('keeps only the rungs a cancel by client order ID left resting when the venue cancels one and rejects the agent on the other', async () => {
+        const {
+          provider,
+          order,
+          cancelByCloid,
+          onAgentRejected,
+          signL1Action,
+        } = createStrategyProvider('reported');
+        // Neither rung rests, and the cleanup cannot cancel them, so the
+        // ladder stays registered by client order ID.
+        order.mockResolvedValueOnce(
+          withStatuses('waitingForFill', 'waitingForFill'),
+        );
+        cancelByCloid.mockResolvedValueOnce(
+          withStatuses({ error: 'Busy' }, { error: 'Busy' }),
+        );
+        const placed = await provider.placeOrder(SCALE_ORDER);
+        const [[{ orders }]] = order.mock.calls as [[{ orders: { c: Hex }[] }]];
+        loggerError.mockClear();
+        cancelByCloid.mockImplementationOnce(async () => {
+          await signL1Action();
+          return withStatuses('success', {
+            error: unknownWalletError(AGENT_ADDRESS).message,
+          });
+        });
+
+        const result = await provider.cancelOrder({
+          orderId: orderIdOf(placed),
+          symbol: 'ETH',
+          orderType: 'scale',
+        });
+        cancelByCloid.mockResolvedValueOnce(withStatuses('success'));
+        const retry = await provider.cancelOrder({
+          orderId: orderIdOf(placed),
+          symbol: 'ETH',
+          orderType: 'scale',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          orderId: placed.orderId,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(retry).toStrictEqual({ success: true, orderId: placed.orderId });
+        const bothRungs = {
+          cancels: orders.map(({ c }) => ({ asset: 1, cloid: c })),
+        };
+        // The placement's cleanup, the cancel, then the retry of the rung
+        // that was not cancelled.
+        expect(cancelByCloid.mock.calls).toStrictEqual([
+          [bothRungs],
+          [bothRungs],
+          [{ cancels: [{ asset: 1, cloid: orders[1].c }] }],
+        ]);
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+        expect(loggerError).not.toHaveBeenCalled();
+      });
 
       it.each(SIGNER_FAILURES)(
         'fails a scale cancel by client order ID with KEYRING_LOCKED, for $name',

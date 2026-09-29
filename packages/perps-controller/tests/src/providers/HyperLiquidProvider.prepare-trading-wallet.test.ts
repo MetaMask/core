@@ -12,12 +12,12 @@ import type { PerpsTypedDataPayload } from '../../../src/types/index.js';
 import {
   APPROVE_BUILDER_FEE_PAYLOAD,
   L1_PAYLOAD,
+  MAIN_ADDRESS,
   MAIN_SIGNATURE,
   USER_SIGNED_PAYLOAD,
   unknownWalletError,
 } from '../../helpers/agentFixtures.js';
 import {
-  ACCOUNT_ADDRESS,
   BTC_MARKET_ORDER,
   BUILDER_FEE_WRITE,
   BUILDER_REFERRAL_LOOKUP,
@@ -44,7 +44,7 @@ jest.mock('@nktkas/hyperliquid', () => ({
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
 
-describe('HyperLiquidProvider with a real wallet service and accountSigner', () => {
+describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
   let loggerError: jest.SpyInstance;
 
   beforeEach(() => {
@@ -73,12 +73,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         REFERRAL_WRITE,
       ]);
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-        [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
-        [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
       // Already approved, so nothing is signed for it.
       expect(infoClient.maxBuilderFee.mock.calls).toStrictEqual([
-        [{ user: ACCOUNT_ADDRESS, builder: BUILDER_FEE_CONFIG.MainnetBuilder }],
+        [{ user: MAIN_ADDRESS, builder: BUILDER_FEE_CONFIG.MainnetBuilder }],
       ]);
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
@@ -104,9 +104,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(result).toStrictEqual({ ready: true });
       // Migration, referral, builder fee approval.
       expect(setupSignatures).toStrictEqual([
-        [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
-        [ACCOUNT_ADDRESS, L1_PAYLOAD],
-        [ACCOUNT_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
+        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
+        [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
       ]);
       expect(order).toStrictEqual({
         success: true,
@@ -116,7 +116,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         filledSize: undefined,
       });
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-        [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
       expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
         MIGRATION_WRITE,
@@ -145,7 +145,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const release = PerpsSigningCache.setInFlight(
         'referral',
         'mainnet',
-        ACCOUNT_ADDRESS,
+        MAIN_ADDRESS,
       );
       const waiting = createDeferred<void>();
       let lookupsWhileHeld = 0;
@@ -199,7 +199,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         REFERRAL_WRITE,
       ]);
       expect(
-        PerpsSigningCache.getReferral('mainnet', ACCOUNT_ADDRESS),
+        PerpsSigningCache.getReferral('mainnet', MAIN_ADDRESS),
       ).toStrictEqual({
         attempted: true,
         success: true,
@@ -216,7 +216,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       try {
         const preparing = accountSignerProvider.prepareTradingWallet();
         await lock.waiting;
-        PerpsSigningCache.setReferral('mainnet', ACCOUNT_ADDRESS, {
+        PerpsSigningCache.setReferral('mainnet', MAIN_ADDRESS, {
           attempted: true,
           success: true,
         });
@@ -279,9 +279,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      expect(
-        TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS),
-      ).toStrictEqual({
+      expect(TradingReadinessCache.get('mainnet', MAIN_ADDRESS)).toStrictEqual({
         attempted: true,
         enabled: true,
         reason: undefined,
@@ -289,8 +287,8 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       });
       // Migration, then referral; nothing on the second call.
       expect(firstSignatures).toStrictEqual([
-        [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
-        [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual(
         firstSignatures,
@@ -317,9 +315,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       expect(result).toStrictEqual({ ready: true });
       expect(secondResult).toStrictEqual({ ready: true });
-      expect(
-        TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS),
-      ).toStrictEqual({
+      expect(TradingReadinessCache.get('mainnet', MAIN_ADDRESS)).toStrictEqual({
         attempted: true,
         enabled: false,
         reason: undefined,
@@ -408,19 +404,51 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       ]);
     });
 
-    it('does not log a provider replaced during preparation', async () => {
-      const { accountSignerProvider, initialize } =
-        createAccountSignerProvider();
-      initialize.mockRejectedValue(
-        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+    it('reports a provider disconnected while it checks for a HyperLiquid account as stale, without logging', async () => {
+      let disconnecting: Promise<unknown> | undefined;
+      const { accountSignerProvider, infoClient } = createAccountSignerProvider(
+        { abstraction: 'unifiedAccount' },
       );
+      // The migration's checks (at connect and at trading setup) and the
+      // referral's find no account; the provider disconnects during
+      // preparation's own check.
+      infoClient.userNonFundingLedgerUpdates
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockImplementationOnce(async () => {
+          disconnecting = accountSignerProvider.disconnect();
+          return [];
+        });
 
       const result = await accountSignerProvider.prepareTradingWallet();
+      await disconnecting;
 
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
       });
+      expect(infoClient.userNonFundingLedgerUpdates).toHaveBeenCalledTimes(4);
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('reports a provider disconnected during builder fee setup as stale, without asking for the approval or logging', async () => {
+      let disconnecting: Promise<unknown> | undefined;
+      const { accountSignerProvider, exchangeClient, infoClient } =
+        createAccountSignerProvider({ abstraction: 'unifiedAccount' });
+      infoClient.maxBuilderFee.mockImplementation(async () => {
+        disconnecting = accountSignerProvider.disconnect();
+        return 0;
+      });
+
+      const result = await accountSignerProvider.prepareTradingWallet();
+      await disconnecting;
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -448,14 +476,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(connectSignatures).toStrictEqual([
         [
           'KeyringController:signTypedMessage',
-          { from: ACCOUNT_ADDRESS, data: USER_SIGNED_PAYLOAD },
+          { from: MAIN_ADDRESS, data: USER_SIGNED_PAYLOAD },
           'V4',
         ],
       ]);
       expect(typedDataSignatures()).toStrictEqual([
         [
           'KeyringController:signTypedMessage',
-          { from: ACCOUNT_ADDRESS, data: L1_PAYLOAD },
+          { from: MAIN_ADDRESS, data: L1_PAYLOAD },
           'V4',
         ],
       ]);
@@ -532,7 +560,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-        [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -638,7 +666,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         createAccountSignerProvider({ abstraction: 'unifiedAccount' });
       // The probe sees a deposit, but the venue has not caught up yet.
       exchangeClient.setReferrer.mockRejectedValueOnce(
-        unknownWalletError(ACCOUNT_ADDRESS),
+        unknownWalletError(MAIN_ADDRESS),
       );
 
       const rejected = await accountSignerProvider.prepareTradingWallet();

@@ -505,6 +505,22 @@ describe('LighterProvider with accountSigner', () => {
     expect(loggerError).not.toHaveBeenCalled();
   });
 
+  it('reports NO_ACCOUNT_SELECTED for a read-only provider (no signer bridge) with no account selected', async () => {
+    const { provider, deselectAccount, deps } = buildProvider({
+      withoutBridge: true,
+    });
+    deselectAccount();
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+    });
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
   it('reports KEYRING_LOCKED when the signer locks once the venue key is registered', async () => {
     let signerReady = true;
     const { provider, accountSigner, client, deps } = buildProvider({

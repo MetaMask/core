@@ -1,6 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
-import type { PerpsTypedDataPayload } from '../../src/types/index.js';
+import type {
+  PerpsAgentAccount,
+  PerpsTypedDataPayload,
+} from '../../src/types/index.js';
 import { createMockEvmAccount } from './serviceMocks.js';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
@@ -17,6 +20,15 @@ const EIP712_DOMAIN_TYPE = [
   { name: 'chainId', type: 'uint256' },
   { name: 'verifyingContract', type: 'address' },
 ];
+
+/** The mock main account, the one selected in the test messengers. */
+export const MAIN_ADDRESS = createMockEvmAccount().address;
+
+/** The main account on mainnet, as getAgentSigner is asked for it. */
+export const MAINNET_ACCOUNT: PerpsAgentAccount = {
+  mainAddress: MAIN_ADDRESS,
+  isTestnet: false,
+};
 
 /** A second main account, for account-switch and scoping cases. */
 export const OTHER_MAIN_ADDRESS =

@@ -25,7 +25,9 @@ import {
   AGENT_SIGNATURE,
   APPROVE_BUILDER_FEE_PAYLOAD,
   L1_PAYLOAD,
+  MAIN_ADDRESS,
   MAIN_SIGNATURE,
+  MAINNET_ACCOUNT,
   OTHER_AGENT_ADDRESS,
   OTHER_AGENT_SIGNATURE,
   signThroughWallet,
@@ -36,17 +38,10 @@ import { createMockInfoClient } from '../helpers/providerMocks.js';
 import {
   createKeyringlessMessenger,
   createKeyringMessenger,
-  createMockEvmAccount,
   createMockInfrastructure,
   keyringCalls,
 } from '../helpers/serviceMocks.js';
 
-const MAIN_ADDRESS = createMockEvmAccount().address;
-// The controller starts on mainnet (default state).
-const MAINNET_ACCOUNT: PerpsAgentAccount = {
-  mainAddress: MAIN_ADDRESS,
-  isTestnet: false,
-};
 // The venue recovers each signer from its signature.
 const SIGNERS = new Map<string, Hex>([
   [MAIN_SIGNATURE, MAIN_ADDRESS],
@@ -634,6 +629,39 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   });
 
   it('releases a setAgentSigner binding to an agent the venue rejects', async () => {
+    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
+    mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
+    const { controller, call } = createController();
+    await controller.init();
+    controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
+
+    const cancelled = await controller.cancelOrder({
+      orderId: '1',
+      symbol: 'BTC',
+    });
+    const placed = await placeOrder(controller);
+
+    expect(cancelled).toStrictEqual({
+      success: false,
+      orderId: '1',
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    // The binding is gone, so the host's getAgentSigner answers.
+    expect(placed).toStrictEqual(PLACED_ORDER);
+    expect(signedWrites()).toStrictEqual([
+      ['cancel', OTHER_AGENT_ADDRESS],
+      ['order', AGENT_ADDRESS],
+    ]);
+    expectHostSaw(call, {
+      agentRequests: [MAINNET_ACCOUNT],
+      rejectedAgents: [[MAINNET_ACCOUNT, OTHER_AGENT_ADDRESS]],
+    });
+  });
+
+  it('releases a binding to an agent the venue rejects even when the host onAgentRejected throws', async () => {
+    onAgentRejected.mockImplementation(() => {
+      throw new Error('host callback failed');
+    });
     const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
     mockVenue.revokedAgents.add(OTHER_AGENT_ADDRESS);
     const { controller, call } = createController();
