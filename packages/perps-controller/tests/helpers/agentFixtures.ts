@@ -25,6 +25,9 @@ export const MAIN_SIGNATURE = `0x${'cd'.repeat(65)}` as const;
 /** A signature from an agent. */
 export const AGENT_SIGNATURE = `0x${'ef'.repeat(65)}` as const;
 
+/** A signature from the second agent. */
+export const OTHER_AGENT_SIGNATURE = `0x${'0b'.repeat(65)}` as const;
+
 /**
  * A user-signed action as the HyperLiquid SDK builds it (the
  * HyperliquidSignTransaction domain), for the mock main account.
@@ -50,6 +53,30 @@ export const USER_SIGNED_PAYLOAD: PerpsTypedDataPayload = {
     hyperliquidChain: 'Mainnet',
     user: createMockEvmAccount().address,
     abstraction: 'unifiedAccount',
+    nonce: 1,
+  },
+};
+
+/**
+ * A builder fee approval as the HyperLiquid SDK builds it: user-signed, like
+ * the migration, but a different action.
+ */
+export const APPROVE_BUILDER_FEE_PAYLOAD: PerpsTypedDataPayload = {
+  domain: USER_SIGNED_PAYLOAD.domain,
+  types: {
+    EIP712Domain: EIP712_DOMAIN_TYPE,
+    'HyperliquidTransaction:ApproveBuilderFee': [
+      { name: 'hyperliquidChain', type: 'string' },
+      { name: 'maxFeeRate', type: 'string' },
+      { name: 'builder', type: 'address' },
+      { name: 'nonce', type: 'uint64' },
+    ],
+  },
+  primaryType: 'HyperliquidTransaction:ApproveBuilderFee',
+  message: {
+    hyperliquidChain: 'Mainnet',
+    maxFeeRate: '0.1%',
+    builder: ZERO_ADDRESS,
     nonce: 1,
   },
 };

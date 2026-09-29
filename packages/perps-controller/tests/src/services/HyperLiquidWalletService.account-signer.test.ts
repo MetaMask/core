@@ -219,6 +219,20 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     expect(agentSign).not.toHaveBeenCalled();
   });
 
+  it('keeps another primary type in the Exchange domain on the main account', async () => {
+    const { adapter, resolveAgent, agentSign, mainSign } = buildAdapter();
+    const lookalike = {
+      ...USER_SIGNED_PAYLOAD,
+      domain: L1_PAYLOAD.domain,
+    };
+
+    await adapter.signTypedData(lookalike);
+
+    expect(mainSign.mock.calls).toStrictEqual([[mainAddress, lookalike]]);
+    expect(resolveAgent).not.toHaveBeenCalled();
+    expect(agentSign).not.toHaveBeenCalled();
+  });
+
   it('signs L1 actions with the main account when no agent is resolved', async () => {
     const { adapter, mainSign } = buildAdapter(false);
 

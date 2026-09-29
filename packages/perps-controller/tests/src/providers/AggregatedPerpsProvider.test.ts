@@ -1,4 +1,5 @@
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { PROVIDER_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
@@ -1163,13 +1164,52 @@ describe('AggregatedPerpsProvider', () => {
         await networkProvider.prepareTradingWallet();
 
         expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
-          expect.objectContaining({ message: 'provider crashed' }),
-          expect.objectContaining({
+          new Error('provider crashed'),
+          {
             tags: { feature: 'perps', provider: 'hyperliquid', network },
-          }),
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: {
+                method: 'prepareTradingWallet',
+                providerId: 'hyperliquid',
+              },
+            },
+          },
         );
       },
     );
+
+    it('tags a logged Lighter failure with testnet while Lighter is pinned to testnet', async () => {
+      jest.replaceProperty(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        true,
+      );
+      const networkProvider = new AggregatedPerpsProvider({
+        providers: new Map([['lighter', mockLighterProvider]]),
+        defaultProvider: 'lighter',
+        infrastructure: mockInfrastructure,
+        isTestnet: false,
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: jest
+          .fn()
+          .mockRejectedValue(new Error('provider crashed')),
+      });
+
+      await networkProvider.prepareTradingWallet();
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        new Error('provider crashed'),
+        {
+          tags: { feature: 'perps', provider: 'lighter', network: 'testnet' },
+          context: {
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId: 'lighter' },
+          },
+        },
+      );
+    });
 
     it('prepares the next provider only after the previous one settles', async () => {
       const firstPreparation = createDeferred<{ ready: boolean }>();

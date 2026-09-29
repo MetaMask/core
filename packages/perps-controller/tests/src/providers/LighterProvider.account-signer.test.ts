@@ -1,6 +1,9 @@
 import { LIGHTER_TX_TYPE_CHANGE_PUB_KEY } from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import { LighterProvider } from '../../../src/providers/LighterProvider.js';
+import {
+  LIGHTER_SIGNER_UNAVAILABLE_ERROR,
+  LighterProvider,
+} from '../../../src/providers/LighterProvider.js';
 import {
   LighterApiError,
   LighterClientService,
@@ -11,6 +14,7 @@ import type {
   LighterSignerResult,
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
+import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
 import {
   createKeyringMessenger,
   createKeyringlessMessenger,
@@ -37,7 +41,6 @@ const API_KEY_INDEX = 7;
 const NEXT_NONCE = 42;
 // Expiry of the mocked signed transaction; only needs to be in the future.
 const TX_EXPIRY_MS = 9 * 60 * 1000;
-const L1_SIGNATURE = `0x${'ab'.repeat(65)}` as const;
 const CHANGE_PUB_KEY_BODY =
   'Register Lighter Account\n\npubkey: 0x9c...\nOnly sign this message for a trusted client!';
 // Lighter's API error code for an L1 address with no account.
@@ -149,11 +152,11 @@ function buildProvider({
   );
   const accountSigner = {
     signTypedData: jest.fn(),
-    signPersonalMessage: jest.fn().mockResolvedValue(L1_SIGNATURE),
+    signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady,
   };
   const { messenger, call, selectAccount } = keyring
-    ? createKeyringMessenger(L1_SIGNATURE)
+    ? createKeyringMessenger(MAIN_SIGNATURE)
     : createKeyringlessMessenger();
   const { bridge, calls } = createBridge();
   const deps = keyring
@@ -204,7 +207,7 @@ describe('LighterProvider with accountSigner', () => {
     );
     expect(changePubKey?.params).toStrictEqual([
       ACCOUNT_INDEX,
-      L1_SIGNATURE,
+      MAIN_SIGNATURE,
       NEXT_NONCE,
       API_KEY_INDEX,
     ]);
@@ -294,6 +297,12 @@ describe('LighterProvider with accountSigner', () => {
     ],
     ['a "User rejected" message', new Error('User rejected the request.')],
     ['a "User denied" message', new Error('User denied message signature.')],
+    [
+      'a rejection code wrapped in the cause chain',
+      new Error('Signing failed', {
+        cause: Object.assign(new Error('Rejected'), { code: 4001 }),
+      }),
+    ],
   ])(
     'reports a decline signalled by %s as a retry without logging',
     async (_signal, rejection) => {
@@ -326,32 +335,33 @@ describe('LighterProvider with accountSigner', () => {
   it.each([
     [
       'the provider disconnects',
-      'Operation cancelled: the Lighter provider was disconnected',
       async ({ provider }: BuiltProvider): Promise<void> => {
         await provider.disconnect();
       },
     ],
     [
       'the wallet switches accounts',
-      'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
       async ({ selectAccount }: BuiltProvider): Promise<void> => {
         selectAccount('0x00000000000000000000000000000000000c0ffe');
       },
     ],
   ])(
-    'reports a registration cancelled because %s as not ready without logging',
-    async (_cause, cancellation, cancelSession) => {
+    'reports a registration cancelled because %s as a stale provider without logging',
+    async (_cause, cancelSession) => {
       const built = buildProvider();
       const { provider, accountSigner, client, deps } = built;
       accountSigner.signPersonalMessage.mockImplementation(async () => {
         await cancelSession(built);
-        return L1_SIGNATURE;
+        return MAIN_SIGNATURE;
       });
       const loggerError = jest.spyOn(deps.logger, 'error');
 
       const result = await provider.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: false, error: cancellation });
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
       expect(client.sendTx).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
     },
@@ -365,12 +375,10 @@ describe('LighterProvider with accountSigner', () => {
 
     expect(result).toStrictEqual({
       ready: false,
-      error: 'Lighter signer bridge not configured',
+      error: LIGHTER_SIGNER_UNAVAILABLE_ERROR,
     });
     expect(loggerError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Lighter signer bridge not configured',
-      }),
+      new Error(LIGHTER_SIGNER_UNAVAILABLE_ERROR),
       {
         tags: {
           feature: 'perps',
@@ -392,7 +400,7 @@ describe('LighterProvider with accountSigner', () => {
     });
     accountSigner.signPersonalMessage.mockImplementation(async () => {
       signerReady = false;
-      return L1_SIGNATURE;
+      return MAIN_SIGNATURE;
     });
 
     const result = await provider.prepareTradingWallet();
@@ -402,6 +410,27 @@ describe('LighterProvider with accountSigner', () => {
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
+  });
+
+  it('reports KEYRING_LOCKED without logging when the signer locks as registration fails', async () => {
+    let signerReady = true;
+    const { provider, accountSigner, client, deps } = buildProvider({
+      isReady: () => signerReady,
+    });
+    accountSigner.signPersonalMessage.mockImplementation(async () => {
+      signerReady = false;
+      throw new Error('wallet disconnected');
+    });
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(client.sendTx).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('reports KEYRING_LOCKED when the account signer locks during registration', async () => {
@@ -438,7 +467,7 @@ describe('LighterProvider with a KeyringController', () => {
     const changePubKey = calls.find(
       (wasmCall) => wasmCall.function === '_signChangePubKey',
     );
-    expect(changePubKey?.params[1]).toBe(L1_SIGNATURE);
+    expect(changePubKey?.params[1]).toBe(MAIN_SIGNATURE);
     expect(client.sendTx.mock.calls).toStrictEqual([CHANGE_PUB_KEY_TX]);
   });
 });

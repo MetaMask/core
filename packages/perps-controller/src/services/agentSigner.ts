@@ -31,6 +31,16 @@ export function isAgentSignerUnavailableError(error: unknown): boolean {
 }
 
 /**
+ * The key an agent is held under: its network and lowercased main account.
+ *
+ * @param account - The main account and network.
+ * @returns The key.
+ */
+export function getAgentAccountKey(account: PerpsAgentAccount): string {
+  return `${account.isTestnet ? 'testnet' : 'mainnet'}:${account.mainAddress.toLowerCase()}`;
+}
+
+/**
  * Explicit HyperLiquid agent bindings per network and main account, in front
  * of the host's `getAgentSigner`: a binding wins, and null pins the main
  * account. The owner keeps them across provider instances and drops the
@@ -53,7 +63,7 @@ export class AgentBindings {
    * @param agentSigner - The agent, or null to pin the main account.
    */
   set(account: PerpsAgentAccount, agentSigner: PerpsAgentSigner | null): void {
-    this.#bindings.set(this.#getKey(account), agentSigner);
+    this.#bindings.set(getAgentAccountKey(account), agentSigner);
   }
 
   /** Forget every binding, so `getAgentSigner` answers again. */
@@ -70,7 +80,7 @@ export class AgentBindings {
    * @param agentAddress - The rejected agent's address.
    */
   release(account: PerpsAgentAccount, agentAddress: string): void {
-    const key = this.#getKey(account);
+    const key = getAgentAccountKey(account);
     const bound = this.#bindings.get(key);
     if (bound && bound.address.toLowerCase() === agentAddress.toLowerCase()) {
       this.#bindings.delete(key);
@@ -87,14 +97,10 @@ export class AgentBindings {
   readonly resolve = async (
     account: PerpsAgentAccount,
   ): Promise<PerpsAgentSigner | null> => {
-    const key = this.#getKey(account);
+    const key = getAgentAccountKey(account);
     if (this.#bindings.has(key)) {
       return this.#bindings.get(key) ?? null;
     }
     return this.#getAgentSigner ? await this.#getAgentSigner(account) : null;
   };
-
-  #getKey(account: PerpsAgentAccount): string {
-    return `${account.isTestnet ? 'testnet' : 'mainnet'}:${account.mainAddress.toLowerCase()}`;
-  }
 }

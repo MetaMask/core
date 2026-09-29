@@ -979,7 +979,8 @@ const deriveLighterExecutionPrice = (
     : referencePrice * (1 - slippageFraction);
 
 const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
-const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
+export const LIGHTER_SIGNER_UNAVAILABLE_ERROR =
+  'Lighter signer bridge not configured';
 const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
 const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.zklighter.elliot.ai';
 
@@ -1007,6 +1008,9 @@ class LighterSessionCancelledError extends Error {
 // EIP-1193 `userRejectedRequest` error code.
 const USER_REJECTED_REQUEST_CODE = 4001;
 
+// How wallets word a declined signature when they set no code.
+const USER_REJECTED_MESSAGE_PATTERN = /user (rejected|denied)/iu;
+
 /**
  * Whether preparing the wallet stopped in a way the order path retries: the
  * user declined the venue-key signature, or the wallet has no Lighter account
@@ -1021,7 +1025,7 @@ const isRetryablePreparationStop = (error: unknown): boolean =>
     (current) =>
       current instanceof LighterAccountNotFoundError ||
       (current as { code?: unknown }).code === USER_REJECTED_REQUEST_CODE ||
-      /user (rejected|denied)/iu.test(current.message),
+      USER_REJECTED_MESSAGE_PATTERN.test(current.message),
   );
 
 /**
@@ -1316,9 +1320,9 @@ export class LighterProvider implements PerpsProvider {
    * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
    * not ready (even with a registered venue key), without an error when the
    * order path will ask again (the user declined the signature, or the
-   * wallet has no Lighter account yet), with the unlogged cancellation when
-   * the provider disconnected or the wallet switched accounts meanwhile, and
-   * with the logged error when registration failed.
+   * wallet has no Lighter account yet), with `PROVIDER_LIFECYCLE_STALE`
+   * (unlogged) when the provider disconnected or the wallet switched accounts
+   * meanwhile, and with the logged error when registration failed.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {
@@ -1340,7 +1344,11 @@ export class LighterProvider implements PerpsProvider {
       }
       return { ready: true };
     } catch (caughtError) {
-      if (isKeyringLockedError(caughtError)) {
+      // A locked signer, or one that locked while registration ran.
+      if (
+        isKeyringLockedError(caughtError) ||
+        !this.#walletService.isMainAccountSignerReady()
+      ) {
         return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
       }
       if (isRetryablePreparationStop(caughtError)) {
@@ -1351,8 +1359,12 @@ export class LighterProvider implements PerpsProvider {
       if (caughtError instanceof LighterSessionCancelledError) {
         this.#deps.debugLogger.log(
           '[prepareTradingWallet] Session changed during preparation',
+          { reason: caughtError.message },
         );
-        return { ready: false, error: caughtError.message };
+        return {
+          ready: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        };
       }
       const error = ensureError(
         caughtError,

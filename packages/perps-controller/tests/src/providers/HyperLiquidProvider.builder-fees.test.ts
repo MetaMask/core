@@ -1710,10 +1710,10 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('waits for in-flight operation instead of duplicating request', async () => {
-      // Arrange - ensure getReferral returns undefined (not cached)
-      (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
-      ).getReferral.mockReturnValue(undefined);
+      // Arrange - not cached yet; the other provider caches its result
+      (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).getReferral
+        .mockReturnValueOnce(undefined)
+        .mockReturnValue({ attempted: true, success: true });
 
       // Simulate in-flight operation from another provider
       let resolveInFlight: () => void = () => undefined;

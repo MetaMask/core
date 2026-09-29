@@ -6,6 +6,13 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+
 import {
   AGENT_ADDRESS,
   OTHER_AGENT_ADDRESS,
@@ -35,9 +42,14 @@ import {
   getDefaultPerpsControllerState,
   InitializationState,
 } from '../../src/PerpsController.js';
-import type { PerpsControllerState } from '../../src/PerpsController.js';
+import type {
+  PerpsControllerMessenger,
+  PerpsControllerState,
+} from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import * as AggregatedPerpsProviderModule from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { LighterProvider } from '../../src/providers/LighterProvider.js';
 import type { ServiceContext } from '../../src/services/ServiceContext.js';
 import type {
   AccountState,
@@ -925,9 +937,6 @@ describe('PerpsController', () => {
         signTypedData: jest.fn(),
         signPersonalMessage: jest.fn(),
       };
-      const MockLighterConstructor = jest.fn(() =>
-        createMockHyperLiquidProvider(),
-      );
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
         state: getDefaultPerpsControllerState(),
@@ -935,11 +944,7 @@ describe('PerpsController', () => {
       });
 
       await controller.init();
-      controller.testRegisterLighterProvider(
-        MockLighterConstructor as unknown as new (
-          opts: Record<string, unknown>,
-        ) => PerpsProvider,
-      );
+      registerMockLighterProvider(controller);
 
       const withAccountSigner = expect.objectContaining({
         platformDependencies: expect.objectContaining({ accountSigner }),
@@ -947,7 +952,9 @@ describe('PerpsController', () => {
       expect(
         HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>,
       ).toHaveBeenCalledWith(withAccountSigner);
-      expect(MockLighterConstructor).toHaveBeenCalledWith(withAccountSigner);
+      expect(
+        LighterProvider as jest.MockedClass<typeof LighterProvider>,
+      ).toHaveBeenCalledWith(withAccountSigner);
     });
 
     const agentSigner = {
@@ -972,6 +979,22 @@ describe('PerpsController', () => {
         throw new Error('No agent resolver handed to the provider');
       }
       return resolver;
+    }
+
+    /**
+     * Register the auto-mocked LighterProvider, which has Lighter's methods
+     * and so no clearAgentSigners.
+     *
+     * @param target - The initialized controller.
+     */
+    function registerMockLighterProvider(
+      target: TestablePerpsController,
+    ): void {
+      target.testRegisterLighterProvider(
+        LighterProvider as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
     }
 
     /**
@@ -1027,7 +1050,15 @@ describe('PerpsController', () => {
         }),
       ).toBeNull();
       expect(await resolve({ ...account, isTestnet: true })).toBeNull();
-      expect(getAgentSigner).toHaveBeenCalledTimes(2);
+      expect(getAgentSigner.mock.calls).toStrictEqual([
+        [
+          {
+            ...account,
+            mainAddress: '0x9999999999999999999999999999999999999999',
+          },
+        ],
+        [{ ...account, isTestnet: true }],
+      ]);
     });
 
     it('matches a binding whatever the main address casing', async () => {
@@ -1095,24 +1126,97 @@ describe('PerpsController', () => {
       expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
     });
 
-    it('exposes the agent and preparation actions through the messenger at init', async () => {
-      const messenger = createMockMessenger();
+    it('runs the agent and preparation actions called through the messenger after init', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        MessengerActions<PerpsControllerMessenger>,
+        MessengerEvents<PerpsControllerMessenger>
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      const messenger: PerpsControllerMessenger = new Messenger({
+        namespace: 'PerpsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger,
+      });
+      mockProvider.prepareTradingWallet = jest
+        .fn()
+        .mockResolvedValue({ ready: true });
       controller = new TestablePerpsController({
         messenger,
         state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { hyperliquid: { getAgentSigner } },
+        },
         infrastructure: mockInfrastructure,
       });
-
       await controller.init();
+      const resolve = getProviderAgentResolver();
 
-      expect(messenger.registerMethodActionHandlers).toHaveBeenCalledWith(
-        controller,
-        expect.arrayContaining([
-          'setAgentSigner',
-          'clearAgentSigners',
-          'prepareTradingWallet',
-        ]),
+      rootMessenger.call('PerpsController:setAgentSigner', account, null);
+      const pinned = await resolve(account);
+      rootMessenger.call('PerpsController:clearAgentSigners');
+      const cleared = await resolve(account);
+      const readiness = await rootMessenger.call(
+        'PerpsController:prepareTradingWallet',
       );
+
+      expect(pinned).toBeNull();
+      expect(cleared).toBe(agentSigner);
+      expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
+      expect(readiness).toStrictEqual({ ready: true });
+      expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([[]]);
+    });
+
+    it('drops resolved agents on every provider in aggregated mode, skipping one without clearAgentSigners', async () => {
+      const RealAggregatedPerpsProvider =
+        AggregatedPerpsProviderModule.AggregatedPerpsProvider;
+      const aggregatedConstructor = jest
+        .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
+        .mockImplementation(
+          (config) => new RealAggregatedPerpsProvider(config),
+        );
+      mockProvider.clearAgentSigners = jest.fn();
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      registerMockLighterProvider(controller);
+      const providers = controller.testGetProviders();
+
+      controller.setAgentSigner(account, agentSigner);
+      controller.clearAgentSigners();
+
+      expect([...providers.keys()]).toStrictEqual(['hyperliquid', 'lighter']);
+      expect(providers.get('lighter')).not.toHaveProperty('clearAgentSigners');
+      expect(mockProvider.clearAgentSigners.mock.calls).toStrictEqual([[], []]);
+      expect(aggregatedConstructor.mock.calls).toStrictEqual([
+        [
+          {
+            providers,
+            defaultProvider: 'hyperliquid',
+            infrastructure: mockInfrastructure,
+            isTestnet: true,
+          },
+        ],
+      ]);
     });
 
     it("returns the active provider's trading wallet readiness", async () => {
@@ -1128,7 +1232,7 @@ describe('PerpsController', () => {
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
-      expect(mockProvider.prepareTradingWallet).toHaveBeenCalledTimes(1);
+      expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([[]]);
     });
 
     it('reports a trading wallet ready when the provider has no deferred setup', async () => {

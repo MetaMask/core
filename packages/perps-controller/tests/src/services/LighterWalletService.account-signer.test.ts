@@ -1,5 +1,6 @@
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
+import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
 import {
   createKeyringMessenger,
   createKeyringlessMessenger,
@@ -8,8 +9,6 @@ import {
   keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
-const SIGNATURE = `0x${'ab'.repeat(65)}` as const;
-
 function createSigner(isReady?: () => boolean): {
   signTypedData: jest.Mock;
   signPersonalMessage: jest.Mock;
@@ -17,7 +16,7 @@ function createSigner(isReady?: () => boolean): {
 } {
   return {
     signTypedData: jest.fn(),
-    signPersonalMessage: jest.fn().mockResolvedValue(SIGNATURE),
+    signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady,
   };
 }
@@ -33,7 +32,7 @@ describe('LighterWalletService with accountSigner', () => {
 
     const signature = await service.signPersonalMessage('hello');
 
-    expect(signature).toBe(SIGNATURE);
+    expect(signature).toBe(MAIN_SIGNATURE);
     expect(signer.signPersonalMessage).toHaveBeenCalledWith(
       createMockEvmAccount().address,
       'hello',
@@ -96,7 +95,10 @@ describe('LighterWalletService.isMainAccountSignerReady', () => {
   ])(
     "follows the keyring's unlock state without an account signer (%s)",
     (_state, isUnlocked) => {
-      const { messenger, call } = createKeyringMessenger(SIGNATURE, isUnlocked);
+      const { messenger, call } = createKeyringMessenger(
+        MAIN_SIGNATURE,
+        isUnlocked,
+      );
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
         messenger,
