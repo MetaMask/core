@@ -62,6 +62,22 @@ export class AgentBindings {
   }
 
   /**
+   * Drop the binding of an agent the venue rejected (revoked or expired), so
+   * `getAgentSigner` answers for that account and network again. A binding
+   * to another agent, or a pin, is kept.
+   *
+   * @param account - The main account and network the agent signed for.
+   * @param agentAddress - The rejected agent's address.
+   */
+  release(account: PerpsAgentAccount, agentAddress: string): void {
+    const key = this.#getKey(account);
+    const bound = this.#bindings.get(key);
+    if (bound && bound.address.toLowerCase() === agentAddress.toLowerCase()) {
+      this.#bindings.delete(key);
+    }
+  }
+
+  /**
    * Resolve the agent for an L1 action: the binding when there is one, else
    * the host's `getAgentSigner` answer.
    *

@@ -271,7 +271,7 @@ describe('LighterProvider with accountSigner', () => {
     });
   });
 
-  it('does not log a declined venue-key signature', async () => {
+  it('reports a declined venue-key signature as a retry without logging', async () => {
     const { provider, accountSigner, deps } = buildProvider();
     accountSigner.signPersonalMessage.mockRejectedValue(
       Object.assign(new Error('User rejected the request.'), { code: 4001 }),
@@ -280,12 +280,31 @@ describe('LighterProvider with accountSigner', () => {
 
     const result = await provider.prepareTradingWallet();
 
-    expect(result.ready).toBe(false);
-    expect(result.error).toContain('User rejected');
+    expect(result).toStrictEqual({ ready: false });
     expect(loggerError).not.toHaveBeenCalled();
   });
 
-  it('does not log a wallet that has no Lighter account yet', async () => {
+  it.each([
+    [
+      'an EIP-1193 rejection code',
+      Object.assign(new Error('Rejected'), { code: 4001 }),
+    ],
+    ['a "User denied" message', new Error('User denied message signature.')],
+  ])(
+    'reports a decline signalled by %s as a retry without logging',
+    async (_signal, rejection) => {
+      const { provider, accountSigner, deps } = buildProvider();
+      accountSigner.signPersonalMessage.mockRejectedValue(rejection);
+      const loggerError = jest.spyOn(deps.logger, 'error');
+
+      const result = await provider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: false });
+      expect(loggerError).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reports a wallet with no Lighter account yet as a retry without logging', async () => {
     const { provider, client, deps } = buildProvider({
       findAccountByAddress: true,
     });
@@ -296,12 +315,11 @@ describe('LighterProvider with accountSigner', () => {
 
     const result = await provider.prepareTradingWallet();
 
-    expect(result.ready).toBe(false);
-    expect(result.error).toContain('No Lighter account exists');
+    expect(result).toStrictEqual({ ready: false });
     expect(loggerError).not.toHaveBeenCalled();
   });
 
-  it('reports a missing signer bridge without logging', async () => {
+  it('reports and logs a missing signer bridge', async () => {
     const { provider, deps } = buildProvider({ withoutBridge: true });
     const loggerError = jest.spyOn(deps.logger, 'error');
 
@@ -310,6 +328,37 @@ describe('LighterProvider with accountSigner', () => {
     expect(result).toStrictEqual({
       ready: false,
       error: 'Lighter signer bridge not configured',
+    });
+    expect(loggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Lighter signer bridge not configured',
+      }),
+      {
+        tags: {
+          feature: 'perps',
+          provider: 'LighterProvider',
+          network: 'testnet',
+        },
+        context: {
+          name: 'LighterProvider.prepareTradingWallet',
+          data: { isTestnet: true },
+        },
+      },
+    );
+  });
+
+  it('reports KEYRING_LOCKED when the keyring locks during registration', async () => {
+    const { provider, accountSigner, deps } = buildProvider();
+    accountSigner.signPersonalMessage.mockRejectedValue(
+      new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
+    );
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
     expect(loggerError).not.toHaveBeenCalled();
   });

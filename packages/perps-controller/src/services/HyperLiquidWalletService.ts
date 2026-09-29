@@ -97,14 +97,16 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Check whether the selected EVM account is backed by hardware. The
-   * injected account signer's `isHardwareWallet()` decides when it answers;
-   * otherwise the selected account's keyring type does.
+   * Check whether every signature of the selected EVM account needs a user
+   * confirmation, as with hardware. The injected account signer's
+   * `requiresSignatureConfirmation()` decides when it answers; otherwise the
+   * selected account's keyring type does.
    *
-   * @returns True for hardware-backed accounts; false for software accounts.
+   * @returns True when signatures need a confirmation; false otherwise.
    */
   public isSelectedHardwareWallet(): boolean {
-    const declared = this.#deps.accountSigner?.isHardwareWallet?.();
+    const declared =
+      this.#deps.accountSigner?.requiresSignatureConfirmation?.();
     if (declared !== undefined) {
       return declared;
     }

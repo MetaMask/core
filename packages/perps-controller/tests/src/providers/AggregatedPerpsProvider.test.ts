@@ -1067,7 +1067,7 @@ describe('AggregatedPerpsProvider', () => {
       const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
       const prepareLighter = jest.fn().mockResolvedValue({
         ready: false,
-        error: 'KEYRING_LOCKED',
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
       Object.assign(mockHLProvider, {
         prepareTradingWallet: prepareHyperLiquid,
@@ -1078,7 +1078,10 @@ describe('AggregatedPerpsProvider', () => {
 
       const result = await aggregatedProvider.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: false, error: 'KEYRING_LOCKED' });
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
       expect(prepareHyperLiquid).toHaveBeenCalledTimes(1);
       expect(prepareLighter).toHaveBeenCalledTimes(1);
     });
@@ -1136,6 +1139,33 @@ describe('AggregatedPerpsProvider', () => {
             data: { providerId: 'hyperliquid' },
           },
         },
+      );
+    });
+
+    it('tags a logged preparation failure with the network', async () => {
+      const testnetProvider = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+        isTestnet: true,
+      });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: jest
+          .fn()
+          .mockRejectedValue(new Error('provider crashed')),
+      });
+
+      await testnetProvider.prepareTradingWallet();
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'provider crashed' }),
+        expect.objectContaining({
+          tags: {
+            feature: 'perps',
+            provider: 'hyperliquid',
+            network: 'testnet',
+          },
+        }),
       );
     });
 

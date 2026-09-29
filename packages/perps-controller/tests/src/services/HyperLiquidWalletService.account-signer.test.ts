@@ -44,7 +44,7 @@ const TYPED_DATA: PerpsTypedDataPayload = {
 type SignerOverrides = {
   signTypedData?: jest.Mock;
   isReady?: () => boolean;
-  isHardwareWallet?: () => boolean;
+  requiresSignatureConfirmation?: () => boolean;
 };
 
 type Built = {
@@ -62,7 +62,7 @@ function buildService(
       overrides.signTypedData ?? jest.fn().mockResolvedValue(SIGNATURE),
     signPersonalMessage: jest.fn().mockResolvedValue(SIGNATURE),
     isReady: overrides.isReady,
-    isHardwareWallet: overrides.isHardwareWallet,
+    requiresSignatureConfirmation: overrides.requiresSignatureConfirmation,
   };
   const { messenger, call } = createKeyringlessMessenger(keyringType);
   const service = new HyperLiquidWalletService(
@@ -119,18 +119,18 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
-  it('treats the account as hardware when isHardwareWallet returns true', () => {
+  it('treats the account as hardware when requiresSignatureConfirmation returns true', () => {
     const { service } = buildService(
-      { isHardwareWallet: () => true },
+      { requiresSignatureConfirmation: () => true },
       'HD Key Tree',
     );
 
     expect(service.isSelectedHardwareWallet()).toBe(true);
   });
 
-  it('treats the account as software when isHardwareWallet returns false', () => {
+  it('treats the account as software when requiresSignatureConfirmation returns false', () => {
     const { service } = buildService(
-      { isHardwareWallet: () => false },
+      { requiresSignatureConfirmation: () => false },
       'Ledger Hardware',
     );
 
@@ -141,7 +141,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     ['Ledger Hardware', true],
     ['HD Key Tree', false],
   ])(
-    'falls back to the %s keyring type when isHardwareWallet is omitted',
+    'falls back to the %s keyring type when requiresSignatureConfirmation is omitted',
     (keyringType, expected) => {
       const { service } = buildService({}, keyringType);
 

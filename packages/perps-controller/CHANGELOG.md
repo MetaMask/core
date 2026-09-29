@@ -16,22 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export the new `PerpsAccountSigner` and `PerpsTypedDataPayload` types
   - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it and never call the `KeyringController:*` messenger actions; the signing address still comes from the messenger's selected account
   - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code
-  - `isHardwareWallet()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
+  - `requiresSignatureConfirmation()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
 - Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
-  - Add optional `providerCredentials.hyperliquid.getAgentSigner(account)`, which resolves the approved agent (new exported `PerpsAgentSigner` and `PerpsAgentAccount` types) when an L1 action is signed for that main account and network, including the unified-account migration the provider may sign while connecting; an agent it returns is kept for the provider's lifetime or until `setAgentSigner`/`clearAgentSigners`, while `null` and failures (including an agent whose signing rejects) are asked again at the next L1 action
+  - Add optional `providerCredentials.hyperliquid.getAgentSigner(account)`, which resolves the approved agent (new exported `PerpsAgentSigner` and `PerpsAgentAccount` types) when an L1 action is signed for that main account and network, including the unified-account migration the provider may sign while connecting; an agent it returns is kept for the provider's lifetime or until `setAgentSigner`/`clearAgentSigners`, while `null` and failures are asked again at the next L1 action; an agent whose signing rejects fails that action and stays in use, so a host calls `clearAgentSigners` when its agent key locks
   - Add `PerpsController:setAgentSigner(account, agentSigner)` (`PerpsControllerSetAgentSignerAction`) to bind an agent to an explicit main account and network, or pin that account to the main wallet with `null`; the controller keeps bindings across provider re-creation and they can be set before `init`
   - Add `PerpsController:clearAgentSigners` (`PerpsControllerClearAgentSignersAction`) to forget every agent, for example when the wallet locks, so the next L1 action asks `getAgentSigner` again
   - Add optional `PerpsProvider.clearAgentSigners`, implemented by the HyperLiquid provider
+  - An agent the venue rejects as unknown (revoked or expired, for example after the user approves another unnamed agent) is dropped, together with a `setAgentSigner` binding to it, so the next L1 action asks `getAgentSigner` again; the rejected action fails with `KEYRING_LOCKED` instead of `EXCHANGE_ACCOUNT_NOT_FOUND`
   - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, the user-signed migration from `dexAbstraction`, ...) always stay on the main account; approving the agent remains the client's job
   - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
 - Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run setup that needs a main-account signature before the first order: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
   - Resolves a `ReadyToTradeResult` that is `ready: true` once the main-account signer is ready and none of these steps will ask it to sign again before the first order; the aggregated provider prepares every provider in turn
+  - Add optional `isTestnet` to `AggregatedProviderConfig`, which tags the errors the aggregated provider logs
 
 ### Removed
 
 - **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig` ([#10559](https://github.com/MetaMask/core/pull/10559))
   - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
   - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
+
+### Fixed
+
+- HyperLiquid orders and other exchange writes that fail because the signer cannot sign (a locked keyring) now fail with `KEYRING_LOCKED` instead of the SDK's "Failed to sign the typed data using the wallet" message, and a failed order for that reason is no longer reported as an error ([#10559](https://github.com/MetaMask/core/pull/10559))
 
 ## [18.0.1]
 

@@ -2354,9 +2354,13 @@ describe('HyperLiquidProvider', () => {
     }
 
     type Options = {
-      signer?: { isReady?: () => boolean; isHardwareWallet?: () => boolean };
+      signer?: {
+        isReady?: () => boolean;
+        requiresSignatureConfirmation?: () => boolean;
+      };
       abstraction?: 'dexAbstraction' | 'default' | 'unifiedAccount';
       getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
+      onAgentRejected?: jest.Mock;
       // Sign through a KeyringController instead of accountSigner.
       keyring?: boolean;
     };
@@ -2388,17 +2392,28 @@ describe('HyperLiquidProvider', () => {
       });
       Object.assign(mockClientService, { initialize });
       const signThroughSdkWallet =
-        (payload: PerpsTypedDataPayload) => async () => {
+        (
+          payload: PerpsTypedDataPayload,
+          response: Record<string, unknown> = { status: 'ok' },
+        ) =>
+        async () => {
           if (!sdkWallet) {
             throw new Error('SDK used before initialize');
           }
           await sdkWallet.signTypedData(payload);
-          return { status: 'ok' };
+          return response;
         };
       const exchangeClient = createMockExchangeClient({
         userSetAbstraction: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
         agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
         setReferrer: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
+        approveBuilderFee: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
+        order: jest.fn(
+          signThroughSdkWallet(L1_PAYLOAD, {
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+          }),
+        ),
       });
       mockClientService.getExchangeClient = jest
         .fn()
@@ -2420,6 +2435,7 @@ describe('HyperLiquidProvider', () => {
           ['ETH', 1],
         ],
         getAgentSigner: options.getAgentSigner,
+        onAgentRejected: options.onAgentRejected,
       });
       return {
         accountSignerProvider,
@@ -2452,7 +2468,7 @@ describe('HyperLiquidProvider', () => {
     it('defers the init-time migration when accountSigner reports a hardware wallet', async () => {
       const { accountSignerProvider, accountSigner, call, exchangeClient } =
         createAccountSignerProvider({
-          signer: { isHardwareWallet: () => true },
+          signer: { requiresSignatureConfirmation: () => true },
         });
 
       await accountSignerProvider.getMarketDataWithPrices();
@@ -2481,7 +2497,7 @@ describe('HyperLiquidProvider', () => {
       it('runs the deferred migration, builder fee and referral setup and reports ready', async () => {
         const { accountSignerProvider, accountSigner, exchangeClient } =
           createAccountSignerProvider({
-            signer: { isHardwareWallet: () => true },
+            signer: { requiresSignatureConfirmation: () => true },
           });
         await accountSignerProvider.getMarketDataWithPrices();
 
@@ -2499,10 +2515,65 @@ describe('HyperLiquidProvider', () => {
         ).toHaveBeenCalled();
       });
 
+      it('signs every setup step, so the first order signs only itself', async () => {
+        const { accountSignerProvider, accountSigner, exchangeClient } =
+          createAccountSignerProvider({
+            signer: { requiresSignatureConfirmation: () => true },
+          });
+        await accountSignerProvider.getMarketDataWithPrices();
+        // Not approved yet; the venue reports the approval once signed.
+        (
+          mockClientService.getInfoClient().maxBuilderFee as jest.Mock
+        ).mockResolvedValueOnce(0);
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+        const setupSignatures = [...accountSigner.signTypedData.mock.calls];
+        accountSigner.signTypedData.mockClear();
+        rememberMigration();
+        const order = await accountSignerProvider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(result).toStrictEqual({ ready: true });
+        // Migration, referral, builder fee approval.
+        expect(setupSignatures).toStrictEqual([
+          [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+          [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+        ]);
+        expect(order.success).toBe(true);
+        expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+          [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        ]);
+        expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
+        expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      });
+
+      it('makes its own referral attempt when another provider ended without a result', async () => {
+        const { accountSignerProvider, exchangeClient } =
+          createAccountSignerProvider({ abstraction: 'unifiedAccount' });
+        const signingCache = PerpsSigningCache as jest.Mocked<
+          typeof PerpsSigningCache
+        >;
+        signingCache.isInFlight.mockImplementation((kind) =>
+          kind === 'referral' ? Promise.resolve() : undefined,
+        );
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+        expect(result).toStrictEqual({ ready: true });
+      });
+
       it('signs nothing more when called again', async () => {
         const { accountSignerProvider, accountSigner } =
           createAccountSignerProvider({
-            signer: { isHardwareWallet: () => true },
+            signer: { requiresSignatureConfirmation: () => true },
           });
         const readinessCache = TradingReadinessCache as jest.Mocked<
           typeof TradingReadinessCache
@@ -2534,7 +2605,7 @@ describe('HyperLiquidProvider', () => {
       it('reports ready after the user declines the migration, since it is not asked again', async () => {
         const { accountSignerProvider, accountSigner } =
           createAccountSignerProvider({
-            signer: { isHardwareWallet: () => true },
+            signer: { requiresSignatureConfirmation: () => true },
           });
         accountSigner.signTypedData.mockImplementation(
           async (_address: string, payload: PerpsTypedDataPayload) => {
@@ -3108,6 +3179,180 @@ describe('HyperLiquidProvider', () => {
         expect(firstResult).toStrictEqual({ ready: false });
         expect(secondResult).toStrictEqual({ ready: true });
         expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(2);
+      });
+
+      describe('when the venue rejects the agent', () => {
+        const rejection = (address: string): Error =>
+          new Error(`User or API Wallet ${address} does not exist.`);
+
+        /**
+         * A provider whose L1 writes are signed by the agent, then rejected
+         * by the venue as an unknown wallet.
+         *
+         * @param write - The exchange write that fails.
+         * @returns The provider, its mocks and the rejected agent.
+         */
+        function createRejectingProvider(
+          write: 'order' | 'agentSetAbstraction' | 'setReferrer',
+        ) {
+          const getAgentSigner = jest.fn();
+          const onAgentRejected = jest.fn();
+          const built = createAccountSignerProvider({
+            abstraction:
+              write === 'agentSetAbstraction' ? 'default' : 'unifiedAccount',
+            getAgentSigner,
+            onAgentRejected,
+          });
+          getAgentSigner.mockResolvedValue(built.agentSigner);
+          built.exchangeClient[write].mockImplementation(async () => {
+            await built.initialize.mock.calls[0][0].signTypedData(L1_PAYLOAD);
+            throw rejection(built.agentSigner.address);
+          });
+          return { ...built, getAgentSigner, onAgentRejected };
+        }
+
+        it('fails the order with KEYRING_LOCKED, drops the agent and asks again', async () => {
+          const {
+            accountSignerProvider,
+            agentSigner,
+            getAgentSigner,
+            onAgentRejected,
+            initialize,
+          } = createRejectingProvider('order');
+          await accountSignerProvider.getMarketDataWithPrices();
+
+          const order = await accountSignerProvider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            currentPrice: 50000,
+          });
+          await initialize.mock.calls[0][0].signTypedData(L1_PAYLOAD);
+
+          expect(order).toStrictEqual(
+            expect.objectContaining({
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            }),
+          );
+          expect(onAgentRejected).toHaveBeenCalledWith(
+            MAINNET_ACCOUNT,
+            agentSigner.address,
+          );
+          expect(getAgentSigner).toHaveBeenCalledTimes(2);
+          expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('retries the silent migration instead of recording no HyperLiquid account', async () => {
+          const {
+            accountSignerProvider,
+            agentSigner,
+            onAgentRejected,
+            exchangeClient,
+          } = createRejectingProvider('agentSetAbstraction');
+
+          await accountSignerProvider.getMarketDataWithPrices();
+          await accountSignerProvider.getMarketDataWithPrices();
+
+          expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledTimes(2);
+          expect(onAgentRejected).toHaveBeenCalledWith(
+            MAINNET_ACCOUNT,
+            agentSigner.address,
+          );
+          expect(
+            mockPlatformDependencies.metrics.trackPerpsEvent,
+          ).not.toHaveBeenCalledWith(
+            'Perp Account Setup',
+            expect.objectContaining({ status: 'failed' }),
+          );
+          expect(
+            (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+              .set,
+          ).not.toHaveBeenCalled();
+          expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('retries the referral instead of recording a failure', async () => {
+          const {
+            accountSignerProvider,
+            agentSigner,
+            onAgentRejected,
+            exchangeClient,
+          } = createRejectingProvider('setReferrer');
+
+          const result = await accountSignerProvider.prepareTradingWallet();
+
+          expect(result).toStrictEqual({ ready: false });
+          expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+          expect(onAgentRejected).toHaveBeenCalledWith(
+            MAINNET_ACCOUNT,
+            agentSigner.address,
+          );
+          expect(
+            (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
+              .setReferral,
+          ).not.toHaveBeenCalled();
+          expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('keeps treating a rejected main account as a wallet with no HyperLiquid account', async () => {
+          const getAgentSigner = jest.fn().mockResolvedValue(null);
+          const onAgentRejected = jest.fn();
+          const { accountSignerProvider, exchangeClient, initialize } =
+            createAccountSignerProvider({
+              abstraction: 'unifiedAccount',
+              getAgentSigner,
+              onAgentRejected,
+            });
+          exchangeClient.order.mockImplementation(async () => {
+            await initialize.mock.calls[0][0].signTypedData(L1_PAYLOAD);
+            throw rejection(ACCOUNT_ADDRESS);
+          });
+          await accountSignerProvider.getMarketDataWithPrices();
+
+          const order = await accountSignerProvider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            currentPrice: 50000,
+          });
+
+          expect(order).toStrictEqual(
+            expect.objectContaining({
+              success: false,
+              error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+            }),
+          );
+          expect(onAgentRejected).not.toHaveBeenCalled();
+        });
+      });
+
+      it('fails an order with KEYRING_LOCKED without reporting it when getAgentSigner rejects', async () => {
+        const getAgentSigner = jest.fn().mockResolvedValue(null);
+        const { accountSignerProvider } = createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+        });
+        await accountSignerProvider.getMarketDataWithPrices();
+        getAgentSigner.mockRejectedValue(new Error('agent store unavailable'));
+
+        const order = await accountSignerProvider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(order).toStrictEqual(
+          expect.objectContaining({
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          }),
+        );
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       });
 
       it('reports a failed answer asked again after a clear as unavailable', async () => {

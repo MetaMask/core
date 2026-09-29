@@ -1126,8 +1126,10 @@ export type HyperLiquidCredentials = {
    * `setAgentSigner`/`clearAgentSigners`; null is not kept, so it is asked
    * again at the next L1 action. With an agent, L1 actions are signed by the
    * agent key and user-signed actions (builder fee, withdraw, ...) by the main
-   * account. A rejection, or an agent whose `signTypedData` rejects, fails
-   * that action and is retried at the next one.
+   * account. A rejection fails that action and is asked again at the next
+   * one. An agent whose `signTypedData` rejects fails that action and stays
+   * in use, so call `PerpsController:clearAgentSigners` when the agent key
+   * locks.
    */
   getAgentSigner?: (
     account: PerpsAgentAccount,
@@ -2264,6 +2266,8 @@ export type AggregatedProviderConfig = {
   aggregationMode?: AggregationMode;
   /** Platform dependencies for logging, metrics, etc. */
   infrastructure: PerpsPlatformDependencies;
+  /** Whether the providers run on testnet; tags the errors it logs. */
+  isTestnet?: boolean;
 };
 
 /**
@@ -2665,7 +2669,7 @@ export type PerpsAccountSigner = {
    * defers its optional init-time signing prompts to action time. When
    * omitted, the selected account's keyring type decides.
    */
-  isHardwareWallet?(): boolean;
+  requiresSignatureConfirmation?(): boolean;
 };
 
 /**

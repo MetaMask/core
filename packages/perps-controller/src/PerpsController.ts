@@ -2376,6 +2376,8 @@ export class PerpsController extends BaseController<
           ?.subscriptionBuilderAddressMainnet,
       onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
       getAgentSigner: this.#agentBindings.resolve,
+      onAgentRejected: (account, agentAddress): void =>
+        this.#agentBindings.release(account, agentAddress),
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -2484,6 +2486,7 @@ export class PerpsController extends BaseController<
         providers: this.providers,
         defaultProvider: 'hyperliquid',
         infrastructure: this.#options.infrastructure,
+        isTestnet: this.state.isTestnet,
       });
       this.#debugLog(
         'PerpsController: Using aggregated provider (multi-provider)',
@@ -5915,6 +5918,9 @@ export class PerpsController extends BaseController<
    * @returns `ready: true` when none of these steps will ask the main account
    * to sign again before the first order; providers without deferred setup
    * are ready.
+   * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
+   * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
+   * when no active provider is available.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     const provider = await this.#getActiveProviderWhenReady();

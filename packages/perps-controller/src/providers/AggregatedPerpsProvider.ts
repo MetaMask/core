@@ -158,6 +158,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   readonly #deps: PerpsPlatformDependencies;
 
+  readonly #isTestnet: boolean | undefined;
+
   readonly #router: ProviderRouter;
 
   readonly #subscriptionMux: SubscriptionMultiplexer;
@@ -167,6 +169,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     this.#defaultProvider = config.defaultProvider;
     this.#aggregationMode = config.aggregationMode ?? 'all';
     this.#deps = config.infrastructure;
+    this.#isTestnet = config.isTestnet;
 
     // Initialize router with default provider
     this.#router = new ProviderRouter({
@@ -1073,6 +1076,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           tags: {
             feature: PERPS_CONSTANTS.FeatureName,
             provider: providerId,
+            ...(this.#isTestnet !== undefined && {
+              network: this.#isTestnet ? 'testnet' : 'mainnet',
+            }),
           },
           context: {
             name: 'AggregatedPerpsProvider.prepareTradingWallet',

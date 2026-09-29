@@ -844,6 +844,8 @@ type HyperLiquidProviderOptions = {
   subscriptionBuilderAddressMainnet?: string;
   onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
   getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
+  // Told when the venue rejects a resolved agent (revoked or expired).
+  onAgentRejected?: (account: PerpsAgentAccount, agentAddress: Hex) => void;
 };
 
 type HandleHip3PreOrderParams = {
@@ -1554,6 +1556,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #agentSigners = new Map<string, Promise<PerpsAgentSigner | null>>();
 
+  // The agents those answers resolved to, so a venue rejection of one can be
+  // matched to its account and evicted.
+  readonly #resolvedAgents = new Map<
+    string,
+    { account: PerpsAgentAccount; agentSigner: PerpsAgentSigner }
+  >();
+
+  readonly #onAgentRejected: HyperLiquidProviderOptions['onAgentRejected'];
+
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
 
@@ -1589,6 +1600,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#subscriptionBuilderAddressMainnet =
       options.subscriptionBuilderAddressMainnet;
     this.#getAgentSigner = options.getAgentSigner;
+    this.#onAgentRejected = options.onAgentRejected;
     this.#onChaseOrderMaxDistanceReached =
       options.onChaseOrderMaxDistanceReached;
     this.#priceDeviationLimit =
@@ -2119,10 +2131,63 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (isSuperseded()) {
       return await this.#resolveAgentSigner(mainAddress);
     }
-    if (!agentSigner) {
+    if (agentSigner) {
+      this.#resolvedAgents.set(key, { account, agentSigner });
+    } else {
       this.#agentSigners.delete(key);
+      this.#resolvedAgents.delete(key);
     }
     return agentSigner;
+  }
+
+  /**
+   * The key of the resolved agent a venue rejection names. HyperLiquid
+   * answers "User or API Wallet 0x... does not exist." with the signer's
+   * address, so for a revoked or expired agent it reads like a wallet with
+   * no account.
+   *
+   * @param error - The caught error.
+   * @returns The agent key, or undefined when no resolved agent is rejected.
+   */
+  #findRejectedAgentKey(error: unknown): string | undefined {
+    if (!isHyperLiquidUserNotFoundError(error)) {
+      return undefined;
+    }
+    const rejected = /user or api wallet (0x[0-9a-f]{40})/iu
+      .exec(
+        ensureError(error, 'HyperLiquidProvider.findRejectedAgentKey').message,
+      )?.[1]
+      ?.toLowerCase();
+    for (const [key, { agentSigner }] of this.#resolvedAgents) {
+      if (agentSigner.address.toLowerCase() === rejected) {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Evict a resolved agent the venue rejected, so the next L1 action asks
+   * for one again, and tell the owner of the bindings.
+   *
+   * @param error - The caught error.
+   * @returns True when the error was a rejection of a resolved agent.
+   */
+  #evictRejectedAgent(error: unknown): boolean {
+    const key = this.#findRejectedAgentKey(error);
+    const rejected =
+      key === undefined ? undefined : this.#resolvedAgents.get(key);
+    if (key === undefined || !rejected) {
+      return false;
+    }
+    this.#agentSigners.delete(key);
+    this.#resolvedAgents.delete(key);
+    this.#deps.debugLogger.log(
+      'HyperLiquidProvider: agent rejected by the venue, asking again',
+      { agent: rejected.agentSigner.address },
+    );
+    this.#onAgentRejected?.(rejected.account, rejected.agentSigner.address);
+    return true;
   }
 
   /**
@@ -2522,7 +2587,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      if (isAgentSignerUnavailableError(error)) {
+      if (
+        isAgentSignerUnavailableError(error) ||
+        this.#evictRejectedAgent(error)
+      ) {
         this.#deps.debugLogger.log(
           '[ensureUnifiedAccountEnabled] Agent signer unavailable, will retry later',
         );
@@ -4128,6 +4196,17 @@ export class HyperLiquidProvider implements PerpsProvider {
   #mapError(error: unknown): Error {
     const { message } = ensureError(error, 'HyperLiquidProvider.mapError');
 
+    // The signer could not sign this action: a locked keyring, an unavailable
+    // agent, or an agent the venue rejected (revoked or expired; evicted here
+    // so the next action asks for one again). The next attempt retries.
+    if (
+      isKeyringLockedError(error) ||
+      isAgentSignerUnavailableError(error) ||
+      this.#evictRejectedAgent(error)
+    ) {
+      return new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    }
+
     // "User or API Wallet 0x... does not exist." carries the user's address, so
     // it cannot be matched by the static substring table below. It means the
     // wallet has no Hyperliquid account yet — surface an actionable code the
@@ -5529,6 +5608,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<OrderResult> {
     const { error, symbol, orderType, isBuy } = params;
     const mappedError = this.#mapError(error);
+
+    // The signer could not sign (see #mapError): retryable, not a defect.
+    if (mappedError.message === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+      this.#deps.debugLogger.log(
+        '[handleOrderError] Signer unavailable, the order can be retried',
+        { symbol, orderType, isBuy },
+      );
+      return createErrorResult(mappedError, { success: false });
+    }
 
     // A wallet with no Hyperliquid account is an expected pre-account state,
     // not an app defect — same policy already applied to every other
@@ -14198,6 +14286,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   clearAgentSigners(): void {
     this.#agentSignersGeneration += 1;
     this.#agentSigners.clear();
+    this.#resolvedAgents.clear();
   }
 
   /**
@@ -15373,7 +15462,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         { network },
       );
       await inFlightPromise;
-      return;
+      // The other attempt may have ended without caching a result (a locked
+      // keyring or an unavailable agent), so make our own attempt then.
+      if (PerpsSigningCache.getReferral(network, userAddress)?.attempted) {
+        return;
+      }
     }
 
     // Set global in-flight lock
@@ -15456,7 +15549,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      if (isAgentSignerUnavailableError(error)) {
+      if (
+        isAgentSignerUnavailableError(error) ||
+        this.#evictRejectedAgent(error)
+      ) {
         this.#deps.debugLogger.log(
           '[ensureReferralSet] Agent signer unavailable, will retry later',
         );
@@ -15626,6 +15722,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return result?.status === 'ok';
     } catch (error) {
+      // Retryable (an unavailable agent, or one the venue rejected):
+      // `#ensureReferralSet` retries at the next entry, so it is not an error
+      // to report.
+      if (
+        isAgentSignerUnavailableError(error) ||
+        this.#findRejectedAgentKey(error) !== undefined
+      ) {
+        throw error;
+      }
       // Benign for unfunded wallets — downgrade and rethrow so the outer
       // `#ensureReferralSet` catch self-heals the walletRegistered gate
       // without forwarding to Sentry.
@@ -15637,11 +15742,6 @@ export class HyperLiquidProvider implements PerpsProvider {
               .message,
           },
         );
-        throw error;
-      }
-      // Retryable: `#ensureReferralSet` records it and retries at the next
-      // entry, so it is not an error to report.
-      if (isAgentSignerUnavailableError(error)) {
         throw error;
       }
       this.#deps.logger.error(

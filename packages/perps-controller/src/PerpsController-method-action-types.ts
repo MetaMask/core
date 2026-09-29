@@ -948,6 +948,9 @@ export type PerpsControllerClearAgentSignersAction = {
  * @returns `ready: true` when none of these steps will ask the main account
  * to sign again before the first order; providers without deferred setup
  * are ready.
+ * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
+ * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
+ * when no active provider is available.
  */
 export type PerpsControllerPrepareTradingWalletAction = {
   type: `PerpsController:prepareTradingWallet`;

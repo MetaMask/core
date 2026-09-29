@@ -1105,6 +1105,40 @@ describe('PerpsController', () => {
       expect(mockProvider.clearAgentSigners).toHaveBeenCalledTimes(2);
     });
 
+    it('drops only a binding to the agent the venue rejected', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(null);
+      controller = createAgentController(getAgentSigner);
+      await controller.init();
+      const { calls } = (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mock;
+      const { onAgentRejected } = calls[calls.length - 1][0];
+      const resolve = getProviderAgentResolver();
+      const otherAgent = '0x00000000000000000000000000000000000b0b02';
+
+      controller.setAgentSigner(account, agentSigner);
+      onAgentRejected?.(account, otherAgent);
+      const keptForOtherAgent = await resolve(account);
+      onAgentRejected?.(account, agentSigner.address);
+      const afterRejection = await resolve(account);
+      controller.setAgentSigner(account, null);
+      onAgentRejected?.(account, agentSigner.address);
+      const pinKept = await resolve(account);
+
+      expect(keptForOtherAgent).toBe(agentSigner);
+      expect(afterRejection).toBeNull();
+      expect(pinKept).toBeNull();
+      expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
+    });
+
+    it('prepareTradingWallet rejects before init like other provider actions', async () => {
+      controller = createAgentController();
+
+      await expect(controller.prepareTradingWallet()).rejects.toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+    });
+
     it('clearAgentSigners does not need an initialized provider', () => {
       controller = createAgentController();
 
@@ -1132,14 +1166,18 @@ describe('PerpsController', () => {
     });
 
     it("prepareTradingWallet returns the active provider's readiness", async () => {
-      mockProvider.prepareTradingWallet = jest
-        .fn()
-        .mockResolvedValue({ ready: false, error: 'KEYRING_LOCKED' });
+      mockProvider.prepareTradingWallet = jest.fn().mockResolvedValue({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
       await controller.init();
 
       const result = await controller.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: false, error: 'KEYRING_LOCKED' });
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
       expect(mockProvider.prepareTradingWallet).toHaveBeenCalledTimes(1);
     });
 
