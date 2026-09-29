@@ -256,6 +256,7 @@ describe('Relay Submit Utils', () => {
           value: '0x4d2',
         },
         {
+          forceIsGasFeeSponsored: false,
           gasFeeToken: undefined,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: ORIGIN_METAMASK,
@@ -266,46 +267,27 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('passes sponsored gas options when parent sponsorship applies to same-chain quote', async () => {
-      request.transaction.txParams.from =
-        '0x1234567890123456789012345678901234567892';
-      request.transaction.chainId = CHAIN_ID_MOCK;
-      request.transaction.isGasFeeSponsored = true;
-      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
-      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+    it('forces sponsorship when the quote was sponsored', async () => {
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+      request.quotes[0].original.metamask.isSourceGasFeeSponsored = true;
 
       await submitRelayQuotes(request);
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({
-          isGasFeeSponsored: true,
+          forceIsGasFeeSponsored: true,
+          gasFeeToken: undefined,
         }),
       );
     });
 
     it.each([1, 2])(
-      'does not sponsor %i source calls when the payer is unsupported despite a supported parent',
+      'does not force sponsorship for %i source calls when the quote was not sponsored',
       async (callCount) => {
-        const parentFrom = '0x1234567890123456789012345678901234567892';
-        getKeyringControllerStateMock.mockReturnValue({
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: 'HD Key Tree',
-              accounts: [parentFrom],
-              metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
-            },
-            {
-              type: 'Ledger Hardware',
-              accounts: [FROM_MOCK],
-              metadata: { id: 'ledger-keyring', name: 'Ledger Hardware' },
-            },
-          ],
-        });
-        request.transaction.txParams.from = parentFrom;
         request.transaction.chainId = CHAIN_ID_MOCK;
-        request.transaction.isGasFeeSponsored = true;
+        request.transaction.forceIsGasFeeSponsored = true;
+        request.transaction.isGasFeeSponsoredAvailable = true;
         request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
         request.quotes[0].original.details.currencyOut.currency.chainId = 1;
         if (callCount === 2) {
@@ -322,14 +304,14 @@ describe('Relay Submit Utils', () => {
             gas: '0x5208',
           }),
           expect.objectContaining({
-            isGasFeeSponsored: false,
+            forceIsGasFeeSponsored: false,
             gasFeeToken: undefined,
           }),
         ];
         const batchArgs = [
           expect.objectContaining({
             from: FROM_MOCK,
-            isGasFeeSponsored: false,
+            forceIsGasFeeSponsored: false,
             gasFeeToken: undefined,
             gasLimit7702: undefined,
             disable7702: true,
@@ -589,6 +571,7 @@ describe('Relay Submit Utils', () => {
         disable7702: true,
         disableHook: false,
         disableSequential: false,
+        forceIsGasFeeSponsored: false,
         from: FROM_MOCK,
         gasFeeToken: undefined,
         gasLimit7702: undefined,
@@ -1614,9 +1597,9 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('passes sponsored gas options to same-chain batch submissions', async () => {
+    it('forces sponsorship for batch submissions when the quote was sponsored', async () => {
+      request.quotes[0].original.metamask.isSourceGasFeeSponsored = true;
       request.transaction.chainId = CHAIN_ID_MOCK;
-      request.transaction.isGasFeeSponsored = true;
       request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.steps[0].items.push({
@@ -1627,7 +1610,7 @@ describe('Relay Submit Utils', () => {
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          isGasFeeSponsored: true,
+          forceIsGasFeeSponsored: true,
         }),
       );
     });

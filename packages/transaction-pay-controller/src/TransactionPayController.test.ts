@@ -479,6 +479,37 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('isGasFeeSponsored', () => {
+    it('delegates to the callback', async () => {
+      const isGasFeeSponsoredMock = jest
+        .fn()
+        .mockResolvedValue({ isGasFeeSponsored: true });
+
+      createController({ isGasFeeSponsored: isGasFeeSponsoredMock });
+
+      const result = await messenger.call(
+        'TransactionPayController:isGasFeeSponsored',
+        { transaction: TRANSACTION_META_MOCK },
+      );
+
+      expect(isGasFeeSponsoredMock).toHaveBeenCalledWith({
+        transaction: TRANSACTION_META_MOCK,
+      });
+      expect(result).toStrictEqual({ isGasFeeSponsored: true });
+    });
+
+    it('returns not sponsored when no callback is provided', async () => {
+      createController();
+
+      const result = await messenger.call(
+        'TransactionPayController:isGasFeeSponsored',
+        { transaction: TRANSACTION_META_MOCK },
+      );
+
+      expect(result).toStrictEqual({ isGasFeeSponsored: false });
+    });
+  });
+
   describe('getPaymentOverrideData', () => {
     it('delegates to the callback', async () => {
       const resultMock = {

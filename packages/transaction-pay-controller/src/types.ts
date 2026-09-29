@@ -284,6 +284,13 @@ export type TransactionPayControllerOptions = {
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
+  /**
+   * Callback to determine whether the gas fee of a transaction is sponsored.
+   * Used when quoting and submitting source transactions so both use the same
+   * client-owned sponsorship decision. Defaults to not sponsored.
+   */
+  isGasFeeSponsored?: IsGasFeeSponsoredCallback;
+
   /** Callback to select ordered PayStrategies for a transaction. */
   getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
 
@@ -862,6 +869,15 @@ export type UpdateFiatPaymentRequest = {
   /** Callback to mutate fiat payment state. */
   callback: TransactionFiatPaymentCallback;
 };
+
+/** Callback to determine whether the gas fee of a transaction is sponsored. */
+export type IsGasFeeSponsoredCallback = (request: {
+  /** Metadata of the transaction. */
+  transaction: TransactionMeta;
+}) => Promise<{
+  /** Whether the gas fee of the transaction is sponsored. */
+  isGasFeeSponsored: boolean;
+}>;
 
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({

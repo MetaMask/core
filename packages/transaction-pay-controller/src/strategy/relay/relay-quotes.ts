@@ -754,6 +754,7 @@ async function normalizeQuote(
     gasLimits,
     is7702,
     isGasFeeToken: isSourceGasFeeToken,
+    isSourceGasFeeSponsored,
     ...sourceNetwork
   } = await calculateSourceNetworkCost(
     quote,
@@ -790,6 +791,7 @@ async function normalizeQuote(
     ...quote.metamask,
     gasLimits: is7702 ? [gasLimits[0]] : gasLimits,
     is7702,
+    ...(isSourceGasFeeSponsored ? { isSourceGasFeeSponsored } : {}),
   };
 
   return {
@@ -912,6 +914,7 @@ async function calculateSourceNetworkCost(
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
     isGasFeeToken?: boolean;
+    isSourceGasFeeSponsored?: boolean;
     is7702: boolean;
   }
 > {
@@ -943,9 +946,13 @@ async function calculateSourceNetworkCost(
 
   if (
     accountSupports7702 &&
-    transaction.isGasFeeSponsored &&
     request.sourceChainId === transaction.chainId &&
-    request.targetChainId === transaction.chainId
+    request.targetChainId === transaction.chainId &&
+    (
+      await messenger.call('TransactionPayController:isGasFeeSponsored', {
+        transaction,
+      })
+    ).isGasFeeSponsored
   ) {
     log('Zeroing source network fees for sponsored same-chain Relay route');
 
@@ -956,6 +963,7 @@ async function calculateSourceNetworkCost(
       max: ZERO_AMOUNT,
       gasLimits: [0],
       is7702: true,
+      isSourceGasFeeSponsored: true,
     };
   }
 

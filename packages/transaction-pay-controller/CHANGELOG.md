@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isGasFeeSponsored` callback to `TransactionPayControllerOptions`, exposed as the `TransactionPayController:isGasFeeSponsored` action ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+  - Relay uses it to zero source network fees for sponsored same-chain routes and records the decision on the quote so submission uses the same gas limits.
+
 ### Changed
 
+- **BREAKING:** Pay no longer sets `isExternalSign` on the target transaction when quotes are available ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+  - Clients should return `shouldSign: false` from the `TransactionController` `shouldSign` hook when the transaction has executable Pay quotes.
+- **BREAKING:** Relay and Money Account vault submissions pass `forceIsGasFeeSponsored` instead of `isGasFeeSponsored`, and Relay no longer reads `TransactionMeta.isGasFeeSponsored` ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
 - **BREAKING:** Read token metadata, balances, and prices directly from `AssetsController` state ([#10461](https://github.com/MetaMask/core/pull/10461))
   - Consumers must delegate `AccountsController:getState`, `AssetsController:getState`, and `AssetsController:stateChange` to the Pay messenger, and unified asset state must be populated before using Pay.
   - The `assetsUnifyState` feature flag branching and the `AssetsController:getStateForTransactionPay` action are no longer used, and the four separate asset `stateChange` subscriptions are replaced by a single `AssetsController:stateChange`.

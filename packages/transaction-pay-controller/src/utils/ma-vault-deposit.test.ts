@@ -148,7 +148,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
         disableSequential: true,
         disableUpgrade: true,
         from: MONEY_ACCOUNT_ADDRESS_MOCK,
-        isGasFeeSponsored: true,
+        forceIsGasFeeSponsored: true,
         isInternal: true,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: 'metamask',

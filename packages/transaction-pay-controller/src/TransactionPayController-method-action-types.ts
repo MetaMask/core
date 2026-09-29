@@ -82,6 +82,20 @@ export type TransactionPayControllerGetAmountDataAction = {
 };
 
 /**
+ * Determines whether the gas fee of a transaction is sponsored.
+ *
+ * Delegates to the client-supplied {@link IsGasFeeSponsoredCallback}.
+ * Returns not sponsored when no callback is configured.
+ *
+ * @param args - The arguments forwarded to the {@link IsGasFeeSponsoredCallback}.
+ * @returns A promise resolving to whether the gas fee is sponsored.
+ */
+export type TransactionPayControllerIsGasFeeSponsoredAction = {
+  type: `TransactionPayController:isGasFeeSponsored`;
+  handler: TransactionPayController['isGasFeeSponsored'];
+};
+
+/**
  * Returns optional fiat execution configuration.
  *
  * This is intentionally not stored in controller state.
@@ -146,6 +160,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetAmountDataAction
+  | TransactionPayControllerIsGasFeeSponsoredAction
   | TransactionPayControllerGetFiatOptionsAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction

@@ -18,7 +18,10 @@ import {
   POLYGON_USDCE_ADDRESS,
 } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
-import type { TransactionPayControllerGetAmountDataAction } from '../../TransactionPayController-method-action-types.js';
+import type {
+  TransactionPayControllerGetAmountDataAction,
+  TransactionPayControllerIsGasFeeSponsoredAction,
+} from '../../TransactionPayController-method-action-types.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
@@ -198,6 +201,15 @@ describe('Relay Quotes Utils', () => {
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
 
+  const isGasFeeSponsoredMock: jest.MockedFn<
+    TransactionPayControllerIsGasFeeSponsoredAction['handler']
+  > = jest.fn();
+
+  messenger.registerActionHandler(
+    'TransactionPayController:isGasFeeSponsored',
+    isGasFeeSponsoredMock,
+  );
+
   messenger.registerActionHandler(
     'TransactionPayController:getAmountData',
     getAmountDataMock,
@@ -207,6 +219,8 @@ describe('Relay Quotes Utils', () => {
     jest.resetAllMocks();
 
     successfulFetchMock = jest.spyOn(global, 'fetch');
+
+    isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: false });
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -2659,6 +2673,12 @@ describe('Relay Quotes Utils', () => {
           ok: true,
           json: async () => QUOTE_MOCK,
         });
+        isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: true });
+
+        const transaction = {
+          ...TRANSACTION_META_MOCK,
+          chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        };
 
         const result = await getRelayQuotes({
           accountSupports7702: true,
@@ -2669,20 +2689,60 @@ describe('Relay Quotes Utils', () => {
               targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
             },
           ],
-          transaction: {
-            ...TRANSACTION_META_MOCK,
-            chainId: QUOTE_REQUEST_MOCK.sourceChainId,
-            isGasFeeSponsored: true,
-          },
+          transaction,
         });
 
         const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
+        expect(isGasFeeSponsoredMock).toHaveBeenCalledWith({ transaction });
         expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(zeroAmount);
         expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
         expect(result[0].original.metamask.gasLimits).toStrictEqual([0]);
         expect(result[0].original.metamask.is7702).toBe(true);
+        expect(result[0].original.metamask.isSourceGasFeeSponsored).toBe(true);
       });
+
+      it.each([
+        ['same-chain route is not sponsored by the client', true, false, 1],
+        ['route is cross-chain', false, true, 0],
+      ])(
+        'charges source gas when the %s',
+        async (_title, isSameChain, isGasFeeSponsored, sponsorshipCalls) => {
+          successfulFetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => QUOTE_MOCK,
+          });
+          isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored });
+
+          const request = {
+            accountSupports7702: true,
+            from: FROM_MOCK,
+            messenger,
+            requests: [
+              isSameChain
+                ? {
+                    ...QUOTE_REQUEST_MOCK,
+                    targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+                  }
+                : QUOTE_REQUEST_MOCK,
+            ],
+            transaction: {
+              ...TRANSACTION_META_MOCK,
+              chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+              forceIsGasFeeSponsored: true,
+              isGasFeeSponsoredAvailable: true,
+            },
+          };
+
+          const result = await getRelayQuotes(request);
+
+          expect(isGasFeeSponsoredMock).toHaveBeenCalledTimes(sponsorshipCalls);
+          expect(result[0].fees.sourceNetwork.estimate.raw).not.toBe('0');
+          expect(result[0].original.metamask).not.toHaveProperty(
+            'isSourceGasFeeSponsored',
+          );
+        },
+      );
 
       it.each([1, 2])(
         'charges source gas for %i calls when the payer cannot use same-chain parent sponsorship',
@@ -2717,9 +2777,10 @@ describe('Relay Quotes Utils', () => {
                 from: '0x1234567890123456789012345678901234567892',
               },
               chainId: QUOTE_REQUEST_MOCK.sourceChainId,
-              isGasFeeSponsored: true,
             },
           });
+
+          expect(isGasFeeSponsoredMock).not.toHaveBeenCalled();
 
           const expectedCost = {
             fiat: '4.56',
@@ -3858,7 +3919,7 @@ describe('Relay Quotes Utils', () => {
       ...TRANSACTION_META_MOCK,
       id: 'money-account-max-tx-1',
       chainId: QUOTE_REQUEST_MOCK.targetChainId,
-      isGasFeeSponsored: true,
+      forceIsGasFeeSponsored: true,
       nestedTransactions: [
         {
           data: '0xaaaa',
@@ -4489,7 +4550,7 @@ describe('Relay Quotes Utils', () => {
           requests: [MONEY_ACCOUNT_MAX_REQUEST],
           transaction: {
             ...MONEY_ACCOUNT_MAX_TRANSACTION,
-            isGasFeeSponsored: false,
+            forceIsGasFeeSponsored: false,
           },
         });
 
@@ -4521,7 +4582,7 @@ describe('Relay Quotes Utils', () => {
           requests: [MONEY_ACCOUNT_MAX_REQUEST],
           transaction: {
             ...MONEY_ACCOUNT_MAX_TRANSACTION,
-            isGasFeeSponsored: false,
+            forceIsGasFeeSponsored: false,
           },
         });
 
@@ -4559,7 +4620,7 @@ describe('Relay Quotes Utils', () => {
           requests: [nativeRequest],
           transaction: {
             ...MONEY_ACCOUNT_MAX_TRANSACTION,
-            isGasFeeSponsored: false,
+            forceIsGasFeeSponsored: false,
           },
         });
 

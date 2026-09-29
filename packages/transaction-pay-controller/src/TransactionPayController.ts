@@ -17,6 +17,7 @@ import type {
   GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
+  IsGasFeeSponsoredCallback,
   PolymarketCallbacks,
   TransactionConfig,
   TransactionConfigCallback,
@@ -42,6 +43,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getFiatOptions',
   'getPaymentOverrideData',
   'getStrategy',
+  'isGasFeeSponsored',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
@@ -85,6 +87,8 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #isGasFeeSponsored?: IsGasFeeSponsoredCallback;
+
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
@@ -95,6 +99,7 @@ export class TransactionPayController extends BaseController<
     getPaymentOverrideData,
     getStrategy,
     getStrategies,
+    isGasFeeSponsored,
     messenger,
     polymarket,
     state,
@@ -113,6 +118,7 @@ export class TransactionPayController extends BaseController<
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#isGasFeeSponsored = isGasFeeSponsored;
     this.#polymarket = polymarket;
 
     this.messenger.registerMethodActionHandlers(
@@ -247,6 +253,24 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<GetAmountDataCallback>
   ): ReturnType<GetAmountDataCallback> {
     return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  /**
+   * Determines whether the gas fee of a transaction is sponsored.
+   *
+   * Delegates to the client-supplied {@link IsGasFeeSponsoredCallback}.
+   * Returns not sponsored when no callback is configured.
+   *
+   * @param args - The arguments forwarded to the {@link IsGasFeeSponsoredCallback}.
+   * @returns A promise resolving to whether the gas fee is sponsored.
+   */
+  isGasFeeSponsored(
+    ...args: Parameters<IsGasFeeSponsoredCallback>
+  ): ReturnType<IsGasFeeSponsoredCallback> {
+    return (
+      this.#isGasFeeSponsored?.(...args) ??
+      Promise.resolve({ isGasFeeSponsored: false })
+    );
   }
 
   /**
