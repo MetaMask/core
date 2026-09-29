@@ -1512,6 +1512,7 @@ describe('LighterProvider', () => {
 
     it('reports unavailable when the account read fails', async () => {
       const infra = createMockInfrastructure();
+      const logSpy = jest.spyOn(infra.debugLogger, 'log');
       const { provider, clientInstance } = buildProvider({
         platformDependencies: infra,
       });
@@ -1524,7 +1525,7 @@ describe('LighterProvider', () => {
         providerId: 'lighter',
         reason: 'provider_unavailable',
       });
-      expect(infra.debugLogger.log).toHaveBeenCalledWith(
+      expect(logSpy).toHaveBeenCalledWith(
         '[LighterProvider] getMarginModeLock unavailable',
         { symbol: 'BTC', error: 'down' },
       );
