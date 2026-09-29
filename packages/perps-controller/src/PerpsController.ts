@@ -52,6 +52,7 @@ import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
 import { AccountService } from './services/AccountService.js';
+import { AgentBindings } from './services/agentSigner.js';
 import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
@@ -1133,6 +1134,10 @@ export class PerpsController extends BaseController<
 
   #handlersRegistered = false;
 
+  // HyperLiquid agent bindings made through setAgentSigner, kept across
+  // provider instances; they answer before the host's getAgentSigner.
+  readonly #agentBindings: AgentBindings;
+
   #standaloneProviderIsTestnet: boolean | null = null;
 
   #standaloneProviderHip3Version: number | null = null;
@@ -1213,6 +1218,9 @@ export class PerpsController extends BaseController<
       clientConfig,
       infrastructure,
     };
+    this.#agentBindings = new AgentBindings(
+      clientConfig?.providerCredentials?.hyperliquid?.getAgentSigner,
+    );
 
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
@@ -2367,9 +2375,7 @@ export class PerpsController extends BaseController<
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
       onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
-      getAgentSigner:
-        this.#options.clientConfig?.providerCredentials?.hyperliquid
-          ?.getAgentSigner,
+      getAgentSigner: this.#agentBindings.resolve,
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -5866,21 +5872,24 @@ export class PerpsController extends BaseController<
    * account on a network with an approved agent, or pin them to the main
    * account with null (`getAgentSigner` is then not asked for that account and
    * network until `clearAgentSigners`). User-signed actions stay on the main
-   * account, and the agent is never used for another account or network.
-   * Bindings last for the lifetime of the HyperLiquid provider instance;
-   * initialization and re-initialization (a network toggle, or a client
-   * reconnecting after an account switch) create a new one. Requires an
-   * initialized controller.
+   * account, and the agent is never used for another account or network. The
+   * controller keeps the binding across provider re-creation (a provider or
+   * network switch, or re-initialization), so it can also be set before
+   * `init`. Like every controller action, it is available through the
+   * messenger once `init` has run.
    *
    * @param account - The main account and network the agent is approved for.
    * @param agentSigner - The host-owned agent signer, or null to pin the main
    * account.
    */
-  async setAgentSigner(
+  setAgentSigner(
     account: PerpsAgentAccount,
     agentSigner: PerpsAgentSigner | null,
-  ): Promise<void> {
-    (await this.#getAgentSignerSetter())(account, agentSigner);
+  ): void {
+    this.#agentBindings.set(account, agentSigner);
+    // Drop agents the provider already resolved so the binding applies to
+    // the next L1 action.
+    this.providers.get('hyperliquid')?.clearAgentSigners?.();
   }
 
   /**
@@ -5888,27 +5897,12 @@ export class PerpsController extends BaseController<
    * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
    * still pending is discarded too. Call it when the wallet locks (with
    * `getAgentSigner` returning null while locked) and nothing signs with an
-   * agent until it returns one again. Without an initialized HyperLiquid
-   * provider there are no agents, so it does nothing.
+   * agent until it returns one again. Like every controller action, it is
+   * available through the messenger once `init` has run.
    */
   clearAgentSigners(): void {
+    this.#agentBindings.clear();
     this.providers.get('hyperliquid')?.clearAgentSigners?.();
-  }
-
-  /**
-   * Resolve the HyperLiquid provider, which owns the agent bindings.
-   *
-   * @returns The HyperLiquid provider's setAgentSigner.
-   */
-  async #getAgentSignerSetter(): Promise<
-    NonNullable<PerpsProvider['setAgentSigner']>
-  > {
-    await this.#getActiveProviderWhenReady();
-    const provider = this.providers.get('hyperliquid');
-    if (!provider?.setAgentSigner) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-    }
-    return provider.setAgentSigner.bind(provider);
   }
 
   /**

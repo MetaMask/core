@@ -11,6 +11,7 @@ import {
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { AgentBindings } from '../../../src/services/agentSigner.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import type { HyperLiquidWalletParams } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
@@ -23,7 +24,9 @@ import type {
   ClosePositionParams,
   DepositParams,
   Order,
+  HyperLiquidCredentials,
   PerpsAccountSigner,
+  PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsTypedDataPayload,
@@ -41,6 +44,7 @@ import {
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   createDeferred,
+  createKeyringMessenger,
   createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
@@ -2352,7 +2356,9 @@ describe('HyperLiquidProvider', () => {
     type Options = {
       signer?: { isReady?: () => boolean; isHardwareWallet?: () => boolean };
       abstraction?: 'dexAbstraction' | 'default' | 'unifiedAccount';
-      getAgentSigner?: jest.Mock;
+      getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
+      // Sign through a KeyringController instead of accountSigner.
+      keyring?: boolean;
     };
 
     function createAccountSignerProvider(options: Options = {}) {
@@ -2365,7 +2371,9 @@ describe('HyperLiquidProvider', () => {
         address: AGENT_ADDRESS,
         signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
       };
-      const { messenger, call, selectAccount } = createKeyringlessMessenger();
+      const { messenger, call, selectAccount } = options.keyring
+        ? createKeyringMessenger(SIGNATURE)
+        : createKeyringlessMessenger();
       MockedHyperLiquidWalletService.mockImplementation(
         (deps, walletMessenger, walletOptions) =>
           new RealHyperLiquidWalletService(
@@ -2403,7 +2411,9 @@ describe('HyperLiquidProvider', () => {
         }),
       );
       const accountSignerProvider = new HyperLiquidProvider({
-        platformDependencies: { ...mockPlatformDependencies, accountSigner },
+        platformDependencies: options.keyring
+          ? mockPlatformDependencies
+          : { ...mockPlatformDependencies, accountSigner },
         messenger,
         initialAssetMapping: [
           ['BTC', 0],
@@ -2589,8 +2599,53 @@ describe('HyperLiquidProvider', () => {
         });
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
           expect.objectContaining({ message: 'transport unavailable' }),
-          expect.anything(),
+          {
+            tags: {
+              feature: 'perps',
+              provider: 'hyperliquid',
+              network: 'mainnet',
+            },
+            context: {
+              name: 'HyperLiquidProvider',
+              data: { method: 'prepareTradingWallet' },
+            },
+          },
         );
+      });
+
+      it('does not log a provider replaced during preparation', async () => {
+        const { accountSignerProvider, initialize } =
+          createAccountSignerProvider();
+        initialize.mockRejectedValue(
+          new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        );
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        });
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('signs the deferred setup through the keyring without accountSigner', async () => {
+        const { accountSignerProvider, accountSigner, call, exchangeClient } =
+          createAccountSignerProvider({ keyring: true });
+        await accountSignerProvider.getMarketDataWithPrices();
+        rememberMigration();
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({ ready: true });
+        expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+        expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+        expect(
+          keyringCalls(call).filter(
+            (action) => action === 'KeyringController:signTypedMessage',
+          ),
+        ).toHaveLength(2);
       });
 
       it('reports KEYRING_LOCKED when the signer locks after setup completed', async () => {
@@ -2617,6 +2672,25 @@ describe('HyperLiquidProvider', () => {
         mainAddress: ACCOUNT_ADDRESS,
         isTestnet: false,
       } as const;
+
+      /**
+       * Bind an agent the way PerpsController.setAgentSigner does: record the
+       * binding, then drop the agents the provider already resolved.
+       *
+       * @param provider - The provider signing L1 actions.
+       * @param bindings - The bindings its resolver reads.
+       * @param account - The main account and network.
+       * @param agentSigner - The agent, or null to pin the main account.
+       */
+      function bind(
+        provider: HyperLiquidProvider,
+        bindings: AgentBindings,
+        account: PerpsAgentAccount,
+        agentSigner: PerpsAgentSigner | null,
+      ): void {
+        bindings.set(account, agentSigner);
+        provider.clearAgentSigners();
+      }
 
       it('resolves the agent at the first L1 signature and signs with it', async () => {
         const getAgentSigner = jest.fn();
@@ -2733,13 +2807,25 @@ describe('HyperLiquidProvider', () => {
         expect(getAgentSigner).toHaveBeenCalledTimes(4);
         expect(accountSigner.signTypedData).not.toHaveBeenCalled();
         expect(result).toStrictEqual({ ready: false });
+        // Retryable like a locked keyring: no failure metric, nothing logged.
+        expect(
+          mockPlatformDependencies.metrics.trackPerpsEvent,
+        ).not.toHaveBeenCalledWith(
+          'Perp Account Setup',
+          expect.objectContaining({ status: 'failed' }),
+        );
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       });
 
-      it('signs with the agent set for the selected account', async () => {
+      it('signs with the agent bound to the selected account', async () => {
+        const bindings = new AgentBindings(undefined);
         const { accountSignerProvider, agentSigner } =
-          createAccountSignerProvider({ abstraction: 'default' });
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner: bindings.resolve,
+          });
 
-        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
+        bindings.set(MAINNET_ACCOUNT, agentSigner);
         await accountSignerProvider.getMarketDataWithPrices();
 
         expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
@@ -2748,14 +2834,18 @@ describe('HyperLiquidProvider', () => {
       });
 
       it('binds the agent to the account it names, not the selected one', async () => {
+        const bindings = new AgentBindings(undefined);
         const {
           accountSignerProvider,
           accountSigner,
           agentSigner,
           selectAccount,
-        } = createAccountSignerProvider({ abstraction: 'default' });
+        } = createAccountSignerProvider({
+          abstraction: 'default',
+          getAgentSigner: bindings.resolve,
+        });
 
-        accountSignerProvider.setAgentSigner(
+        bindings.set(
           { mainAddress: OTHER_ACCOUNT_ADDRESS, isTestnet: false },
           agentSigner,
         );
@@ -2770,10 +2860,14 @@ describe('HyperLiquidProvider', () => {
         expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
       });
 
-      it('never signs on another network with the agent it was set for', async () => {
+      it('never signs on another network with the agent bound for mainnet', async () => {
+        const bindings = new AgentBindings(undefined);
         const { accountSignerProvider, accountSigner, agentSigner } =
-          createAccountSignerProvider({ abstraction: 'default' });
-        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
+          createAccountSignerProvider({
+            abstraction: 'default',
+            getAgentSigner: bindings.resolve,
+          });
+        bindings.set(MAINNET_ACCOUNT, agentSigner);
 
         mockClientService.isTestnetMode.mockReturnValue(true);
         await accountSignerProvider.getMarketDataWithPrices();
@@ -2784,16 +2878,17 @@ describe('HyperLiquidProvider', () => {
         ]);
       });
 
-      it('pins the main account with setAgentSigner(null) without asking getAgentSigner', async () => {
+      it('pins the main account with a null binding without asking getAgentSigner', async () => {
         const getAgentSigner = jest.fn();
+        const bindings = new AgentBindings(getAgentSigner);
         const { accountSignerProvider, accountSigner, agentSigner } =
           createAccountSignerProvider({
             abstraction: 'default',
-            getAgentSigner,
+            getAgentSigner: bindings.resolve,
           });
         getAgentSigner.mockResolvedValue(agentSigner);
 
-        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
+        bindings.set(MAINNET_ACCOUNT, null);
         await accountSignerProvider.getMarketDataWithPrices();
         rememberMigration();
         await accountSignerProvider.prepareTradingWallet();
@@ -2805,15 +2900,16 @@ describe('HyperLiquidProvider', () => {
 
       it('lets a pin made while getAgentSigner is pending win', async () => {
         const { getAgentSigner, answer, asked } = createPendingResolver();
+        const bindings = new AgentBindings(getAgentSigner);
         const { accountSignerProvider, accountSigner, agentSigner } =
           createAccountSignerProvider({
             abstraction: 'default',
-            getAgentSigner,
+            getAgentSigner: bindings.resolve,
           });
 
         const reading = accountSignerProvider.getMarketDataWithPrices();
         await asked;
-        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
+        bind(accountSignerProvider, bindings, MAINNET_ACCOUNT, null);
         answer.resolve(agentSigner);
         await reading;
 
@@ -2823,17 +2919,18 @@ describe('HyperLiquidProvider', () => {
         ]);
       });
 
-      it('keeps an agent set while a failing getAgentSigner answer is pending', async () => {
+      it('keeps an agent bound while a failing getAgentSigner answer is pending', async () => {
         const { getAgentSigner, answer, asked } = createPendingResolver();
+        const bindings = new AgentBindings(getAgentSigner);
         const { accountSignerProvider, agentSigner } =
           createAccountSignerProvider({
             abstraction: 'default',
-            getAgentSigner,
+            getAgentSigner: bindings.resolve,
           });
 
         const reading = accountSignerProvider.getMarketDataWithPrices();
         await asked;
-        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
+        bind(accountSignerProvider, bindings, MAINNET_ACCOUNT, agentSigner);
         answer.reject(new Error('agent store unavailable'));
         await reading;
         rememberMigration();
@@ -2887,18 +2984,20 @@ describe('HyperLiquidProvider', () => {
         expect(getAgentSigner).toHaveBeenCalledTimes(3);
       });
 
-      it('clears pins made with setAgentSigner(null)', async () => {
+      it('asks getAgentSigner again once the bindings are cleared', async () => {
         const getAgentSigner = jest.fn();
+        const bindings = new AgentBindings(getAgentSigner);
         const { accountSignerProvider, agentSigner, initialize } =
           createAccountSignerProvider({
             abstraction: 'unifiedAccount',
-            getAgentSigner,
+            getAgentSigner: bindings.resolve,
           });
         getAgentSigner.mockResolvedValue(agentSigner);
-        accountSignerProvider.setAgentSigner(MAINNET_ACCOUNT, null);
+        bindings.set(MAINNET_ACCOUNT, null);
         await accountSignerProvider.getMarketDataWithPrices();
         const [[wallet]] = initialize.mock.calls;
 
+        bindings.clear();
         accountSignerProvider.clearAgentSigners();
         await wallet.signTypedData(L1_PAYLOAD);
 
@@ -2922,6 +3021,30 @@ describe('HyperLiquidProvider', () => {
           (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
             .setReferral,
         ).not.toHaveBeenCalled();
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('retries the referral instead of recording a failure when the agent fails to sign', async () => {
+        const getAgentSigner = jest.fn();
+        const { accountSignerProvider, agentSigner, exchangeClient } =
+          createAccountSignerProvider({
+            abstraction: 'unifiedAccount',
+            getAgentSigner,
+          });
+        agentSigner.signTypedData.mockRejectedValue(
+          new Error('agent key locked'),
+        );
+        getAgentSigner.mockResolvedValue(agentSigner);
+
+        const result = await accountSignerProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({ ready: false });
+        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+        expect(
+          (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
+            .setReferral,
+        ).not.toHaveBeenCalled();
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       });
 
       it('treats a getAgentSigner that throws synchronously like a rejection', async () => {

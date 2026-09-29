@@ -56,6 +56,7 @@ import {
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { hasErrorInCauseChain } from '../services/causeChain.js';
 import {
   convertKeysToCamelCase,
   LighterApiError,
@@ -151,7 +152,7 @@ import type {
   LighterWsMarketStat,
   LighterWsMarketStatsMessage,
 } from '../types/lighter-types.js';
-import { ensureError } from '../utils/errorUtils.js';
+import { ensureError, isKeyringLockedError } from '../utils/errorUtils.js';
 import {
   adaptAccountStateFromLighter,
   adaptAccountStateFromLighterUserStats,
@@ -993,6 +994,23 @@ class LighterAccountNotFoundError extends Error {
 }
 
 /**
+ * Whether preparing the wallet stopped for an expected reason: a locked or
+ * declined signature, or a wallet with no Lighter account yet.
+ *
+ * @param error - The caught error.
+ * @returns True when the outcome is not an error to report.
+ */
+const isExpectedPreparationFailure = (error: unknown): boolean =>
+  isKeyringLockedError(error) ||
+  hasErrorInCauseChain(
+    error,
+    (current) =>
+      current instanceof LighterAccountNotFoundError ||
+      (current as { code?: unknown }).code === 4001 ||
+      /user (rejected|denied)/iu.test(current.message),
+  );
+
+/**
  * Empty account state returned when reads fail or no account exists.
  */
 const EMPTY_ACCOUNT_STATE: AccountState = {
@@ -1280,21 +1298,35 @@ export class LighterProvider implements PerpsProvider {
    * Register the venue key ahead of the first order, so its main-account
    * `personal_sign` surfaces in a guided session instead of at order time.
    *
-   * @returns The readiness after registration: `KEYRING_LOCKED` whenever the
-   * main-account signer is not ready, even with a registered venue key.
+   * @returns `ready: true` once the venue key is registered; otherwise
+   * `ready: false` with `KEYRING_LOCKED` whenever the main-account signer is
+   * not ready (even with a registered venue key), or with the error that
+   * stopped registration. Unexpected errors are logged; a locked or declined
+   * signature and a wallet with no Lighter account yet are not.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {
       return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
     }
-    const result = await this.isReadyToTrade();
-    if (!result.ready && result.error) {
-      this.#deps.logger.error(
-        new Error(result.error),
-        this.#getErrorContext('prepareTradingWallet'),
-      );
+    if (!this.#signerBridge) {
+      return { ready: false, error: LIGHTER_SIGNER_UNAVAILABLE_ERROR };
     }
-    return result;
+    try {
+      await this.#ensureSignerReady();
+      return { ready: true };
+    } catch (caughtError) {
+      const error = ensureError(
+        caughtError,
+        'LighterProvider.prepareTradingWallet',
+      );
+      if (!isExpectedPreparationFailure(caughtError)) {
+        this.#deps.logger.error(
+          error,
+          this.#getErrorContext('prepareTradingWallet'),
+        );
+      }
+      return { ready: false, error: error.message };
+    }
   }
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {

@@ -291,22 +291,27 @@ export const createMockMessenger = (
   } as unknown as jest.Mocked<PerpsControllerMessenger>;
 };
 
-/**
- * Create a real PerpsController messenger for a host without a
- * KeyringController: only `AccountsController:getSelectedAccount` is
- * delegated, so any `KeyringController:*` call throws.
- *
- * @param keyringType - Keyring type reported in the selected account metadata.
- * @returns The messenger, a spy on its `call`, and a way to switch the
- * selected account.
- */
-export const createKeyringlessMessenger = (
-  keyringType = 'HD Key Tree',
-): {
+type AccountMessenger = {
   messenger: PerpsControllerMessenger;
   call: jest.SpyInstance;
   selectAccount: (address: `0x${string}`) => void;
-} => {
+};
+
+/**
+ * Create a real PerpsController messenger that delegates
+ * `AccountsController:getSelectedAccount`, and the unlocked
+ * `KeyringController` actions when a keyring signature is given.
+ *
+ * @param keyringType - Keyring type reported in the selected account metadata.
+ * @param keyringSignature - Signature the keyring returns; omit for a host
+ * without a KeyringController.
+ * @returns The messenger, a spy on its `call`, and a way to switch the
+ * selected account.
+ */
+const createAccountMessenger = (
+  keyringType: string,
+  keyringSignature?: string,
+): AccountMessenger => {
   const account = createMockEvmAccount();
   let selectedAddress = account.address;
   const root = new Messenger<
@@ -324,10 +329,34 @@ export const createKeyringlessMessenger = (
     scopes: ['eip155:0'],
     metadata: { ...account.metadata, keyring: { type: keyringType } },
   }));
-  root.delegate({
-    actions: ['AccountsController:getSelectedAccount'],
-    messenger,
-  });
+  if (keyringSignature === undefined) {
+    root.delegate({
+      actions: ['AccountsController:getSelectedAccount'],
+      messenger,
+    });
+  } else {
+    root.registerActionHandler('KeyringController:getState', () => ({
+      isUnlocked: true,
+      keyrings: [],
+    }));
+    root.registerActionHandler(
+      'KeyringController:signTypedMessage',
+      async () => keyringSignature,
+    );
+    root.registerActionHandler(
+      'KeyringController:signPersonalMessage',
+      async () => keyringSignature,
+    );
+    root.delegate({
+      actions: [
+        'AccountsController:getSelectedAccount',
+        'KeyringController:getState',
+        'KeyringController:signTypedMessage',
+        'KeyringController:signPersonalMessage',
+      ],
+      messenger,
+    });
+  }
   return {
     messenger,
     call: jest.spyOn(messenger, 'call'),
@@ -336,6 +365,31 @@ export const createKeyringlessMessenger = (
     },
   };
 };
+
+/**
+ * Create a real PerpsController messenger for a host without a
+ * KeyringController: only `AccountsController:getSelectedAccount` is
+ * delegated, so any `KeyringController:*` call throws.
+ *
+ * @param keyringType - Keyring type reported in the selected account metadata.
+ * @returns The messenger, a spy on its `call`, and a way to switch the
+ * selected account.
+ */
+export const createKeyringlessMessenger = (
+  keyringType = 'HD Key Tree',
+): AccountMessenger => createAccountMessenger(keyringType);
+
+/**
+ * Create a real PerpsController messenger for a host with an unlocked
+ * KeyringController that returns `signature` for typed data and personal
+ * messages.
+ *
+ * @param signature - Signature the keyring returns.
+ * @returns The messenger, a spy on its `call`, and a way to switch the
+ * selected account.
+ */
+export const createKeyringMessenger = (signature: string): AccountMessenger =>
+  createAccountMessenger('HD Key Tree', signature);
 
 /**
  * Names of the `KeyringController:*` actions a messenger spy saw.

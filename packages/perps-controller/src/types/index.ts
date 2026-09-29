@@ -1120,10 +1120,14 @@ export type HyperLiquidCredentials = {
    * when there is none (for example while the wallet is locked). Called when
    * an L1 action (order, cancel, leverage, ...) is signed for that account and
    * network, including the unified-account migration the provider may sign
-   * while connecting. An agent it returns is kept for the lifetime of the
-   * HyperLiquid provider instance; null is not kept, so it is asked again at
-   * the next L1 action. With an agent, L1 actions are signed by the agent key
-   * and user-signed actions (builder fee, withdraw, ...) by the main account.
+   * while connecting. Not called for an account and network bound through
+   * `PerpsController:setAgentSigner`. An agent it returns is kept for the
+   * lifetime of the HyperLiquid provider instance, or until
+   * `setAgentSigner`/`clearAgentSigners`; null is not kept, so it is asked
+   * again at the next L1 action. With an agent, L1 actions are signed by the
+   * agent key and user-signed actions (builder fee, withdraw, ...) by the main
+   * account. A rejection, or an agent whose `signTypedData` rejects, fails
+   * that action and is retried at the next one.
    */
   getAgentSigner?: (
     account: PerpsAgentAccount,
@@ -2152,17 +2156,8 @@ export type PerpsProvider = {
    */
   prepareTradingWallet?(): Promise<ReadyToTradeResult>;
   /**
-   * Sign L1 actions for a main account on a network with an approved agent,
-   * or pin them to the main account with null. Providers without agents omit
-   * it.
-   */
-  setAgentSigner?(
-    account: PerpsAgentAccount,
-    agentSigner: PerpsAgentSigner | null,
-  ): void;
-  /**
-   * Forget every agent so the next L1 action asks for one again. Providers
-   * without agents omit it.
+   * Forget every agent the provider resolved, so the next L1 action asks its
+   * resolver again. Providers without agents omit it.
    */
   clearAgentSigners?(): void;
   disconnect(): Promise<DisconnectResult>;
@@ -2633,7 +2628,13 @@ export type PerpsTypedDataPayload = {
  */
 export type PerpsAccountSigner = {
   /**
-   * Sign EIP-712 typed data as `address`.
+   * Sign EIP-712 typed data as `address`, exactly as given. HyperLiquid's
+   * `domain.chainId` is not the wallet's connected chain: L1 actions signed
+   * without an agent use 1337, and user-signed actions (builder fee,
+   * withdraw, ...) use 1. A wallet that only signs for its connected chain
+   * (many EIP-1193 wallets) must route L1 actions through an agent (see
+   * `providerCredentials.hyperliquid.getAgentSigner`) and still has to sign
+   * user-signed actions with chain ID 1.
    *
    * @param address - The account that signs.
    * @param payload - The typed data to sign.
@@ -2659,7 +2660,8 @@ export type PerpsAccountSigner = {
   isReady?(): boolean;
 
   /**
-   * True when every signature needs a physical confirmation. HyperLiquid then
+   * True when every signature needs a user confirmation (a hardware wallet,
+   * or an interactive wallet such as a browser extension). HyperLiquid then
    * defers its optional init-time signing prompts to action time. When
    * omitted, the selected account's keyring type decides.
    */

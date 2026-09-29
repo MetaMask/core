@@ -910,11 +910,11 @@ export type PerpsControllerCalculateFeesAction = {
  * account on a network with an approved agent, or pin them to the main
  * account with null (`getAgentSigner` is then not asked for that account and
  * network until `clearAgentSigners`). User-signed actions stay on the main
- * account, and the agent is never used for another account or network.
- * Bindings last for the lifetime of the HyperLiquid provider instance;
- * initialization and re-initialization (a network toggle, or a client
- * reconnecting after an account switch) create a new one. Requires an
- * initialized controller.
+ * account, and the agent is never used for another account or network. The
+ * controller keeps the binding across provider re-creation (a provider or
+ * network switch, or re-initialization), so it can also be set before
+ * `init`. Like every controller action, it is available through the
+ * messenger once `init` has run.
  *
  * @param account - The main account and network the agent is approved for.
  * @param agentSigner - The host-owned agent signer, or null to pin the main
@@ -930,8 +930,8 @@ export type PerpsControllerSetAgentSignerAction = {
  * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
  * still pending is discarded too. Call it when the wallet locks (with
  * `getAgentSigner` returning null while locked) and nothing signs with an
- * agent until it returns one again. Without an initialized HyperLiquid
- * provider there are no agents, so it does nothing.
+ * agent until it returns one again. Like every controller action, it is
+ * available through the messenger once `init` has run.
  */
 export type PerpsControllerClearAgentSignersAction = {
   type: `PerpsController:clearAgentSigners`;

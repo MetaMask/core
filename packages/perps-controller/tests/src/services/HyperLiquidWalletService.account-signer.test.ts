@@ -5,6 +5,10 @@ import { recoverTypedDataAddress } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import {
+  AgentSignerUnavailableError,
+  isAgentSignerUnavailableError,
+} from '../../../src/services/agentSigner.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
   PerpsAgentSigner,
@@ -280,6 +284,20 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     );
     expect(mainSign).not.toHaveBeenCalled();
   });
+
+  it('reports an agent that fails to sign as unavailable without signing with the main account', async () => {
+    const { adapter, agentSign, mainSign } = buildAdapter();
+    const failure = new Error('agent key locked');
+    agentSign.mockRejectedValue(failure);
+
+    const error: unknown = await adapter
+      .signTypedData(TYPED_DATA)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AgentSignerUnavailableError);
+    expect((error as Error).cause).toBe(failure);
+    expect(mainSign).not.toHaveBeenCalled();
+  });
 });
 
 describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', () => {
@@ -375,7 +393,11 @@ describeWithSdk(
 
     type RecordedSignature = { payload: PerpsTypedDataPayload; signature: Hex };
 
-    function buildSdkAdapter(): {
+    function buildSdkAdapter(
+      resolveAgent: () => Promise<PerpsAgentSigner> = async () =>
+        // A viem local account is a PerpsAgentSigner as it is.
+        agentAccount,
+    ): {
       adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
       signatures: RecordedSignature[];
       agentSignatures: () => Promise<RecordedSignature[]>;
@@ -402,11 +424,7 @@ describeWithSdk(
           },
         },
         messenger,
-        {
-          isTestnet: true,
-          // A viem local account is a PerpsAgentSigner as it is.
-          resolveAgent: async (): Promise<PerpsAgentSigner> => agentAccount,
-        },
+        { isTestnet: true, resolveAgent },
       );
       const agentSign = jest.spyOn(agentAccount, 'signTypedData');
       return {
@@ -478,6 +496,44 @@ describeWithSdk(
       expect(await agentSignatures()).toHaveLength(0);
       expect(signatures).toHaveLength(1);
       expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
+    });
+
+    it('keeps an unavailable agent recognizable through the SDK error', async () => {
+      const { adapter } = buildSdkAdapter(async () => {
+        throw new AgentSignerUnavailableError(new Error('agent store down'));
+      });
+
+      const error: unknown = await signing
+        .signL1Action({
+          wallet: adapter,
+          action: { type: 'cancel', cancels: [{ a: 0, o: 1 }] },
+          nonce: 1,
+          isTestnet: true,
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(error).not.toBeInstanceOf(AgentSignerUnavailableError);
+      expect(isAgentSignerUnavailableError(error)).toBe(true);
+    });
+
+    it('keeps an agent signing failure recognizable through the SDK error', async () => {
+      const { adapter } = buildSdkAdapter(async () => ({
+        address: agentAccount.address,
+        signTypedData: async (): Promise<Hex> => {
+          throw new Error('agent key locked');
+        },
+      }));
+
+      const error: unknown = await signing
+        .signL1Action({
+          wallet: adapter,
+          action: { type: 'cancel', cancels: [{ a: 0, o: 1 }] },
+          nonce: 1,
+          isTestnet: true,
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(isAgentSignerUnavailableError(error)).toBe(true);
     });
   },
 );

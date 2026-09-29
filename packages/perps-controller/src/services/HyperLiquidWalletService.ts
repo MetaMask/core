@@ -22,7 +22,11 @@ import {
   getSelectedEvmAccountDetailsFromMessenger,
   getSelectedEvmAccountFromMessenger,
 } from '../utils/accountUtils.js';
-import { isAccountSignerReady } from './accountSigner.js';
+import {
+  isAccountSignerReady,
+  isMainAccountSignerReady,
+} from './accountSigner.js';
+import { AgentSignerUnavailableError } from './agentSigner.js';
 import type { HyperLiquidWalletParams } from './HyperLiquidClientService.js';
 
 // Mirrors KeyringTypes from @metamask/keyring-controller. Inlined to keep this
@@ -86,11 +90,10 @@ export class HyperLiquidWalletService {
    * @returns True when the main account is available for signing.
    */
   public isKeyringUnlocked(): boolean {
-    const { accountSigner } = this.#deps;
-    if (accountSigner) {
-      return isAccountSignerReady(accountSigner);
-    }
-    return this.#messenger.call('KeyringController:getState').isUnlocked;
+    return isMainAccountSignerReady(
+      this.#deps.accountSigner,
+      () => this.#messenger.call('KeyringController:getState').isUnlocked,
+    );
   }
 
   /**
@@ -219,7 +222,13 @@ export class HyperLiquidWalletService {
           'HyperLiquidWalletService: Signing L1 action with agent',
           { address: mainAddress, agent: agentSigner.address },
         );
-        return await agentSigner.signTypedData(params);
+        try {
+          return await agentSigner.signTypedData(params);
+        } catch (error) {
+          // The host could not sign with its agent key (for example it locked
+          // after resolving it). Retryable, like a locked keyring.
+          throw new AgentSignerUnavailableError(error);
+        }
       },
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),

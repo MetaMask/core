@@ -48,6 +48,10 @@ import {
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import {
+  AgentSignerUnavailableError,
+  isAgentSignerUnavailableError,
+} from '../services/agentSigner.js';
 import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
 import {
   HyperLiquidClientService,
@@ -824,37 +828,6 @@ type ChaseOrderMaxDistanceReachedHandler = (
   event: ChaseOrderMaxDistanceReached,
 ) => void;
 
-/**
- * The host's `getAgentSigner` failed. Like a locked keyring, it is retryable:
- * the next L1 action asks again.
- */
-class AgentSignerUnavailableError extends Error {
-  constructor(cause: unknown) {
-    super('HyperLiquid agent signer unavailable', { cause });
-    this.name = 'AgentSignerUnavailableError';
-  }
-}
-
-/**
- * Whether an error, or any error in its cause chain, is an
- * AgentSignerUnavailableError. The SDK wraps wallet failures in its own error.
- *
- * @param error - The caught error.
- * @returns True when the agent signer could not be resolved.
- */
-function isAgentSignerUnavailableError(error: unknown): boolean {
-  let current: unknown = error;
-  const seen = new Set<unknown>();
-  while (current instanceof Error && !seen.has(current)) {
-    if (current instanceof AgentSignerUnavailableError) {
-      return true;
-    }
-    seen.add(current);
-    current = current.cause;
-  }
-  return false;
-}
-
 type HyperLiquidProviderOptions = {
   isTestnet?: boolean;
   hip3Enabled?: boolean;
@@ -1573,17 +1546,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
 
-  // Agent per network and main account (see #getAgentKey): set through
-  // setAgentSigner (null pins the main account) or a pending or non-null
-  // getAgentSigner answer. An agent is only used for its account and network.
+  // Pending or non-null getAgentSigner answers per network and main account
+  // (see #getAgentKey), so an agent is only used for its account and network.
   // Incremented by clearAgentSigners so answers pending across a clear are
   // discarded and asked again.
   #agentSignersGeneration = 0;
 
-  readonly #agentSigners = new Map<
-    string,
-    { agentSigner: Promise<PerpsAgentSigner | null>; fromResolver: boolean }
-  >();
+  readonly #agentSigners = new Map<string, Promise<PerpsAgentSigner | null>>();
 
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
@@ -2093,11 +2062,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Resolve the agent that signs L1 actions for a main account on the
-   * current network: the one set through setAgentSigner, else the one
-   * `getAgentSigner` returns. A non-null answer is kept; null and failures are
-   * not, so the next L1 action asks again. If the binding changes while an
-   * answer is pending, the newer binding wins, and an answer pending across
-   * clearAgentSigners is discarded and asked again.
+   * current network through `getAgentSigner`. A non-null answer is kept;
+   * null and failures are not, so the next L1 action asks again. An answer
+   * pending across clearAgentSigners is discarded and asked again.
    *
    * @param mainAddress - The selected main account.
    * @returns The agent, or null to sign with the main account.
@@ -2116,18 +2083,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (!this.#getAgentSigner) {
         return null;
       }
-      let answer: Promise<PerpsAgentSigner | null>;
       try {
-        answer = this.#getAgentSigner(account);
+        entry = this.#getAgentSigner(account);
       } catch (error) {
-        answer = Promise.reject(error);
+        entry = Promise.reject(error);
       }
-      entry = { agentSigner: answer, fromResolver: true };
       this.#agentSigners.set(key, entry);
     }
 
     const pendingEntry = entry;
-    // A clear or a newer binding made while this answer was pending wins.
+    // A clear, or another answer stored while this one was pending, wins.
     const isSuperseded = (): boolean => {
       const latest = this.#agentSigners.get(key);
       return (
@@ -2138,7 +2103,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     let agentSigner: PerpsAgentSigner | null;
     try {
-      agentSigner = await pendingEntry.agentSigner;
+      agentSigner = await pendingEntry;
     } catch (error) {
       if (isSuperseded()) {
         return await this.#resolveAgentSigner(mainAddress);
@@ -2154,7 +2119,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (isSuperseded()) {
       return await this.#resolveAgentSigner(mainAddress);
     }
-    if (!agentSigner && pendingEntry.fromResolver) {
+    if (!agentSigner) {
       this.#agentSigners.delete(key);
     }
     return agentSigner;
@@ -2551,6 +2516,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
           '[ensureUnifiedAccountEnabled] Keyring locked, will retry later',
+        );
+        this.#unifiedAccountSetupNeedsRetry = true;
+        completeInFlight();
+        return;
+      }
+
+      if (isAgentSignerUnavailableError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Agent signer unavailable, will retry later',
         );
         this.#unifiedAccountSetupNeedsRetry = true;
         completeInFlight();
@@ -14218,28 +14192,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Sign L1 actions for a main account on a network with an approved agent,
-   * or pin them to the main account when `agentSigner` is null (the resolver
-   * is then not asked for that account and network until clearAgentSigners).
-   * The binding is explicit so an account switch or re-initialization that is
-   * still pending cannot attach the agent to another account.
-   *
-   * @param account - The main account and network the agent is approved for.
-   * @param agentSigner - The host-owned agent signer, or null to clear it.
-   */
-  setAgentSigner(
-    account: PerpsAgentAccount,
-    agentSigner: PerpsAgentSigner | null,
-  ): void {
-    this.#agentSigners.set(this.#getAgentKey(account), {
-      agentSigner: Promise.resolve(agentSigner),
-      fromResolver: false,
-    });
-  }
-
-  /**
-   * Forget every agent, whether set through setAgentSigner or resolved, so the
-   * next L1 action asks `getAgentSigner` again. Call it when the wallet locks.
+   * Forget every agent resolved through `getAgentSigner`, so the next L1
+   * action asks again; an answer still pending is discarded too.
    */
   clearAgentSigners(): void {
     this.#agentSignersGeneration += 1;
@@ -15683,6 +15637,11 @@ export class HyperLiquidProvider implements PerpsProvider {
               .message,
           },
         );
+        throw error;
+      }
+      // Retryable: `#ensureReferralSet` records it and retries at the next
+      // entry, so it is not an error to report.
+      if (isAgentSignerUnavailableError(error)) {
         throw error;
       }
       this.#deps.logger.error(

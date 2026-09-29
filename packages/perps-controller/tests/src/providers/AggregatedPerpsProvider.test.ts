@@ -15,7 +15,10 @@ import type {
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
 /* eslint-disable */
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 // Create a comprehensive mock provider
 const createMockProvider = (
@@ -1124,6 +1127,39 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toStrictEqual({ ready: false, error: 'provider crashed' });
       expect(prepareLighter).toHaveBeenCalledTimes(1);
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'provider crashed' }),
+        {
+          tags: { feature: 'perps', provider: 'hyperliquid' },
+          context: {
+            name: 'AggregatedPerpsProvider.prepareTradingWallet',
+            data: { providerId: 'hyperliquid' },
+          },
+        },
+      );
+    });
+
+    it('prepares the next provider only after the previous one settles', async () => {
+      const firstPreparation = createDeferred<{ ready: boolean }>();
+      const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: jest.fn(
+          async () => await firstPreparation.promise,
+        ),
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
+
+      const preparing = aggregatedProvider.prepareTradingWallet();
+      await Promise.resolve();
+      const startedBeforeFirstSettled = prepareLighter.mock.calls.length;
+      firstPreparation.resolve({ ready: true });
+      const result = await preparing;
+
+      expect(startedBeforeFirstSettled).toBe(0);
+      expect(prepareLighter).toHaveBeenCalledTimes(1);
+      expect(result).toStrictEqual({ ready: true });
     });
 
     it('delegates toggleTestnet to default provider', async () => {

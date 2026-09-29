@@ -38,6 +38,7 @@ import type { ServiceContext } from '../../src/services/ServiceContext.js';
 import type {
   AccountState,
   GetAvailableDexsParams,
+  HyperLiquidCredentials,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsMarketData,
@@ -945,9 +946,40 @@ describe('PerpsController', () => {
       expect(MockLighterConstructor).toHaveBeenCalledWith(withAccountSigner);
     });
 
-    it('passes providerCredentials.hyperliquid.getAgentSigner to the HyperLiquid provider', async () => {
-      const getAgentSigner = jest.fn();
-      controller = new TestablePerpsController({
+    const agentSigner = {
+      address: '0x00000000000000000000000000000000000a9e17',
+      signTypedData: jest.fn(),
+    } as const;
+
+    /**
+     * The agent resolver the controller handed to the last HyperLiquid
+     * provider it created.
+     *
+     * @returns The resolver.
+     */
+    function getProviderAgentResolver(): NonNullable<
+      HyperLiquidCredentials['getAgentSigner']
+    > {
+      const { calls } = (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mock;
+      const resolver = calls[calls.length - 1][0].getAgentSigner;
+      if (!resolver) {
+        throw new Error('No agent resolver handed to the provider');
+      }
+      return resolver;
+    }
+
+    /**
+     * Build a controller whose host resolves agents with `getAgentSigner`.
+     *
+     * @param getAgentSigner - The host resolver.
+     * @returns The controller.
+     */
+    function createAgentController(
+      getAgentSigner?: HyperLiquidCredentials['getAgentSigner'],
+    ): TestablePerpsController {
+      return new TestablePerpsController({
         messenger: createMockMessenger(),
         state: getDefaultPerpsControllerState(),
         clientConfig: {
@@ -955,74 +987,148 @@ describe('PerpsController', () => {
         },
         infrastructure: mockInfrastructure,
       });
+    }
 
+    it("asks the host's getAgentSigner through the HyperLiquid provider's resolver", async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      controller = createAgentController(getAgentSigner);
       await controller.init();
 
-      expect(
-        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>,
-      ).toHaveBeenCalledWith(expect.objectContaining({ getAgentSigner }));
+      const resolved = await getProviderAgentResolver()(account);
+
+      expect(resolved).toBe(agentSigner);
+      expect(getAgentSigner.mock.calls).toStrictEqual([[account]]);
     });
 
-    it('setAgentSigner forwards the agent to the HyperLiquid provider', async () => {
-      const agentSigner = {
-        address: '0x00000000000000000000000000000000000a9e17' as const,
-        signTypedData: jest.fn(),
-      };
-      mockProvider.setAgentSigner = jest.fn();
+    it('resolves no agent without getAgentSigner or a binding', async () => {
+      controller = createAgentController();
       await controller.init();
 
-      await controller.setAgentSigner(account, agentSigner);
-      await controller.setAgentSigner(account, null);
+      expect(await getProviderAgentResolver()(account)).toBeNull();
+    });
 
-      expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(
-        1,
-        account,
+    it('answers with a setAgentSigner binding for that account and network only', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(null);
+      controller = createAgentController(getAgentSigner);
+      await controller.init();
+      const resolve = getProviderAgentResolver();
+
+      controller.setAgentSigner(account, agentSigner);
+
+      expect(await resolve(account)).toBe(agentSigner);
+      expect(
+        await resolve({
+          ...account,
+          mainAddress: '0x9999999999999999999999999999999999999999',
+        }),
+      ).toBeNull();
+      expect(await resolve({ ...account, isTestnet: true })).toBeNull();
+      expect(getAgentSigner).toHaveBeenCalledTimes(2);
+    });
+
+    it('matches a binding whatever the main address casing', async () => {
+      controller = createAgentController(jest.fn().mockResolvedValue(null));
+      await controller.init();
+
+      controller.setAgentSigner(
+        {
+          mainAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          isTestnet: false,
+        },
         agentSigner,
       );
-      expect(mockProvider.setAgentSigner).toHaveBeenNthCalledWith(
-        2,
-        account,
-        null,
-      );
+
+      expect(
+        await getProviderAgentResolver()({
+          mainAddress: '0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD',
+          isTestnet: false,
+        }),
+      ).toBe(agentSigner);
     });
 
-    it('setAgentSigner rejects when the hyperliquid provider has no agent support', async () => {
+    it('pins the main account with setAgentSigner(null) without asking getAgentSigner', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      controller = createAgentController(getAgentSigner);
       await controller.init();
 
-      await expect(controller.setAgentSigner(account, null)).rejects.toThrow(
-        PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
-      );
+      controller.setAgentSigner(account, null);
+
+      expect(await getProviderAgentResolver()(account)).toBeNull();
+      expect(getAgentSigner).not.toHaveBeenCalled();
     });
 
-    it('setAgentSigner rejects before the controller is initialized', async () => {
-      mockProvider.setAgentSigner = jest.fn();
-
-      await expect(controller.setAgentSigner(account, null)).rejects.toThrow(
-        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
-      );
-      expect(mockProvider.setAgentSigner).not.toHaveBeenCalled();
-    });
-
-    it('clearAgentSigners forwards to the HyperLiquid provider', async () => {
+    it('drops the agents the provider already resolved when a binding changes', async () => {
       mockProvider.clearAgentSigners = jest.fn();
+      controller = createAgentController();
       await controller.init();
 
-      controller.clearAgentSigners();
+      controller.setAgentSigner(account, agentSigner);
 
       expect(mockProvider.clearAgentSigners).toHaveBeenCalledTimes(1);
     });
 
-    it('clearAgentSigners does nothing before the controller is initialized', () => {
-      mockProvider.clearAgentSigners = jest.fn();
+    it('keeps a binding set before init', async () => {
+      controller = createAgentController(jest.fn().mockResolvedValue(null));
 
-      expect(() => controller.clearAgentSigners()).not.toThrow();
-      expect(mockProvider.clearAgentSigners).not.toHaveBeenCalled();
-    });
-
-    it('clearAgentSigners does nothing when the provider has no agent support', async () => {
+      controller.setAgentSigner(account, agentSigner);
       await controller.init();
 
+      expect(await getProviderAgentResolver()(account)).toBe(agentSigner);
+    });
+
+    it('keeps bindings when the HyperLiquid provider is re-created', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      controller = createAgentController(getAgentSigner);
+      await controller.init();
+      controller.setAgentSigner(account, null);
+
+      await controller.toggleTestnet();
+      await controller.toggleTestnet();
+
+      expect(
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>,
+      ).toHaveBeenCalledTimes(3);
+      expect(await getProviderAgentResolver()(account)).toBeNull();
+      expect(getAgentSigner).not.toHaveBeenCalled();
+    });
+
+    it('clearAgentSigners forgets bindings and drops resolved agents', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      mockProvider.clearAgentSigners = jest.fn();
+      controller = createAgentController(getAgentSigner);
+      await controller.init();
+      controller.setAgentSigner(account, null);
+
+      controller.clearAgentSigners();
+
+      expect(await getProviderAgentResolver()(account)).toBe(agentSigner);
+      expect(mockProvider.clearAgentSigners).toHaveBeenCalledTimes(2);
+    });
+
+    it('clearAgentSigners does not need an initialized provider', () => {
+      controller = createAgentController();
+
       expect(() => controller.clearAgentSigners()).not.toThrow();
+    });
+
+    it('exposes the agent and preparation actions through the messenger at init', async () => {
+      const messenger = createMockMessenger();
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+
+      await controller.init();
+
+      expect(messenger.registerMethodActionHandlers).toHaveBeenCalledWith(
+        controller,
+        expect.arrayContaining([
+          'setAgentSigner',
+          'clearAgentSigners',
+          'prepareTradingWallet',
+        ]),
+      );
     });
 
     it("prepareTradingWallet returns the active provider's readiness", async () => {

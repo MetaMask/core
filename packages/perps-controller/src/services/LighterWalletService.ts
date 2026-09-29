@@ -26,7 +26,10 @@ import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { LighterNetwork } from '../types/lighter-types.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
-import { isAccountSignerReady } from './accountSigner.js';
+import {
+  isAccountSignerReady,
+  isMainAccountSignerReady,
+} from './accountSigner.js';
 
 export class LighterWalletService {
   #isTestnet: boolean;
@@ -73,13 +76,11 @@ export class LighterWalletService {
    * @returns True when the main account is available for signing.
    */
   isMainAccountSignerReady(): boolean {
-    const { accountSigner } = this.#deps;
-    if (accountSigner) {
-      return isAccountSignerReady(accountSigner);
-    }
-    return this.#messenger
-      ? this.#messenger.call('KeyringController:getState').isUnlocked
-      : false;
+    return isMainAccountSignerReady(
+      this.#deps.accountSigner,
+      () =>
+        this.#messenger?.call('KeyringController:getState').isUnlocked ?? false,
+    );
   }
 
   /**

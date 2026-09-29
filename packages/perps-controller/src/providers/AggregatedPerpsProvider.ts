@@ -17,6 +17,7 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { WebSocketConnectionState } from '../types/index.js';
@@ -1050,24 +1051,35 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   /**
    * Prepare every provider in turn, so a hardware wallet sees one prompt at a
-   * time.
+   * time. A provider that throws is logged with its provider ID and counts as
+   * not ready.
    *
-   * @returns The first provider readiness that is not ready, else ready.
+   * @returns The not-ready result of the first provider, in registration
+   * order, that is not ready; else ready.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     let notReady: ReadyToTradeResult | undefined;
-    for (const [, provider] of this.#getActiveProviders()) {
+    for (const [providerId, provider] of this.#getActiveProviders()) {
       let result: ReadyToTradeResult | undefined;
       try {
         result = await provider.prepareTradingWallet?.();
-      } catch (error) {
-        result = {
-          ready: false,
-          error: ensureError(
-            error,
-            'AggregatedPerpsProvider.prepareTradingWallet',
-          ).message,
-        };
+      } catch (caughtError) {
+        // Providers report their own failures, so a throw here is unexpected.
+        const error = ensureError(
+          caughtError,
+          'AggregatedPerpsProvider.prepareTradingWallet',
+        );
+        this.#deps.logger.error(error, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: providerId,
+          },
+          context: {
+            name: 'AggregatedPerpsProvider.prepareTradingWallet',
+            data: { providerId },
+          },
+        });
+        result = { ready: false, error: error.message };
       }
       if (result && !result.ready) {
         notReady ??= result;

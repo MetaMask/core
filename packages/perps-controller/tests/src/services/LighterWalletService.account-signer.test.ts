@@ -1,6 +1,7 @@
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import {
+  createKeyringMessenger,
   createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
@@ -66,5 +67,45 @@ describe('LighterWalletService with accountSigner', () => {
       PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
     );
     expect(signer.signPersonalMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('LighterWalletService.isMainAccountSignerReady', () => {
+  it('follows the account signer when one is set', () => {
+    let ready = true;
+    const { messenger, call } = createKeyringlessMessenger();
+    const service = new LighterWalletService(
+      {
+        ...createMockInfrastructure(),
+        accountSigner: createSigner(() => ready),
+      },
+      { isTestnet: true, messenger },
+    );
+
+    const whileReady = service.isMainAccountSignerReady();
+    ready = false;
+
+    expect(whileReady).toBe(true);
+    expect(service.isMainAccountSignerReady()).toBe(false);
+    expect(keyringCalls(call)).toStrictEqual([]);
+  });
+
+  it("follows the keyring's unlock state without an account signer", () => {
+    const { messenger, call } = createKeyringMessenger(SIGNATURE);
+    const service = new LighterWalletService(createMockInfrastructure(), {
+      isTestnet: true,
+      messenger,
+    });
+
+    expect(service.isMainAccountSignerReady()).toBe(true);
+    expect(keyringCalls(call)).toStrictEqual(['KeyringController:getState']);
+  });
+
+  it('is not ready without an account signer or a messenger', () => {
+    const service = new LighterWalletService(createMockInfrastructure(), {
+      isTestnet: true,
+    });
+
+    expect(service.isMainAccountSignerReady()).toBe(false);
   });
 });
