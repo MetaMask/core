@@ -10,7 +10,7 @@ import type { ProfileController } from './ProfileController.js';
  *
  * @returns The MetaMask profile, or undefined.
  */
-export type ProfileControllerGetMetaMaskProfileAction = {
+export type ProfileControllerGetProfileAction = {
   type: `ProfileController:getProfile`;
   handler: ProfileController['getProfile'];
 };
@@ -117,7 +117,7 @@ export type ProfileControllerFetchAndUpdateXAccountAction = {
  * Union of all ProfileController action types.
  */
 export type ProfileControllerMethodActions =
-  | ProfileControllerGetMetaMaskProfileAction
+  | ProfileControllerGetProfileAction
   | ProfileControllerGetXProfileAction
   | ProfileControllerCreateProfileAction
   | ProfileControllerReplaceProfileAction
