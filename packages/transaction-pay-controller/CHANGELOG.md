@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Skip Relay execute when the source chain is not on the EIP-7702 feature flag, and quote and submit that route as a normal gas-paid transaction ([#10508](https://github.com/MetaMask/core/pull/10508))
+- Skip Relay execute simulation and submit when the source chain is not on the EIP-7702 feature flag, and submit that route as a normal gas-paid transaction ([#10508](https://github.com/MetaMask/core/pull/10508))
 
 ## [29.2.3]
 

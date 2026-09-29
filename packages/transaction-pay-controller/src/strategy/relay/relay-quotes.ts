@@ -723,17 +723,6 @@ async function normalizeQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
-
-  if (
-    quote.metamask?.isExecute &&
-    !isEIP7702Chain(messenger, request.sourceChainId)
-  ) {
-    log('Skipping Relay execute: source chain is not in the EIP-7702 flag', {
-      sourceChainId: request.sourceChainId,
-    });
-    quote.metamask.isExecute = false;
-  }
-
   const { details } = quote;
   const { currencyIn, currencyOut } = details;
 
