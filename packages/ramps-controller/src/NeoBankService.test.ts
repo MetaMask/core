@@ -287,6 +287,109 @@ describe('NeoBankService', () => {
         'Malformed response received from neo-bank autoramps API',
       );
     });
+
+    it('unwraps a paged list', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(true)
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-1',
+              customer_id: 'cust-1',
+              status: 'Approved',
+              wallet_address: '0xabc',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.getAutoramps()).toMatchObject([
+        { id: 'ar-1', customerId: 'cust-1', walletAddress: '0xabc' },
+      ]);
+    });
+  });
+
+  describe('getPixDepositInstructions', () => {
+    it('reads the PIX rail from the autoramp', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            {
+              type: 'Pix',
+              br_code: '00020126',
+              instruction: 'Pay with PIX',
+              pix_key: 'pix@example.com',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.getPixDepositInstructions('ar-1')).toStrictEqual({
+        brCode: '00020126',
+        instruction: 'Pay with PIX',
+        pixKey: 'pix@example.com',
+      });
+    });
+
+    it('returns null when no PIX rail is present', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, { id: 'ar-1', status: 'Created', deposit_rails: [] });
+
+      const service = createService();
+
+      expect(await service.getPixDepositInstructions('ar-1')).toBeNull();
+    });
+  });
+
+  describe('listAutorampTransactions', () => {
+    it('unwraps a paged transaction list', async () => {
+      const scope = nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query((query) => query.autoramp_id === 'ar-1')
+        .reply(200, {
+          items: [
+            {
+              id: 'tx-1',
+              autoramp_id: 'ar-1',
+              status: 'Completed',
+              source_amount: {
+                amount: '100.00',
+                currency: { type: 'Fiat', code: 'BRL' },
+              },
+              destination_amount: {
+                amount: '18.00',
+                currency: {
+                  type: 'Crypto',
+                  token: 'mUSD',
+                  blockchain: 'Monad',
+                },
+              },
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.listAutorampTransactions('ar-1')).toStrictEqual([
+        {
+          id: 'tx-1',
+          autorampId: 'ar-1',
+          status: 'Completed',
+          sourceAmount: '100.00',
+          destinationAmount: '18.00',
+        },
+      ]);
+      expect(scope.isDone()).toBe(true);
+    });
   });
 
   describe('registerPixAddress', () => {
