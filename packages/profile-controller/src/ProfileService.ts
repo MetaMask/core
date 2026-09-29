@@ -18,7 +18,6 @@ import {
   optional,
   string,
   type as structType,
-  union,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
@@ -89,12 +88,9 @@ const XConnectResponseStruct = structType({
   updated_at: string(),
 });
 
-const CreateProfileResponseStruct = union([
+const CreateProfileResponseStruct = intersection([
   ProfileApiResponseStruct,
-  intersection([
-    ProfileApiResponseStruct,
-    structType({ x_profile: XConnectResponseStruct }),
-  ]),
+  structType({ x_profile: optional(XConnectResponseStruct) }),
 ]);
 
 const ConnectXParamsStruct = structType({
@@ -123,7 +119,7 @@ const ReplaceProfileParamsStruct = structType({
 const UpdateProfileParamsStruct = structType({
   username: optional(string()),
   display_name: optional(string()),
-  bio: optional(string()),
+  bio: optional(nullable(string())),
   linked_addresses: optional(array(string())),
   avatar_url: optional(string()),
   trading_privacy: optional(enums(['public', 'private'] as const)),
@@ -288,11 +284,11 @@ export class ProfileService extends BaseDataService<
    */
   async getProfile(profileId: string): Promise<ProfileApiResponse> {
     assert(profileId, string());
-    const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
       queryKey: [`${this.name}:getProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
         const url = new URL(
           `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
         );
@@ -437,7 +433,6 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
         );
-        return null;
       },
     });
   }
@@ -454,12 +449,12 @@ export class ProfileService extends BaseDataService<
     username: string,
   ): Promise<UsernameAvailabilityResponse> {
     assert(username, string());
-    const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
       queryKey: [`${this.name}:checkUsernameAvailability`, username],
       staleTime: 0,
       responseStruct: UsernameAvailabilityResponseStruct,
       queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
         const url = new URL(
           `${this.#v1Url}/profiles/username/${encodeURIComponent(username)}/availability`,
         );
@@ -482,11 +477,10 @@ export class ProfileService extends BaseDataService<
    */
   async getXAuthUrl(): Promise<XAuthUrlResponse> {
     const authHeaders = await this.#getAuthHeaders();
-    return this.fetchQuery({
-      queryKey: [`${this.name}:getXAuthUrl`],
-      staleTime: 0,
+    return this.executeMutation({
+      mutationKey: [`${this.name}:getXAuthUrl`],
       responseStruct: XAuthUrlResponseStruct,
-      queryFn: async () => {
+      mutationFn: async () => {
         const url = new URL(`${this.#v1Url}/profiles/x/authentication-url`);
         const response = await fetch(url.toString(), { headers: authHeaders });
         this.#throwIfNotOk(
@@ -536,12 +530,12 @@ export class ProfileService extends BaseDataService<
    * @throws {StructError} If the response does not match the expected shape.
    */
   async getXAccount(): Promise<XAccountResponse> {
-    const authHeaders = await this.#getAuthHeaders();
     return this.fetchQuery({
       queryKey: [`${this.name}:getXAccount`],
       staleTime: 0,
       responseStruct: XConnectResponseStruct,
       queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
         const url = new URL(`${this.#v1Url}/profiles/x/account`);
         const response = await fetch(url.toString(), { headers: authHeaders });
         this.#throwIfNotOk(

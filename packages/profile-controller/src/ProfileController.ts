@@ -6,7 +6,6 @@ import type {
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { CaipAccountId } from '@metamask/utils';
-import { hasProperty } from '@metamask/utils';
 
 import type { ProfileControllerMethodActions } from './ProfileController-method-action-types.js';
 import type {
@@ -310,10 +309,8 @@ export class ProfileController extends BaseController<
     const mapped = this.#mapApiResponseToProfile(response);
     this.update((state) => {
       state.metamaskProfile = mapped;
-      if (hasProperty(response, 'x_profile')) {
-        state.xProfile = this.#mapXResponseToXProfile(
-          response.x_profile as XConnectResponse,
-        );
+      if (response.x_profile) {
+        state.xProfile = this.#mapXResponseToXProfile(response.x_profile);
       }
     });
     return mapped;
