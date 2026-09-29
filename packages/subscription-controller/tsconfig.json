@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
+      "path": "../approval-controller"
+    },
+    {
       "path": "../authenticated-user-storage"
     },
     {
@@ -24,6 +27,9 @@
     },
     {
       "path": "../money-account-balance-service"
+    },
+    {
+      "path": "../money-account-upgrade-controller"
     },
     {
       "path": "../money-account-utils"

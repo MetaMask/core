@@ -3,6 +3,7 @@
    * This configuration is extended by all other TypeScript configurations.
    */
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "composite": true,
     "esModuleInterop": true,
     "isolatedModules": true,

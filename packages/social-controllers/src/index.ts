@@ -49,6 +49,17 @@ export type {
 } from './SocialService-method-action-types.js';
 
 export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
+export {
+  SOCIAL_FEED_CHANNEL,
+  SOCIAL_FEED_CHANNEL_TYPE,
+  SocialRealtimeService,
+} from './SocialRealtimeService.js';
+export type {
+  SocialFeedEvent,
+  SocialFeedEventListener,
+  SocialFeedReconnectListener,
+  SocialRealtimeServiceOptions,
+} from './SocialRealtimeService.js';
 export type {
   AuthorComment,
   CommentEngagement,

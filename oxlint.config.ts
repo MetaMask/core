@@ -84,6 +84,11 @@ export default createConfig({
     },
 
     {
+      files: ['packages/advanced-chart-core/**'],
+      env: { browser: true },
+    },
+
+    {
       files: [
         'packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts',
         'packages/foundryup/src/cli.ts',
@@ -93,6 +98,23 @@ export default createConfig({
       ],
       rules: {
         'n/hashbang': 'off',
+      },
+    },
+
+    {
+      files: ['scripts/**/*.ts'],
+      rules: {
+        'import/extensions': [
+          'error',
+          'ignorePackages',
+          {
+            checkTypeImports: true,
+            pattern: {
+              ts: 'ignorePackages',
+              js: 'never',
+            },
+          },
+        ],
       },
     },
   ],
