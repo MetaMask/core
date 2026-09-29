@@ -49,6 +49,9 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+  },
   "dependencies": {
     "@metamask/base-controller": "^10.0.0",
     "@metamask/base-data-service": "^2.1.0",
@@ -62,6 +65,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
+    "@types/react": "^19.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",
     "jest": "^30.5.2",

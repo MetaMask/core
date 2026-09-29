@@ -10,6 +10,14 @@ jest.mock('@metamask/react-data-query', () => ({
   useQuery: jest.fn(),
 }));
 
+const mockSetState = jest.fn();
+const mockUseEffect = jest.fn();
+
+jest.mock('react', () => ({
+  useState: <T>(initial: T): [T, jest.Mock] => [initial, mockSetState],
+  useEffect: (...args: unknown[]) => mockUseEffect(...args),
+}));
+
 describe('useGetProfile', () => {
   it('calls useQuery with the correct query key for the given identifier', () => {
     useGetProfile('profile-123');
@@ -21,11 +29,44 @@ describe('useGetProfile', () => {
 });
 
 describe('useCheckUsernameAvailability', () => {
-  it('calls useQuery with the correct query key for the given username', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockUseEffect.mockImplementation((fn: () => (() => void) | void) => fn());
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    mockSetState.mockClear();
+  });
+
+  it('calls useQuery with the initial username immediately', () => {
     useCheckUsernameAvailability('alice');
 
     expect(useQueryFromReactDataQuery).toHaveBeenCalledWith({
       queryKey: [`${serviceName}:checkUsernameAvailability`, 'alice'],
     });
+  });
+
+  it('calls setState with the updated username after debounce delay', () => {
+    useCheckUsernameAvailability('alice', 500);
+
+    jest.advanceTimersByTime(500);
+
+    expect(mockSetState).toHaveBeenCalledWith('alice');
+  });
+
+  it('cleanup cancels pending state update', () => {
+    let capturedCleanup: (() => void) | void;
+    mockUseEffect.mockImplementationOnce(
+      (fn: () => (() => void) | void) => {
+        capturedCleanup = fn();
+      },
+    );
+
+    useCheckUsernameAvailability('alice', 500);
+    capturedCleanup?.();
+    jest.advanceTimersByTime(500);
+
+    expect(mockSetState).not.toHaveBeenCalledWith('alice');
   });
 });
