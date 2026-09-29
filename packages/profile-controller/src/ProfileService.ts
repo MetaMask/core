@@ -300,7 +300,7 @@ export class ProfileService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(response.status, `${error}: ${response.status}`);
     }
-    return response.json() as T;
+    return (await response.json()) as T;
   }
 
   /**
