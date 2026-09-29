@@ -3177,6 +3177,35 @@ describe('AssetsController', () => {
       });
     });
 
+    it('does not seed enabled-chain natives onto an account that is no longer selected', async () => {
+      const bitcoinAccountId = 'bitcoin-account-id';
+      const bitcoinNative =
+        'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
+
+      await withController(async ({ controller, getSelectedAccountsMock }) => {
+        getSelectedAccountsMock.mockReturnValue([
+          createMockInternalAccount({ id: 'imported-account-id' }),
+        ]);
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [bitcoinAccountId]: {
+                [bitcoinNative]: { amount: '0.00000404' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        const balances = controller.state.assetsBalance[bitcoinAccountId] ?? {};
+        expect(balances[bitcoinNative]).toStrictEqual({
+          amount: '0.00000404',
+        });
+        expect(balances[MOCK_NATIVE_ASSET_ID]).toBeUndefined();
+      });
+    });
+
     it('adds default 0 balance for native tokens when missing from response', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
@@ -5195,6 +5224,75 @@ describe('AssetsController', () => {
   });
 
   describe('account group changes', () => {
+    it('drops balances outside the selected account scopes when the group changes', async () => {
+      const bitcoinAccountId = 'bitcoin-account-id';
+      const bitcoinNative =
+        'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
+      const solanaNative =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+      const lineaNative = 'eip155:59144/slip44:60' as Caip19AssetId;
+
+      await withController(
+        {
+          state: {
+            assetsBalance: {
+              [bitcoinAccountId]: {
+                [bitcoinNative]: { amount: '0.00000404' },
+                [solanaNative]: { amount: '0' },
+                [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+              },
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '0.02' },
+                [lineaNative]: { amount: '0' },
+                [solanaNative]: { amount: '0' },
+              },
+            },
+          },
+        },
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockResolvedValue({});
+
+          await activateTracking(messenger);
+          getAssetsSpy.mockClear();
+
+          getSelectedAccountsMock.mockReturnValue([
+            createMockInternalAccount({
+              id: bitcoinAccountId,
+              address: 'bc1qdy9vjsg26rrd8tkqr7f26hlhd9524wyjkynemj',
+              type: 'bip122:p2wpkh',
+              scopes: ['bip122:000000000019d6689c085ae165831e93'],
+            }),
+            createMockInternalAccount({
+              scopes: ['eip155:0'],
+            }),
+          ]);
+
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/0',
+            'keyring:Simple Key Pair/0ximported',
+          );
+          await flushPromises();
+
+          expect(
+            controller.state.assetsBalance[bitcoinAccountId],
+          ).toStrictEqual({
+            [bitcoinNative]: { amount: '0.00000404' },
+          });
+          const evmBalances =
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID] ?? {};
+          expect(evmBalances[solanaNative]).toBeUndefined();
+          expect(evmBalances[MOCK_NATIVE_ASSET_ID]).toStrictEqual({
+            amount: '0.02',
+          });
+          expect(evmBalances[lineaNative]).toStrictEqual({ amount: '0' });
+          getAssetsSpy.mockRestore();
+        },
+      );
+    });
+
     it('refreshes assets when the selected group changes while tracking', async () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = jest

@@ -1417,14 +1417,14 @@ export class AssetsController extends BaseController<
       });
       // Seed before subscribe so the price poll / update fetch sees natives
       // and default tracked assets that were never returned by balance APIs.
-      this.#ensureNativeBalancesDefaultZero();
+      this.#reconcileSelectedAccountBalances();
       this.#ensureDefaultTrackedAssetsSeeded();
       // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
       this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
       log('Failed to fetch assets on startup', error);
-      this.#ensureNativeBalancesDefaultZero();
+      this.#reconcileSelectedAccountBalances();
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
@@ -2802,11 +2802,17 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Ensures assetsBalance has a 0 balance for each native token (from
-   * NetworkEnablementController.nativeAssetIdentifiers) for each selected account.
-   * Only adds natives for chains that the account supports (correct accountId ↔ chain mapping).
+   * Make each selected account's balances match the chains it can hold.
+   *
+   * Adds a 0 balance for each native the account supports when the entry is
+   * missing, using NetworkEnablementController.nativeAssetIdentifiers. Removes
+   * balances whose chain namespace is outside the account's scopes. A v5
+   * update that arrived after a group switch used to stamp every enabled
+   * native onto the accounts it was leaving, and later updates never remove
+   * those keys. The sweep runs here because this is where the account object,
+   * and therefore its scopes, is available.
    */
-  #ensureNativeBalancesDefaultZero(): void {
+  #reconcileSelectedAccountBalances(): void {
     const accounts = this.#getSelectedAccounts();
     if (accounts.length === 0) {
       return;
@@ -2817,27 +2823,76 @@ export class AssetsController extends BaseController<
         Record<string, AssetBalance>
       >;
       for (const account of accounts) {
-        const accountId = account.id;
-        const nativeAssetIds = this.#getNativeAssetIdsForAccount(account);
-        if (nativeAssetIds.length === 0) {
-          continue;
-        }
-        if (!balances[accountId]) {
-          balances[accountId] = {};
-        }
-        for (const nativeAssetId of nativeAssetIds) {
-          if (
-            !Object.prototype.hasOwnProperty.call(
-              balances[accountId],
-              nativeAssetId,
-            )
-          ) {
-            balances[accountId][nativeAssetId] =
-              getDefaultNativeAssetBalance(nativeAssetId);
-          }
-        }
+        this.#seedMissingNativeBalances(balances, account);
+        this.#dropBalancesOutsideAccountScopes(balances, account);
       }
     });
+  }
+
+  /**
+   * Add a 0 balance for each native the account supports when the entry is missing.
+   *
+   * Natives come from NetworkEnablementController.nativeAssetIdentifiers,
+   * limited to chains in the account's scopes. Existing entries are kept.
+   *
+   * @param balances - `assetsBalance` being updated.
+   * @param account - Account whose supported chains determine the natives to seed.
+   */
+  #seedMissingNativeBalances(
+    balances: Record<string, Record<string, AssetBalance>>,
+    account: InternalAccount,
+  ): void {
+    const nativeAssetIds = this.#getNativeAssetIdsForAccount(account);
+    if (nativeAssetIds.length === 0) {
+      return;
+    }
+    const accountId = account.id;
+    if (!balances[accountId]) {
+      balances[accountId] = {};
+    }
+    for (const nativeAssetId of nativeAssetIds) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          balances[accountId],
+          nativeAssetId,
+        )
+      ) {
+        balances[accountId][nativeAssetId] =
+          getDefaultNativeAssetBalance(nativeAssetId);
+      }
+    }
+  }
+
+  /**
+   * Remove balance entries the account cannot own.
+   *
+   * Ownership is the chain namespace of the account's scopes, not the
+   * currently enabled chains. `eip155:0` keeps every EVM chain, including
+   * ones the user has turned off. An account with no scopes is left untouched.
+   *
+   * @param balances - `assetsBalance` being updated.
+   * @param account - Account whose scopes define the namespaces to keep.
+   */
+  #dropBalancesOutsideAccountScopes(
+    balances: Record<string, Record<string, AssetBalance>>,
+    account: InternalAccount,
+  ): void {
+    const scopes = account.scopes ?? [];
+    if (scopes.length === 0) {
+      return;
+    }
+    const accountBalances = balances[account.id];
+    if (!accountBalances) {
+      return;
+    }
+    const namespaces = new Set(
+      scopes.map((scope) => String(scope).split(':')[0]),
+    );
+    for (const assetId of Object.keys(accountBalances)) {
+      if (!namespaces.has(assetId.split(':')[0])) {
+        delete accountBalances[assetId];
+      }
+    }
   }
 
   /**
@@ -3032,7 +3087,7 @@ export class AssetsController extends BaseController<
             );
             const nativeAssetIdsForAccount = account
               ? this.#getNativeAssetIdsForAccount(account)
-              : this.#getNativeAssetIdsForEnabledChains();
+              : [];
             for (const nativeAssetId of nativeAssetIdsForAccount) {
               if (
                 !Object.prototype.hasOwnProperty.call(
@@ -3963,7 +4018,7 @@ export class AssetsController extends BaseController<
         });
       }
 
-      this.#ensureNativeBalancesDefaultZero();
+      this.#reconcileSelectedAccountBalances();
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
@@ -4018,7 +4073,7 @@ export class AssetsController extends BaseController<
       });
     }
 
-    this.#ensureNativeBalancesDefaultZero();
+    this.#reconcileSelectedAccountBalances();
     // Seed default tracked assets (mUSD) for any chain the user has
     // *just* enabled. This is what makes mUSD appear on Monad after
     // the user finally adds it to NetworkEnablementController.
@@ -4133,7 +4188,7 @@ export class AssetsController extends BaseController<
         dataTypes: ['balance', 'metadata', 'price'],
       });
 
-      this.#ensureNativeBalancesDefaultZero();
+      this.#reconcileSelectedAccountBalances();
       this.#fetchMissingPricesWithoutCache(accounts, [selectedChainId]);
     } finally {
       releaseLock();
@@ -4180,7 +4235,7 @@ export class AssetsController extends BaseController<
       forceUpdate: true,
       dataTypes: ['balance', 'metadata', 'price'],
     });
-    this.#ensureNativeBalancesDefaultZero();
+    this.#reconcileSelectedAccountBalances();
     this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
   }
 
