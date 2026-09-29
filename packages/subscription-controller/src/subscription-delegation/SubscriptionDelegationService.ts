@@ -200,10 +200,8 @@ type ResolvedSubscriptionDelegationConfig = {
  * Authenticated User Storage → register CHOMP intent. Returns a verified
  * `delegationHash` for `SubscriptionController.startSubscriptionWithCrypto`.
  *
- * Alpha callers must pass `skipChompInteractions: true` until a follow-up
- * `@metamask/chomp-api-service` release accepts `'cash-subscription'` intent
- * metadata. The CHOMP-enabled path (`skipChompInteractions` unset/false)
- * remains dormant and is not production-ready without that package support.
+ * Pass `skipChompInteractions: true` to skip CHOMP verify and intent
+ * registration and return a locally computed delegation hash.
  *
  * Each call resolves the Money Account chain from remote feature flags, then
  * resolves its price, payment token, and delegate from `SubscriptionController`
@@ -719,10 +717,8 @@ export class SubscriptionDelegationService {
    * If there is no match, builds, signs, optionally verifies with CHOMP,
    * persists, and optionally registers a new delegation.
    *
-   * When `skipChompInteractions` is true (required for alpha), CHOMP verify
-   * and intent calls are skipped; the returned hash is computed locally. The
-   * default CHOMP-enabled path requires a follow-up chomp-api-service release
-   * that accepts `'cash-subscription'` intent metadata.
+   * When `skipChompInteractions` is true, CHOMP verify and intent calls are
+   * skipped; the returned hash is computed locally.
    *
    * @param request - Authoritative pricing and payer details for the delegation.
    * @param forceNew - Whether to create a replacement instead of reusing a
@@ -1029,12 +1025,6 @@ export class SubscriptionDelegationService {
   }
 
   async #createIntent(params: SubscriptionIntentParams): Promise<void> {
-    // Published `@metamask/chomp-api-service` only types intent metadata as
-    // `'cash-deposit' | 'cash-withdrawal'`. The dormant production path still
-    // passes `'cash-subscription'`; a follow-up chomp-api-service release must
-    // accept that discriminator before this path is production-ready. Alpha
-    // callers must use `skipChompInteractions: true` so this method is not
-    // reached.
     await this.#messenger.call('ChompApiService:createIntents', [
       {
         account: params.account,
@@ -1044,9 +1034,7 @@ export class SubscriptionDelegationService {
           allowance: params.allowance,
           tokenSymbol: params.tokenSymbol,
           tokenAddress: params.tokenAddress,
-          type: CASH_SUBSCRIPTION_DELEGATION_TYPE as
-            | 'cash-deposit'
-            | 'cash-withdrawal',
+          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
         },
       },
     ]);

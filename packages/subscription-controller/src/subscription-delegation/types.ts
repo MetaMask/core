@@ -1,3 +1,4 @@
+import type { ChompIntentType } from '@metamask/chomp-api-service';
 import type { Hex, Json } from '@metamask/utils';
 
 import { PRODUCT_TYPES } from '../types.js';
@@ -7,27 +8,20 @@ import type {
   StartCryptoSubscriptionResponse,
 } from '../types.js';
 
+export type { ChompIntentType };
+
 /**
  * Storage / CHOMP metadata type for cash-subscription delegations.
  *
- * Defined locally so this package does not depend on an unreleased
- * `@metamask/chomp-api-service` intent type. Production CHOMP intent
- * registration still requires a follow-up chomp-api-service release that
- * accepts `'cash-subscription'`.
+ * The `'cash-subscription'` member of {@link ChompIntentType}.
  */
-export const CASH_SUBSCRIPTION_DELEGATION_TYPE = 'cash-subscription' as const;
+export const CASH_SUBSCRIPTION_DELEGATION_TYPE =
+  'cash-subscription' as const satisfies ChompIntentType;
 
 export const SUBSCRIPTION_DELEGATION_APPROVAL_TYPE =
   'subscription_delegation' as const;
 
 export const SUBSCRIPTION_DELEGATION_POLICY_VERSION = '1' as const;
-
-export type ChompIntentType =
-  | 'cash-deposit'
-  | 'cash-withdrawal'
-  | typeof CASH_SUBSCRIPTION_DELEGATION_TYPE
-  | 'cash-deposit-premium'
-  | 'cash-withdrawal-premium';
 
 export type SubscriptionPermissionId = ChompIntentType;
 
@@ -167,10 +161,8 @@ export type PrepareSubscriptionDelegationRequest = {
    */
   checkBalance?: boolean;
   /**
-   * When true, skips CHOMP verify/intent interactions. Required for alpha
-   * until `@metamask/chomp-api-service` accepts `'cash-subscription'` intent
-   * metadata. Defaults to false (production path; unsupported until that
-   * follow-up release).
+   * When true, skips CHOMP verify and intent registration. The returned
+   * delegation hash is computed locally. Defaults to false.
    */
   skipChompInteractions?: boolean;
 };

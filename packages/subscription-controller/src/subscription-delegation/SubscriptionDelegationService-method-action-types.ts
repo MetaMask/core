@@ -58,10 +58,8 @@ export type SubscriptionDelegationServiceStartSubscriptionWithDelegationAction =
  * If there is no match, builds, signs, optionally verifies with CHOMP,
  * persists, and optionally registers a new delegation.
  *
- * When `skipChompInteractions` is true (required for alpha), CHOMP verify
- * and intent calls are skipped; the returned hash is computed locally. The
- * default CHOMP-enabled path requires a follow-up chomp-api-service release
- * that accepts `'cash-subscription'` intent metadata.
+ * When `skipChompInteractions` is true, CHOMP verify and intent calls are
+ * skipped; the returned hash is computed locally.
  *
  * @param request - Authoritative pricing and payer details for the delegation.
  * @param forceNew - Whether to create a replacement instead of reusing a
