@@ -16,14 +16,14 @@ export type AesGcmOptions = {
  *
  * @param key - The 16, 24, or 32-byte AES key.
  * @param iv - The initialization vector.
- * @param data - The data to encrypt.
+ * @param plaintext - The plaintext.
  * @param options - Additional configuration options.
  * @returns The ciphertext.
  */
 export async function encrypt(
   key: BufferSource,
   iv: BufferSource,
-  data: BufferSource,
+  plaintext: BufferSource,
   options?: AesGcmOptions,
 ): Promise<Uint8Array> {
   if (key.byteLength === 0) {
@@ -53,10 +53,10 @@ export async function encrypt(
   );
 
   const ciphertext = await globalThis.crypto.subtle.encrypt(
-    // Converting IV to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
+    // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
     { name: 'AES-GCM', iv: toUint8Array(iv) },
     subtleKey,
-    data,
+    toUint8Array(plaintext),
   );
 
   return new Uint8Array(ciphertext);
@@ -67,14 +67,14 @@ export async function encrypt(
  *
  * @param key - The 16, 24, or 32-byte AES key.
  * @param iv - The initialization vector.
- * @param data - The ciphertext.
+ * @param ciphertext - The ciphertext.
  * @param options - Additional configuration options.
  * @returns The decrypted plaintext.
  */
 export async function decrypt(
   key: BufferSource,
   iv: BufferSource,
-  data: BufferSource,
+  ciphertext: BufferSource,
   options?: AesGcmOptions,
 ): Promise<Uint8Array> {
   if (key.byteLength === 0) {
@@ -104,10 +104,10 @@ export async function decrypt(
   );
 
   const plaintext = await globalThis.crypto.subtle.decrypt(
-    // Converting IV to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
+    // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
     { name: 'AES-GCM', iv: toUint8Array(iv) },
     subtleKey,
-    data,
+    toUint8Array(ciphertext),
   );
 
   return new Uint8Array(plaintext);
