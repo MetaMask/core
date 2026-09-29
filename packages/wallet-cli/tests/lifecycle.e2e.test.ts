@@ -2,7 +2,6 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import path from 'node:path';
 
 import { getDaemonPaths } from '../src/daemon/paths.js';
 import { cleanupDaemon } from './helpers.js';
@@ -32,8 +31,8 @@ const TEST_INFURA_PROJECT_ID = '00000000000000000000000000000000';
 const ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
 
 const BIN_PATH = join(__dirname, '..', 'bin', 'run.mjs');
-const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
-const RESOLVER_PATH = path.join(ROOT_DIR, 'scripts', 'resolver', 'register.ts');
+const ROOT_DIR = join(__dirname, '..', '..', '..');
+const RESOLVER_PATH = join(ROOT_DIR, 'scripts', 'resolver', 'register.ts');
 
 // Each step (spawn the CLI, construct a real Wallet, run PBKDF2 key derivation
 // for the first-run SRP import) is slow; give the whole lifecycle room.
