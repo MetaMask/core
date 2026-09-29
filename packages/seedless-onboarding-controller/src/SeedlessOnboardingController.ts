@@ -1,17 +1,11 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  StateMetadata,
-} from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
   Encryptor,
 } from '@metamask/keyring-controller';
-import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
   ChangeEncryptionKeyResult,
@@ -24,11 +18,7 @@ import {
   ToprfSecureBackup,
   EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  isNullOrUndefined,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -51,7 +41,14 @@ import {
 } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { SecretMetadata } from './SecretMetadata.js';
-import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types.js';
+import type {
+  SeedlessOnboardingControllerMessenger,
+  SeedlessOnboardingControllerOptions,
+} from './SeedlessOnboardingController-types.js';
+import {
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
+  seedlessOnboardingMetadata,
+} from './state.js';
 import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
@@ -85,6 +82,16 @@ import {
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
 
+export type {
+  SeedlessOnboardingControllerActions,
+  SeedlessOnboardingControllerEvents,
+  SeedlessOnboardingControllerGetStateAction,
+  SeedlessOnboardingControllerMessenger,
+  SeedlessOnboardingControllerOptions,
+  SeedlessOnboardingControllerStateChangeEvent,
+} from './SeedlessOnboardingController-types.js';
+export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state.js';
+
 const log = createModuleLogger(projectLogger, controllerName);
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -116,280 +123,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkAccessTokenExpired',
   'runMigrations',
 ] as const;
-
-// Actions
-export type SeedlessOnboardingControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    SeedlessOnboardingControllerState
-  >;
-
-export type SeedlessOnboardingControllerActions =
-  | SeedlessOnboardingControllerGetStateAction
-  | SeedlessOnboardingControllerMethodActions;
-
-type AllowedActions = never;
-
-// Events
-export type SeedlessOnboardingControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    SeedlessOnboardingControllerState
-  >;
-export type SeedlessOnboardingControllerEvents =
-  SeedlessOnboardingControllerStateChangeEvent;
-
-type AllowedEvents = never;
-
-// Messenger
-export type SeedlessOnboardingControllerMessenger = Messenger<
-  typeof controllerName,
-  SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents
->;
-
-/**
- * Seedless Onboarding Controller Options.
- *
- * @param messenger - The messenger to use for this controller.
- * @param state - The initial state to set on this controller.
- * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
- */
-export type SeedlessOnboardingControllerOptions<
-  EncryptionKey = encryptionUtils.EncryptionKey,
-  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
-  EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationParams> =
-    DefaultEncryptionResult<SupportedKeyDerivationParams>,
-> = {
-  messenger: SeedlessOnboardingControllerMessenger;
-
-  /**
-   * Initial state to set on this controller.
-   */
-  state?: Partial<SeedlessOnboardingControllerState>;
-
-  /**
-   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  encryptor: Encryptor<
-    EncryptionKey,
-    SupportedKeyDerivationParams,
-    EncryptionResult
-  >;
-
-  /**
-   * A function to get a new jwt token using refresh token.
-   */
-  refreshJWTToken: RefreshJWTToken;
-
-  /**
-   * A function to revoke the refresh token.
-   */
-  revokeRefreshToken: RevokeRefreshToken;
-
-  /**
-   * A function to renew the refresh token and get new revoke token.
-   */
-  renewRefreshToken: RenewRefreshToken;
-
-  /**
-   * Optional key derivation interface for the TOPRF client.
-   *
-   * If provided, it will be used as an additional step during
-   * key derivation. This can be used, for example, to inject a slow key
-   * derivation step to protect against local brute force attacks on the
-   * password.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  toprfKeyDeriver?: ToprfKeyDeriver;
-
-  /**
-   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
-   *
-   * @default Web3AuthNetwork.Mainnet
-   */
-  network?: Web3AuthNetwork;
-
-  /**
-   * The TTL of the password outdated cache in milliseconds.
-   *
-   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
-   */
-  passwordOutdatedCacheTTL?: number;
-};
-
-/**
- * Get the initial state for the Seedless Onboarding Controller with defaults.
- *
- * @param overrides - The overrides for the initial state.
- * @returns The initial state for the Seedless Onboarding Controller.
- */
-export function getInitialSeedlessOnboardingControllerStateWithDefaults(
-  overrides?: Partial<SeedlessOnboardingControllerState>,
-): SeedlessOnboardingControllerState {
-  const initialState = {
-    socialBackupsMetadata: [],
-    isSeedlessOnboardingUserAuthenticated: false,
-    migrationVersion: 0,
-    ...overrides,
-  };
-
-  // Ensure authenticated flag is set correctly.
-  try {
-    assertIsSeedlessOnboardingUserAuthenticated(initialState);
-    initialState.isSeedlessOnboardingUserAuthenticated = true;
-  } catch {
-    initialState.isSeedlessOnboardingUserAuthenticated = false;
-  }
-  return initialState;
-}
-
-/**
- * Seedless Onboarding Controller State Metadata.
- *
- * This allows us to choose if fields of the state should be persisted or not
- * using the `persist` flag; and if they can be sent to Sentry or not, using
- * the `anonymous` flag.
- */
-const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerState> =
-  {
-    vault: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    socialBackupsMetadata: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    nodeAuthTokens: {
-      // We sanitize the `authToken` field from the `nodeAuthTokens` to avoid logging the actual token.
-      // The reason we include this in the state logs is to help with debugging in case of any issues.
-      includeInStateLogs: (nodeAuthTokens) =>
-        !isNullOrUndefined(nodeAuthTokens),
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    authConnection: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: true,
-    },
-    authConnectionId: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    groupedAuthConnectionId: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    userId: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    socialLoginEmail: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: true,
-    },
-    vaultEncryptionKey: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    vaultEncryptionSalt: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    authPubKey: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    passwordOutdatedCache: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    refreshToken: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    revokeToken: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    pendingToBeRevokedTokens: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    // stays in vault
-    accessToken: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    // stays outside of vault as this token is accessed by the metadata service
-    // before the vault is created or unlocked.
-    metadataAccessToken: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    encryptedSeedlessEncryptionKey: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    encryptedKeyringEncryptionKey: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    isSeedlessOnboardingUserAuthenticated: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    migrationVersion: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-  };
 
 export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
