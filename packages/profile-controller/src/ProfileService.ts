@@ -300,6 +300,7 @@ export class ProfileService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(response.status, `${error}: ${response.status}`);
     }
+    if (method === 'DELETE') return null as ResponseType;
     return (await response.json()) as ResponseType;
   }
 
@@ -421,23 +422,11 @@ export class ProfileService extends BaseDataService<
     assert(profileId, string());
     return this.executeMutation({
       mutationKey: [`${this.name}:deleteProfile`, profileId],
-      mutationFn: async () => {
-        const authHeaders = await this.#getAuthHeaders();
-        const url = new URL(
-          `${this.#v1Url}/profiles/${encodeURIComponent(profileId)}`,
-        );
-        const response = await fetch(url.toString(), {
+      mutationFn: async () =>
+        this.#fetch<null>(`profiles/${encodeURIComponent(profileId)}`, {
           method: 'DELETE',
-          headers: authHeaders,
-        });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `${ProfileServiceErrorMessage.DELETE_PROFILE_FAILED}: ${response.status}`,
-          );
-        }
-        return null;
-      },
+          error: ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
+        }),
     });
   }
 
