@@ -174,11 +174,11 @@ describe('ProfileController', () => {
     });
   });
 
-  describe('getMetaMaskProfile', () => {
+  describe('getProfile', () => {
     it('returns undefined when no profile has been set', () => {
       const { controller } = createController();
 
-      expect(controller.getMetaMaskProfile()).toBeUndefined();
+      expect(controller.getProfile()).toBeUndefined();
     });
 
     it('returns the profile when one exists in state', async () => {
@@ -196,7 +196,7 @@ describe('ProfileController', () => {
         display_name: 'Alice Wonderland',
       });
 
-      expect(controller.getMetaMaskProfile()).toStrictEqual(mockMappedProfile);
+      expect(controller.getProfile()).toStrictEqual(mockMappedProfile);
     });
   });
 

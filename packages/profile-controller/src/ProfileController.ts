@@ -162,7 +162,7 @@ export function getDefaultProfileControllerState(): ProfileControllerState {
 }
 
 const MESSENGER_EXPOSED_METHODS = [
-  'getMetaMaskProfile',
+  'getProfile',
   'getXProfile',
   'createProfile',
   'replaceProfile',
@@ -247,7 +247,7 @@ export class ProfileController extends BaseController<
       username: response.username,
       displayName: response.display_name,
       bio: response.bio ?? '',
-      linkedAddresses: response.linked_addresses as CaipAccountId[],
+      linkedAddresses: response.linked_addresses,
       avatarUrl: response.avatar_url ?? '',
       tradingPrivacy: response.trading_privacy,
       connectedToX: response.connected_to_x,
@@ -279,7 +279,7 @@ export class ProfileController extends BaseController<
    *
    * @returns The MetaMask profile, or undefined.
    */
-  getMetaMaskProfile(): Profile | undefined {
+  getProfile(): Profile | undefined {
     if (!this.#hasProfile()) {
       return undefined;
     }

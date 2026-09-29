@@ -11,8 +11,8 @@ import type { ProfileController } from './ProfileController.js';
  * @returns The MetaMask profile, or undefined.
  */
 export type ProfileControllerGetMetaMaskProfileAction = {
-  type: `ProfileController:getMetaMaskProfile`;
-  handler: ProfileController['getMetaMaskProfile'];
+  type: `ProfileController:getProfile`;
+  handler: ProfileController['getProfile'];
 };
 
 /**

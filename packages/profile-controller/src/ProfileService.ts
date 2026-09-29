@@ -21,6 +21,7 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
+import { CaipAccountIdStruct } from '@metamask/utils';
 
 import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
 
@@ -55,7 +56,7 @@ const ProfileApiResponseStruct = structType({
   username: string(),
   display_name: string(),
   bio: nullable(string()),
-  linked_addresses: array(string()),
+  linked_addresses: array(CaipAccountIdStruct),
   avatar_url: nullable(string()),
   trading_privacy: TradingPrivacyStruct,
   connected_to_x: boolean(),
@@ -106,7 +107,7 @@ const CreateProfileParamsStruct = structType({
   username: string(),
   display_name: string(),
   bio: optional(nullable(string())),
-  linked_addresses: array(string()),
+  linked_addresses: array(CaipAccountIdStruct),
   avatar_url: optional(string()),
   trading_privacy: TradingPrivacyStruct,
 });
@@ -115,7 +116,7 @@ const ReplaceProfileParamsStruct = structType({
   username: string(),
   display_name: string(),
   bio: optional(nullable(string())),
-  linked_addresses: array(string()),
+  linked_addresses: array(CaipAccountIdStruct),
   avatar_url: optional(string()),
   trading_privacy: TradingPrivacyStruct,
 });
@@ -124,7 +125,7 @@ const UpdateProfileParamsStruct = structType({
   username: optional(string()),
   display_name: optional(string()),
   bio: optional(nullable(string())),
-  linked_addresses: optional(array(string())),
+  linked_addresses: optional(array(CaipAccountIdStruct)),
   avatar_url: optional(string()),
   trading_privacy: optional(TradingPrivacyStruct),
 });
@@ -340,7 +341,6 @@ export class ProfileService extends BaseDataService<
   async createProfile(
     params: CreateProfileParams,
   ): Promise<CreateProfileResponse> {
-    assert(params, CreateProfileParamsStruct);
     return this.executeMutation({
       mutationKey: [`${this.name}:createProfile`],
       responseStruct: CreateProfileResponseStruct,
@@ -366,8 +366,6 @@ export class ProfileService extends BaseDataService<
     profileId: string,
     params: ReplaceProfileParams,
   ): Promise<ProfileApiResponse> {
-    assert(profileId, string());
-    assert(params, ReplaceProfileParamsStruct);
     return this.executeMutation({
       mutationKey: [`${this.name}:replaceProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
@@ -396,8 +394,6 @@ export class ProfileService extends BaseDataService<
     profileId: string,
     params: UpdateProfileParams,
   ): Promise<ProfileApiResponse> {
-    assert(profileId, string());
-    assert(params, UpdateProfileParamsStruct);
     return this.executeMutation({
       mutationKey: [`${this.name}:updateProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
@@ -422,7 +418,6 @@ export class ProfileService extends BaseDataService<
    * @throws {StructError} If the profileId is not a string.
    */
   async deleteProfile(profileId: string): Promise<void> {
-    assert(profileId, string());
     return this.executeMutation({
       mutationKey: [`${this.name}:deleteProfile`, profileId],
       mutationFn: async () =>
@@ -444,7 +439,6 @@ export class ProfileService extends BaseDataService<
   async checkUsernameAvailability(
     username: string,
   ): Promise<UsernameAvailabilityResponse> {
-    assert(username, string());
     return this.fetchQuery({
       queryKey: [`${this.name}:checkUsernameAvailability`, username],
       staleTime: 0,
@@ -487,7 +481,6 @@ export class ProfileService extends BaseDataService<
    * @throws {StructError} If params or the response do not match the expected shape.
    */
   async connectX(params: ConnectXParams): Promise<XConnectResponse> {
-    assert(params, ConnectXParamsStruct);
     return this.executeMutation({
       mutationKey: [`${this.name}:connectX`],
       responseStruct: XConnectResponseStruct,
