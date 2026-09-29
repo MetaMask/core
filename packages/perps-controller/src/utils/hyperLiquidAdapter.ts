@@ -139,7 +139,7 @@ export function adaptOrderToSDK(
     t: adaptOrderTypeToSDK(order),
     c:
       order.clientOrderId && isHexString(order.clientOrderId)
-        ? (order.clientOrderId as Hex)
+        ? order.clientOrderId
         : undefined,
   };
 }
@@ -274,9 +274,7 @@ export function adaptOrderFromSDK(
 ): Order {
   // TODO: Remove this widened boundary type when FrontendOrder includes
   // takeProfitPrice/stopLossPrice and takeProfitOrderId/stopLossOrderId.
-  const parentTpslMetadata = getParentTpslMetadata(
-    rawOrder as FrontendOrderWithParentTpsl,
-  );
+  const parentTpslMetadata = getParentTpslMetadata(rawOrder);
 
   // Extract basic fields with appropriate conversions
   const orderId = rawOrder.oid?.toString() || '';

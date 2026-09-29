@@ -35,6 +35,12 @@ export const SocialServiceErrorMessage = {
   LEADERBOARD_OPT_IN_FAILED: 'SocialService: Leaderboard opt-in request failed',
   FETCH_FEED_FAILED: 'SocialService: Feed request failed',
   FETCH_FEED_INVALID_RESPONSE: 'SocialService: Feed returned invalid response',
+  FETCH_TRADER_FEED_FAILED: 'SocialService: Trader feed request failed',
+  FETCH_TRADER_FEED_INVALID_RESPONSE:
+    'SocialService: Trader feed returned invalid response',
+  FETCH_TOKEN_FEED_FAILED: 'SocialService: Token feed request failed',
+  FETCH_TOKEN_FEED_INVALID_RESPONSE:
+    'SocialService: Token feed returned invalid response',
   REACT_TO_COMMENT_FAILED: 'SocialService: Comment reaction request failed',
   REACT_TO_COMMENT_INVALID_RESPONSE:
     'SocialService: Comment reaction returned invalid response',
@@ -42,6 +48,9 @@ export const SocialServiceErrorMessage = {
     'SocialService: Comment reaction removal request failed',
   REMOVE_COMMENT_REACTION_INVALID_RESPONSE:
     'SocialService: Comment reaction removal returned invalid response',
+  CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
+  CREATE_SWAP_COMMENT_INVALID_RESPONSE:
+    'SocialService: Swap comment returned invalid response',
   NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
     'SocialService: Notification preferences cache refresh request failed',
 } as const;

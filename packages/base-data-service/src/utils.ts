@@ -88,5 +88,5 @@ export function processMutationResponse<
   }
 
   // Type assertion: See above.
-  return result as unknown as Response;
+  return result;
 }

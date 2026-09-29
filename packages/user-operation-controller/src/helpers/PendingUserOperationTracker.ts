@@ -65,7 +65,7 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
   }) {
     super();
 
-    this.hub = new EventEmitter() as PendingUserOperationTrackerEventEmitter;
+    this.hub = new EventEmitter();
 
     this.#getUserOperations = getUserOperations;
     this.#messenger = messenger;

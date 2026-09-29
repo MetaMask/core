@@ -4693,7 +4693,7 @@ describe('SubscriptionController', () => {
               paymentMethod: {
                 type: PAYMENT_TYPES.byCrypto,
                 plan: RECURRING_INTERVALS.month,
-              } as CachedLastSelectedPaymentMethod,
+              },
             },
           ),
         ).toThrow(

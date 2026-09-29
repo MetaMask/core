@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
+  - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
+  - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
+
+## [18.0.1]
+
+### Fixed
+
+- Accept Terminal v3 HIP-3 snapshot markets whose `provider` is the Hyperliquid venue while `dex` carries the HIP-3 DEX (for example `xyz`). ([#10429](https://github.com/MetaMask/core/pull/10429))
+  - Previous validation required `provider === dex` for non-`main` markets, which rejected the live Terminal payload (`provider: "hyperliquid"`, `dex: "xyz"`) and forced clients onto the Hyperliquid fallback without tags/`listedAt`.
+
 ## [18.0.0]
 
 ### Added
@@ -1011,7 +1024,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0

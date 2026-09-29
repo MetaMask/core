@@ -507,7 +507,7 @@ describe('validation', () => {
             maxFeePerGas: '0x01',
             gas: 'zzzzz',
             // TODO: Replace `any` with type
-          } as unknown as TransactionParams),
+          }),
         ).toThrow(
           rpcErrors.invalidParams(
             'Invalid transaction params: gas is not a valid hexadecimal string. got: (zzzzz)',
@@ -520,7 +520,7 @@ describe('validation', () => {
             maxFeePerGas: '0x01',
             gas: '0x0',
             // TODO: Replace `any` with type
-          } as unknown as TransactionParams),
+          }),
         ).not.toThrow();
       });
     });
@@ -642,7 +642,7 @@ describe('validation', () => {
             authorizationList: [
               {
                 address: FROM_MOCK,
-                yParity: '0x2' as never,
+                yParity: '0x2',
               },
             ],
             from: FROM_MOCK,
@@ -789,7 +789,7 @@ describe('validation', () => {
           txParams: {
             authorizationList: [],
             from: TO_MOCK,
-          } as TransactionParams,
+          },
         }),
       ).rejects.toThrow(
         rpcErrors.invalidParams(

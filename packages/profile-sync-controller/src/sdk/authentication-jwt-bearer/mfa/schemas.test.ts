@@ -9,7 +9,7 @@ import {
   RegistrationResponseJSONStruct,
   assertValidMfaRequest,
   assertValidMfaResponse,
-  parseElevatedTokenClaims,
+  parseVerificationTokenClaims,
 } from './schemas.js';
 import { MFA_CREDENTIAL_TYPES } from './types.js';
 
@@ -220,9 +220,9 @@ describe('MFA schemas', () => {
     ).not.toThrow();
   });
 
-  it('normalizes elevated-token authentication methods', () => {
+  it('normalizes verification-token authentication methods', () => {
     expect(
-      parseElevatedTokenClaims({
+      parseVerificationTokenClaims({
         sub: 'profile-id',
         aal: 2,
         exp: 2_000_000_000,
@@ -230,13 +230,12 @@ describe('MFA schemas', () => {
       }),
     ).toStrictEqual({
       sub: 'profile-id',
-      aal: 2,
       exp: 2_000_000_000,
       amr: ['passkey'],
     });
 
     expect(
-      parseElevatedTokenClaims({
+      parseVerificationTokenClaims({
         sub: 'profile-id',
         aal: 2,
         exp: 2_000_000_000,
@@ -245,29 +244,63 @@ describe('MFA schemas', () => {
     ).toStrictEqual(['email_otp']);
   });
 
-  it('reads step-up claims nested under the Hydra ext claim', () => {
+  it('accepts authentication methods this client cannot enroll', () => {
     expect(
-      parseElevatedTokenClaims({
+      parseVerificationTokenClaims({
+        sub: 'profile-id',
+        aal: 2,
+        exp: 2_000_000_000,
+        amr: ['social', 'email_otp'],
+      }).amr,
+    ).toStrictEqual(['social', 'email_otp']);
+  });
+
+  it('reads authentication methods nested under the Hydra ext claim', () => {
+    expect(
+      parseVerificationTokenClaims({
         sub: 'profile-id',
         exp: 2_000_000_000,
         ext: { aal: 2, amr: ['passkey'] },
       }),
     ).toStrictEqual({
       sub: 'profile-id',
-      aal: 2,
       exp: 2_000_000_000,
       amr: ['passkey'],
     });
   });
 
   it.each([
-    ['AAL1', { sub: 'profile-id', aal: 1, exp: 2_000_000_000, amr: 'passkey' }],
-    ['AAL1 under ext', { sub: 'profile-id', exp: 1, ext: { aal: 1 } }],
-    ['missing claims', { sub: 'profile-id', exp: 2_000_000_000 }],
+    ['AAL1', { aal: 1 }],
+    ['AAL2', { aal: 2 }],
+    ['no aal claim', {}],
+  ])(
+    'accepts tokens whatever their assurance level (%s)',
+    (_name, levelClaims) => {
+      expect(
+        parseVerificationTokenClaims({
+          sub: 'profile-id',
+          exp: 2_000_000_000,
+          amr: 'email_otp',
+          ...levelClaims,
+        }),
+      ).toStrictEqual({
+        sub: 'profile-id',
+        exp: 2_000_000_000,
+        amr: ['email_otp'],
+      });
+    },
+  );
+
+  it.each([
+    [
+      'missing authentication methods',
+      { sub: 'profile-id', exp: 2_000_000_000 },
+    ],
+    ['missing subject', { exp: 2_000_000_000, amr: 'passkey' }],
     ['non-object payload', 'not-a-payload'],
-  ])('rejects tokens without AAL2 claims (%s)', (_name, payload) => {
-    expect(() => parseElevatedTokenClaims(payload)).toThrow(
-      /MFA\[elevated_token_invalid\]/u,
+  ])('rejects tokens with invalid claims (%s)', (_name, payload) => {
+    expect(() => parseVerificationTokenClaims(payload)).toThrow(
+      /MFA\[verification_token_invalid\]/u,
     );
   });
 });

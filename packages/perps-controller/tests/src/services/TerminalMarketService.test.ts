@@ -899,6 +899,91 @@ describe('TerminalMarketService', () => {
       ).rejects.toThrow('Terminal global snapshot');
     });
 
+    it('accepts HIP-3 markets whose provider is the Hyperliquid venue', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            enabledDexes: ['main', 'xyz'],
+            fingerprint:
+              'sha256:2680c000d74e6b46aaddfc5f944442d235961fcdf1d9063af15989285be39bb7',
+            markets: [
+              createSnapshotMarket(),
+              createSnapshotMarket({
+                id: 'xyz:aaoi-hyperliquid-mainnet',
+                symbol: 'xyz:AAOI',
+                provider: 'hyperliquid',
+                dex: 'xyz',
+                name: 'Applied Optoelectronics',
+                category: 'stocks',
+                maxLeverage: 10,
+                markPrice: '110',
+                price: '110',
+                midPrice: '110.1',
+                oraclePrice: '109.9',
+                change24h: '10',
+                changePercent24h: 10,
+                tags: ['memecoin'],
+              }),
+            ],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main', 'xyz'],
+      });
+
+      expect(result.markets).toHaveLength(2);
+      expect(result.markets[1]).toMatchObject({
+        id: 'xyz:aaoi-hyperliquid-mainnet',
+        symbol: 'xyz:AAOI',
+        isHip3: true,
+        marketSource: 'xyz',
+        marketType: 'stock',
+        tags: ['memecoin'],
+      });
+    });
+
+    it('rejects HIP-3 markets whose provider does not match the snapshot venue', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            enabledDexes: ['main', 'xyz'],
+            fingerprint:
+              'sha256:2680c000d74e6b46aaddfc5f944442d235961fcdf1d9063af15989285be39bb7',
+            markets: [
+              createSnapshotMarket(),
+              createSnapshotMarket({
+                id: 'xyz:aaoi-hyperliquid-mainnet',
+                symbol: 'xyz:AAOI',
+                provider: 'xyz',
+                dex: 'xyz',
+                name: 'Applied Optoelectronics',
+                category: 'stocks',
+                maxLeverage: 10,
+                markPrice: '110',
+                price: '110',
+                midPrice: '110.1',
+                oraclePrice: '109.9',
+                change24h: '10',
+                changePercent24h: 10,
+              }),
+            ],
+          }),
+        ),
+      );
+
+      await expect(
+        service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          enabledDexes: ['main', 'xyz'],
+        }),
+      ).rejects.toThrow('invalid provider');
+    });
+
     it('maps id from the v3 snapshot market to PerpsMarketData', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(

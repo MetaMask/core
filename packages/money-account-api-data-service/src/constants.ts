@@ -27,3 +27,9 @@ export const DEFAULT_STALE_TIME_MS = 30_000;
  * Matches the server-side cache TTL of 5 minutes.
  */
 export const RATE_HISTORY_STALE_TIME_MS = 300_000;
+
+/**
+ * Default stale time (ms) for current vault rate queries.
+ * Matches the server-side cache TTL of 5 minutes.
+ */
+export const VAULT_RATE_STALE_TIME_MS = 300_000;

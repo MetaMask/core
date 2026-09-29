@@ -65,7 +65,7 @@ const appendL1GasFees = async <
       });
 
       if (approvalL1GasFees === undefined || tradeL1GasFees === undefined) {
-        return undefined;
+        return;
       }
 
       return {
