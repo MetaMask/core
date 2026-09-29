@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Filter out MPC accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577))
+  - Those accounts are treated differently with their own "account-like" controller.
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
