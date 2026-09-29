@@ -1040,7 +1040,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
        * @returns The provider, its mocks and the rejected agent.
        */
       function createRejectingProvider(
-        write: 'order' | 'agentSetAbstraction' | 'setReferrer',
+        write: 'order' | 'cancel' | 'agentSetAbstraction' | 'setReferrer',
       ): AccountSignerFixture & {
         getAgentSigner: jest.Mock;
         onAgentRejected: jest.Mock;
@@ -1060,6 +1060,89 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         });
         return { ...built, getAgentSigner, onAgentRejected };
       }
+
+      it('fails a cancel with KEYRING_LOCKED without logging it', async () => {
+        const { accountSignerProvider, agentSigner, onAgentRejected } =
+          createRejectingProvider('cancel');
+        await accountSignerProvider.getMarketDataWithPrices();
+
+        const result = await accountSignerProvider.cancelOrder({
+          orderId: '123',
+          symbol: 'BTC',
+        });
+
+        expect(result).toStrictEqual(
+          expect.objectContaining({
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          }),
+        );
+        expect(onAgentRejected).toHaveBeenCalledWith(
+          MAINNET_ACCOUNT,
+          agentSigner.address,
+        );
+        expect(loggerError).not.toHaveBeenCalled();
+      });
+
+      it('fails a batch cancel with KEYRING_LOCKED without logging it', async () => {
+        const { accountSignerProvider } = createRejectingProvider('cancel');
+        await accountSignerProvider.getMarketDataWithPrices();
+
+        const result = await accountSignerProvider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+          { orderId: '124', symbol: 'BTC' },
+        ]);
+
+        expect(result.success).toBe(false);
+        expect(result.results.map(({ error }) => error)).toStrictEqual([
+          PERPS_ERROR_CODES.KEYRING_LOCKED,
+          PERPS_ERROR_CODES.KEYRING_LOCKED,
+        ]);
+        expect(loggerError).not.toHaveBeenCalled();
+      });
+
+      it('evicts only the agent of the account that signed the rejected action', async () => {
+        const getAgentSigner = jest.fn();
+        const onAgentRejected = jest.fn();
+        const {
+          accountSignerProvider,
+          agentSigner,
+          exchangeClient,
+          initialize,
+          selectAccount,
+        } = createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+          onAgentRejected,
+        });
+        // The same agent is approved for both accounts.
+        getAgentSigner.mockResolvedValue(agentSigner);
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+        selectAccount(OTHER_ACCOUNT_ADDRESS);
+        await wallet.signTypedData(L1_PAYLOAD);
+        selectAccount(ACCOUNT_ADDRESS);
+        exchangeClient.cancel.mockImplementation(async () => {
+          await wallet.signTypedData(L1_PAYLOAD);
+          throw rejection(agentSigner.address);
+        });
+
+        await accountSignerProvider.cancelOrder({
+          orderId: '123',
+          symbol: 'BTC',
+        });
+        selectAccount(OTHER_ACCOUNT_ADDRESS);
+        await wallet.signTypedData(L1_PAYLOAD);
+
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, agentSigner.address],
+        ]);
+        // The other account's agent stays cached, so it is not asked again.
+        expect(getAgentSigner.mock.calls).toStrictEqual([
+          [{ mainAddress: OTHER_ACCOUNT_ADDRESS, isTestnet: false }],
+          [MAINNET_ACCOUNT],
+        ]);
+      });
 
       it('fails the order with KEYRING_LOCKED, drops the agent and asks again', async () => {
         const {

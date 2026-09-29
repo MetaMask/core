@@ -2141,6 +2141,33 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Log a failed exchange write, unless the signer could not sign it
+   * (`KEYRING_LOCKED`: a locked keyring, or an unavailable or rejected
+   * agent), which the caller retries.
+   *
+   * @param mappedError - The error after #mapError.
+   * @param method - The write that failed.
+   * @param extra - Context for the log.
+   */
+  async #logWriteError(
+    mappedError: Error,
+    method: string,
+    extra: Record<string, unknown>,
+  ): Promise<void> {
+    if (mappedError.message === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+      this.#deps.debugLogger.log(
+        `[${method}] Signer unavailable, the write can be retried`,
+        extra,
+      );
+      return;
+    }
+    this.#deps.logger.error(
+      mappedError,
+      await this.#getTradingErrorContext(method, mappedError, extra),
+    );
+  }
+
+  /**
    * The key of the resolved agent a venue rejection names. HyperLiquid
    * answers "User or API Wallet 0x... does not exist." with the signer's
    * address, so for a revoked or expired agent it reads like a wallet with
@@ -2150,7 +2177,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns The agent key, or undefined when no resolved agent is rejected.
    */
   #findRejectedAgentKey(error: unknown): string | undefined {
-    if (!isHyperLiquidUserNotFoundError(error)) {
+    if (
+      this.#resolvedAgents.size === 0 ||
+      !isHyperLiquidUserNotFoundError(error)
+    ) {
       return undefined;
     }
     const rejected = /user or api wallet (0x[0-9a-f]{40})/iu
@@ -2158,12 +2188,21 @@ export class HyperLiquidProvider implements PerpsProvider {
         ensureError(error, 'HyperLiquidProvider.findRejectedAgentKey').message,
       )?.[1]
       ?.toLowerCase();
-    for (const [key, { agentSigner }] of this.#resolvedAgents) {
-      if (agentSigner.address.toLowerCase() === rejected) {
-        return key;
-      }
+    let mainAddress: Hex;
+    try {
+      mainAddress = this.#walletService.getSelectedMainAddress();
+    } catch {
+      return undefined;
     }
-    return undefined;
+    // Only the agent of the account and network that signed the action.
+    const key = this.#getAgentKey({
+      mainAddress,
+      isTestnet: this.#clientService.isTestnetMode(),
+    });
+    const resolved = this.#resolvedAgents.get(key);
+    return resolved?.agentSigner.address.toLowerCase() === rejected
+      ? key
+      : undefined;
   }
 
   /**
@@ -8219,14 +8258,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       return await this.#cancelChaseOrder(params);
     } catch (error) {
       const mappedError = this.#mapError(error);
-      this.#deps.logger.error(
-        mappedError,
-        await this.#getTradingErrorContext('cancelOrder', mappedError, {
-          orderId: params.orderId,
-          coin: params.symbol,
-          orderType: params.orderType,
-        }),
-      );
+      await this.#logWriteError(mappedError, 'cancelOrder', {
+        orderId: params.orderId,
+        coin: params.symbol,
+        orderType: params.orderType,
+      });
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -9326,13 +9362,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
     } catch (error) {
       const mappedError = this.#mapError(error);
-      this.#deps.logger.error(
-        mappedError,
-        await this.#getTradingErrorContext('cancelOrder', mappedError, {
-          orderId: params.orderId,
-          coin: params.symbol,
-        }),
-      );
+      await this.#logWriteError(mappedError, 'cancelOrder', {
+        orderId: params.orderId,
+        coin: params.symbol,
+      });
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -9458,12 +9491,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     } catch (error) {
       const mappedError = this.#mapError(error);
-      this.#deps.logger.error(
-        mappedError,
-        await this.#getTradingErrorContext('cancelOrders', mappedError, {
-          orderCount: params.length,
-        }),
-      );
+      await this.#logWriteError(mappedError, 'cancelOrders', {
+        orderCount: params.length,
+      });
       for (const result of results) {
         if (
           !result.success &&

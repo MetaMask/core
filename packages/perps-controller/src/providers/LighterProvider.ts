@@ -1322,6 +1322,10 @@ export class LighterProvider implements PerpsProvider {
     }
     try {
       await this.#ensureSignerReady();
+      // The signer can lock while the venue key is being registered.
+      if (!this.#walletService.isMainAccountSignerReady()) {
+        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      }
       return { ready: true };
     } catch (caughtError) {
       if (isKeyringLockedError(caughtError)) {

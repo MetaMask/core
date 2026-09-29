@@ -347,6 +347,25 @@ describe('LighterProvider with accountSigner', () => {
     );
   });
 
+  it('reports KEYRING_LOCKED when the signer locks once the venue key is registered', async () => {
+    let signerReady = true;
+    const { provider, accountSigner, client } = buildProvider({
+      isReady: () => signerReady,
+    });
+    accountSigner.signPersonalMessage.mockImplementation(async () => {
+      signerReady = false;
+      return L1_SIGNATURE;
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(client.sendTx).toHaveBeenCalled();
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+  });
+
   it('reports KEYRING_LOCKED when the keyring locks during registration', async () => {
     const { provider, accountSigner, deps } = buildProvider();
     accountSigner.signPersonalMessage.mockRejectedValue(
@@ -371,10 +390,12 @@ describe('LighterProvider with a KeyringController', () => {
     const result = await provider.prepareTradingWallet();
 
     expect(result).toStrictEqual({ ready: true });
+    // Readiness before and after registration, around the signature.
     expect(keyringCalls(call)).toStrictEqual([
       'KeyringController:getState',
       'KeyringController:getState',
       'KeyringController:signPersonalMessage',
+      'KeyringController:getState',
     ]);
     const changePubKey = calls.find(
       (wasmCall) => wasmCall.function === '_signChangePubKey',
