@@ -433,6 +433,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
         );
+        return null;
       },
     });
   }
