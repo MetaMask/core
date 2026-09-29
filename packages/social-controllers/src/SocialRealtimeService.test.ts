@@ -348,6 +348,55 @@ describe('SocialRealtimeService', () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it('retries subscription setup when reactivation overlaps subscription cleanup', async () => {
+    const { call, service, unsubscribe } = createService();
+    let resolveSubscription: (value: WebSocketSubscription) => void = () =>
+      undefined;
+    const subscriptionPromise = new Promise<WebSocketSubscription>(
+      (resolve): void => {
+        resolveSubscription = resolve;
+      },
+    );
+    let resolveUnsubscribe: () => void = () => undefined;
+    const unsubscribePromise = new Promise<void>((resolve): void => {
+      resolveUnsubscribe = resolve;
+    });
+    unsubscribe.mockReturnValue(unsubscribePromise);
+    call.mockImplementation((action: string, _options?: unknown): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:channelHasSubscription') {
+        return false;
+      }
+
+      if (action === 'BackendWebSocketService:getSubscriptionsByChannel') {
+        return [];
+      }
+
+      return subscriptionPromise;
+    });
+
+    const activation = service.setActive(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    await service.setActive(false);
+    resolveSubscription({ unsubscribe } as unknown as WebSocketSubscription);
+    await Promise.resolve();
+
+    const reactivation = service.setActive(true);
+    resolveUnsubscribe();
+    await activation;
+    await reactivation;
+
+    expect(
+      call.mock.calls.filter(
+        ([action]) => action === 'BackendWebSocketService:subscribe',
+      ),
+    ).toHaveLength(2);
+  });
+
   it('swallows subscription errors so feed activation remains best effort', async () => {
     const { call, service } = createService();
     const error = new Error('WebSocket unavailable');

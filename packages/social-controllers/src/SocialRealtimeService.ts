@@ -130,9 +130,12 @@ export class SocialRealtimeService {
       return;
     }
 
-    if (this.#subscriptionPromise) {
+    while (this.#subscriptionPromise) {
       await this.#subscriptionPromise;
-      return;
+
+      if (!this.#active || this.#subscription) {
+        return;
+      }
     }
 
     const subscriptionPromise = Promise.resolve().then(
