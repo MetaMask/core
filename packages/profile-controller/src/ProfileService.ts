@@ -20,6 +20,7 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
 
 import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
 
@@ -274,7 +275,7 @@ export class ProfileService extends BaseDataService<
    * @returns The parsed JSON response.
    * @throws {HttpError} If the response is not a 2xx status code.
    */
-  async #fetch(
+  async #fetch<T extends Json>(
     endpoint: string,
     {
       method = 'GET',
@@ -285,7 +286,7 @@ export class ProfileService extends BaseDataService<
       error: string;
       json?: unknown;
     },
-  ): Promise<unknown> {
+  ): Promise<T> {
     const authHeaders = await this.#getAuthHeaders();
     const url = new URL(`${this.#v1Url}/${endpoint}`);
     const response = await fetch(url.toString(), {
@@ -299,7 +300,7 @@ export class ProfileService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(response.status, `${error}: ${response.status}`);
     }
-    return response.json() as unknown;
+    return response.json() as T;
   }
 
   /**
@@ -315,7 +316,7 @@ export class ProfileService extends BaseDataService<
       queryKey: [`${this.name}:getProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       queryFn: async () =>
-        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
+        this.#fetch<ProfileApiResponse>(`profiles/${encodeURIComponent(profileId)}`, {
           error: ProfileServiceErrorMessage.GET_PROFILE_FAILED,
         }),
     });
@@ -337,7 +338,7 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:createProfile`],
       responseStruct: CreateProfileResponseStruct,
       mutationFn: async () =>
-        this.#fetch('profiles', {
+        this.#fetch<CreateProfileResponse>('profiles', {
           method: 'POST',
           error: ProfileServiceErrorMessage.CREATE_PROFILE_FAILED,
           json: params,
@@ -364,7 +365,7 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:replaceProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       mutationFn: async () =>
-        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
+        this.#fetch<ProfileApiResponse>(`profiles/${encodeURIComponent(profileId)}`, {
           method: 'PUT',
           error: ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
           json: params,
@@ -391,7 +392,7 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:updateProfile`, profileId],
       responseStruct: ProfileApiResponseStruct,
       mutationFn: async () =>
-        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
+        this.#fetch<ProfileApiResponse>(`profiles/${encodeURIComponent(profileId)}`, {
           method: 'PATCH',
           error: ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
           json: params,
@@ -448,7 +449,7 @@ export class ProfileService extends BaseDataService<
       staleTime: 0,
       responseStruct: UsernameAvailabilityResponseStruct,
       queryFn: async () =>
-        this.#fetch(
+        this.#fetch<UsernameAvailabilityResponse>(
           `profiles/username/availability?username=${encodeURIComponent(username)}`,
           {
             error:
@@ -470,7 +471,7 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:getXAuthUrl`],
       responseStruct: XAuthUrlResponseStruct,
       mutationFn: async () =>
-        this.#fetch('profiles/x/authentication-url', {
+        this.#fetch<XAuthUrlResponse>('profiles/x/authentication-url', {
           error: ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
         }),
     });
@@ -490,7 +491,7 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:connectX`],
       responseStruct: XConnectResponseStruct,
       mutationFn: async () =>
-        this.#fetch('profiles/x/connect', {
+        this.#fetch<XConnectResponse>('profiles/x/connect', {
           method: 'POST',
           error: ProfileServiceErrorMessage.CONNECT_X_FAILED,
           json: params,
@@ -511,7 +512,7 @@ export class ProfileService extends BaseDataService<
       staleTime: 0,
       responseStruct: XConnectResponseStruct,
       queryFn: async () =>
-        this.#fetch('profiles/x/account', {
+        this.#fetch<XConnectResponse>('profiles/x/account', {
           error: ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
         }),
     });
