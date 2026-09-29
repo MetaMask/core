@@ -712,6 +712,7 @@ linkStyle default opacity:0.5
   subscription_controller --> delegation_controller;
   subscription_controller --> messenger;
   subscription_controller --> money_account_balance_service;
+  subscription_controller --> money_account_upgrade_controller;
   subscription_controller --> money_account_utils;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
