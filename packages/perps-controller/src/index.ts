@@ -342,6 +342,7 @@ export type {
   PerpsSubscriptionFeeWaiverStatus,
   PerpsFeeSource,
   PerpsFeeResolution,
+  RewardsDiscountResponse,
   UpdatePositionTPSLParams,
   Order,
   Funding,
