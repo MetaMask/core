@@ -1,5 +1,6 @@
 import { execa } from 'execa';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import {
   findAddedSuppressions,
@@ -8,7 +9,11 @@ import {
 } from './tsc-suppressions.ts';
 import type { TscSuppressions } from './tsc-suppressions.ts';
 
-const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
+const REPO_ROOT = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+);
 
 const SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
 

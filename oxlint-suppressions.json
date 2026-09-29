@@ -7670,11 +7670,6 @@
       "count": 1
     }
   },
-  "scripts/lib/lint-tsc-ratchet.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
   "scripts/lib/lint-tsc.test.ts": {
     "no-shadow": {
       "count": 1

@@ -10,30 +10,13 @@ jest.unstable_mockModule('./lib/lint-tsc-ratchet.ts', () => ({
 const { lintTscRatchet } = await import('./lib/lint-tsc-ratchet.ts');
 
 describe('lint-tsc-ratchet', () => {
-  let originalProcess: typeof globalThis.process;
-
-  beforeEach(() => {
-    originalProcess = globalThis.process;
-    // The exit code is reset because it is global state that another test file
-    // may have set.
-    globalThis.process = { ...globalThis.process, exitCode: undefined };
-  });
-
-  afterEach(() => {
-    globalThis.process = originalProcess;
-  });
-
-  it('runs the check, reporting any error it throws', async () => {
-    jest.mocked(lintTscRatchet).mockRejectedValue('foo');
-    jest.spyOn(console, 'error').mockReturnValue(undefined);
+  it('runs the check with the arguments it was given', async () => {
+    jest.mocked(lintTscRatchet).mockResolvedValue(undefined);
 
     // Importing the entry point runs it, which is the behaviour under test.
     await import('./lint-tsc-ratchet.ts');
-    await new Promise((resolve) => setImmediate(resolve));
 
     expect(lintTscRatchet).toHaveBeenCalledTimes(1);
     expect(lintTscRatchet).toHaveBeenCalledWith(process.argv.slice(2));
-    expect(console.error).toHaveBeenCalledWith('foo');
-    expect(process.exitCode).toBe(1);
   });
 });

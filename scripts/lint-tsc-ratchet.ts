@@ -4,7 +4,4 @@
 
 import { lintTscRatchet } from './lib/lint-tsc-ratchet.ts';
 
-lintTscRatchet(process.argv.slice(2)).catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+await lintTscRatchet(process.argv.slice(2));
