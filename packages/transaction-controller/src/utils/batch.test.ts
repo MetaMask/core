@@ -1496,8 +1496,8 @@ describe('Batch Utils', () => {
     );
 
     it.each([true, false])(
-      'passes isGasFeeSponsored flag (%s) through to addTransaction when provided (EIP-7702 path)',
-      async (isGasFeeSponsored) => {
+      'passes forceIsGasFeeSponsored flag (%s) through to addTransaction when provided (EIP-7702 path)',
+      async (forceIsGasFeeSponsored) => {
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
           delegationAddress: undefined,
           isSupported: true,
@@ -1508,7 +1508,7 @@ describe('Batch Utils', () => {
           result: Promise.resolve(''),
         });
 
-        request.request.isGasFeeSponsored = isGasFeeSponsored;
+        request.request.forceIsGasFeeSponsored = forceIsGasFeeSponsored;
 
         await addTransactionBatch(request);
 
@@ -1516,7 +1516,7 @@ describe('Batch Utils', () => {
         expect(addTransactionMock).toHaveBeenCalledWith(
           expect.any(Object),
           expect.objectContaining({
-            isGasFeeSponsored,
+            forceIsGasFeeSponsored,
           }),
         );
       },

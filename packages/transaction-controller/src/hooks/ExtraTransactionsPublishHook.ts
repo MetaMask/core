@@ -77,9 +77,11 @@ export class ExtraTransactionsPublishHook {
     const resultPromise = createDeferredPromise<PublishHookResult>();
 
     const onPublish = ({
+      isGasFeeSponsored,
       newSignature,
       transactionHash,
     }: {
+      isGasFeeSponsored?: boolean;
       newSignature?: Hex;
       transactionHash?: string;
     }): void => {
@@ -98,7 +100,7 @@ export class ExtraTransactionsPublishHook {
         return;
       }
 
-      resultPromise.resolve({ transactionHash });
+      resultPromise.resolve({ isGasFeeSponsored, transactionHash });
     };
 
     const firstParams: BatchTransactionParams = {
