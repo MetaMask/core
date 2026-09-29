@@ -266,7 +266,7 @@ async function buildServerQuoteRequest(
     // the calls run as `from`, which is also the recipient, so we can submit
     // them ourselves once the funds land. Post-quote flows submit their own
     // calls and must not opt in.
-    body.isCallsOptional = true;
+    body.supportsDeferredCalls = true;
 
     if (delegation.authorizationList?.length) {
       body.authorizationList = normalizeAuthorizationList(
@@ -393,7 +393,7 @@ function isSecondLegRequired(
 ): boolean {
   // Embedded calls are executed by the provider as part of the quote, unless
   // it quoted for the funds alone and told us to run the calls ourselves.
-  if (body.calls?.length && quote.callsSupported !== false) {
+  if (body.calls?.length && !quote.callsDeferred) {
     return false;
   }
 

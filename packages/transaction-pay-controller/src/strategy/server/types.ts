@@ -76,14 +76,14 @@ export type ServerQuoteRequest = {
   slippage?: number;
   providers?: ServerProviderName[];
   calls?: ServerCall[];
+  authorizationList?: ServerAuthorization[];
   /**
    * Whether we can execute `calls` ourselves after the quote settles. When
    * true, providers that cannot execute the calls return a quote anyway,
-   * flagged with `callsSupported: false`, instead of declining the request.
+   * flagged with `callsDeferred: true`, instead of declining the request.
    * Ignored by the server when `calls` is empty.
    */
-  isCallsOptional?: boolean;
-  authorizationList?: ServerAuthorization[];
+  supportsDeferredCalls?: boolean;
   supportsGasless?: boolean;
 };
 
@@ -103,12 +103,12 @@ export type ServerQuotePayload = {
   steps: ServerStep[];
   gasless: boolean;
   /**
-   * Whether the requested `calls` are executed as part of this quote. Only set
-   * when the request included `calls` and `isCallsOptional`. When `false` the
-   * quote only moves the funds, so the calls must be submitted as a second leg
-   * once it settles.
+   * Whether the requested `calls` are left for us to execute. Only set when the
+   * request included `calls` and `supportsDeferredCalls`. When `true` the quote
+   * only moves the funds, so the calls must be submitted as a second leg once
+   * it settles.
    */
-  callsSupported?: boolean;
+  callsDeferred?: boolean;
 };
 
 /** Fee breakdown from a quote. */
