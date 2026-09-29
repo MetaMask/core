@@ -163,6 +163,11 @@ function buildSubscription(
   };
 }
 
+const STARTED_SUBSCRIPTION: Subscription = {
+  ...buildSubscription(SUBSCRIPTION_STATUSES.provisional),
+  id: 'subscription-id',
+};
+
 const PERIOD_AMOUNT = calculatePeriodAmount({
   unitAmount: PRICE.unitAmount,
   unitDecimals: PRICE.unitDecimals,
@@ -292,10 +297,7 @@ function setup(
     forceUpgradeAccount: jest.fn().mockResolvedValue(undefined),
     startSubscriptionWithCrypto: jest
       .fn<StartSubscriptionWithCryptoResult, StartSubscriptionWithCryptoArgs>()
-      .mockResolvedValue({
-        subscriptionId: 'subscription-id',
-        status: 'provisional',
-      }),
+      .mockResolvedValue(STARTED_SUBSCRIPTION),
     getIntentsByAddress: jest.fn(),
   };
   mocks.getIntentsByAddress.mockImplementation(async () => {
@@ -1248,10 +1250,7 @@ describe('SubscriptionDelegationService', () => {
         assertTrialEligibility: true,
       });
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(result).toStrictEqual({
-        subscriptionId: 'subscription-id',
-        status: 'provisional',
-      });
+      expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
     });
 
     it('reuses an active payment permission without signing or persisting it again', async () => {
@@ -1461,10 +1460,7 @@ describe('SubscriptionDelegationService', () => {
           payerAddress: PAYER,
         }),
       );
-      expect(result).toStrictEqual({
-        subscriptionId: 'subscription-id',
-        status: 'provisional',
-      });
+      expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
     });
 
     it('propagates downstream errors when skipApproval is true', async () => {
@@ -1505,10 +1501,7 @@ describe('SubscriptionDelegationService', () => {
           'SubscriptionDelegationService:startSubscriptionWithDelegation',
           START_REQUEST,
         ),
-      ).toStrictEqual({
-        subscriptionId: 'subscription-id',
-        status: 'provisional',
-      });
+      ).toStrictEqual(STARTED_SUBSCRIPTION);
     });
 
     it('rejects unsupported products before resolving configuration', async () => {
