@@ -1,3 +1,5 @@
+import { toUint8Array } from './utils.js';
+
 // https://www.rfc-editor.org/rfc/rfc5116#section-5.1
 const AES_GCM_IV_LENGTH = 12;
 
@@ -51,7 +53,8 @@ export async function encrypt(
   );
 
   const ciphertext = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    // Converting IV to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
+    { name: 'AES-GCM', iv: toUint8Array(iv) },
     subtleKey,
     data,
   );
@@ -101,7 +104,8 @@ export async function decrypt(
   );
 
   const plaintext = await globalThis.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    // Converting IV to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
+    { name: 'AES-GCM', iv: toUint8Array(iv) },
     subtleKey,
     data,
   );
