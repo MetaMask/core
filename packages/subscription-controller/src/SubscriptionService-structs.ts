@@ -76,7 +76,7 @@ const SubscriptionCardPaymentMethodStruct = type({
   type: enums([PAYMENT_TYPES.byCard]),
   card: type({
     brand: string(),
-    displayBrand: string(),
+    displayBrand: optional(string()),
     last4: string(),
   }),
 });
@@ -119,7 +119,7 @@ export const SubscriptionStruct = type({
       id: string(),
       status: InvoicePaymentStatusStruct,
       errorCode: optional(CryptoPaymentErrorStruct),
-      updatedAt: string(),
+      updatedAt: optional(string()),
     }),
   ),
 });
@@ -170,11 +170,6 @@ export const SubscriptionBenefitsResponseStruct = type({
 
 export const StartSubscriptionResponseStruct = type({
   checkoutSessionUrl: string(),
-});
-
-export const StartCryptoSubscriptionResponseStruct = type({
-  subscriptionId: string(),
-  status: SubscriptionStatusStruct,
 });
 
 export const UpdatePaymentMethodCardResponseStruct = type({
