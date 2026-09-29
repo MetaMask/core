@@ -5133,6 +5133,24 @@ describe('HyperLiquidProvider', () => {
       expectOnlyHttpInfoReads();
     });
 
+    it('updates position TP/SL over HTTP', async () => {
+      const httpInfoClient = createMockInfoClient({
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(httpInfoClient.frontendOpenOrders).toHaveBeenCalled();
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+      expectOnlyHttpInfoReads();
+    });
+
     it('places a HIP-3 order that needs a margin transfer over HTTP', async () => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,

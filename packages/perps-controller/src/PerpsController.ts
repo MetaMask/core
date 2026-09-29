@@ -2718,11 +2718,17 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
+    // The context the action was issued under. A client reconnect
+    // (disconnect then init) that switches account, network or provider must
+    // not carry the action into the new context.
+    const issuedContext = this.#getActionContext();
+    let awaitedDisconnect = false;
     let awaitedLifecycleOperation = false;
     let awaitedInitializationStart = false;
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
+        awaitedDisconnect = true;
         awaitedLifecycleOperation = true;
         await pendingDisconnect;
         continue;
@@ -2761,8 +2767,31 @@ export class PerpsController extends BaseController<
         continue;
       }
 
+      if (awaitedDisconnect && this.#getActionContext() !== issuedContext) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+
       return this.getActiveProvider();
     }
+  }
+
+  /**
+   * Identify the account, network and provider an action runs under.
+   *
+   * @returns A key that changes when any of them changes.
+   */
+  #getActionContext(): string {
+    let address: string | undefined;
+    try {
+      address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
+    } catch {
+      address = undefined;
+    }
+    return [
+      address?.toLowerCase() ?? '',
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      this.state.activeProvider,
+    ].join('|');
   }
 
   /**

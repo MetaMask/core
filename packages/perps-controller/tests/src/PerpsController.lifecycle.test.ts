@@ -1385,6 +1385,79 @@ describe('PerpsController', () => {
           jest.useRealTimers();
         }
       });
+
+      it.each([
+        [
+          'account',
+          (): void => {
+            const call = mockMessenger.call as unknown as jest.Mock;
+            const baseCall = call.getMockImplementation();
+            call.mockImplementation((action: string, ...args: unknown[]) =>
+              action ===
+              'AccountTreeController:getAccountsFromSelectedAccountGroup'
+                ? [
+                    {
+                      address: '0x9999999999999999999999999999999999999999',
+                      type: 'eip155:eoa',
+                      id: 'account-2',
+                      options: {},
+                      scopes: ['eip155:1'],
+                      methods: [],
+                      metadata: {
+                        name: 'Other',
+                        importTime: 0,
+                        keyring: { type: 'HD Key Tree' },
+                      },
+                    },
+                  ]
+                : baseCall?.(action, ...args),
+            );
+          },
+        ],
+        [
+          'network',
+          (): void => {
+            controller.testUpdate((state) => {
+              state.isTestnet = !state.isTestnet;
+            });
+          },
+        ],
+      ])(
+        'refuses an order parked across a reconnect that switched the %s',
+        async (_context, switchContext) => {
+          await controller.init();
+          const disconnectStarted = createDeferred<void>();
+          const pendingDisconnect = createDeferred<void>();
+          mockProvider.disconnect.mockImplementationOnce(async () => {
+            disconnectStarted.resolve();
+            await pendingDisconnect.promise;
+            return { success: true };
+          });
+          jest
+            .spyOn(mockTradingServiceInstance, 'placeOrder')
+            .mockResolvedValue({ success: true, orderId: '123' });
+
+          const reconnect = (async (): Promise<void> => {
+            await controller.disconnect();
+            switchContext();
+            await controller.init();
+          })();
+          await disconnectStarted.promise;
+          const orderPromise = controller.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+          });
+          pendingDisconnect.resolve();
+          await reconnect;
+
+          await expect(orderPromise).rejects.toThrow(
+            PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          );
+          expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('keeps init queued when disconnect starts during reinitialization', async () => {

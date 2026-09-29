@@ -9866,7 +9866,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Get clients for API calls (#ensureReady already called at method start).
       // Holding the exchange client reference is not itself a write; it is only
       // used below, after the trading setup has run.
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const exchangeClient = this.#clientService.getExchangeClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault();
 
