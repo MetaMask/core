@@ -197,11 +197,11 @@ describe('ProfileController', () => {
     });
   });
 
-  describe('getXprofile', () => {
+  describe('getXProfile', () => {
     it('returns undefined when no X profile exists', () => {
       const { controller } = createController();
 
-      expect(controller.getXprofile()).toBeUndefined();
+      expect(controller.getXProfile()).toBeUndefined();
     });
 
     it('returns the X profile after fetchAndUpdateXAccount', async () => {
@@ -215,7 +215,7 @@ describe('ProfileController', () => {
       const { controller } = createController({ rootMessenger });
       await controller.fetchAndUpdateXAccount();
 
-      expect(controller.getXprofile()).toStrictEqual(mockMappedXProfile);
+      expect(controller.getXProfile()).toStrictEqual(mockMappedXProfile);
     });
   });
 
