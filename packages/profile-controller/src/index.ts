@@ -20,7 +20,7 @@ export type {
   ProfileControllerGetMetaMaskProfileAction,
   ProfileControllerFetchAndUpdateXAccountAction,
   ProfileControllerGetXAuthUrlAction,
-  ProfileControllerGetXprofileAction,
+  ProfileControllerGetXProfileAction,
   ProfileControllerReplaceProfileAction,
   ProfileControllerUpdateProfileAction,
 } from './ProfileController-method-action-types.js';

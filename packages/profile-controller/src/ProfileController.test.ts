@@ -5,7 +5,10 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { ProfileControllerMessenger } from './ProfileController.js';
+import type {
+  MetaMaskProfile,
+  ProfileControllerMessenger,
+} from './ProfileController.js';
 import {
   ProfileController,
   getDefaultProfileControllerState,
@@ -26,7 +29,7 @@ const mockProfileResponse = {
   updated_at: '2024-01-02T00:00:00Z',
 };
 
-const mockMappedProfile = {
+const mockMappedProfile: MetaMaskProfile = {
   profileId: 'profile-123',
   username: 'alice',
   displayName: 'Alice Wonderland',

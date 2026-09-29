@@ -20,6 +20,7 @@ import type {
 } from './ProfileService-method-action-types.js';
 import type {
   CreateProfileParams,
+  CreateProfileResponse,
   ProfileApiResponse,
   ReplaceProfileParams,
   UpdateProfileParams,
@@ -302,7 +303,7 @@ export class ProfileController extends BaseController<
    * @returns The created MetaMask profile.
    */
   async createProfile(params: CreateProfileParams): Promise<MetaMaskProfile> {
-    const response = await this.messenger.call(
+    const response: CreateProfileResponse = await this.messenger.call(
       'ProfileService:createProfile',
       params,
     );
