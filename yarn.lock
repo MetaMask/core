@@ -9100,6 +9100,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
+    "@metamask/core-backend": "npm:^11.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^33.0.0"
     "@metamask/superstruct": "npm:^3.4.1"

@@ -698,6 +698,7 @@ linkStyle default opacity:0.5
   social_controllers --> base_controller;
   social_controllers --> base_data_service;
   social_controllers --> controller_utils;
+  social_controllers --> core_backend;
   social_controllers --> messenger;
   social_controllers --> profile_sync_controller;
   solana_test_validator_up --> local_node_utils;
