@@ -48,6 +48,9 @@ export const SocialServiceErrorMessage = {
     'SocialService: Comment reaction removal request failed',
   REMOVE_COMMENT_REACTION_INVALID_RESPONSE:
     'SocialService: Comment reaction removal returned invalid response',
+  CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
+  CREATE_SWAP_COMMENT_INVALID_RESPONSE:
+    'SocialService: Swap comment returned invalid response',
   NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
     'SocialService: Notification preferences cache refresh request failed',
 } as const;

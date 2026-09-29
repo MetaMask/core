@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `firebase` from `^11.2.0` to `^11.10.0` ([#10530](https://github.com/MetaMask/core/pull/10530))
+
 ## [29.0.2]
 
 ### Changed

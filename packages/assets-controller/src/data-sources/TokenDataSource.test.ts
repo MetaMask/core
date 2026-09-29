@@ -8,7 +8,13 @@ import type {
 import { TokenScanResultType } from '@metamask/phishing-controller';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
-import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types.js';
+import type {
+  AssetsControllerState,
+  Context,
+  DataRequest,
+  Caip19AssetId,
+  ChainId,
+} from '../types.js';
 import type { TokenDataSourceOptions } from './TokenDataSource.js';
 import { TokenDataSource } from './TokenDataSource.js';
 
@@ -131,9 +137,6 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({
-      assetsInfo: {},
-    }),
     ...overrides,
   };
 }
@@ -144,6 +147,7 @@ function setupController(options: {
   assetsResponse?: V3AssetResponse[];
   nativeAssetIds?: string[];
   suggestedOccurrenceFloors?: Record<string, number>;
+  getAssetsState?: () => Partial<AssetsControllerState>;
 }): SetupResult {
   const {
     messenger,
@@ -151,6 +155,9 @@ function setupController(options: {
     assetsResponse = [],
     nativeAssetIds = [],
     suggestedOccurrenceFloors = { '1': 3 },
+    getAssetsState = (): Partial<AssetsControllerState> => ({
+      assetsInfo: {},
+    }),
   } = options;
 
   const apiClient = createMockApiClient(
@@ -176,6 +183,7 @@ function setupController(options: {
       }
       return 'erc20';
     },
+    getAssetsState: getAssetsState as () => AssetsControllerState,
   });
 
   return {
@@ -429,16 +437,7 @@ describe('TokenDataSource', () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
-    });
-
-    const next = jest.fn().mockResolvedValue(undefined);
-    const context = createMiddlewareContext({
-      response: {
-        detectedAssets: {
-          'mock-account-id': [MOCK_TOKEN_ASSET],
-        },
-      },
-      getAssetsState: jest.fn().mockReturnValue({
+      getAssetsState: (): Partial<AssetsControllerState> => ({
         assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
@@ -449,6 +448,15 @@ describe('TokenDataSource', () => {
           },
         },
       }),
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET],
+        },
+      },
     });
 
     await controller.assetsMiddleware(context, next);
@@ -1037,6 +1045,10 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(spamAsset, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {},
+        assetsInfo: {},
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1060,10 +1072,6 @@ describe('TokenDataSource', () => {
           },
         },
       },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsBalance: {},
-        assetsInfo: {},
-      }),
     });
 
     await controller.occurrenceFilterMiddleware(context, next);
@@ -1090,6 +1098,14 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '42' },
+          },
+        },
+        assetsInfo: {},
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1104,14 +1120,6 @@ describe('TokenDataSource', () => {
           },
         },
       },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsBalance: {
-          'mock-account-id': {
-            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '42' },
-          },
-        },
-        assetsInfo: {},
-      }),
     });
 
     await controller.occurrenceFilterMiddleware(context, next);
@@ -1135,6 +1143,17 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {},
+        assetsInfo: {
+          [MOCK_TOKEN_ASSET_CHECKSUMMED]: {
+            type: 'erc20',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 6,
+          },
+        },
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1147,17 +1166,6 @@ describe('TokenDataSource', () => {
           },
         },
       },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsBalance: {},
-        assetsInfo: {
-          [MOCK_TOKEN_ASSET_CHECKSUMMED]: {
-            type: 'erc20',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-          },
-        },
-      }),
     });
 
     await controller.occurrenceFilterMiddleware(context, next);
@@ -1180,6 +1188,15 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '0' },
+          },
+        },
+        assetsInfo: {},
+        customAssets: { 'mock-account-id': [] },
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1195,15 +1212,6 @@ describe('TokenDataSource', () => {
           },
         },
       },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsBalance: {
-          'mock-account-id': {
-            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '0' },
-          },
-        },
-        assetsInfo: {},
-        customAssets: { 'mock-account-id': [] },
-      }),
     });
 
     await controller.occurrenceFilterMiddleware(context, next);
@@ -1226,6 +1234,11 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {},
+        assetsInfo: {},
+        customAssets: { 'mock-account-id': [MOCK_TOKEN_ASSET_CHECKSUMMED] },
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1238,11 +1251,6 @@ describe('TokenDataSource', () => {
           },
         },
       },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsBalance: {},
-        assetsInfo: {},
-        customAssets: { 'mock-account-id': [MOCK_TOKEN_ASSET_CHECKSUMMED] },
-      }),
     });
 
     await controller.occurrenceFilterMiddleware(context, next);
@@ -1359,23 +1367,23 @@ describe('TokenDataSource', () => {
       assetsResponse: [
         createMockAssetResponse(lowercaseCustomAsset, { occurrences: 1 }),
       ],
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsInfo: {},
+        customAssets: {
+          'mock-account-id': [checksummedCustomAsset],
+        },
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
-    const context: Context = {
+    const context = createMiddlewareContext({
       request: createDataRequest(),
       response: {
         detectedAssets: {
           'mock-account-id': [checksummedCustomAsset],
         },
       },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsInfo: {},
-        customAssets: {
-          'mock-account-id': [checksummedCustomAsset],
-        },
-      }),
-    };
+    });
 
     await controller.assetsMiddleware(context, next);
 

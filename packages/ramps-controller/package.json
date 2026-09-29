@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ramps-controller",
-  "version": "25.1.1",
+  "version": "26.0.1",
   "description": "A controller for managing cryptocurrency on/off ramps functionality",
   "keywords": [
     "Ethereum",
@@ -67,7 +67,7 @@
     "jest": "^30.4.2",
     "nock": "^13.5.6",
     "rimraf": "^6.1.3",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.14",
     "tsx": "^4.23.15",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

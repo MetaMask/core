@@ -8,7 +8,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import {
   createMockMessengers,
   MockRootMessenger,
-  registerAssetsControllerStateMock,
   registerRpcDataSourceActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
@@ -16,11 +15,13 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from '../AssetsController.js';
+import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types.js';
+import type { AssetVisibility } from '../utils/assetVisibility.js';
+import { getAssetVisibility } from '../utils/assetVisibility.js';
 import { normalizeAssetId } from '../utils/index.js';
 import { BalanceFetcher, TokenDetector } from './evm-rpc-services/index.js';
 import type {
-  Address,
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/index.js';
@@ -36,6 +37,7 @@ const MOCK_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
+const [MAINNET_MUSD] = getDefaultTrackedAssetsForChain(MOCK_CHAIN_ID_CAIP);
 type EthereumProvider = { request: jest.Mock };
 
 function createBalanceFetchResult(
@@ -164,14 +166,6 @@ async function withController<ReturnValue>(
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers();
   const defaultNetworkState = networkState ?? createMockNetworkState();
 
-  // TODO - code smell, why is our internal logic trying to call its own methods via messenger?
-  registerAssetsControllerStateMock(
-    assetsControllerMessenger,
-    actionHandlerOverrides?.['AssetsController:getState'] as
-      | (() => AssetsControllerState)
-      | undefined,
-  );
-
   if (actionHandlerOverrides) {
     for (const [action, handler] of Object.entries(actionHandlerOverrides)) {
       if (handler && action !== 'AssetsController:getState') {
@@ -231,13 +225,29 @@ async function withController<ReturnValue>(
   const defaultNativeAssetMap: Record<ChainId, Caip19AssetId> = {
     [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
   };
+  const getAssetsState =
+    options.getAssetsState ??
+    ((): AssetsControllerState => {
+      try {
+        return (
+          (actionHandlerOverrides?.['AssetsController:getState']?.() as
+            | AssetsControllerState
+            | undefined) ?? getDefaultAssetsControllerState()
+        );
+      } catch {
+        return getDefaultAssetsControllerState();
+      }
+    });
 
   const onActiveChainsUpdated = options.onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
+    // Mirrors AssetsController.#getNativeAssetForChain: registered natives
+    // from the map, zero-address ERC-20 fallback for unregistered EVM chains.
     getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
-      defaultNativeAssetMap[chainId],
+      defaultNativeAssetMap[chainId] ??
+      (`${chainId}/erc20:0x0000000000000000000000000000000000000000` as Caip19AssetId),
     getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' => {
       const isNative =
         Object.values(defaultNativeAssetMap).some(
@@ -245,7 +255,15 @@ async function withController<ReturnValue>(
         ) || assetId.includes('/slip44:');
       return isNative ? 'native' : 'erc20';
     },
+    getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
+      getAssetVisibility({
+        state: getAssetsState(),
+        accountIds,
+        chainIds,
+        getNativeAssetForChain: (chainId) => defaultNativeAssetMap[chainId],
+      }),
     ...options,
+    getAssetsState,
   });
 
   try {
@@ -296,9 +314,11 @@ describe('createRpcDataSource', () => {
     const { assetsControllerMessenger } = createMockMessengers();
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
+      getAssetsState: getDefaultAssetsControllerState,
       onActiveChainsUpdated: jest.fn(),
       getNativeAssetForChain: jest.fn(),
       getAssetType: jest.fn(),
+      getAssetVisibility: jest.fn(),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -491,6 +511,7 @@ describe('RpcDataSource', () => {
         const response = await controller.fetch(createDataRequest());
         expect(response).toBeDefined();
         expect(response.assetsBalance).toBeDefined();
+        expect(response.updateMode).toBe('merge');
       });
     });
 
@@ -544,7 +565,9 @@ describe('RpcDataSource', () => {
     });
 
     it('returns empty balances when Multicall aggregate3 fails after retries', async () => {
-      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
       jest.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
 
       const mockCall = jest
@@ -554,7 +577,7 @@ describe('RpcDataSource', () => {
       const mockGetBalance = jest
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
-      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+      Web3Provider.mockImplementationOnce(() => ({
         call: mockCall,
         getBalance: mockGetBalance,
       }));
@@ -569,7 +592,9 @@ describe('RpcDataSource', () => {
 
     it('uses getBalance when Multicall aggregate3 fails after retries', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
-      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
       const mockCall = jest
         .fn()
         .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
@@ -578,7 +603,7 @@ describe('RpcDataSource', () => {
       const mockGetBalance = jest
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
-      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+      Web3Provider.mockImplementationOnce(() => ({
         call: mockCall,
         getBalance: mockGetBalance,
       }));
@@ -638,6 +663,185 @@ describe('RpcDataSource', () => {
         expect(
           response.assetsBalance?.[MOCK_ACCOUNT_ID]?.['eip155:1/slip44:60'],
         ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('keeps the previous balance and stays full when a balanceOf fails on the v6 path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const trackedAssetId =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [trackedAssetId]: {
+                  type: 'erc20' as const,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [trackedAssetId]: { amount: '42' } },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          jest
+            .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+            .mockResolvedValue(
+              createBalanceFetchResult({
+                balances: [
+                  {
+                    assetId: nativeAssetId,
+                    accountId: MOCK_ACCOUNT_ID,
+                    chainId: MOCK_CHAIN_ID_HEX,
+                    balance: '1000000000000000000',
+                    formattedBalance: '1',
+                    decimals: 18,
+                    timestamp: Date.now(),
+                  },
+                ],
+                failedAddresses: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
+              }),
+            );
+          const response = await controller.fetch(createDataRequest());
+
+          // The chain still updates on one failed read: native takes its fresh
+          // amount and the unreadable token keeps the amount already in state.
+          expect(response.errors).toBeUndefined();
+          expect(response.updateMode).toBe('full');
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+          ).toStrictEqual({ amount: '1' });
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[trackedAssetId],
+          ).toStrictEqual({ amount: '42' });
+        },
+      );
+    });
+
+    it('keeps the previous balance and stays full when decimals cannot be resolved on the v6 path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
+      Web3Provider.mockImplementationOnce(() => ({
+        getBalance: jest
+          .fn()
+          .mockResolvedValue({ toString: () => '1000000000000000000' }),
+        call: jest.fn().mockResolvedValue('0x'),
+      }));
+
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              // No metadata for the token, so its decimals stay unresolved.
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [erc20AssetId]: { amount: '7' } },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          jest
+            .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+            .mockResolvedValue(
+              createBalanceFetchResult({
+                balances: [
+                  {
+                    assetId: nativeAssetId,
+                    accountId: MOCK_ACCOUNT_ID,
+                    chainId: MOCK_CHAIN_ID_HEX,
+                    balance: '1000000000000000000',
+                    formattedBalance: '1',
+                    decimals: 18,
+                    timestamp: Date.now(),
+                  },
+                  {
+                    assetId: erc20AssetId,
+                    accountId: MOCK_ACCOUNT_ID,
+                    chainId: MOCK_CHAIN_ID_HEX,
+                    balance: '1000000',
+                    formattedBalance: '1',
+                    timestamp: Date.now(),
+                  },
+                ],
+              }),
+            );
+          const response = await controller.fetch(createDataRequest());
+          expect(response.errors).toBeUndefined();
+          expect(response.updateMode).toBe('full');
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+          ).toStrictEqual({ amount: '1' });
+          expect(
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[
+              normalizeAssetId(erc20AssetId)
+            ],
+          ).toStrictEqual({ amount: '7' });
+        },
+      );
+    });
+
+    it('overlays tokens that resolve and skips unresolved decimals on the v5 path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      const normalizedErc20Id = normalizeAssetId(erc20AssetId);
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers') as {
+        Web3Provider: jest.Mock;
+      };
+      Web3Provider.mockImplementationOnce(() => ({
+        getBalance: jest
+          .fn()
+          .mockResolvedValue({ toString: () => '1000000000000000000' }),
+        call: jest.fn().mockResolvedValue('0x'),
+      }));
+
+      await withController(async ({ controller }) => {
+        jest
+          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+          .mockResolvedValue(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  accountId: MOCK_ACCOUNT_ID,
+                  chainId: MOCK_CHAIN_ID_HEX,
+                  balance: '1000000000000000000',
+                  formattedBalance: '1',
+                  decimals: 18,
+                  timestamp: Date.now(),
+                },
+                {
+                  assetId: erc20AssetId,
+                  accountId: MOCK_ACCOUNT_ID,
+                  chainId: MOCK_CHAIN_ID_HEX,
+                  balance: '1000000',
+                  formattedBalance: '1',
+                  timestamp: Date.now(),
+                },
+              ],
+            }),
+          );
+        const response = await controller.fetch(createDataRequest());
+        expect(response.errors).toBeUndefined();
+        expect(
+          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+        ).toStrictEqual({ amount: '1' });
+        expect(
+          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedErc20Id],
+        ).toBeUndefined();
       });
     });
 
@@ -809,7 +1013,7 @@ describe('RpcDataSource', () => {
       );
     });
 
-    it('handles AssetsController:getState throw in metadata lookup', async () => {
+    it('handles AssetsController:getState throw without failing fetch metadata', async () => {
       await withController(
         {
           actionHandlerOverrides: {
@@ -869,28 +1073,417 @@ describe('RpcDataSource', () => {
         .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
         .mockResolvedValue(createBalanceFetchResult());
 
-      await withController(async ({ controller }) => {
-        const request = createDataRequest({
-          customAssets: [matchingAsset, otherChainAsset],
-        });
-        await controller.fetch(request);
-
-        expect(fetchSpy).toHaveBeenCalledWith(
-          MOCK_CHAIN_ID_HEX,
-          MOCK_ACCOUNT_ID,
-          MOCK_ADDRESS,
-          [
-            {
-              assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-              address: '0x0000000000000000000000000000000000000000',
-            },
-            expect.objectContaining({
-              assetId: matchingAsset,
-              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: {
+                [MOCK_ACCOUNT_ID]: [matchingAsset, otherChainAsset],
+              },
             }),
-          ],
+          },
+        },
+        async ({ controller }) => {
+          const request = createDataRequest({
+            customAssets: [matchingAsset, otherChainAsset],
+          });
+          await controller.fetch(request);
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+              expect.objectContaining({
+                assetId: matchingAsset,
+                address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              }),
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('fetches existing balances, pins, and default tracked assets from state on the v6 path when the request carries no customAssets', async () => {
+      const pinnedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const trackedBalanceAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAsset] },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [trackedBalanceAsset]: { amount: '1' },
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            expect.arrayContaining([
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+              expect.objectContaining({ assetId: pinnedAsset }),
+              expect.objectContaining({ assetId: trackedBalanceAsset }),
+              expect.objectContaining({ assetId: MAINNET_MUSD }),
+            ]),
+          );
+          expect(response.updateMode).toBe('full');
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('omits an unheld asset outside the visible set from the v6 snapshot', async () => {
+      const nativeAsset = `${MOCK_CHAIN_ID_CAIP}/slip44:60` as Caip19AssetId;
+      const pinnedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const detectedAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(
+          createBalanceFetchResult({
+            balances: [
+              {
+                assetId: nativeAsset,
+                balance: '1000000000000000000',
+              },
+              { assetId: pinnedAsset, balance: '0' },
+              { assetId: detectedAsset, balance: '0' },
+            ] as BalanceFetchResult['balances'],
+          }),
         );
-      });
+
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [pinnedAsset]: {
+                  type: 'erc20' as const,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+                [detectedAsset]: {
+                  type: 'erc20' as const,
+                  symbol: 'DAI',
+                  name: 'Dai',
+                  decimals: 18,
+                },
+              },
+              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAsset] },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [detectedAsset]: { amount: '3' } },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+
+          // The pin keeps its zero row; the detected token is left out, so the
+          // `full` write drops it instead of persisting an empty balance.
+          expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
+            [nativeAsset]: { amount: '1' },
+            [pinnedAsset]: { amount: '0' },
+          });
+          expect(response.updateMode).toBe('full');
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('still emits a v6 snapshot when every read resolved to an omitted zero', async () => {
+      const nativeAsset = `${MOCK_CHAIN_ID_CAIP}/slip44:60` as Caip19AssetId;
+      const detectedAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      // Only the detected token resolves — at zero — so nothing is written.
+      // The zero read is still a success: the snapshot must go out so the
+      // `full` write can drop the stale detected token from state.
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(
+          createBalanceFetchResult({
+            balances: [
+              { assetId: detectedAsset, balance: '0' },
+            ] as BalanceFetchResult['balances'],
+            failedAddresses: ['0x0000000000000000000000000000000000000000'],
+          }),
+        );
+
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [detectedAsset]: {
+                  type: 'erc20' as const,
+                  symbol: 'DAI',
+                  name: 'Dai',
+                  decimals: 18,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [nativeAsset]: { amount: '2' },
+                  [detectedAsset]: { amount: '3' },
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+
+          // The unreadable native keeps its previous amount; the detected
+          // token is omitted so the `full` write drops it.
+          expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
+            [nativeAsset]: { amount: '2' },
+          });
+          expect(response.updateMode).toBe('full');
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('does not fetch hidden native, pinned, default, or existing assets on the v6 path', async () => {
+      const nativeAsset = `${MOCK_CHAIN_ID_CAIP}/slip44:60` as Caip19AssetId;
+      const pinnedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const trackedBalanceAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAsset] },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [trackedBalanceAsset]: { amount: '1' },
+                },
+              },
+              assetPreferences: {
+                [nativeAsset]: { hidden: true },
+                [pinnedAsset]: { hidden: true },
+                [trackedBalanceAsset]: { hidden: true },
+                [MAINNET_MUSD]: { hidden: true },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('fetches only native on the v5 path when the request carries no customAssets', async () => {
+      const pinnedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const trackedBalanceAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAsset] },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [trackedBalanceAsset]: { amount: '1' },
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          // v5 reads ERC-20s from the scoped request only; state pins and
+          // tracked balances are polled by the balance fetcher instead.
+          const assets = fetchSpy.mock.calls[0][3] as { assetId: string }[];
+          const assetIds = assets.map((entry) => entry.assetId);
+          expect(assetIds).toStrictEqual([`${MOCK_CHAIN_ID_CAIP}/slip44:60`]);
+          expect(assetIds).not.toContain(pinnedAsset);
+          expect(assetIds).not.toContain(trackedBalanceAsset);
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('fetches only the request custom assets when the request is scoped', async () => {
+      const requestedAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const otherPinnedAsset =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: {
+                [MOCK_ACCOUNT_ID]: [requestedAsset, otherPinnedAsset],
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          // A scoped fetch must not widen into the account's other pins.
+          await controller.fetch(
+            createDataRequest({ customAssets: [requestedAsset] }),
+          );
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+              expect.objectContaining({ assetId: requestedAsset }),
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('skips hidden custom assets from state', async () => {
+      const hiddenAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { [MOCK_ACCOUNT_ID]: [hiddenAsset] },
+              assetPreferences: { [hiddenAsset]: { hidden: true } },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+            ],
+          );
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('does not fetch custom assets belonging to another account', async () => {
+      const otherAccountAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              customAssets: { 'other-account-id': [otherAccountAsset] },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.fetch(createDataRequest());
+
+          expect(fetchSpy).toHaveBeenCalledWith(
+            MOCK_CHAIN_ID_HEX,
+            MOCK_ACCOUNT_ID,
+            MOCK_ADDRESS,
+            [
+              {
+                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+                address: '0x0000000000000000000000000000000000000000',
+              },
+            ],
+          );
+        },
+      );
 
       fetchSpy.mockRestore();
     });
@@ -1188,6 +1781,24 @@ describe('RpcDataSource', () => {
         expect(next).toHaveBeenCalledWith(context);
       });
     });
+
+    it('forwards full updateMode on the v6 path', async () => {
+      await withController(
+        { options: { isBalanceV6Enabled: (): boolean => true } },
+        async ({ controller }) => {
+          const context: Context = {
+            request: createDataRequest(),
+            response: {},
+            getAssetsState: jest.fn(),
+          };
+          const next = jest
+            .fn()
+            .mockImplementation((ctx: Context) => Promise.resolve(ctx));
+          await controller.assetsMiddleware(context, next);
+          expect(context.response.updateMode).toBe('full');
+        },
+      );
+    });
   });
 
   describe('subscribe', () => {
@@ -1382,6 +1993,30 @@ describe('RpcDataSource', () => {
         expect(detectionStopSpy).toHaveBeenCalled();
       });
     });
+
+    it('does not poll when no chains are assigned even if customAssets are present', async () => {
+      const balanceStartSpy = jest.spyOn(
+        BalanceFetcher.prototype,
+        'startPolling',
+      );
+      const customAssetId =
+        `${MOCK_CHAIN_ID_CAIP}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
+
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest({
+            chainIds: [],
+            customAssets: [customAssetId],
+          }),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+
+        expect(balanceStartSpy).not.toHaveBeenCalled();
+        await controller.unsubscribe('test-sub');
+      });
+    });
   });
 
   describe('unsubscribe', () => {
@@ -1499,6 +2134,435 @@ describe('RpcDataSource', () => {
       expect(
         response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
       ).toStrictEqual({ amount: '1' });
+    });
+
+    it('stamps full updateMode on the v6 poll path', async () => {
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        { options: { isBalanceV6Enabled: (): boolean => true } },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: 'eip155:1/slip44:60' as Caip19AssetId,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ updateMode: 'full' }),
+        expect.any(Object),
+      );
+    });
+
+    it('keeps the previous balance and stays full when a balanceOf failed on the v6 poll path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const trackedAssetId =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [trackedAssetId]: {
+                  type: 'erc20' as const,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [trackedAssetId]: { amount: '42' } },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+              ],
+              failedAddresses: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'full',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '1' },
+              [trackedAssetId]: { amount: '42' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('keeps the previous balance and stays full when an asset has unknown decimals on the v6 poll path', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              // No metadata for the token, so its decimals stay unresolved.
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [erc20AssetId]: { amount: '7' } },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+                {
+                  assetId: erc20AssetId,
+                  balance: '500',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'full',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '1' },
+              [normalizeAssetId(erc20AssetId)]: { amount: '7' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('leaves an unheld asset outside the visible set out of the v6 poll snapshot', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      // Only tracked because detection found it earlier: not native, pinned,
+      // or default tracked. At zero it is not worth a row.
+      const detectedAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [detectedAssetId]: {
+                  type: 'erc20' as const,
+                  symbol: 'DAI',
+                  name: 'Dai',
+                  decimals: 18,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [detectedAssetId]: { amount: '3' } },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+                {
+                  assetId: detectedAssetId,
+                  balance: '0',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'full',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '1' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('still emits a v6 poll snapshot when every read resolved to an omitted zero', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const detectedAssetId =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [detectedAssetId]: {
+                  type: 'erc20' as const,
+                  symbol: 'DAI',
+                  name: 'Dai',
+                  decimals: 18,
+                },
+              },
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [nativeAssetId]: { amount: '2' },
+                  [detectedAssetId]: { amount: '3' },
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          // The only read that resolved is a zero for a detected token, which
+          // is deliberately left out of the snapshot. The update must still
+          // publish so the `full` write drops the stale token from state.
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: detectedAssetId,
+                  balance: '0',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'full',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '2' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('keeps a zero balance for a pinned asset on the v6 poll snapshot', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const pinnedAssetId =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          options: { isBalanceV6Enabled: (): boolean => true },
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [pinnedAssetId]: {
+                  type: 'erc20' as const,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAssetId] },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+                {
+                  assetId: pinnedAssetId,
+                  balance: '0',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updateMode: 'full',
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [nativeAssetId]: { amount: '1' },
+              [pinnedAssetId]: { amount: '0' },
+            },
+          },
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('skips the v6 poll snapshot when no asset can be converted', async () => {
+      const erc20AssetId =
+        'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        { options: { isBalanceV6Enabled: (): boolean => true } },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          // Non-zero, so the token is not omitted as an unheld invisible
+          // zero; its decimals are unknown, so it cannot be converted.
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: erc20AssetId,
+                  balance: '500',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).not.toHaveBeenCalled();
     });
 
     it('omits unknown ERC-20 from assetsInfo when not in existing state', async () => {
@@ -1969,6 +3033,50 @@ describe('RpcDataSource', () => {
       }
     });
 
+    it('refreshes balance with full mode on the v6 path when transaction confirmed', async () => {
+      const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
+      const fetchSpy = jest
+        .spyOn(RpcDataSource.prototype, 'fetch')
+        .mockResolvedValue({
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '2' },
+            },
+          },
+          updateMode: 'full',
+        });
+
+      try {
+        await withController(
+          { options: { isBalanceV6Enabled: (): boolean => true } },
+          async ({ controller, rootMessenger }) => {
+            await controller.subscribe({
+              request: createDataRequest(),
+              subscriptionId: 'test-sub',
+              isUpdate: false,
+              onAssetsUpdate,
+            });
+
+            rootMessenger.publish(
+              'TransactionController:transactionConfirmed',
+              {
+                chainId: MOCK_CHAIN_ID_HEX,
+                txParams: { from: MOCK_ADDRESS },
+              } as unknown as TransactionMeta,
+            );
+            await new Promise(process.nextTick);
+
+            expect(onAssetsUpdate).toHaveBeenCalledWith(
+              expect.objectContaining({ updateMode: 'full' }),
+              expect.objectContaining({ dataTypes: ['balance'] }),
+            );
+          },
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
     it('does not refresh when transaction confirmed has no chainId', async () => {
       await withController(async ({ rootMessenger }) => {
         rootMessenger.publish(
@@ -2047,9 +3155,11 @@ describe('RpcDataSource', () => {
       });
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,
+        getAssetsState: getDefaultAssetsControllerState,
         onActiveChainsUpdated: jest.fn(),
         getNativeAssetForChain: jest.fn(),
         getAssetType: jest.fn().mockReturnValue('erc20'),
+        getAssetVisibility: jest.fn(),
       });
       controller.destroy();
       expect(controller).toBeDefined();

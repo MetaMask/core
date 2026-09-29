@@ -8,12 +8,7 @@ import {
   registerStakedMessengerActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
-import type {
-  AssetsControllerStateInternal,
-  ChainId,
-  Context,
-  DataRequest,
-} from '../types.js';
+import type { ChainId, Context, DataRequest } from '../types.js';
 import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource.js';
 import { StakedBalanceDataSource } from './StakedBalanceDataSource.js';
 
@@ -60,22 +55,10 @@ function createDataRequest(
   };
 }
 
-function getMockAssetsState(): AssetsControllerStateInternal {
-  return {
-    assetsInfo: {},
-    assetsBalance: {},
-    assetsPrice: {},
-    customAssets: {},
-    assetPreferences: {},
-    selectedCurrency: 'usd',
-  };
-}
-
 function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: getMockAssetsState,
     ...overrides,
   };
 }
@@ -356,7 +339,6 @@ describe('StakedBalanceDataSource', () => {
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
         });
         await new Promise((resolve) => {
           setTimeout(resolve, 100);
@@ -378,7 +360,6 @@ describe('StakedBalanceDataSource', () => {
             subscriptionId: 'test-sub',
             isUpdate: false,
             onAssetsUpdate,
-            getAssetsState: getMockAssetsState,
           });
           expect(onAssetsUpdate).not.toHaveBeenCalled();
         },
@@ -394,7 +375,6 @@ describe('StakedBalanceDataSource', () => {
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate: jest.fn(),
-          getAssetsState: getMockAssetsState,
         });
         await controller.unsubscribe('test-sub');
         const chains = await controller.getActiveChains();
@@ -414,7 +394,6 @@ describe('StakedBalanceDataSource', () => {
         subscriptionId: 'test-sub',
         isUpdate: false,
         onAssetsUpdate,
-        getAssetsState: getMockAssetsState,
       });
       await new Promise((resolve) => setTimeout(resolve, 100));
       onAssetsUpdate.mockClear();
@@ -501,7 +480,6 @@ describe('StakedBalanceDataSource', () => {
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
         });
         onAssetsUpdate.mockClear();
         expect(await controller.refreshStakedBalance()).toBeUndefined();

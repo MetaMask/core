@@ -155,12 +155,9 @@ export async function handleFetch(request: string, options?: RequestInit) {
   const json = await response.json();
   if (!response.ok) {
     console.log(`response`, response);
-    throw new Error(
-      `Fetch error:${JSON.stringify({
-        status: response.status,
-        ...mapKeysToCamel(json),
-      })}`,
-    );
+    throw Object.assign(new Error(`Fetch error: ${response.status}`), {
+      data: mapKeysToCamel(json),
+    });
   }
   return json;
 }

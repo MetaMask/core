@@ -211,6 +211,27 @@ export type SocialServiceRemoveCommentReactionAction = {
 };
 
 /**
+ * Creates an author Call (user post) on one of the current user's swaps.
+ *
+ * Calls `POST ${baseUrl}/swap-comments`. Identify the swap with
+ * `positionUid` (the `positionId` of a feed item or position) or, for a
+ * trade too recent to be indexed, `tradeInFlight`. Provide exactly one of
+ * those two fields.
+ *
+ * @param options - Options bag.
+ * @param options.commentText - Message body of the post. May include a
+ * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
+ * @param options.source - Free-form origin label stored on the comment.
+ * @param options.positionUid - Position UUID (`positionId` / feed item id).
+ * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+ * @returns The created swap comment.
+ */
+export type SocialServiceCreateSwapCommentAction = {
+  type: `SocialService:createSwapComment`;
+  handler: SocialService['createSwapComment'];
+};
+
+/**
  * Fetches the list of traders the current user is following.
  *
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -307,6 +328,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchTokenFeedAction
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
+  | SocialServiceCreateSwapCommentAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction

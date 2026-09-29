@@ -182,7 +182,6 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
               {
                 request: requests[i],
                 response: {},
-                getAssetsState: context.getAssetsState,
               },
               noopNext,
             );
@@ -225,7 +224,6 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
                 {
                   request: fallbackRequests[i],
                   response: {},
-                  getAssetsState: context.getAssetsState,
                 },
                 noopNext,
               );
@@ -316,7 +314,6 @@ export function createParallelMiddleware(sources: AssetsDataSource[]): {
               {
                 request: context.request,
                 response: { ...context.response },
-                getAssetsState: context.getAssetsState,
               },
               noopNext,
             );

@@ -1,4 +1,9 @@
-import type { DelegationResponse } from '@metamask/authenticated-user-storage';
+import type {
+  AuthenticatedUserStorageServiceCreateDelegationAction,
+  DelegationResponse,
+} from '@metamask/authenticated-user-storage';
+import type { ChompApiServiceVerifyDelegationAction } from '@metamask/chomp-api-service';
+import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import {
   ROOT_AUTHORITY,
   createERC20TransferAmountTerms,
@@ -16,6 +21,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { buildDelegationStep } from './build-delegations.js';
+import type { StepContext } from './step.js';
 
 jest.mock('@metamask/delegation-core', () => ({
   ROOT_AUTHORITY:
@@ -121,9 +127,20 @@ type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
   listDelegations: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock;
-  createDelegation: jest.Mock;
+  signDelegation: jest.Mock<
+    ReturnType<DelegationControllerSignDelegationAction['handler']>,
+    Parameters<DelegationControllerSignDelegationAction['handler']>
+  >;
+  verifyDelegation: jest.Mock<
+    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
+    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
+  >;
+  createDelegation: jest.Mock<
+    ReturnType<
+      AuthenticatedUserStorageServiceCreateDelegationAction['handler']
+    >,
+    Parameters<AuthenticatedUserStorageServiceCreateDelegationAction['handler']>
+  >;
 };
 
 function setup(): {
@@ -132,9 +149,28 @@ function setup(): {
 } {
   const mocks: Mocks = {
     listDelegations: jest.fn().mockResolvedValue([]),
-    signDelegation: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
+    signDelegation: jest
+      .fn<
+        ReturnType<DelegationControllerSignDelegationAction['handler']>,
+        Parameters<DelegationControllerSignDelegationAction['handler']>
+      >()
+      .mockResolvedValue(MOCK_SIGNATURE),
+    verifyDelegation: jest
+      .fn<
+        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
+        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
+      >()
+      .mockResolvedValue({ valid: true }),
+    createDelegation: jest
+      .fn<
+        ReturnType<
+          AuthenticatedUserStorageServiceCreateDelegationAction['handler']
+        >,
+        Parameters<
+          AuthenticatedUserStorageServiceCreateDelegationAction['handler']
+        >
+      >()
+      .mockResolvedValue(undefined),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -177,6 +213,7 @@ function setup(): {
 
 async function run(
   messenger: MoneyAccountUpgradeControllerMessenger,
+  premiumVault?: StepContext['premiumVault'],
 ): ReturnType<typeof buildDelegationStep.run> {
   return buildDelegationStep.run({
     messenger,
@@ -187,6 +224,7 @@ async function run(
     delegatorImplAddress: '0x2222222222222222222222222222222222222222',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_MUSD,
+    premiumVault,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,
     valueLteEnforcer: MOCK_VALUE_LTE_ENFORCER,
     vedaVaultAdapterAddress: MOCK_VAULT_ADAPTER,
@@ -574,6 +612,104 @@ describe('buildDelegationStep', () => {
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('when a premium vault is configured', () => {
+    const MOCK_PREMIUM_VAULT =
+      '0x6666666666666666666666666666666666666666' as Hex;
+    const MOCK_PREMIUM_ADAPTER =
+      '0x5555555555555555555555555555555555555555' as Hex;
+    const MOCK_PREMIUM_REDEEMER_TERMS: Hex = '0xa7';
+    const premiumVault = {
+      boringVaultAddress: MOCK_PREMIUM_VAULT,
+      vedaVaultAdapterAddress: MOCK_PREMIUM_ADAPTER,
+    };
+
+    beforeEach(() => {
+      mockCreateRedeemerTerms.mockImplementation((({
+        redeemers,
+      }: {
+        redeemers: Hex[];
+      }) =>
+        redeemers[0] === MOCK_PREMIUM_ADAPTER
+          ? MOCK_PREMIUM_REDEEMER_TERMS
+          : MOCK_REDEEMER_TERMS) as never);
+    });
+
+    it('signs the base pair, then the premium pair redeemed by the premium adapter', async () => {
+      const { messenger, mocks } = setup();
+
+      const result = await run(messenger, premiumVault);
+
+      expect(result).toBe('completed');
+      expect(
+        mocks.createDelegation.mock.calls.map(([submission]) => [
+          submission.metadata.type,
+          submission.metadata.tokenSymbol,
+          submission.metadata.tokenAddress,
+        ]),
+      ).toStrictEqual([
+        ['cash-deposit', 'mUSD', MOCK_MUSD],
+        ['cash-withdrawal', 'vmUSD', MOCK_BORING_VAULT],
+        ['cash-deposit-premium', 'mUSD', MOCK_MUSD],
+        ['cash-withdrawal-premium', 'pvmUSD', MOCK_PREMIUM_VAULT],
+      ]);
+      expect(
+        mocks.signDelegation.mock.calls.map(
+          ([{ delegation }]) => delegation.caveats[2].terms,
+        ),
+      ).toStrictEqual([
+        MOCK_REDEEMER_TERMS,
+        MOCK_REDEEMER_TERMS,
+        MOCK_PREMIUM_REDEEMER_TERMS,
+        MOCK_PREMIUM_REDEEMER_TERMS,
+      ]);
+    });
+
+    it('signs only the premium pair when the base pair already exists', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        makeDelegationResponse({ tokenAddress: MOCK_MUSD }),
+        makeDelegationResponse({ tokenAddress: MOCK_BORING_VAULT }),
+      ]);
+
+      const result = await run(messenger, premiumVault);
+
+      expect(result).toBe('completed');
+      expect(
+        mocks.createDelegation.mock.calls.map(
+          ([submission]) => submission.metadata.type,
+        ),
+      ).toStrictEqual(['cash-deposit-premium', 'cash-withdrawal-premium']);
+    });
+
+    it('returns "already-done" when both pairs already exist', async () => {
+      const { messenger, mocks } = setup();
+      const premiumCaveats = [
+        {
+          enforcer: MOCK_REDEEMER_ENFORCER,
+          terms: MOCK_PREMIUM_REDEEMER_TERMS,
+          args: '0x' as Hex,
+        },
+      ];
+      mocks.listDelegations.mockResolvedValue([
+        makeDelegationResponse({ tokenAddress: MOCK_MUSD }),
+        makeDelegationResponse({ tokenAddress: MOCK_BORING_VAULT }),
+        makeDelegationResponse({
+          tokenAddress: MOCK_MUSD,
+          caveats: premiumCaveats,
+        }),
+        makeDelegationResponse({
+          tokenAddress: MOCK_PREMIUM_VAULT,
+          caveats: premiumCaveats,
+        }),
+      ]);
+
+      const result = await run(messenger, premiumVault);
+
+      expect(result).toBe('already-done');
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
   });
 });
