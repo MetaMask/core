@@ -124,29 +124,17 @@ async function buildValidationSimulation(
     transaction: request.transaction,
   });
 
-  let executeRequest: Omit<RelayExecuteRequest, 'metamask'> | undefined;
-  const sourceChainAllowsExecute = isEIP7702Chain(
-    request.messenger,
-    quote.request.sourceChainId,
-  );
-
-  if (quote.original.metamask.isExecute && sourceChainAllowsExecute) {
-    executeRequest = await getRelayExecuteRequest({
-      allParams: calls,
-      messenger: request.messenger,
-      quote,
-      requestId: quote.original.steps[0].requestId,
-      transaction: request.transaction,
-    });
-  } else if (quote.original.metamask.isExecute) {
-    log(
-      'Skipping Relay execute simulation: source chain is not in the EIP-7702 flag',
-      {
-        sourceChainId: quote.request.sourceChainId,
-      },
-    );
-    quote.original.metamask.isExecute = false;
-  }
+  const executeRequest =
+    quote.original.metamask.isExecute &&
+    isEIP7702Chain(request.messenger, quote.request.sourceChainId)
+      ? await getRelayExecuteRequest({
+          allParams: calls,
+          messenger: request.messenger,
+          quote,
+          requestId: quote.original.steps[0].requestId,
+          transaction: request.transaction,
+        })
+      : undefined;
 
   return buildRelayValidationSimulation(
     request.messenger,

@@ -1932,7 +1932,6 @@ describe('Relay Submit Utils', () => {
 
         expect(submitViaRelayExecuteMock).not.toHaveBeenCalled();
         expect(addTransactionMock).toHaveBeenCalledTimes(1);
-        expect(request.quotes[0].original.metamask.isExecute).toBe(false);
       });
 
       it('leaves gas undefined on the fallback transaction when the execute quote has no gas limits', async () => {

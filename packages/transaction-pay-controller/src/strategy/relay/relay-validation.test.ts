@@ -960,7 +960,6 @@ describe('validateRelayQuotes', () => {
         });
 
         expect(getRelayExecuteRequestMock).not.toHaveBeenCalled();
-        expect(quote.original.metamask.isExecute).toBe(false);
         expect(validateQuoteExecutionMock).toHaveBeenCalledWith(
           expect.objectContaining({
             simulation: expect.objectContaining({

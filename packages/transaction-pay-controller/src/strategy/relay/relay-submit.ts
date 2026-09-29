@@ -674,16 +674,6 @@ async function submitTransactions(
     );
   }
 
-  if (quote.original.metamask.isExecute) {
-    log(
-      'Skipping Relay execute submit: source chain is not in the EIP-7702 flag',
-      {
-        sourceChainId: quote.request.sourceChainId,
-      },
-    );
-    quote.original.metamask.isExecute = false;
-  }
-
   return await submitViaTransactionController(
     quote,
     transaction,
