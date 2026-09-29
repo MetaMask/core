@@ -277,6 +277,16 @@ export class ProfileService extends BaseDataService<
    * @returns The parsed JSON response.
    * @throws {HttpError} If the response is not a 2xx status code.
    */
+  async #fetch(
+    endpoint: string,
+    options: { method: 'DELETE'; error: string },
+  ): Promise<null>;
+
+  async #fetch<ResponseType extends Json>(
+    endpoint: string,
+    options: { method?: string; error: string; json?: unknown },
+  ): Promise<ResponseType>;
+
   async #fetch<ResponseType extends Json>(
     endpoint: string,
     {
@@ -288,7 +298,7 @@ export class ProfileService extends BaseDataService<
       error: string;
       json?: unknown;
     },
-  ): Promise<ResponseType> {
+  ): Promise<ResponseType | null> {
     const authHeaders = await this.#getAuthHeaders();
     const url = new URL(`${this.#v1Url}/${endpoint}`);
     const response = await fetch(url.toString(), {
@@ -303,7 +313,7 @@ export class ProfileService extends BaseDataService<
       throw new HttpError(response.status, `${error}: ${response.status}`);
     }
     if (method === 'DELETE') {
-      return null as ResponseType;
+      return null;
     }
     return (await response.json()) as ResponseType;
   }
@@ -420,7 +430,7 @@ export class ProfileService extends BaseDataService<
     return this.executeMutation({
       mutationKey: [`${this.name}:deleteProfile`, profileId],
       mutationFn: async () =>
-        this.#fetch<null>(`profiles/${encodeURIComponent(profileId)}`, {
+        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
           method: 'DELETE',
           error: ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
         }),
