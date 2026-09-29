@@ -67,6 +67,33 @@ export type AutorampAccount = {
 export type CreateAutorampRequest = Record<string, unknown>;
 
 /**
+ * Standing BRL → mUSD autoramp for a Money Account on Monad.
+ *
+ * `customer_id` is omitted; {@link RampsController.createAutoramp} injects it.
+ *
+ * @param walletAddress - Money Account address that receives mUSD.
+ * @returns MoonPay `POST /autoramps` market body.
+ */
+export function buildBrazilMusdAutorampRequest(
+  walletAddress: string,
+): CreateAutorampRequest {
+  return {
+    source_currencies: [{ type: 'Fiat', code: 'BRL' }],
+    destination_currency: {
+      type: 'Crypto',
+      token: 'mUSD',
+      blockchain: 'Monad',
+    },
+    recipient_account: {
+      type: 'Crypto',
+      chain: 'Monad',
+      address: walletAddress,
+    },
+    source_is_third_party: false,
+  };
+}
+
+/**
  * Result of applying a remote autoramp snapshot onto local state.
  */
 export type ApplyAutorampRemoteStatusResult = {

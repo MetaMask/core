@@ -11,7 +11,10 @@ import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { AutorampStatus } from './autorampAccount.js';
+import {
+  AutorampStatus,
+  buildBrazilMusdAutorampRequest,
+} from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
@@ -10852,7 +10855,9 @@ describe('RampsController', () => {
           }),
         );
 
-        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(createAutoramp).toHaveBeenCalledWith(
+          buildBrazilMusdAutorampRequest('0xabc'),
+        );
       });
     });
 
@@ -10898,7 +10903,9 @@ describe('RampsController', () => {
           }),
         );
 
-        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(createAutoramp).toHaveBeenCalledWith(
+          buildBrazilMusdAutorampRequest('0xabc'),
+        );
       });
     });
 
@@ -10991,7 +10998,9 @@ describe('RampsController', () => {
           walletAddress: '0xabc',
         });
 
-        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(createAutoramp).toHaveBeenCalledWith(
+          buildBrazilMusdAutorampRequest('0xabc'),
+        );
       });
     });
 

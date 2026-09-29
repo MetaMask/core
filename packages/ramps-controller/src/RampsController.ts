@@ -24,6 +24,7 @@ import type {
 import {
   applyAutorampRemoteStatus,
   AutorampStatus,
+  buildBrazilMusdAutorampRequest,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -4083,7 +4084,9 @@ export class RampsController extends BaseController<
           autoramp.status !== AutorampStatus.Cancelled,
       );
       if (!hasUsableAutoramp) {
-        await this.createAutoramp({});
+        await this.createAutoramp(
+          buildBrazilMusdAutorampRequest(walletAddress.trim()),
+        );
       }
     } catch {
       return { ...snapshot, autorampStatus: 'retryable_failure' };
