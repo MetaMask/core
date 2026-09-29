@@ -25,6 +25,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./aes-gcm": {
+      "types": "./dist/aes-gcm.d.ts",
+      "default": "./dist/aes-gcm.js"
+    },
     "./ed25519": {
       "types": "./dist/ed25519.d.ts",
       "default": "./dist/ed25519.js"
