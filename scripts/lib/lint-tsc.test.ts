@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 
+import type { TscError } from './tsc-suppressions.ts';
+
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported
 // dynamically afterwards.
@@ -9,7 +11,7 @@ jest.unstable_mockModule('execa', () => ({
 
 jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
   parseTscOutput: jest.fn(),
-  findFilelessDiagnostics: jest.fn(),
+  isTscError: jest.fn(),
   buildSuppressions: jest.fn(),
   compareErrorsToSuppressions: jest.fn(),
   readSuppressions: jest.fn(),
@@ -32,14 +34,14 @@ const PASSING_REPORT = {
 /**
  * Stubs a `tsc` run which produces the given output and one parsed error.
  *
- * @param output - The output that `tsc` should produce.
+ * @param lines - The lines of output that `tsc` should produce.
  * @param exitCode - The code that `tsc` should exit with. It exits non-zero
  * whenever it reports errors, so that is the default.
  */
-function mockTscRun(output: string, exitCode = 1): void {
-  jest.mocked(execa).mockResolvedValue({ all: output, exitCode } as never);
+function mockTscRun(lines: string[], exitCode = 1): void {
+  jest.mocked(execa).mockResolvedValue({ all: lines, exitCode } as never);
   jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([ERROR]);
-  jest.mocked(tscSuppressions.findFilelessDiagnostics).mockReturnValue([]);
+  jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
 }
 
 describe('lintTsc', () => {
@@ -58,7 +60,7 @@ describe('lintTsc', () => {
   });
 
   it('typechecks every package in the repo, capturing errors rather than throwing', async () => {
-    mockTscRun('');
+    mockTscRun([]);
     jest
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
@@ -73,7 +75,7 @@ describe('lintTsc', () => {
   });
 
   it('checks the parsed errors against the suppressions file', async () => {
-    mockTscRun('a.ts(1,1): error TS2322: Nope.');
+    mockTscRun(['a.ts(1,1): error TS2322: Nope.']);
     const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
     jest
       .mocked(tscSuppressions.readSuppressions)
@@ -84,9 +86,9 @@ describe('lintTsc', () => {
 
     await lintTsc([]);
 
-    expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith(
+    expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith([
       'a.ts(1,1): error TS2322: Nope.',
-    );
+    ]);
     expect(tscSuppressions.compareErrorsToSuppressions).toHaveBeenCalledWith({
       errors: [ERROR],
       suppressions,
@@ -94,7 +96,7 @@ describe('lintTsc', () => {
   });
 
   it('prints the report and leaves the exit code alone when the check passes', async () => {
-    mockTscRun('');
+    mockTscRun([]);
     jest
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
@@ -106,7 +108,7 @@ describe('lintTsc', () => {
   });
 
   it('exits with a non-zero code when the check fails', async () => {
-    mockTscRun('');
+    mockTscRun([]);
     jest.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue({
       unsuppressedErrors: [
         {
@@ -131,23 +133,23 @@ describe('lintTsc', () => {
       .mocked(execa)
       .mockResolvedValue({ all: undefined, exitCode: 0 } as never);
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
-    jest.mocked(tscSuppressions.findFilelessDiagnostics).mockReturnValue([]);
+    jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
     jest
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
 
     await lintTsc([]);
 
-    expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith('');
+    expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith([]);
   });
 
   it('throws when tsc fails without reporting any type errors', async () => {
     jest.mocked(execa).mockResolvedValue({
-      all: 'boom',
+      all: ['boom'],
       exitCode: 1,
     } as never);
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
-    jest.mocked(tscSuppressions.findFilelessDiagnostics).mockReturnValue([]);
+    jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
 
     await expect(lintTsc([])).rejects.toThrow(
       '`tsc` failed for a reason other than the type errors it reported.',
@@ -156,7 +158,7 @@ describe('lintTsc', () => {
   });
 
   it('does not throw when tsc exits non-zero but reports type errors, as those may be suppressed', async () => {
-    mockTscRun('a.ts(1,1): error TS2322: Nope.');
+    mockTscRun(['a.ts(1,1): error TS2322: Nope.']);
     jest
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
@@ -167,10 +169,23 @@ describe('lintTsc', () => {
   });
 
   it('throws when tsc reports a diagnostic that belongs to no file, even though type errors were reported too', async () => {
-    mockTscRun('a.ts(1,1): error TS2322: Nope.');
+    const filelessDiagnostic = {
+      filePath: undefined,
+      code: 'TS6053',
+      message: "File 'nope.json' not found.",
+    };
     jest
-      .mocked(tscSuppressions.findFilelessDiagnostics)
-      .mockReturnValue(["error TS6053: File 'nope.json' not found."]);
+      .mocked(execa)
+      .mockResolvedValue({ all: ['boom'], exitCode: 1 } as never);
+    jest
+      .mocked(tscSuppressions.parseTscOutput)
+      .mockReturnValue([ERROR, filelessDiagnostic]);
+    jest
+      .mocked(tscSuppressions.isTscError)
+      .mockImplementation(
+        (diagnostic): diagnostic is TscError =>
+          diagnostic.filePath !== undefined,
+      );
 
     await expect(lintTsc([])).rejects.toThrow(
       '`tsc` failed for a reason other than the type errors it reported.',
@@ -179,7 +194,7 @@ describe('lintTsc', () => {
   });
 
   it('rewrites the suppressions file when given --update, without failing', async () => {
-    mockTscRun('');
+    mockTscRun([]);
     const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
     jest
       .mocked(tscSuppressions.buildSuppressions)

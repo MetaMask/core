@@ -7660,11 +7660,6 @@
       "count": 1
     }
   },
-  "scripts/lib/lint-tsc.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
   "scripts/lib/tsc-suppressions.test.ts": {
     "no-shadow": {
       "count": 1

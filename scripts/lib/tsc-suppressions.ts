@@ -1,12 +1,20 @@
 import { readJsonFile, writeFile } from '@metamask/utils/node';
 
 /**
- * A type error reported by `tsc`.
+ * A diagnostic reported by `tsc`. Most belong to a file; those that report a
+ * broken build rather than a type error do not.
  */
-export type TscError = {
-  filePath: string;
+export type TscDiagnostic = {
+  filePath?: string | undefined;
   code: string;
   message: string;
+};
+
+/**
+ * A type error reported by `tsc`, which always belongs to a file.
+ */
+export type TscError = TscDiagnostic & {
+  filePath: string;
 };
 
 /**
@@ -65,20 +73,30 @@ export type TscSuppressionsReport = {
  *
  * `packages/foo/src/foo.test.ts(12,5): error TS2322: Type 'string' is not ...`
  *
- * Lines that elaborate on an error are indented, so they never match.
- */
-const ERROR_REGEXP =
-  /^(?<filePath>[^\s(][^(]*)\(\d+,\d+\): error (?<code>TS\d+): (?<message>.*)$/u;
-
-/**
- * Matches a diagnostic that `tsc` reports without a file, such as:
+ * The file is optional, as `tsc` reports some diagnostics without one:
  *
  * `error TS6053: File 'nope.ts' not found.`
  *
- * These report a broken build rather than a type error — a missing config, an
- * unresolvable project reference — so they are never suppressed.
+ * Lines that elaborate on a diagnostic are indented, so they never match.
  */
-const FILELESS_DIAGNOSTIC_REGEXP = /^error TS\d+: .*$/u;
+const DIAGNOSTIC_REGEXP =
+  /^((?<filePath>[^\s(][^(]*)\(\d+,\d+\): )?error (?<code>TS\d+): (?<message>.*)$/u;
+
+/**
+ * Orders two strings by code unit, so that the suppressions file is written the
+ * same way on every machine. `localeCompare` would order it by the locale that
+ * happens to be set.
+ *
+ * @param stringA - The first string.
+ * @param stringB - The second string.
+ * @returns A negative number, zero, or a positive number, as `sort` expects.
+ */
+export function compareStrings(stringA: string, stringB: string): number {
+  if (stringA === stringB) {
+    return 0;
+  }
+  return stringA < stringB ? -1 : 1;
+}
 
 /**
  * Builds the key under which errors are grouped, matching how suppressions are
@@ -93,42 +111,42 @@ function buildKey(filePath: string, code: string): string {
 }
 
 /**
- * Extracts the type errors from the output of `tsc --pretty false`.
+ * Extracts the diagnostics from the output of `tsc --pretty false`.
  *
- * @param output - The combined stdout and stderr of a `tsc` run.
- * @returns The errors, in the order that `tsc` reported them.
+ * @param lines - The lines of the combined stdout and stderr of a `tsc` run.
+ * @returns The diagnostics, in the order that `tsc` reported them.
  */
-export function parseTscOutput(output: string): TscError[] {
-  const errors: TscError[] = [];
+export function parseTscOutput(lines: Iterable<string>): TscDiagnostic[] {
+  const diagnostics: TscDiagnostic[] = [];
 
-  for (const line of output.split('\n')) {
-    const match = ERROR_REGEXP.exec(line);
+  for (const line of lines) {
+    const match = DIAGNOSTIC_REGEXP.exec(line);
     if (match?.groups) {
-      errors.push({
-        filePath: String(match.groups.filePath),
+      diagnostics.push({
+        filePath: match.groups.filePath,
         code: String(match.groups.code),
         message: String(match.groups.message),
       });
     }
   }
 
-  return errors;
+  return diagnostics;
 }
 
 /**
- * Extracts the diagnostics that `tsc` reports without a file.
+ * Determines whether a diagnostic belongs to a file, and so is an ordinary type
+ * error that may be suppressed.
  *
- * `tsc --build` carries on typechecking the remaining projects after one fails
- * to load, so these can otherwise hide behind the type errors that the other
- * projects report.
+ * The rest report a broken build rather than a type error — a missing config,
+ * an unresolvable project reference. `tsc --build` carries on typechecking the
+ * remaining projects after one fails to load, so those can otherwise hide
+ * behind the type errors that the other projects report.
  *
- * @param output - The combined stdout and stderr of a `tsc` run.
- * @returns The matching lines, verbatim.
+ * @param diagnostic - The diagnostic to check.
+ * @returns True if the diagnostic belongs to a file.
  */
-export function findFilelessDiagnostics(output: string): string[] {
-  return output
-    .split('\n')
-    .filter((line) => FILELESS_DIAGNOSTIC_REGEXP.test(line));
+export function isTscError(diagnostic: TscDiagnostic): diagnostic is TscError {
+  return diagnostic.filePath !== undefined;
 }
 
 /**
@@ -150,20 +168,23 @@ export function buildSuppressions(
     countsByFilePath.set(error.filePath, countsByCode);
   }
 
-  const suppressions: TscSuppressions = {};
-  for (const [filePath, countsByCode] of [...countsByFilePath].sort(
-    ([filePathA], [filePathB]) => filePathA.localeCompare(filePathB),
-  )) {
-    const suppressionsByCode: Record<string, Suppression> = {};
-    for (const [code, count] of [...countsByCode].sort(([codeA], [codeB]) =>
-      codeA.localeCompare(codeB),
-    )) {
-      suppressionsByCode[code] = { count };
-    }
-    suppressions[filePath] = suppressionsByCode;
-  }
+  const sortedFilePaths = [...countsByFilePath.keys()].sort(compareStrings);
 
-  return suppressions;
+  return sortedFilePaths.reduce<TscSuppressions>((suppressions, filePath) => {
+    const countsByCode = countsByFilePath.get(filePath) as Map<string, number>;
+    const sortedCodes = [...countsByCode.keys()].sort(compareStrings);
+
+    suppressions[filePath] = sortedCodes.reduce<Record<string, Suppression>>(
+      (suppressionsByCode, code) => {
+        suppressionsByCode[code] = {
+          count: countsByCode.get(code) as number,
+        };
+        return suppressionsByCode;
+      },
+      {},
+    );
+    return suppressions;
+  }, {});
 }
 
 /**

@@ -4,7 +4,4 @@
 
 import { lintTsc } from './lib/lint-tsc.ts';
 
-lintTsc(process.argv.slice(2)).catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+await lintTsc(process.argv.slice(2));

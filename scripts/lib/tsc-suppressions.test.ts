@@ -10,7 +10,8 @@ import path from 'path';
 import {
   buildSuppressions,
   compareErrorsToSuppressions,
-  findFilelessDiagnostics,
+  compareStrings,
+  isTscError,
   parseTscOutput,
   printReport,
   readSuppressions,
@@ -21,10 +22,11 @@ const { withinSandbox } = createSandbox('lib/tsc-suppressions');
 
 describe('parseTscOutput', () => {
   it('parses an error that has a file, line, and column', () => {
-    const output =
-      "packages/foo/src/foo.test.ts(12,5): error TS2322: Type 'string' is not assignable to type 'number'.";
+    const lines = [
+      "packages/foo/src/foo.test.ts(12,5): error TS2322: Type 'string' is not assignable to type 'number'.",
+    ];
 
-    expect(parseTscOutput(output)).toStrictEqual([
+    expect(parseTscOutput(lines)).toStrictEqual([
       {
         filePath: 'packages/foo/src/foo.test.ts',
         code: 'TS2322',
@@ -34,22 +36,22 @@ describe('parseTscOutput', () => {
   });
 
   it('parses multiple errors within the same file', () => {
-    const output = [
+    const lines = [
       'packages/foo/src/foo.test.ts(12,5): error TS2322: Nope.',
       'packages/foo/src/foo.test.ts(40,1): error TS2322: Nope again.',
-    ].join('\n');
+    ];
 
-    expect(parseTscOutput(output)).toHaveLength(2);
+    expect(parseTscOutput(lines)).toHaveLength(2);
   });
 
   it('ignores the indented lines that elaborate on an error', () => {
-    const output = [
+    const lines = [
       'packages/foo/src/foo.test.ts(12,5): error TS2769: No overload matches this call.',
       '  The last overload gave the following error.',
       "    Argument of type 'A' is not assignable to parameter of type 'B'.",
-    ].join('\n');
+    ];
 
-    expect(parseTscOutput(output)).toStrictEqual([
+    expect(parseTscOutput(lines)).toStrictEqual([
       {
         filePath: 'packages/foo/src/foo.test.ts',
         code: 'TS2769',
@@ -59,54 +61,55 @@ describe('parseTscOutput', () => {
   });
 
   it('ignores lines that are not errors', () => {
-    const output = [
+    const lines = [
       'packages/foo/src/foo.test.ts(12,5): error TS2322: Nope.',
       '',
       'Found 1 error in 1 file.',
-    ].join('\n');
+    ];
 
-    expect(parseTscOutput(output)).toHaveLength(1);
+    expect(parseTscOutput(lines)).toHaveLength(1);
   });
 
-  it('ignores an error that tsc reports without a file, as it is not a type error', () => {
+  it('parses a diagnostic that tsc reports without a file', () => {
     expect(
-      parseTscOutput("error TS6053: File 'nope.ts' not found."),
-    ).toStrictEqual([]);
+      parseTscOutput(["error TS6053: File 'nope.ts' not found."]),
+    ).toStrictEqual([
+      {
+        filePath: undefined,
+        code: 'TS6053',
+        message: "File 'nope.ts' not found.",
+      },
+    ]);
   });
 
-  it('returns no errors when given empty output', () => {
-    expect(parseTscOutput('')).toStrictEqual([]);
+  it('returns no diagnostics when given no lines', () => {
+    expect(parseTscOutput([])).toStrictEqual([]);
   });
 });
 
-describe('findFilelessDiagnostics', () => {
-  it('finds a diagnostic that tsc reports without a file', () => {
-    const output = "error TS6053: File 'nope.ts' not found.";
-
-    expect(findFilelessDiagnostics(output)).toStrictEqual([
-      "error TS6053: File 'nope.ts' not found.",
-    ]);
+describe('isTscError', () => {
+  it('treats a diagnostic that belongs to a file as a type error', () => {
+    expect(
+      isTscError({ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }),
+    ).toBe(true);
   });
 
-  it('finds one even when type errors are reported alongside it', () => {
-    const output = [
-      "error TS6053: File 'nope.ts' not found.",
-      'packages/foo/src/foo.test.ts(12,5): error TS2322: Nope.',
-    ].join('\n');
+  it('does not treat a diagnostic without a file as a type error', () => {
+    expect(
+      isTscError({ filePath: undefined, code: 'TS6053', message: 'Nope.' }),
+    ).toBe(false);
+  });
+});
 
-    expect(findFilelessDiagnostics(output)).toStrictEqual([
-      "error TS6053: File 'nope.ts' not found.",
-    ]);
+describe('compareStrings', () => {
+  it('orders by code unit rather than by locale', () => {
+    // A locale-aware comparison sorts these the other way around.
+    expect(compareStrings('Z', 'a')).toBeLessThan(0);
+    expect(compareStrings('a', 'Z')).toBeGreaterThan(0);
   });
 
-  it('ignores errors that belong to a file', () => {
-    const output = 'packages/foo/src/foo.test.ts(12,5): error TS2322: Nope.';
-
-    expect(findFilelessDiagnostics(output)).toStrictEqual([]);
-  });
-
-  it('returns nothing when given empty output', () => {
-    expect(findFilelessDiagnostics('')).toStrictEqual([]);
+  it('treats identical strings as equal', () => {
+    expect(compareStrings('a', 'a')).toBe(0);
   });
 });
 
