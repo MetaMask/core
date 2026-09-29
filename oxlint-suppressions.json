@@ -6744,7 +6744,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 53
+      "count": 51
     },
     "typescript/no-unsafe-call": {
       "count": 13

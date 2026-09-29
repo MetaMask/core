@@ -17,10 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
 - Bump `@metamask/ramps-controller` from `^26.0.0` to `^26.0.1` ([#10541](https://github.com/MetaMask/core/pull/10541))
 
-### Fixed
-
-- Skip Relay execute simulation and submit when the source chain is not on the EIP-7702 feature flag, and submit that route as a normal gas-paid transaction ([#10508](https://github.com/MetaMask/core/pull/10508))
-
 ## [29.2.3]
 
 ### Changed

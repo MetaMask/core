@@ -15,7 +15,6 @@ import type {
 } from '../../types.js';
 import {
   getEIP7702UpgradeContractAddress,
-  isEIP7702Chain,
   isRelayValidationEnabled,
 } from '../../utils/feature-flags.js';
 import {
@@ -124,17 +123,15 @@ async function buildValidationSimulation(
     transaction: request.transaction,
   });
 
-  const executeRequest =
-    quote.original.metamask.isExecute &&
-    isEIP7702Chain(request.messenger, quote.request.sourceChainId)
-      ? await getRelayExecuteRequest({
-          allParams: calls,
-          messenger: request.messenger,
-          quote,
-          requestId: quote.original.steps[0].requestId,
-          transaction: request.transaction,
-        })
-      : undefined;
+  const executeRequest = quote.original.metamask.isExecute
+    ? await getRelayExecuteRequest({
+        allParams: calls,
+        messenger: request.messenger,
+        quote,
+        requestId: quote.original.steps[0].requestId,
+        transaction: request.transaction,
+      })
+    : undefined;
 
   return buildRelayValidationSimulation(
     request.messenger,

@@ -24,7 +24,6 @@ import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-  isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import { getNetworkClientId } from '../../utils/provider.js';
@@ -662,10 +661,7 @@ async function submitTransactions(
     transaction,
   });
 
-  if (
-    quote.original.metamask.isExecute &&
-    isEIP7702Chain(messenger, quote.request.sourceChainId)
-  ) {
+  if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
       quote,
       transaction,
@@ -934,15 +930,10 @@ async function submitViaTransactionController(
   const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
-    // An execute quote has no gas limits because the relayer was expected to
-    // pay gas. When that quote is submitted normally, leave gas unset so the
-    // TransactionController estimates it.
-    const gasLimit = gasLimits[0];
-
     const transactionParams = {
       ...allParams[0],
       authorizationList,
-      gas: gasLimit === undefined ? undefined : toHex(gasLimit),
+      gas: toHex(gasLimits[0]),
     };
 
     result = await messenger.call(

@@ -151,9 +151,6 @@ describe('validateRelayQuotes', () => {
         confirmations_pay_extended: {
           payStrategies: { relay: { validationEnabled: { default: true } } },
         },
-        confirmations_eip_7702: {
-          supportedChains: [CHAIN_ID_MOCK],
-        },
       },
     });
 
@@ -929,47 +926,6 @@ describe('validateRelayQuotes', () => {
           expect.objectContaining({
             simulation: expect.not.objectContaining({
               mock7702From: expect.anything(),
-            }),
-          }),
-        );
-      });
-
-      it('simulates the plain calls when the source chain is not in the EIP-7702 flag', async () => {
-        getRelaySubmitCallsMock.mockResolvedValue({
-          calls: [
-            {
-              data: '0xcall',
-              from: FROM_MOCK,
-              to: '0xrelay',
-              value: '0x0',
-            },
-          ],
-        });
-
-        const quote = buildQuote(
-          { sourceChainId: '0x13b2' },
-          {
-            metamask: { gasLimits: [], is7702: false, isExecute: true },
-          },
-        );
-
-        await validateRelayQuotes({
-          messenger,
-          quotes: [quote],
-          transaction: TRANSACTION_MOCK,
-        });
-
-        expect(getRelayExecuteRequestMock).not.toHaveBeenCalled();
-        expect(validateQuoteExecutionMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            simulation: expect.objectContaining({
-              transactions: [
-                expect.objectContaining({
-                  data: '0xcall',
-                  from: FROM_MOCK,
-                  to: '0xrelay',
-                }),
-              ],
             }),
           }),
         );

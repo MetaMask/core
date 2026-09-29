@@ -19,7 +19,6 @@ import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-  isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import {
@@ -148,7 +147,6 @@ describe('Relay Submit Utils', () => {
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
   const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
   const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
 
   const {
     addTransactionMock,
@@ -193,7 +191,6 @@ describe('Relay Submit Utils', () => {
 
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
-    isEIP7702ChainMock.mockReturnValue(true);
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -1923,27 +1920,6 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
 
         expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
-      });
-
-      it('submits the Relay steps as a normal transaction when the source chain is not in the EIP-7702 flag', async () => {
-        isEIP7702ChainMock.mockReturnValue(false);
-
-        await submitRelayQuotes(request);
-
-        expect(submitViaRelayExecuteMock).not.toHaveBeenCalled();
-        expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      });
-
-      it('leaves gas undefined on the fallback transaction when the execute quote has no gas limits', async () => {
-        isEIP7702ChainMock.mockReturnValue(false);
-        request.quotes[0].original.metamask.gasLimits = [];
-
-        await submitRelayQuotes(request);
-
-        expect(addTransactionMock).toHaveBeenCalledWith(
-          expect.objectContaining({ gas: undefined }),
-          expect.any(Object),
-        );
       });
 
       it('uses fallback data and value when step item data/value are undefined', async () => {
