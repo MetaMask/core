@@ -107,7 +107,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
-  it('treats the account as hardware when requiresSignatureConfirmation returns true', () => {
+  it("requires signature confirmation when the account signer's requiresSignatureConfirmation says so, whatever the keyring type", () => {
     const { service } = buildService(
       { requiresSignatureConfirmation: () => true },
       'HD Key Tree',
@@ -116,7 +116,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     expect(service.requiresSignatureConfirmation()).toBe(true);
   });
 
-  it('treats the account as software when requiresSignatureConfirmation returns false', () => {
+  it("does not require signature confirmation when the account signer's requiresSignatureConfirmation says so, whatever the keyring type", () => {
     const { service } = buildService(
       { requiresSignatureConfirmation: () => false },
       'Ledger Hardware',
@@ -207,7 +207,7 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   });
 
   it('keeps an Agent primary type outside the Exchange domain on the main account', async () => {
-    const { adapter, agentSign, mainSign } = buildAdapter();
+    const { adapter, resolveAgent, agentSign, mainSign } = buildAdapter();
     const lookalike = {
       ...L1_PAYLOAD,
       domain: { ...L1_PAYLOAD.domain, name: 'HyperliquidSignTransaction' },
@@ -215,7 +215,8 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
 
     await adapter.signTypedData(lookalike);
 
-    expect(mainSign).toHaveBeenCalledWith(mainAddress, lookalike);
+    expect(mainSign.mock.calls).toStrictEqual([[mainAddress, lookalike]]);
+    expect(resolveAgent).not.toHaveBeenCalled();
     expect(agentSign).not.toHaveBeenCalled();
   });
 
@@ -234,11 +235,13 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   });
 
   it('signs L1 actions with the main account when no agent is resolved', async () => {
-    const { adapter, mainSign } = buildAdapter(false);
+    const { adapter, resolveAgent, mainSign } = buildAdapter(false);
 
-    await adapter.signTypedData(L1_PAYLOAD);
+    const signature = await adapter.signTypedData(L1_PAYLOAD);
 
-    expect(mainSign).toHaveBeenCalledWith(mainAddress, L1_PAYLOAD);
+    expect(signature).toBe(MAIN_SIGNATURE);
+    expect(resolveAgent.mock.calls).toStrictEqual([[mainAddress]]);
+    expect(mainSign.mock.calls).toStrictEqual([[mainAddress, L1_PAYLOAD]]);
   });
 
   it('resolves the agent for the account selected at signing time', async () => {

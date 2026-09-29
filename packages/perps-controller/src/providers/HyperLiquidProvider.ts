@@ -442,6 +442,9 @@ const getCancelStatusesFromError = (
   return response.data.statuses;
 };
 
+// The address in HyperLiquid's "User or API Wallet 0x... does not exist."
+const UNKNOWN_WALLET_ADDRESS_PATTERN = /user or api wallet (0x[0-9a-f]{40})/iu;
+
 /**
  * Exchange messages that mean a cancel was refused because the order is not on
  * the book any more.
@@ -452,9 +455,6 @@ const getCancelStatusesFromError = (
  * Every other rejection (multi-sig, a stale nonce, a rate limit) leaves the
  * order exactly where it was, which is a materially different outcome.
  */
-// The address in HyperLiquid's "User or API Wallet 0x... does not exist."
-const UNKNOWN_WALLET_ADDRESS_PATTERN = /user or api wallet (0x[0-9a-f]{40})/iu;
-
 const ALREADY_GONE_CANCEL_MARKERS = [
   'never placed',
   'already canceled',
@@ -558,7 +558,6 @@ type CancelOrderBatchOutcome = {
   remainingOrderIds: number[];
   cancelledOrderIds: number[];
   responseComplete: boolean;
-  // Set when the signer could not sign the cancel, so nothing was cancelled.
   // KEYRING_LOCKED when the signer could not sign, so nothing was cancelled.
   signerFailure?: Error;
 };
@@ -2917,8 +2916,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #tradingSetupComplete = false;
 
-  // Set when the referral write failed in a way that must be retried (the
-  // agent signer was unavailable), so trading setup is not marked complete.
+  // Set when the referral write failed because its signer could not sign, so
+  // trading setup is not marked complete and the referral is attempted again.
   #referralSetupNeedsRetry = false;
 
   readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
@@ -3040,8 +3039,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           'Trading setup completion',
         );
 
-        // Only mark complete if keyring was unlocked (signing could actually
-        // happen) and the referral does not need another attempt.
+        // Only mark complete if the main-account signer is ready (signing
+        // could actually happen) and the referral does not need another
+        // attempt.
         if (
           this.#walletService.isMainAccountSignerReady() &&
           !this.#referralSetupNeedsRetry
@@ -4309,12 +4309,6 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   #mapError(error: unknown): Error {
     const { message } = ensureError(error, 'HyperLiquidProvider.mapError');
-
-    // A write whose signer could not sign it. Mapping has no side effects:
-    // the caller that reports the failure classifies it (#handleSignerFailure).
-    if (this.#isSignerFailure(error)) {
-      return new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
-    }
 
     // "User or API Wallet 0x... does not exist." carries the user's address, so
     // it cannot be matched by the static substring table below. It means the

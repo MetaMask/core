@@ -98,7 +98,11 @@ function createBridge(): {
 type BuiltProvider = {
   provider: LighterProvider;
   address: string;
-  client: { sendTx: jest.Mock; getAccountsByL1Address: jest.Mock };
+  client: {
+    sendTx: jest.Mock;
+    getAccountsByL1Address: jest.Mock;
+    getNextNonce: jest.Mock;
+  };
   accountSigner: { signPersonalMessage: jest.Mock };
   call: jest.SpyInstance;
   selectAccount: (address: `0x${string}`) => void;
@@ -246,6 +250,41 @@ describe('LighterProvider with accountSigner', () => {
       [address, CHANGE_PUB_KEY_BODY],
     ]);
     expect(client.sendTx.mock.calls).toStrictEqual([CHANGE_PUB_KEY_TX]);
+  });
+
+  it('prepares nothing while the account signer is locked from the first call', async () => {
+    const { provider, client, accountSigner, calls, deps } = buildProvider({
+      isReady: () => false,
+    });
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(calls).toStrictEqual([]);
+    expect(client.getNextNonce).not.toHaveBeenCalled();
+    expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(client.sendTx).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('reports KEYRING_LOCKED without logging a missing signer bridge while the account signer is locked', async () => {
+    const { provider, deps } = buildProvider({
+      isReady: () => false,
+      withoutBridge: true,
+    });
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('reports KEYRING_LOCKED from prepareTradingWallet once the signer locks, even with a registered venue key', async () => {
@@ -452,22 +491,40 @@ describe('LighterProvider with accountSigner', () => {
 
 describe('LighterProvider with a KeyringController', () => {
   it('registers the venue key through prepareTradingWallet with a keyring signature', async () => {
-    const { provider, client, call, calls } = buildProvider({ keyring: true });
+    const { provider, address, client, call, calls } = buildProvider({
+      keyring: true,
+    });
 
     const result = await provider.prepareTradingWallet();
 
     expect(result).toStrictEqual({ ready: true });
-    // Readiness before and after registration, around the signature.
-    expect(keyringCalls(call)).toStrictEqual([
-      'KeyringController:getState',
-      'KeyringController:getState',
-      'KeyringController:signPersonalMessage',
-      'KeyringController:getState',
+    // Readiness before and after registration, around the signature of the
+    // registration body's UTF-8 bytes, hex-encoded.
+    expect(
+      call.mock.calls.filter(([action]: [string]) =>
+        action.startsWith('KeyringController:'),
+      ),
+    ).toStrictEqual([
+      ['KeyringController:getState'],
+      ['KeyringController:getState'],
+      [
+        'KeyringController:signPersonalMessage',
+        {
+          from: address,
+          data: `0x${Buffer.from(CHANGE_PUB_KEY_BODY, 'utf8').toString('hex')}`,
+        },
+      ],
+      ['KeyringController:getState'],
     ]);
     const changePubKey = calls.find(
       (wasmCall) => wasmCall.function === '_signChangePubKey',
     );
-    expect(changePubKey?.params[1]).toBe(MAIN_SIGNATURE);
+    expect(changePubKey?.params).toStrictEqual([
+      ACCOUNT_INDEX,
+      MAIN_SIGNATURE,
+      NEXT_NONCE,
+      API_KEY_INDEX,
+    ]);
     expect(client.sendTx.mock.calls).toStrictEqual([CHANGE_PUB_KEY_TX]);
   });
 });

@@ -1117,11 +1117,10 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('still prepares the other providers when one throws', async () => {
+      const crash = new Error('provider crashed');
       const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
-        prepareTradingWallet: jest
-          .fn()
-          .mockRejectedValue(new Error('provider crashed')),
+        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
       });
       Object.assign(mockLighterProvider, {
         prepareTradingWallet: prepareLighter,
@@ -1130,17 +1129,24 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: false, error: 'provider crashed' });
-      expect(prepareLighter).toHaveBeenCalledTimes(1);
-      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'provider crashed' }),
-        {
-          tags: { feature: 'perps', provider: 'hyperliquid' },
-          context: {
-            name: 'AggregatedPerpsProvider',
-            data: { method: 'prepareTradingWallet', providerId: 'hyperliquid' },
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
+      expect(
+        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+      ).toStrictEqual([
+        [
+          crash,
+          {
+            tags: { feature: 'perps', provider: 'hyperliquid' },
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: {
+                method: 'prepareTradingWallet',
+                providerId: 'hyperliquid',
+              },
+            },
           },
-        },
-      );
+        ],
+      ]);
     });
 
     it.each([

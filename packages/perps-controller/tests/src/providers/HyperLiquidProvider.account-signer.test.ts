@@ -4,7 +4,10 @@ import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
 } from '../../../src/constants/eventNames.js';
-import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
+import {
+  BUILDER_FEE_CONFIG,
+  REFERRAL_CONFIG,
+} from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import {
@@ -18,6 +21,7 @@ import {
   PerpsSigningCache,
   TradingReadinessCache,
 } from '../../../src/services/TradingReadinessCache.js';
+import { HL_ABSTRACTION_WIRE } from '../../../src/types/hyperliquid-types.js';
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type {
   HyperLiquidCredentials,
@@ -29,6 +33,7 @@ import type {
 import {
   AGENT_ADDRESS,
   AGENT_SIGNATURE,
+  APPROVE_BUILDER_FEE_PAYLOAD,
   L1_PAYLOAD,
   MAIN_SIGNATURE,
   OTHER_AGENT_ADDRESS,
@@ -126,14 +131,32 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     );
   });
 
-  // The wallet service and the signing caches are real, and the messenger
-  // has no KeyringController, so every main-account signature must reach
-  // the injected accountSigner. The SDK exchange client is the mocked
+  // The wallet service and the signing caches are real. By default the
+  // messenger has no KeyringController (the `keyring` option adds one), so
+  // every main-account signature must reach the injected accountSigner. The SDK exchange client is the mocked
   // boundary: like the SDK, it signs through the wallet the provider
   // initialized it with.
   const ACCOUNT_ADDRESS = createMockEvmAccount().address;
   const OTHER_ACCOUNT_ADDRESS =
     '0x00000000000000000000000000000000000b0b01' as const;
+
+  // A fixed clock for cache timestamps.
+  const NOW = 1_700_000_000_000;
+
+  // The SDK writes the provider makes for the selected account on mainnet.
+  const MIGRATION_WRITE = [
+    { user: ACCOUNT_ADDRESS, abstraction: 'unifiedAccount' },
+  ];
+  const SILENT_MIGRATION_WRITE = [
+    { abstraction: HL_ABSTRACTION_WIRE.unifiedAccount },
+  ];
+  const REFERRAL_WRITE = [{ code: REFERRAL_CONFIG.MainnetCode }];
+  const BUILDER_FEE_WRITE = [
+    {
+      builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+      maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
+    },
+  ];
 
   /**
    * Whether the unified-account migration is recorded as attempted for the
@@ -245,7 +268,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       userSetAbstraction: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
       agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
       setReferrer: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
-      approveBuilderFee: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
+      approveBuilderFee: jest.fn(
+        signThroughSdkWallet(APPROVE_BUILDER_FEE_PAYLOAD),
+      ),
       order: jest.fn(
         signThroughSdkWallet(L1_PAYLOAD, {
           status: 'ok',
@@ -300,14 +325,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
     await accountSignerProvider.getMarketDataWithPrices();
 
-    expect(exchangeClient.userSetAbstraction).toHaveBeenCalledWith({
-      user: ACCOUNT_ADDRESS,
-      abstraction: 'unifiedAccount',
-    });
-    expect(accountSigner.signTypedData).toHaveBeenCalledWith(
-      ACCOUNT_ADDRESS,
-      USER_SIGNED_PAYLOAD,
-    );
+    expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
+      MIGRATION_WRITE,
+    ]);
+    expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+      [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+    ]);
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
@@ -330,17 +353,24 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
     await accountSignerProvider.getMarketDataWithPrices();
 
-    expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
+    expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
+      MIGRATION_WRITE,
+    ]);
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(migrationAttempted()).toBe(false);
     expect(keyringCalls(call)).toStrictEqual([]);
     expect(loggerError).not.toHaveBeenCalled();
-    expect(trackPerpsEvent).not.toHaveBeenCalledWith(
-      PerpsAnalyticsEvent.AccountSetup,
-      expect.objectContaining({
-        [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-      }),
-    );
+    // The migration is only reported as required, never as failed.
+    expect(trackPerpsEvent.mock.calls).toStrictEqual([
+      [
+        PerpsAnalyticsEvent.AccountSetup,
+        {
+          [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'dexAbstraction',
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+        },
+      ],
+    ]);
   });
 
   it('fails an order with KEYRING_LOCKED without logging while accountSigner is not ready', async () => {
@@ -418,7 +448,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
-      expect(withdraw3).toHaveBeenCalledTimes(1);
+      expect(withdraw3.mock.calls).toStrictEqual([
+        [{ destination: ACCOUNT_ADDRESS, amount: '10' }],
+      ]);
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -439,7 +471,17 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
-      expect(exchangeClient.sendAsset).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.sendAsset.mock.calls).toStrictEqual([
+        [
+          {
+            destination: ACCOUNT_ADDRESS,
+            sourceDex: '',
+            destinationDex: 'xyz',
+            token: 'USDC:0xdef456',
+            amount: '10',
+          },
+        ],
+      ]);
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -460,8 +502,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
+        MIGRATION_WRITE,
+      ]);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
         [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
         [ACCOUNT_ADDRESS, L1_PAYLOAD],
@@ -501,39 +547,57 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(setupSignatures).toStrictEqual([
         [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
         [ACCOUNT_ADDRESS, L1_PAYLOAD],
-        [ACCOUNT_ADDRESS, USER_SIGNED_PAYLOAD],
+        [ACCOUNT_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
       ]);
-      expect(order.success).toBe(true);
+      expect(order).toStrictEqual({
+        success: true,
+        orderId: '123',
+        submittedSize: '0.1',
+        averagePrice: undefined,
+        filledSize: undefined,
+      });
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
         [ACCOUNT_ADDRESS, L1_PAYLOAD],
       ]);
-      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
+        MIGRATION_WRITE,
+      ]);
+      expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+        BUILDER_FEE_WRITE,
+      ]);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
     });
 
     /**
-     * Have another provider hold the referral lock until released.
+     * Have another provider hold the real referral lock until released.
      *
-     * @returns Resolves once this provider waits on the lock, and the release.
+     * @returns Resolves once this provider finds the lock and waits on it,
+     * and the release.
      */
     function holdReferralLock(): {
       waiting: Promise<void>;
       release: () => void;
     } {
-      const otherAttempt = createDeferred<void>();
+      const release = PerpsSigningCache.setInFlight(
+        'referral',
+        'mainnet',
+        ACCOUNT_ADDRESS,
+      );
       const waiting = createDeferred<void>();
       const isInFlight = PerpsSigningCache.isInFlight.bind(PerpsSigningCache);
+      // Only observes the lookup: the lock and its answer are real.
       jest
         .spyOn(PerpsSigningCache, 'isInFlight')
         .mockImplementation((operationType, network, userAddress) => {
-          if (operationType !== 'referral') {
-            return isInFlight(operationType, network, userAddress);
+          const pending = isInFlight(operationType, network, userAddress);
+          if (operationType === 'referral' && pending) {
+            waiting.resolve();
           }
-          waiting.resolve();
-          return otherAttempt.promise;
+          return pending;
         });
-      return { waiting: waiting.promise, release: otherAttempt.resolve };
+      return { waiting: waiting.promise, release };
     }
 
     it('makes its own referral attempt when another provider ended without a result', async () => {
@@ -541,15 +605,26 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         createAccountSignerProvider({ abstraction: 'unifiedAccount' });
       const lock = holdReferralLock();
 
-      const preparing = accountSignerProvider.prepareTradingWallet();
-      await lock.waiting;
-      const referrerCallsWhileWaiting =
-        exchangeClient.setReferrer.mock.calls.length;
-      lock.release();
-      const result = await preparing;
+      let referrerCallsWhileWaiting;
+      let result;
+      try {
+        const preparing = accountSignerProvider.prepareTradingWallet();
+        await lock.waiting;
+        // A provider that did not wait would reach its write by now.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        referrerCallsWhileWaiting =
+          exchangeClient.setReferrer.mock.calls.length;
+        lock.release();
+        result = await preparing;
+      } finally {
+        // Never leak the global lock into later tests.
+        lock.release();
+      }
 
       expect(referrerCallsWhileWaiting).toBe(0);
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(
         PerpsSigningCache.getReferral('mainnet', ACCOUNT_ADDRESS),
       ).toStrictEqual({
@@ -564,20 +639,26 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         createAccountSignerProvider({ abstraction: 'unifiedAccount' });
       const lock = holdReferralLock();
 
-      const preparing = accountSignerProvider.prepareTradingWallet();
-      await lock.waiting;
-      PerpsSigningCache.setReferral('mainnet', ACCOUNT_ADDRESS, {
-        attempted: true,
-        success: true,
-      });
-      lock.release();
-      const result = await preparing;
+      let result;
+      try {
+        const preparing = accountSignerProvider.prepareTradingWallet();
+        await lock.waiting;
+        PerpsSigningCache.setReferral('mainnet', ACCOUNT_ADDRESS, {
+          attempted: true,
+          success: true,
+        });
+        lock.release();
+        result = await preparing;
+      } finally {
+        lock.release();
+      }
 
       expect(exchangeClient.setReferrer).not.toHaveBeenCalled();
       expect(result).toStrictEqual({ ready: true });
     });
 
     it('signs nothing more when called again', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(NOW);
       const { accountSignerProvider, accountSigner } =
         createAccountSignerProvider({
           signer: { requiresSignatureConfirmation: () => true },
@@ -588,12 +669,13 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      const migration = TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS);
-      expect(migration).toStrictEqual({
+      expect(
+        TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS),
+      ).toStrictEqual({
         attempted: true,
         enabled: true,
         reason: undefined,
-        timestamp: migration?.timestamp,
+        timestamp: NOW,
       });
       // Migration, then referral; nothing on the second call.
       expect(firstSignatures).toStrictEqual([
@@ -606,6 +688,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     });
 
     it('reports ready after the user declines the migration, since it is not asked again', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(NOW);
       const { accountSignerProvider, accountSigner } =
         createAccountSignerProvider({
           signer: { requiresSignatureConfirmation: () => true },
@@ -624,12 +707,13 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       expect(result).toStrictEqual({ ready: true });
       expect(secondResult).toStrictEqual({ ready: true });
-      const migration = TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS);
-      expect(migration).toStrictEqual({
+      expect(
+        TradingReadinessCache.get('mainnet', ACCOUNT_ADDRESS),
+      ).toStrictEqual({
         attempted: true,
         enabled: false,
         reason: undefined,
-        timestamp: migration?.timestamp,
+        timestamp: NOW,
       });
       // Declined once, not asked again.
       expect(
@@ -650,7 +734,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: false });
-      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+        BUILDER_FEE_WRITE,
+      ]);
     });
 
     it('reports KEYRING_LOCKED when accountSigner is not ready, without running or logging setup', async () => {
@@ -732,8 +818,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
+        MIGRATION_WRITE,
+      ]);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(
         keyringCalls(call).filter(
@@ -757,7 +847,10 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(firstResult).toStrictEqual({ ready: false });
       expect(referralAfterLock).toBe(false);
       expect(secondResult).toStrictEqual({ ready: true });
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+        REFERRAL_WRITE,
+      ]);
       expect(referralAttempted()).toBe(true);
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -818,7 +911,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(result).toStrictEqual({ ready: false });
       expect(migrationAttempted()).toBe(false);
       expect(referralAttempted()).toBe(true);
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -993,8 +1088,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       // A failed silent migration is retried: at connect, when prepare
       // re-runs the connect steps, and once more by the trading setup; the
       // referral write is the fourth L1 action. Each asks getAgentSigner.
-      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledTimes(3);
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+        SILENT_MIGRATION_WRITE,
+        SILENT_MIGRATION_WRITE,
+        SILENT_MIGRATION_WRITE,
+      ]);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(getAgentSigner.mock.calls).toStrictEqual([
         [MAINNET_ACCOUNT],
         [MAINNET_ACCOUNT],
@@ -1004,12 +1105,32 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(result).toStrictEqual({ ready: false });
       // Retryable like a locked keyring: no failure metric, nothing logged.
-      expect(trackPerpsEvent).not.toHaveBeenCalledWith(
-        PerpsAnalyticsEvent.AccountSetup,
-        expect.objectContaining({
-          [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-        }),
-      );
+      expect(trackPerpsEvent.mock.calls).toStrictEqual([
+        [
+          PerpsAnalyticsEvent.AccountSetup,
+          {
+            [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'default',
+            [PERPS_EVENT_PROPERTY.STATUS]:
+              PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+          },
+        ],
+        [
+          PerpsAnalyticsEvent.AccountSetup,
+          {
+            [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'default',
+            [PERPS_EVENT_PROPERTY.STATUS]:
+              PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+          },
+        ],
+        [
+          PerpsAnalyticsEvent.AccountSetup,
+          {
+            [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'default',
+            [PERPS_EVENT_PROPERTY.STATUS]:
+              PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+          },
+        ],
+      ]);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
@@ -1049,11 +1170,15 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       selectAccount(OTHER_ACCOUNT_ADDRESS);
       await accountSignerProvider.prepareTradingWallet();
 
-      expect(accountSigner.signTypedData.mock.calls[0]).toStrictEqual([
-        ACCOUNT_ADDRESS,
-        L1_PAYLOAD,
+      // The selected account's migration signs on the main account; the
+      // other account's L1 actions sign with its agent.
+      expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+        [ACCOUNT_ADDRESS, L1_PAYLOAD],
       ]);
-      expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+        [L1_PAYLOAD],
+      ]);
     });
 
     it('never signs on another network with the agent bound for mainnet', async () => {
@@ -1090,7 +1215,11 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       expect(getAgentSigner).not.toHaveBeenCalled();
       expect(agentSigner.signTypedData).not.toHaveBeenCalled();
-      expect(accountSigner.signTypedData).toHaveBeenCalledTimes(2);
+      // Migration, then referral.
+      expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+        [ACCOUNT_ADDRESS, L1_PAYLOAD],
+        [ACCOUNT_ADDRESS, L1_PAYLOAD],
+      ]);
     });
 
     it('lets a pin made while getAgentSigner is pending win', async () => {
@@ -1201,10 +1330,13 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       accountSignerProvider.clearAgentSigners();
       await wallet.signTypedData(L1_PAYLOAD);
 
-      expect(agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+      expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+      ]);
     });
 
-    it('retries the referral instead of recording a failure when getAgentSigner rejects', async () => {
+    it('leaves the referral to retry, unrecorded, when getAgentSigner rejects', async () => {
       const getAgentSigner = jest
         .fn()
         .mockRejectedValue(new Error('agent store unavailable'));
@@ -1216,12 +1348,14 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       await accountSignerProvider.prepareTradingWallet();
 
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(referralAttempted()).toBe(false);
       expect(loggerError).not.toHaveBeenCalled();
     });
 
-    it('retries the referral instead of recording a failure when the agent fails to sign', async () => {
+    it('leaves the referral to retry, unrecorded, when the agent fails to sign', async () => {
       const getAgentSigner = jest.fn();
       const { accountSignerProvider, agentSigner, exchangeClient } =
         createAccountSignerProvider({
@@ -1236,7 +1370,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: false });
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
       expect(referralAttempted()).toBe(false);
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -1307,7 +1443,10 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
 
       expect(firstResult).toStrictEqual({ ready: false });
       expect(secondResult).toStrictEqual({ ready: true });
-      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+        REFERRAL_WRITE,
+      ]);
     });
 
     const rejection = (address: string): Error =>
@@ -1364,7 +1503,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       }
 
       it('fails a cancel with KEYRING_LOCKED without logging it', async () => {
-        const { accountSignerProvider, agentSigner, onAgentRejected } =
+        const { accountSignerProvider, onAgentRejected } =
           createRejectingProvider('cancel');
         await accountSignerProvider.getMarketDataWithPrices();
 
@@ -1378,10 +1517,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
-        expect(onAgentRejected).toHaveBeenCalledWith(
-          MAINNET_ACCOUNT,
-          agentSigner.address,
-        );
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
         expect(loggerError).not.toHaveBeenCalled();
       });
 
@@ -1418,6 +1556,62 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+        // Dropped, so the next L1 action asks again.
+        expect(getAgentSigner.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT],
+          [MAINNET_ACCOUNT],
+        ]);
+        expect(loggerError).not.toHaveBeenCalled();
+      });
+
+      it('drops an agent the venue rejects in a batch cancel status entry', async () => {
+        const {
+          accountSignerProvider,
+          exchangeClient,
+          getAgentSigner,
+          initialize,
+          onAgentRejected,
+        } = createRejectingProvider('cancel');
+        await accountSignerProvider.getMarketDataWithPrices();
+        const [[wallet]] = initialize.mock.calls;
+        exchangeClient.cancel.mockImplementation(async () => {
+          await wallet.signTypedData(L1_PAYLOAD);
+          return {
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { error: rejection(AGENT_ADDRESS).message },
+                  'success',
+                ],
+              },
+            },
+          };
+        });
+
+        const result = await accountSignerProvider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+          { orderId: '124', symbol: 'BTC' },
+        ]);
+        await wallet.signTypedData(L1_PAYLOAD);
+
+        expect(result).toStrictEqual({
+          success: true,
+          successCount: 1,
+          failureCount: 1,
+          results: [
+            {
+              orderId: '123',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            },
+            { orderId: '124', symbol: 'BTC', success: true },
+          ],
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1468,10 +1662,19 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           symbols: ['BTC'],
         });
 
-        expect(result.success).toBe(false);
-        expect(result.results.map(({ error }) => error)).toStrictEqual([
-          PERPS_ERROR_CODES.KEYRING_LOCKED,
-        ]);
+        expect(result).toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 1,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          results: [
+            {
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            },
+          ],
+        });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
         ]);
@@ -1499,8 +1702,12 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       });
 
       it('keeps the old protection and fails with KEYRING_LOCKED when its cancel is rejected', async () => {
-        const { accountSignerProvider, exchangeClient, infoClient } =
-          createRejectingProvider('cancel');
+        const {
+          accountSignerProvider,
+          exchangeClient,
+          infoClient,
+          onAgentRejected,
+        } = createRejectingProvider('cancel');
         infoClient.frontendOpenOrders.mockResolvedValue([TAKE_PROFIT_ORDER]);
         await accountSignerProvider.getMarketDataWithPrices();
 
@@ -1513,8 +1720,13 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
-        expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+        expect(exchangeClient.cancel.mock.calls).toStrictEqual([
+          [{ cancels: [{ a: 0, o: 456 }] }],
+        ]);
         expect(exchangeClient.order).not.toHaveBeenCalled();
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
         expect(loggerError).not.toHaveBeenCalled();
       });
 
@@ -1536,9 +1748,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
-        expect(exchangeClient.cancel).toHaveBeenCalledWith({
-          cancels: [{ a: 0, o: 456 }],
-        });
+        expect(exchangeClient.cancel.mock.calls).toStrictEqual([
+          [{ cancels: [{ a: 0, o: 456 }] }],
+        ]);
         expect(exchangeClient.order).not.toHaveBeenCalled();
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1569,7 +1781,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
-        expect(onAgentRejected).toHaveBeenCalledTimes(1);
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
         // Dropped despite the throw, so the next L1 action asks again.
         expect(getAgentSigner.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT],
@@ -1826,11 +2040,25 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           { orderId: '124', symbol: 'BTC' },
         ]);
 
-        expect(result.success).toBe(false);
-        expect(result.results.map(({ error }) => error)).toStrictEqual([
-          PERPS_ERROR_CODES.KEYRING_LOCKED,
-          PERPS_ERROR_CODES.KEYRING_LOCKED,
-        ]);
+        expect(result).toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 2,
+          results: [
+            {
+              orderId: '123',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            },
+            {
+              orderId: '124',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            },
+          ],
+        });
         // One batch, so one rejection.
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1884,7 +2112,6 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       it('fails the order with KEYRING_LOCKED, drops the agent and asks again', async () => {
         const {
           accountSignerProvider,
-          agentSigner,
           getAgentSigner,
           onAgentRejected,
           initialize,
@@ -1904,10 +2131,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
         });
-        expect(onAgentRejected).toHaveBeenCalledWith(
-          MAINNET_ACCOUNT,
-          agentSigner.address,
-        );
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
         expect(getAgentSigner.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT],
           [MAINNET_ACCOUNT],
@@ -1916,47 +2142,56 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       });
 
       it('retries the silent migration instead of recording no HyperLiquid account', async () => {
-        const {
-          accountSignerProvider,
-          agentSigner,
-          onAgentRejected,
-          exchangeClient,
-        } = createRejectingProvider('agentSetAbstraction');
+        const { accountSignerProvider, onAgentRejected, exchangeClient } =
+          createRejectingProvider('agentSetAbstraction');
 
         await accountSignerProvider.getMarketDataWithPrices();
         await accountSignerProvider.getMarketDataWithPrices();
 
-        expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledTimes(2);
-        expect(onAgentRejected).toHaveBeenCalledWith(
-          MAINNET_ACCOUNT,
-          agentSigner.address,
-        );
-        expect(trackPerpsEvent).not.toHaveBeenCalledWith(
-          PerpsAnalyticsEvent.AccountSetup,
-          expect.objectContaining({
-            [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-          }),
-        );
+        expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+          SILENT_MIGRATION_WRITE,
+          SILENT_MIGRATION_WRITE,
+        ]);
+        // Each connect retries the migration, and the venue rejects it again.
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+        expect(trackPerpsEvent.mock.calls).toStrictEqual([
+          [
+            PerpsAnalyticsEvent.AccountSetup,
+            {
+              [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'default',
+              [PERPS_EVENT_PROPERTY.STATUS]:
+                PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+            },
+          ],
+          [
+            PerpsAnalyticsEvent.AccountSetup,
+            {
+              [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'default',
+              [PERPS_EVENT_PROPERTY.STATUS]:
+                PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+            },
+          ],
+        ]);
         expect(migrationAttempted()).toBe(false);
         expect(loggerError).not.toHaveBeenCalled();
       });
 
-      it('retries the referral instead of recording a failure', async () => {
-        const {
-          accountSignerProvider,
-          agentSigner,
-          onAgentRejected,
-          exchangeClient,
-        } = createRejectingProvider('setReferrer');
+      it('leaves the referral to retry, unrecorded', async () => {
+        const { accountSignerProvider, onAgentRejected, exchangeClient } =
+          createRejectingProvider('setReferrer');
 
         const result = await accountSignerProvider.prepareTradingWallet();
 
         expect(result).toStrictEqual({ ready: false });
-        expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
-        expect(onAgentRejected).toHaveBeenCalledWith(
-          MAINNET_ACCOUNT,
-          agentSigner.address,
-        );
+        expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+          REFERRAL_WRITE,
+        ]);
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
         expect(referralAttempted()).toBe(false);
         expect(loggerError).not.toHaveBeenCalled();
       });
@@ -2171,7 +2406,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
             orderId: '987',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
           });
-          expect(twapCancel).toHaveBeenCalledWith({ a: 1, t: 987 });
+          expect(twapCancel.mock.calls).toStrictEqual([[{ a: 1, t: 987 }]]);
           expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
           expect(loggerError).not.toHaveBeenCalled();
         },
@@ -2315,13 +2550,56 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
           });
-          expect(cancel).toHaveBeenCalledWith({
-            cancels: [{ a: 1, o: 123 }],
-          });
+          expect(cancel.mock.calls).toStrictEqual([
+            [{ cancels: [{ a: 1, o: 123 }] }],
+          ]);
           expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
           expect(loggerError).not.toHaveBeenCalled();
         },
       );
+
+      it('drops an agent the venue rejects in a TWAP cancel status entry', async () => {
+        const {
+          provider,
+          twapCancel,
+          getAgentSigner,
+          onAgentRejected,
+          signL1Action,
+        } = createStrategyProvider('rejected');
+        await provider.getMarketDataWithPrices();
+        twapCancel.mockImplementation(async () => {
+          await signL1Action();
+          return {
+            status: 'ok',
+            response: {
+              type: 'twapCancel',
+              data: { status: { error: rejection(AGENT_ADDRESS).message } },
+            },
+          };
+        });
+
+        const result = await provider.cancelOrder({
+          orderId: '987',
+          symbol: 'ETH',
+          orderType: 'twap',
+        });
+        await signL1Action();
+
+        expect(result).toStrictEqual({
+          success: false,
+          orderId: '987',
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+        // Dropped, so the next L1 action asks again.
+        expect(getAgentSigner.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT],
+          [MAINNET_ACCOUNT],
+        ]);
+        expect(loggerError).not.toHaveBeenCalled();
+      });
 
       describe('during a chase re-price', () => {
         beforeEach(() => {
@@ -2354,9 +2632,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           await jest.advanceTimersByTimeAsync(1000);
           await signL1Action();
 
-          expect(cancel).toHaveBeenCalledWith({
-            cancels: [{ a: 1, o: 123 }],
-          });
+          expect(cancel.mock.calls).toStrictEqual([
+            [{ cancels: [{ a: 1, o: 123 }] }],
+          ]);
           expect(onAgentRejected.mock.calls).toStrictEqual([
             [MAINNET_ACCOUNT, AGENT_ADDRESS],
           ]);

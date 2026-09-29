@@ -1,12 +1,11 @@
 import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
+import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-// A fixed 65-byte signature (deterministic vector).
-const FIXED_SIGNATURE = `0x${'ab'.repeat(65)}`;
 const SELECTED_ADDRESS = '0x8D7f03FdE1A626223364E592740a233b72395235';
 
 describe('LighterWalletService', () => {
@@ -49,7 +48,7 @@ describe('LighterWalletService', () => {
           return [selectedAccount];
         }
         if (action === 'KeyringController:signPersonalMessage') {
-          return Promise.resolve(FIXED_SIGNATURE);
+          return Promise.resolve(MAIN_SIGNATURE);
         }
         throw new Error(`Unexpected action: ${action}`);
       });
@@ -60,17 +59,21 @@ describe('LighterWalletService', () => {
       return { service, messenger };
     };
 
-    it('signs through KeyringController:signPersonalMessage', async () => {
+    it('signs the hex-encoded UTF-8 message through KeyringController:signPersonalMessage', async () => {
       const { service, messenger } = buildMessengerService();
-      const signature = await service.signPersonalMessage('register me');
-      expect(signature).toBe(FIXED_SIGNATURE);
-      expect(messenger.call).toHaveBeenCalledWith(
-        'KeyringController:signPersonalMessage',
-        expect.objectContaining({
-          from: SELECTED_ADDRESS,
-          data: expect.stringMatching(/^0x/u),
-        }),
-      );
+      const signature = await service.signPersonalMessage('register me ✓');
+      expect(signature).toBe(MAIN_SIGNATURE);
+      expect(
+        messenger.call.mock.calls.filter(
+          ([action]) => action === 'KeyringController:signPersonalMessage',
+        ),
+      ).toStrictEqual([
+        [
+          'KeyringController:signPersonalMessage',
+          // 'register me ✓' as UTF-8 bytes.
+          { from: SELECTED_ADDRESS, data: '0x7265676973746572206d6520e29c93' },
+        ],
+      ]);
     });
 
     it('rejects when the keyring is locked', async () => {

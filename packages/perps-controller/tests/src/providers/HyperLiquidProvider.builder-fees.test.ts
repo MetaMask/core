@@ -1709,44 +1709,6 @@ describe('HyperLiquidProvider', () => {
       expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
     });
 
-    it('waits for in-flight operation instead of duplicating request', async () => {
-      // Arrange - not cached yet; the other provider caches its result
-      (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).getReferral
-        .mockReturnValueOnce(undefined)
-        .mockReturnValue({ attempted: true, success: true });
-
-      // Simulate in-flight operation from another provider
-      let resolveInFlight: () => void = () => undefined;
-      const inFlightPromise = new Promise<void>((resolve) => {
-        resolveInFlight = resolve;
-      });
-      (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
-      ).isInFlight.mockReturnValue(inFlightPromise);
-
-      // Act
-      const referralPromise = testableProvider.ensureReferralSet();
-
-      // Resolve the in-flight operation
-      resolveInFlight();
-      await referralPromise;
-
-      // Verify it called isInFlight to check for concurrent operations
-      expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).isInFlight,
-      ).toHaveBeenCalledWith(
-        'referral',
-        'mainnet',
-        '0x1234567890123456789012345678901234567890',
-      );
-
-      // Assert - should not have set its own in-flight lock
-      expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setInFlight,
-      ).not.toHaveBeenCalled();
-    });
-
     it('caches success after successful referral setup', async () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
