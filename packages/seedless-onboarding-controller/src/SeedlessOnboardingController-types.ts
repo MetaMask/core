@@ -3,10 +3,12 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import type { AnalyticsControllerTrackEventAction } from '@metamask/analytics-controller';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
   Encryptor,
+  KeyringControllerExportSeedPhraseAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
@@ -32,7 +34,7 @@ export type SeedlessOnboardingControllerActions =
   | SeedlessOnboardingControllerGetStateAction
   | SeedlessOnboardingControllerMethodActions;
 
-type AllowedActions = never;
+type AllowedActions = AnalyticsControllerTrackEventAction | KeyringControllerExportSeedPhraseAction;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
