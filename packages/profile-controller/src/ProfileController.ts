@@ -331,7 +331,9 @@ export class ProfileController extends BaseController<
       input,
     );
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(response as ProfileApiResponse);
+      state.metamaskProfile = this.#mapApiResponseToProfile(
+        response as ProfileApiResponse,
+      );
     });
   }
 
@@ -349,7 +351,9 @@ export class ProfileController extends BaseController<
       input,
     );
     this.update((state) => {
-      state.metamaskProfile = this.#mapApiResponseToProfile(response as ProfileApiResponse);
+      state.metamaskProfile = this.#mapApiResponseToProfile(
+        response as ProfileApiResponse,
+      );
     });
   }
 
