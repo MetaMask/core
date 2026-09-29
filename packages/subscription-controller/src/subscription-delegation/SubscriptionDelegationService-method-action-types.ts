@@ -20,6 +20,10 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
 /**
  * Runs the complete Money Account subscription checkout authorization flow.
  *
+ * Subscriptions are refreshed first. An active subscription for the product
+ * is rejected before Money Account upgrade, approval, delegation signing,
+ * persistence, or CHOMP registration.
+ *
  * Before the approval, `MoneyAccountUpgradeController` is asked to ensure
  * the Money Account vault delegations and CHOMP intents exist; the
  * Subscription API validates them server-side. The custom approval is the
