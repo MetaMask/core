@@ -297,7 +297,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.GET_PROFILE_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<ProfileApiResponse>;
       },
     });
   }
@@ -329,7 +329,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.CREATE_PROFILE_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<CreateProfileResponse>;
       },
     });
   }
@@ -366,7 +366,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<ProfileApiResponse>;
       },
     });
   }
@@ -403,7 +403,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<ProfileApiResponse>;
       },
     });
   }
@@ -463,7 +463,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<UsernameAvailabilityResponse>;
       },
     });
   }
@@ -487,7 +487,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<XAuthUrlResponse>;
       },
     });
   }
@@ -517,7 +517,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.CONNECT_X_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<XConnectResponse>;
       },
     });
   }
@@ -542,7 +542,7 @@ export class ProfileService extends BaseDataService<
           response,
           ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
         );
-        return response.json();
+        return response.json() as Promise<XAccountResponse>;
       },
     });
   }

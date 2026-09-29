@@ -4670,6 +4670,11 @@
       "count": 1
     }
   },
+  "packages/profile-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/profile-metrics-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
