@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Require `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` actions in `SeedlessOnboardingControllerMessenger`. ([#10568](https://github.com/MetaMask/core/pull/10568))
+  - The `SeedlessOnboardingControllerMessenger` must allow and delegate these actions.
+
 ## [11.0.1]
 
 ### Changed

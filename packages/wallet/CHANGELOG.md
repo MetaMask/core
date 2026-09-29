@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Delegate `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` from the wallet root messenger to `SeedlessOnboardingController`. ([#10568](https://github.com/MetaMask/core/pull/10568))
 - Grant `SubscriptionDelegationService` access to the additional messenger actions required by `SubscriptionDelegationService:startSubscriptionWithDelegation` ([#10339](https://github.com/MetaMask/core/pull/10339))
   - `ApprovalController:addRequest`, `MoneyAccountUpgradeController:forceUpgradeAccount`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`
   - Hosts that supply their own root messenger must allow these actions and register `MoneyAccountUpgradeController` before calling `SubscriptionDelegationService:startSubscriptionWithDelegation`.
