@@ -617,6 +617,7 @@ linkStyle default opacity:0.5
   profile_controller --> base_data_service;
   profile_controller --> controller_utils;
   profile_controller --> messenger;
+  profile_controller --> profile_sync_controller;
   profile_controller --> react_data_query;
   profile_controller --> utils;
   profile_metrics_controller --> accounts_controller;
