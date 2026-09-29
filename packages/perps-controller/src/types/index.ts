@@ -1134,6 +1134,14 @@ export type HyperLiquidCredentials = {
   getAgentSigner?: (
     account: PerpsAgentAccount,
   ) => Promise<PerpsAgentSigner | null>;
+  /**
+   * Called when the venue rejects an agent as unknown (revoked or expired,
+   * for example after the user approved another unnamed agent). The provider
+   * has dropped it, with a `setAgentSigner` binding to it, and the next L1
+   * action asks `getAgentSigner` again, so re-check the approval before
+   * answering. The rejected action failed with `KEYRING_LOCKED`.
+   */
+  onAgentRejected?: (account: PerpsAgentAccount, agentAddress: Hex) => void;
 };
 
 export type LighterCredentials = {

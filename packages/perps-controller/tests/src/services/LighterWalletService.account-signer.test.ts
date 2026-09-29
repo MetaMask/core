@@ -90,16 +90,22 @@ describe('LighterWalletService.isMainAccountSignerReady', () => {
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
-  it("follows the keyring's unlock state without an account signer", () => {
-    const { messenger, call } = createKeyringMessenger(SIGNATURE);
-    const service = new LighterWalletService(createMockInfrastructure(), {
-      isTestnet: true,
-      messenger,
-    });
+  it.each([
+    ['unlocked', true],
+    ['locked', false],
+  ])(
+    "follows the keyring's unlock state without an account signer (%s)",
+    (_state, isUnlocked) => {
+      const { messenger, call } = createKeyringMessenger(SIGNATURE, isUnlocked);
+      const service = new LighterWalletService(createMockInfrastructure(), {
+        isTestnet: true,
+        messenger,
+      });
 
-    expect(service.isMainAccountSignerReady()).toBe(true);
-    expect(keyringCalls(call)).toStrictEqual(['KeyringController:getState']);
-  });
+      expect(service.isMainAccountSignerReady()).toBe(isUnlocked);
+      expect(keyringCalls(call)).toStrictEqual(['KeyringController:getState']);
+    },
+  );
 
   it('is not ready without an account signer or a messenger', () => {
     const service = new LighterWalletService(createMockInfrastructure(), {

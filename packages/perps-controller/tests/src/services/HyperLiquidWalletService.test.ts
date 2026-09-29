@@ -469,8 +469,8 @@ describe('HyperLiquidWalletService', () => {
       );
     });
 
-    it('should return keyring unlocked status via isKeyringUnlocked()', () => {
-      expect(service.isKeyringUnlocked()).toBe(true);
+    it('should return keyring unlocked status via isMainAccountSignerReady()', () => {
+      expect(service.isMainAccountSignerReady()).toBe(true);
 
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (action === 'KeyringController:getState') {
@@ -479,7 +479,7 @@ describe('HyperLiquidWalletService', () => {
         return undefined;
       });
 
-      expect(service.isKeyringUnlocked()).toBe(false);
+      expect(service.isMainAccountSignerReady()).toBe(false);
     });
 
     it('should handle keyring controller initialization errors', async () => {

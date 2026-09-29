@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `PerpsController:clearAgentSigners` (`PerpsControllerClearAgentSignersAction`) to forget every agent, for example when the wallet locks, so the next L1 action asks `getAgentSigner` again
   - Add optional `PerpsProvider.clearAgentSigners`, implemented by the HyperLiquid provider
   - An agent the venue rejects as unknown (revoked or expired, for example after the user approves another unnamed agent) is dropped, together with a `setAgentSigner` binding to it, so the next L1 action asks `getAgentSigner` again; the rejected action fails with `KEYRING_LOCKED` instead of `EXCHANGE_ACCOUNT_NOT_FOUND`
+  - Add optional `providerCredentials.hyperliquid.onAgentRejected(account, agentAddress)`, called when the venue rejects an agent so the client can re-check its approval
   - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, the user-signed migration from `dexAbstraction`, ...) always stay on the main account; approving the agent remains the client's job
   - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
 - Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run setup that needs a main-account signature before the first order: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
@@ -37,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- HyperLiquid orders and other exchange writes that fail because the signer cannot sign (a locked keyring) now fail with `KEYRING_LOCKED` instead of the SDK's "Failed to sign the typed data using the wallet" message, and a failed order for that reason is no longer reported as an error ([#10559](https://github.com/MetaMask/core/pull/10559))
+- HyperLiquid orders, edits, cancels, position closes, TP/SL and margin updates that fail because the signer cannot sign (a locked keyring) now fail with `KEYRING_LOCKED` instead of the SDK's "Failed to sign the typed data using the wallet" message, and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
 
 ## [18.0.1]
 

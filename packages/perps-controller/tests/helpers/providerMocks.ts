@@ -290,6 +290,9 @@ export const createMockExchangeClient = (
   updateLeverage: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
+  updateIsolatedMargin: jest.fn().mockResolvedValue({
+    status: 'ok',
+  }),
   approveBuilderFee: jest.fn().mockResolvedValue({
     status: 'ok',
   }),

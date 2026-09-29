@@ -104,14 +104,14 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   it('reports ready when isReady is omitted', () => {
     const { service, call } = buildService();
 
-    expect(service.isKeyringUnlocked()).toBe(true);
+    expect(service.isMainAccountSignerReady()).toBe(true);
     expect(keyringCalls(call)).toStrictEqual([]);
   });
 
   it('fails with KEYRING_LOCKED and does not sign when isReady returns false', async () => {
     const { service, call, signer } = buildService({ isReady: () => false });
 
-    expect(service.isKeyringUnlocked()).toBe(false);
+    expect(service.isMainAccountSignerReady()).toBe(false);
     await expect(
       service.createWalletAdapter().signTypedData(TYPED_DATA),
     ).rejects.toThrow(PERPS_ERROR_CODES.KEYRING_LOCKED);
@@ -283,6 +283,35 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
       'agent store unavailable',
     );
     expect(mainSign).not.toHaveBeenCalled();
+  });
+
+  it('signs L1 actions with the agent while the main signer is not ready', async () => {
+    const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const { messenger } = createKeyringlessMessenger();
+    const signer = {
+      signTypedData: jest.fn(),
+      signPersonalMessage: jest.fn(),
+      isReady: (): boolean => false,
+    };
+    const adapter = new HyperLiquidWalletService(
+      { ...createMockInfrastructure(), accountSigner: signer },
+      messenger,
+      {
+        isTestnet: true,
+        resolveAgent: async (): Promise<PerpsAgentSigner> => ({
+          address: AGENT_ADDRESS,
+          signTypedData: agentSign,
+        }),
+      },
+    ).createWalletAdapter();
+
+    const signature = await adapter.signTypedData(TYPED_DATA);
+
+    expect(signature).toBe(AGENT_SIGNATURE);
+    await expect(adapter.signTypedData(USER_SIGNED_ACTION)).rejects.toThrow(
+      PERPS_ERROR_CODES.KEYRING_LOCKED,
+    );
+    expect(signer.signTypedData).not.toHaveBeenCalled();
   });
 
   it('reports an agent that fails to sign as unavailable without signing with the main account', async () => {

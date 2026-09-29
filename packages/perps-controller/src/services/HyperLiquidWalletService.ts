@@ -89,7 +89,7 @@ export class HyperLiquidWalletService {
    *
    * @returns True when the main account is available for signing.
    */
-  public isKeyringUnlocked(): boolean {
+  public isMainAccountSignerReady(): boolean {
     return isMainAccountSignerReady(
       this.#deps.accountSigner,
       () => this.#messenger.call('KeyringController:getState').isUnlocked,
@@ -133,7 +133,7 @@ export class HyperLiquidWalletService {
    * @returns The signature string.
    */
   async #signTypedMessage(msgParams: PerpsTypedMessageParams): Promise<string> {
-    if (!this.isKeyringUnlocked()) {
+    if (!this.isMainAccountSignerReady()) {
       throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
     }
     // Cast needed: PerpsTypedMessageParams uses loose `data: unknown` type

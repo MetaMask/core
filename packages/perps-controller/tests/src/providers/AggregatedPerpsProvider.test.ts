@@ -1142,32 +1142,34 @@ describe('AggregatedPerpsProvider', () => {
       );
     });
 
-    it('tags a logged preparation failure with the network', async () => {
-      const testnetProvider = new AggregatedPerpsProvider({
-        providers: new Map([['hyperliquid', mockHLProvider]]),
-        defaultProvider: 'hyperliquid',
-        infrastructure: mockInfrastructure,
-        isTestnet: true,
-      });
-      Object.assign(mockHLProvider, {
-        prepareTradingWallet: jest
-          .fn()
-          .mockRejectedValue(new Error('provider crashed')),
-      });
+    it.each([
+      [true, 'testnet'],
+      [false, 'mainnet'],
+    ])(
+      'tags a logged preparation failure with the network (isTestnet: %s)',
+      async (isTestnet, network) => {
+        const networkProvider = new AggregatedPerpsProvider({
+          providers: new Map([['hyperliquid', mockHLProvider]]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+          isTestnet,
+        });
+        Object.assign(mockHLProvider, {
+          prepareTradingWallet: jest
+            .fn()
+            .mockRejectedValue(new Error('provider crashed')),
+        });
 
-      await testnetProvider.prepareTradingWallet();
+        await networkProvider.prepareTradingWallet();
 
-      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'provider crashed' }),
-        expect.objectContaining({
-          tags: {
-            feature: 'perps',
-            provider: 'hyperliquid',
-            network: 'testnet',
-          },
-        }),
-      );
-    });
+        expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'provider crashed' }),
+          expect.objectContaining({
+            tags: { feature: 'perps', provider: 'hyperliquid', network },
+          }),
+        );
+      },
+    );
 
     it('prepares the next provider only after the previous one settles', async () => {
       const firstPreparation = createDeferred<{ ready: boolean }>();

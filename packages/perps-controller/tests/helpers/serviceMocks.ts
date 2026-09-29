@@ -305,12 +305,14 @@ type AccountMessenger = {
  * @param keyringType - Keyring type reported in the selected account metadata.
  * @param keyringSignature - Signature the keyring returns; omit for a host
  * without a KeyringController.
+ * @param isUnlocked - Whether the keyring reports it is unlocked.
  * @returns The messenger, a spy on its `call`, and a way to switch the
  * selected account.
  */
 const createAccountMessenger = (
   keyringType: string,
   keyringSignature?: string,
+  isUnlocked = true,
 ): AccountMessenger => {
   const account = createMockEvmAccount();
   let selectedAddress = account.address;
@@ -336,7 +338,7 @@ const createAccountMessenger = (
     });
   } else {
     root.registerActionHandler('KeyringController:getState', () => ({
-      isUnlocked: true,
+      isUnlocked,
       keyrings: [],
     }));
     root.registerActionHandler(
@@ -380,16 +382,19 @@ export const createKeyringlessMessenger = (
 ): AccountMessenger => createAccountMessenger(keyringType);
 
 /**
- * Create a real PerpsController messenger for a host with an unlocked
- * KeyringController that returns `signature` for typed data and personal
- * messages.
+ * Create a real PerpsController messenger for a host with a KeyringController
+ * that returns `signature` for typed data and personal messages.
  *
  * @param signature - Signature the keyring returns.
+ * @param isUnlocked - Whether the keyring reports it is unlocked.
  * @returns The messenger, a spy on its `call`, and a way to switch the
  * selected account.
  */
-export const createKeyringMessenger = (signature: string): AccountMessenger =>
-  createAccountMessenger('HD Key Tree', signature);
+export const createKeyringMessenger = (
+  signature: string,
+  isUnlocked = true,
+): AccountMessenger =>
+  createAccountMessenger('HD Key Tree', signature, isUnlocked);
 
 /**
  * Names of the `KeyringController:*` actions a messenger spy saw.

@@ -248,7 +248,7 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
       isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
@@ -745,8 +745,10 @@ describe('HyperLiquidProvider', () => {
         });
         // Keyring is locked
         (
-          mockWalletService as unknown as { isKeyringUnlocked: jest.Mock }
-        ).isKeyringUnlocked.mockReturnValue(false);
+          mockWalletService as unknown as {
+            isMainAccountSignerReady: jest.Mock;
+          }
+        ).isMainAccountSignerReady.mockReturnValue(false);
 
         // Act
         await testableProvider.ensureReadyForTrading();

@@ -2376,8 +2376,13 @@ export class PerpsController extends BaseController<
           ?.subscriptionBuilderAddressMainnet,
       onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
       getAgentSigner: this.#agentBindings.resolve,
-      onAgentRejected: (account, agentAddress): void =>
-        this.#agentBindings.release(account, agentAddress),
+      onAgentRejected: (account, agentAddress): void => {
+        this.#agentBindings.release(account, agentAddress);
+        this.#options.clientConfig?.providerCredentials?.hyperliquid?.onAgentRejected?.(
+          account,
+          agentAddress,
+        );
+      },
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
