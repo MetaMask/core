@@ -5405,7 +5405,7 @@ describe('AssetsController', () => {
           await activateTracking(messenger);
 
           arm();
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
@@ -5437,7 +5437,7 @@ describe('AssetsController', () => {
           await activateTracking(messenger);
 
           arm();
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
@@ -5454,7 +5454,7 @@ describe('AssetsController', () => {
             id: 'mock-account-id-2',
           });
           getSelectedAccountsMock.mockReturnValue([accountB]);
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/2',
             'entropy:mock-keyring-id-1/1',
@@ -5623,14 +5623,17 @@ describe('AssetsController', () => {
         { queryApiClient: client },
         async ({ messenger }) => {
           const stateChanges: AssetsControllerState[] = [];
-          messenger.subscribe('AssetsController:stateChanged', (state) => {
-            stateChanges.push(state);
-          });
+          messenger.subscribe(
+            'AssetsController:stateChanged',
+            (state: AssetsControllerState) => {
+              stateChanges.push(state);
+            },
+          );
 
           await activateTracking(messenger);
 
           arm();
-          (messenger.publish as CallableFunction)(
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
