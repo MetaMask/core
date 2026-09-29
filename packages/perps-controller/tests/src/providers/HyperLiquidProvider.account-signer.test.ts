@@ -44,6 +44,8 @@ import {
   OTHER_AGENT_SIGNATURE,
   USER_SIGNED_PAYLOAD,
   createFrontendOpenOrder,
+  signThroughWallet,
+  unknownWalletError,
 } from '../../helpers/agentFixtures.js';
 import {
   createMockExchangeClient,
@@ -147,6 +149,28 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
   // A fixed clock for cache timestamps.
   const NOW = 1_700_000_000_000;
 
+  const BTC_MARKET_ORDER = {
+    symbol: 'BTC',
+    isBuy: true,
+    size: '0.1',
+    orderType: 'market',
+    currentPrice: 50000,
+  } as const;
+
+  /**
+   * The order ID a placement returned.
+   *
+   * @param result - The placement result.
+   * @param result.orderId - Its order ID, if any.
+   * @returns The order ID.
+   */
+  function orderIdOf(result: { orderId?: string }): string {
+    if (result.orderId === undefined) {
+      throw new Error('The placement returned no order ID');
+    }
+    return result.orderId;
+  }
+
   // The SDK writes the provider makes for the selected account on mainnet.
   const MIGRATION_WRITE = [
     { user: ACCOUNT_ADDRESS, abstraction: HL_UNIFIED_ACCOUNT_MODE },
@@ -234,6 +258,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     infoClient: ReturnType<typeof createMockInfoClient>;
     initialize: jest.Mock<Promise<void>, [HyperLiquidWalletParams]>;
     selectAccount: (address: Hex) => void;
+    deselectAccount: () => void;
   };
 
   function createAccountSignerProvider(
@@ -248,7 +273,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       address: AGENT_ADDRESS,
       signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
     };
-    const { messenger, call, selectAccount } = options.keyring
+    const { messenger, call, selectAccount, deselectAccount } = options.keyring
       ? createKeyringMessenger(MAIN_SIGNATURE)
       : createKeyringlessMessenger();
     let sdkWallet: HyperLiquidWalletParams | undefined;
@@ -264,14 +289,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         if (!sdkWallet) {
           throw new Error('SDK used before initialize');
         }
-        try {
-          await sdkWallet.signTypedData(payload);
-        } catch (error) {
-          // Like the SDK, which keeps the wallet error as the cause.
-          throw new Error('Failed to sign the typed data using the wallet', {
-            cause: error,
-          });
-        }
+        await signThroughWallet(sdkWallet, payload);
         return response;
       };
     const exchangeClient = createMockExchangeClient({
@@ -325,6 +343,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       infoClient,
       initialize,
       selectAccount,
+      deselectAccount,
     };
   }
 
@@ -389,13 +408,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         signer: { isReady: () => false },
       });
 
-    const order = await accountSignerProvider.placeOrder({
-      symbol: 'BTC',
-      isBuy: true,
-      size: '0.1',
-      orderType: 'market',
-      currentPrice: 50000,
-    });
+    const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
     expect(order).toStrictEqual({
       success: false,
@@ -425,6 +438,39 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+    expect(exchangeClient.order).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('fails a TP/SL update with KEYRING_LOCKED without logging when the builder fee signature is rejected as locked', async () => {
+    const { accountSignerProvider, accountSigner, exchangeClient } =
+      createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+        // Not approved yet.
+        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+      });
+    // The signer reports ready, but rejects the approval as locked.
+    accountSigner.signTypedData.mockImplementation(
+      async (_address: string, payload: PerpsTypedDataPayload) => {
+        if (payload === APPROVE_BUILDER_FEE_PAYLOAD) {
+          throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+        }
+        return MAIN_SIGNATURE;
+      },
+    );
+
+    const result = await accountSignerProvider.updatePositionTPSL({
+      symbol: 'BTC',
+      takeProfitPrice: '60000',
+    });
+
+    expect(result).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+      BUILDER_FEE_WRITE,
+    ]);
     expect(exchangeClient.order).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
@@ -567,13 +613,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const result = await accountSignerProvider.prepareTradingWallet();
       const setupSignatures = accountSigner.signTypedData.mock.calls.slice();
       accountSigner.signTypedData.mockClear();
-      const order = await accountSignerProvider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        currentPrice: 50000,
-      });
+      const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
       expect(result).toStrictEqual({ ready: true });
       // Migration, referral, builder fee approval.
@@ -649,15 +689,18 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         createAccountSignerProvider({ abstraction: 'unifiedAccount' });
       const lock = holdReferralLock();
 
-      let referrerCallsWhileWaiting;
+      // Whether the other provider's lock was released at each referral write.
+      let released = false;
+      const releasedAtWrite: boolean[] = [];
+      exchangeClient.setReferrer.mockImplementation(async () => {
+        releasedAtWrite.push(released);
+        return { status: 'ok' };
+      });
       let result;
       try {
         const preparing = accountSignerProvider.prepareTradingWallet();
         await lock.waiting;
-        // A provider that did not wait would reach its write by now.
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        referrerCallsWhileWaiting =
-          exchangeClient.setReferrer.mock.calls.length;
+        released = true;
         lock.release();
         result = await preparing;
       } finally {
@@ -665,7 +708,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         lock.release();
       }
 
-      expect(referrerCallsWhileWaiting).toBe(0);
+      expect(releasedAtWrite).toStrictEqual([true]);
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
       ]);
@@ -1044,12 +1087,62 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       expect(loggerError).not.toHaveBeenCalled();
     });
 
+    it('sets the referral once a wallet prepared before its first deposit has deposited', async () => {
+      let deposited = false;
+      const { accountSignerProvider, exchangeClient } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          info: {
+            userNonFundingLedgerUpdates: jest.fn(async () =>
+              deposited
+                ? [{ delta: { type: 'deposit', usdc: '100' }, time: NOW }]
+                : [],
+            ),
+          },
+        });
+
+      const beforeDeposit = await accountSignerProvider.prepareTradingWallet();
+      deposited = true;
+      const afterDeposit = await accountSignerProvider.prepareTradingWallet();
+
+      expect(beforeDeposit).toStrictEqual({ ready: false });
+      expect(afterDeposit).toStrictEqual({ ready: true });
+      expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+        REFERRAL_WRITE,
+      ]);
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('reports KEYRING_LOCKED for a wallet with no HyperLiquid account when the signer locks during setup', async () => {
+      let signerReady = true;
+      const { accountSignerProvider, accountSigner } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          signer: { isReady: () => signerReady },
+          info: {
+            // The signer locks while the account is being looked up.
+            userNonFundingLedgerUpdates: jest.fn(async () => {
+              signerReady = false;
+              return [];
+            }),
+          },
+        });
+
+      const result = await accountSignerProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
     it('reports NO_ACCOUNT_SELECTED without logging when no account is selected', async () => {
-      const { accountSignerProvider, accountSigner, selectAccount } =
+      const { accountSignerProvider, accountSigner, deselectAccount } =
         createAccountSignerProvider({ abstraction: 'unifiedAccount' });
       await accountSignerProvider.getMarketDataWithPrices();
-      // An empty selection: the wallet service finds no account.
-      selectAccount('' as Hex);
+      deselectAccount();
 
       const result = await accountSignerProvider.prepareTradingWallet();
 
@@ -1216,7 +1309,10 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       const marketData = await accountSignerProvider.getMarketDataWithPrices();
       const result = await accountSignerProvider.prepareTradingWallet();
 
-      expect(marketData).toHaveLength(2);
+      expect(marketData.map(({ symbol }) => symbol)).toStrictEqual([
+        'BTC',
+        'ETH',
+      ]);
       // A failed silent migration is retried: at connect, when prepare
       // re-runs the connect steps, and once more by the trading setup; the
       // referral write is the fourth L1 action. Each asks getAgentSigner.
@@ -1515,8 +1611,9 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           getAgentSigner,
         });
 
-      await accountSignerProvider.prepareTradingWallet();
+      const result = await accountSignerProvider.prepareTradingWallet();
 
+      expect(result).toStrictEqual({ ready: false });
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
       ]);
@@ -1632,8 +1729,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
     const CHECKSUMMED_AGENT_ADDRESS =
       '0x00000000000000000000000000000000000A9E17' as const;
 
-    const rejection = (address: string): Error =>
-      new Error(`User or API Wallet ${address} does not exist.`);
+    const rejection = unknownWalletError;
 
     describe('when the venue rejects the agent', () => {
       // The position's take profit, resting on the venue.
@@ -2124,13 +2220,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           throw rejection(agentSigner.address);
         });
 
-        const ordering = accountSignerProvider.placeOrder({
-          symbol: 'BTC',
-          isBuy: true,
-          size: '0.1',
-          orderType: 'market',
-          currentPrice: 50000,
-        });
+        const ordering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
         await signed.promise;
         // A binding change (setAgentSigner) drops the resolved agents, and the
         // next L1 action resolves the replacement.
@@ -2181,13 +2271,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           throw rejection(ACCOUNT_ADDRESS);
         });
 
-        const order = await accountSignerProvider.placeOrder({
-          symbol: 'BTC',
-          isBuy: true,
-          size: '0.1',
-          orderType: 'market',
-          currentPrice: 50000,
-        });
+        const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
         await wallet.signTypedData(L1_PAYLOAD);
 
         expect(order).toStrictEqual({
@@ -2440,13 +2524,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         } = createRejectingProvider('order');
         await accountSignerProvider.getMarketDataWithPrices();
 
-        const order = await accountSignerProvider.placeOrder({
-          symbol: 'BTC',
-          isBuy: true,
-          size: '0.1',
-          orderType: 'market',
-          currentPrice: 50000,
-        });
+        const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
         await initialize.mock.calls[0][0].signTypedData(L1_PAYLOAD);
 
         expect(order).toStrictEqual({
@@ -2533,13 +2611,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
         });
         await accountSignerProvider.getMarketDataWithPrices();
 
-        const order = await accountSignerProvider.placeOrder({
-          symbol: 'BTC',
-          isBuy: true,
-          size: '0.1',
-          orderType: 'market',
-          currentPrice: 50000,
-        });
+        const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
         expect(order).toStrictEqual({
           success: false,
@@ -2786,13 +2858,13 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           failSigning();
 
           const result = await provider.cancelOrder({
-            orderId: placed.orderId as string,
+            orderId: orderIdOf(placed),
             symbol: 'ETH',
             orderType: 'scale',
           });
           cancel.mockResolvedValue(withStatuses('success', 'success'));
           const retry = await provider.cancelOrder({
-            orderId: placed.orderId as string,
+            orderId: orderIdOf(placed),
             symbol: 'ETH',
             orderType: 'scale',
           });
@@ -2855,16 +2927,16 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           failSigning();
 
           const result = await provider.cancelOrder({
-            orderId: placed.orderId as string,
+            orderId: orderIdOf(placed),
             symbol: 'ETH',
             orderType: 'scale',
           });
 
-          expect(placed.orderId).toMatch(/^scale:/u);
-          expect(placed).toStrictEqual({
+          const { orderId: groupId, ...placement } = placed;
+          expect(groupId).toMatch(/^scale:/u);
+          expect(placement).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
-            orderId: placed.orderId,
             acceptedChildren: [
               { state: 'waitingForFill' },
               { state: 'waitingForFill' },
@@ -2904,7 +2976,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
           failSigning();
 
           const result = await provider.cancelOrder({
-            orderId: placed.orderId as string,
+            orderId: orderIdOf(placed),
             symbol: 'ETH',
             orderType: 'chase',
           });
@@ -3114,13 +3186,7 @@ describe('HyperLiquidProvider with a real wallet service and accountSigner', () 
       await accountSignerProvider.getMarketDataWithPrices();
       getAgentSigner.mockRejectedValue(new Error('agent store unavailable'));
 
-      const order = await accountSignerProvider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        currentPrice: 50000,
-      });
+      const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
       expect(order).toStrictEqual({
         success: false,

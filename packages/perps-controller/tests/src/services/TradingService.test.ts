@@ -1885,7 +1885,25 @@ describe('TradingService', () => {
         withStreamPause: mockWithStreamPause,
       });
 
-      expect(result.success).toBe(false);
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 2,
+        results: [
+          {
+            orderId: 'order-1',
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          },
+          {
+            orderId: 'order-2',
+            symbol: 'ETH',
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          },
+        ],
+      });
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
@@ -2644,7 +2662,18 @@ describe('TradingService', () => {
         context: { ...mockContext, getPositions: mockGetPositions },
       });
 
-      expect(result.success).toBe(false);
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          },
+        ],
+      });
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 

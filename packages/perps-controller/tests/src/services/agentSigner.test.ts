@@ -7,6 +7,7 @@ import type { PerpsAgentAccount } from '../../../src/types/index.js';
 import {
   AGENT_ADDRESS,
   OTHER_AGENT_ADDRESS,
+  sdkSigningError,
 } from '../../helpers/agentFixtures.js';
 
 const ACCOUNT: PerpsAgentAccount = {
@@ -128,14 +129,10 @@ describe('AgentBindings', () => {
 describe('isAgentSignerUnavailableError', () => {
   it('finds the error anywhere in the cause chain', () => {
     const unavailable = new AgentSignerUnavailableError(new Error('down'));
-    const wrapped = new Error(
-      'Failed to sign the typed data using the wallet',
-      {
-        cause: unavailable,
-      },
-    );
 
-    expect(isAgentSignerUnavailableError(wrapped)).toBe(true);
+    expect(isAgentSignerUnavailableError(sdkSigningError(unavailable))).toBe(
+      true,
+    );
     expect(isAgentSignerUnavailableError(new Error('other'))).toBe(false);
   });
 });

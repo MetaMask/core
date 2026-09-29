@@ -2909,8 +2909,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #tradingSetupComplete = false;
 
-  // Set when the referral write failed because its signer could not sign, so
-  // trading setup is not marked complete and the referral is attempted again.
+  // Set when the referral could not be written yet (its signer could not
+  // sign, or the wallet has no HyperLiquid account yet), so trading setup is
+  // not marked complete and the referral is attempted again.
   #referralSetupNeedsRetry = false;
 
   readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
@@ -2969,7 +2970,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
       );
       if (approvalFailureCode) {
-        throw approvalFailure(approvalFailureCode);
+        throw (
+          this.#classifySignerFailure(error) ??
+          approvalFailure(approvalFailureCode)
+        );
       }
     } finally {
       if (this.#builderFeeSetupPromises.get(setupKey) === pendingApproval) {
@@ -4674,12 +4678,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
       // in `cause`, so classify the full chain and leave retry caches empty.
+      // The caller reports it as retryable.
       if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
           '[ensureBuilderFeeApproval] Keyring locked, will retry later',
         );
         completeInFlight();
-        return;
+        throw error;
       }
 
       // Record failure — will be retried on next trading operation
@@ -14579,7 +14584,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The venue rejects every write from a wallet with no HyperLiquid account
       // yet, so it is not asked to sign a builder fee approval either.
       if (!(await this.#isWalletOnHyperliquid(userAddress, network))) {
-        return { ready: false };
+        return this.#walletService.isMainAccountSignerReady()
+          ? { ready: false }
+          : { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
       }
       await this.#ensureBuilderFeeSetup();
       if (!this.#walletService.isMainAccountSignerReady()) {
@@ -15721,6 +15728,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         '[ensureReferralSet] Wallet not yet on Hyperliquid, deferring referral setup',
         { network },
       );
+      // Attempt it again once the wallet has deposited.
+      this.#referralSetupNeedsRetry = true;
       return;
     }
 
@@ -15847,6 +15856,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           '[ensureReferralSet] Wallet not on Hyperliquid (race/stale-cache), deferring referral',
           { network, user: userAddress },
         );
+        this.#referralSetupNeedsRetry = true;
         completeInFlight();
         return;
       }

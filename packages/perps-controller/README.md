@@ -66,6 +66,29 @@ an asset with an open position, resting order, or active native TWAP schedule,
 including schedules whose first slice has not filled. Orders in the same mode may
 increase or reduce the existing position.
 
+## Signing without a `KeyringController`
+
+By default the controller signs through the `KeyringController:*` messenger
+actions. A client without a keyring passes `accountSigner` in its platform
+dependencies (`signTypedData`, `signPersonalMessage`, optional `isReady` and
+`requiresSignatureConfirmation`); the signing address still comes from the
+selected account, and a signer that is not ready fails with `KEYRING_LOCKED`.
+
+HyperLiquid L1 actions (orders, cancels, leverage, ...) can be signed by a
+client-owned agent key: return it from
+`providerCredentials.hyperliquid.getAgentSigner(account)`, or bind it to an
+account and network with `PerpsController:setAgentSigner`. User-signed actions
+(builder fee, withdrawals) stay on the main account, and approving the agent
+is the client's job. When the venue rejects an agent (revoked or expired), the
+write fails with `KEYRING_LOCKED`, the agent is dropped and
+`providerCredentials.hyperliquid.onAgentRejected` is called. Call
+`PerpsController:clearAgentSigners` when the agent key locks.
+
+`PerpsController:prepareTradingWallet` runs the setup that needs signatures
+(HyperLiquid account migration, builder fee and referral; Lighter key
+registration) before the first order, so a hardware or external wallet signs
+it in one guided session.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

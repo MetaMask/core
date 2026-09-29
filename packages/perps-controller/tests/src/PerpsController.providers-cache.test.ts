@@ -934,24 +934,58 @@ describe('PerpsController', () => {
         signTypedData: jest.fn(),
         signPersonalMessage: jest.fn(),
       };
+      const messenger = createMockMessenger();
+      const infrastructure = { ...mockInfrastructure, accountSigner };
       controller = new TestablePerpsController({
-        messenger: createMockMessenger(),
+        messenger,
         state: getDefaultPerpsControllerState(),
-        infrastructure: { ...mockInfrastructure, accountSigner },
+        infrastructure,
       });
 
       await controller.init();
       registerMockLighterProvider(controller);
 
-      const withAccountSigner = expect.objectContaining({
-        platformDependencies: expect.objectContaining({ accountSigner }),
-      });
       expect(
-        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>,
-      ).toHaveBeenCalledWith(withAccountSigner);
+        (HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>)
+          .mock.calls,
+      ).toStrictEqual([
+        [
+          {
+            isTestnet: false,
+            hip3Enabled: false,
+            allowlistMarkets: [],
+            blocklistMarkets: [],
+            priceDeviationLimit: undefined,
+            platformDependencies: infrastructure,
+            messenger,
+            builderAddressTestnet: undefined,
+            builderAddressMainnet: undefined,
+            subscriptionBuilderAddressTestnet: undefined,
+            subscriptionBuilderAddressMainnet: undefined,
+            onChaseOrderMaxDistanceReached: expect.any(Function),
+            getAgentSigner: expect.any(Function),
+            onAgentRejected: expect.any(Function),
+          },
+        ],
+      ]);
       expect(
-        LighterProvider as jest.MockedClass<typeof LighterProvider>,
-      ).toHaveBeenCalledWith(withAccountSigner);
+        (LighterProvider as jest.MockedClass<typeof LighterProvider>).mock
+          .calls,
+      ).toStrictEqual([
+        [
+          {
+            isTestnet: false,
+            platformDependencies: infrastructure,
+            messenger,
+            signerBridge: undefined,
+            lighterAuthConfig: {
+              enabled: undefined,
+              accountIndex: undefined,
+              apiKeyIndex: undefined,
+            },
+          },
+        ],
+      ]);
     });
 
     const agentSigner = {
@@ -1100,13 +1134,34 @@ describe('PerpsController', () => {
       expect(constructedWith.providers).toBe(providers);
     });
 
-    it('reports a trading wallet ready when the provider has no deferred setup', async () => {
-      await controller.init();
+    it.each([
+      { signerReady: true, expected: { ready: true } },
+      {
+        signerReady: false,
+        expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
+      },
+    ])(
+      'reports readiness from the main-account signer when the provider has no deferred setup (signer ready: $signerReady)',
+      async ({ signerReady, expected }) => {
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger(),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: {
+            ...mockInfrastructure,
+            accountSigner: {
+              signTypedData: jest.fn(),
+              signPersonalMessage: jest.fn(),
+              isReady: (): boolean => signerReady,
+            },
+          },
+        });
+        await controller.init();
 
-      const result = await controller.prepareTradingWallet();
+        const result = await controller.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: true });
-    });
+        expect(result).toStrictEqual(expected);
+      },
+    );
   });
 
   describe('getOpenOrders with standalone mode', () => {

@@ -17,9 +17,10 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
-import { PERPS_CONSTANTS, PROVIDER_CONFIG } from '../constants/perpsConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { isProviderOnTestnet } from '../services/providerNetwork.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
@@ -1072,12 +1073,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           caughtError,
           'AggregatedPerpsProvider.prepareTradingWallet',
         );
-        // The provider's own network: Lighter can be pinned to testnet, as
-        // in buildProviderCacheKey.
-        const isProviderTestnet =
-          providerId === 'lighter' && PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY
-            ? true
-            : this.#isTestnet;
+        // The provider's own network: Lighter can be pinned to testnet.
+        const isProviderTestnet = isProviderOnTestnet(
+          providerId,
+          this.#isTestnet,
+        );
         this.#deps.logger.error(error, {
           tags: {
             feature: PERPS_CONSTANTS.FeatureName,

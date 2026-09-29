@@ -1,5 +1,3 @@
-import type { Hex } from '@metamask/utils';
-
 import { LIGHTER_TX_TYPE_CHANGE_PUB_KEY } from '../../../src/constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
@@ -39,6 +37,8 @@ const MockedClientService = LighterClientService as jest.MockedClass<
 const ACCOUNT_INDEX = 28;
 const API_KEY_INDEX = 7;
 const NEXT_NONCE = 42;
+// A fixed clock, so the signed transaction is deterministic.
+const NOW = 1_700_000_000_000;
 // Expiry of the mocked signed transaction; only needs to be in the future.
 const TX_EXPIRY_MS = 9 * 60 * 1000;
 const CHANGE_PUB_KEY_BODY =
@@ -50,8 +50,19 @@ const EIP1193_USER_REJECTED_CODE = 4001;
 // The registration transaction the mocked signer submits.
 const CHANGE_PUB_KEY_TX = [
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
-  expect.stringContaining('"changePubKey":true'),
+  JSON.stringify({
+    changePubKey: true,
+    Nonce: NEXT_NONCE,
+    ExpiredAt: NOW + TX_EXPIRY_MS,
+  }),
 ];
+
+/**
+ * Pin the clock the mocked signer stamps its transaction with.
+ */
+function pinClock(): void {
+  jest.spyOn(Date, 'now').mockReturnValue(NOW);
+}
 
 function createBridge(): {
   bridge: LighterSignerBridge;
@@ -109,6 +120,7 @@ type BuiltProvider = {
   accountSigner: { signPersonalMessage: jest.Mock };
   call: jest.SpyInstance;
   selectAccount: (address: `0x${string}`) => void;
+  deselectAccount: () => void;
   calls: LighterWasmCall[];
   deps: ReturnType<typeof createMockInfrastructure>;
 };
@@ -162,7 +174,7 @@ function buildProvider({
     signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady,
   };
-  const { messenger, call, selectAccount } = keyring
+  const { messenger, call, selectAccount, deselectAccount } = keyring
     ? createKeyringMessenger(MAIN_SIGNATURE)
     : createKeyringlessMessenger();
   const { bridge, calls } = createBridge();
@@ -187,12 +199,15 @@ function buildProvider({
     accountSigner,
     call,
     selectAccount,
+    deselectAccount,
     calls,
     deps,
   };
 }
 
 describe('LighterProvider with accountSigner', () => {
+  beforeEach(pinClock);
+
   it('registers the venue key with an L1 signature from accountSigner', async () => {
     const { provider, address, client, accountSigner, call, calls } =
       buildProvider();
@@ -412,10 +427,9 @@ describe('LighterProvider with accountSigner', () => {
   });
 
   it('reports NO_ACCOUNT_SELECTED without registering or logging when no account is selected', async () => {
-    const { provider, accountSigner, client, calls, deps, selectAccount } =
+    const { provider, accountSigner, client, calls, deps, deselectAccount } =
       buildProvider();
-    // An empty selection: the wallet service finds no account.
-    selectAccount('' as Hex);
+    deselectAccount();
     const loggerError = jest.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
@@ -500,6 +514,25 @@ describe('LighterProvider with accountSigner', () => {
     expect(loggerError).not.toHaveBeenCalled();
   });
 
+  it('reports KEYRING_LOCKED without logging when the host rejects as locked while still reporting ready', async () => {
+    const { provider, accountSigner, client, deps } = buildProvider();
+    accountSigner.signPersonalMessage.mockRejectedValue(
+      new Error('Signing failed', {
+        cause: new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
+      }),
+    );
+    const loggerError = jest.spyOn(deps.logger, 'error');
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(client.sendTx).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
   it('reports KEYRING_LOCKED without logging when the signer locked after signing and the submission fails', async () => {
     let signerReady = true;
     const { provider, accountSigner, client, deps } = buildProvider({
@@ -575,6 +608,8 @@ describe('LighterProvider with accountSigner', () => {
 });
 
 describe('LighterProvider with a KeyringController', () => {
+  beforeEach(pinClock);
+
   it('registers the venue key through prepareTradingWallet with a keyring signature', async () => {
     const { provider, address, client, call, calls } = buildProvider({
       keyring: true,

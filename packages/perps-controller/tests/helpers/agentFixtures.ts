@@ -1,3 +1,5 @@
+import type { Hex } from '@metamask/utils';
+
 import type { PerpsTypedDataPayload } from '../../src/types/index.js';
 import { createMockEvmAccount } from './serviceMocks.js';
 
@@ -128,4 +130,48 @@ export function createFrontendOpenOrder(
     children: [],
     ...overrides,
   };
+}
+
+/**
+ * The error the HyperLiquid SDK throws when the wallet fails to sign, with
+ * the wallet's error as its cause.
+ *
+ * @param cause - The wallet's error.
+ * @returns The SDK error.
+ */
+export function sdkSigningError(cause: unknown): Error {
+  return new Error('Failed to sign the typed data using the wallet', {
+    cause,
+  });
+}
+
+/**
+ * HyperLiquid's rejection of a signer it does not know: a revoked or expired
+ * agent, or a wallet with no account yet.
+ *
+ * @param address - The signer the venue names.
+ * @returns The venue error.
+ */
+export function unknownWalletError(address: string): Error {
+  return new Error(`User or API Wallet ${address} does not exist.`);
+}
+
+/**
+ * Sign through a wallet the way the HyperLiquid SDK does: a failure is
+ * wrapped with the wallet's error as its cause.
+ *
+ * @param wallet - The wallet the SDK was built with.
+ * @param wallet.signTypedData - Signs a typed-data payload.
+ * @param payload - The payload to sign.
+ * @returns The signature.
+ */
+export async function signThroughWallet(
+  wallet: { signTypedData: (payload: PerpsTypedDataPayload) => Promise<Hex> },
+  payload: PerpsTypedDataPayload,
+): Promise<Hex> {
+  try {
+    return await wallet.signTypedData(payload);
+  } catch (error) {
+    throw sdkSigningError(error);
+  }
 }

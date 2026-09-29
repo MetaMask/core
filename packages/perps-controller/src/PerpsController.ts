@@ -52,6 +52,7 @@ import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
 import { AccountService } from './services/AccountService.js';
+import { isMainAccountSignerReady } from './services/accountSigner.js';
 import { AgentBindings } from './services/agentSigner.js';
 import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
@@ -5936,14 +5937,23 @@ export class PerpsController extends BaseController<
    * not asked again (the HyperLiquid migration); `ready: false` while one will
    * be asked again: a declined builder fee or Lighter registration, or a step
    * whose signer (the main account or the agent) could not sign. Providers
-   * without deferred setup are ready.
+   * without deferred setup are ready while the main account can sign.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
    * when no active provider is available.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     const provider = await this.#getActiveProviderWhenReady();
-    return (await provider.prepareTradingWallet?.()) ?? { ready: true };
+    if (provider.prepareTradingWallet) {
+      return await provider.prepareTradingWallet();
+    }
+    // Nothing to prepare, but ready still needs a main account that can sign.
+    return isMainAccountSignerReady(
+      this.#options.infrastructure.accountSigner,
+      () => this.messenger.call('KeyringController:getState').isUnlocked,
+    )
+      ? { ready: true }
+      : { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
   }
 
   /**

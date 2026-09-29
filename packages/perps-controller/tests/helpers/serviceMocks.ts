@@ -291,10 +291,15 @@ export const createMockMessenger = (
   } as unknown as jest.Mocked<PerpsControllerMessenger>;
 };
 
+// The keyring type of a software (non-hardware) account.
+const HD_KEYRING_TYPE = 'HD Key Tree';
+
 type AccountMessenger = {
   messenger: PerpsControllerMessenger;
   call: jest.SpyInstance;
   selectAccount: (address: `0x${string}`) => void;
+  // Leave no account selected.
+  deselectAccount: () => void;
 };
 
 /**
@@ -306,8 +311,8 @@ type AccountMessenger = {
  * @param keyringSignature - Signature the keyring returns; omit for a host
  * without a KeyringController.
  * @param isUnlocked - Whether the keyring reports it is unlocked.
- * @returns The messenger, a spy on its `call`, and a way to switch the
- * selected account.
+ * @returns The messenger, a spy on its `call`, and ways to switch or clear
+ * the selected account.
  */
 const createAccountMessenger = (
   keyringType: string,
@@ -315,7 +320,8 @@ const createAccountMessenger = (
   isUnlocked = true,
 ): AccountMessenger => {
   const account = createMockEvmAccount();
-  let selectedAddress = account.address;
+  // Empty when no account is selected.
+  let selectedAddress: string = account.address;
   const root = new Messenger<
     MockAnyNamespace,
     MessengerActions<PerpsControllerMessenger>,
@@ -365,6 +371,9 @@ const createAccountMessenger = (
     selectAccount: (address): void => {
       selectedAddress = address;
     },
+    deselectAccount: (): void => {
+      selectedAddress = '';
+    },
   };
 };
 
@@ -374,11 +383,11 @@ const createAccountMessenger = (
  * delegated, so any `KeyringController:*` call throws.
  *
  * @param keyringType - Keyring type reported in the selected account metadata.
- * @returns The messenger, a spy on its `call`, and a way to switch the
- * selected account.
+ * @returns The messenger, a spy on its `call`, and ways to switch or clear
+ * the selected account.
  */
 export const createKeyringlessMessenger = (
-  keyringType = 'HD Key Tree',
+  keyringType = HD_KEYRING_TYPE,
 ): AccountMessenger => createAccountMessenger(keyringType);
 
 /**
@@ -387,14 +396,14 @@ export const createKeyringlessMessenger = (
  *
  * @param signature - Signature the keyring returns.
  * @param isUnlocked - Whether the keyring reports it is unlocked.
- * @returns The messenger, a spy on its `call`, and a way to switch the
- * selected account.
+ * @returns The messenger, a spy on its `call`, and ways to switch or clear
+ * the selected account.
  */
 export const createKeyringMessenger = (
   signature: string,
   isUnlocked = true,
 ): AccountMessenger =>
-  createAccountMessenger('HD Key Tree', signature, isUnlocked);
+  createAccountMessenger(HD_KEYRING_TYPE, signature, isUnlocked);
 
 /**
  * Names of the `KeyringController:*` actions a messenger spy saw.

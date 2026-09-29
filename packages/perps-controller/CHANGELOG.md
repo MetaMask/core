@@ -43,8 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- HyperLiquid writes that fail because the keyring is locked now fail with `KEYRING_LOCKED` instead of the SDK's "Failed to sign the typed data using the wallet" message, and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
+- HyperLiquid writes that fail because the keyring is locked, or because the `accountSigner` is not ready, now fail with `KEYRING_LOCKED` and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Before, they failed with the SDK's "Failed to sign the typed data using the wallet" message, or with `TPSL_UPDATE_FAILED` for a TP/SL update whose builder fee was not approved yet
   - Covers orders, edits, single and batch cancels (TWAP, scale and chase cancels included), position closes, TP/SL updates and clears, margin updates, withdrawals and transfers between DEXs
+- A HyperLiquid wallet that starts trading setup before its first deposit gets its referral set as soon as it has deposited, instead of after the provider reconnects ([#10559](https://github.com/MetaMask/core/pull/10559))
 
 ## [18.0.1]
 

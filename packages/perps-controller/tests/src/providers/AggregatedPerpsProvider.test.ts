@@ -1086,8 +1086,8 @@ describe('AggregatedPerpsProvider', () => {
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
-      expect(prepareHyperLiquid).toHaveBeenCalledTimes(1);
-      expect(prepareLighter).toHaveBeenCalledTimes(1);
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
     });
 
     it('reports ready when every provider is ready or has no deferred setup', async () => {
@@ -1099,7 +1099,7 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      expect(prepareHyperLiquid).toHaveBeenCalledTimes(1);
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
     });
 
     it('reports the first not-ready provider when several are not ready', async () => {
@@ -1282,10 +1282,12 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('prepares the next provider only after the previous one settles', async () => {
+      const hyperLiquidAsked = createDeferred<void>();
       const firstPreparation = createDeferred<{ ready: boolean }>();
-      const prepareHyperLiquid = jest.fn(
-        async () => await firstPreparation.promise,
-      );
+      const prepareHyperLiquid = jest.fn(async () => {
+        hyperLiquidAsked.resolve();
+        return await firstPreparation.promise;
+      });
       const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
         prepareTradingWallet: prepareHyperLiquid,
@@ -1295,7 +1297,7 @@ describe('AggregatedPerpsProvider', () => {
       });
 
       const preparing = aggregatedProvider.prepareTradingWallet();
-      await Promise.resolve();
+      await hyperLiquidAsked.promise;
       const hyperLiquidCallsBeforeSettling = [...prepareHyperLiquid.mock.calls];
       const lighterCallsBeforeSettling = [...prepareLighter.mock.calls];
       firstPreparation.resolve({ ready: true });

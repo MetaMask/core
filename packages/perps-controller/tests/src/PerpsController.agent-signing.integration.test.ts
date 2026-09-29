@@ -27,6 +27,8 @@ import {
   MAIN_SIGNATURE,
   OTHER_AGENT_ADDRESS,
   OTHER_AGENT_SIGNATURE,
+  signThroughWallet,
+  unknownWalletError,
   USER_SIGNED_PAYLOAD,
 } from '../helpers/agentFixtures.js';
 import { createMockInfoClient } from '../helpers/providerMocks.js';
@@ -144,19 +146,10 @@ class MockExchangeClient {
     params: unknown,
     payload: PerpsTypedDataPayload,
   ): Promise<void> {
-    let signature: string;
-    try {
-      signature = await this.#wallet.signTypedData(payload);
-    } catch (error) {
-      // Like the SDK, which keeps the wallet error as the cause.
-      throw new Error('Failed to sign the typed data using the wallet', {
-        cause: error,
-      });
-    }
-    const signer = SIGNERS.get(signature);
+    const signer = SIGNERS.get(await signThroughWallet(this.#wallet, payload));
     mockVenue.writes.push({ write, params, signer });
     if (signer && mockVenue.revokedAgents.has(signer)) {
-      throw new Error(`User or API Wallet ${signer} does not exist.`);
+      throw unknownWalletError(signer);
     }
   }
 }
@@ -232,12 +225,25 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   /**
    * A messenger that answers the host actions these flows call: an empty
    * remote feature flag state, so the controller reads its defaults, the
-   * selected account, and the network the fee discount looks up.
+   * selected account, and the network the fee discount looks up. With
+   * `keyring`, it is also the host's KeyringController, which signs as the
+   * main account.
    *
+   * @param keyring - The KeyringController the host exposes, if any.
+   * @param keyring.isUnlocked - Whether the keyring is unlocked.
    * @returns The messenger.
    */
-  function createMessenger(): ReturnType<typeof createMockMessenger> {
+  function createMessenger(keyring?: {
+    isUnlocked: boolean;
+  }): ReturnType<typeof createMockMessenger> {
+    const keyringAnswers: Record<string, unknown> = keyring
+      ? {
+          'KeyringController:getState': { isUnlocked: keyring.isUnlocked },
+          'KeyringController:signTypedMessage': Promise.resolve(MAIN_SIGNATURE),
+        }
+      : {};
     const answers: Record<string, unknown> = {
+      ...keyringAnswers,
       'RemoteFeatureFlagController:getState': {
         remoteFeatureFlags: {},
         cacheTimestamp: 0,
@@ -259,23 +265,47 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
   /**
    * Build a controller whose host signs with `accountSigner` and resolves
-   * agents with `getAgentSigner`.
+   * agents with `getAgentSigner`, unless told otherwise.
    *
-   * @param signer - The host's account signer.
-   * @param hyperliquid - The host's HyperLiquid credentials.
+   * @param options - What the host provides.
+   * @param options.signer - The host's account signer; null for a host that
+   * signs through its KeyringController.
+   * @param options.hyperliquid - The host's HyperLiquid credentials.
+   * @param options.messenger - The host's messenger.
    * @returns The controller.
    */
-  function createController(
-    signer: PerpsAccountSigner = accountSigner,
-    hyperliquid: HyperLiquidCredentials = { getAgentSigner, onAgentRejected },
-  ): PerpsController {
+  function createController({
+    signer = accountSigner,
+    hyperliquid = { getAgentSigner, onAgentRejected },
+    messenger = createMessenger(),
+  }: {
+    signer?: PerpsAccountSigner | null;
+    hyperliquid?: HyperLiquidCredentials;
+    messenger?: ReturnType<typeof createMockMessenger>;
+  } = {}): PerpsController {
     return new PerpsController({
-      messenger: createMessenger(),
+      messenger,
       state: getDefaultPerpsControllerState(),
       clientConfig: { providerCredentials: { hyperliquid } },
-      infrastructure: { ...infrastructure, accountSigner: signer },
+      infrastructure: signer
+        ? { ...infrastructure, accountSigner: signer }
+        : infrastructure,
       deferEligibilityCheck: true,
     });
+  }
+
+  /**
+   * The typed-data signatures the host's KeyringController was asked for.
+   *
+   * @param messenger - The host's messenger.
+   * @returns The `KeyringController:signTypedMessage` calls.
+   */
+  function keyringSignatureRequests(
+    messenger: ReturnType<typeof createMockMessenger>,
+  ): unknown[][] {
+    return messenger.call.mock.calls.filter(
+      ([action]) => action === 'KeyringController:signTypedMessage',
+    );
   }
 
   /**
@@ -343,7 +373,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   });
 
   it('signs L1 actions with the main account when the host has no getAgentSigner', async () => {
-    const controller = createController(accountSigner, {});
+    const controller = createController({ hyperliquid: {} });
     await controller.init();
 
     const placed = await placeOrder(controller);
@@ -353,6 +383,50 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
       [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('signs L1 actions with the agent and user-signed actions through KeyringController for a host without accountSigner', async () => {
+    // The builder fee is not approved yet, so the first order approves it.
+    mockVenue.infoClient.maxBuilderFee.mockResolvedValueOnce(0);
+    const messenger = createMessenger({ isUnlocked: true });
+    const controller = createController({ signer: null, messenger });
+    await controller.init();
+
+    const placed = await placeOrder(controller);
+
+    expect(placed).toStrictEqual(PLACED_ORDER);
+    expect(signedWrites()).toStrictEqual([
+      ['approveBuilderFee', MAIN_ADDRESS],
+      ['order', AGENT_ADDRESS],
+    ]);
+    expect(keyringSignatureRequests(messenger)).toStrictEqual([
+      [
+        'KeyringController:signTypedMessage',
+        { from: MAIN_ADDRESS, data: APPROVE_BUILDER_FEE_PAYLOAD },
+        'V4',
+      ],
+    ]);
+    expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('prepares nothing and reports KEYRING_LOCKED while the host keyring is locked', async () => {
+    const messenger = createMessenger({ isUnlocked: false });
+    const controller = createController({ signer: null, messenger });
+    await controller.init();
+
+    const result = await controller.prepareTradingWallet();
+
+    expect(result).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(mockVenue.writes).toStrictEqual([]);
+    expect(keyringSignatureRequests(messenger)).toStrictEqual([]);
+    expect(getAgentSigner).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -540,8 +614,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
   it('prepares nothing and reports KEYRING_LOCKED while the account signer is not ready', async () => {
     const controller = createController({
-      ...accountSigner,
-      isReady: (): boolean => false,
+      signer: { ...accountSigner, isReady: (): boolean => false },
     });
     await controller.init();
 
