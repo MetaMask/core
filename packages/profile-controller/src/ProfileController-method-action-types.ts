@@ -20,9 +20,9 @@ export type ProfileControllerGetMetaMaskProfileAction = {
  *
  * @returns The X profile, or undefined.
  */
-export type ProfileControllerGetXprofileAction = {
-  type: `ProfileController:getXprofile`;
-  handler: ProfileController['getXprofile'];
+export type ProfileControllerGetXProfileAction = {
+  type: `ProfileController:getXProfile`;
+  handler: ProfileController['getXProfile'];
 };
 
 /**
@@ -118,7 +118,7 @@ export type ProfileControllerFetchAndUpdateXAccountAction = {
  */
 export type ProfileControllerMethodActions =
   | ProfileControllerGetMetaMaskProfileAction
-  | ProfileControllerGetXprofileAction
+  | ProfileControllerGetXProfileAction
   | ProfileControllerCreateProfileAction
   | ProfileControllerReplaceProfileAction
   | ProfileControllerUpdateProfileAction

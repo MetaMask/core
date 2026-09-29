@@ -162,7 +162,7 @@ export function getDefaultProfileControllerState(): ProfileControllerState {
 
 const MESSENGER_EXPOSED_METHODS = [
   'getMetaMaskProfile',
-  'getXprofile',
+  'getXProfile',
   'createProfile',
   'replaceProfile',
   'updateProfile',
@@ -290,7 +290,7 @@ export class ProfileController extends BaseController<
    *
    * @returns The X profile, or undefined.
    */
-  getXprofile(): XProfile | undefined {
+  getXProfile(): XProfile | undefined {
     return this.state.xProfile;
   }
 
