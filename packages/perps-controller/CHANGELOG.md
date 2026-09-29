@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PerpsController.withdraw` returns `{ success: false, error: 'WATCH_ONLY_ACCOUNT' }` before a withdrawal request is tracked.
   - HyperLiquid typed-data signing and Lighter personal signing also throw `WATCH_ONLY_ACCOUNT` when the selected account belongs to the watch-only keyring.
   - HyperLiquid initialization skips the signing-backed Unified Account migration for watch-only accounts.
+- Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
+  - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
+  - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
 
 ## [18.0.1]
 

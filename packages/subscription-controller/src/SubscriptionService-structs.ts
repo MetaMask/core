@@ -245,7 +245,7 @@ const TokenPaymentInfoStruct: Struct<TokenPaymentInfo> = lazy(() =>
       sources: optional(array(TokenPaymentInfoStruct)),
     }),
   ]),
-) as Struct<TokenPaymentInfo>;
+);
 
 const ChainPaymentInfoStruct = type({
   chainId: StrictHexStruct,

@@ -60,7 +60,7 @@ const baseState = {
 
 const arrangeMocks = async (
   {
-    stateOverrides = baseState as Partial<typeof baseState>,
+    stateOverrides = baseState,
     messengerMockOptions,
   }: {
     stateOverrides?: Partial<typeof baseState>;
@@ -68,7 +68,7 @@ const arrangeMocks = async (
       typeof mockUserStorageMessengerForContactSyncing
     >[0];
   } = {
-    stateOverrides: baseState as Partial<typeof baseState>,
+    stateOverrides: baseState,
     messengerMockOptions: undefined,
   },
 ) => {

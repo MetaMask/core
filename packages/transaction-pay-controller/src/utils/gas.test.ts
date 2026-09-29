@@ -374,7 +374,7 @@ describe('Gas Utils', () => {
       const transactionMeta = clone(TRANSACTION_META_MOCK);
 
       transactionMeta.gasFeeTokens = [GAS_FEE_TOKEN_MOCK];
-      transactionMeta.selectedGasFeeToken = '0x0' as Hex;
+      transactionMeta.selectedGasFeeToken = '0x0';
 
       const result = calculateTransactionGasCost(transactionMeta, messenger);
 
@@ -427,11 +427,11 @@ describe('Gas Utils', () => {
       expect(
         await estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
-          data: '0xdead' as Hex,
-          from: '0xabc' as Hex,
+          data: '0xdead',
+          from: '0xabc',
           messenger,
-          to: '0xdef' as Hex,
-          value: '0x1' as Hex,
+          to: '0xdef',
+          value: '0x1',
         }),
       ).toStrictEqual({
         estimate: Math.ceil(21000 * 1.5),
@@ -451,10 +451,10 @@ describe('Gas Utils', () => {
       await expect(
         estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
-          data: '0xdead' as Hex,
-          from: '0xabc' as Hex,
+          data: '0xdead',
+          from: '0xabc',
           messenger,
-          to: '0xdef' as Hex,
+          to: '0xdef',
         }),
       ).rejects.toThrow('Gas simulation failed');
     });
@@ -469,11 +469,11 @@ describe('Gas Utils', () => {
 
       const result = await estimateGasLimit({
         chainId: CHAIN_ID_MOCK,
-        data: '0xdead' as Hex,
+        data: '0xdead',
         fallbackOnSimulationFailure: true,
-        from: '0xabc' as Hex,
+        from: '0xabc',
         messenger,
-        to: '0xdef' as Hex,
+        to: '0xdef',
       });
 
       expect(result).toMatchObject({
@@ -502,10 +502,10 @@ describe('Gas Utils', () => {
       expect(
         await estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
-          data: '0xdead' as Hex,
-          from: '0xabc' as Hex,
+          data: '0xdead',
+          from: '0xabc',
           messenger,
-          to: '0xdef' as Hex,
+          to: '0xdef',
         }),
       ).toStrictEqual({
         estimate: 123,
@@ -522,14 +522,14 @@ describe('Gas Utils', () => {
       expect(
         await estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
-          data: '0xdead' as Hex,
+          data: '0xdead',
           fallbackGas: {
             estimate: 987,
             max: 654,
           },
-          from: '0xabc' as Hex,
+          from: '0xabc',
           messenger,
-          to: '0xdef' as Hex,
+          to: '0xdef',
         }),
       ).toStrictEqual({
         estimate: 987,
@@ -547,10 +547,10 @@ describe('Gas Utils', () => {
 
       const result = await estimateGasLimit({
         chainId: CHAIN_ID_MOCK,
-        data: '0xdead' as Hex,
-        from: '0xabc' as Hex,
+        data: '0xdead',
+        from: '0xabc',
         messenger,
-        to: '0xdef' as Hex,
+        to: '0xdef',
       });
 
       expect(result).toMatchObject({

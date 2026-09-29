@@ -4192,7 +4192,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(2);
@@ -4228,7 +4228,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(2);
@@ -4246,7 +4246,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(false);
       expect(exchangeClient.order).toHaveBeenCalledTimes(3);
@@ -4261,7 +4261,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(false);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -4307,7 +4307,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseMaxDistanceBps: 100,
-      } as OrderParams);
+      });
 
       expect(await provider.getChaseOrders()).toStrictEqual([
         expect.objectContaining({
@@ -4334,7 +4334,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       infoClient.orderStatus.mockResolvedValueOnce({
         status: 'order',
         order: {
@@ -4384,7 +4384,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       infoClient.orderStatus.mockResolvedValueOnce({ status: 'unknownOid' });
 
       const snapshots = await provider.getChaseOrders();
@@ -4551,7 +4551,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       const backgrounded = await provider.suspendChaseOrders();
 
@@ -4738,7 +4738,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       const first = provider.cancelOrder({
         orderId: placed.orderId,
@@ -4810,7 +4810,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
@@ -4826,7 +4826,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       mockWalletService.getUserAddressWithDefault.mockRejectedValueOnce(
         new Error('Trading setup failed'),
       );
@@ -4860,13 +4860,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const admitted = provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       await orderStarted;
       const suspension = provider.suspendChaseOrders();
       const blocked = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       settleOrder?.(chaseRested);
 
       const admittedResult = await admitted;
@@ -4944,7 +4944,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
         chaseMaxDurationMs: 1000,
-      } as OrderParams);
+      });
       await jest.advanceTimersByTimeAsync(1000);
 
       const result = await provider.cancelOrder({
@@ -5178,7 +5178,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       const ticking = jest.advanceTimersByTimeAsync(1000);
       await cancelStarted;
       const directCancellation = provider.cancelOrder({
@@ -5222,7 +5222,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       const ticking = jest.advanceTimersByTimeAsync(1000);
       await cancelStarted;
       const batchCancellation = provider.cancelOrders([
@@ -5270,7 +5270,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       const ticking = jest.advanceTimersByTimeAsync(1000);
       await cancelStarted;
 
@@ -5324,7 +5324,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       await jest.advanceTimersByTimeAsync(
         CHASE_ORDER_CONFIG.DefaultIntervalMs - 1,
@@ -5350,7 +5350,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
 
       let finishBookRead: (() => void) | undefined;
       infoClient.l2Book.mockImplementationOnce(
@@ -5370,7 +5370,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       await jest.advanceTimersByTimeAsync(0);
       for (let turn = 0; turn < 20; turn += 1) {
         if (finishBookRead !== undefined) {
@@ -5405,7 +5405,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
 
       let finishTickBookRead: (() => void) | undefined;
       infoClient.l2Book.mockImplementationOnce(
@@ -5428,7 +5428,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       await jest.advanceTimersByTimeAsync(0);
 
       expect(order).toHaveBeenCalledTimes(1);
@@ -5595,7 +5595,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
         chaseMaxDistanceBps: 100,
-      } as OrderParams);
+      });
 
       await jest.advanceTimersByTimeAsync(1000);
 
@@ -8333,7 +8333,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -10147,7 +10147,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       releaseDisconnect?.();
       await disconnecting;
 
@@ -10163,7 +10163,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       await disconnecting;
 
       expect(placed.success).toBe(false);

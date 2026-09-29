@@ -108,7 +108,7 @@ function buildMockDataForFetchEthGasPriceEstimate(): EthGasPriceEstimate {
 function buildMockDataForCalculateTimeEstimate(): EstimatedGasFeeTimeBounds {
   return {
     lowerTimeBound: null,
-    upperTimeBound: 'unknown' as unknownString,
+    upperTimeBound: 'unknown',
   };
 }
 

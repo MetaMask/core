@@ -1141,7 +1141,7 @@ export function buildOrdersArray(
       triggerPrice,
       szDecimals,
     }),
-    c: clientOrderId ? (clientOrderId as Hex) : undefined,
+    c: clientOrderId ? clientOrderId : undefined,
   };
   orders.push(mainOrder);
 

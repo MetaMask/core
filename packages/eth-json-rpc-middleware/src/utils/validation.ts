@@ -147,9 +147,7 @@ function checkObjectForPrototypePollution(obj: unknown): void {
   }
 
   if (typeof obj === 'object') {
-    for (const key of Object.getOwnPropertyNames(
-      obj as Record<string, unknown>,
-    )) {
+    for (const key of Object.getOwnPropertyNames(obj)) {
       if (isDangerousProperty(key)) {
         throw rpcErrors.invalidInput();
       }

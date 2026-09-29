@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@ethersproject/bignumber` from `^5.7.0` to `^5.8.0` ([#10479](https://github.com/MetaMask/core/pull/10479))
+- Bump `@ethersproject/constants` from `^5.7.0` to `^5.8.0` ([#10481](https://github.com/MetaMask/core/pull/10481))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
+
+## [81.3.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@metamask/assets-controller` from `^16.1.2` to `^17.0.0` ([#10474](https://github.com/MetaMask/core/pull/10474))
+
 ## [81.3.2]
 
 ### Changed
@@ -2083,7 +2097,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.3...HEAD
+[81.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.2...@metamask/bridge-controller@81.3.3
 [81.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.1...@metamask/bridge-controller@81.3.2
 [81.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.0...@metamask/bridge-controller@81.3.1
 [81.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.2.0...@metamask/bridge-controller@81.3.0

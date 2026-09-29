@@ -105,6 +105,7 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  MarginMode,
   MarginResult,
   MarketInfo,
   Order,
@@ -423,6 +424,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number; // Last used leverage for this market
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -441,6 +443,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number;
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -928,6 +931,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMarketDataWithPrices',
   'getMarketFilterPreferences',
   'getMarkets',
+  'getMarginMode',
   'getMaxLeverage',
   'getOpenOrders',
   'getOrderBookGrouping',
@@ -970,6 +974,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setProLayoutPreferences',
   'setPerpsMode',
   'setSelectedOrderType',
+  'saveMarginMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
@@ -1944,7 +1949,7 @@ export class PerpsController extends BaseController<
     return this.messenger.call(
       'TransactionController:addTransaction',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      txParams as any,
+      txParams,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { ...(options as any), isInternal: true },
     );
@@ -2379,7 +2384,7 @@ export class PerpsController extends BaseController<
       )
         .then(({ LighterProvider }) => {
           this.registerLighterProvider(LighterProvider);
-          return undefined;
+          return;
         })
         .catch((error: unknown) => this.handleLighterImportError(error));
     }
@@ -2482,9 +2487,7 @@ export class PerpsController extends BaseController<
       // version whose venue has since been removed. `activeProvider` is
       // persisted, so throwing here would fail initialization on every
       // launch — the stale value must self-heal.
-      const directProvider = this.providers.get(
-        activeProvider as PerpsProviderType,
-      );
+      const directProvider = this.providers.get(activeProvider);
       if (directProvider) {
         this.activeProviderInstance = directProvider;
       } else {
@@ -2542,7 +2545,7 @@ export class PerpsController extends BaseController<
    * @returns The current controller state cast to PerpsControllerState.
    */
   #getControllerState(): PerpsControllerState {
-    return this.state as unknown as PerpsControllerState;
+    return this.state;
   }
 
   /**
@@ -2620,7 +2623,7 @@ export class PerpsController extends BaseController<
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
       ...additionalContext,
-    } as ServiceContext;
+    };
   }
 
   /**
@@ -3325,7 +3328,7 @@ export class PerpsController extends BaseController<
                 if (requestToUpdate) {
                   // For deposits, we have a txHash immediately, so mark as completed
                   // (the transaction hash means the deposit was successful)
-                  requestToUpdate.status = 'completed' as TransactionStatus;
+                  requestToUpdate.status = 'completed';
                   requestToUpdate.success = true;
                   requestToUpdate.txHash = actualTxHash;
                 }
@@ -3340,7 +3343,7 @@ export class PerpsController extends BaseController<
               });
             }, 100);
 
-            return undefined;
+            return;
           })
           .catch((error) => {
             // Check if user denied/cancelled the transaction
@@ -3390,7 +3393,7 @@ export class PerpsController extends BaseController<
                     (req) => req.id === currentDepositId,
                   );
                   if (requestToUpdate) {
-                    requestToUpdate.status = 'failed' as TransactionStatus;
+                    requestToUpdate.status = 'failed';
                     requestToUpdate.success = false;
                   }
                 }
@@ -3406,12 +3409,12 @@ export class PerpsController extends BaseController<
                 (req) => req.id === currentDepositId,
               );
               if (requestToUpdate) {
-                requestToUpdate.status = 'completed' as TransactionStatus;
+                requestToUpdate.status = 'completed';
                 requestToUpdate.success = true;
                 requestToUpdate.txHash = actualTxHash;
               }
             });
-            return undefined;
+            return;
           })
           .catch((error) => {
             const errorMessage = ensureError(
@@ -3464,7 +3467,7 @@ export class PerpsController extends BaseController<
               (req) => req.id === currentDepositId,
             );
             if (request) {
-              request.status = 'failed' as TransactionStatus;
+              request.status = 'failed';
               request.success = false;
             }
           }
@@ -6436,7 +6439,7 @@ export class PerpsController extends BaseController<
 
       // Handle other simple legacy strings (e.g., 'volume', 'openInterest', etc.)
       return {
-        optionId: pref as SortOptionId,
+        optionId: pref,
         direction: MARKET_SORTING_CONFIG.DefaultDirection,
       };
     }
@@ -6737,6 +6740,51 @@ export class PerpsController extends BaseController<
       state.tradeConfigurations[network][symbol] = {
         ...existingConfig,
         orderBookGrouping: grouping,
+      };
+    });
+  }
+
+  /**
+   * Get the saved margin mode (Isolated/Cross) for a market on the current
+   * network. Clients should still let a venue-enforced mode take priority.
+   *
+   * @param symbol - Market symbol
+   * @returns The saved margin mode or undefined if not set
+   */
+  getMarginMode(symbol: string): MarginMode | undefined {
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    return this.state.tradeConfigurations[network]?.[symbol]?.marginMode;
+  }
+
+  /**
+   * Save the margin mode (Isolated/Cross) picked for a market on the current
+   * network. Values other than `isolated` or `cross` are ignored.
+   *
+   * @param symbol - Market symbol
+   * @param marginMode - Margin mode to persist
+   */
+  saveMarginMode(symbol: string, marginMode: MarginMode): void {
+    if (marginMode !== 'isolated' && marginMode !== 'cross') {
+      return;
+    }
+
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+
+    this.#debugLog('PerpsController: Saving margin mode', {
+      symbol,
+      network,
+      marginMode,
+    });
+
+    this.update((state) => {
+      if (!state.tradeConfigurations[network]) {
+        state.tradeConfigurations[network] = {};
+      }
+
+      const existingConfig = state.tradeConfigurations[network][symbol] || {};
+      state.tradeConfigurations[network][symbol] = {
+        ...existingConfig,
+        marginMode,
       };
     });
   }

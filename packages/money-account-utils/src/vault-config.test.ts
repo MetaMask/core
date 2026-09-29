@@ -1,6 +1,7 @@
 import type { MoneyAccountVaultConfig } from './vault-config.js';
 import {
   areMoneyAccountVaultConfigsEqual,
+  getMoneyAccountPremiumVaultConfig,
   getMoneyAccountVaultConfig,
   parseMoneyAccountVaultConfig,
 } from './vault-config.js';
@@ -194,5 +195,46 @@ describe('areMoneyAccountVaultConfigsEqual', () => {
     expect(
       areMoneyAccountVaultConfigsEqual(withoutUnderlyingToken, config),
     ).toBe(false);
+  });
+});
+
+const VALID_PREMIUM_CONFIG = {
+  ...VALID_CONFIG,
+  boringVault: '0xBFeC8c2b1ccea3931a1363E4CaC27352c1C908B7',
+} as const;
+
+describe('getMoneyAccountPremiumVaultConfig', () => {
+  it('parses the config out of the remote feature flags', () => {
+    expect(
+      getMoneyAccountPremiumVaultConfig({
+        moneyAccountPremiumVaultConfig: { ...VALID_PREMIUM_CONFIG },
+      }),
+    ).toStrictEqual(VALID_PREMIUM_CONFIG);
+  });
+
+  it('ignores an adapterAddress supplied by a legacy flag', () => {
+    expect(
+      getMoneyAccountPremiumVaultConfig({
+        moneyAccountPremiumVaultConfig: {
+          ...VALID_PREMIUM_CONFIG,
+          adapterAddress: '0x9AF808DA682aC92AA23CF40509F5A3694445e2b7',
+        },
+      }),
+    ).toStrictEqual(VALID_PREMIUM_CONFIG);
+  });
+
+  it('returns undefined when the flag is unserved', () => {
+    expect(getMoneyAccountPremiumVaultConfig(undefined)).toBeUndefined();
+  });
+
+  it('returns undefined when the flag is malformed', () => {
+    expect(
+      getMoneyAccountPremiumVaultConfig({
+        moneyAccountPremiumVaultConfig: {
+          ...VALID_PREMIUM_CONFIG,
+          lensAddress: '0x0',
+        },
+      }),
+    ).toBeUndefined();
   });
 });

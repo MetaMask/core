@@ -48,7 +48,7 @@ const mockFrontPage: MarketOverviewFrontPage = {
 const createMessenger = (): AiDigestControllerMessenger =>
   new Messenger({
     namespace: 'AiDigestController',
-  }) as AiDigestControllerMessenger;
+  });
 
 const createService = (overrides?: Partial<DigestService>): DigestService => ({
   searchDigest: jest.fn().mockResolvedValue(mockReport),

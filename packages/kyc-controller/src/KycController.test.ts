@@ -739,10 +739,64 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Completed' });
 
-          await controller.launchProviderFlow({ locale: 'en', debug: false });
+          const result = await controller.launchProviderFlow({
+            locale: 'en',
+            debug: false,
+          });
 
+          expect(result).toBe('submitted');
           expect(handlers.createJourney).toHaveBeenCalledWith('sid');
           expect(launcher.launch).toHaveBeenCalled();
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('records abandonment when SumSub closes before submission', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports that it could not run', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Failed' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports Failed through a status change', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'Failed');
+              return { status: 'Ready' };
+            },
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
         },
       );
     });
@@ -764,8 +818,9 @@ describe('KycController', () => {
           );
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
-          await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({});
 
+          expect(result).toBe('submitted');
           expect(launcher.launch).toHaveBeenCalledWith(
             expect.objectContaining({ locale: 'en', debug: false }),
           );
@@ -801,21 +856,65 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher }) => {
           launcher.isAvailable.mockReturnValue(false);
 
-          await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({});
 
+          expect(result).toBe('failed');
           expect(handlers.createJourney).not.toHaveBeenCalled();
           expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.providerFlowStatus).toBe('failed');
         },
       );
     });
 
     it('does nothing when there is no session', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
-        await controller.launchProviderFlow({});
+        const result = await controller.launchProviderFlow({});
 
+        expect(result).toBe('failed');
         expect(handlers.createJourney).not.toHaveBeenCalled();
         expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.providerFlowStatus).toBe('failed');
       });
+    });
+
+    it('records failure when the provider launcher throws', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockRejectedValue(new Error('launcher unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('does not update a reset session when the provider launcher throws', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            controller.clearState();
+            throw new Error('launcher unavailable');
+          });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+        },
+      );
+    });
+
+    it('returns the persisted provider flow status', async () => {
+      await withController(
+        { options: { state: { providerFlowStatus: 'abandoned' } } },
+        ({ controller }) => {
+          expect(controller.getProviderFlowStatus()).toBe('abandoned');
+        },
+      );
     });
   });
 
@@ -1097,7 +1196,7 @@ function withController<ReturnValue>(
 
   const controller = new KycController({
     messenger,
-    sumsubLauncher: launcher as unknown as KycSumSubLauncher,
+    sumsubLauncher: launcher,
     ...options,
   });
 

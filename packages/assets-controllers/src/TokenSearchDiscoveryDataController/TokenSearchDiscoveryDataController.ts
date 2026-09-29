@@ -185,14 +185,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     );
 
     let tokenDisplayData: TokenDisplayData;
-    if (!tokenMetadata) {
-      tokenDisplayData = {
-        found: false,
-        address,
-        chainId,
-        currency: currentCurrency,
-      };
-    } else {
+    if (tokenMetadata) {
       const priceData = await this.#fetchPriceData(chainId, address);
       tokenDisplayData = {
         found: true,
@@ -208,6 +201,13 @@ export class TokenSearchDiscoveryDataController extends BaseController<
           }),
         },
         price: priceData,
+      };
+    } else {
+      tokenDisplayData = {
+        found: false,
+        address,
+        chainId,
+        currency: currentCurrency,
       };
     }
 

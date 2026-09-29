@@ -282,7 +282,7 @@ function mergeReleaseChanges(
     const categoryAlreadyExisted = category in ourReleaseChanges;
     ourReleaseChanges[category] ??= [];
 
-    const ourCategoryChanges = ourReleaseChanges[category] as Change[];
+    const ourCategoryChanges = ourReleaseChanges[category];
     addedEntriesCount += mergeCategoryEntries(
       ourCategoryChanges,
       theirEntries,

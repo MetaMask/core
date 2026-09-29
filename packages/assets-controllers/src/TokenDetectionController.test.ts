@@ -2992,7 +2992,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -3074,7 +3074,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should not call addTokens if no tokens have metadata
@@ -3140,7 +3140,7 @@ describe('TokenDetectionController', () => {
           // Add both tokens via websocket
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress, secondTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should add both tokens (no filtering in addDetectedTokensViaWs)
@@ -3207,7 +3207,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should track metrics event
@@ -3264,7 +3264,7 @@ describe('TokenDetectionController', () => {
           // Call the public method directly on the controller instance
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -3318,7 +3318,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -3362,7 +3362,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -3473,7 +3473,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -3566,7 +3566,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should not call addTokens when useTokenDetection is disabled
@@ -3635,7 +3635,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should not call addTokens for tokens already in allTokens
@@ -3698,7 +3698,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should not call addTokens for tokens in allIgnoredTokens
@@ -3757,7 +3757,7 @@ describe('TokenDetectionController', () => {
           // Call addDetectedTokensViaPolling - with the fix, it should fetch fresh cache
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // With the fix, the token should be added because fresh cache is fetched
@@ -3867,7 +3867,7 @@ describe('TokenDetectionController', () => {
               ignoredTokenAddress,
               newTokenAddress,
             ],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           // Should only add the new untracked token
@@ -3923,7 +3923,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -3970,7 +3970,7 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress, unknownAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -4243,7 +4243,7 @@ describe('TokenDetectionController', () => {
 
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -4290,7 +4290,7 @@ describe('TokenDetectionController', () => {
 
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
-            chainId: chainId as Hex,
+            chainId,
           });
 
           expect(callActionSpy).not.toHaveBeenCalledWith(

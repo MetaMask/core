@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Expose structured fetch error data ([#10494](https://github.com/MetaMask/core/pull/10494))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@ethersproject/bytes` from `^5.7.0` to `^5.8.0` ([#10480](https://github.com/MetaMask/core/pull/10480))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/transactions` from `^5.7.0` to `^5.8.0` ([#10483](https://github.com/MetaMask/core/pull/10483))
+
 ## [27.0.3]
 
 ### Changed

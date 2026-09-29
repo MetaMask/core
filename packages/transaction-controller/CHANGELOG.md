@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/wallet` from `^5.7.0` to `^5.8.0` ([#10484](https://github.com/MetaMask/core/pull/10484))
+
+## [72.0.1]
+
 ### Fixed
 
 - Only exclude the simulated gas cost from `nativeBalanceChange` when the sender was actually charged it ([#10343](https://github.com/MetaMask/core/pull/10343))
@@ -2794,7 +2802,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...HEAD
+[72.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...@metamask/transaction-controller@72.0.1
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...@metamask/transaction-controller@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...@metamask/transaction-controller@71.0.0
 [70.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...@metamask/transaction-controller@70.1.0
