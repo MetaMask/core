@@ -2577,9 +2577,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       // blocked when they try to trade. Software wallets can complete the
       // signing-backed migration during initial setup so the first trade sees
       // the unified balance. Hardware wallets remain deferred to action time to
-      // avoid repeated signing prompts while browsing.
+      // avoid repeated signing prompts while browsing. Watch-only accounts
+      // cannot sign at all, so they skip the migration.
       await this.#ensureUnifiedAccountEnabled({
-        allowUserSigning: !this.#walletService.isSelectedHardwareWallet(),
+        allowUserSigning:
+          !this.#walletService.isSelectedHardwareWallet() &&
+          !this.#walletService.isSelectedWatchOnly(),
       });
     })();
 
@@ -2707,6 +2710,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
   }): Promise<BuilderFeeSetupContext | undefined> {
+    // Watch-only accounts have no keys. Refuse here, before any signing, so the
+    // caller gets an explicit code instead of the SDK's generic signing error.
+    if (this.#walletService.isSelectedWatchOnly()) {
+      throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+    }
+
     // First ensure basic initialization is complete
     await this.#ensureReady();
 
@@ -9035,6 +9044,16 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // Refuse before a Chase session is stopped below: the cancel could never
+    // be signed, and the stopped loop would leave its live child unmanaged.
+    if (this.#walletService.isSelectedWatchOnly()) {
+      return {
+        success: false,
+        orderId: params.orderId,
+        error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT,
+      };
+    }
+
     // A strategy handle is not an exchange order ID, so it cannot go through
     // the single-order cancel below. Callers that omit `orderType` — every
     // existing one — keep the behaviour they have today.
@@ -9157,12 +9176,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
+    // Refuse before any Chase session is stopped below (see cancelOrder).
+    const refuseAll = this.#walletService.isSelectedWatchOnly();
     const results: CancelOrdersResult['results'] = params.map((order) => ({
       orderId: order.orderId,
       symbol: order.symbol,
       success: false,
-      error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+      error: refuseAll
+        ? PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT
+        : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
     }));
+    if (refuseAll) {
+      return {
+        success: false,
+        successCount: 0,
+        failureCount: params.length,
+        results,
+      };
+    }
 
     // Resolve Chase ownership before the first await. A queued reprice may
     // replace the child ID, but the stable session handle still reaches it.
@@ -10632,6 +10663,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
     try {
+      if (this.#walletService.isSelectedWatchOnly()) {
+        throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+      }
+
       this.#deps.debugLogger.log('Updating position margin:', params);
 
       const { symbol, amount } = params;
@@ -13449,6 +13484,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     try {
+      // Refuse before the action-time Unified Account migration below, which
+      // would otherwise request a signature from a key-less account.
+      if (this.#walletService.isSelectedWatchOnly()) {
+        throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+      }
+
       this.#deps.debugLogger.log('HyperLiquidProvider: STARTING WITHDRAWAL', {
         params,
         timestamp: new Date().toISOString(),
@@ -13702,6 +13743,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: TransferBetweenDexsParams,
   ): Promise<TransferBetweenDexsResult> {
     try {
+      if (this.#walletService.isSelectedWatchOnly()) {
+        throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+      }
+
       this.#deps.debugLogger.log('HyperLiquidProvider: STARTING DEX TRANSFER', {
         params,
         timestamp: new Date().toISOString(),
@@ -14091,6 +14136,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       } catch (error) {
         this.#deps.debugLogger.log('Account not connected:', error);
         accountConnected = false;
+      }
+
+      if (this.#walletService.isSelectedWatchOnly()) {
+        return {
+          ready: false,
+          walletConnected,
+          networkSupported: true,
+          error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT,
+        };
       }
 
       const ready = walletConnected && accountConnected;

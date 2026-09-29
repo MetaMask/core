@@ -316,6 +316,7 @@ type BuiltProvider = {
   bridge: LighterSignerBridge;
   calls: LighterWasmCall[];
   getUserAddressMock: jest.Mock;
+  isSelectedWatchOnlyMock: jest.Mock;
   fireReset: () => void;
   resetListenerCount: () => number;
   resetUnsubscribe: jest.Mock;
@@ -515,10 +516,12 @@ function buildProvider(
   const getUserAddressMock = jest
     .fn()
     .mockReturnValue('0x8D7f03FdE1A626223364E592740a233b72395235');
+  const isSelectedWatchOnlyMock = jest.fn().mockReturnValue(false);
   MockedWalletService.mockImplementation(
     () =>
       ({
         getUserAddress: getUserAddressMock,
+        isSelectedWatchOnly: isSelectedWatchOnlyMock,
         signPersonalMessage: jest
           .fn()
           .mockResolvedValue(`0x${'cd'.repeat(65)}`),
@@ -549,6 +552,7 @@ function buildProvider(
     bridge,
     calls,
     getUserAddressMock,
+    isSelectedWatchOnlyMock,
     fireReset,
     resetListenerCount,
     resetUnsubscribe,
@@ -1430,6 +1434,72 @@ describe('LighterProvider', () => {
       expect(await provider.getCurrentAccountId()).toBe(
         'eip155:300:0x8D7f03FdE1A626223364E592740a233b72395235',
       );
+    });
+  });
+
+  describe('watch-only accounts', () => {
+    it('refuses orders before signing, even with a registered venue key', async () => {
+      const { provider, clientInstance, calls, isSelectedWatchOnlyMock } =
+        buildProvider({ registeredKey: '9c'.repeat(40) });
+      isSelectedWatchOnlyMock.mockReturnValue(true);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('WATCH_ONLY_ACCOUNT');
+      // Only the bridge-local signer setup ran; nothing was signed or sent.
+      expect(calls.map((call) => call.function)).toStrictEqual([
+        '_createClient',
+      ]);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('refuses withdrawals before signing, even with a registered venue key', async () => {
+      const { provider, clientInstance, calls, isSelectedWatchOnlyMock } =
+        buildProvider({ registeredKey: '9c'.repeat(40) });
+      isSelectedWatchOnlyMock.mockReturnValue(true);
+
+      const result = await provider.withdraw({ amount: '25' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('WATCH_ONLY_ACCOUNT');
+      // Only the bridge-local signer setup ran; nothing was signed or sent.
+      expect(calls.map((call) => call.function)).toStrictEqual([
+        '_createClient',
+      ]);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('reports not ready to trade, even with a registered venue key', async () => {
+      const { provider, calls, isSelectedWatchOnlyMock } = buildProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      isSelectedWatchOnlyMock.mockReturnValue(true);
+
+      expect(await provider.isReadyToTrade()).toStrictEqual({
+        ready: false,
+        error: 'WATCH_ONLY_ACCOUNT',
+        walletConnected: true,
+        networkSupported: true,
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it('keeps authenticated reads available with a registered venue key', async () => {
+      const { provider, clientInstance, calls, isSelectedWatchOnlyMock } =
+        buildProvider({ registeredKey: '9c'.repeat(40) });
+      isSelectedWatchOnlyMock.mockReturnValue(true);
+
+      expect(await provider.getOrderFills()).toStrictEqual([]);
+      expect(clientInstance.getTrades).toHaveBeenCalled();
+      expect(calls.map((call) => call.function)).toContain('_createAuthToken');
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
     });
   });
 

@@ -53,6 +53,9 @@ export function keyringTypeToName(keyringType: string): string {
       // FIXME: This should probably live in the `KeyringController` package instead.
       return 'Money';
     }
+    case KeyringTypes.watchOnly: {
+      return 'Watch-only';
+    }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
     }
@@ -143,6 +146,18 @@ export function isSimpleKeyringType(
  */
 export function isHdKeyringType(keyringType: KeyringTypes | string): boolean {
   return keyringType === (KeyringTypes.hd as string);
+}
+
+/**
+ * Check if a keyring is a watch-only keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring is a watch-only keyring, false otherwise.
+ */
+export function isWatchOnlyKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return keyringType === (KeyringTypes.watchOnly as string);
 }
 
 /**

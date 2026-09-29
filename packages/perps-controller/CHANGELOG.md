@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Refuse writes for watch-only accounts before they reach the keyring ([#10426](https://github.com/MetaMask/core/pull/10426))
+  - Add the `WATCH_ONLY_ACCOUNT` error code, `HyperLiquidWalletService.isSelectedWatchOnly`, and `LighterWalletService.isSelectedWatchOnly`.
+  - HyperLiquid trading, cancel, margin, DEX transfer, and withdrawal entry points refuse with `WATCH_ONLY_ACCOUNT` before any signing.
+  - Lighter venue writes (orders, cancels, TP/SL, margin, withdrawals) refuse with `WATCH_ONLY_ACCOUNT` before signing, including when a venue key is already registered for the account. Signer setup still runs, so authenticated reads keep working when the account's venue key is registered on this device. Without one, Lighter authenticated reads (orders, fills, funding) stay unavailable: registering a key needs an L1 signature.
+  - HyperLiquid and Lighter `isReadyToTrade` report `ready: false` with `WATCH_ONLY_ACCOUNT` for watch-only accounts.
+  - `depositWithConfirmation` and `depositWithOrder` throw `WATCH_ONLY_ACCOUNT` before recording a deposit request or adding a transaction.
+  - `PerpsController.withdraw` returns `{ success: false, error: 'WATCH_ONLY_ACCOUNT' }` before a withdrawal request is tracked.
+  - HyperLiquid typed-data signing and Lighter personal signing also throw `WATCH_ONLY_ACCOUNT` when the selected account belongs to the watch-only keyring.
+  - HyperLiquid initialization skips the signing-backed Unified Account migration for watch-only accounts.
 - Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
   - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
   - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.

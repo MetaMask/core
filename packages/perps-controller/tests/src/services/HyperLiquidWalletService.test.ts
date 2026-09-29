@@ -375,6 +375,34 @@ describe('HyperLiquidWalletService', () => {
 
       expect(service.isSelectedHardwareWallet()).toBe(true);
     });
+
+    it('returns false from isSelectedWatchOnly for software wallet', () => {
+      expect(service.isSelectedWatchOnly()).toBe(false);
+    });
+
+    it('returns true from isSelectedWatchOnly for watch-only accounts', () => {
+      (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [
+            {
+              ...mockEvmAccount,
+              metadata: {
+                ...mockEvmAccount.metadata,
+                keyring: { type: 'Watch Only Keyring' },
+              },
+            },
+          ];
+        }
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked: true };
+        }
+        return undefined;
+      });
+
+      expect(service.isSelectedWatchOnly()).toBe(true);
+    });
   });
 
   describe('Network Management', () => {
@@ -427,6 +455,49 @@ describe('HyperLiquidWalletService', () => {
 
       expect(() => service.getUserAddress(accountId)).toThrow(
         'Invalid CAIP account ID',
+      );
+    });
+
+    it('throws WATCH_ONLY_ACCOUNT without calling the keyring for watch-only accounts', async () => {
+      const walletAdapter = service.createWalletAdapter();
+      (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [
+            {
+              ...mockEvmAccount,
+              metadata: {
+                ...mockEvmAccount.metadata,
+                keyring: { type: 'Watch Only Keyring' },
+              },
+            },
+          ];
+        }
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked: true };
+        }
+        return undefined;
+      });
+
+      await expect(
+        walletAdapter.signTypedData({
+          domain: {
+            name: 'Test',
+            version: '1',
+            chainId: 42161,
+            verifyingContract:
+              '0x0000000000000000000000000000000000000000' as `0x${string}`,
+          },
+          types: { Test: [{ name: 'value', type: 'string' }] },
+          primaryType: 'Test',
+          message: { value: 'test' },
+        }),
+      ).rejects.toThrow('WATCH_ONLY_ACCOUNT');
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'KeyringController:signTypedMessage',
+        expect.anything(),
+        expect.anything(),
       );
     });
 

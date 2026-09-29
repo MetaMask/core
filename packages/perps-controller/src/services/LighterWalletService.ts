@@ -28,7 +28,10 @@ import type {
   LighterNetwork,
   LighterPersonalSigner,
 } from '../types/lighter-types.js';
-import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import {
+  getSelectedEvmAccountFromMessenger,
+  isSelectedEvmAccountWatchOnly,
+} from '../utils/accountUtils.js';
 
 export class LighterWalletService {
   #isTestnet: boolean;
@@ -81,6 +84,17 @@ export class LighterWalletService {
   }
 
   /**
+   * Check whether the selected EVM account is watch-only.
+   *
+   * @returns True when the selected account has no keys and cannot sign.
+   */
+  isSelectedWatchOnly(): boolean {
+    return this.#messenger
+      ? isSelectedEvmAccountWatchOnly(this.#messenger)
+      : false;
+  }
+
+  /**
    * Sign an EIP-191 personal message with the user's L1 account.
    *
    * Routes through the keyring when a messenger is present, else the
@@ -91,6 +105,9 @@ export class LighterWalletService {
    */
   async signPersonalMessage(message: string): Promise<string> {
     if (this.#messenger) {
+      if (this.isSelectedWatchOnly()) {
+        throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+      }
       const { isUnlocked } = this.#messenger.call('KeyringController:getState');
       if (!isUnlocked) {
         throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);

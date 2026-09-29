@@ -2961,6 +2961,56 @@ describe('AccountsController', () => {
       ).toStrictEqual(expectedAccounts);
     });
 
+    it('adds watch-only accounts without signing methods', async () => {
+      mockUUIDWithNormalAccounts([mockAccount]);
+
+      const messenger = buildMessenger();
+
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringTypes.watchOnly,
+              accounts: [mockAddress1],
+              metadata: {
+                id: 'mock-keyring-id-0',
+                name: 'mock-keyring-id-name',
+              },
+            },
+          ],
+        }),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: KeyringTypes.snap,
+            listAccounts: async (): Promise<InternalAccount[]> => [],
+          },
+        ]),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+          accountIdByAddress: {},
+        },
+        messenger,
+      });
+
+      await accountsController.updateAccounts();
+
+      const [account] = accountsController.listMultichainAccounts();
+      expect(account.metadata.name).toBe('Watch-only 1');
+      expect(account.metadata.keyring.type).toBe(KeyringTypes.watchOnly);
+      expect(account.methods).toStrictEqual([]);
+    });
+
     it('throw an error if the keyring type is unknown', async () => {
       mockUUIDWithNormalAccounts([mockAccount]);
 

@@ -1288,6 +1288,14 @@ export class LighterProvider implements PerpsProvider {
           networkSupported: true,
         };
       }
+      if (this.#walletService.isSelectedWatchOnly()) {
+        return {
+          ready: false,
+          error: PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT,
+          walletConnected: true,
+          networkSupported: true,
+        };
+      }
       await this.#ensureSignerReady();
       return {
         ready: true,
@@ -4255,6 +4263,7 @@ export class LighterProvider implements PerpsProvider {
         }
       },
       generation,
+      { signerSetup: true },
     );
     // AUTOMATIC bounded recovery: pending TP/SL journals must be
     // reconciled at startup/reconnect, not only when the next mutation
@@ -4408,6 +4417,10 @@ export class LighterProvider implements PerpsProvider {
    * provided helper (each call returns the next fresh nonce).
    * @param generationAtIntent - Session generation captured when the
    * caller's intent was formed (defaults to now).
+   * @param options - Lock options.
+   * @param options.signerSetup - True only for signer setup, which watch-only
+   * accounts may run so authenticated reads keep working. Its one venue write,
+   * key registration, is refused by `LighterWalletService.signPersonalMessage`.
    * @returns The section's result.
    */
   readonly #withVenueWriteLock = async <Result>(
@@ -4427,7 +4440,13 @@ export class LighterProvider implements PerpsProvider {
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
+    options: { signerSetup?: boolean } = {},
   ): Promise<Result> => {
+    // Every venue write passes through this lock. A venue key already
+    // registered for the account would otherwise sign without the L1 keyring.
+    if (!options.signerSetup && this.#walletService.isSelectedWatchOnly()) {
+      throw new Error(PERPS_ERROR_CODES.WATCH_ONLY_ACCOUNT);
+    }
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
       // Every unresolved prior dispatch (this session OR a previous one —

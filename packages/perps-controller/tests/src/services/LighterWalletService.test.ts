@@ -34,6 +34,11 @@ describe('LighterWalletService', () => {
       expect(signer).toHaveBeenCalledWith('hello');
     });
 
+    it('never reports the injected signer as watch-only', () => {
+      const { service } = buildService();
+      expect(service.isSelectedWatchOnly()).toBe(false);
+    });
+
     it('exposes and toggles testnet mode', () => {
       const { service } = buildService();
       expect(service.isTestnetMode()).toBe(true);
@@ -52,6 +57,7 @@ describe('LighterWalletService', () => {
 
     const buildMessengerService = (
       isUnlocked = true,
+      keyringType?: string,
     ): {
       service: LighterWalletService;
       messenger: ReturnType<typeof createMockMessenger>;
@@ -61,13 +67,16 @@ describe('LighterWalletService', () => {
         if (action === 'KeyringController:getState') {
           return { isUnlocked };
         }
+        const account = keyringType
+          ? { ...selectedAccount, metadata: { keyring: { type: keyringType } } }
+          : selectedAccount;
         if (action === 'AccountsController:getSelectedAccount') {
-          return selectedAccount;
+          return account;
         }
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
         ) {
-          return [selectedAccount];
+          return [account];
         }
         if (action === 'KeyringController:signPersonalMessage') {
           return Promise.resolve(FIXED_SIGNATURE);
@@ -91,6 +100,29 @@ describe('LighterWalletService', () => {
           from: HEADLESS_ADDRESS,
           data: expect.stringMatching(/^0x/u),
         }),
+      );
+    });
+
+    it('reports whether the selected account is watch-only', () => {
+      expect(buildMessengerService().service.isSelectedWatchOnly()).toBe(false);
+      expect(
+        buildMessengerService(
+          true,
+          'Watch Only Keyring',
+        ).service.isSelectedWatchOnly(),
+      ).toBe(true);
+    });
+
+    it('rejects watch-only accounts without calling the keyring', async () => {
+      const { service, messenger } = buildMessengerService(
+        true,
+        'Watch Only Keyring',
+      );
+      await expect(service.signPersonalMessage('nope')).rejects.toThrow(
+        'WATCH_ONLY_ACCOUNT',
+      );
+      expect(messenger.call.mock.calls.map(([action]) => action)).not.toContain(
+        'KeyringController:signPersonalMessage',
       );
     });
 

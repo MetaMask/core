@@ -344,6 +344,7 @@ class TestablePerpsController extends PerpsController {
 
 describe('PerpsController', () => {
   let controller: TestablePerpsController;
+  let messengerCall: jest.Mock;
   let mockProvider: jest.Mocked<HyperLiquidProvider>;
   let mockInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
 
@@ -529,6 +530,7 @@ describe('PerpsController', () => {
       return undefined;
     });
 
+    messengerCall = mockCall;
     mockInfrastructure = createMockInfrastructure();
     controller = new TestablePerpsController({
       messenger: createMockMessenger({ call: mockCall }),
@@ -574,6 +576,35 @@ describe('PerpsController', () => {
   });
 
   describe('withdraw', () => {
+    it('refuses watch-only accounts before the withdrawal is tracked', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      jest.spyOn(mockAccountServiceInstance, 'withdraw');
+      const defaultCall = messengerCall.getMockImplementation();
+      messengerCall.mockImplementation((action: string, ...args: unknown[]) =>
+        action === 'AccountsController:getSelectedAccount'
+          ? {
+              address: '0x1234567890123456789012345678901234567890',
+              type: 'eip155:eoa',
+              metadata: { keyring: { type: 'Watch Only Keyring' } },
+            }
+          : defaultCall?.(action, ...args),
+      );
+
+      const result = await controller.withdraw({
+        amount: '100',
+        destination: '0x1234567890123456789012345678901234567890',
+        assetId:
+          'eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831/default',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: 'WATCH_ONLY_ACCOUNT',
+      });
+      expect(mockAccountServiceInstance.withdraw).not.toHaveBeenCalled();
+    });
+
     it('withdraws successfully', async () => {
       const withdrawParams = {
         amount: '100',
