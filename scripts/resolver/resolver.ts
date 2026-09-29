@@ -2,8 +2,21 @@ import type { ResolveHook } from 'module';
 import type { ResolveFnOutput } from 'node:module';
 
 /**
- * Custom resolver hook for Node.js that attempts to resolve TypeScript files
- * when a JavaScript file is requested.
+ * A mapping of package names to their source file paths. This is used t
+ * override the default resolution of certain packages to point to their source
+ * files instead of the compiled JavaScript files.
+ */
+const PACKAGE_SOURCE_OVERRIDES: Record<string, string> = {
+  '@metamask/utils': '../../packages/utils/src/index.ts',
+  '@metamask/utils/node': '../../packages/utils/src/node.ts',
+};
+
+/**
+ * Custom resolver hook for Node.js that:
+ *
+ * 1. Attempts to resolve TypeScript files when a JavaScript file is requested.
+ * 2. Overrides certain package resolutions to point to their source files
+ *    instead of the compiled JavaScript files.
  *
  * @param specifier - The module specifier to resolve.
  * @param context - The resolver hook context.
@@ -15,6 +28,14 @@ export const resolve: ResolveHook = async (
   context,
   nextResolve,
 ): Promise<ResolveFnOutput> => {
+  const sourceOverride = PACKAGE_SOURCE_OVERRIDES[specifier];
+  if (sourceOverride) {
+    return await nextResolve(
+      new URL(sourceOverride, import.meta.url).href,
+      context,
+    );
+  }
+
   if (
     specifier.endsWith('.js') &&
     (specifier.startsWith('./') || specifier.startsWith('../'))
