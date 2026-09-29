@@ -4381,9 +4381,9 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
+          "forceIsGasFeeSponsored": false,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4461,9 +4461,9 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
+          "forceIsGasFeeSponsored": false,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4794,9 +4794,9 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
+          "forceIsGasFeeSponsored": false,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4923,9 +4923,9 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
+          "forceIsGasFeeSponsored": false,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4978,9 +4978,9 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
+          "forceIsGasFeeSponsored": false,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
