@@ -1,6 +1,6 @@
 {
   "name": "@metamask/advanced-chart-core",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Platform-agnostic TradingView Advanced Charts WebView engine shared across MetaMask clients",
   "keywords": [
     "Ethereum",
