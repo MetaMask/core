@@ -1,8 +1,7 @@
-import { fileExists } from '@metamask/utils/node';
 import { getPluginConfiguration } from '@yarnpkg/cli';
+import type { LocatorHash } from '@yarnpkg/core';
 import {
   Configuration,
-  LocatorHash,
   Project,
   structUtils,
   ThrowReport,
@@ -63,27 +62,6 @@ export async function getAllWorkspaces(): Promise<Workspace[]> {
     .split('\n')
     .map((line) => JSON.parse(line))
     .filter(({ location }: Workspace) => location !== '.');
-}
-
-/**
- * Get all TypeScript workspaces in the monorepo. This filters to packages
- * containing a "tsconfig.build.json" file.
- *
- * @returns All TypeScript workspaces.
- */
-export async function getTypeScriptWorkspaces(): Promise<Workspace[]> {
-  const workspaces = await getAllWorkspaces();
-
-  return (
-    await Promise.all(
-      workspaces.map(async (workspace) => {
-        const hasTsConfig = await fileExists(
-          join(ROOT_WORKSPACE, workspace.location, 'tsconfig.build.json'),
-        );
-        return hasTsConfig ? workspace : null;
-      }),
-    )
-  ).filter((workspace): workspace is Workspace => workspace !== null);
 }
 
 /**
