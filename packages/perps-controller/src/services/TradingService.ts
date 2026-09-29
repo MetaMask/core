@@ -1946,14 +1946,12 @@ export class TradingService {
         };
       }, ['orders']); // Disconnect orders stream during operation
 
-      if (
-        provider.cancelOrders &&
-        operationResult?.results.some(
-          (result) => !result.success && !isSignerUnavailable(result.error),
-        )
-      ) {
-        const failureSummary = operationResult.results
-          .filter((result) => !result.success)
+      // Signer failures are retryable, so only the other failures are reported.
+      const reportedFailures = operationResult.results.filter(
+        (result) => !result.success && !isSignerUnavailable(result.error),
+      );
+      if (provider.cancelOrders && reportedFailures.length > 0) {
+        const failureSummary = reportedFailures
           .map(
             (result) =>
               `${result.symbol}/${result.orderId}: ${result.error ?? 'Unknown error'}`,
@@ -1962,11 +1960,11 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed - ${failureSummary}`,
+            `cancelOrders batch failure: ${reportedFailures.length}/${operationResult.results.length} failed - ${failureSummary}`,
           ),
           this.#getErrorContext('cancelOrders', {
             successCount: operationResult.successCount,
-            failureCount: operationResult.failureCount,
+            failureCount: reportedFailures.length,
             cancelAll: params.cancelAll,
           }),
         );
@@ -2326,14 +2324,12 @@ export class TradingService {
         };
       }
 
-      if (
-        provider.closePositions &&
-        operationResult?.results.some(
-          (result) => !result.success && !isSignerUnavailable(result.error),
-        )
-      ) {
-        const failureSummary = operationResult.results
-          .filter((result) => !result.success)
+      // Signer failures are retryable, so only the other failures are reported.
+      const reportedFailures = operationResult.results.filter(
+        (result) => !result.success && !isSignerUnavailable(result.error),
+      );
+      if (provider.closePositions && reportedFailures.length > 0) {
+        const failureSummary = reportedFailures
           .map(
             (result) => `${result.symbol}: ${result.error ?? 'Unknown error'}`,
           )
@@ -2341,11 +2337,11 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed - ${failureSummary}`,
+            `closePositions batch failure: ${reportedFailures.length}/${operationResult.results.length} failed - ${failureSummary}`,
           ),
           this.#getErrorContext('closePositions', {
             successCount: operationResult.successCount,
-            failureCount: operationResult.failureCount,
+            failureCount: reportedFailures.length,
             symbols: params.symbols?.length ?? 0,
             closeAll: params.closeAll,
           }),

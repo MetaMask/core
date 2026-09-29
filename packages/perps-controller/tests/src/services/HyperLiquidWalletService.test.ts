@@ -346,7 +346,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('returns false for software wallet', () => {
-      expect(service.isSelectedHardwareWallet()).toBe(false);
+      expect(service.requiresSignatureConfirmation()).toBe(false);
     });
 
     it.each([
@@ -373,7 +373,7 @@ describe('HyperLiquidWalletService', () => {
         return undefined;
       });
 
-      expect(service.isSelectedHardwareWallet()).toBe(true);
+      expect(service.requiresSignatureConfirmation()).toBe(true);
     });
   });
 
@@ -469,7 +469,7 @@ describe('HyperLiquidWalletService', () => {
       );
     });
 
-    it('should return keyring unlocked status via isMainAccountSignerReady()', () => {
+    it('reports whether the main-account signer is ready from the keyring lock state', () => {
       expect(service.isMainAccountSignerReady()).toBe(true);
 
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {

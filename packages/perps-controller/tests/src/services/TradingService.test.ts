@@ -1882,6 +1882,54 @@ describe('TradingService', () => {
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
+    it('counts and lists only the reported failures of a batch cancel', async () => {
+      mockGetOpenOrders.mockResolvedValue(mockOrders);
+      mockWithStreamPause.mockImplementation(
+        async (callback) => await callback(),
+      );
+      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+        success: false,
+        successCount: 0,
+        failureCount: 2,
+        results: [
+          {
+            orderId: 'order-1',
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          },
+          {
+            orderId: 'order-2',
+            symbol: 'ETH',
+            success: false,
+            error: 'rate limit',
+          },
+        ],
+      });
+
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { cancelAll: true },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+
+      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+        [
+          new Error(
+            'cancelOrders batch failure: 1/2 failed - ETH/order-2: rate limit',
+          ),
+          {
+            controller: 'TradingService',
+            method: 'cancelOrders',
+            successCount: 0,
+            failureCount: 1,
+            cancelAll: true,
+          },
+        ],
+      ]);
+    });
+
     it('does NOT log batch error when using fallback path (provider.cancelOrders undefined)', async () => {
       const params: CancelOrdersParams = { cancelAll: true };
       mockGetOpenOrders.mockResolvedValue(mockOrders);
@@ -2582,6 +2630,45 @@ describe('TradingService', () => {
 
       expect(result.success).toBe(false);
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
+
+    it('counts and lists only the reported failures of a batch close', async () => {
+      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+        success: false,
+        successCount: 0,
+        failureCount: 2,
+        results: [
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          },
+          { symbol: 'ETH', success: false, error: 'min size' },
+        ],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+        [
+          new Error('closePositions batch failure: 1/2 failed - ETH: min size'),
+          {
+            controller: 'TradingService',
+            method: 'closePositions',
+            successCount: 0,
+            failureCount: 1,
+            symbols: 0,
+            closeAll: true,
+          },
+        ],
+      ]);
     });
 
     it('does NOT log batch error when using fallback path (provider.closePositions undefined)', async () => {

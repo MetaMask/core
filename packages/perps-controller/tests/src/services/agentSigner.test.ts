@@ -4,13 +4,17 @@ import {
   isAgentSignerUnavailableError,
 } from '../../../src/services/agentSigner.js';
 import type { PerpsAgentAccount } from '../../../src/types/index.js';
+import {
+  AGENT_ADDRESS,
+  OTHER_AGENT_ADDRESS,
+} from '../../helpers/agentFixtures.js';
 
 const ACCOUNT: PerpsAgentAccount = {
   mainAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
   isTestnet: false,
 };
 const AGENT = {
-  address: '0x00000000000000000000000000000000000a9e17',
+  address: AGENT_ADDRESS,
   signTypedData: jest.fn(),
 } as const;
 
@@ -36,7 +40,7 @@ describe('AgentBindings', () => {
     bindings.set(ACCOUNT, AGENT);
     bindings.set(otherAccount, null);
 
-    bindings.release(ACCOUNT, '0x00000000000000000000000000000000000b0b02');
+    bindings.release(ACCOUNT, OTHER_AGENT_ADDRESS);
     bindings.release(otherAccount, AGENT.address);
 
     expect(await bindings.resolve(ACCOUNT)).toBe(AGENT);

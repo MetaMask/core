@@ -5895,9 +5895,9 @@ export class PerpsController extends BaseController<
     agentSigner: PerpsAgentSigner | null,
   ): void {
     this.#agentBindings.set(account, agentSigner);
-    // Drop agents the provider already resolved so the binding applies to
+    // Drop agents the providers already resolved so the binding applies to
     // the next L1 action.
-    this.providers.get('hyperliquid')?.clearAgentSigners?.();
+    this.#clearProviderAgentSigners();
   }
 
   /**
@@ -5910,7 +5910,16 @@ export class PerpsController extends BaseController<
    */
   clearAgentSigners(): void {
     this.#agentBindings.clear();
-    this.providers.get('hyperliquid')?.clearAgentSigners?.();
+    this.#clearProviderAgentSigners();
+  }
+
+  /**
+   * Drop the agents every provider resolved.
+   */
+  #clearProviderAgentSigners(): void {
+    for (const provider of this.providers.values()) {
+      provider.clearAgentSigners?.();
+    }
   }
 
   /**

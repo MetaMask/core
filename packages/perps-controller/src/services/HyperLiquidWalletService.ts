@@ -104,7 +104,7 @@ export class HyperLiquidWalletService {
    *
    * @returns True when signatures need a confirmation; false otherwise.
    */
-  public isSelectedHardwareWallet(): boolean {
+  public requiresSignatureConfirmation(): boolean {
     const declared =
       this.#deps.accountSigner?.requiresSignatureConfirmation?.();
     if (declared !== undefined) {
@@ -153,7 +153,7 @@ export class HyperLiquidWalletService {
    *
    * @returns The selected main account address.
    */
-  public getSelectedMainAddress(): Hex {
+  #getSelectedMainAddress(): Hex {
     const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
     if (!evmAccount?.address) {
@@ -210,9 +210,9 @@ export class HyperLiquidWalletService {
    */
   public createWalletAdapter(): HyperLiquidWalletParams {
     return {
-      address: this.getSelectedMainAddress(),
+      address: this.#getSelectedMainAddress(),
       signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
-        const mainAddress = this.getSelectedMainAddress();
+        const mainAddress = this.#getSelectedMainAddress();
         const agentSigner =
           this.#resolveAgent && isL1Action(params)
             ? await this.#resolveAgent(mainAddress)

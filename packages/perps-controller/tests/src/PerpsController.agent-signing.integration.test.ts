@@ -1,6 +1,10 @@
 import type { Hex } from '@metamask/utils';
 
 import {
+  BUILDER_FEE_CONFIG,
+  REFERRAL_CONFIG,
+} from '../../src/constants/hyperLiquidConfig.js';
+import {
   getDefaultPerpsControllerState,
   PerpsController,
 } from '../../src/PerpsController.js';
@@ -11,8 +15,16 @@ import { TradingReadinessCache } from '../../src/services/TradingReadinessCache.
 import type {
   PerpsAgentAccount,
   PerpsAgentSigner,
+  PerpsTypedDataPayload,
 } from '../../src/types/index.js';
-import { L1_PAYLOAD, USER_SIGNED_PAYLOAD } from '../helpers/agentFixtures.js';
+import {
+  AGENT_ADDRESS,
+  AGENT_SIGNATURE,
+  L1_PAYLOAD,
+  MAIN_SIGNATURE,
+  OTHER_AGENT_ADDRESS,
+  USER_SIGNED_PAYLOAD,
+} from '../helpers/agentFixtures.js';
 import {
   createMockExchangeClient,
   createMockInfoClient,
@@ -38,8 +50,8 @@ const MockedClientService = HyperLiquidClientService as jest.MockedClass<
 >;
 
 const MAIN_ADDRESS = createMockEvmAccount().address;
-const MAIN_SIGNATURE = `0x${'ab'.repeat(65)}` as const;
-const AGENT_SIGNATURE = `0x${'cd'.repeat(65)}` as const;
+// The second agent's signature, told apart from the first agent's.
+const OTHER_AGENT_SIGNATURE = `0x${'0b'.repeat(65)}` as const;
 // The controller starts on mainnet (default state).
 const MAINNET_ACCOUNT: PerpsAgentAccount = {
   mainAddress: MAIN_ADDRESS,
@@ -63,11 +75,16 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   let infrastructure: ReturnType<typeof createMockInfrastructure>;
   let loggerError: jest.SpyInstance;
   let exchangeClient: ReturnType<typeof createMockExchangeClient>;
+  let infoClient: ReturnType<typeof createMockInfoClient>;
 
   beforeEach(() => {
     TradingReadinessCache.clearAll();
     clientServices = [];
     exchangeClient = createMockExchangeClient();
+    infoClient = createMockInfoClient({
+      twapHistory: jest.fn().mockResolvedValue([]),
+      userTwapSliceFills: jest.fn().mockResolvedValue([]),
+    });
     MockedClientService.mockImplementation((_deps, options) => {
       const isTestnet = options?.isTestnet ?? false;
       const clientService = {
@@ -77,12 +94,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
         isInitialized: jest.fn().mockReturnValue(true),
         isTestnetMode: (): boolean => isTestnet,
         ensureInitialized: jest.fn(),
-        getInfoClient: jest.fn().mockReturnValue(
-          createMockInfoClient({
-            twapHistory: jest.fn().mockResolvedValue([]),
-            userTwapSliceFills: jest.fn().mockResolvedValue([]),
-          }),
-        ),
+        getInfoClient: jest.fn(() => infoClient),
         getExchangeClient: jest.fn(() => exchangeClient),
         getSubscriptionClient: jest.fn(),
         setOnTerminateCallback: jest.fn(),
@@ -96,10 +108,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
       signPersonalMessage: jest.fn(),
     };
-    agentSigner = {
-      address: '0x00000000000000000000000000000000000a9e17',
-      signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
-    };
+    agentSigner = createAgent(AGENT_ADDRESS, AGENT_SIGNATURE);
     getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
     onAgentRejected = jest.fn();
     infrastructure = createMockInfrastructure();
@@ -117,27 +126,17 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    * @returns The messenger.
    */
   function createMessenger(): ReturnType<typeof createMockMessenger> {
-    const messenger = createMockMessenger();
-    const defaultCall = messenger.call.getMockImplementation();
-    messenger.call.mockImplementation(
-      (action: string, ...args: unknown[]): unknown =>
-        action === 'RemoteFeatureFlagController:getState'
-          ? { remoteFeatureFlags: {}, cacheTimestamp: 0 }
-          : defaultCall?.(action as never, ...(args as never[])),
-    );
-    return messenger;
-  }
-
-  /**
-   * The errors the HyperLiquid provider itself reported.
-   *
-   * @returns The logged errors whose context names the provider.
-   */
-  function providerErrors(): unknown[] {
-    return loggerError.mock.calls.filter(
-      ([, options]: [unknown, { context?: { name?: string } } | undefined]) =>
-        options?.context?.name === 'HyperLiquidProvider',
-    );
+    // The default mock answers by action type alone.
+    const defaultCall = createMockMessenger().call.getMockImplementation();
+    return createMockMessenger({
+      call: jest
+        .fn()
+        .mockImplementation((action: string): unknown =>
+          action === 'RemoteFeatureFlagController:getState'
+            ? { remoteFeatureFlags: {}, cacheTimestamp: 0 }
+            : defaultCall?.(action as never),
+        ),
+    });
   }
 
   /**
@@ -196,6 +195,23 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   }
 
   /**
+   * The wallet adapter the latest initialized SDK clients sign with.
+   *
+   * @returns The wallet adapter.
+   */
+  function getLatestSdkWallet(): HyperLiquidWalletParams {
+    const initialized = clientServices.filter(
+      (clientService) => clientService.initialize.mock.calls.length > 0,
+    );
+    const latest = initialized[initialized.length - 1];
+    if (!latest) {
+      throw new Error('The provider never initialized its SDK clients');
+    }
+    const [[wallet]] = latest.initialize.mock.calls;
+    return wallet;
+  }
+
+  /**
    * Make the active HyperLiquid provider initialize its SDK clients, and
    * return the wallet adapter it handed to them.
    *
@@ -206,15 +222,23 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     controller: PerpsController,
   ): Promise<HyperLiquidWalletParams> {
     await controller.getTwapOrders();
-    const initialized = clientServices.filter(
-      (clientService) => clientService.initialize.mock.calls.length > 0,
-    );
-    const latest = initialized[initialized.length - 1];
-    if (!latest) {
-      throw new Error('The provider never initialized its SDK clients');
-    }
-    const [[wallet]] = latest.initialize.mock.calls;
-    return wallet;
+    return getLatestSdkWallet();
+  }
+
+  /**
+   * An SDK write that signs its action with the provider's wallet adapter,
+   * as the SDK does, and succeeds.
+   *
+   * @param payload - The typed data the SDK builds for the action.
+   * @returns The write's mock implementation.
+   */
+  function signThroughSdkWallet(
+    payload: PerpsTypedDataPayload,
+  ): () => Promise<{ status: 'ok' }> {
+    return async () => {
+      await getLatestSdkWallet().signTypedData(payload);
+      return { status: 'ok' };
+    };
   }
 
   it("signs L1 actions with the host's agent and user-signed actions with the main account", async () => {
@@ -254,10 +278,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
   it('keeps a setAgentSigner binding when the HyperLiquid provider is re-created', async () => {
     getAgentSigner.mockResolvedValue(null);
-    const boundAgent = {
-      address: '0x00000000000000000000000000000000000b0a7d' as const,
-      signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
-    };
+    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
     const controller = createController();
     await controller.init();
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
@@ -271,7 +292,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(
       clientServices.map(({ isTestnetMode }) => isTestnetMode()),
     ).toStrictEqual([false, true, false]);
-    expect(signature).toBe(AGENT_SIGNATURE);
+    expect(signature).toBe(OTHER_AGENT_SIGNATURE);
     expect(boundAgent.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(getAgentSigner).not.toHaveBeenCalled();
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
@@ -279,10 +300,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
   it('honors a setAgentSigner binding made before init', async () => {
     getAgentSigner.mockResolvedValue(null);
-    const boundAgent = {
-      address: '0x00000000000000000000000000000000000b0a7d' as const,
-      signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
-    };
+    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
     const controller = createController();
 
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
@@ -290,14 +308,15 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     const wallet = await getSdkWallet(controller);
     const signature = await wallet.signTypedData(L1_PAYLOAD);
 
-    expect(signature).toBe(AGENT_SIGNATURE);
+    expect(signature).toBe(OTHER_AGENT_SIGNATURE);
     expect(boundAgent.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(getAgentSigner).not.toHaveBeenCalled();
   });
+
   it('signs with the agent bound through setAgentSigner after another was resolved', async () => {
     const reboundAgent = createAgent(
-      '0x00000000000000000000000000000000000b0a7d',
-      `0x${'ef'.repeat(65)}`,
+      OTHER_AGENT_ADDRESS,
+      OTHER_AGENT_SIGNATURE,
     );
     const controller = createController();
     await controller.init();
@@ -313,7 +332,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       resolvedSignature,
       reboundSignature,
       pinnedSignature,
-    ]).toStrictEqual([AGENT_SIGNATURE, `0x${'ef'.repeat(65)}`, MAIN_SIGNATURE]);
+    ]).toStrictEqual([AGENT_SIGNATURE, OTHER_AGENT_SIGNATURE, MAIN_SIGNATURE]);
     expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(reboundAgent.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
@@ -324,8 +343,8 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
 
   it('tells the host about an agent the venue rejects and asks for another', async () => {
     const replacementAgent = createAgent(
-      '0x00000000000000000000000000000000000b0a7d',
-      `0x${'ef'.repeat(65)}`,
+      OTHER_AGENT_ADDRESS,
+      OTHER_AGENT_SIGNATURE,
     );
     getAgentSigner
       .mockResolvedValueOnce(agentSigner)
@@ -350,20 +369,17 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(onAgentRejected.mock.calls).toStrictEqual([
       [MAINNET_ACCOUNT, agentSigner.address],
     ]);
-    expect(nextSignature).toBe(`0x${'ef'.repeat(65)}`);
+    expect(nextSignature).toBe(OTHER_AGENT_SIGNATURE);
     expect(getAgentSigner.mock.calls).toStrictEqual([
       [MAINNET_ACCOUNT],
       [MAINNET_ACCOUNT],
     ]);
-    // The provider does not report the retryable signer failure.
-    expect(providerErrors()).toStrictEqual([]);
+    // Nothing reports the retryable signer failure.
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('releases a setAgentSigner binding to an agent the venue rejects', async () => {
-    const boundAgent = createAgent(
-      '0x00000000000000000000000000000000000b0a7d',
-      `0x${'ef'.repeat(65)}`,
-    );
+    const boundAgent = createAgent(OTHER_AGENT_ADDRESS, OTHER_AGENT_SIGNATURE);
     const controller = createController();
     await controller.init();
     controller.setAgentSigner(MAINNET_ACCOUNT, boundAgent);
@@ -388,6 +404,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     // The binding is gone, so the host's getAgentSigner answers.
     expect(nextSignature).toBe(AGENT_SIGNATURE);
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   it('prepares nothing and reports KEYRING_LOCKED while the account signer is not ready', async () => {
@@ -426,13 +443,47 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(loggerError).not.toHaveBeenCalled();
   });
 
-  it("resolves the provider's readiness once the account is ready to trade", async () => {
+  it('prepares the migration and builder fee on the main account and the referral on the agent', async () => {
+    // A legacy account that has not approved the builder fee yet.
+    infoClient.userAbstraction.mockResolvedValue('dexAbstraction');
+    infoClient.maxBuilderFee.mockResolvedValueOnce(0);
+    exchangeClient.userSetAbstraction.mockImplementation(
+      signThroughSdkWallet(USER_SIGNED_PAYLOAD),
+    );
+    exchangeClient.approveBuilderFee.mockImplementation(
+      signThroughSdkWallet(USER_SIGNED_PAYLOAD),
+    );
+    exchangeClient.setReferrer.mockImplementation(
+      signThroughSdkWallet(L1_PAYLOAD),
+    );
     const controller = createController();
     await controller.init();
 
     const result = await controller.prepareTradingWallet();
 
     expect(result).toStrictEqual({ ready: true });
+    expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
+      [{ user: MAIN_ADDRESS, abstraction: 'unifiedAccount' }],
+    ]);
+    expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+      [
+        {
+          builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+          maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
+        },
+      ],
+    ]);
+    expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
+      [{ code: REFERRAL_CONFIG.MainnetCode }],
+    ]);
+    // The user-signed migration and approval stay on the main account; the
+    // referral is an L1 action, so the agent signs it.
+    expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
+      [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+      [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+    ]);
+    expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
     expect(loggerError).not.toHaveBeenCalled();
   });
 });

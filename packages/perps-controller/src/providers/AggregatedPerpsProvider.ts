@@ -1081,8 +1081,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
             }),
           },
           context: {
-            name: 'AggregatedPerpsProvider.prepareTradingWallet',
-            data: { providerId },
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId },
           },
         });
         result = { ready: false, error: error.message };

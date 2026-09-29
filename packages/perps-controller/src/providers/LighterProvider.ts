@@ -993,6 +993,17 @@ class LighterAccountNotFoundError extends Error {
   }
 }
 
+/**
+ * Session-bound work stopped because the provider disconnected or the wallet
+ * switched accounts while it ran.
+ */
+class LighterSessionCancelledError extends Error {
+  constructor(reason: string) {
+    super(`Operation cancelled: ${reason}`);
+    this.name = 'LighterSessionCancelledError';
+  }
+}
+
 // EIP-1193 `userRejectedRequest` error code.
 const USER_REJECTED_REQUEST_CODE = 4001;
 
@@ -1305,8 +1316,9 @@ export class LighterProvider implements PerpsProvider {
    * `ready: false`: with `KEYRING_LOCKED` whenever the main-account signer is
    * not ready (even with a registered venue key), without an error when the
    * order path will ask again (the user declined the signature, or the
-   * wallet has no Lighter account yet), and with the logged error when
-   * registration failed.
+   * wallet has no Lighter account yet), with the unlogged cancellation when
+   * the provider disconnected or the wallet switched accounts meanwhile, and
+   * with the logged error when registration failed.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
     if (!this.#walletService.isMainAccountSignerReady()) {
@@ -1333,6 +1345,14 @@ export class LighterProvider implements PerpsProvider {
       }
       if (isRetryablePreparationStop(caughtError)) {
         return { ready: false };
+      }
+      // The session moved on while registering; the next preparation
+      // starts over for the current account.
+      if (caughtError instanceof LighterSessionCancelledError) {
+        this.#deps.debugLogger.log(
+          '[prepareTradingWallet] Session changed during preparation',
+        );
+        return { ready: false, error: caughtError.message };
       }
       const error = ensureError(
         caughtError,
@@ -4187,13 +4207,13 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #assertSession = (generation: number): void => {
     if (this.#isDisconnected) {
-      throw new Error(
-        'Operation cancelled: the Lighter provider was disconnected',
+      throw new LighterSessionCancelledError(
+        'the Lighter provider was disconnected',
       );
     }
     if (generation !== this.#sessionGeneration) {
-      throw new Error(
-        'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+      throw new LighterSessionCancelledError(
+        'the wallet switched accounts (or the signer reset) while this operation was in flight',
       );
     }
     // The generation only advances when some provider call rebinds; also
@@ -4203,8 +4223,8 @@ export class LighterProvider implements PerpsProvider {
     // wallet was deselected — fail closed even when a configured account
     // index could still resolve.
     if (this.#boundAddress === null) {
-      throw new Error(
-        'Operation cancelled: no wallet account is bound to the venue session',
+      throw new LighterSessionCancelledError(
+        'no wallet account is bound to the venue session',
       );
     }
     let address: string | null = null;
@@ -4224,8 +4244,8 @@ export class LighterProvider implements PerpsProvider {
         // the stale operation.
         this.#ensureSessionBinding();
       }
-      throw new Error(
-        'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+      throw new LighterSessionCancelledError(
+        'the wallet switched accounts (or the signer reset) while this operation was in flight',
       );
     }
   };

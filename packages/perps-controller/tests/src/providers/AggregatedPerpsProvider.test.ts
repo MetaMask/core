@@ -1135,8 +1135,8 @@ describe('AggregatedPerpsProvider', () => {
         {
           tags: { feature: 'perps', provider: 'hyperliquid' },
           context: {
-            name: 'AggregatedPerpsProvider.prepareTradingWallet',
-            data: { providerId: 'hyperliquid' },
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId: 'hyperliquid' },
           },
         },
       );

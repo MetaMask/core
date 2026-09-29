@@ -249,7 +249,7 @@ describe('HyperLiquidProvider', () => {
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
       isMainAccountSignerReady: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -1717,7 +1717,7 @@ describe('HyperLiquidProvider', () => {
       'defers %s migration on init for hardware wallets',
       async (currentMode) => {
         // Arrange
-        mockWalletService.isSelectedHardwareWallet.mockReturnValue(true);
+        mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
         const mockExchangeClient = createMockExchangeClient();
         mockClientService.getInfoClient = jest.fn().mockReturnValue(
           createMockInfoClient({
