@@ -5,16 +5,16 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { Project } from 'ts-morph';
 
-import { extractFromSourceFile } from './extraction.js';
+import { extractFromSourceFile } from './extraction.ts';
 import {
   generateIndexPage,
   generateNamespacePage,
   generateSidebars,
-} from './markdown.js';
-import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
-import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-discovery.js';
-import { createProject } from './ts-project.js';
-import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
+} from './markdown.ts';
+import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.ts';
+import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-discovery.ts';
+import { createProject } from './ts-project.ts';
+import type { MessengerCapabilityPacket, NamespaceGroup } from './types.ts';
 
 /** How many skipped capability types to name before summarizing the rest. */
 const MAX_SKIPPED_SHOWN = 10;

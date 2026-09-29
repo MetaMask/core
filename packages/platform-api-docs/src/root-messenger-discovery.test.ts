@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import {
   discoverFromRootMessengerCapabilitiesTypes,
   parseRootCapabilitiesTypeReference,
-} from './root-messenger-discovery.js';
+} from './root-messenger-discovery.ts';
 
 const { withinSandbox } = createSandbox(
   'platform-api-docs/root-messenger-discovery',

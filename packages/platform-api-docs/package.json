@@ -33,7 +33,7 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/platform-api-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/platform-api-docs",
-    "cli": "tsx src/cli.ts",
+    "cli": "node src/cli.ts",
     "lint:tsconfigs": "node ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",

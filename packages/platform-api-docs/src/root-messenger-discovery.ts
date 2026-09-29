@@ -10,9 +10,9 @@ import { Node as NodeGuards } from 'ts-morph';
 import {
   classifyMessengerCapabilityTypeDeclaration,
   extractFromMessengerCapabilityTypeDeclaration,
-} from './extraction.js';
-import { createProject } from './ts-project.js';
-import type { MessengerCapabilityPacket } from './types.js';
+} from './extraction.ts';
+import { createProject } from './ts-project.ts';
+import type { MessengerCapabilityPacket } from './types.ts';
 
 // ---------------------------------------------------------------------------
 // The `root-messenger` strategy: resolve the types a project declares for its
