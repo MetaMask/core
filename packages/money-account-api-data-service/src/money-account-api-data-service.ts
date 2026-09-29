@@ -20,6 +20,7 @@ import {
   Env,
   MONEY_ACCOUNT_API_URL_MAP,
   RATE_HISTORY_STALE_TIME_MS,
+  VAULT_RATE_STALE_TIME_MS,
 } from './constants.js';
 import { MoneyAccountApiResponseValidationError } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
@@ -29,18 +30,21 @@ import type {
   InterestResponse,
   PositionResponse,
   RateHistoryResponse,
+  VaultRateResponse,
 } from './response.types.js';
 import {
   HistoryResponseStruct,
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
+  VaultRateResponseStruct,
 } from './structs.js';
 import type {
   HistoryOptions,
   InterestOptions,
   RateHistoryOptions,
   FetchPositionsOptions,
+  VaultRateOptions,
 } from './types.js';
 
 // === GENERAL ===
@@ -59,6 +63,7 @@ export const TRACES = {
   INTEREST_API: 'Money Account API Fetch Interest',
   HISTORY_API: 'Money Account API Fetch History',
   RATE_HISTORY_API: 'Money Account API Fetch Rate History',
+  VAULT_RATE_API: 'Money Account API Fetch Vault Rate',
 } as const;
 
 export type MoneyAccountApiDataServiceTraceName =
@@ -84,6 +89,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchInterest',
   'fetchHistory',
   'fetchRateHistory',
+  'fetchVaultRate',
 ] as const;
 
 /**
@@ -157,7 +163,8 @@ export type MoneyAccountApiDataServiceOptions = {
 
 /**
  * Data service responsible for fetching positions, interest, cash-flow
- * history, and vault rate history from the Money Account APY Tracking API.
+ * history, vault rate history, and the current vault exchange rate from the
+ * Money Account APY Tracking API.
  */
 export class MoneyAccountApiDataService extends BaseDataService<
   typeof serviceName,
@@ -553,6 +560,69 @@ export class MoneyAccountApiDataService extends BaseDataService<
             if (error) {
               throw new MoneyAccountApiResponseValidationError(
                 `Malformed response from rate-history endpoint: ${error.message}`,
+              );
+            }
+
+            return validated;
+          },
+        );
+      },
+    });
+  }
+
+  /**
+   * Fetches the current Accountant exchange rate for a vault.
+   *
+   * The server returns 404 when the vault is not in the deployment registry
+   * or has no indexed rate yet.
+   *
+   * @param vaultAddress - The vault's Ethereum address.
+   * @param options - Optional chain ID filter. Omitted requests use the API default.
+   * @returns The current vault rate response.
+   */
+  async fetchVaultRate(
+    vaultAddress: string,
+    options?: VaultRateOptions,
+  ): Promise<VaultRateResponse> {
+    const url = new URL(
+      `/v1/vaults/${vaultAddress.toLowerCase()}/rate`,
+      this.#baseUrl,
+    );
+    if (options?.chainId !== undefined) {
+      url.searchParams.append('chain_id', String(options.chainId));
+    }
+
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchVaultRate`,
+        vaultAddress.toLowerCase(),
+        options?.chainId ?? null,
+      ],
+      staleTime: VAULT_RATE_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.VAULT_RATE_API,
+            data: { operation: 'fetchVaultRate' },
+          },
+          async () => {
+            const response = await fetch(url, {
+              headers: await this.#getRequestHeaders(),
+            });
+
+            if (!response.ok) {
+              throw new HttpError(
+                response.status,
+                `Money Account API vault rate request failed with status '${response.status}'`,
+              );
+            }
+
+            const json: unknown = await response.json();
+
+            const [error, validated] = validate(json, VaultRateResponseStruct);
+            if (error) {
+              throw new MoneyAccountApiResponseValidationError(
+                `Malformed response from vault rate endpoint: ${error.message}`,
               );
             }
 

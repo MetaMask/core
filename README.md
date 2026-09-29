@@ -43,6 +43,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/advanced-chart-core`](packages/advanced-chart-core)
 - [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
 - [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
@@ -151,6 +152,7 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  advanced_chart_core(["@metamask/advanced-chart-core"]);
   ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
   analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);
@@ -728,8 +730,8 @@ linkStyle default opacity:0.5
   transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
+  transaction_pay_controller --> accounts_controller;
   transaction_pay_controller --> assets_controller;
-  transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;

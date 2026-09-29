@@ -274,13 +274,22 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+
+    // V5 will perform a 'merge' operation instead of a 'full' operation
+    it('v5 pipeline ends up performing a merge operation', () => {
+      expect(response.updateMode).toBe('merge');
+    });
   });
 });
 
-describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom asset', () => {
+describe('assets pipeline (without graduation middleware only on v6 integration): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
   afterEach(() => {
     cleanAll();
   });
+
+  const pipelineOpts = {
+    includeCustomAssetGraduation: false,
+  };
 
   const createRecordingRpcSource = (
     balances: Record<Caip19AssetId, { amount: string }>,
@@ -308,7 +317,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom ass
         buildEmptyAssetsState({
           customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
         }),
-        { includeCustomAssetGraduation: false },
+        pipelineOpts,
       );
 
       expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
@@ -323,8 +332,8 @@ describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom ass
         customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
       }),
       {
+        ...pipelineOpts,
         rpcDataSource: source,
-        includeCustomAssetGraduation: false,
       },
     );
 
@@ -342,9 +351,9 @@ describe('assets pipeline: BNB Chain spam token (CDOGE) imported as a custom ass
         customAssets: { [BSC_SPAM_ACCOUNT_ID]: [CDOGE_ASSET_ID_CHECKSUM] },
       }),
       {
+        ...pipelineOpts,
         rpcDataSource: source,
         omitBalanceAssetIds: [CDOGE_ASSET_ID_LOWERCASE],
-        includeCustomAssetGraduation: false,
       },
     );
 

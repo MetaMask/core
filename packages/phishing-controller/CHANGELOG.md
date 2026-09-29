@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional request-source attribution parameters to `PhishingController.scanUrl` and `bulkScanUrls`, emitting an `x-request-source` header. ([#10357](https://github.com/MetaMask/core/pull/10357))
+
 ### Changed
 
 - Bump `@types/punycode` from `^2.1.0` to `^2.1.4` ([#10441](https://github.com/MetaMask/core/pull/10441))
