@@ -336,7 +336,7 @@ export class ProfileService extends BaseDataService<
    * @param params - The profile creation parameters.
    * @returns The created profile data.
    * @throws {HttpError} If the API returns a non-2xx response.
-   * @throws {StructError} If params or the response do not match the expected shape.
+   * @throws {StructError} If the response do not match the expected shape.
    */
   async createProfile(
     params: CreateProfileParams,
@@ -360,7 +360,7 @@ export class ProfileService extends BaseDataService<
    * @param params - The replacement profile data.
    * @returns The updated profile data.
    * @throws {HttpError} If the API returns a non-2xx response.
-   * @throws {StructError} If params or the response do not match the expected shape.
+   * @throws {StructError} If the response do not match the expected shape.
    */
   async replaceProfile(
     profileId: string,
@@ -388,7 +388,7 @@ export class ProfileService extends BaseDataService<
    * @param params - The fields to update.
    * @returns The updated profile data.
    * @throws {HttpError} If the API returns a non-2xx response.
-   * @throws {StructError} If params or the response do not match the expected shape.
+   * @throws {StructError} If the response do not match the expected shape.
    */
   async updateProfile(
     profileId: string,
@@ -415,7 +415,6 @@ export class ProfileService extends BaseDataService<
    * @param profileId - The identifier of the profile to delete.
    * @returns The result of the mutation.
    * @throws {HttpError} If the API returns a non-2xx response.
-   * @throws {StructError} If the profileId is not a string.
    */
   async deleteProfile(profileId: string): Promise<void> {
     return this.executeMutation({
@@ -434,7 +433,7 @@ export class ProfileService extends BaseDataService<
    * @param username - The username to check.
    * @returns Availability details including validity and normalized form.
    * @throws {HttpError} If the API returns a non-2xx response.
-   * @throws {StructError} If the username or response do not match the expected shape.
+   * @throws {StructError} If the response does not match the expected shape.
    */
   async checkUsernameAvailability(
     username: string,
@@ -478,7 +477,7 @@ export class ProfileService extends BaseDataService<
    * @param params - The OAuth callback code and state from the X redirect.
    * @returns The linked X account data.
    * @throws {HttpError} If the API returns a non-2xx response.
-   * @throws {StructError} If params or the response do not match the expected shape.
+   * @throws {StructError} If the response does not match the expected shape.
    */
   async connectX(params: ConnectXParams): Promise<XConnectResponse> {
     return this.executeMutation({
