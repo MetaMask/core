@@ -12,7 +12,8 @@ jest.unstable_mockModule('execa', () => ({
 jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
   parseTscOutput: jest.fn(),
   isTscError: jest.fn(),
-  buildSuppressions: jest.fn(),
+  addSuppressions: jest.fn(),
+  pruneSuppressions: jest.fn(),
   compareErrorsToSuppressions: jest.fn(),
   readSuppressions: jest.fn(),
   writeSuppressions: jest.fn(),
@@ -193,20 +194,61 @@ describe('lintTsc', () => {
     expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
   });
 
-  it('rewrites the suppressions file when given --update, without failing', async () => {
+  it('records unsuppressed errors when given --suppress-all, without failing', async () => {
     mockTscRun([]);
     const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
-    jest
-      .mocked(tscSuppressions.buildSuppressions)
-      .mockReturnValue(suppressions);
+    jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
+    jest.mocked(tscSuppressions.addSuppressions).mockReturnValue(suppressions);
 
-    await lintTsc(['--update']);
+    await lintTsc(['--suppress-all']);
 
-    expect(tscSuppressions.buildSuppressions).toHaveBeenCalledWith([ERROR]);
+    expect(tscSuppressions.addSuppressions).toHaveBeenCalledWith({
+      suppressions: {},
+      errors: [ERROR],
+    });
+    expect(tscSuppressions.pruneSuppressions).not.toHaveBeenCalled();
     expect(tscSuppressions.writeSuppressions).toHaveBeenCalledWith(
       expect.objectContaining({ suppressions }),
     );
     expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it('drops stale suppressions when given --prune-suppressions, without adding any', async () => {
+    mockTscRun([]);
+    const existing = { 'a.ts': { TS2322: { count: 5 } } };
+    const pruned = { 'a.ts': { TS2322: { count: 1 } } };
+    jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue(existing);
+    jest.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
+
+    await lintTsc(['--prune-suppressions']);
+
+    expect(tscSuppressions.addSuppressions).not.toHaveBeenCalled();
+    expect(tscSuppressions.pruneSuppressions).toHaveBeenCalledWith({
+      suppressions: existing,
+      errors: [ERROR],
+    });
+    expect(tscSuppressions.writeSuppressions).toHaveBeenCalledWith(
+      expect.objectContaining({ suppressions: pruned }),
+    );
+  });
+
+  it('both adds and prunes when given both flags', async () => {
+    mockTscRun([]);
+    const added = { 'a.ts': { TS2322: { count: 2 } } };
+    const pruned = { 'a.ts': { TS2322: { count: 1 } } };
+    jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
+    jest.mocked(tscSuppressions.addSuppressions).mockReturnValue(added);
+    jest.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
+
+    await lintTsc(['--suppress-all', '--prune-suppressions']);
+
+    expect(tscSuppressions.pruneSuppressions).toHaveBeenCalledWith({
+      suppressions: added,
+      errors: [ERROR],
+    });
+    expect(tscSuppressions.writeSuppressions).toHaveBeenCalledWith(
+      expect.objectContaining({ suppressions: pruned }),
+    );
   });
 });

@@ -3,11 +3,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  buildSuppressions,
+  addSuppressions,
   compareErrorsToSuppressions,
   isTscError,
   parseTscOutput,
   printReport,
+  pruneSuppressions,
   readSuppressions,
   writeSuppressions,
 } from './tsc-suppressions.ts';
@@ -27,8 +28,10 @@ const SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
  * free of type errors from regressing while the existing errors are worked
  * through.
  *
- * Passing `--update` rewrites the suppressions file from the errors that
- * currently exist rather than checking against it.
+ * Passing `--suppress-all` records the errors that are not suppressed yet, and
+ * `--prune-suppressions` drops the suppressions whose errors have been fixed.
+ * Either one writes the file rather than checking against it, and passing both
+ * rewrites it from the errors that currently exist.
  *
  * @param argv - The arguments passed to this script.
  */
@@ -76,14 +79,28 @@ export async function lintTsc(argv: readonly string[]): Promise<void> {
     );
   }
 
-  if (argv.includes('--update')) {
-    const suppressions = buildSuppressions(errors);
+  const shouldAdd = argv.includes('--suppress-all');
+  const shouldPrune = argv.includes('--prune-suppressions');
+
+  if (shouldAdd || shouldPrune) {
+    const existing = await readSuppressions(suppressionsFilePath);
+    const added = shouldAdd
+      ? addSuppressions({ suppressions: existing, errors })
+      : existing;
+    const suppressions = shouldPrune
+      ? pruneSuppressions({ suppressions: added, errors })
+      : added;
+
     await writeSuppressions({
       filePath: suppressionsFilePath,
       suppressions,
     });
+
+    const total = Object.values(suppressions)
+      .flatMap((byCode) => Object.values(byCode))
+      .reduce((sum, { count }) => sum + count, 0);
     console.log(
-      `✅ Updated ${SUPPRESSIONS_FILE_NAME}: now suppressing ${errors.length} type error(s) across ${Object.keys(suppressions).length} file(s).`,
+      `✅ Updated ${SUPPRESSIONS_FILE_NAME}: now suppressing ${total} type error(s) across ${Object.keys(suppressions).length} file(s).`,
     );
     return;
   }

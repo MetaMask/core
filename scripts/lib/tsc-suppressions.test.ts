@@ -8,12 +8,14 @@ import {
 import path from 'path';
 
 import {
+  addSuppressions,
   buildSuppressions,
   compareErrorsToSuppressions,
   compareStrings,
   isTscError,
   parseTscOutput,
   printReport,
+  pruneSuppressions,
   readSuppressions,
   writeSuppressions,
 } from './tsc-suppressions.ts';
@@ -147,6 +149,123 @@ describe('buildSuppressions', () => {
 
   it('returns an empty object when there are no errors', () => {
     expect(buildSuppressions([])).toStrictEqual({});
+  });
+});
+
+describe('addSuppressions', () => {
+  it('adds a file that is not suppressed yet', () => {
+    expect(
+      addSuppressions({
+        suppressions: {},
+        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
+  });
+
+  it('raises a count that has grown', () => {
+    expect(
+      addSuppressions({
+        suppressions: { 'a.ts': { TS2322: { count: 1 } } },
+        errors: [
+          { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
+          { filePath: 'a.ts', code: 'TS2322', message: 'Two.' },
+        ],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 2 } } });
+  });
+
+  it('leaves a count that has shrunk alone, as that is pruning', () => {
+    expect(
+      addSuppressions({
+        suppressions: { 'a.ts': { TS2322: { count: 5 } } },
+        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 5 } } });
+  });
+
+  it('keeps a suppression whose errors have all gone', () => {
+    expect(
+      addSuppressions({
+        suppressions: { 'a.ts': { TS2322: { count: 1 } } },
+        errors: [],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
+  });
+
+  it('sorts what it writes', () => {
+    const suppressions = addSuppressions({
+      suppressions: { 'b.ts': { TS7005: { count: 1 } } },
+      errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }],
+    });
+
+    expect(Object.keys(suppressions)).toStrictEqual(['a.ts', 'b.ts']);
+  });
+});
+
+describe('pruneSuppressions', () => {
+  it('lowers a count whose errors have partly gone', () => {
+    expect(
+      pruneSuppressions({
+        suppressions: { 'a.ts': { TS2322: { count: 5 } } },
+        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
+  });
+
+  it('removes a file whose errors have all gone', () => {
+    expect(
+      pruneSuppressions({
+        suppressions: { 'a.ts': { TS2322: { count: 1 } } },
+        errors: [],
+      }),
+    ).toStrictEqual({});
+  });
+
+  it('removes only the code that no longer occurs', () => {
+    expect(
+      pruneSuppressions({
+        suppressions: {
+          'a.ts': { TS2322: { count: 1 }, TS7005: { count: 1 } },
+        },
+        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
+  });
+
+  it('leaves a count that has grown alone, as that is suppressing', () => {
+    expect(
+      pruneSuppressions({
+        suppressions: { 'a.ts': { TS2322: { count: 1 } } },
+        errors: [
+          { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
+          { filePath: 'a.ts', code: 'TS2322', message: 'Two.' },
+        ],
+      }),
+    ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
+  });
+
+  it('sorts what it writes', () => {
+    const pruned = pruneSuppressions({
+      suppressions: {
+        'b.ts': { TS2322: { count: 1 } },
+        'a.ts': { TS2322: { count: 1 } },
+      },
+      errors: [
+        { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
+        { filePath: 'b.ts', code: 'TS2322', message: 'Two.' },
+      ],
+    });
+
+    expect(Object.keys(pruned)).toStrictEqual(['a.ts', 'b.ts']);
+  });
+
+  it('ignores an error whose file is not suppressed at all', () => {
+    expect(
+      pruneSuppressions({
+        suppressions: {},
+        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+      }),
+    ).toStrictEqual({});
   });
 });
 
@@ -375,6 +494,6 @@ describe('printReport', () => {
 
     const output = jest.mocked(console.log).mock.calls.flat().join('\n');
     expect(output).toContain('a.ts');
-    expect(output).toContain('yarn lint:tsc:suppress');
+    expect(output).toContain('yarn lint:tsc:prune');
   });
 });

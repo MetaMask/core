@@ -188,6 +188,100 @@ export function buildSuppressions(
 }
 
 /**
+ * Records the errors that are not suppressed yet, leaving every existing
+ * suppression alone even where it now covers more errors than occur.
+ *
+ * Splitting this from pruning mirrors Oxlint, and keeps the two intentions
+ * apart: adding parks an error that cannot be fixed today, whereas pruning
+ * banks one that has been fixed.
+ *
+ * @param args - The arguments to this function.
+ * @param args.suppressions - The suppressions as they now stand.
+ * @param args.errors - The errors from the current run.
+ * @returns The suppressions with any new errors added.
+ */
+export function addSuppressions({
+  suppressions,
+  errors,
+}: {
+  suppressions: TscSuppressions;
+  errors: readonly TscError[];
+}): TscSuppressions {
+  const found = buildSuppressions(errors);
+  const filePaths = [
+    ...new Set([...Object.keys(suppressions), ...Object.keys(found)]),
+  ].sort(compareStrings);
+
+  return filePaths.reduce<TscSuppressions>((merged, filePath) => {
+    const existingByCode = suppressions[filePath] ?? {};
+    const foundByCode = found[filePath] ?? {};
+    const codes = [
+      ...new Set([...Object.keys(existingByCode), ...Object.keys(foundByCode)]),
+    ].sort(compareStrings);
+
+    merged[filePath] = codes.reduce<Record<string, Suppression>>(
+      (byCode, code) => {
+        byCode[code] = {
+          count: Math.max(
+            existingByCode[code]?.count ?? 0,
+            foundByCode[code]?.count ?? 0,
+          ),
+        };
+        return byCode;
+      },
+      {},
+    );
+    return merged;
+  }, {});
+}
+
+/**
+ * Drops the suppressions that cover errors which no longer occur, leaving any
+ * error that is not suppressed yet unrecorded.
+ *
+ * @param args - The arguments to this function.
+ * @param args.suppressions - The suppressions as they now stand.
+ * @param args.errors - The errors from the current run.
+ * @returns The suppressions with the stale ones removed.
+ */
+export function pruneSuppressions({
+  suppressions,
+  errors,
+}: {
+  suppressions: TscSuppressions;
+  errors: readonly TscError[];
+}): TscSuppressions {
+  const found = buildSuppressions(errors);
+
+  return Object.entries(suppressions)
+    .sort(([filePathA], [filePathB]) => compareStrings(filePathA, filePathB))
+    .reduce<TscSuppressions>((pruned, [filePath, existingByCode]) => {
+      const foundByCode = found[filePath] ?? {};
+
+      const byCode = Object.entries(existingByCode)
+        .sort(([codeA], [codeB]) => compareStrings(codeA, codeB))
+        .reduce<Record<string, Suppression>>(
+          (codes, [code, { count: existingCount }]) => {
+            const count = Math.min(
+              existingCount,
+              foundByCode[code]?.count ?? 0,
+            );
+            if (count > 0) {
+              codes[code] = { count };
+            }
+            return codes;
+          },
+          {},
+        );
+
+      if (Object.keys(byCode).length > 0) {
+        pruned[filePath] = byCode;
+      }
+      return pruned;
+    }, {});
+}
+
+/**
  * Checks the given errors against the given suppressions.
  *
  * An error is unsuppressed if its file produces more errors of its code than
@@ -339,6 +433,6 @@ export function printReport(report: TscSuppressionsReport): void {
         `  ${suppression.filePath}: ${suppression.code} (${suppression.count} found, ${suppression.suppressedCount} suppressed)`,
       );
     }
-    console.log('\nRun `yarn lint:tsc:suppress` to remove these suppressions.');
+    console.log('\nRun `yarn lint:tsc:prune` to remove these suppressions.');
   }
 }
