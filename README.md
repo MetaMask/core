@@ -703,6 +703,7 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   storage_service --> utils;
+  subscription_controller --> approval_controller;
   subscription_controller --> authenticated_user_storage;
   subscription_controller --> base_controller;
   subscription_controller --> base_data_service;
@@ -711,6 +712,7 @@ linkStyle default opacity:0.5
   subscription_controller --> delegation_controller;
   subscription_controller --> messenger;
   subscription_controller --> money_account_balance_service;
+  subscription_controller --> money_account_upgrade_controller;
   subscription_controller --> money_account_utils;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;

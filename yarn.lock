@@ -7723,7 +7723,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller":
+"@metamask/money-account-upgrade-controller@npm:^5.1.0, @metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
   dependencies:
@@ -9197,6 +9197,7 @@ __metadata:
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
+    "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
@@ -9208,6 +9209,7 @@ __metadata:
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-balance-service": "npm:^3.1.1"
+    "@metamask/money-account-upgrade-controller": "npm:^5.1.0"
     "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^33.0.0"
@@ -18340,9 +18342,9 @@ __metadata:
   linkType: hard
 
 "globals@npm:^15.11.0":
-  version: 15.15.0
-  resolution: "globals@npm:15.15.0"
-  checksum: 10/7f561c87b2fd381b27fc2db7df8a4ea7a9bb378667b8a7193e61fd2ca3a876479174e2a303a74345fbea6e1242e16db48915c1fd3bf35adcf4060a795b425e18
+  version: 15.14.0
+  resolution: "globals@npm:15.14.0"
+  checksum: 10/e35ffbdbc024d6381efca906f67211a7bbf935db2af8c14a65155785479e28b3e475950e5933bb6b296eed54b6dcd924e25b26dbc8579b1bde9d5d25916e1c5f
   languageName: node
   linkType: hard
 

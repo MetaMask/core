@@ -344,6 +344,10 @@ type StartCryptoSubscriptionRequestBase = {
    * e.g. "USDC"
    */
   tokenSymbol: string;
+  /**
+   * Reject if authoritative trial eligibility changed since authorization.
+   */
+  assertTrialEligibility?: boolean;
   isSponsored?: boolean;
   useTestClock?: boolean;
   /**

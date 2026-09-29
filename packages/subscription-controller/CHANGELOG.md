@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SubscriptionDelegationService:startSubscriptionWithDelegation` to orchestrate one immutable approval for MM Pay funding, recurring-payment delegation signing, CHOMP registration, and subscription creation ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - Before the approval, call `MoneyAccountUpgradeController:forceUpgradeAccount` with the payer address so the Money Account vault delegations and CHOMP intents exist; the Subscription API validates them server-side.
+  - Add exported approval, funding, and prepared-bundle contracts.
+  - Bind recurring permissions to the token, amount, period, start, and zero native value, and verify reusable delegation hashes with CHOMP.
+  - Derive trial timing from authoritative subscription state.
+  - Add optional `skipApproval` to `StartSubscriptionWithDelegationRequest` to bypass the `ApprovalController:addRequest` consent and funding step; the caller is then responsible for consent and funding.
+
 ### Changed
 
+- **BREAKING:** Widen `SubscriptionDelegationServiceMessenger` so `SubscriptionDelegationService:startSubscriptionWithDelegation` can call the actions it needs ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - The messenger must now allow `ApprovalController:addRequest`, `MoneyAccountUpgradeController:forceUpgradeAccount`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`.
+  - Clients that construct this messenger must delegate those actions before calling `startSubscriptionWithDelegation`. A messenger typed against the previous `SubscriptionDelegationServiceMessenger` is no longer assignable.
 - Restrict cash-subscription delegations created by `SubscriptionDelegationService:prepareDelegation` so the ERC-20 `transfer` recipient must be the pricing chain `paymentAddress` (subscription treasury), via an `AllowedCalldataEnforcer` caveat. ([#10427](https://github.com/MetaMask/core/pull/10427))
   - The caveat pins calldata from offset 0 to the `transfer(address,uint256)` selector followed by the ABI-encoded treasury address, matching the terms CHOMP expects.
   - `prepareDelegation` throws when the pricing `paymentAddress` is not a valid address.
@@ -16,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stop adding the `ValueLteEnforcer` caveat to cash-subscription delegations created by `SubscriptionDelegationService:prepareDelegation`, because CHOMP only accepts `ERC20PeriodTransferEnforcer` and `AllowedCalldataEnforcer` for this intent type. ([#10427](https://github.com/MetaMask/core/pull/10427))
   - Stored delegations that still include a `ValueLteEnforcer` caveat are no longer reused; a new delegation is created and signed instead.
 - Add `@ethersproject/abi` `^5.7.0` as a dependency ([#10427](https://github.com/MetaMask/core/pull/10427))
+- Add `@metamask/money-account-upgrade-controller` `^5.1.0` as a dependency ([#10339](https://github.com/MetaMask/core/pull/10339))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 - Bump `@metamask/money-account-balance-service` from `^3.0.0` to `^3.1.1` ([#10502](https://github.com/MetaMask/core/pull/10502), [#10544](https://github.com/MetaMask/core/pull/10544))
