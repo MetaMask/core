@@ -43,10 +43,6 @@ export {
   ProfileService,
   ProfileServiceErrorMessage,
 } from './ProfileService.js';
-export {
-  useGetProfile,
-  useCheckUsernameAvailability,
-} from './ProfileServiceHooks.js';
 export type {
   ProfileServiceCheckUsernameAvailabilityAction,
   ProfileServiceConnectXAction,
