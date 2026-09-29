@@ -238,12 +238,12 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs',
-          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts',
+          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs:fix',
-          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix',
+          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 
@@ -258,10 +258,6 @@ module.exports = defineConfig({
         // `node/no-unpublished-require` ESLint rule will disallow it.)
         expectWorkspaceField(workspace, 'files', []);
       }
-
-      // All packages must have tsx as a dev dependency. (This is required to
-      // run various TypeScript scripts.)
-      expectWorkspaceField(workspace, 'devDependencies["tsx"]');
 
       // If one workspace package lists another workspace package within
       // `dependencies` or `devDependencies`, the version used within the

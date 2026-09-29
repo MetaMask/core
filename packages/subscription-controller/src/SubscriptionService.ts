@@ -29,7 +29,6 @@ import {
   BillingPortalResponseStruct,
   GetSubscriptionsResponseStruct,
   PricingResponseStruct,
-  StartCryptoSubscriptionResponseStruct,
   StartSubscriptionResponseStruct,
   SubscriptionApiGeneralResponseStruct,
   SubscriptionBenefitsResponseStruct,
@@ -321,7 +320,8 @@ export class SubscriptionService extends BaseDataService<
    * Starts a subscription with a crypto payment method.
    *
    * @param request - The start crypto subscription request.
-   * @returns The created subscription response.
+   * @returns The created subscription. Unlike card checkout, the Subscription
+   * API creates the subscription immediately and returns it in full.
    * @throws If `products` is empty.
    * @throws If the request does not use exactly one of `rawTransaction`
    * (ERC-20 approval) or `delegationHash` (delegation).
@@ -350,7 +350,7 @@ export class SubscriptionService extends BaseDataService<
         SubscriptionServiceErrorMessage.FailedToStartSubscriptionWithCrypto,
     });
 
-    return create(jsonResponse, StartCryptoSubscriptionResponseStruct);
+    return create(jsonResponse, SubscriptionStruct);
   }
 
   /**

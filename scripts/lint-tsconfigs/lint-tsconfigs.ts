@@ -2,9 +2,9 @@ import { hasProperty } from '@metamask/utils';
 import fs from 'fs';
 import path from 'path';
 
-import { lintPackageTsconfigs } from './lint-package-tsconfigs.mjs';
-import { lintRootTsconfigs } from './lint-root-tsconfigs.mjs';
-import { readPackageManifest } from './utils.mjs';
+import { lintPackageTsconfigs } from './lint-package-tsconfigs.ts';
+import { lintRootTsconfigs } from './lint-root-tsconfigs.ts';
+import { readPackageManifest } from './utils.ts';
 
 // Run this script!
 await main();

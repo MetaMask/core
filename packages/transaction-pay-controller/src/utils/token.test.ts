@@ -1,11 +1,9 @@
 import { Interface } from '@ethersproject/abi';
-import type { TokensControllerState } from '@metamask/assets-controllers';
-import type { AccountTrackerControllerState } from '@metamask/assets-controllers';
-import type { TokenRatesControllerState } from '@metamask/assets-controllers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import { hexToBigInt } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
@@ -32,8 +30,8 @@ const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const DECIMALS_MOCK = 6;
-const BALANCE_MOCK = '0x123' as Hex;
 const FROM_MOCK = '0x456' as Hex;
+const ACCOUNT_ID_MOCK = 'account-id';
 const NETWORK_CLIENT_ID_MOCK = '123-456';
 const INFURA_NETWORK_CLIENT_ID_MOCK = 'mainnet';
 const TICKER_MOCK = 'TST';
@@ -42,18 +40,37 @@ const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
 const PROVIDER_MOCK = { request: jest.fn() };
 
+/**
+ * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
+ * its state.
+ *
+ * @param chainId - Hex chain ID.
+ * @param tokenAddress - Token address, or the native token address.
+ * @param slip44CoinType - SLIP-44 coin type for native assets, defaulting to ETH.
+ * @returns The CAIP-19 asset ID.
+ */
+function buildAssetId(
+  chainId: Hex,
+  tokenAddress: Hex,
+  slip44CoinType = 60,
+): CaipAssetType {
+  const reference = String(hexToBigInt(chainId));
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  return isNative
+    ? (`eip155:${reference}/slip44:${slip44CoinType}` as CaipAssetType)
+    : (`eip155:${reference}/erc20:${tokenAddress}` as CaipAssetType);
+}
+
 describe('Token Utils', () => {
   const {
     messenger,
+    getAccountsControllerStateMock,
     getAssetsControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
-    getTokensControllerStateMock,
     getNetworkClientByIdMock,
     getNetworkConfigurationByChainIdMock,
-    getTokenBalanceControllerStateMock,
-    getAccountTrackerControllerStateMock,
-    getTokenRatesControllerStateMock,
-    getCurrencyRateControllerStateMock,
     findNetworkClientIdByChainIdMock,
   } = getMessengerMock();
 
@@ -73,37 +90,26 @@ describe('Token Utils', () => {
     });
   });
 
-  function enableAssetsUnifyState(): void {
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        assetsUnifyState: {
-          enabled: true,
-          featureVersion: '1',
-          minimumVersion: null,
-        },
-      },
-    });
-  }
-
   describe('getTokenInfo', () => {
-    it('returns decimals and symbol from AssetsController when assets unify state feature is enabled', () => {
-      enableAssetsUnifyState();
+    it('finds token info using a lowercase address', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
       getAssetsControllerStateMock.mockReturnValue({
-        allTokens: {
-          [CHAIN_ID_MOCK]: {
-            test123: [
-              {
-                address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
-                decimals: DECIMALS_MOCK,
-                symbol: SYMBOL_MOCK,
-              },
-            ],
+        assetsInfo: {
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
           },
         },
       });
 
-      const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
+      const result = getTokenInfo(
+        messenger,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
 
       expect(result).toStrictEqual({
         decimals: DECIMALS_MOCK,
@@ -111,22 +117,104 @@ describe('Token Utils', () => {
       });
     });
 
-    it('returns decimals and symbol from controller state', () => {
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {
-          [CHAIN_ID_MOCK]: {
-            test123: [
-              {
-                address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
-                decimals: DECIMALS_MOCK,
-                symbol: SYMBOL_MOCK,
-              },
-            ],
+    it('ignores a cached asset ID once the asset leaves state', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+      const assetsInfo = {
+        [assetId]: {
+          decimals: DECIMALS_MOCK,
+          name: SYMBOL_MOCK,
+          symbol: SYMBOL_MOCK,
+          type: 'erc20',
+        },
+      };
+
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toBeDefined();
+
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('resolves an asset that appears in state after a failed lookup', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
           },
         },
       });
 
-      const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
+      expect(
+        getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK),
+      ).toStrictEqual({
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
+    });
+
+    it('returns undefined when no asset matches the token address', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_2_MOCK)]: {
+            decimals: 18,
+            name: 'OTHER',
+            symbol: 'OTHER',
+            type: 'erc20',
+          },
+        },
+      });
+
+      const result = getTokenInfo(
+        messenger,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('skips non-matching assets when searching by lowercase address', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_2_MOCK)]: {
+            decimals: 18,
+            name: 'OTHER',
+            symbol: 'OTHER',
+            type: 'erc20',
+          },
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+      });
+
+      const result = getTokenInfo(
+        messenger,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
 
       expect(result).toStrictEqual({
         decimals: DECIMALS_MOCK,
@@ -135,16 +223,15 @@ describe('Token Utils', () => {
     });
 
     it('returns normalized decimals', () => {
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {
-          [CHAIN_ID_MOCK]: {
-            test123: [
-              {
-                address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
-                decimals: '6',
-                symbol: SYMBOL_MOCK,
-              },
-            ],
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: String(DECIMALS_MOCK),
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
           },
         },
       });
@@ -158,7 +245,7 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if token is not found', () => {
-      getTokensControllerStateMock.mockReturnValue({});
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
       const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
 
@@ -166,10 +253,17 @@ describe('Token Utils', () => {
     });
 
     it('returns native token info', () => {
-      getTokensControllerStateMock.mockReturnValue({});
+      const assetId = buildAssetId(CHAIN_ID_MOCK, NATIVE_TOKEN_ADDRESS);
 
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: 18,
+            name: TICKER_MOCK,
+            symbol: TICKER_MOCK,
+            type: 'native',
+          },
+        },
       });
 
       const result = getTokenInfo(
@@ -184,9 +278,36 @@ describe('Token Utils', () => {
       });
     });
 
-    it('returns undefined if native ticker is not found', () => {
-      getTokensControllerStateMock.mockReturnValue({});
-      getNetworkClientByIdMock.mockReturnValue(undefined);
+    it('supports non-standard native token address', () => {
+      const nativeTokenAddress =
+        '0x0000000000000000000000000000000000001010' as Hex;
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, nativeTokenAddress);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: 18,
+            name: TICKER_MOCK,
+            symbol: TICKER_MOCK,
+            type: 'native',
+          },
+        },
+      });
+
+      const result = getTokenInfo(
+        messenger,
+        nativeTokenAddress,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toStrictEqual({
+        decimals: 18,
+        symbol: TICKER_MOCK,
+      });
+    });
+
+    it('returns undefined if native token is missing from assets info', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
       const result = getTokenInfo(
         messenger,
@@ -197,60 +318,98 @@ describe('Token Utils', () => {
       expect(result).toBeUndefined();
     });
 
-    it('supports non-standard native token address', () => {
-      getTokensControllerStateMock.mockReturnValue({});
+    it('does not consult the network controller for a missing native token', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
 
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
+      getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, CHAIN_ID_MOCK);
+
+      expect(getNetworkClientByIdMock).not.toHaveBeenCalled();
+      expect(findNetworkClientIdByChainIdMock).not.toHaveBeenCalled();
+    });
+
+    it('resolves a native asset after missing metadata arrives', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+      expect(
+        getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38'),
+      ).toBeUndefined();
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          'eip155:56/slip44:714': {
+            decimals: 18,
+            symbol: 'BNB',
+            type: 'native',
+          },
+        },
+      });
+
+      const result = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38');
+
+      expect(result).toStrictEqual({ decimals: 18, symbol: 'BNB' });
+    });
+
+    it('ignores same-chain non-native assets and other-chain natives', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [`eip155:${hexToBigInt(CHAIN_ID_MOCK)}/erc20:${TOKEN_ADDRESS_MOCK}`]:
+            { decimals: 6, symbol: 'TST', type: 'erc20' },
+          'eip155:137/slip44:966': {
+            decimals: 18,
+            symbol: 'POL',
+            type: 'native',
+          },
+        },
       });
 
       const result = getTokenInfo(
         messenger,
-        '0x0000000000000000000000000000000000001010',
-        '0x89',
+        NATIVE_TOKEN_ADDRESS,
+        CHAIN_ID_MOCK,
       );
 
-      expect(result).toStrictEqual({
-        decimals: 18,
-        symbol: TICKER_MOCK,
+      expect(result).toBeUndefined();
+    });
+
+    it('resolves native assets represented by an ERC-20 asset ID', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          'eip155:100/erc20:0x0000000000000000000000000000000000000000': {
+            decimals: 18,
+            symbol: 'XDAI',
+            type: 'native',
+          },
+        },
       });
+
+      const result = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x64');
+
+      expect(result).toStrictEqual({ decimals: 18, symbol: 'XDAI' });
+    });
+
+    it('ignores assets belonging to another chain', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          'eip155:1/slip44:60': { decimals: 18, symbol: 'ETH', type: 'native' },
+        },
+      });
+
+      expect(
+        getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38'),
+      ).toBeUndefined();
     });
   });
 
   describe('getTokenBalance', () => {
-    it('returns token balance from AssetsController when assets unify state feature is enabled', () => {
-      enableAssetsUnifyState();
-      getAssetsControllerStateMock.mockReturnValue({
-        tokenBalances: {
-          [FROM_MOCK]: {
-            [CHAIN_ID_MOCK]: {
-              [TOKEN_ADDRESS_MOCK]: BALANCE_MOCK,
-            },
-          },
-        },
+    beforeEach(() => {
+      getAccountsControllerStateMock.mockReturnValue({
+        accountIdByAddress: { [FROM_MOCK]: ACCOUNT_ID_MOCK },
+        internalAccounts: { accounts: {}, selectedAccount: '' },
       });
-
-      const result = getTokenBalance(
-        messenger,
-        FROM_MOCK,
-        CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
-      );
-
-      expect(result).toBe('291');
     });
 
-    it('returns native balance from AssetsController when assets unify state feature is enabled', () => {
-      enableAssetsUnifyState();
+    it('returns zero when the native asset is absent from assets info', () => {
       getAssetsControllerStateMock.mockReturnValue({
-        tokenBalances: {},
-        accountsByChainId: {
-          [CHAIN_ID_MOCK]: {
-            [FROM_MOCK]: {
-              balance: '0x123',
-            },
-          },
-        },
+        assetsBalance: { [ACCOUNT_ID_MOCK]: {} },
+        assetsInfo: {},
       });
 
       const result = getTokenBalance(
@@ -258,59 +417,170 @@ describe('Token Utils', () => {
         FROM_MOCK,
         CHAIN_ID_MOCK,
         NATIVE_TOKEN_ADDRESS,
-      );
-
-      expect(result).toBe('291');
-    });
-
-    it('returns balance from controller state', () => {
-      getTokenBalanceControllerStateMock.mockReturnValue({
-        tokenBalances: {
-          [FROM_MOCK]: {
-            [CHAIN_ID_MOCK]: {
-              [TOKEN_ADDRESS_MOCK]: BALANCE_MOCK,
-            },
-          },
-        },
-      });
-
-      const result = getTokenBalance(
-        messenger,
-        FROM_MOCK,
-        CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
-      );
-
-      expect(result).toBe('291');
-    });
-
-    it('returns zero if token not found', () => {
-      getTokenBalanceControllerStateMock.mockReturnValue({
-        tokenBalances: {},
-      });
-
-      const result = getTokenBalance(
-        messenger,
-        FROM_MOCK,
-        CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
       );
 
       expect(result).toBe('0');
     });
 
-    it('returns native balance', () => {
-      getTokenBalanceControllerStateMock.mockReturnValue({
-        tokenBalances: {},
+    it('returns zero when the asset has no balance for the account', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: { [ACCOUNT_ID_MOCK]: {} },
+        assetsInfo: {
+          [assetId]: { decimals: 6, symbol: 'TST', type: 'erc20' },
+        },
       });
 
-      getAccountTrackerControllerStateMock.mockReturnValue({
-        accountsByChainId: {
-          [CHAIN_ID_MOCK]: {
-            [FROM_MOCK]: {
-              balance: '0x123',
-            },
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('0');
+    });
+
+    it('finds a token balance using a lowercase address', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [assetId]: { amount: '291' },
           },
+        },
+        assetsInfo: {
+          [assetId]: { decimals: 6, symbol: 'TST' },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+      );
+
+      expect(result).toBe('291000000');
+    });
+
+    it('converts the human-readable amount to raw base units', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [assetId]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {
+          [assetId]: { decimals: 6, symbol: 'TST' },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('1500000');
+    });
+
+    it('returns zero if the token decimals are unknown', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [assetId]: { amount: '291' },
+          },
+        },
+        assetsInfo: {},
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('0');
+    });
+
+    it('finds a token balance when the account address is checksummed', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+      const checksummedFrom =
+        '0xAbC0000000000000000000000000000000000123' as Hex;
+
+      getAccountsControllerStateMock.mockReturnValue({
+        accountIdByAddress: {
+          [checksummedFrom.toLowerCase()]: ACCOUNT_ID_MOCK,
+        },
+        internalAccounts: { accounts: {}, selectedAccount: '' },
+      });
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [assetId]: { amount: '291' },
+          },
+        },
+        assetsInfo: {
+          [assetId]: { decimals: 6, symbol: 'TST' },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        checksummedFrom,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('291000000');
+    });
+
+    it('reads a checksummed asset ID directly', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [`eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`]: { amount: '291' },
+          },
+        },
+        assetsInfo: {
+          [`eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`]: {
+            decimals: 6,
+            symbol: 'TST',
+          },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('291000000');
+    });
+
+    it('returns native balance from AssetsController', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, NATIVE_TOKEN_ADDRESS);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [assetId]: { amount: '291' },
+          },
+        },
+        assetsInfo: {
+          [assetId]: { decimals: 18, symbol: 'ETH', type: 'native' },
         },
       });
 
@@ -321,19 +591,95 @@ describe('Token Utils', () => {
         NATIVE_TOKEN_ADDRESS,
       );
 
-      expect(result).toBe('291');
+      expect(result).toBe('291000000000000000000');
     });
 
-    it('returns zero if native balance not found', () => {
-      getTokenBalanceControllerStateMock.mockReturnValue({
-        tokenBalances: {},
+    it('returns zero if the token is not found', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {},
       });
 
-      getAccountTrackerControllerStateMock.mockReturnValue({
-        accountsByChainId: {
-          [CHAIN_ID_MOCK]: {
-            [FROM_MOCK]: {},
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('0');
+    });
+
+    it('returns zero if the account is not found', () => {
+      getAccountsControllerStateMock.mockReturnValue({
+        accountIdByAddress: {},
+        internalAccounts: { accounts: {}, selectedAccount: '' },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('0');
+      expect(getAssetsControllerStateMock).not.toHaveBeenCalled();
+    });
+
+    it('preserves base-unit precision for large fractional balances', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: {
+            [assetId]: { amount: '9007199254740993.123456789012345678' },
           },
+        },
+        assetsInfo: { [assetId]: { decimals: 18, symbol: SYMBOL_MOCK } },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('9007199254740993123456789012345678');
+    });
+
+    it('reads native BNB metadata and balance using its SLIP-44 ID', () => {
+      const assetId = 'eip155:56/slip44:714';
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: { [assetId]: { amount: '1.5' } },
+        },
+        assetsInfo: {
+          [assetId]: { decimals: 18, symbol: 'BNB', type: 'native' },
+        },
+      });
+
+      const info = getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38');
+      const balance = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        '0x38',
+        NATIVE_TOKEN_ADDRESS,
+      );
+
+      expect(info).toStrictEqual({ decimals: 18, symbol: 'BNB' });
+      expect(balance).toBe('1500000000000000000');
+    });
+
+    it('returns zero for a native token if the chain has no native metadata', () => {
+      const erc20AssetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [ACCOUNT_ID_MOCK]: { [erc20AssetId]: { amount: '1' } },
+        },
+        assetsInfo: {
+          [erc20AssetId]: { decimals: 18, symbol: SYMBOL_MOCK, type: 'erc20' },
         },
       });
 
@@ -349,99 +695,58 @@ describe('Token Utils', () => {
   });
 
   describe('getTokenFiatRate', () => {
-    it('returns fiat rates from AssetsController when assets unify state feature is enabled', () => {
-      enableAssetsUnifyState();
-
+    it('returns undefined when the native asset is absent from assets info', () => {
       getAssetsControllerStateMock.mockReturnValue({
-        marketData: {
-          [CHAIN_ID_MOCK]: {
-            [TOKEN_ADDRESS_MOCK]: {
-              price: 2.0,
-            },
-          },
-        },
-        currencyRates: {
-          [TICKER_MOCK]: {
-            conversionRate: 3.0,
-            usdConversionRate: 4.0,
-          },
-        },
+        assetsInfo: {},
+        assetsPrice: {},
       });
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK,
-        CHAIN_ID_MOCK,
-      );
-
-      expect(result).toStrictEqual({
-        fiatRate: '6',
-        usdRate: '8',
-      });
-    });
-
-    it('returns fiat rates', () => {
-      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
-      });
-
-      getTokenRatesControllerStateMock.mockReturnValue({
-        marketData: {
-          [CHAIN_ID_MOCK]: {
-            [TOKEN_ADDRESS_MOCK]: {
-              price: 2.0,
-            },
-          },
-        },
-      });
-
-      getCurrencyRateControllerStateMock.mockReturnValue({
-        currencyRates: {
-          [TICKER_MOCK]: {
-            conversionRate: 3.0,
-            usdConversionRate: 4.0,
-          },
-        },
-      });
-
-      const result = getTokenFiatRate(
-        messenger,
-        TOKEN_ADDRESS_MOCK,
-        CHAIN_ID_MOCK,
-      );
-
-      expect(result).toStrictEqual({
-        fiatRate: '6',
-        usdRate: '8',
-      });
-    });
-
-    it('returns undefined if no network configuration', () => {
-      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-      getNetworkClientByIdMock.mockReturnValue(undefined);
-
-      const result = getTokenFiatRate(
-        messenger,
-        TOKEN_ADDRESS_MOCK,
+        NATIVE_TOKEN_ADDRESS,
         CHAIN_ID_MOCK,
       );
 
       expect(result).toBeUndefined();
+    });
+
+    it('finds fiat rates using a lowercase address', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 6,
+            usdPrice: 8,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        fiatRate: '6',
+        usdRate: '8',
+      });
     });
 
     it('returns undefined if no price', () => {
-      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
-      });
-
-      getTokenRatesControllerStateMock.mockReturnValue({
-        marketData: {
-          [CHAIN_ID_MOCK]: {},
-        },
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {},
+        assetsPrice: {},
       });
 
       const result = getTokenFiatRate(
@@ -453,25 +758,17 @@ describe('Token Utils', () => {
       expect(result).toBeUndefined();
     });
 
-    it('returns undefined if no currency rate', () => {
-      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
-      });
-
-      getTokenRatesControllerStateMock.mockReturnValue({
-        marketData: {
-          [CHAIN_ID_MOCK]: {
-            [TOKEN_ADDRESS_MOCK]: {
-              price: 2.0,
-            },
+    it('returns undefined for a non-fungible asset price', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {},
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'nft',
+            lastUpdated: 0,
+            price: 6,
           },
         },
-      });
-
-      getCurrencyRateControllerStateMock.mockReturnValue({
-        currencyRates: {},
       });
 
       const result = getTokenFiatRate(
@@ -484,23 +781,20 @@ describe('Token Utils', () => {
     });
 
     it('returns native rate if native token', () => {
-      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+      const assetId = buildAssetId(CHAIN_ID_MOCK, NATIVE_TOKEN_ADDRESS);
 
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
-      });
-
-      getCurrencyRateControllerStateMock.mockReturnValue({
-        currencyRates: {
-          [TICKER_MOCK]: {
-            conversionRate: 3.0,
-            usdConversionRate: 4.0,
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: { decimals: 18, symbol: 'ETH', type: 'native' },
+        },
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 3,
+            usdPrice: 4,
           },
         },
-      });
-
-      getTokenRatesControllerStateMock.mockReturnValue({
-        marketData: {},
       });
 
       const result = getTokenFiatRate(
@@ -516,27 +810,22 @@ describe('Token Utils', () => {
     });
 
     it('returns fixed usd rate for stablecoins', () => {
-      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
 
-      getNetworkClientByIdMock.mockReturnValue({
-        configuration: { ticker: TICKER_MOCK },
-      });
-
-      getTokenRatesControllerStateMock.mockReturnValue({
-        marketData: {
-          [CHAIN_ID_POLYGON]: {
-            [POLYGON_USDCE_ADDRESS]: {
-              price: 1.0,
-            },
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: 6,
+            symbol: 'USDC.e',
+            type: 'erc20',
           },
         },
-      });
-
-      getCurrencyRateControllerStateMock.mockReturnValue({
-        currencyRates: {
-          [TICKER_MOCK]: {
-            conversionRate: 3.0,
-            usdConversionRate: 4.0,
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 3,
+            usdPrice: 4,
           },
         },
       });
@@ -551,6 +840,116 @@ describe('Token Utils', () => {
         fiatRate: '3',
         usdRate: '1',
       });
+    });
+
+    it('returns undefined for stablecoins with no price in the selected currency', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {},
+        assetsPrice: {},
+        selectedCurrency: 'eur',
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        POLYGON_USDCE_ADDRESS,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for stablecoins with a non-fungible price entry', () => {
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {},
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'nft',
+            lastUpdated: 0,
+            price: 3,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        POLYGON_USDCE_ADDRESS,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('reads native AVAX rates using its SLIP-44 ID', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          'eip155:43114/slip44:9005': {
+            decimals: 18,
+            symbol: 'AVAX',
+            type: 'native',
+          },
+        },
+        assetsPrice: {
+          'eip155:43114/slip44:9005': {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 20,
+            usdPrice: 25,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        NATIVE_TOKEN_ADDRESS,
+        '0xa86a',
+      );
+
+      expect(result).toStrictEqual({ fiatRate: '20', usdRate: '25' });
+    });
+
+    it('uses native asset metadata for custom networks', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          'eip155:12345/slip44:123': {
+            decimals: 18,
+            symbol: 'CUSTOM',
+            type: 'native',
+          },
+        },
+        assetsPrice: {
+          'eip155:12345/slip44:123': {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 2,
+            usdPrice: 3,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        NATIVE_TOKEN_ADDRESS,
+        '0x3039',
+      );
+
+      expect(result).toStrictEqual({ fiatRate: '2', usdRate: '3' });
+    });
+
+    it('returns undefined for native rates on an unknown network', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {},
+        assetsPrice: {},
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        NATIVE_TOKEN_ADDRESS,
+        '0x3039',
+      );
+
+      expect(result).toBeUndefined();
     });
   });
 

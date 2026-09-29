@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@docusaurus/preset-classic` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 - Bump `@docusaurus/theme-common` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 - Bump `@docusaurus/types` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `react` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
+- Bump `react-dom` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
 
 ## [0.2.1]
 

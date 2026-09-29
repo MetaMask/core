@@ -105,6 +105,8 @@ export const SUBSCRIPTION_STATUSES = {
   // Initial states
   incomplete: 'incomplete',
   incompleteExpired: 'incomplete_expired',
+  /** Crypto subscription created, waiting for the payer to fund the first invoice. */
+  awaitingFunds: 'awaiting_funds',
   // Active states
   provisional: 'provisional',
   trialing: 'trialing',
@@ -224,7 +226,7 @@ export type SubscriptionInvoice = {
   id: string;
   status: InvoicePaymentStatus;
   errorCode?: CryptoPaymentError;
-  updatedAt: string; // ISO 8601
+  updatedAt?: string; // ISO 8601
 };
 
 export type SubscriptionCardPaymentMethod = {
@@ -232,7 +234,7 @@ export type SubscriptionCardPaymentMethod = {
   card: {
     brand: string;
     /** display brand account for dual brand card */
-    displayBrand: string;
+    displayBrand?: string;
     last4: string;
   };
 };
@@ -344,6 +346,10 @@ type StartCryptoSubscriptionRequestBase = {
    * e.g. "USDC"
    */
   tokenSymbol: string;
+  /**
+   * Reject if authoritative trial eligibility changed since authorization.
+   */
+  assertTrialEligibility?: boolean;
   isSponsored?: boolean;
   useTestClock?: boolean;
   /**
@@ -394,10 +400,13 @@ export type StartCryptoSubscriptionRequest =
   | StartErc20CryptoSubscriptionRequest
   | StartDelegationCryptoSubscriptionRequest;
 
-export type StartCryptoSubscriptionResponse = {
-  subscriptionId: string;
-  status: SubscriptionStatus;
-};
+/**
+ * Response of `POST /subscriptions/crypto`.
+ *
+ * Unlike card checkout, a crypto start creates the subscription immediately,
+ * so the Subscription API returns the created {@link Subscription} itself.
+ */
+export type StartCryptoSubscriptionResponse = Subscription;
 
 /**
  * General response type for the subscription API requests

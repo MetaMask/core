@@ -1,4 +1,4 @@
-import { resolveChangelogConflicts } from './lib/changelog-conflicts.js';
+import { resolveChangelogConflicts } from './lib/changelog-conflicts.ts';
 
 main().catch((error) => {
   console.error(error);
