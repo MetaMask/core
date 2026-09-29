@@ -25,6 +25,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./x25519": {
+      "types": "./dist/x25519.d.ts",
+      "default": "./dist/x25519.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
