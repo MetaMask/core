@@ -204,16 +204,16 @@ describe('ProfileController', () => {
       expect(controller.getXprofile()).toBeUndefined();
     });
 
-    it('returns the X profile after connectX', async () => {
+    it('returns the X profile after fetchAndUpdateXAccount', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
-        'ProfileService:connectX',
+        'ProfileService:getXAccount',
         jest.fn().mockResolvedValue(mockXConnectResponse),
       );
 
       const { controller } = createController({ rootMessenger });
-      await controller.connectX({ code: 'auth-code', state: 'state-xyz' });
+      await controller.fetchAndUpdateXAccount();
 
       expect(controller.getXprofile()).toStrictEqual(mockMappedXProfile);
     });
@@ -431,7 +431,7 @@ describe('ProfileController', () => {
       const deleteProfileMock = jest.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
-        'ProfileService:connectX',
+        'ProfileService:getXAccount',
         jest.fn().mockResolvedValue(mockXConnectResponse),
       );
       mockServiceAction(
@@ -444,7 +444,7 @@ describe('ProfileController', () => {
         rootMessenger,
         state: { metamaskProfile: mockMappedProfile },
       });
-      await controller.connectX({ code: 'auth-code', state: 'state-xyz' });
+      await controller.fetchAndUpdateXAccount();
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
 
       await controller.deleteProfile();
@@ -534,19 +534,23 @@ describe('ProfileController', () => {
   });
 
   describe('connectX', () => {
-    it('calls ProfileService:connectX with code and state, updates xProfile', async () => {
+    it('calls ProfileService:connectX with code and state and returns the X profile', async () => {
       const rootMessenger = getRootMessenger();
       const connectXMock = jest.fn().mockResolvedValue(mockXConnectResponse);
       mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
 
       const { controller } = createController({ rootMessenger });
-      await controller.connectX({ code: 'auth-code-123', state: 'state-xyz' });
+      const result = await controller.connectX({
+        code: 'auth-code-123',
+        state: 'state-xyz',
+      });
 
       expect(connectXMock).toHaveBeenCalledWith({
         code: 'auth-code-123',
         state: 'state-xyz',
       });
-      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+      expect(result).toStrictEqual(mockMappedXProfile);
+      expect(controller.state.xProfile).toBeUndefined();
     });
   });
 
