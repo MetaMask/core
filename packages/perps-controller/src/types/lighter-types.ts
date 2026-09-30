@@ -618,7 +618,7 @@ export type LighterWsTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl per side — same wire shape as the REST trade payload. */
+  /** Realized pnl per side; may be omitted on opens or adds, as in REST trades. */
   askAccountPnl?: string;
   bidAccountPnl?: string;
   /** Fees, present when nonzero; unit unproven — see LighterRestTrade. */
@@ -626,6 +626,7 @@ export type LighterWsTrade = {
   makerFee?: number | string;
   takerPositionSizeBefore?: string;
   makerPositionSizeBefore?: string;
+  /** Whether the side's position sign changed; omission is unknown. */
   takerPositionSignChanged?: boolean;
   makerPositionSignChanged?: boolean;
 };
