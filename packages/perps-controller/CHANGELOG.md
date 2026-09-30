@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+
 - **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#10591](https://github.com/MetaMask/core/pull/10591))
 - **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))

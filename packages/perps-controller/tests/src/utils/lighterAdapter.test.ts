@@ -375,7 +375,7 @@ describe('lighterAdapter', () => {
 
               expect(fill).toMatchObject({
                 direction: expected,
-                pnl: pnl ?? '0',
+                pnl,
               });
             }
           }
@@ -614,14 +614,43 @@ describe('lighterAdapter', () => {
       );
     });
 
-    it('normalizes missing account pnl for an existing position', () => {
-      expect(
-        adaptFillFromLighterTrade(
-          { ...REAL_TRADE, askAccountPnl: undefined },
-          'SOL',
-          28,
-        ).pnl,
-      ).toBe('0');
+    it.each([true, false])(
+      'rejects missing reduction pnl for maker=%s',
+      (isMaker) => {
+        for (const isAsk of [true, false]) {
+          for (const size of ['0.133', '0.2']) {
+            const trade = {
+              ...REAL_TRADE,
+              size,
+              isMakerAsk: isAsk === isMaker,
+              makerPositionSizeBefore: isMaker ? '0.133' : '0',
+              takerPositionSizeBefore: isMaker ? '0' : '0.133',
+              makerPositionSignChanged: isMaker,
+              takerPositionSignChanged: !isMaker,
+              askAccountPnl: isAsk ? undefined : '123',
+              bidAccountPnl: isAsk ? '123' : undefined,
+            };
+
+            expect(() =>
+              adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7),
+            ).toThrow('is missing valid account pnl');
+          }
+        }
+      },
+    );
+
+    it('preserves unknown pnl with a supplied unchanged-sign flag', () => {
+      const fill = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          askAccountPnl: undefined,
+          takerPositionSignChanged: false,
+        },
+        'SOL',
+        28,
+      );
+
+      expect(fill).toMatchObject({ pnl: undefined, direction: 'Sell' });
     });
 
     it.each([
@@ -644,7 +673,11 @@ describe('lighterAdapter', () => {
 
         const fill = adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7);
 
-        expect(fill).toMatchObject({ pnl: '0', direction, startPosition: '0' });
+        expect(fill).toMatchObject({
+          pnl: undefined,
+          direction,
+          startPosition: '0',
+        });
       },
     );
 
