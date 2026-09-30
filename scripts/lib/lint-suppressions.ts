@@ -114,31 +114,24 @@ export function printAddedSuppressions(
  * Finds the commit holding the suppressions files to measure against.
  *
  * CI checks a pull request out as the merge of the branch into its base, so the
- * base is simply the first parent, and the files in the working tree already
- * have the base's own changes folded in. Elsewhere there is no merge commit, so
+ * base is its first parent, and the files in the working tree already have the
+ * base's own changes folded in. A merge commit made by hand is the other way
+ * round, its first parent being the branch, so the shape of the commit is not
+ * enough to go on and only CI's checkout is taken at face value. Anywhere else
  * the merge base with the target branch stands in for it.
  *
- * @param baseRef - The branch this work is destined for.
+ * @param targetRef - The branch this work is destined for.
  * @returns The ref to read the baseline from.
  */
-async function resolveBaseRef(baseRef: string): Promise<string> {
-  const { stdout: parents } = await execa(
-    'git',
-    ['rev-list', '--parents', '-n', '1', 'HEAD'],
-    { cwd: REPO_ROOT },
-  );
-
-  // A merge commit lists two parents alongside its own hash.
-  if (parents.split(' ').length > 2) {
+async function resolveBaseRef(targetRef: string): Promise<string> {
+  if (process.env.GITHUB_ACTIONS === 'true') {
     return 'HEAD^1';
   }
 
-  const { stdout: mergeBase } = await execa(
-    'git',
-    ['merge-base', 'HEAD', baseRef],
-    { cwd: REPO_ROOT },
-  );
-  return mergeBase.trim();
+  const { stdout } = await execa('git', ['merge-base', 'HEAD', targetRef], {
+    cwd: REPO_ROOT,
+  });
+  return stdout.trim();
 }
 
 /**

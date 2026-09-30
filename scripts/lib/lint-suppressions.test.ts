@@ -120,26 +120,13 @@ describe('printAddedSuppressions', () => {
 /**
  * Stubs the Git commands the check runs.
  *
- * @param args - The arguments to this function.
- * @param args.isMergeCommit - Whether HEAD should look like a merge commit.
- * @param args.suppressions - The baseline the commands should produce.
+ * @param suppressions - The baseline the commands should produce.
  */
-function mockGit({
-  isMergeCommit,
-  suppressions = '{}',
-}: {
-  isMergeCommit: boolean;
-  suppressions?: string;
-}): void {
+function mockGit(suppressions = '{}'): void {
   jest.mocked(execa).mockImplementation((async (
     _file: string,
     args: string[],
   ) => {
-    if (args[0] === 'rev-list') {
-      return {
-        stdout: isMergeCommit ? 'head parentA parentB' : 'head parentA',
-      };
-    }
     if (args[0] === 'merge-base') {
       return { stdout: 'abc123\n' };
     }
@@ -153,10 +140,15 @@ describe('lintSuppressions', () => {
   beforeEach(() => {
     originalProcess = globalThis.process;
     // The exit code is reset because it is global state that another test file
-    // may have set.
-    globalThis.process = { ...globalThis.process, exitCode: undefined };
+    // may have set, and `GITHUB_ACTIONS` because this suite itself runs in CI,
+    // where it would otherwise be set for every test.
+    globalThis.process = {
+      ...globalThis.process,
+      exitCode: undefined,
+      env: { ...globalThis.process.env, GITHUB_ACTIONS: undefined },
+    };
     jest.spyOn(console, 'log').mockReturnValue(undefined);
-    mockGit({ isMergeCommit: true });
+    mockGit();
     jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
   });
 
@@ -165,7 +157,7 @@ describe('lintSuppressions', () => {
   });
 
   it('reads the baseline from the first parent of the merge commit CI checks out', async () => {
-    mockGit({ isMergeCommit: true });
+    process.env.GITHUB_ACTIONS = 'true';
 
     await lintSuppressions([]);
 
@@ -181,9 +173,7 @@ describe('lintSuppressions', () => {
     );
   });
 
-  it('falls back to the merge base where there is no merge commit, as when run locally', async () => {
-    mockGit({ isMergeCommit: false });
-
+  it('takes the merge base when running outside of CI, where a merge commit means something else', async () => {
     await lintSuppressions([]);
 
     expect(jest.mocked(execa)).toHaveBeenCalledWith(
@@ -204,8 +194,6 @@ describe('lintSuppressions', () => {
   });
 
   it('takes the merge base against the branch it is given', async () => {
-    mockGit({ isMergeCommit: false });
-
     await lintSuppressions(['origin/release']);
 
     expect(jest.mocked(execa)).toHaveBeenCalledWith(
