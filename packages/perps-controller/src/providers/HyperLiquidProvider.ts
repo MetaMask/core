@@ -265,9 +265,9 @@ const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
   [DETAILED_ORDER_TYPES.STOP_MARKET]: 'market',
   [DETAILED_ORDER_TYPES.TAKE_PROFIT_LIMIT]: 'limit',
   [DETAILED_ORDER_TYPES.TAKE_PROFIT_MARKET]: 'market',
-  'Twap Slice': 'market',
-  'Vault Close': 'market',
-  'Spot Dust Conversion': 'market',
+  [DETAILED_ORDER_TYPES.TWAP_SLICE]: 'market',
+  [DETAILED_ORDER_TYPES.VAULT_CLOSE]: 'market',
+  [DETAILED_ORDER_TYPES.SPOT_DUST_CONVERSION]: 'market',
 } as const satisfies Record<HyperLiquidOrderType, Order['orderType']>;
 
 const HISTORICAL_ORDER_STATUS_BY_SDK_STATUS = {
