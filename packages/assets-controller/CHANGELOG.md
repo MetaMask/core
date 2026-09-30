@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(assets-controller): split integration and unit test coverage ([#10625](https://github.com/MetaMask/core/pull/10625))
+- test(assets-controller): add stale-balance scenario integration tests for accounts API v6 ([#10584](https://github.com/MetaMask/core/pull/10584))
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- test(assets-controller): add ws price-update snapshot source of truth tests ([#10543](https://github.com/MetaMask/core/pull/10543))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- test(assets-controller): add record snapshots to v6 integration suites ([#10490](https://github.com/MetaMask/core/pull/10490))
+- test(assets-controller): websocket price-update integration tests ([#10476](https://github.com/MetaMask/core/pull/10476))
+- test(assets-controller): add v6 integration test suite ([#10406](https://github.com/MetaMask/core/pull/10406))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+
 ### Added
 
 - **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
