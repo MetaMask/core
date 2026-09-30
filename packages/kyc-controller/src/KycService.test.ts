@@ -288,16 +288,21 @@ describe('KycService', () => {
 
     it('authenticates session creation with the aal2 token', async () => {
       nock(MOCK_API_URL)
-        .post('/sessions', (body) => body.aal2Token === undefined)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => body.aal2Token === undefined,
+        )
         .matchHeader('authorization', `Bearer ${AAL2_TOKEN}`)
         .reply(200, response);
       const { service } = getService({ bearerToken: 'wallet-bearer' });
 
-      await service.createUkycSession({
-        sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
-        residenceCountry: RESIDENCE_COUNTRY,
-        aal2Token: AAL2_TOKEN,
-      });
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
     });
 
     it('throws when aal2Token is missing', async () => {
