@@ -495,31 +495,6 @@
       "count": 1
     }
   },
-  "packages/cryptography/src/ed25519.test.ts": {
-    "TS2345": {
-      "count": 18
-    }
-  },
-  "packages/cryptography/src/hkdf.test.ts": {
-    "TS2345": {
-      "count": 20
-    }
-  },
-  "packages/cryptography/src/hmac.test.ts": {
-    "TS2345": {
-      "count": 12
-    }
-  },
-  "packages/cryptography/src/sha.test.ts": {
-    "TS2345": {
-      "count": 3
-    }
-  },
-  "packages/cryptography/src/x25519.test.ts": {
-    "TS2345": {
-      "count": 14
-    }
-  },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
     "TS2322": {
       "count": 34

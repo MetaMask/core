@@ -77,7 +77,7 @@ export async function getPublicKey(
 export async function sign(
   privateKey: BufferSource,
   data: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (privateKey.byteLength !== ED25519_KEY_LENGTH) {
     throw new Error(
       `Invalid private key length: Private key must be exactly ${ED25519_KEY_LENGTH} bytes for Ed25519.`,

@@ -99,7 +99,7 @@ export async function getPublicKey(
 export async function getSharedSecret(
   privateKey: BufferSource,
   publicKey: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   // X25519 shared secrets are derived as X25519(a, K_b)
   return scalarMultiply(privateKey, publicKey);
 }
