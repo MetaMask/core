@@ -6,6 +6,7 @@ import {
   LighterClientService,
 } from '../../../src/services/LighterClientService.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
+import type { CandleData, OrderBookData } from '../../../src/types/index.js';
 import type {
   LighterSignerBridge,
   LighterSignerOperation,
@@ -1794,7 +1795,12 @@ describe('LighterProvider', () => {
         leverage: 10,
       });
       expect(result.success).toBe(true);
-      const leverageCall = (bridge.execute as jest.Mock).mock.calls.find(
+      const leverageCall = (
+        bridge.execute as jest.Mock<
+          Promise<LighterSignerResult>,
+          [LighterWasmCall]
+        >
+      ).mock.calls.find(
         ([call]: [LighterWasmCall]) => call.function === '_signUpdateLeverage',
       )?.[0] as LighterWasmCall;
       expect(leverageCall).toBeDefined();
@@ -2749,7 +2755,7 @@ describe('LighterProvider', () => {
       await readUnderA;
 
       const accountReads = clientInstance.getAccountByIndex.mock.calls.map(
-        (call) => call[0],
+        (call: [number]) => call[0],
       );
       expect(accountReads).not.toContain(28);
       expect(accountReads).toContain(900);
@@ -3268,7 +3274,12 @@ describe('LighterProvider', () => {
         leverage: 10,
       });
       expect(result.success).toBe(true);
-      const leverageCall = (bridge.execute as jest.Mock).mock.calls.find(
+      const leverageCall = (
+        bridge.execute as jest.Mock<
+          Promise<LighterSignerResult>,
+          [LighterWasmCall]
+        >
+      ).mock.calls.find(
         ([call]: [LighterWasmCall]) => call.function === '_signUpdateLeverage',
       )?.[0] as LighterWasmCall;
       expect(leverageCall).toBeDefined();
@@ -10075,7 +10086,7 @@ describe('LighterProvider', () => {
       // NaN Y-coordinates and crashed the native SVG path parser
       // (RNSVGPathParser InvalidNumber).
       const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
-      const bookCallback = jest.fn();
+      const bookCallback = jest.fn<void, [OrderBookData]>();
       const unsubscribe = provider.subscribeToOrderBook({
         symbol: 'BTC',
         levels: 5,
@@ -10131,7 +10142,7 @@ describe('LighterProvider', () => {
             'total',
             'notional',
             'totalNotional',
-          ]) {
+          ] as const) {
             expect(Number.isFinite(parseFloat(level[field]))).toBe(true);
           }
         }
@@ -10141,7 +10152,7 @@ describe('LighterProvider', () => {
 
     it('rejects a malformed order book frame without emitting or poisoning its cached nonce', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
-      const bookCallback = jest.fn();
+      const bookCallback = jest.fn<void, [OrderBookData]>();
       const unsubscribe = provider.subscribeToOrderBook({
         symbol: 'BTC',
         callback: bookCallback,
@@ -10280,7 +10291,7 @@ describe('LighterProvider', () => {
             },
           ],
         });
-      const candleCallback = jest.fn();
+      const candleCallback = jest.fn<void, [CandleData]>();
       const unsubscribe = provider.subscribeToCandles({
         symbol: 'BTC',
         interval: '1h',
@@ -10315,7 +10326,13 @@ describe('LighterProvider', () => {
         live.candles.map((candle: { time: number }) => candle.time),
       ).toStrictEqual([1000, 2000]);
       for (const candle of live.candles) {
-        for (const field of ['open', 'high', 'low', 'close', 'volume']) {
+        for (const field of [
+          'open',
+          'high',
+          'low',
+          'close',
+          'volume',
+        ] as const) {
           expect(Number.isFinite(parseFloat(candle[field]))).toBe(true);
         }
       }
@@ -12046,6 +12063,132 @@ describe('LighterProvider', () => {
       expect(result.error).toBeUndefined();
       expect(result.success).toBe(true);
     });
+  });
+
+  describe('startup journal slot classification', () => {
+    it('reports an unverified restored slot as unfinished, without claiming another trading key', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: infra });
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+      await infra.diskCache.setItem(
+        'lighterTpslJournalIndex:testnet',
+        JSON.stringify([settlementKey]),
+      );
+      await infra.diskCache.setItem(
+        `lighterTpslJournal:testnet:${settlementKey}`,
+        JSON.stringify({
+          version: 4,
+          recordedAt: 5,
+          operationId: 'startup-slot-19',
+          createdAt: 5,
+          nextAttemptId: 2,
+          apiKeyIndex: 19,
+          intent: 'replace',
+          phase: 'creating',
+          priorGrouping: 'independent',
+          priorTriggers: [],
+          attempts: [
+            {
+              kind: 'create',
+              attemptId: 1,
+              nonce: 42,
+              outcome: 'unknown',
+              clientIds: [12345],
+              txHash: 'ffff00000001',
+              expiresAt: 9_999_999_999_999,
+              role: 'replacement',
+            },
+          ],
+        }),
+      );
+      const pending = await built.provider.getPendingManualRecoveries();
+      expect(pending).toHaveLength(1);
+      expect(pending[0].reason).toContain('unfinished');
+      expect(pending[0].reason).not.toContain('previous trading key');
+    });
+  });
+
+  describe('recovered-slot ledger binding', () => {
+    it.each(['append', 'outcome'] as const)(
+      'retains slot 19 during an account switch at %s',
+      async (boundary) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        Object.assign(built.bridge, {
+          getStoredKeyIndices: async (): Promise<number[]> => [19],
+        });
+        built.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [{ apiKeyIndex: 19, publicKey: '9c'.repeat(40) }],
+        });
+        let switched = false;
+        const switchAccount = (): void => {
+          switched = true;
+          built.getUserAddressMock.mockReturnValue(
+            '0x9999999999999999999999999999999999999999',
+          );
+        };
+        if (boundary === 'append') {
+          const realSet = (
+            infra.diskCache.setItem as jest.Mock
+          ).getMockImplementation() as (
+            key: string,
+            value: string,
+          ) => Promise<void>;
+          jest
+            .spyOn(infra.diskCache, 'setItem')
+            .mockImplementation(async (key, value) => {
+              await realSet(key, value);
+              if (
+                key === 'lighterNonceLedger:testnet:28:19' &&
+                (JSON.parse(value) as { entries: unknown[] }).entries.length >
+                  0 &&
+                !switched
+              ) {
+                switchAccount();
+                await built.provider.getAccountState().catch(() => undefined);
+              }
+            });
+        } else {
+          const realSend =
+            built.clientInstance.sendTx.getMockImplementation() as (
+              type: number,
+              info: string,
+            ) => Promise<unknown>;
+          built.clientInstance.sendTx.mockImplementation(
+            async (type: number, info: string) => {
+              const response = await realSend(type, info);
+              if (!switched) {
+                switchAccount();
+              }
+              return response;
+            },
+          );
+        }
+        const result = await built.provider.withdraw({ amount: '25' });
+        expect(result.success).toBe(false);
+        const doc = JSON.parse(
+          (await infra.diskCache.getItem(
+            'lighterNonceLedger:testnet:28:19',
+          )) as string,
+        ) as { entries: unknown[]; recovered: { outcome: string }[] };
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7'),
+        ).toBeNull();
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(
+          boundary === 'append' ? 0 : 1,
+        );
+        expect(doc.entries).toHaveLength(boundary === 'append' ? 1 : 0);
+        expect(doc.recovered).toHaveLength(boundary === 'append' ? 0 : 1);
+        expect(doc.recovered[0]?.outcome).toBe(
+          boundary === 'append' ? undefined : 'succeeded',
+        );
+      },
+    );
   });
 
   describe('round-23 post-dispatch atomicity', () => {

@@ -1807,28 +1807,34 @@ export class LighterProvider implements PerpsProvider {
    * whose outcome is unknown, and a proven never-landed dispatch can
    * release its nonce for the venue to consume.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @returns The disk-cache key.
    */
-  readonly #nonceLedgerKey = (accountIndex: number): string =>
-    `lighterNonceLedger:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}:${this.#apiKeyIndex}`;
+  readonly #nonceLedgerKey = (
+    accountIndex: number,
+    apiKeyIndex = this.#apiKeyIndex,
+  ): string =>
+    `lighterNonceLedger:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}:${apiKeyIndex}`;
 
   /**
    * Read and strictly validate the durable dispatch ledger. Corruption
    * fails CLOSED (writes stay blocked) — guessing at nonce state could
    * duplicate or wedge submissions.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @returns The ledger document (consumed-nonce watermark + unresolved
    * dispatch entries).
    */
   readonly #readNonceLedger = async (
     accountIndex: number,
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<LighterNonceLedgerDoc> => {
     let raw: string | null;
     try {
       raw = await this.#deps.diskCache.getItem(
-        this.#nonceLedgerKey(accountIndex),
+        this.#nonceLedgerKey(accountIndex, apiKeyIndex),
       );
     } catch (error) {
       throw new Error(
@@ -1944,6 +1950,7 @@ export class LighterProvider implements PerpsProvider {
   /**
    * Persist the dispatch ledger document.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @param doc - The ledger document.
    * @param doc.consumedFloor - Highest proven-consumed nonce + 1.
@@ -1952,9 +1959,10 @@ export class LighterProvider implements PerpsProvider {
   readonly #writeNonceLedger = async (
     accountIndex: number,
     doc: LighterNonceLedgerDoc,
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<void> => {
     await this.#deps.diskCache.setItem(
-      this.#nonceLedgerKey(accountIndex),
+      this.#nonceLedgerKey(accountIndex, apiKeyIndex),
       JSON.stringify({ version: 4, ...doc }),
     );
   };
@@ -1979,6 +1987,7 @@ export class LighterProvider implements PerpsProvider {
    * dispatch entry. Lock order is always venueWrite → bridge → ledger
    * (the ack path takes only the ledger mutex), so no cycle exists.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @param operation - The ledger RMW critical section.
    * @returns The operation's result.
@@ -1986,8 +1995,12 @@ export class LighterProvider implements PerpsProvider {
   readonly #withLedgerLock = async <Result>(
     accountIndex: number,
     operation: () => Promise<Result>,
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<Result> =>
-    await withProcessMutex(this.#nonceLedgerKey(accountIndex), operation);
+    await withProcessMutex(
+      this.#nonceLedgerKey(accountIndex, apiKeyIndex),
+      operation,
+    );
 
   /**
    * Append a recovered dispatch without ever sacrificing a blocking
@@ -2041,6 +2054,7 @@ export class LighterProvider implements PerpsProvider {
    * are consumed without quarantine in both cases (their machine
    * reconciles the intent by exact hash).
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index of the ORIGINAL session.
    * @param entry - The dispatched (accepted) ledger entry.
    * @param fenceFailed - Whether the post-send session fence rejected.
@@ -2050,30 +2064,36 @@ export class LighterProvider implements PerpsProvider {
     accountIndex: number,
     entry: LighterNonceLedgerDoc['entries'][number],
     fenceFailed: boolean,
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<void> =>
-    await this.#withLedgerLock(accountIndex, async () => {
-      const doc = await this.#readNonceLedger(accountIndex);
-      const at = doc.entries.findIndex(
-        (candidate) =>
-          candidate.nonce === entry.nonce && candidate.txHash === entry.txHash,
-      );
-      if (at >= 0) {
-        doc.entries.splice(at, 1);
-      }
-      doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
-      if (fenceFailed && entry.owner === null) {
-        const recoveryId = `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`;
-        this.#appendRecoveredDispatch(doc, {
-          recoveryId,
-          kind: entry.kind,
-          intent: entry.intent,
-          txHash: entry.txHash,
-          outcome: 'succeeded',
-          evidence: 'post-dispatch-session-cancelled',
-        });
-      }
-      await this.#writeNonceLedger(accountIndex, doc);
-    });
+    await this.#withLedgerLock(
+      accountIndex,
+      async () => {
+        const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
+        const at = doc.entries.findIndex(
+          (candidate) =>
+            candidate.nonce === entry.nonce &&
+            candidate.txHash === entry.txHash,
+        );
+        if (at >= 0) {
+          doc.entries.splice(at, 1);
+        }
+        doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+        if (fenceFailed && entry.owner === null) {
+          const recoveryId = `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`;
+          this.#appendRecoveredDispatch(doc, {
+            recoveryId,
+            kind: entry.kind,
+            intent: entry.intent,
+            txHash: entry.txHash,
+            outcome: 'succeeded',
+            evidence: 'post-dispatch-session-cancelled',
+          });
+        }
+        await this.#writeNonceLedger(accountIndex, doc, apiKeyIndex);
+      },
+      apiKeyIndex,
+    );
 
   /**
    * Resolve every unresolved dispatch before a write section may issue
@@ -2085,23 +2105,31 @@ export class LighterProvider implements PerpsProvider {
    * blocking until the venue advances. Ambiguity blocks the write.
    * Runs under the account+slot ledger lock.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @returns Resolves when every prior dispatch is accounted for.
    */
-  readonly #resolveNonceLedger = async (accountIndex: number): Promise<void> =>
-    await this.#withLedgerLock(accountIndex, async () =>
-      this.#resolveNonceLedgerLocked(accountIndex),
+  readonly #resolveNonceLedger = async (
+    accountIndex: number,
+    apiKeyIndex = this.#apiKeyIndex,
+  ): Promise<void> =>
+    await this.#withLedgerLock(
+      accountIndex,
+      async () => this.#resolveNonceLedgerLocked(accountIndex, apiKeyIndex),
+      apiKeyIndex,
     );
 
   /**
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @returns Resolves when the pass completes.
    */
   readonly #resolveNonceLedgerLocked = async (
     accountIndex: number,
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<void> => {
-    const doc = await this.#readNonceLedger(accountIndex);
-    const reservationKey = `${accountIndex}:${this.#apiKeyIndex}`;
+    const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
+    const reservationKey = `${accountIndex}:${apiKeyIndex}`;
     // The durable consumed watermark always seeds the memory floor.
     if (doc.consumedFloor > 0) {
       const floor = this.#nonceReservations.get(reservationKey) ?? 0;
@@ -2154,7 +2182,7 @@ export class LighterProvider implements PerpsProvider {
     };
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
-      this.#apiKeyIndex,
+      apiKeyIndex,
     );
     const remaining: typeof doc.entries = [];
     for (const entry of doc.entries) {
@@ -2186,7 +2214,7 @@ export class LighterProvider implements PerpsProvider {
             lookedUp.hash.toLowerCase().replace(/^0x/u, '') ===
               entry.txHash.toLowerCase().replace(/^0x/u, '') &&
             lookedUp.accountIndex === accountIndex &&
-            lookedUp.apiKeyIndex === this.#apiKeyIndex &&
+            lookedUp.apiKeyIndex === apiKeyIndex &&
             lookedUp.nonce === entry.nonce &&
             typeof lookedUp.status === 'number';
           if (matchesIdentity) {
@@ -2254,7 +2282,11 @@ export class LighterProvider implements PerpsProvider {
           // never landed — the venue still expects this nonce (unless a
           // later dispatch already consumed it: consumedFloor guards).
           if (entry.nonce >= doc.consumedFloor) {
-            this.#releaseNonceReservation(accountIndex, entry.nonce);
+            this.#releaseNonceReservation(
+              accountIndex,
+              entry.nonce,
+              apiKeyIndex,
+            );
           }
           continue;
         }
@@ -2262,11 +2294,15 @@ export class LighterProvider implements PerpsProvider {
       // Hashless, or hash present but unexpired-and-absent: ambiguous.
       remaining.push(entry);
     }
-    await this.#writeNonceLedger(accountIndex, {
-      consumedFloor: doc.consumedFloor,
-      entries: remaining,
-      recovered: doc.recovered,
-    });
+    await this.#writeNonceLedger(
+      accountIndex,
+      {
+        consumedFloor: doc.consumedFloor,
+        entries: remaining,
+        recovered: doc.recovered,
+      },
+      apiKeyIndex,
+    );
     if (remaining.length > 0) {
       throw new Error(
         'A previous Lighter submission has an unresolved outcome; writes are blocked until it can be proven consumed or never-landed',
@@ -2306,7 +2342,10 @@ export class LighterProvider implements PerpsProvider {
     // Protection belongs to the wallet and venue account, even after its
     // trading key migrates. Network storage remains separately scoped.
     const identityPrefix = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:`;
-    const currentSlotPrefix = `${identityPrefix}${this.#apiKeyIndex}:`;
+    const currentSlotPrefix =
+      this.#signerIdentity === null
+        ? null
+        : `${identityPrefix}${this.#apiKeyIndex}:`;
     const pending: {
       symbol: string;
       settlementKey: string;
@@ -2352,16 +2391,22 @@ export class LighterProvider implements PerpsProvider {
       if (
         journal &&
         (journal.phase === 'manual' ||
+          currentSlotPrefix === null ||
           !settlementKey.startsWith(currentSlotPrefix))
       ) {
+        let reason =
+          'An unfinished TP/SL update from a previous trading key requires reconciliation';
+        if (journal.phase === 'manual') {
+          reason =
+            'TP/SL protection could not be safely re-established automatically (parked by an earlier session)';
+        } else if (currentSlotPrefix === null) {
+          reason = 'An unfinished TP/SL update requires startup reconciliation';
+        }
         pending.push({
           symbol: settlementKey.split(':').at(-1) ?? settlementKey,
           settlementKey,
           recordedAt: journal.recordedAt,
-          reason:
-            journal.phase === 'manual'
-              ? 'TP/SL protection could not be safely re-established automatically (parked by an earlier session)'
-              : 'An unfinished TP/SL update from a previous trading key requires reconciliation',
+          reason,
           priorIntent: journal.intent,
           survivingOrderIds: [],
           actionNeeded,
@@ -2382,8 +2427,11 @@ export class LighterProvider implements PerpsProvider {
    */
   async getRecoveredDispatches(): Promise<LighterRecoveredDispatch[]> {
     this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
     const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
     const doc = await this.#readNonceLedger(accountIndex);
+    this.#assertSession(generation);
     return doc.recovered.map((outcome) => ({ ...outcome }));
   }
 
@@ -2400,24 +2448,34 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     const accountIndex = await this.#ensureAccountIndex();
-    await withProcessMutex(this.#nonceLedgerKey(accountIndex), async () => {
-      this.#ensureSessionBinding();
-      this.#assertSession(generation);
-      const doc = await this.#readNonceLedger(accountIndex);
-      const remaining = doc.recovered.filter(
-        (outcome) => outcome.recoveryId !== recoveryId,
-      );
-      if (remaining.length === doc.recovered.length) {
-        throw new Error(
-          `No pending recovered Lighter dispatch matches id ${recoveryId}; refresh and re-read before acknowledging`,
+    this.#assertSession(generation);
+    const apiKeyIndex = this.#apiKeyIndex;
+    await withProcessMutex(
+      this.#nonceLedgerKey(accountIndex, apiKeyIndex),
+      async () => {
+        this.#ensureSessionBinding();
+        this.#assertSession(generation);
+        const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
+        this.#assertSession(generation);
+        const remaining = doc.recovered.filter(
+          (outcome) => outcome.recoveryId !== recoveryId,
         );
-      }
-      await this.#writeNonceLedger(accountIndex, {
-        consumedFloor: doc.consumedFloor,
-        entries: doc.entries,
-        recovered: remaining,
-      });
-    });
+        if (remaining.length === doc.recovered.length) {
+          throw new Error(
+            `No pending recovered Lighter dispatch matches id ${recoveryId}; refresh and re-read before acknowledging`,
+          );
+        }
+        await this.#writeNonceLedger(
+          accountIndex,
+          {
+            consumedFloor: doc.consumedFloor,
+            entries: doc.entries,
+            recovered: remaining,
+          },
+          apiKeyIndex,
+        );
+      },
+    );
   }
 
   /**
@@ -2425,18 +2483,22 @@ export class LighterProvider implements PerpsProvider {
    * refused when the durable consumed watermark shows a later dispatch
    * (e.g. a retry) already consumed the nonce.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @param nonce - The proven-unconsumed nonce.
    */
   readonly #releaseNonceReservationIfUnconsumed = async (
     accountIndex: number,
     nonce: number,
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<void> => {
-    const doc = await this.#readNonceLedger(accountIndex).catch(() => null);
+    const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex).catch(
+      () => null,
+    );
     if (doc === null || nonce < doc.consumedFloor) {
       return;
     }
-    this.#releaseNonceReservation(accountIndex, nonce);
+    this.#releaseNonceReservation(accountIndex, nonce, apiKeyIndex);
   };
 
   /**
@@ -2649,7 +2711,10 @@ export class LighterProvider implements PerpsProvider {
       Number.isSafeInteger(parsed.recordedAt) &&
       parsed.recordedAt >= 0 &&
       // The journal is bound to ONE api-key slot: nonces are per slot.
-      parsed.apiKeyIndex === this.#apiKeyIndex &&
+      String(parsed.apiKeyIndex) === settlementKey.split(':').at(-2) &&
+      typeof parsed.apiKeyIndex === 'number' &&
+      Number.isSafeInteger(parsed.apiKeyIndex) &&
+      parsed.apiKeyIndex >= 0 &&
       typeof parsed.operationId === 'string' &&
       parsed.operationId.length >= 1 &&
       parsed.operationId.length <= 64 &&
@@ -3919,6 +3984,7 @@ export class LighterProvider implements PerpsProvider {
     accountIndex: number,
     entry: { attempts: TpslAttempt[]; recordedAt: number },
   ): Promise<'resolved' | 'unresolved'> => {
+    const apiKeyIndex = this.#apiKeyIndex;
     // Per-attempt reconciliation, authoritative and never time-guessed:
     // 1. Books first — a create is resolved when its ids are all
     //    active/terminal, a cancel when its target left the active book.
@@ -4017,7 +4083,7 @@ export class LighterProvider implements PerpsProvider {
           lookedUp.hash.toLowerCase().replace(/^0x/u, '') ===
             attempt.txHash.toLowerCase().replace(/^0x/u, '') &&
           lookedUp.accountIndex === accountIndex &&
-          lookedUp.apiKeyIndex === this.#apiKeyIndex &&
+          lookedUp.apiKeyIndex === apiKeyIndex &&
           lookedUp.nonce === attempt.nonce;
         if (!matchesIdentity) {
           this.#deps.debugLogger.log(
@@ -4055,6 +4121,7 @@ export class LighterProvider implements PerpsProvider {
       await this.#releaseNonceReservationIfUnconsumed(
         accountIndex,
         attempt.nonce,
+        apiKeyIndex,
       );
     }
     return 'resolved';
@@ -4065,14 +4132,16 @@ export class LighterProvider implements PerpsProvider {
    * PROVEN never-landed. Only the topmost reservation can be safely
    * lowered; anything else stays reserved until proven in turn.
    *
+   * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
    * @param nonce - The proven-unconsumed nonce.
    */
   readonly #releaseNonceReservation = (
     accountIndex: number,
     nonce: number,
+    apiKeyIndex = this.#apiKeyIndex,
   ): void => {
-    const reservationKey = `${accountIndex}:${this.#apiKeyIndex}`;
+    const reservationKey = `${accountIndex}:${apiKeyIndex}`;
     if (this.#nonceReservations.get(reservationKey) === nonce + 1) {
       this.#nonceReservations.set(reservationKey, nonce);
     }
@@ -4677,7 +4746,7 @@ export class LighterProvider implements PerpsProvider {
       // the ledger is durable) must resolve before this section may issue
       // nonces: a restart would otherwise reuse a consumed-but-lagging
       // nonce, and a proven never-landed dispatch must release its nonce.
-      await this.#resolveNonceLedger(accountIndex);
+      await this.#resolveNonceLedger(accountIndex, apiKeyIndex);
       this.#assertSession(generationAtIntent);
       // Monotonic nonce reservation: the venue's nextNonce endpoint can
       // LAG accepted submissions. The floor is SESSION-GLOBAL per
@@ -4687,7 +4756,7 @@ export class LighterProvider implements PerpsProvider {
       // response was lost. Reservation advances at DISPATCH (a signing
       // failure never burns a nonce the venue still expects); a proven
       // never-landed submission releases it again via reconciliation.
-      const reservationKey = `${accountIndex}:${this.#apiKeyIndex}`;
+      const reservationKey = `${accountIndex}:${apiKeyIndex}`;
       let lastIssuedNonce: number | null = null;
       const nextNonce = async (): Promise<number> => {
         // Re-fenced on every fetch AND after it resolves: the account can
@@ -4696,7 +4765,7 @@ export class LighterProvider implements PerpsProvider {
         this.#assertSession(generationAtIntent);
         const nonceResponse = await this.#clientService.getNextNonce(
           accountIndex,
-          this.#apiKeyIndex,
+          apiKeyIndex,
         );
         this.#assertSession(generationAtIntent);
         const reservedFloor = this.#nonceReservations.get(reservationKey);
@@ -4764,19 +4833,30 @@ export class LighterProvider implements PerpsProvider {
             owner: identity.owner ?? null,
           };
           const appendedEntry = ledgerEntry;
-          await this.#withLedgerLock(accountIndex, async () => {
-            const doc = await this.#readNonceLedger(accountIndex);
-            if (doc.entries.length >= 16) {
-              throw new Error(
-                'Too many unresolved Lighter dispatches; refusing further writes until they resolve',
+          await this.#withLedgerLock(
+            accountIndex,
+            async () => {
+              const doc = await this.#readNonceLedger(
+                accountIndex,
+                apiKeyIndex,
               );
-            }
-            await this.#writeNonceLedger(accountIndex, {
-              consumedFloor: doc.consumedFloor,
-              entries: [...doc.entries, appendedEntry],
-              recovered: doc.recovered,
-            });
-          });
+              if (doc.entries.length >= 16) {
+                throw new Error(
+                  'Too many unresolved Lighter dispatches; refusing further writes until they resolve',
+                );
+              }
+              await this.#writeNonceLedger(
+                accountIndex,
+                {
+                  consumedFloor: doc.consumedFloor,
+                  entries: [...doc.entries, appendedEntry],
+                  recovered: doc.recovered,
+                },
+                apiKeyIndex,
+              );
+            },
+            apiKeyIndex,
+          );
           // Only AFTER the durable append: reserve in memory — from this
           // point the venue may consume the nonce even if the response
           // never arrives.
@@ -4785,6 +4865,7 @@ export class LighterProvider implements PerpsProvider {
         // EVERY error path below keeps the durable entry — a coded venue
         // or HTTP error can mask a commit, so nothing short of an exact
         // authoritative reconciliation may release the nonce.
+        this.#assertSession(generationAtIntent);
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
         // Acceptance bookkeeping runs SYNCHRONOUSLY before anything can
@@ -4810,6 +4891,7 @@ export class LighterProvider implements PerpsProvider {
             accountIndex,
             ledgerEntry,
             fenceError !== null,
+            apiKeyIndex,
           ).catch(() => undefined);
         }
         if (fenceError !== null) {
