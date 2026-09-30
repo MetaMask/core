@@ -737,12 +737,22 @@ describe('MoneyAccountLifecycleController', () => {
     });
   });
 
-  describe('current address registration', () => {
-    it('records the registration status of the current address of an SFA, keyed by lowercased address', async () => {
+  describe('address registration', () => {
+    it('records the registration status of the money account once when it is the current address of an SFA, keyed by lowercased address', async () => {
       await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [
+            buildDerivedIdentity({
+              currentAddress: MONEY_ACCOUNT_KEY,
+              status: 'DONE',
+            }),
+          ],
+        });
+
         controller.init();
         await flushPromises();
 
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
         expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
           MONEY_ACCOUNT_ADDRESS,
         );
@@ -752,34 +762,41 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('records the registration status of the current address of an MFA', async () => {
+    it('records the registration status of both the money account and the current address of an MFA', async () => {
       await withController(async ({ controller, mocks }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
           identities: [MFA_IDENTITY],
         });
+        mocks.getRegistrationStatus.mockImplementation(async (address) => ({
+          isRegistered: address === SUCCESSOR_ADDRESS,
+        }));
+
+        controller.init();
+        await flushPromises();
+
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(controller.state.addressRegistrations).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
+          [SUCCESSOR_ADDRESS.toLowerCase()]: { isRegistered: true },
+        });
+      });
+    });
+
+    it('records the registration status of the money account when it is not in an identity', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
         mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
 
         controller.init();
         await flushPromises();
 
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
         expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
-          SUCCESSOR_ADDRESS,
+          MONEY_ACCOUNT_ADDRESS,
         );
         expect(controller.state.addressRegistrations).toStrictEqual({
-          [SUCCESSOR_ADDRESS.toLowerCase()]: { isRegistered: false },
+          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
         });
-      });
-    });
-
-    it('does not look up a registration status when the money account is not in an identity', async () => {
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
-
-        controller.init();
-        await flushPromises();
-
-        expect(mocks.getRegistrationStatus).not.toHaveBeenCalled();
-        expect(controller.state.addressRegistrations).toStrictEqual({});
       });
     });
 
