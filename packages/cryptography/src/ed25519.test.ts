@@ -1,6 +1,7 @@
 import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
 
 import { generateKeyPair, getPublicKey, sign, verify } from './ed25519.js';
+import * as random from './random.js';
 
 const privateKey = hexToBytes(
   '0xf05665c0091fc75a5a558eddb88acd3ce2a789e15c0e10ceb334849357394ac1',
@@ -22,6 +23,19 @@ const rfcSignature =
   '0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a';
 
 describe('generateKeyPair', () => {
+  it('uses 32 random bytes as the private key and derives the public key from it', async () => {
+    const getRandomBytesSpy = jest
+      .spyOn(random, 'getRandomBytes')
+      .mockReturnValueOnce(rfcPrivateKey as Uint8Array<ArrayBuffer>);
+
+    const keyPair = await generateKeyPair();
+
+    expect(getRandomBytesSpy).toHaveBeenCalledTimes(1);
+    expect(getRandomBytesSpy).toHaveBeenCalledWith(32);
+    expect(bytesToHex(keyPair.privateKey)).toBe(bytesToHex(rfcPrivateKey));
+    expect(bytesToHex(keyPair.publicKey)).toBe(bytesToHex(rfcPublicKey));
+  });
+
   it('generates a 32-byte private key and a 32-byte public key', async () => {
     const keyPair = await generateKeyPair();
 
@@ -52,8 +66,17 @@ describe('generateKeyPair', () => {
       await generateKeyPair();
     const data = stringToBytes('foo');
 
-    const signature = await sign(generatedPrivateKey, data);
-    const valid = await verify(generatedPublicKey, signature, data);
+    const signature = await sign(
+      generatedPrivateKey,
+      data as Uint8Array<ArrayBuffer>,
+    );
+
+    const valid = await verify(
+      generatedPublicKey,
+      signature as Uint8Array<ArrayBuffer>,
+      data as Uint8Array<ArrayBuffer>,
+    );
+
     expect(valid).toBe(true);
   });
 });
