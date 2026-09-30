@@ -8,25 +8,25 @@ const path = require('path');
 
 const baseConfig = require('../../jest.config.packages.cjs');
 
-const displayName = path.basename(__dirname);
+const displayName = `${path.basename(__dirname)}-integration`;
 
 module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // Separate from the combined (`coverage/`) and unit (`coverage/unit/`)
+  // reports
+  coverageDirectory: 'coverage/integration',
+
+  // Only the integration suites; unit tests belong to `jest.config.unit.cjs`
+  testMatch: ['**/*.integration.test.[tj]s?(x)'],
+
   // An array of regexp pattern strings used to skip coverage collection
   coveragePathIgnorePatterns: [
     ...baseConfig.coveragePathIgnorePatterns,
     '/__fixtures__/',
+    '\\.test\\.[tj]sx?$',
   ],
 
-  // An object that configures minimum threshold enforcement for coverage results
-  coverageThreshold: {
-    global: {
-      branches: 82.17,
-      functions: 90.01,
-      lines: 90.56,
-      statements: 90.56,
-    },
-  },
+  // Coverage here is informational; the unit suite owns the quality gate
 });

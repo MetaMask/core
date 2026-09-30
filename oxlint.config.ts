@@ -72,6 +72,8 @@ export default createConfig({
         'packages/*/jest.config.cjs',
         'packages/*/jest.config.e2e.cjs',
         'packages/*/jest.environment.cjs',
+        'packages/*/jest.config.integration.cjs',
+        'packages/*/jest.config.unit.cjs',
         '**/*.test.ts',
         '**/test/**',
         '**/tests/**',
