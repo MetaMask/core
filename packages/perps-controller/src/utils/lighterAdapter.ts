@@ -288,13 +288,18 @@ export function deriveLighterFillDirection(context: {
   pnl: number;
 }): string {
   const { isBuy, size, positionBefore, signChanged, pnl } = context;
-  if (!Number.isFinite(positionBefore) || signChanged === undefined) {
+  if (!Number.isFinite(positionBefore)) {
     return isBuy ? 'Buy' : 'Sell';
   }
   if (positionBefore === 0) {
     return isBuy ? 'Open Long' : 'Open Short';
   }
-  if (signChanged) {
+  // A flat baseline proves an open. On an existing position, nonzero
+  // realized PnL proves reduction; otherwise an omitted flag is ambiguous.
+  if (signChanged === undefined && pnl === 0) {
+    return isBuy ? 'Buy' : 'Sell';
+  }
+  if (signChanged || (signChanged === undefined && pnl !== 0)) {
     // Crossed past zero → flipped; landed exactly on zero → full close.
     if (size > positionBefore * 1.000001) {
       return isBuy ? 'Short > Long' : 'Long > Short';
@@ -412,8 +417,8 @@ export function adaptFillFromLighterTrade(
   const fee = '0';
   const isBuy = !accountIsAsk;
   // The account's maker/taker role selects the matching pre-trade position
-  // context. Missing context is rejected above instead of becoming neutral
-  // history that looks authoritative.
+  // context. Omitted sign-change flags retain an unknown direction for
+  // existing positions; malformed supplied context still fails closed.
   const positionBeforeRaw = accountIsMaker
     ? trade.makerPositionSizeBefore
     : trade.takerPositionSizeBefore;
@@ -425,17 +430,17 @@ export function adaptFillFromLighterTrade(
     positionBefore === null ||
     !Number.isFinite(positionBefore) ||
     positionBefore < 0 ||
-    typeof signChanged !== 'boolean'
+    (signChanged !== undefined && typeof signChanged !== 'boolean')
   ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid position context`,
     );
   }
   const accountPnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
-  // The venue omits PnL on opens from flat. Only a validated zero pre-trade
-  // position proves zero realized PnL; never assume it for an existing position.
-  const pnl =
-    accountPnl === undefined && positionBefore === 0 ? '0' : accountPnl;
+  // The trades API reports account PnL only when reducing a position;
+  // opens and adds omit it. Preserve malformed supplied values for validation.
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- Supplied null is malformed venue data and must not become zero.
+  const pnl = accountPnl === undefined ? '0' : accountPnl;
   const parsedPnl = parseLighterStrictDecimal(pnl);
   if (
     typeof pnl !== 'string' ||

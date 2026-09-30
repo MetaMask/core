@@ -354,13 +354,13 @@ describe('lighterAdapter', () => {
               ['2', '1', '-1', isAsk ? 'Close Long' : 'Close Short'],
               ['2', '2', '1', isAsk ? 'Close Long' : 'Close Short'],
               ['2', '3', '-1', isAsk ? 'Long > Short' : 'Short > Long'],
-            ]) {
+            ] as const) {
               const trade = {
                 ...REAL_TRADE,
                 isMakerAsk: isAsk === isMaker,
-                size: size as string,
-                makerPositionSizeBefore: isMaker ? (before as string) : '9',
-                takerPositionSizeBefore: isMaker ? '9' : (before as string),
+                size,
+                makerPositionSizeBefore: isMaker ? before : '9',
+                takerPositionSizeBefore: isMaker ? '9' : before,
                 makerPositionSignChanged: undefined,
                 takerPositionSignChanged: undefined,
                 askAccountPnl: isAsk ? pnl : '123',
@@ -614,14 +614,14 @@ describe('lighterAdapter', () => {
       );
     });
 
-    it('rejects missing account pnl for an existing position', () => {
-      expect(() =>
+    it('normalizes missing account pnl for an existing position', () => {
+      expect(
         adaptFillFromLighterTrade(
           { ...REAL_TRADE, askAccountPnl: undefined },
           'SOL',
           28,
-        ),
-      ).toThrow('Invalid Lighter venue data');
+        ).pnl,
+      ).toBe('0');
     });
 
     it.each([
@@ -667,7 +667,7 @@ describe('lighterAdapter', () => {
       },
     );
 
-    it('accepts omitted counterparty pnl while requiring the selected account pnl', () => {
+    it('uses the selected participant pnl independently of the counterparty', () => {
       expect(
         adaptFillFromLighterTrade(
           { ...REAL_TRADE, bidAccountPnl: undefined },

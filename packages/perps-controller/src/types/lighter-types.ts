@@ -672,8 +672,8 @@ export type LighterRestTrade = {
   takerPositionSizeBefore: string;
   makerPositionSizeBefore: string;
   /** Whether the side's position sign changed (crossed or left zero). */
-  takerPositionSignChanged: boolean;
-  makerPositionSignChanged: boolean;
+  takerPositionSignChanged?: boolean;
+  makerPositionSignChanged?: boolean;
 };
 
 /**
