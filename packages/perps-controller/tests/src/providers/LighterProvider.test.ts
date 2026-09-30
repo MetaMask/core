@@ -2245,7 +2245,10 @@ describe('LighterProvider', () => {
       const getItem = jest.spyOn(infra.diskCache, 'getItem');
       const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
       getItem.mockImplementation(async (key) => storage.get(key) ?? null);
-      const { provider } = buildProvider({ platformDependencies: infra });
+      const { provider } = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
 
       const pending = await provider.getPendingManualRecoveries();
 
@@ -2260,6 +2263,17 @@ describe('LighterProvider', () => {
         'Initialize the wallet trading key',
       );
       expect(pending[0].actionNeeded).not.toContain('previous trading key');
+
+      await provider.getOrders();
+      const initializedPending = await provider.getPendingManualRecoveries();
+      expect(
+        initializedPending.map((entry) => entry.settlementKey),
+      ).toStrictEqual([settlementKey]);
+      expect(initializedPending[0].actionNeeded).toContain(
+        'previous trading key',
+      );
+      expect(initializedPending[0].actionNeeded).toContain('does not clear');
+      expect(removeItem).not.toHaveBeenCalled();
     });
 
     it('replays an authenticated empty orders snapshot to late subscribers', async () => {
