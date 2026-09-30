@@ -94,7 +94,7 @@ function registerConfigRegistryMock(
     AnalyticsControllerEvents,
     typeof rootMessenger
   >,
-) {
+): void {
   rootMessenger.registerActionHandler(
     'ConfigRegistryController:getState',
     () => ({
@@ -1236,7 +1236,6 @@ describe('AnalyticsController', () => {
       );
     });
 
-
     it('refreshes events config when ConfigRegistryController state changes', async () => {
       type TestEvents =
         | AnalyticsControllerEvents
@@ -1360,9 +1359,10 @@ describe('AnalyticsController', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // eventsConfig state should not have changed since version is unchanged
-      expect(controller.state.eventsConfig).toStrictEqual(eventsConfigAfterInit);
+      expect(controller.state.eventsConfig).toStrictEqual(
+        eventsConfigAfterInit,
+      );
     });
-
   });
 
   describe('trackEvent', () => {
