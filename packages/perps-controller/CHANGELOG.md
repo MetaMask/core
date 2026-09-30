@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve omitted realized PnL on Lighter closing and flipping fills as unknown, so valid fills remain available to live Activity and late subscribers ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reuse matching Lighter trading keys before allocating a free slot, preserve occupied device keys, wait for new registration visibility, and deliver signer failures to the current wallet's subscribers. Confirmed empty orders and validated fill history replay to late subscribers in the same authenticated wallet session ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
 

@@ -614,7 +614,7 @@ describe('lighterAdapter', () => {
     });
 
     it.each([true, false])(
-      'rejects missing reduction pnl for maker=%s',
+      'preserves missing reduction pnl as unknown for maker=%s',
       (isMaker) => {
         for (const isAsk of [true, false]) {
           for (const size of ['0.133', '0.2']) {
@@ -630,9 +630,19 @@ describe('lighterAdapter', () => {
               bidAccountPnl: isAsk ? '123' : undefined,
             };
 
-            expect(() =>
-              adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7),
-            ).toThrow('is missing valid account pnl');
+            const fill = adaptFillFromLighterTrade(
+              trade,
+              'SOL',
+              isAsk ? 28 : 7,
+            );
+
+            const closeDirection = isAsk ? 'Close Long' : 'Close Short';
+            const flipDirection = isAsk ? 'Long > Short' : 'Short > Long';
+            expect(fill.direction).toBe(
+              size === '0.133' ? closeDirection : flipDirection,
+            );
+            expect(fill.startPosition).toBe(isAsk ? '0.133' : '-0.133');
+            expect(fill).not.toHaveProperty('pnl');
           }
         }
       },

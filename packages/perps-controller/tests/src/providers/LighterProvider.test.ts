@@ -6,7 +6,11 @@ import {
   LighterClientService,
 } from '../../../src/services/LighterClientService.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
-import type { CandleData, OrderBookData } from '../../../src/types/index.js';
+import type {
+  CandleData,
+  OrderBookData,
+  OrderFill,
+} from '../../../src/types/index.js';
 import type {
   LighterSignerBridge,
   LighterSignerOperation,
@@ -2296,6 +2300,55 @@ describe('LighterProvider', () => {
       const unsubscribeLate = provider.subscribeToOrders({ callback: late });
 
       expect(late).toHaveBeenCalledWith([]);
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it('replays closing fills with omitted pnl without losing authenticated history', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: '9c'.repeat(40),
+      });
+      const callback = jest.fn();
+      const onError = jest.fn();
+      const unsubscribe = provider.subscribeToOrderFills({ callback, onError });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      socket.receive({ type: 'subscribed/account_all_trades', trades: {} });
+      const trade = {
+        trade_id: 91650,
+        market_id: 1,
+        size: '0.001',
+        price: '90000',
+        ask_id: 1,
+        bid_id: 2,
+        ask_account_id: 28,
+        bid_account_id: 7,
+        is_maker_ask: false,
+        timestamp: 1700000000000,
+        taker_position_size_before: '0.001',
+        taker_position_sign_changed: true,
+      };
+
+      socket.receive({
+        type: 'update/account_all_trades',
+        trades: { '1': [trade] },
+      });
+      const late = jest.fn<void, [OrderFill[], boolean?]>();
+      const unsubscribeLate = provider.subscribeToOrderFills({
+        callback: late,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(late).toHaveBeenCalledWith(
+        [expect.objectContaining({ fillId: '91650', direction: 'Close Long' })],
+        true,
+      );
+      expect(late.mock.calls[0][0][0]).not.toHaveProperty('pnl');
       unsubscribeLate();
       unsubscribe();
       await provider.disconnect();
