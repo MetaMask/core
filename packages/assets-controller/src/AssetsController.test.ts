@@ -5600,22 +5600,18 @@ describe('AssetsController', () => {
           // assert: the newly selected account is marked loading while the
           // fetch is in flight, then loaded once it settles; the account the
           // startup fetch already settled is never re-marked.
-          await waitForAccountLoadingStatus(
-            controller,
-            accountB.id,
-            'loading',
-          );
+          await waitForAccountLoadingStatus(controller, accountB.id, 'loading');
 
-          expect(
-            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-          ).toBe('loaded');
+          expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
 
           release();
 
           await waitFor(() =>
-            expect(
-              controller.state.assetsLoadingStatus?.[accountB.id],
-            ).toBe('loaded'),
+            expect(controller.state.assetsLoadingStatus?.[accountB.id]).toBe(
+              'loaded',
+            ),
           );
         },
       );
@@ -5643,11 +5639,7 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/0',
           );
 
-          await waitForAccountLoadingStatus(
-            controller,
-            accountB.id,
-            'loading',
-          );
+          await waitForAccountLoadingStatus(controller, accountB.id, 'loading');
 
           // act: queue a second account switch to a different account while
           // the first is still held.
@@ -5754,9 +5746,9 @@ describe('AssetsController', () => {
           // loaded, then lock and unlock.
           await activateTracking(messenger);
 
-          expect(
-            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-          ).toBe('loaded');
+          expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
 
           messenger.publish('KeyringController:lock');
           arm();
@@ -5766,16 +5758,16 @@ describe('AssetsController', () => {
           // account is not re-marked.
           await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
 
-          expect(
-            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-          ).toBe('loaded');
+          expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
 
           release();
           await flushPromises();
 
-          expect(
-            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-          ).toBe('loaded');
+          expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
         },
       );
     });
