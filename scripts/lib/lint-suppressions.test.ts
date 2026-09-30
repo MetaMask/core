@@ -117,6 +117,36 @@ describe('printAddedSuppressions', () => {
   });
 });
 
+/**
+ * Stubs the Git commands the check runs.
+ *
+ * @param args - The arguments to this function.
+ * @param args.isMergeCommit - Whether HEAD should look like a merge commit.
+ * @param args.suppressions - The baseline the commands should produce.
+ */
+function mockGit({
+  isMergeCommit,
+  suppressions = '{}',
+}: {
+  isMergeCommit: boolean;
+  suppressions?: string;
+}): void {
+  jest.mocked(execa).mockImplementation((async (
+    _file: string,
+    args: string[],
+  ) => {
+    if (args[0] === 'rev-list') {
+      return {
+        stdout: isMergeCommit ? 'head parentA parentB' : 'head parentA',
+      };
+    }
+    if (args[0] === 'merge-base') {
+      return { stdout: 'abc123\n' };
+    }
+    return { stdout: suppressions };
+  }) as never);
+}
+
 describe('lintSuppressions', () => {
   let originalProcess: typeof globalThis.process;
 
@@ -126,7 +156,7 @@ describe('lintSuppressions', () => {
     // may have set.
     globalThis.process = { ...globalThis.process, exitCode: undefined };
     jest.spyOn(console, 'log').mockReturnValue(undefined);
-    jest.mocked(execa).mockResolvedValue({ stdout: '{}' } as never);
+    mockGit({ isMergeCommit: true });
     jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
   });
 
@@ -134,22 +164,53 @@ describe('lintSuppressions', () => {
     globalThis.process = originalProcess;
   });
 
-  it('checks both suppressions files against the merge commit CI checks out', async () => {
+  it('reads the baseline from the first parent of the merge commit CI checks out', async () => {
+    mockGit({ isMergeCommit: true });
+
     await lintSuppressions([]);
 
-    expect(jest.mocked(execa).mock.calls.map((call) => call[1])).toStrictEqual([
+    expect(
+      jest
+        .mocked(execa)
+        .mock.calls.map((call) => call[1])
+        .filter((args) => args[0] === 'show'),
+    ).toStrictEqual([
       ['show', 'HEAD^1:oxlint-suppressions.json'],
       ['show', 'HEAD^1:tsc-suppressions.json'],
     ]);
   });
 
-  it('checks them against the ref it is given', async () => {
-    await lintSuppressions(['origin/main']);
+  it('falls back to the merge base where there is no merge commit, as when run locally', async () => {
+    mockGit({ isMergeCommit: false });
 
-    expect(jest.mocked(execa).mock.calls.map((call) => call[1])).toStrictEqual([
-      ['show', 'origin/main:oxlint-suppressions.json'],
-      ['show', 'origin/main:tsc-suppressions.json'],
+    await lintSuppressions([]);
+
+    expect(jest.mocked(execa)).toHaveBeenCalledWith(
+      'git',
+      ['merge-base', 'HEAD', 'origin/main'],
+      expect.anything(),
+    );
+    expect(
+      jest
+        .mocked(execa)
+        .mock.calls.map((call) => call[1])
+        .filter((args) => args[0] === 'show'),
+    ).toStrictEqual([
+      ['show', 'abc123:oxlint-suppressions.json'],
+      ['show', 'abc123:tsc-suppressions.json'],
     ]);
+  });
+
+  it('takes the merge base against the branch it is given', async () => {
+    mockGit({ isMergeCommit: false });
+
+    await lintSuppressions(['origin/release']);
+
+    expect(jest.mocked(execa)).toHaveBeenCalledWith(
+      'git',
+      ['merge-base', 'HEAD', 'origin/release'],
+      expect.anything(),
+    );
   });
 
   it('leaves the exit code alone when nothing has been added', async () => {

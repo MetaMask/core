@@ -28,10 +28,10 @@ const SUPPRESSIONS_FILE_NAMES = [
 ];
 
 /**
- * The first parent of the merge commit that CI checks a pull request out as,
- * which is the branch the work is destined for.
+ * The branch this work is destined for when there is no merge commit to read it
+ * from, as there is not when running this locally.
  */
-const DEFAULT_BASE_REF = 'HEAD^1';
+const FALLBACK_BASE_REF = 'origin/main';
 
 /**
  * Problems that are knowingly ignored, counted by file and then by the rule or
@@ -111,6 +111,37 @@ export function printAddedSuppressions(
 }
 
 /**
+ * Finds the commit holding the suppressions files to measure against.
+ *
+ * CI checks a pull request out as the merge of the branch into its base, so the
+ * base is simply the first parent, and the files in the working tree already
+ * have the base's own changes folded in. Elsewhere there is no merge commit, so
+ * the merge base with the target branch stands in for it.
+ *
+ * @param baseRef - The branch this work is destined for.
+ * @returns The ref to read the baseline from.
+ */
+async function resolveBaseRef(baseRef: string): Promise<string> {
+  const { stdout: parents } = await execa(
+    'git',
+    ['rev-list', '--parents', '-n', '1', 'HEAD'],
+    { cwd: REPO_ROOT },
+  );
+
+  // A merge commit lists two parents alongside its own hash.
+  if (parents.split(' ').length > 2) {
+    return 'HEAD^1';
+  }
+
+  const { stdout: mergeBase } = await execa(
+    'git',
+    ['merge-base', 'HEAD', baseRef],
+    { cwd: REPO_ROOT },
+  );
+  return mergeBase.trim();
+}
+
+/**
  * Checks that no problems have been added to any of the suppressions files.
  *
  * The lint and type error checks keep new problems from landing, but their
@@ -118,18 +149,12 @@ export function printAddedSuppressions(
  * one rather than fix it. This closes that hatch: measured against the base
  * branch, these files may only shrink.
  *
- * CI checks a pull request out as the merge of the branch into its base, so the
- * base is simply the first parent, and the files in the working tree already
- * have the base's own changes folded in. That leaves this to compare two files,
- * with no merge base to work out and nothing to fetch.
- *
- * Pass a ref to compare against something else, which is useful when running
- * this outside of CI, where there is no merge commit.
+ * Pass a branch to measure against one other than `origin/main`.
  *
  * @param argv - The arguments passed to this script.
  */
 export async function lintSuppressions(argv: readonly string[]): Promise<void> {
-  const baseRef = argv[0] ?? DEFAULT_BASE_REF;
+  const baseRef = await resolveBaseRef(argv[0] ?? FALLBACK_BASE_REF);
   let didPass = true;
 
   for (const fileName of SUPPRESSIONS_FILE_NAMES) {
