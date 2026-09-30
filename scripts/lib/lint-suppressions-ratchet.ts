@@ -14,11 +14,16 @@ const REPO_ROOT = path.join(
 );
 
 /**
+ * The file in which the lint problems that are knowingly ignored are recorded.
+ */
+const OXLINT_SUPPRESSIONS_FILE_NAME = 'oxlint-suppressions.json';
+
+/**
  * The suppressions files this guards, which Oxlint and the type error checker
  * write in the same shape.
  */
 const SUPPRESSIONS_FILE_NAMES = [
-  'oxlint-suppressions.json',
+  OXLINT_SUPPRESSIONS_FILE_NAME,
   TSC_SUPPRESSIONS_FILE_NAME,
 ];
 
