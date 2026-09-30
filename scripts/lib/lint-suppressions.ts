@@ -128,9 +128,7 @@ export function printAddedSuppressions(
  *
  * @param argv - The arguments passed to this script.
  */
-export async function lintSuppressionsRatchet(
-  argv: readonly string[],
-): Promise<void> {
+export async function lintSuppressions(argv: readonly string[]): Promise<void> {
   const baseRef = argv[0] ?? DEFAULT_BASE_REF;
   let didPass = true;
 

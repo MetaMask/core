@@ -11,11 +11,8 @@ jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
 
 const { execa } = await import('execa');
 const tscSuppressions = await import('./tsc-suppressions.ts');
-const {
-  findAddedSuppressions,
-  printAddedSuppressions,
-  lintSuppressionsRatchet,
-} = await import('./lint-suppressions-ratchet.ts');
+const { findAddedSuppressions, printAddedSuppressions, lintSuppressions } =
+  await import('./lint-suppressions.ts');
 
 describe('findAddedSuppressions', () => {
   it('flags a file that the baseline does not suppress at all', () => {
@@ -120,7 +117,7 @@ describe('printAddedSuppressions', () => {
   });
 });
 
-describe('lintSuppressionsRatchet', () => {
+describe('lintSuppressions', () => {
   let originalProcess: typeof globalThis.process;
 
   beforeEach(() => {
@@ -138,7 +135,7 @@ describe('lintSuppressionsRatchet', () => {
   });
 
   it('checks both suppressions files against the merge commit CI checks out', async () => {
-    await lintSuppressionsRatchet([]);
+    await lintSuppressions([]);
 
     expect(jest.mocked(execa).mock.calls.map((call) => call[1])).toStrictEqual([
       ['show', 'HEAD^1:oxlint-suppressions.json'],
@@ -147,7 +144,7 @@ describe('lintSuppressionsRatchet', () => {
   });
 
   it('checks them against the ref it is given', async () => {
-    await lintSuppressionsRatchet(['origin/main']);
+    await lintSuppressions(['origin/main']);
 
     expect(jest.mocked(execa).mock.calls.map((call) => call[1])).toStrictEqual([
       ['show', 'origin/main:oxlint-suppressions.json'],
@@ -156,7 +153,7 @@ describe('lintSuppressionsRatchet', () => {
   });
 
   it('leaves the exit code alone when nothing has been added', async () => {
-    await lintSuppressionsRatchet([]);
+    await lintSuppressions([]);
 
     expect(process.exitCode).toBeUndefined();
   });
@@ -166,7 +163,7 @@ describe('lintSuppressionsRatchet', () => {
       .mocked(tscSuppressions.readSuppressions)
       .mockResolvedValue({ 'a.ts': { 'no-shadow': { count: 1 } } });
 
-    await lintSuppressionsRatchet([]);
+    await lintSuppressions([]);
 
     expect(process.exitCode).toBe(1);
   });
@@ -174,8 +171,6 @@ describe('lintSuppressionsRatchet', () => {
   it('throws when a baseline cannot be read, rather than passing', async () => {
     jest.mocked(execa).mockRejectedValue(new Error('unknown revision'));
 
-    await expect(lintSuppressionsRatchet([])).rejects.toThrow(
-      'unknown revision',
-    );
+    await expect(lintSuppressions([])).rejects.toThrow('unknown revision');
   });
 });

@@ -166,8 +166,8 @@ jobs:
             exit 1
           fi
 
-  lint-suppressions-ratchet:
-    name: Lint (lint:suppressions:ratchet)
+  lint-suppressions:
+    name: Lint (lint:suppressions)
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     strategy:
@@ -181,8 +181,8 @@ jobs:
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
           fetch-depth: 2
-      - name: Run yarn lint:suppressions:ratchet
-        run: yarn lint:suppressions:ratchet
+      - name: Run yarn lint:suppressions
+        run: yarn lint:suppressions
       - name: Require clean working directory
         shell: bash
         run: |
