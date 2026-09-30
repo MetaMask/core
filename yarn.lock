@@ -7732,6 +7732,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-controller": "npm:^2.0.0"
+    "@metamask/money-account-upgrade-controller": "npm:^5.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -7748,7 +7749,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller":
+"@metamask/money-account-upgrade-controller@npm:^5.1.0, @metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
   dependencies:
