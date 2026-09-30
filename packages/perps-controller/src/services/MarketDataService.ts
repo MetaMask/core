@@ -1365,7 +1365,8 @@ export class MarketDataService {
       return {
         ...priced,
         ...(resolutionApplies && { feeResolution: context.feeResolution }),
-        ...(context.subscriptionFeeWaiver && { subscription: context.subscriptionFeeWaiver,
+        ...(context.subscriptionFeeWaiver && {
+          subscription: context.subscriptionFeeWaiver,
         }),
       };
     } catch (error) {
