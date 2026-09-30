@@ -4,7 +4,9 @@ import { sha256, sha384, sha512 } from './sha.js';
 
 describe('SHA-256', () => {
   it('returns a digest for a byte array', async () => {
-    const digest = await sha256(stringToBytes('foo bar'));
+    const digest = await sha256(
+      stringToBytes('foo bar') as Uint8Array<ArrayBuffer>,
+    );
     expect(bytesToHex(digest)).toBe(
       '0xfbc1a9f858ea9e177916964bd88c3d37b91a1e84412765e29950777f265c4b75',
     );
@@ -34,7 +36,9 @@ describe('SHA-256', () => {
 
 describe('SHA-384', () => {
   it('returns a digest for a byte array', async () => {
-    const digest = await sha384(stringToBytes('foo bar'));
+    const digest = await sha384(
+      stringToBytes('foo bar') as Uint8Array<ArrayBuffer>,
+    );
     expect(bytesToHex(digest)).toBe(
       '0x6839312f3db343477070d3c0b2becd417b357154d48794d01d78cfb4617ed5ab819a77b6832f6542dd18bb738131ef7e',
     );
@@ -64,7 +68,9 @@ describe('SHA-384', () => {
 
 describe('SHA-512', () => {
   it('returns a digest for a byte array', async () => {
-    const digest = await sha512(stringToBytes('foo bar'));
+    const digest = await sha512(
+      stringToBytes('foo bar') as Uint8Array<ArrayBuffer>,
+    );
     expect(bytesToHex(digest)).toBe(
       '0x65019286222ace418f742556366f9b9da5aaf6797527d2f0cba5bfe6b2f8ed24746542a0f2be1da8d63c2477f688b608eb53628993afa624f378b03f10090ce7',
     );

@@ -1,4 +1,8 @@
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import {
+  PERPS_CONSTANTS,
+  PROVIDER_CONFIG,
+} from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
@@ -15,7 +19,10 @@ import type {
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
 /* eslint-disable */
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 // Create a comprehensive mock provider
 const createMockProvider = (
@@ -1060,6 +1067,292 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.isReadyToTrade).toHaveBeenCalled();
     });
 
+    it('prepares every provider and reports the first one not ready', async () => {
+      const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
+      const prepareLighter = jest.fn().mockResolvedValue({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: prepareHyperLiquid,
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
+
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
+    });
+
+    it('reports ready when every provider is ready or has no deferred setup', async () => {
+      const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: prepareHyperLiquid,
+      });
+
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: true });
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+    });
+
+    it('reports the first not-ready provider when several are not ready', async () => {
+      const prepareHyperLiquid = jest
+        .fn()
+        .mockResolvedValue({ ready: false, error: 'first' });
+      const prepareLighter = jest
+        .fn()
+        .mockResolvedValue({ ready: false, error: 'second' });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: prepareHyperLiquid,
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
+
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: false, error: 'first' });
+      // Lighter is still prepared after HyperLiquid reported not ready.
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
+    });
+
+    it('still prepares the other providers when one throws', async () => {
+      const crash = new Error('provider crashed');
+      const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
+
+      const result = await aggregatedProvider.prepareTradingWallet();
+
+      expect(result).toStrictEqual({ ready: false, error: 'provider crashed' });
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
+      expect(
+        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+      ).toStrictEqual([
+        [
+          crash,
+          {
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              provider: 'hyperliquid',
+            },
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: {
+                method: 'prepareTradingWallet',
+                providerId: 'hyperliquid',
+              },
+            },
+          },
+        ],
+      ]);
+    });
+
+    it.each([
+      [
+        'nothing',
+        undefined,
+        'Unknown error (no details provided) [AggregatedPerpsProvider.prepareTradingWallet]',
+      ],
+      ['a string', 'provider crashed', 'provider crashed'],
+    ])(
+      'reports and logs a provider that throws %s instead of an Error',
+      async (_thrown, thrown, message) => {
+        Object.assign(mockHLProvider, {
+          prepareTradingWallet: jest.fn().mockRejectedValue(thrown),
+        });
+        Object.assign(mockLighterProvider, {
+          prepareTradingWallet: jest.fn().mockResolvedValue({ ready: true }),
+        });
+
+        const result = await aggregatedProvider.prepareTradingWallet();
+
+        expect(result).toStrictEqual({ ready: false, error: message });
+        expect(
+          (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        ).toStrictEqual([
+          [
+            new Error(message),
+            {
+              tags: {
+                feature: PERPS_CONSTANTS.FeatureName,
+                provider: 'hyperliquid',
+              },
+              context: {
+                name: 'AggregatedPerpsProvider',
+                data: {
+                  method: 'prepareTradingWallet',
+                  providerId: 'hyperliquid',
+                },
+              },
+            },
+          ],
+        ]);
+      },
+    );
+
+    it.each([
+      [true, 'testnet'],
+      [false, 'mainnet'],
+    ])(
+      'tags a logged preparation failure with the network (isTestnet: %s)',
+      async (isTestnet, network) => {
+        const networkProvider = new AggregatedPerpsProvider({
+          providers: new Map([['hyperliquid', mockHLProvider]]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+          isTestnet,
+        });
+        const crash = new Error('provider crashed');
+        Object.assign(mockHLProvider, {
+          prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+        });
+
+        await networkProvider.prepareTradingWallet();
+
+        expect(
+          (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        ).toStrictEqual([
+          [
+            crash,
+            {
+              tags: {
+                feature: PERPS_CONSTANTS.FeatureName,
+                provider: 'hyperliquid',
+                network,
+              },
+              context: {
+                name: 'AggregatedPerpsProvider',
+                data: {
+                  method: 'prepareTradingWallet',
+                  providerId: 'hyperliquid',
+                },
+              },
+            },
+          ],
+        ]);
+      },
+    );
+
+    it('tags a logged Lighter failure with the network while Lighter is not pinned to testnet', async () => {
+      jest.replaceProperty(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        false,
+      );
+      const networkProvider = new AggregatedPerpsProvider({
+        providers: new Map([['lighter', mockLighterProvider]]),
+        defaultProvider: 'lighter',
+        infrastructure: mockInfrastructure,
+        isTestnet: false,
+      });
+      const crash = new Error('provider crashed');
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+      });
+
+      await networkProvider.prepareTradingWallet();
+
+      expect(
+        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+      ).toStrictEqual([
+        [
+          crash,
+          {
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              provider: 'lighter',
+              network: 'mainnet',
+            },
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: { method: 'prepareTradingWallet', providerId: 'lighter' },
+            },
+          },
+        ],
+      ]);
+    });
+
+    it('tags a logged Lighter failure with testnet while Lighter is pinned to testnet', async () => {
+      jest.replaceProperty(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        true,
+      );
+      const networkProvider = new AggregatedPerpsProvider({
+        providers: new Map([['lighter', mockLighterProvider]]),
+        defaultProvider: 'lighter',
+        infrastructure: mockInfrastructure,
+        isTestnet: false,
+      });
+      const crash = new Error('provider crashed');
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+      });
+
+      await networkProvider.prepareTradingWallet();
+
+      expect(
+        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+      ).toStrictEqual([
+        [
+          crash,
+          {
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              provider: 'lighter',
+              network: 'testnet',
+            },
+            context: {
+              name: 'AggregatedPerpsProvider',
+              data: { method: 'prepareTradingWallet', providerId: 'lighter' },
+            },
+          },
+        ],
+      ]);
+    });
+
+    it('prepares the next provider only after the previous one settles', async () => {
+      const hyperLiquidAsked = createDeferred<void>();
+      const firstPreparation = createDeferred<{ ready: boolean }>();
+      const prepareHyperLiquid = jest.fn(async () => {
+        hyperLiquidAsked.resolve();
+        return await firstPreparation.promise;
+      });
+      const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
+      Object.assign(mockHLProvider, {
+        prepareTradingWallet: prepareHyperLiquid,
+      });
+      Object.assign(mockLighterProvider, {
+        prepareTradingWallet: prepareLighter,
+      });
+
+      const preparing = aggregatedProvider.prepareTradingWallet();
+      await hyperLiquidAsked.promise;
+      const hyperLiquidCallsBeforeSettling = [...prepareHyperLiquid.mock.calls];
+      const lighterCallsBeforeSettling = [...prepareLighter.mock.calls];
+      firstPreparation.resolve({ ready: true });
+      const result = await preparing;
+
+      expect(hyperLiquidCallsBeforeSettling).toStrictEqual([[]]);
+      expect(lighterCallsBeforeSettling).toStrictEqual([]);
+      expect(prepareHyperLiquid.mock.calls).toStrictEqual([[]]);
+      expect(prepareLighter.mock.calls).toStrictEqual([[]]);
+      expect(result).toStrictEqual({ ready: true });
+    });
+
     it('delegates toggleTestnet to default provider', async () => {
       mockHLProvider.toggleTestnet.mockResolvedValue({
         success: true,
@@ -1433,6 +1726,7 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: Object.freeze(['twap', 'scale', 'chase']),
+        supportedMarginModes: Object.freeze(['isolated', 'cross']),
       });
       mockHLProvider.getOrderCapabilities.mockResolvedValue(capabilities);
 
@@ -1551,6 +1845,98 @@ describe('AggregatedPerpsProvider', () => {
       });
       expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
         '[AggregatedPerpsProvider] Order capabilities unavailable',
+        { providerId: 'hyperliquid', error: 'offline' },
+      );
+    });
+
+    it('gets the margin mode lock from the routed provider', async () => {
+      mockLighterProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+        status: 'locked',
+        providerId: 'lighter',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'locked',
+        providerId: 'lighter',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+      expect(mockLighterProvider.getMarginModeLock).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'lighter',
+      });
+    });
+
+    it('reports a margin mode lock route that is not registered', async () => {
+      const providerWithoutLighter = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(
+        providerWithoutLighter.getMarginModeLock({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_found',
+      });
+    });
+
+    it('reports not_implemented when the routed provider has no margin mode lock hook', async () => {
+      mockHLProvider.getMarginModeLock = undefined;
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'not_implemented',
+      });
+    });
+
+    it('rejects a margin mode lock attributed to a different provider', async () => {
+      mockLighterProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+        status: 'unlocked',
+        providerId: 'hyperliquid',
+      });
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_routable',
+      });
+    });
+
+    it('reports unavailable when the routed margin mode lock read throws', async () => {
+      mockHLProvider.getMarginModeLock = jest
+        .fn()
+        .mockRejectedValue(new Error('offline'));
+
+      await expect(
+        aggregatedProvider.getMarginModeLock({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        '[AggregatedPerpsProvider] Margin mode lock unavailable',
         { providerId: 'hyperliquid', error: 'offline' },
       );
     });
