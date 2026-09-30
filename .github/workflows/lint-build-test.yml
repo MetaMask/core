@@ -166,8 +166,8 @@ jobs:
             exit 1
           fi
 
-  lint-tsc-ratchet:
-    name: Lint (lint:tsc:ratchet)
+  lint-suppressions-ratchet:
+    name: Lint (lint:suppressions:ratchet)
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     strategy:
@@ -183,8 +183,8 @@ jobs:
           # The pull request is checked out as the merge of the branch into its
           # base, and the check reads the base from the first parent.
           fetch-depth: 2
-      - name: Run yarn lint:tsc:ratchet
-        run: yarn lint:tsc:ratchet
+      - name: Run yarn lint:suppressions:ratchet
+        run: yarn lint:suppressions:ratchet
       - name: Require clean working directory
         shell: bash
         run: |

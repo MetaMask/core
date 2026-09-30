@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import {
+  SUPPRESSIONS_FILE_NAME,
   addSuppressions,
   compareErrorsToSuppressions,
   isTscError,
@@ -18,8 +19,6 @@ const REPO_ROOT = path.join(
   '..',
   '..',
 );
-
-const SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
 
 /**
  * Typechecks every package in the repo and compares the type errors it finds

@@ -7622,27 +7622,11 @@
     }
   },
   "scripts/create-package/cli.test.ts": {
-    "no-shadow": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     }
   },
-  "scripts/create-package/commands.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/create-package/index.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/create-package/utils.test.ts": {
-    "no-shadow": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 2
     }
@@ -7652,32 +7636,12 @@
       "count": 1
     }
   },
-  "scripts/lib/changelog-conflicts.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/lib/changelog-conflicts.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
     },
     "typescript/no-unsafe-return": {
       "count": 2
-    }
-  },
-  "scripts/lib/lint-tsc-ratchet.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/lib/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/lib/tsc-suppressions.test.ts": {
-    "no-shadow": {
-      "count": 1
     }
   },
   "scripts/lib/workspaces.ts": {
@@ -7705,16 +7669,6 @@
       "count": 2
     }
   },
-  "scripts/lint-tsc-ratchet.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/lint-tsconfigs/utils.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
@@ -7725,11 +7679,6 @@
   },
   "scripts/manage-codeowners/main.ts": {
     "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
-  "scripts/merge-changelog-conflicts.test.ts": {
-    "no-shadow": {
       "count": 1
     }
   },
