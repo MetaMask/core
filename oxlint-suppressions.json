@@ -2443,25 +2443,12 @@
       "count": 5
     }
   },
-  "packages/controller-utils/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/controller-utils/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/controller-utils/src/create-service-policy.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 10
     }
   },
   "packages/controller-utils/src/siwe.ts": {
@@ -2480,6 +2467,9 @@
   "packages/controller-utils/src/util.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/controller-utils/src/util.ts": {
