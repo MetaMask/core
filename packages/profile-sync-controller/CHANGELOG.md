@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `@noble/ciphers` from `^1.3.0` to `^2.4.0` ([#10592](https://github.com/MetaMask/core/pull/10592))
 
 ### Fixed
 
