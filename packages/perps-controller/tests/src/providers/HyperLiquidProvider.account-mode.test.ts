@@ -1093,9 +1093,12 @@ describe('HyperLiquidProvider', () => {
       const inFlightPromise = new Promise<void>((resolve) => {
         resolveInFlight = resolve;
       });
+      // Only the first unified-account check sees the other instance's lock.
       (
         TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
-      ).isInFlight.mockReturnValue(inFlightPromise);
+      ).isInFlight.mockImplementationOnce((operationType) =>
+        operationType === 'unifiedAccount' ? inFlightPromise : undefined,
+      );
       // Cache stays empty across both checks (no entry was written by the
       // other instance because it deferred).
       (
@@ -1135,6 +1138,103 @@ describe('HyperLiquidProvider', () => {
       expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
         abstraction: 'u',
       });
+    });
+
+    it('lets only one of several waiters take the lock after an attempt that cached nothing', async () => {
+      // A real lock and cache, so waiters see each other's writes.
+      const mockedCache = TradingReadinessCache as jest.Mocked<
+        typeof TradingReadinessCache
+      >;
+      const locks = new Map<string, Promise<void>>();
+      const cache = new Map<string, { attempted: boolean; enabled: boolean }>();
+      mockedCache.isInFlight.mockImplementation((operationType) =>
+        locks.get(operationType),
+      );
+      mockedCache.setInFlight.mockImplementation((operationType) => {
+        let release: () => void = () => undefined;
+        locks.set(
+          operationType,
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+        );
+        return () => {
+          locks.delete(operationType);
+          release();
+        };
+      });
+      mockedCache.get.mockImplementation((network) => cache.get(network));
+      mockedCache.set.mockImplementation((network, _user, result) => {
+        cache.set(network, result);
+      });
+      // A hardware wallet defers the migration at init, caching nothing.
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+        }),
+      );
+      // Completed DEX discovery keeps init memoized, so each withdrawal goes
+      // straight to its own action-time migration check.
+      const readyProvider = createTestProvider({
+        hip3Enabled: true,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+      });
+      await readyProvider.getMarketDataWithPrices();
+      mockedCache.isInFlight.mockClear();
+      // Another provider's attempt holds the lock and caches nothing.
+      const releaseHolder = mockedCache.setInFlight(
+        'unifiedAccount',
+        'mainnet',
+        USER_ADDRESS,
+      );
+
+      let activeMigrations = 0;
+      let maxActiveMigrations = 0;
+      const exchangeClient = createMockExchangeClient({
+        agentSetAbstraction: jest.fn().mockImplementation(async () => {
+          activeMigrations += 1;
+          maxActiveMigrations = Math.max(maxActiveMigrations, activeMigrations);
+          await Promise.resolve();
+          activeMigrations -= 1;
+          return { status: 'ok' };
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      Object.defineProperty(readyProvider, 'getAccountState', {
+        value: jest.fn().mockResolvedValue({ availableBalance: '5000' }),
+        writable: true,
+      });
+      const withdrawParams = {
+        amount: '100',
+        destination: '0x1234567890123456789012345678901234567890' as Hex,
+        assetId:
+          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+      };
+
+      const withdrawals = Promise.all([
+        readyProvider.withdraw(withdrawParams),
+        readyProvider.withdraw(withdrawParams),
+      ]);
+      // Release the holder only once both withdrawals wait on it.
+      const waiters = (): number =>
+        mockedCache.isInFlight.mock.calls.filter(
+          ([operationType]) => operationType === 'unifiedAccount',
+        ).length;
+      for (let i = 0; i < 50 && waiters() < 2; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      expect(waiters()).toBe(2);
+      releaseHolder();
+      await withdrawals;
+
+      expect(maxActiveMigrations).toBe(1);
+      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledTimes(1);
     });
 
     it('returns early when re-check cache (inside lock) shows another provider completed', async () => {

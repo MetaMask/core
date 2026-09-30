@@ -67,6 +67,7 @@ import {
 import type {
   FrontendOrder,
   OrderType as HyperLiquidOrderType,
+  OrderProcessingStatus,
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
@@ -268,6 +269,41 @@ const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
   'Vault Close': 'market',
   'Spot Dust Conversion': 'market',
 } as const satisfies Record<HyperLiquidOrderType, Order['orderType']>;
+
+const HISTORICAL_ORDER_STATUS_BY_SDK_STATUS = {
+  open: 'open',
+  filled: 'filled',
+  triggered: 'triggered',
+  canceled: 'canceled',
+  marginCanceled: 'canceled',
+  vaultWithdrawalCanceled: 'canceled',
+  openInterestCapCanceled: 'canceled',
+  selfTradeCanceled: 'canceled',
+  reduceOnlyCanceled: 'canceled',
+  siblingFilledCanceled: 'canceled',
+  delistedCanceled: 'canceled',
+  liquidatedCanceled: 'canceled',
+  outcomeSettledCanceled: 'canceled',
+  scheduledCancel: 'canceled',
+  internalCancel: 'canceled',
+  reduceOnlyRejected: 'canceled',
+  rejected: 'rejected',
+  tickRejected: 'rejected',
+  minTradeNtlRejected: 'rejected',
+  perpMarginRejected: 'rejected',
+  badAloPxRejected: 'rejected',
+  iocCancelRejected: 'rejected',
+  badTriggerPxRejected: 'rejected',
+  marketOrderNoLiquidityRejected: 'rejected',
+  positionIncreaseAtOpenInterestCapRejected: 'rejected',
+  positionFlipAtOpenInterestCapRejected: 'rejected',
+  tooAggressiveAtOpenInterestCapRejected: 'rejected',
+  openInterestIncreaseRejected: 'rejected',
+  insufficientSpotBalanceRejected: 'rejected',
+  oracleRejected: 'rejected',
+  perpMaxPositionRejected: 'rejected',
+  tooManyOpenOrdersRejected: 'rejected',
+} as const satisfies Record<OrderProcessingStatus, Order['status']>;
 
 /**
  * Type guard to check if a status is an object (not a string literal like "waitingForFill")
@@ -2544,12 +2580,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Check if another provider instance is currently attempting this operation
     // This prevents concurrent signing attempts across providers during reconnection
-    const inFlightPromise = PerpsSigningCache.isInFlight(
+    let inFlightPromise = PerpsSigningCache.isInFlight(
       'unifiedAccount',
       network,
       userAddress,
     );
-    if (inFlightPromise) {
+    while (inFlightPromise) {
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: Unified Account setup in-flight, waiting...',
         { network, userAddress },
@@ -2564,7 +2600,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (postWaitCache?.attempted) {
         return;
       }
-      // Fall through to acquire our own lock and retry.
+      // Another waiter may have taken the lock first. The lock is checked
+      // and taken with no await in between, so only one waiter gets it.
+      inFlightPromise = PerpsSigningCache.isInFlight(
+        'unifiedAccount',
+        network,
+        userAddress,
+      );
     }
 
     // Set in-flight lock to prevent concurrent attempts
@@ -12203,38 +12245,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       const orders: Order[] = (rawOrders || []).map((rawOrder) => {
         const { order, status, statusTimestamp } = rawOrder;
 
-        // Normalize status
-        let normalizedStatus: Order['status'];
-        switch (status) {
-          case 'open':
-            normalizedStatus = 'open';
-            break;
-          case 'filled':
-            normalizedStatus = 'filled';
-            break;
-          case 'canceled':
-          case 'marginCanceled':
-          case 'vaultWithdrawalCanceled':
-          case 'openInterestCapCanceled':
-          case 'selfTradeCanceled':
-          case 'reduceOnlyCanceled':
-          case 'siblingFilledCanceled':
-          case 'delistedCanceled':
-          case 'liquidatedCanceled':
-          case 'scheduledCancel':
-          case 'reduceOnlyRejected':
-            normalizedStatus = 'canceled';
-            break;
-          case 'rejected':
-            // case 'minTradeNtlRejected':
-            normalizedStatus = 'rejected';
-            break;
-          case 'triggered':
-            normalizedStatus = 'triggered';
-            break;
-          default:
-            normalizedStatus = 'queued';
-        }
+        // Statuses newer than the SDK types stay visible as queued.
+        const normalizedStatus: Order['status'] = hasProperty(
+          HISTORICAL_ORDER_STATUS_BY_SDK_STATUS,
+          status,
+        )
+          ? HISTORICAL_ORDER_STATUS_BY_SDK_STATUS[status]
+          : 'queued';
 
         const adaptedOrder = adaptOrderFromSDK(order, undefined);
         // limitPx is also populated as a slippage cap for market orders, so the

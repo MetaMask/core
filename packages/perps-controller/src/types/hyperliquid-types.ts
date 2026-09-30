@@ -12,6 +12,7 @@ import type {
   SpotClearinghouseStateResponse,
   MetaResponse,
   FrontendOpenOrdersResponse,
+  HistoricalOrdersResponse,
   MetaAndAssetCtxsResponse,
   AllMidsResponse,
   PredictedFundingsResponse,
@@ -91,6 +92,7 @@ export type PredictedFunding = PredictedFundingsResponse[number];
 export type FrontendOrder = FrontendOpenOrdersResponse[number];
 export type SDKOrderParams = OrderParameters['orders'][number];
 export type OrderType = FrontendOrder['orderType'];
+export type OrderProcessingStatus = HistoricalOrdersResponse[number]['status'];
 
 // Re-export Response types for convenience
 export type {

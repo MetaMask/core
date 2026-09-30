@@ -618,6 +618,49 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      ['open', 'open'],
+      ['filled', 'filled'],
+      ['triggered', 'triggered'],
+      ['canceled', 'canceled'],
+      ['marginCanceled', 'canceled'],
+      ['outcomeSettledCanceled', 'canceled'],
+      ['internalCancel', 'canceled'],
+      ['scheduledCancel', 'canceled'],
+      ['reduceOnlyRejected', 'canceled'],
+      ['rejected', 'rejected'],
+      ['minTradeNtlRejected', 'rejected'],
+      ['perpMarginRejected', 'rejected'],
+      ['iocCancelRejected', 'rejected'],
+      ['tooManyOpenOrdersRejected', 'rejected'],
+      ['unexpectedStatus', 'queued'],
+    ])(
+      'maps the historical order status %s to %s',
+      async (status, expected) => {
+        mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+          {
+            order: {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              origSz: '0.1',
+              limitPx: '50000',
+              orderType: 'Limit',
+              reduceOnly: false,
+              isTrigger: false,
+            },
+            status,
+            statusTimestamp: 1640995200000,
+          },
+        ]);
+
+        const result = await provider.getOrders();
+
+        expect(result[0].status).toBe(expected);
+      },
+    );
+
     it('properly transform getOrders with reduceOnly and isTrigger fields', async () => {
       const historicalOrdersData = [
         {
