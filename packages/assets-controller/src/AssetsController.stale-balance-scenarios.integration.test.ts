@@ -1,4 +1,5 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import { cleanAll } from 'nock';
 
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
@@ -571,7 +572,9 @@ const balanceUpdateRow = (assetId: string, amount: string): BalanceUpdate => ({
 });
 
 /**
- * Drop a field from a row, for the malformed-row scenario.
+ * Drop a field from a row, for the malformed-row scenario. The result
+ * deliberately violates `BalanceUpdate`, as a malformed service payload
+ * would; each directive below marks one intentional violation.
  *
  * @param row - The row to break.
  * @param field - The field to remove.
@@ -582,11 +585,14 @@ const malformedBalanceUpdateRow = (
   field: 'asset' | 'postBalance' | 'decimals',
 ): BalanceUpdate => {
   if (field === 'asset') {
+    // @ts-expect-error The row deliberately carries no asset.
     return { ...row, asset: undefined } as BalanceUpdate;
   }
   if (field === 'postBalance') {
+    // @ts-expect-error The row deliberately carries no postBalance.
     return { ...row, postBalance: undefined } as BalanceUpdate;
   }
+  // @ts-expect-error The row's asset deliberately carries no decimals.
   return {
     ...row,
     asset: { ...row.asset, decimals: undefined },
@@ -872,6 +878,10 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
         ] = { ...STAKING_READS.mainnetAfterTx };
 
         messenger.publish('TransactionController:transactionConfirmed', {
+          id: 'stale-balance-staking-transaction',
+          networkClientId: MAINNET_NETWORK_CLIENT_ID,
+          status: TransactionStatus.confirmed,
+          time: 0,
           chainId: '0x1',
           txParams: {
             from: STALE_WALLET_ADDRESS,

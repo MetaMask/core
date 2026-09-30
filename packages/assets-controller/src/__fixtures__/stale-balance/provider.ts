@@ -183,7 +183,9 @@ function answerAggregate3(
     }
   });
 
-  return defaultAbiCoder.encode(['tuple(bool,bytes)[]'], [results]);
+  // `defaultAbiCoder.encode` always returns a '0x'-prefixed hex string but
+  // is typed as plain `string`.
+  return defaultAbiCoder.encode(['tuple(bool,bytes)[]'], [results]) as Hex;
 }
 
 /**

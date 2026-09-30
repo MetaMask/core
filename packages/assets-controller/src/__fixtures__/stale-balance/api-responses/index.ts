@@ -15,8 +15,27 @@ import v3AssetsBsc from './tokens-api/v3-assets-bsc.js';
 import v3AssetsMainnet from './tokens-api/v3-assets-mainnet.js';
 
 /** A `/v6/multiaccount/balances` row, as the live API returns it. */
-export type V6BalanceEntry =
-  (typeof v6MultiAccountBalancesBsc.balances)[number];
+export type V6BalanceEntry = {
+  readonly accountId: string;
+  readonly object: 'token';
+  readonly type: 'native' | 'erc20';
+  readonly assetId: string;
+  readonly name: string;
+  readonly symbol: string;
+  readonly decimals: number;
+  readonly balance: string;
+  readonly securityResultType?: string;
+};
+
+/**
+ * Scenario mutations layered on the captured `/v6/multiaccount/balances`
+ * response.
+ */
+export type StaleBalanceApiMutations = {
+  omitAssetIds?: string[];
+  setBalances?: Record<string, string>;
+  unprocessedNetworks?: string[];
+};
 
 /** Captured `/v6/multiaccount/balances` rows for both wallets, by account ID. */
 const V6_BALANCES_BY_ACCOUNT_ID: Record<string, V6BalanceEntry[]> = {};
@@ -196,11 +215,7 @@ export function mockV6MultiAccountBalances({
   omitAssetIds = [],
   setBalances = {},
   unprocessedNetworks = [],
-}: {
-  omitAssetIds?: string[];
-  setBalances?: Record<string, string>;
-  unprocessedNetworks?: string[];
-} = {}): {
+}: StaleBalanceApiMutations = {}): {
   scope: nock.Scope;
   requestedAccountIds: string[][];
 } {
@@ -308,7 +323,7 @@ export function mockStaleBalanceApis({
   omitAssetIds = [],
   setBalances = {},
   unprocessedNetworks = [],
-} = {}): {
+}: StaleBalanceApiMutations = {}): {
   accountsSupportedNetworks: nock.Scope;
   balances: { requestedAccountIds: string[][] };
   assets: { scope: nock.Scope; requestedBatches: string[][] };

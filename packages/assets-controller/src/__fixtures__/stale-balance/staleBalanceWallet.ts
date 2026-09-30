@@ -30,7 +30,12 @@ export function buildBscAccount(
     id: BSC_ACCOUNT_ID,
     address: STALE_WALLET_ADDRESS,
     scopes: [BSC_CHAIN_ID],
-    metadata: { name: 'Stale Balance Wallet', ...metadata },
+    metadata: {
+      name: 'Stale Balance Wallet',
+      keyring: { type: 'HD Key Tree' },
+      importTime: 1_756_100_000_000,
+      ...metadata,
+    },
     ...rest,
   });
 }
@@ -49,7 +54,12 @@ export function buildMainnetAccount(
     id: MAINNET_ACCOUNT_ID,
     address: STALE_WALLET_ADDRESS,
     scopes: [MAINNET_CHAIN_ID, HOODI_CHAIN_ID],
-    metadata: { name: 'Stale Balance Wallet', ...metadata },
+    metadata: {
+      name: 'Stale Balance Wallet',
+      keyring: { type: 'HD Key Tree' },
+      importTime: 1_756_100_000_000,
+      ...metadata,
+    },
     ...rest,
   });
 }
@@ -73,6 +83,7 @@ export function buildSolanaSnapAccount(
     metadata: {
       name: 'Solana Snap Account',
       keyring: { type: 'Snap Keyring' },
+      importTime: 1_756_100_000_000,
       snap: { id: SOLANA_SNAP_ID },
       ...metadata,
     },

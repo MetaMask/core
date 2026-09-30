@@ -208,6 +208,12 @@ export function registerStaleBalanceNetwork(
       nativeAssetIdentifiers: {
         [BSC_CHAIN_ID]: BNB_ASSET_ID,
         [MAINNET_CHAIN_ID]: ETH_ASSET_ID,
+        // Hoodi is absent from the controller's native-asset map, so it
+        // balances through the zero-address ERC-20 fallback the extension
+        // itself uses for such chains (see `NATIVE_ASSETS` in
+        // `utils/native-assets.ts`). `NativeAssetIdentifier` models only
+        // the `slip44` form, which does not admit that fallback asset ID.
+        // @ts-expect-error The captured fallback asset ID is not a slip44 form.
         [HOODI_CHAIN_ID]: HOODI_NATIVE_ASSET_ID,
       },
     }),

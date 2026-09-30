@@ -99,17 +99,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/AssetsController.stale-balance-scenarios.integration.test.ts": {
-    "TS2345": {
-      "count": 1
-    },
-    "TS2352": {
-      "count": 3
-    },
-    "TS2739": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
       "count": 12
@@ -150,29 +139,6 @@
   "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
     "TS2322": {
       "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/stale-balance/api-responses/index.ts": {
-    "TS2322": {
-      "count": 5
-    },
-    "TS2345": {
-      "count": 2
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/stale-balance/messenger.ts": {
-    "TS2418": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/stale-balance/provider.ts": {
-    "TS2322": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/stale-balance/staleBalanceWallet.ts": {
-    "TS2322": {
-      "count": 3
     }
   },
   "packages/assets-controller/src/data-sources/AccountActivityDataSource.test.ts": {
