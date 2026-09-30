@@ -2174,7 +2174,7 @@ export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
   feeRate?: number; // Total fee rate as decimal (e.g., 0.00145 for 0.145%), undefined when unavailable
   feeAmount?: number; // Total fee amount in USD (when amount is provided)
-
+  feeResolution?: PerpsFeeResolution;
   // Protocol-specific base fees
   protocolFeeRate?: number; // Protocol fee rate (e.g., 0.00045 for HyperLiquid taker), undefined when unavailable
   protocolFeeAmount?: number; // Protocol fee amount in USD
