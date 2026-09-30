@@ -38,7 +38,7 @@ describe('generateKeyPair', () => {
   it('uses 32 random bytes as the private key and derives the public key from it', async () => {
     const getRandomBytesSpy = jest
       .spyOn(random, 'getRandomBytes')
-      .mockReturnValueOnce(rfcAlicePrivateKey as Uint8Array<ArrayBuffer>);
+      .mockReturnValueOnce(rfcAlicePrivateKey);
 
     const keyPair = await generateKeyPair();
 
