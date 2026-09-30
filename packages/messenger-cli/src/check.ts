@@ -3,7 +3,7 @@ import * as path from 'node:path';
 
 import { generateActionTypesContent } from './generate-content.js';
 import type { SourceInfo } from './parse-source.js';
-import { Formatter } from './types.js';
+import type { Formatter } from './types.js';
 
 /**
  * Checks if generated action types files are up to date.

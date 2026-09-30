@@ -8,6 +8,7 @@ import {
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -58,6 +59,18 @@ type AttributionTrackingData = Pick<
   TrackingData,
   'entryPoint' | 'discoverySource' | 'perpDiscoverySource' | 'hlFeeRate'
 >;
+
+/**
+ * Whether a write failed because the signer could not sign it (a locked
+ * keyring or account signer, or an unavailable or rejected agent). The user
+ * retries it; it is not an error to report.
+ *
+ * @param error - The provider result error.
+ * @returns True for `KEYRING_LOCKED`.
+ */
+function isSignerUnavailable(error: string | undefined): boolean {
+  return error === PERPS_ERROR_CODES.KEYRING_LOCKED;
+}
 
 /**
  * TradingService
@@ -1743,14 +1756,16 @@ export class TradingService {
           },
         );
 
-        this.#deps.logger.error(
-          ensureError(result.error, 'TradingService.cancelOrder'),
-          this.#getErrorContext('cancelOrder', {
-            symbol: params.symbol,
-            orderId: params.orderId,
-            providerError: result.error ?? 'Unknown error',
-          }),
-        );
+        if (!isSignerUnavailable(result.error)) {
+          this.#deps.logger.error(
+            ensureError(result.error, 'TradingService.cancelOrder'),
+            this.#getErrorContext('cancelOrder', {
+              symbol: params.symbol,
+              orderId: params.orderId,
+              providerError: result.error ?? 'Unknown error',
+            }),
+          );
+        }
 
         traceData = { success: false, error: result.error ?? 'Unknown error' };
       }
@@ -1931,13 +1946,12 @@ export class TradingService {
         };
       }, ['orders']); // Disconnect orders stream during operation
 
-      if (
-        provider.cancelOrders &&
-        operationResult &&
-        operationResult.failureCount > 0
-      ) {
-        const failureSummary = operationResult.results
-          .filter((result) => !result.success)
+      // Signer failures are retryable, so only the other failures are reported.
+      const reportedFailures = operationResult.results.filter(
+        (result) => !result.success && !isSignerUnavailable(result.error),
+      );
+      if (provider.cancelOrders && reportedFailures.length > 0) {
+        const failureSummary = reportedFailures
           .map(
             (result) =>
               `${result.symbol}/${result.orderId}: ${result.error ?? 'Unknown error'}`,
@@ -1946,11 +1960,12 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed - ${failureSummary}`,
+            `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
           this.#getErrorContext('cancelOrders', {
             successCount: operationResult.successCount,
             failureCount: operationResult.failureCount,
+            reportedFailureCount: reportedFailures.length,
             cancelAll: params.cancelAll,
           }),
         );
@@ -2107,13 +2122,15 @@ export class TradingService {
       } else {
         traceData = { success: false, error: result.error ?? 'Unknown error' };
 
-        this.#deps.logger.error(
-          ensureError(result.error, 'TradingService.closePosition'),
-          this.#getErrorContext('closePosition', {
-            symbol: params.symbol,
-            providerError: result.error ?? 'Unknown error',
-          }),
-        );
+        if (!isSignerUnavailable(result.error)) {
+          this.#deps.logger.error(
+            ensureError(result.error, 'TradingService.closePosition'),
+            this.#getErrorContext('closePosition', {
+              symbol: params.symbol,
+              providerError: result.error ?? 'Unknown error',
+            }),
+          );
+        }
       }
 
       // Track analytics (success or failure, includes partial fills)
@@ -2308,13 +2325,12 @@ export class TradingService {
         };
       }
 
-      if (
-        provider.closePositions &&
-        operationResult &&
-        operationResult.failureCount > 0
-      ) {
-        const failureSummary = operationResult.results
-          .filter((result) => !result.success)
+      // Signer failures are retryable, so only the other failures are reported.
+      const reportedFailures = operationResult.results.filter(
+        (result) => !result.success && !isSignerUnavailable(result.error),
+      );
+      if (provider.closePositions && reportedFailures.length > 0) {
+        const failureSummary = reportedFailures
           .map(
             (result) => `${result.symbol}: ${result.error ?? 'Unknown error'}`,
           )
@@ -2322,11 +2338,12 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed - ${failureSummary}`,
+            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
           this.#getErrorContext('closePositions', {
             successCount: operationResult.successCount,
             failureCount: operationResult.failureCount,
+            reportedFailureCount: reportedFailures.length,
             symbols: params.symbols?.length ?? 0,
             closeAll: params.closeAll,
           }),
