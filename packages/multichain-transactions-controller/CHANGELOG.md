@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MultichainTransactionsController:transactionFailed` event, published when a non-EVM transaction reaches `TransactionStatus.Failed` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `MultichainTransactionsController:transactionFailed` event, published when a non-EVM transaction reaches `TransactionStatus.Failed` ([#10611](https://github.com/MetaMask/core/pull/10611))
 
 ### Changed
 
