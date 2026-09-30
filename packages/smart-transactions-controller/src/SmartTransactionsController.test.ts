@@ -1202,13 +1202,12 @@ describe('SmartTransactionsController', () => {
           .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
           .reply(400, createGetFeesApiErrorResponse());
 
-        await expect(controller.getFees(tradeTx))
-          .rejects.toThrow('Fetch error: 400')
-          .catch((error) => {
-            expect(error.data).toStrictEqual({
-              error: 'insufficient funds',
-            });
-          });
+        await expect(controller.getFees(tradeTx)).rejects.toMatchObject({
+          message: 'Fetch error: 400',
+          data: {
+            error: 'insufficient funds',
+          },
+        });
       });
     });
   });
