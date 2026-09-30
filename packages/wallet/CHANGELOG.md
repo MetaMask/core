@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Wire up `ConfigRegistryApiService:fetchEventsConfig` action handler in `configRegistryController` initialization ([#10448](https://github.com/MetaMask/core/pull/10448))
+  - The messenger passed to Wallet must support this action.
 
 ## [15.1.0]
 
