@@ -4,6 +4,12 @@
  * Provides reusable mock implementations for ServiceContext and related types
  */
 
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   type ServiceContext,
   type PerpsControllerState,
@@ -11,6 +17,9 @@ import {
   type PerpsControllerMessenger,
   type PerpsPlatformDependencies,
 } from '@metamask/perps-controller';
+
+/** A fixed clock, in milliseconds, for tests that pin `Date.now()`. */
+export const NOW = 1_700_000_000_000;
 
 export type Deferred<T> = {
   promise: Promise<T>;
@@ -284,3 +293,137 @@ export const createMockMessenger = (
     ...overrides,
   } as unknown as jest.Mocked<PerpsControllerMessenger>;
 };
+
+// The keyring type of a software (non-hardware) account.
+const HD_KEYRING_TYPE = 'HD Key Tree';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<PerpsControllerMessenger>,
+  MessengerEvents<PerpsControllerMessenger>
+>;
+
+type AccountMessenger = {
+  messenger: PerpsControllerMessenger;
+  // The host side, to answer and delegate more of the host's actions.
+  rootMessenger: RootMessenger;
+  call: jest.SpyInstance;
+  selectAccount: (address: `0x${string}`) => void;
+  // Leave no account selected.
+  deselectAccount: () => void;
+};
+
+/**
+ * Create a real PerpsController messenger that delegates
+ * `AccountsController:getSelectedAccount`, and the unlocked
+ * `KeyringController` actions when a keyring signature is given.
+ *
+ * @param keyringType - Keyring type reported in the selected account metadata.
+ * @param keyringSignature - Signature the keyring returns; omit for a host
+ * without a KeyringController.
+ * @param isUnlocked - Whether the keyring reports it is unlocked.
+ * @returns The messenger, its host root messenger, a spy on its `call`, and
+ * ways to switch or clear the selected account.
+ */
+const createAccountMessenger = (
+  keyringType: string,
+  keyringSignature?: string,
+  isUnlocked = true,
+): AccountMessenger => {
+  const account = createMockEvmAccount();
+  // Empty when no account is selected.
+  let selectedAddress: string = account.address;
+  const root: RootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<PerpsControllerMessenger>,
+    MessengerEvents<PerpsControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: PerpsControllerMessenger = new Messenger({
+    namespace: 'PerpsController',
+    parent: root,
+  });
+  root.registerActionHandler('AccountsController:getSelectedAccount', () => ({
+    ...account,
+    address: selectedAddress,
+    scopes: ['eip155:0'],
+    metadata: { ...account.metadata, keyring: { type: keyringType } },
+  }));
+  if (keyringSignature === undefined) {
+    root.delegate({
+      actions: ['AccountsController:getSelectedAccount'],
+      messenger,
+    });
+  } else {
+    root.registerActionHandler('KeyringController:getState', () => ({
+      isUnlocked,
+      keyrings: [],
+    }));
+    root.registerActionHandler(
+      'KeyringController:signTypedMessage',
+      async () => keyringSignature,
+    );
+    root.registerActionHandler(
+      'KeyringController:signPersonalMessage',
+      async () => keyringSignature,
+    );
+    root.delegate({
+      actions: [
+        'AccountsController:getSelectedAccount',
+        'KeyringController:getState',
+        'KeyringController:signTypedMessage',
+        'KeyringController:signPersonalMessage',
+      ],
+      messenger,
+    });
+  }
+  return {
+    messenger,
+    rootMessenger: root,
+    call: jest.spyOn(messenger, 'call'),
+    selectAccount: (address): void => {
+      selectedAddress = address;
+    },
+    deselectAccount: (): void => {
+      selectedAddress = '';
+    },
+  };
+};
+
+/**
+ * Create a real PerpsController messenger for a host without a
+ * KeyringController: only `AccountsController:getSelectedAccount` is
+ * delegated, so any `KeyringController:*` call throws.
+ *
+ * @param keyringType - Keyring type reported in the selected account metadata.
+ * @returns The messenger, its host root messenger, a spy on its `call`, and
+ * ways to switch or clear the selected account.
+ */
+export const createKeyringlessMessenger = (
+  keyringType = HD_KEYRING_TYPE,
+): AccountMessenger => createAccountMessenger(keyringType);
+
+/**
+ * Create a real PerpsController messenger for a host with a KeyringController
+ * that returns `signature` for typed data and personal messages.
+ *
+ * @param signature - Signature the keyring returns.
+ * @param isUnlocked - Whether the keyring reports it is unlocked.
+ * @returns The messenger, its host root messenger, a spy on its `call`, and
+ * ways to switch or clear the selected account.
+ */
+export const createKeyringMessenger = (
+  signature: string,
+  isUnlocked = true,
+): AccountMessenger =>
+  createAccountMessenger(HD_KEYRING_TYPE, signature, isUnlocked);
+
+/**
+ * Names of the `KeyringController:*` actions a messenger spy saw.
+ *
+ * @param call - Spy on a messenger's `call`.
+ * @returns The KeyringController action names, in call order.
+ */
+export const keyringCalls = (call: jest.SpyInstance): string[] =>
+  call.mock.calls
+    .map(([action]: [unknown]) => String(action))
+    .filter((action) => action.startsWith('KeyringController:'));

@@ -118,6 +118,7 @@ import {
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
+import { dropBalancesOutsideAccountScopes } from './migrations/dropBalancesOutsideAccountScopes.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import {
   cleanSpamAssets,
@@ -1277,6 +1278,11 @@ export class AssetsController extends BaseController<
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.messenger.subscribe('KeyringController:unlock', async () => {
+      try {
+        this.#runOutOfScopeBalanceCleanup();
+      } catch {
+        /* Do nothing */
+      }
       await this.#runSpamCleanup().catch(() => {
         /* Do nothing */
       });
@@ -1352,6 +1358,26 @@ export class AssetsController extends BaseController<
       bypassServerCache: true,
     }).catch((error) => {
       log('Failed to refresh assets after transaction event', { error });
+    });
+  }
+
+  /**
+   * One-time cleanup of balances a v5 update stamped onto accounts after a
+   * group switch. Runs on unlock, the same point as spam cleanup, and only
+   * touches the selected accounts (their scopes are what define ownership).
+   */
+  #runOutOfScopeBalanceCleanup(): void {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      dropBalancesOutsideAccountScopes(balances, accounts);
     });
   }
 
@@ -3049,7 +3075,7 @@ export class AssetsController extends BaseController<
             );
             const nativeAssetIdsForAccount = account
               ? this.#getNativeAssetIdsForAccount(account)
-              : this.#getNativeAssetIdsForEnabledChains();
+              : [];
             for (const nativeAssetId of nativeAssetIdsForAccount) {
               if (
                 !Object.prototype.hasOwnProperty.call(
