@@ -1,6 +1,6 @@
 {
   "name": "@metamask/cryptography",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Provides optimized versions of commonly used cryptography functions for MetaMask clients",
   "keywords": [
     "Ethereum",
