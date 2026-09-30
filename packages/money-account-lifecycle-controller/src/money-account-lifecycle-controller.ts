@@ -168,9 +168,9 @@ export class MoneyAccountLifecycleController extends BaseController<
    * After each fetch, and whenever the primary Money Account changes, records
    * whether that account is not in an identity, a valid SFA, or a valid MFA,
    * along with its identity. After each fetch, or when the recorded lifecycle
-   * changes, looks up whether the identity's current address is registered
-   * with CHOMP, and switches `MoneyAccountController` to the MPC keyring for a
-   * valid MFA.
+   * changes, looks up whether the Money Account address, and the identity's
+   * current address for a valid MFA, are registered with CHOMP, and switches
+   * `MoneyAccountController` to the MPC keyring for a valid MFA.
    */
   init(): void {
     if (this.#initialized) {
@@ -275,23 +275,23 @@ export class MoneyAccountLifecycleController extends BaseController<
         });
       }
 
-      if (
-        lifecycle.type === 'notInIdentity' ||
-        (!hasChanged && !isRehydrating)
-      ) {
+      if (!hasChanged && !isRehydrating) {
         return;
       }
 
-      const { currentAddress } = lifecycle.identity;
       if (lifecycle.type === 'mfa') {
         this.messenger
           .call('MoneyAccountController:useMpcKeyring', {
             moneyAccountAddress: moneyAccount.address,
-            mpcAddress: currentAddress,
+            mpcAddress: lifecycle.identity.currentAddress,
           })
           .catch((error: unknown) => this.#reportError(error));
       }
-      this.#fetchRegistrationStatus(currentAddress);
+
+      this.#fetchRegistrationStatus(moneyAccount.address);
+      if (lifecycle.type === 'mfa') {
+        this.#fetchRegistrationStatus(lifecycle.identity.currentAddress);
+      }
     } catch (error) {
       this.#reportError(error);
     }
