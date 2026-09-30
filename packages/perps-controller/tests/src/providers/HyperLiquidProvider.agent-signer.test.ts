@@ -17,7 +17,6 @@ import {
   MAINNET_ACCOUNT,
   OTHER_MAIN_ADDRESS,
   unknownWalletError,
-  USER_SIGNED_PAYLOAD,
 } from '../../helpers/agentFixtures.js';
 import {
   BTC_MARKET_ORDER,
@@ -140,17 +139,25 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
 
     it('keeps user-signed actions on the main account', async () => {
       const getAgentSigner = jest.fn();
-      const { accountSignerProvider, accountSigner, agentSigner } =
-        createAccountSignerProvider({ getAgentSigner });
+      const { accountSignerProvider, accountSigner, agentSigner, infoClient } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+        });
       getAgentSigner.mockResolvedValue(agentSigner);
+      // Not approved yet: the approval is a user-signed write.
+      infoClient.maxBuilderFee.mockResolvedValueOnce(0);
 
-      await accountSignerProvider.getMarketDataWithPrices();
+      await accountSignerProvider.prepareTradingWallet();
 
+      // The builder fee approval signs on the main account; the referral is
+      // the only L1 action, and the agent signs it.
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
       ]);
-      expect(agentSigner.signTypedData).not.toHaveBeenCalled();
-      expect(getAgentSigner).not.toHaveBeenCalled();
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+      ]);
     });
 
     it('fails only the L1 actions and asks again when getAgentSigner rejects', async () => {

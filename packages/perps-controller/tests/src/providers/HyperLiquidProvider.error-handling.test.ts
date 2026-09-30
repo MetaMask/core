@@ -320,9 +320,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -2183,7 +2180,7 @@ describe('HyperLiquidProvider', () => {
             }),
           );
           mockSubscriptionService.getCachedAbstractionMode.mockReturnValue(
-            'dexAbstraction',
+            'disabled',
           );
 
           const result = await provider.cancelOrder({
@@ -2198,7 +2195,7 @@ describe('HyperLiquidProvider', () => {
             expect.objectContaining({
               context: expect.objectContaining({
                 data: expect.objectContaining({
-                  abstraction_mode: 'dexAbstraction',
+                  abstraction_mode: 'disabled',
                 }),
               }),
             }),

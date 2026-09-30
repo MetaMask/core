@@ -6071,10 +6071,9 @@ export class PerpsController extends BaseController<
    * Run the active provider's deferred trading setup ahead of the first order
    * (HyperLiquid account migration, builder fee and referral; Lighter
    * venue-key registration), so its signatures happen in one guided session,
-   * such as agent setup, instead of at order time. The builder fee, the
-   * migration from `dexAbstraction` and Lighter's registration are signed by
-   * the main account; with an agent, the referral and the silent migration
-   * are L1 actions the agent signs.
+   * such as agent setup, instead of at order time. The builder fee and
+   * Lighter's registration are signed by the main account; with an agent,
+   * the referral and the account migration are L1 actions the agent signs.
    *
    * @returns `ready: true` when none of these steps will need a signature
    * again before the first order, and only while an account is selected and

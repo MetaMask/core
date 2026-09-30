@@ -311,9 +311,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -949,14 +946,14 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
     });
 
-    it('runs user-signed unified account migration before withdrawing for dexAbstraction users', async () => {
+    it('runs unified account migration before withdrawing for default-mode users', async () => {
       const exchangeClient = createMockExchangeClient();
       mockClientService.getExchangeClient = jest
         .fn()
         .mockReturnValue(exchangeClient);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+          userAbstraction: jest.fn().mockResolvedValue('default'),
         }),
       );
 
@@ -977,9 +974,8 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.withdraw(withdrawParams);
 
       expect(result.success).toBe(true);
-      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledWith({
-        user: '0x1234567890123456789012345678901234567890',
-        abstraction: 'unifiedAccount',
+      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
+        abstraction: 'u',
       });
       expect(exchangeClient.withdraw3).toHaveBeenCalledWith({
         destination: '0x1234567890123456789012345678901234567890',

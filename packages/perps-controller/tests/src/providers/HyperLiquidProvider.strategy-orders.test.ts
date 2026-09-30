@@ -383,9 +383,6 @@ const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -1034,7 +1031,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'updateLeverage',
             'approveBuilderFee',
             'setReferrer',
-            'userSetAbstraction',
             'agentSetAbstraction',
             'sendAsset',
             'order',

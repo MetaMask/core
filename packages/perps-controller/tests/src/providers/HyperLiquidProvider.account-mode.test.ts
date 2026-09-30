@@ -1083,9 +1083,9 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('waits for in-flight then runs its own attempt when no cache was written (deferred dexAbstraction case)', async () => {
+    it('waits for in-flight then runs its own attempt when no cache was written (deferred migration case)', async () => {
       // Scenario: another provider's init-time call (allowUserSigning=false)
-      // hit the dexAbstraction defer branch and finished without writing the
+      // hit the defer branch and finished without writing the
       // cache. Our caller is action-time (allowUserSigning=true via withdraw)
       // and must not skip the migration just because another instance was
       // mid-setup.
@@ -1108,7 +1108,7 @@ describe('HyperLiquidProvider', () => {
         .mockReturnValue(exchangeClient);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+          userAbstraction: jest.fn().mockResolvedValue('default'),
         }),
       );
 
@@ -1132,9 +1132,8 @@ describe('HyperLiquidProvider', () => {
         (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
           .setInFlight,
       ).toHaveBeenCalledWith('unifiedAccount', 'mainnet', USER_ADDRESS);
-      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledWith({
-        user: USER_ADDRESS,
-        abstraction: 'unifiedAccount',
+      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
+        abstraction: 'u',
       });
     });
 
@@ -1276,7 +1275,6 @@ describe('HyperLiquidProvider', () => {
       expect(mockExchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
         abstraction: 'u',
       });
-      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
     });
 
     it('calls agentSetAbstraction silently when mode is disabled', async () => {
@@ -1298,7 +1296,6 @@ describe('HyperLiquidProvider', () => {
       expect(mockExchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
         abstraction: 'u',
       });
-      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
     });
 
     it('tracks migration_required then success for default → unifiedAccount', async () => {
@@ -1347,32 +1344,40 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
-    it('skips migration and does not cache success for unknown abstraction modes', async () => {
-      // Arrange
-      const mockExchangeClient = createMockExchangeClient();
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('futureMode'),
-        }),
-      );
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(mockExchangeClient);
+    // `dexAbstraction` is a retired mode HyperLiquid no longer returns; if it
+    // ever resurfaces it is treated like any other unknown mode.
+    it.each(['futureMode', 'dexAbstraction'])(
+      'skips migration and does not cache success for unknown abstraction mode %s',
+      async (mode) => {
+        // Arrange
+        const mockExchangeClient = createMockExchangeClient();
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            userAbstraction: jest.fn().mockResolvedValue(mode),
+          }),
+        );
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(mockExchangeClient);
 
-      // Act
-      await provider.getMarketDataWithPrices();
+        // Act
+        await provider.getMarketDataWithPrices();
 
-      // Assert - fail closed for unknown modes rather than silently forcing 'u'
-      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
-      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
-      expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
-          .set,
-      ).not.toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
-        attempted: true,
-        enabled: true,
-      });
-    });
+        // Assert - fail closed for unknown modes rather than silently forcing 'u'
+        expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+        expect(
+          (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+            .set,
+        ).not.toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+          attempted: true,
+          enabled: true,
+        });
+        expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+          'HyperLiquidProvider: Unknown abstraction mode, skipping Unified Account migration',
+          expect.objectContaining({ mode }),
+        );
+      },
+    );
 
     // ─────────────────────────────────────────────────
     // Hyperliquid multi-sig accounts (TAT-3214)
@@ -1408,7 +1413,6 @@ describe('HyperLiquidProvider', () => {
         user: USER_ADDRESS,
       });
       expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
-      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
       // No migration_required event — the migration is not possible at all.
       expect(
         mockPlatformDependencies.metrics.trackPerpsEvent,
@@ -1566,83 +1570,6 @@ describe('HyperLiquidProvider', () => {
     });
 
     // ─────────────────────────────────────────────────
-    // Signing-backed unifiedAccount migration on init
-    //
-    // Some transitions require an EIP-712 prompt, so software-wallet users
-    // migrate during initial setup to ensure the first trade sees unified
-    // collateral. Hardware wallets remain deferred to avoid repeated signing
-    // prompts while browsing.
-    // ─────────────────────────────────────────────────
-
-    it('calls userSetAbstraction on init for software-wallet dexAbstraction users', async () => {
-      // Arrange
-      const mockExchangeClient = createMockExchangeClient();
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
-        }),
-      );
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(mockExchangeClient);
-
-      // Act - init path
-      await provider.getMarketDataWithPrices();
-
-      // Assert - software wallets migrate during setup so first trade sees
-      // unified collateral folded into the size slider.
-      expect(mockExchangeClient.userSetAbstraction).toHaveBeenCalledWith({
-        user: USER_ADDRESS,
-        abstraction: 'unifiedAccount',
-      });
-      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
-    });
-
-    it('tracks migration_required and writes cache for software-wallet dexAbstraction on init', async () => {
-      // Arrange
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
-        }),
-      );
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(createMockExchangeClient());
-
-      // Act
-      await provider.getMarketDataWithPrices();
-
-      // Assert - analytics fire because software-wallet init performs the
-      // migration attempt.
-      const trackCalls = (
-        mockPlatformDependencies.metrics.trackPerpsEvent as jest.Mock
-      ).mock.calls.filter((call) => call[0] === 'Perp Account Setup');
-      expect(trackCalls[0]).toEqual([
-        'Perp Account Setup',
-        expect.objectContaining({
-          abstraction_mode: 'dexAbstraction',
-          status: 'migration_required',
-        }),
-      ]);
-      expect(trackCalls[1]).toEqual([
-        'Perp Account Setup',
-        expect.objectContaining({
-          previous_abstraction_mode: 'dexAbstraction',
-          abstraction_mode: 'unifiedAccount',
-          status: 'success',
-        }),
-      ]);
-
-      expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
-          .set,
-      ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
-        attempted: true,
-        enabled: true,
-      });
-    });
-
-    // ─────────────────────────────────────────────────
     // setUserAbstractionMode is called on every success path with the
     // resolved mode so the subscription service can fold spot correctly.
     // ─────────────────────────────────────────────────
@@ -1692,24 +1619,7 @@ describe('HyperLiquidProvider', () => {
       ).toHaveBeenCalledWith(USER_ADDRESS, 'unifiedAccount');
     });
 
-    it('records unifiedAccount mode after migrating dexAbstraction on init when signatures need no confirmation', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
-        }),
-      );
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(createMockExchangeClient());
-
-      await provider.getMarketDataWithPrices();
-
-      expect(
-        mockSubscriptionService.setUserAbstractionMode,
-      ).toHaveBeenCalledWith(USER_ADDRESS, 'unifiedAccount');
-    });
-
-    it.each(['dexAbstraction', 'default', 'disabled'] as const)(
+    it.each(['default', 'disabled'] as const)(
       'defers %s migration on init when every signature needs confirmation',
       async (currentMode) => {
         // Arrange
@@ -1728,7 +1638,6 @@ describe('HyperLiquidProvider', () => {
         await provider.getMarketDataWithPrices();
 
         // Assert - no browsing-time hardware prompt; action-time setup can still run.
-        expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
         expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
         expect(
           (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
@@ -1862,48 +1771,6 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
-    it("caches failure when user-signed userSetAbstraction throws (don't re-prompt rejected users)", async () => {
-      // The dexAbstraction → unifiedAccount migration goes through
-      // userSetAbstraction which surfaces an EIP-712 signing dialog. Once
-      // the user has been prompted (and either rejected or signed but the
-      // call failed), we should not pop the dialog again this session.
-      const mockError = new Error('User rejected signing');
-      const exchangeClient = createMockExchangeClient();
-      exchangeClient.userSetAbstraction = jest
-        .fn()
-        .mockRejectedValue(mockError);
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(exchangeClient);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
-        }),
-      );
-
-      Object.defineProperty(provider, 'getAccountState', {
-        value: jest.fn().mockResolvedValue({ availableBalance: '5000' }),
-        writable: true,
-      });
-
-      // withdraw() is an action-time caller that passes allowUserSigning=true,
-      // so the dexAbstraction path actually attempts userSetAbstraction.
-      await provider.withdraw({
-        amount: '100',
-        destination: '0x1234567890123456789012345678901234567890' as Hex,
-        assetId:
-          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
-      });
-
-      expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
-          .set,
-      ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
-        attempted: true,
-        enabled: false,
-      });
-    });
-
     it('does NOT cache or log to Sentry when KEYRING_LOCKED is thrown', async () => {
       // Arrange
       const mockExchangeClient = createMockExchangeClient();
@@ -1997,7 +1864,6 @@ describe('HyperLiquidProvider', () => {
           .set,
       ).not.toHaveBeenCalled();
       // No signing happened
-      expect(mockExchangeClient.userSetAbstraction).not.toHaveBeenCalled();
       expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
     });
 

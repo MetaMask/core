@@ -90,8 +90,8 @@ export const USER_SIGNED_PAYLOAD: PerpsTypedDataPayload = {
 
 /**
  * A builder fee approval as the HyperLiquid SDK builds it for the mainnet
- * builder and fee rate the provider requests: user-signed, like the
- * migration, but a different action.
+ * builder and fee rate the provider requests: user-signed, like
+ * USER_SIGNED_PAYLOAD, but a different action.
  */
 export const APPROVE_BUILDER_FEE_PAYLOAD: PerpsTypedDataPayload = {
   domain: USER_SIGNED_PAYLOAD.domain,

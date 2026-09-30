@@ -30,20 +30,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An agent the venue rejects as unknown (revoked or expired, for example after the user approves another unnamed agent) is dropped, together with a `setAgentSigner` binding to it, so the next L1 action asks `getAgentSigner` again; the rejected action fails with `KEYRING_LOCKED` instead of `EXCHANGE_ACCOUNT_NOT_FOUND`
   - Add optional `providerCredentials.hyperliquid.onAgentRejected(account, agentAddress)`, called with the agent's address as the client supplied it for each write the venue rejects with that agent, so the client can re-check its approval
   - The exported `HyperLiquidProvider` accepts the matching optional `getAgentSigner` and `onAgentRejected` constructor options and implements `clearAgentSigners`
-  - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, the user-signed migration from `dexAbstraction`, ...) always stay on the main account; approving the agent remains the client's job
+  - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, ...) always stay on the main account; approving the agent remains the client's job
   - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
 - Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run the deferred trading setup before the first order, so its signatures happen in a guided session: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
-  - The builder fee, the migration from `dexAbstraction` and the Lighter registration are signed by the main account; with an agent, the HyperLiquid referral and silent migration are signed by the agent
+  - The builder fee and the Lighter registration are signed by the main account; with an agent, the HyperLiquid referral and unified-account migration are signed by the agent
   - Resolves a `ReadyToTradeResult` that is `ready: true` once an account is selected, the main-account signer is ready and none of these steps will need a signature again before the first order, and `ready: false` while one will be retried, including after an agent could not sign; `ready: false` carries `KEYRING_LOCKED` while the signer is not ready, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue yet, `NO_ACCOUNT_SELECTED`, `PROVIDER_LIFECYCLE_STALE` when the provider or account changed during setup, or the message of the logged error that stopped setup; the aggregated provider prepares every provider in turn
   - A HyperLiquid referral whose MetaMask referral code is not ready yet does not hold the result back; the next `prepareTradingWallet` checks the code again, and orders do not
   - Implemented by the exported `HyperLiquidProvider` and by the Lighter provider, which resolves `ready: true` at once when it is read-only (no signer bridge), an account is selected and the main-account signer is ready
 - Add optional `isTestnet` to `AggregatedProviderConfig`, which tags the errors the aggregated provider logs with the network ([#10559](https://github.com/MetaMask/core/pull/10559))
+
+### Changed
+
+- **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+  - The re-exported `FrontendOrder.orderType` adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`; historical orders of these types report `orderType: 'market'`
+  - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
 
 ### Removed
 
 - **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig` ([#10559](https://github.com/MetaMask/core/pull/10559))
   - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
   - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
+- Remove the HyperLiquid `dexAbstraction` to Unified Account migration, which prompted the main wallet through `userSetAbstraction`; HyperLiquid retired the `dexAbstraction` mode, and `default` / `disabled` accounts still migrate through `agentSetAbstraction` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 
 ### Fixed
 

@@ -15,17 +15,16 @@ import {
   MAIN_ADDRESS,
   MAIN_SIGNATURE,
   OTHER_MAIN_ADDRESS,
-  USER_SIGNED_PAYLOAD,
   unknownWalletError,
 } from '../../helpers/agentFixtures.js';
 import {
   BTC_MARKET_ORDER,
   BUILDER_FEE_WRITE,
   BUILDER_REFERRAL_LOOKUP,
-  MIGRATION_WRITE,
   NOW,
   REFERRAL_WRITE,
   RESTING_ORDER_ID,
+  SILENT_MIGRATION_WRITE,
   createAccountSignerProvider,
   migrationAttempted,
   referralAttempted,
@@ -71,14 +70,15 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
-        MIGRATION_WRITE,
+      expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+        SILENT_MIGRATION_WRITE,
       ]);
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
       ]);
+      // Without an agent, the main account signs both L1 actions.
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
         [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
       // Already approved, so nothing is signed for it.
@@ -109,7 +109,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({ ready: true });
       // Migration, referral, builder fee approval.
       expect(setupSignatures).toStrictEqual([
-        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
         [MAIN_ADDRESS, L1_PAYLOAD],
         [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
       ]);
@@ -123,8 +123,8 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
         [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
-      expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
-        MIGRATION_WRITE,
+      expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+        SILENT_MIGRATION_WRITE,
       ]);
       expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
         BUILDER_FEE_WRITE,
@@ -292,7 +292,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       });
       // Migration, then referral; nothing on the second call.
       expect(firstSignatures).toStrictEqual([
-        [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+        [MAIN_ADDRESS, L1_PAYLOAD],
         [MAIN_ADDRESS, L1_PAYLOAD],
       ]);
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual(
@@ -300,38 +300,26 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       );
     });
 
-    it('reports ready after the user declines the migration, since it is not asked again', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(NOW);
-      const { accountSignerProvider, accountSigner } =
+    it('reports not ready after the user declines the migration, and asks again at the next preparation', async () => {
+      const { accountSignerProvider, exchangeClient } =
         createAccountSignerProvider({
           signer: { requiresSignatureConfirmation: () => true },
         });
-      accountSigner.signTypedData.mockImplementation(
-        async (_address: string, payload: PerpsTypedDataPayload) => {
-          if (payload === USER_SIGNED_PAYLOAD) {
-            throw new Error('User rejected the request.');
-          }
-          return MAIN_SIGNATURE;
-        },
+      exchangeClient.agentSetAbstraction.mockRejectedValue(
+        new Error('User rejected the request.'),
       );
 
       const result = await accountSignerProvider.prepareTradingWallet();
       const secondResult = await accountSignerProvider.prepareTradingWallet();
 
-      expect(result).toStrictEqual({ ready: true });
-      expect(secondResult).toStrictEqual({ ready: true });
-      expect(TradingReadinessCache.get('mainnet', MAIN_ADDRESS)).toStrictEqual({
-        attempted: true,
-        enabled: false,
-        reason: undefined,
-        timestamp: NOW,
-      });
-      // Declined once, not asked again.
-      expect(
-        accountSigner.signTypedData.mock.calls.filter(
-          ([, payload]) => payload === USER_SIGNED_PAYLOAD,
-        ),
-      ).toHaveLength(1);
+      expect(result).toStrictEqual({ ready: false });
+      expect(secondResult).toStrictEqual({ ready: false });
+      // Not recorded as attempted, so each preparation asks again.
+      expect(migrationAttempted()).toBe(false);
+      expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+        SILENT_MIGRATION_WRITE,
+        SILENT_MIGRATION_WRITE,
+      ]);
     });
 
     it('reports not ready without logging when the builder fee approval is rejected, and asks again at the next preparation', async () => {
@@ -372,7 +360,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       });
       expect(initialize).not.toHaveBeenCalled();
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
-      expect(exchangeClient.userSetAbstraction).not.toHaveBeenCalled();
+      expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
       expect(exchangeClient.setReferrer).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
       expect(migrationAttempted()).toBe(false);
@@ -509,8 +497,8 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       const result = await accountSignerProvider.prepareTradingWallet();
 
       expect(result).toStrictEqual({ ready: true });
-      expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
-        MIGRATION_WRITE,
+      expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+        SILENT_MIGRATION_WRITE,
       ]);
       expect(exchangeClient.setReferrer.mock.calls).toStrictEqual([
         REFERRAL_WRITE,
@@ -518,7 +506,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(connectSignatures).toStrictEqual([
         [
           'KeyringController:signTypedMessage',
-          { from: MAIN_ADDRESS, data: USER_SIGNED_PAYLOAD },
+          { from: MAIN_ADDRESS, data: L1_PAYLOAD },
           'V4',
         ],
       ]);
