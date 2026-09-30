@@ -1,9 +1,19 @@
+import { getRandomBytes } from './random.js';
 import { toUint8Array } from './utils.js';
 
 // https://www.rfc-editor.org/rfc/rfc5116#section-5.1
 const AES_GCM_IV_LENGTH = 12;
 
-export type AesGcmOptions = {
+export type AesGcmEncryptOptions = {
+  /**
+   * The initialization vector (nonce). If not provided, a random 12-byte IV
+   * is generated automatically. It is recommended to let the IV be generated
+   * automatically rather than providing one, to avoid IV reuse.
+   */
+  iv?: BufferSource;
+} & AesGcmDecryptOptions;
+
+export type AesGcmDecryptOptions = {
   /**
    * Skip the IV length check. Using an IV other than 12 bytes deviates from
    * the standard and is considered less safe.
@@ -11,26 +21,31 @@ export type AesGcmOptions = {
   unsafeIvLength?: boolean;
 };
 
+export type AesGcmEncryptResult = {
+  ciphertext: Uint8Array<ArrayBuffer>;
+  iv: Uint8Array<ArrayBuffer>;
+};
+
 /**
  * Encrypt data using AES-GCM.
  *
  * @param key - The 16, 24, or 32-byte AES key.
- * @param iv - The initialization vector.
  * @param plaintext - The plaintext.
  * @param options - Additional configuration options.
- * @returns The ciphertext.
+ * @returns The ciphertext and the IV used for encryption.
  */
 export async function encrypt(
   key: BufferSource,
-  iv: BufferSource,
   plaintext: BufferSource,
-  options?: AesGcmOptions,
-): Promise<Uint8Array> {
+  options?: AesGcmEncryptOptions,
+): Promise<AesGcmEncryptResult> {
   if (key.byteLength === 0) {
     throw new Error(
       'Invalid key length: Key must not be zero bytes for AES-GCM.',
     );
   }
+
+  const iv = toUint8Array(options?.iv ?? getRandomBytes(AES_GCM_IV_LENGTH));
 
   if (iv.byteLength === 0) {
     throw new Error(
@@ -54,12 +69,12 @@ export async function encrypt(
 
   const ciphertext = await globalThis.crypto.subtle.encrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    { name: 'AES-GCM', iv: toUint8Array(iv) },
+    { name: 'AES-GCM', iv },
     subtleKey,
     toUint8Array(plaintext),
   );
 
-  return new Uint8Array(ciphertext);
+  return { ciphertext: new Uint8Array(ciphertext), iv };
 }
 
 /**
@@ -75,7 +90,7 @@ export async function decrypt(
   key: BufferSource,
   iv: BufferSource,
   ciphertext: BufferSource,
-  options?: AesGcmOptions,
+  options?: AesGcmDecryptOptions,
 ): Promise<Uint8Array> {
   if (key.byteLength === 0) {
     throw new Error(
