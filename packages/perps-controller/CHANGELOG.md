@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
 ### Added
 
 - Add `TWAP_SLICE`, `VAULT_CLOSE` and `SPOT_DUST_CONVERSION` to `DETAILED_ORDER_TYPES` for the HyperLiquid order types added in `@nktkas/hyperliquid` 0.33.3 ([#10591](https://github.com/MetaMask/core/pull/10591))
@@ -46,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
 
 ### Removed
 
@@ -1077,7 +1080,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
