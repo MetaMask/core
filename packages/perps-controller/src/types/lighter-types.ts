@@ -192,6 +192,8 @@ export type LighterCreateClientParams = {
   accountIndex: number;
   apiKeyIndex: number;
   nonce: number;
+  /** Expected Core wallet binding. Hosts must reject a different selected account. */
+  walletAddress?: string;
 };
 
 /**
@@ -203,6 +205,30 @@ export type LighterCreateClientParams = {
  * - Node (e2e): in-process `WebAssembly.instantiate` via Go's `wasm_exec.js`.
  */
 export type LighterSignerBridge = {
+  /**
+   * Return requested slots whose keys can be restored from local storage or
+   * wallet-owned deterministic derivation. This must never generate unrelated
+   * random keys for slots reported as recoverable. Core still verifies the
+   * derived public key against the venue before reusing any registration.
+   */
+  getRecoverableKeyIndices?(params: {
+    chainId: number;
+    accountIndex: number;
+    apiKeyIndices: number[];
+    walletAddress?: string;
+  }): Promise<number[]>;
+  /**
+   * Opt in to device-key recovery. Return only requested slots whose private
+   * keys are persisted locally for this network and account. No key material
+   * crosses this boundary. Core verifies public-key ownership before reuse.
+   */
+  getStoredKeyIndices?(params: {
+    chainId: number;
+    accountIndex: number;
+    apiKeyIndices: number[];
+    walletAddress?: string;
+  }): Promise<number[]>;
+
   /**
    * Create or restore the client-owned venue signer. The implementation owns
    * key generation and persistence; Core never receives the seed or private

@@ -112,6 +112,7 @@ function createBridge(): {
 
 type BuiltProvider = {
   provider: LighterProvider;
+  bridge: LighterSignerBridge;
   address: string;
   client: {
     sendTx: jest.Mock;
@@ -136,6 +137,7 @@ type BuildOptions = {
   // Find the account by L1 address instead of a configured index.
   findAccountByAddress?: boolean;
   withoutBridge?: boolean;
+  storedKeyIndices?: number[];
 };
 
 function buildProvider({
@@ -144,6 +146,7 @@ function buildProvider({
   keyringUnlocked = true,
   findAccountByAddress = false,
   withoutBridge = false,
+  storedKeyIndices,
 }: BuildOptions = {}): BuiltProvider {
   const { address } = createMockEvmAccount();
   const account = {
@@ -183,6 +186,27 @@ function buildProvider({
     ? createKeyringMessenger(MAIN_SIGNATURE, keyringUnlocked)
     : createKeyringlessMessenger();
   const { bridge, calls } = createBridge();
+  if (storedKeyIndices) {
+    Object.assign(bridge, {
+      getStoredKeyIndices: jest.fn().mockResolvedValue(storedKeyIndices),
+    });
+    client.sendTx.mockImplementation(async () => {
+      const existing = (await client.getApiKeys()) as Awaited<
+        ReturnType<LighterClientService['getApiKeys']>
+      >;
+      const created = calls
+        .filter((signerCall) => signerCall.function === '_createClient')
+        .at(-1);
+      client.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [
+          ...existing.apiKeys,
+          { apiKeyIndex: created?.params[3], publicKey: '9c'.repeat(40) },
+        ],
+      });
+      return { code: 200, txHash: '0xsent' };
+    });
+  }
   const deps = keyring
     ? createMockInfrastructure()
     : { ...createMockInfrastructure(), accountSigner };
@@ -199,6 +223,7 @@ function buildProvider({
   });
   return {
     provider,
+    bridge,
     address,
     client,
     accountSigner,
@@ -212,6 +237,7 @@ function buildProvider({
 
 describe('LighterProvider with accountSigner', () => {
   beforeEach(pinClock);
+  afterEach(() => jest.useRealTimers());
 
   it('registers the venue key with an L1 signature from accountSigner', async () => {
     const { provider, address, client, accountSigner, call, calls } =
@@ -430,6 +456,301 @@ describe('LighterProvider with accountSigner', () => {
     const result = await provider.prepareTradingWallet();
 
     expect(result).toStrictEqual({ ready: true });
+    expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(client.sendTx).not.toHaveBeenCalled();
+  });
+
+  it('recovers a restored wallet without overwriting its occupied slot', async () => {
+    const { provider, client, calls, accountSigner, bridge } = buildProvider({
+      storedKeyIndices: [],
+    });
+    Object.assign(bridge, {
+      getRecoverableKeyIndices: jest.fn(
+        async (params: { apiKeyIndices: number[] }) => params.apiKeyIndices,
+      ),
+    });
+    client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [{ apiKeyIndex: 7, publicKey: 'ab'.repeat(40) }],
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({ ready: true });
+    const created = calls
+      .filter((call) => call.function === '_createClient')
+      .at(-1);
+    expect(created?.params[3]).not.toBe(7);
+    expect(created?.params[3]).toBeGreaterThanOrEqual(2);
+    expect(created?.params[3]).toBeLessThanOrEqual(254);
+    expect(accountSigner.signPersonalMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses a matching device key in another slot without registering again', async () => {
+    const { provider, client, calls, accountSigner } = buildProvider({
+      storedKeyIndices: [19],
+    });
+    client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [
+        { apiKeyIndex: 7, publicKey: 'ab'.repeat(40) },
+        { apiKeyIndex: 19, publicKey: '9c'.repeat(40) },
+      ],
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({ ready: true });
+    expect(
+      calls.find((call) => call.function === '_createClient')?.params[3],
+    ).toBe(19);
+    expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(client.sendTx).not.toHaveBeenCalled();
+  });
+
+  it('reuses a wallet-recoverable registration after all local keys are lost', async () => {
+    const { provider, client, bridge, accountSigner, calls } = buildProvider({
+      storedKeyIndices: [],
+    });
+    Object.assign(bridge, {
+      getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+    });
+    client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [
+        { apiKeyIndex: 7, publicKey: 'ab'.repeat(40) },
+        { apiKeyIndex: 19, publicKey: '9c'.repeat(40) },
+      ],
+    });
+
+    expect(await provider.prepareTradingWallet()).toStrictEqual({
+      ready: true,
+    });
+    expect(
+      calls
+        .filter((call) => call.function === '_createClient')
+        .map((call) => call.params[3]),
+    ).toStrictEqual([7, 19]);
+    expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(client.sendTx).not.toHaveBeenCalled();
+  });
+
+  it.each(['wallet-recovery', 'storage-only'] as const)(
+    'refuses repeated slot allocation with %s discovery after key loss',
+    async (discovery) => {
+      const { provider, client, bridge, calls } = buildProvider({
+        storedKeyIndices: [],
+      });
+      if (discovery === 'wallet-recovery') {
+        Object.assign(bridge, {
+          getRecoverableKeyIndices: jest.fn().mockResolvedValue([]),
+        });
+      }
+      client.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [{ apiKeyIndex: 7, publicKey: 'ab'.repeat(40) }],
+      });
+
+      const result = await provider.prepareTradingWallet();
+
+      expect(result.ready).toBe(false);
+      expect(result.error).toContain('recovery is unavailable');
+      expect(client.sendTx).not.toHaveBeenCalled();
+      expect(calls).toStrictEqual([]);
+    },
+  );
+
+  it('reuses an occupied recoverable slot before a free preferred slot', async () => {
+    const { provider, client, bridge, calls } = buildProvider({
+      storedKeyIndices: [],
+    });
+    Object.assign(bridge, {
+      getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+    });
+    client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [{ apiKeyIndex: 19, publicKey: '9c'.repeat(40) }],
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({ ready: true });
+    expect(
+      calls
+        .filter((call) => call.function === '_createClient')
+        .map((call) => call.params[3]),
+    ).toStrictEqual([19]);
+    expect(client.sendTx).not.toHaveBeenCalled();
+  });
+
+  it('binds bridge discovery and client creation to the Core wallet address', async () => {
+    const { provider, bridge, address } = buildProvider({
+      storedKeyIndices: [],
+    });
+    const discover = jest.fn().mockResolvedValue([]);
+    Object.assign(bridge, { getRecoverableKeyIndices: discover });
+    const createClient = jest.spyOn(bridge, 'createClient');
+
+    await provider.prepareTradingWallet();
+
+    expect(discover).toHaveBeenCalledWith(
+      expect.objectContaining({ walletAddress: address.toLowerCase() }),
+    );
+    expect(createClient).toHaveBeenCalledWith(
+      expect.objectContaining({ walletAddress: address.toLowerCase() }),
+    );
+  });
+
+  it('refuses unrequested recoverable slots before creating a client', async () => {
+    const { provider, client, bridge, calls } = buildProvider({
+      storedKeyIndices: [],
+    });
+    Object.assign(bridge, {
+      getRecoverableKeyIndices: jest.fn().mockResolvedValue([255]),
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toMatchObject({
+      ready: false,
+      error: 'Lighter signer returned an unrequested key slot',
+    });
+    expect(calls).toStrictEqual([]);
+    expect(client.sendTx).not.toHaveBeenCalled();
+  });
+
+  it('waits for the registered public key before reporting trading ready', async () => {
+    jest.useFakeTimers();
+    const { provider, client } = buildProvider({ storedKeyIndices: [] });
+    client.sendTx.mockImplementationOnce(async () => {
+      client.getApiKeys
+        .mockResolvedValueOnce({ code: 200, apiKeys: [] })
+        .mockResolvedValue({
+          code: 200,
+          apiKeys: [{ apiKeyIndex: 7, publicKey: '9c'.repeat(40) }],
+        });
+      return { code: 200, txHash: '0xsent' };
+    });
+    let ready = false;
+    const setup = provider.prepareTradingWallet().then((result) => {
+      ready = result.ready;
+      return result;
+    });
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(ready).toBe(false);
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(await setup).toStrictEqual({ ready: true });
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
+  it('skips a replaced local key and registers only in an unused slot', async () => {
+    const { provider, client, calls } = buildProvider({
+      storedKeyIndices: [7],
+    });
+    client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [{ apiKeyIndex: 7, publicKey: 'ab'.repeat(40) }],
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toStrictEqual({ ready: true });
+    const creates = calls.filter((call) => call.function === '_createClient');
+    expect(creates[0].params[3]).toBe(7);
+    expect(creates[1].params[3]).not.toBe(7);
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops waiting when accepted key registration remains invisible', async () => {
+    jest.useFakeTimers();
+    const { provider, client } = buildProvider({ storedKeyIndices: [] });
+    client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
+    const setup = provider.prepareTradingWallet();
+
+    await jest.advanceTimersByTimeAsync(11000);
+
+    const result = await setup;
+    expect(result.ready).toBe(false);
+    expect(result.error).toContain('registration is still pending');
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a different key becoming visible during registration', async () => {
+    const { provider, client } = buildProvider({ storedKeyIndices: [] });
+    client.sendTx.mockImplementation(async () => {
+      client.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [{ apiKeyIndex: 7, publicKey: 'ab'.repeat(40) }],
+      });
+      return { code: 200, txHash: '0xsent' };
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result).toMatchObject({
+      ready: false,
+      error: 'Lighter trading key changed during registration',
+    });
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds a stalled registration-visibility read by the wall deadline', async () => {
+    jest.useFakeTimers();
+    const { provider, client } = buildProvider({ storedKeyIndices: [] });
+    client.sendTx.mockImplementation(async () => {
+      client.getApiKeys.mockImplementation(() => new Promise(() => undefined));
+      return { code: 200, txHash: '0xsent' };
+    });
+    const setup = provider.prepareTradingWallet();
+
+    await jest.advanceTimersByTimeAsync(11000);
+    const result = await setup;
+
+    expect(result.ready).toBe(false);
+    expect(result.error).toContain('registration is still pending');
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+    expect(client.getApiKeys).toHaveBeenCalledTimes(3);
+  });
+
+  it('abandons registration visibility when the selected wallet changes', async () => {
+    const { provider, client, selectAccount } = buildProvider({
+      storedKeyIndices: [],
+    });
+    client.sendTx.mockImplementation(async () => {
+      client.getApiKeys.mockImplementation(async () => {
+        selectAccount(OTHER_MAIN_ADDRESS);
+        return { code: 200, apiKeys: [] };
+      });
+      return { code: 200, txHash: '0xsent' };
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result.ready).toBe(false);
+    expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails without signing or replacing any key when every slot is occupied', async () => {
+    const { provider, client, accountSigner, calls } = buildProvider({
+      storedKeyIndices: [],
+    });
+    client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: Array.from({ length: 253 }, (_, index) => ({
+        apiKeyIndex: index + 2,
+        publicKey: 'ab'.repeat(40),
+      })),
+    });
+
+    const result = await provider.prepareTradingWallet();
+
+    expect(result.ready).toBe(false);
+    expect(result.error).toContain('No available Lighter trading key slot');
+    expect(calls).toStrictEqual([]);
     expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
     expect(client.sendTx).not.toHaveBeenCalled();
   });

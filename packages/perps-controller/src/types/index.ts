@@ -1395,13 +1395,21 @@ export type SubscribePositionsParams = {
 };
 
 export type SubscribeOrderFillsParams = {
-  callback: (fills: OrderFill[], isSnapshot?: boolean) => void;
+  /** Reports a subscription failure without asserting an empty account. */
+  onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
+  callback: (
+    fills: OrderFill[],
+    isSnapshot?: boolean,
+    sourceProviderId?: PerpsProviderType,
+  ) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   since?: number; // Future: only fills after timestamp
 };
 
 export type SubscribeOrdersParams = {
-  callback: (orders: Order[]) => void;
+  /** Reports a subscription failure without asserting an empty account. */
+  onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
+  callback: (orders: Order[], sourceProviderId?: PerpsProviderType) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };

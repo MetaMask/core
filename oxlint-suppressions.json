@@ -4681,9 +4681,6 @@
     }
   },
   "packages/perps-controller/src/providers/LighterProvider.ts": {
-    "no-useless-return": {
-      "count": 5
-    },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
     }

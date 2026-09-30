@@ -954,6 +954,7 @@ describe('LighterProvider', () => {
         accountIndex: 28,
         nonce: 42,
         apiKeyIndex: 7,
+        walletAddress: ACCOUNT.l1Address.toLowerCase(),
       });
       const callNames = calls.map((call) => call.function);
       expect(callNames).toContain('_createClient');
@@ -1027,7 +1028,7 @@ describe('LighterProvider', () => {
       const result = await provider.isReadyToTrade();
 
       expect(result.ready).toBe(false);
-      expect(result.error).toContain('automatic replacement is disabled');
+      expect(result.error).toContain('supports device-key recovery');
       expect(calls.map((call) => call.function)).not.toContain(
         '_signChangePubKey',
       );
@@ -2211,6 +2212,99 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('preserves parked protection warnings from another key slot of the same wallet', async () => {
+      const infra = createMockInfrastructure();
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+      const otherWalletKey = '0xbbbb:28:19:ETH';
+      const storage = new Map<string, string>([
+        [
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([settlementKey, otherWalletKey]),
+        ],
+        [
+          `lighterTpslManual:testnet:${settlementKey}`,
+          JSON.stringify({
+            version: 1,
+            settlementKey,
+            symbol: 'BTC',
+            reason: 'Protection needs review',
+            priorIntent: 'replace',
+            priorTriggers: [],
+            survivingOrderIds: ['777'],
+            operationId: 'public-test-operation',
+            recordedAt: 5,
+          }),
+        ],
+      ]);
+      const getItem = jest.spyOn(infra.diskCache, 'getItem');
+      const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
+      getItem.mockImplementation(async (key) => storage.get(key) ?? null);
+      const { provider } = buildProvider({ platformDependencies: infra });
+
+      const pending = await provider.getPendingManualRecoveries();
+
+      expect(pending.map((entry) => entry.settlementKey)).toStrictEqual([
+        settlementKey,
+      ]);
+      expect(getItem).not.toHaveBeenCalledWith(
+        `lighterTpslManual:testnet:${otherWalletKey}`,
+      );
+      expect(removeItem).not.toHaveBeenCalled();
+    });
+
+    it('replays an authenticated empty orders snapshot to late subscribers', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: '9c'.repeat(40),
+      });
+      const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      socket.receive({
+        type: 'subscribed/account_all_orders',
+        channel: 'account_all_orders:28',
+        orders: {},
+      });
+      const late = jest.fn();
+
+      const unsubscribeLate = provider.subscribeToOrders({ callback: late });
+
+      expect(late).toHaveBeenCalledWith([]);
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it('replays a confirmed empty fills snapshot to late authenticated subscribers', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: '9c'.repeat(40),
+      });
+      const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      socket.receive({
+        type: 'subscribed/account_all_trades',
+        channel: 'account_all_trades:28',
+        trades: {},
+      });
+      const late = jest.fn();
+
+      const unsubscribeLate = provider.subscribeToOrderFills({
+        callback: late,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(late).toHaveBeenCalledWith([], true);
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
     it('keeps the previous orders snapshot when a new snapshot is malformed', async () => {
       const { provider } = buildProvider({
         webSocketCtor: fakeCtor,
@@ -2411,10 +2505,36 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('reports a same-wallet signer creation failure to orders and fills subscribers', async () => {
+      const { provider, bridge } = buildProvider({ webSocketCtor: fakeCtor });
+      const failure = new Error('Lighter signer setup failed');
+      (bridge.createClient as jest.Mock).mockRejectedValue(failure);
+      const onOrderError = jest.fn();
+      const onFillError = jest.fn();
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: jest.fn(),
+        onError: onOrderError,
+      });
+      const unsubscribeFills = provider.subscribeToOrderFills({
+        callback: jest.fn(),
+        onError: onFillError,
+      });
+
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(onOrderError).toHaveBeenCalledWith(failure);
+      expect(onFillError).toHaveBeenCalledWith(failure);
+      unsubscribeOrders();
+      unsubscribeFills();
+      await provider.disconnect();
+    });
+
     it('does not clear orders when authenticated channel setup fails', async () => {
       const { provider, bridge } = buildProvider({
         webSocketCtor: fakeCtor,
-        registeredKey: 'a'.repeat(80),
+        registeredKey: '9c'.repeat(40),
       });
       const realExecute = (bridge.execute as jest.Mock)
         .getMockImplementation()
@@ -2430,13 +2550,20 @@ describe('LighterProvider', () => {
         },
       );
       const ordersCallback = jest.fn();
+      const onError = jest.fn();
       const unsubscribe = provider.subscribeToOrders({
         callback: ordersCallback,
+        onError,
       });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
 
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Invalid Lighter venue data: malformed auth-token response',
+        }),
+      );
       expect(ordersCallback).not.toHaveBeenCalledWith([]);
       expect(ordersCallback).not.toHaveBeenCalled();
       unsubscribe();
