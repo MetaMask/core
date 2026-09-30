@@ -5075,6 +5075,209 @@ describe('LighterProvider', () => {
   };
 
   describe('round-12 venue integrity and serialized TP/SL lifecycle', () => {
+    it('bounds orphan ownership pruning without blocking protection on deep history', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.seedTrigger('stop-loss', '90000');
+      const template = venue.rawTriggers.pop();
+      if (!template) {
+        throw new Error('Test history template missing');
+      }
+      for (let index = 0; index < 12_000; index += 1) {
+        venue.rawInactive.push({
+          ...template,
+          orderIndex: 100_000 + index,
+          clientOrderIndex: 100_000 + index,
+          status: 'canceled',
+        });
+      }
+      const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+      await infra.diskCache.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          orders: [{ clientId: '4242', orderId: null }],
+        }),
+      );
+
+      for (const price of ['90000', '85000']) {
+        built.clientInstance.getInactiveOrders.mockClear();
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: price,
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledTimes(1);
+        expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledWith(
+          28,
+          expect.any(String),
+          100,
+          undefined,
+          1,
+        );
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(
+          (
+            JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+              orders: unknown[];
+            }
+          ).orders,
+        ).toContainEqual({
+          clientId: '4242',
+          orderId: null,
+        });
+      }
+    });
+
+    it('retains uncertain ownership and permits protection when bookkeeping history is unavailable', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+      await infra.diskCache.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          orders: [{ clientId: '4242', orderId: null }],
+        }),
+      );
+      built.clientInstance.getInactiveOrders.mockRejectedValue(
+        new Error('history unavailable'),
+      );
+
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '90000',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledTimes(1);
+      expect(
+        (
+          JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+            orders: unknown[];
+          }
+        ).orders,
+      ).toContainEqual({
+        clientId: '4242',
+        orderId: null,
+      });
+    });
+
+    it('permits retry after journal persistence and pre-dispatch ownership rollback both fail', async () => {
+      const infra = createMockInfrastructure();
+      const disk = jest.mocked(infra.diskCache);
+      const write = disk.setItem.getMockImplementation();
+      let payloadFailed = false;
+      let ownershipWrites = 0;
+      disk.setItem.mockImplementation(async (key: string, value: string) => {
+        if (!payloadFailed && key.startsWith('lighterTpslJournalOp:')) {
+          payloadFailed = true;
+          throw new Error('journal persistence failed');
+        }
+        if (key.startsWith('lighterManagedTpsl:')) {
+          ownershipWrites += 1;
+          if (ownershipWrites === 2) {
+            throw new Error('ownership rollback failed');
+          }
+        }
+        return write?.(key, value);
+      });
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const first = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '90000',
+      });
+      expect(first.success).toBe(false);
+      expect(venue.rawTriggers).toHaveLength(0);
+      const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+      const orphan = (
+        JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+          orders: unknown[];
+        }
+      ).orders[0];
+      expect(orphan).toBeDefined();
+      built.clientInstance.getInactiveOrders.mockRejectedValue(
+        new Error('history unavailable'),
+      );
+
+      const retry = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(retry.error).toBeUndefined();
+      expect(retry.success).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(
+        (
+          JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+            orders: unknown[];
+          }
+        ).orders,
+      ).toContainEqual(orphan);
+    });
+
+    it('does not classify an observed accepted create as never landed after expiry', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+      const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+      await infra.diskCache.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          orders: [{ clientId: '4242', orderId: null }],
+        }),
+      );
+      await infra.diskCache.setItem(
+        `lighterTpslJournal:testnet:${settlementKey}`,
+        JSON.stringify({
+          version: 4,
+          recordedAt: Date.now() - 800_000,
+          operationId: 'accepted-unobserved-book',
+          createdAt: Date.now() - 800_000,
+          nextAttemptId: 2,
+          apiKeyIndex: 7,
+          intent: 'replace',
+          phase: 'creating',
+          priorGrouping: 'independent',
+          priorTriggers: [],
+          attempts: [
+            {
+              kind: 'create',
+              attemptId: 1,
+              nonce: 42,
+              outcome: 'accepted',
+              clientIds: [4242],
+              txHash: 'abab000000000042',
+              expiresAt: Date.now() - 700_000,
+              role: 'replacement',
+            },
+          ],
+        }),
+      );
+
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('unresolved');
+      expect(venue.rawTriggers).toHaveLength(0);
+      expect(
+        (
+          JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+            orders: unknown[];
+          }
+        ).orders,
+      ).toContainEqual({ clientId: '4242', orderId: null });
+    });
+
     it('retains live creation ownership when the extra post-settlement read lags empty', async () => {
       const infra = createMockInfrastructure();
       const { provider, clientInstance, bridge } = buildProvider({
@@ -5952,6 +6155,122 @@ describe('LighterProvider', () => {
         throw new Error('process died');
       });
     };
+
+    it.each(['unknown', 'accepted'] as const)(
+      'retains live ownership after restart with a saved never-landed marker and %s outcome',
+      async (outcome) => {
+        const infra = createMockInfrastructure();
+        const first = buildProvider({ platformDependencies: infra });
+        const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
+        venueA.seedTrigger('stop-loss', '80000');
+        const execute = jest.spyOn(first.bridge, 'execute');
+        const sign = execute.getMockImplementation();
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          if (call.function === '_signCancelOrder') {
+            throw new Error('process died before old cancel');
+          }
+          if (!sign) {
+            throw new Error('Test signer missing');
+          }
+          return await sign(call);
+        });
+        expect(
+          (
+            await first.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '85000',
+            })
+          ).success,
+        ).toBe(false);
+        const baseKey = `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        const pointer = JSON.parse(
+          (await infra.diskCache.getItem(baseKey)) ?? '',
+        ) as { operationId: string };
+        const payloadKey = `lighterTpslJournalOp:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC:${pointer.operationId}`;
+        const payload = JSON.parse(
+          (await infra.diskCache.getItem(payloadKey)) ?? '',
+        ) as {
+          attempts: {
+            kind: string;
+            clientIds: number[];
+            outcome: string;
+            neverLanded?: boolean;
+          }[];
+        };
+        const create = payload.attempts.find(
+          (attempt) => attempt.kind === 'create',
+        );
+        if (!create) {
+          throw new Error('Test create journal missing');
+        }
+        create.neverLanded = true;
+        create.outcome = outcome;
+        await infra.diskCache.setItem(payloadKey, JSON.stringify(payload));
+        killProvider(first);
+
+        const second = buildProvider({ platformDependencies: infra });
+        const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
+        venueB.setVenueNonce(venueA.getVenueNonce());
+        venueB.setNextIndex(venueA.getNextIndex());
+        venueB.rawTriggers.push(
+          ...venueA.rawTriggers.map((row) => ({ ...row })),
+        );
+        for (const [hash, landed] of venueA.landedTxs) {
+          venueB.landedTxs.set(hash, landed);
+        }
+        const storedAttempts: Record<string, unknown>[][] = [];
+        const disk = jest.mocked(infra.diskCache);
+        const write = disk.setItem.getMockImplementation();
+        disk.setItem.mockImplementation(async (key: string, value: string) => {
+          if (key.startsWith('lighterTpslJournalOp:')) {
+            storedAttempts.push(
+              (JSON.parse(value) as { attempts: Record<string, unknown>[] })
+                .attempts,
+            );
+          }
+          return write?.(key, value);
+        });
+        await second.provider.getOpenOrders();
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          if ((await infra.diskCache.getItem(payloadKey)) === null) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        expect(await infra.diskCache.getItem(payloadKey)).toBeNull();
+        expect(storedAttempts.length).toBeGreaterThan(0);
+        expect(
+          storedAttempts.flat().every((attempt) => !('neverLanded' in attempt)),
+        ).toBe(true);
+        expect(venueB.rawTriggers).toHaveLength(1);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        const owned = JSON.parse(
+          (await infra.diskCache.getItem(key)) ?? '',
+        ) as {
+          orders: { clientId: string; orderId: string | null }[];
+        };
+        expect(owned.orders).toContainEqual({
+          clientId: String(create.clientIds[0]),
+          orderId: String(venueB.rawTriggers[0].orderIndex),
+        });
+        second.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], position: '0.2' }],
+            },
+          ],
+        });
+        const resized = await second.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '84000',
+        });
+        expect(resized.error).toBeUndefined();
+        expect(resized.success).toBe(true);
+        expect(venueB.rawTriggers).toHaveLength(1);
+      },
+    );
 
     it('preserves original-slot journals while their unresolved dispatch blocks another slot', async () => {
       const disk = new Map<string, string>();

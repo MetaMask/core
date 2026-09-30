@@ -392,7 +392,7 @@ type TpslCreateAttempt = {
   attemptId: number;
   /** See TpslCancelAttempt.terminalStatus. */
   terminalStatus?: number;
-  /** Ephemeral proof from exact-hash absence after signed expiry; re-proved after restart. */
+  /** Current-pass exact-hash absence after expiry; never persisted or reused. */
   neverLanded?: true;
   /** The venue nonce this submission attempted to consume. */
   nonce: number;
@@ -2945,17 +2945,18 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Prune historical ownership only when exact inactive IDs prove termination.
+   * Prune recent ownership only when exact inactive IDs prove termination.
    * Absence from an active read alone never discards an uncertain creation.
+   * Bookkeeping reads are bounded and best-effort, unlike journal settlement.
    *
    * @param settlementKey - Captured settlement identity.
    * @param active - Strict active venue book.
-   * @param readInactiveFor - Targeted, captured-account inactive reader.
+   * @param readRecentInactive - One-page, captured-account inactive reader.
    */
   readonly #pruneManagedTpsl = async (
     settlementKey: string,
     active: LighterApiOrder[],
-    readInactiveFor: (ids: number[]) => Promise<LighterApiOrder[]>,
+    readRecentInactive: () => Promise<LighterApiOrder[]>,
   ): Promise<void> => {
     const orders = await this.#readManagedTpsl(settlementKey);
     const missing = orders.filter(
@@ -2965,12 +2966,23 @@ export class LighterProvider implements PerpsProvider {
     if (missing.length === 0) {
       return;
     }
-    const inactive = await readInactiveFor(
-      missing.map((entry) => Number(entry.clientId)),
-    );
+    const missingIds = new Set(missing.map((entry) => entry.clientId));
+    let inactive: LighterApiOrder[];
+    try {
+      inactive = await readRecentInactive();
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] TP/SL ownership history unavailable; retaining uncertain IDs',
+        { error: String(error) },
+      );
+      return;
+    }
     const terminalIds = new Set(
       inactive
         .filter((row) => {
+          if (!missingIds.has(String(row.clientOrderIndex))) {
+            return false;
+          }
           const status = row.status.toLowerCase();
           if (status === 'rejected') {
             return true;
@@ -3270,7 +3282,11 @@ export class LighterProvider implements PerpsProvider {
       );
       if (restoresLinked) {
         return {
-          attempts,
+          attempts: attempts.map((attempt) =>
+            attempt.kind === 'create'
+              ? { ...attempt, neverLanded: undefined }
+              : attempt,
+          ),
           recordedAt: parsed.recordedAt,
           operationId: parsed.operationId,
           createdAt: parsed.createdAt,
@@ -3595,7 +3611,11 @@ export class LighterProvider implements PerpsProvider {
             phase: journal.phase,
             priorGrouping: journal.priorGrouping,
             priorTriggers: journal.priorTriggers,
-            attempts: journal.attempts,
+            attempts: journal.attempts.map((attempt) =>
+              attempt.kind === 'create'
+                ? { ...attempt, neverLanded: undefined }
+                : attempt,
+            ),
           }),
         );
         if (!pointerAlreadyOurs) {
@@ -3621,10 +3641,19 @@ export class LighterProvider implements PerpsProvider {
         }
         // Only brand-new attempts absent from the previous durable journal
         // are known never dispatched. Retain all prior committed identities.
-        await this.#discardManagedTpslIds(
-          settlementKey,
-          insertedOwnership.filter((id) => !priorCreateIds.has(id)),
-        );
+        try {
+          await this.#discardManagedTpslIds(
+            settlementKey,
+            insertedOwnership.filter((id) => !priorCreateIds.has(id)),
+          );
+        } catch (rollbackError) {
+          // Keep ownership conservatively if storage also fails during rollback.
+          // A later bounded bookkeeping read cannot block on these orphan IDs.
+          this.#deps.debugLogger.log(
+            '[LighterProvider] pre-dispatch ownership rollback failed; retaining IDs',
+            { error: String(rollbackError) },
+          );
+        }
         throw error;
       }
     });
@@ -4537,6 +4566,11 @@ export class LighterProvider implements PerpsProvider {
     entry: { attempts: TpslAttempt[]; recordedAt: number },
   ): Promise<'resolved' | 'unresolved'> => {
     const apiKeyIndex = this.#apiKeyIndex;
+    for (const attempt of entry.attempts) {
+      if (attempt.kind === 'create') {
+        delete attempt.neverLanded;
+      }
+    }
     // Per-attempt reconciliation, authoritative and never time-guessed:
     // 1. Books first — a create is resolved when its ids are all
     //    active/terminal, a cancel when its target left the active book.
@@ -4664,7 +4698,12 @@ export class LighterProvider implements PerpsProvider {
       }
       // Venue-confirmed not-found: only never-landed once the signed
       // payload can no longer be accepted.
-      if (Date.now() <= attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS) {
+      if (
+        attempt.outcome === 'accepted' ||
+        Date.now() <= attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+      ) {
+        // Observed acceptance cannot become never-landed due to a later
+        // missing lookup or book lag. Retain its obligation until proven.
         return 'unresolved';
       }
       if (attempt.kind === 'create') {
@@ -7054,11 +7093,25 @@ export class LighterProvider implements PerpsProvider {
           }
 
           const rawOrders = await readActiveRaw();
-          await this.#pruneManagedTpsl(
-            settlementKey,
-            rawOrders,
-            readInactiveFor,
-          );
+          await this.#pruneManagedTpsl(settlementKey, rawOrders, async () => {
+            this.#assertSession(generationAtIntent);
+            const response = await this.#clientService.getInactiveOrders(
+              accountIndex,
+              authToken,
+              100,
+              undefined,
+              market.marketId,
+            );
+            this.#assertSession(generationAtIntent);
+            if (response.orders.length > 100) {
+              throw new Error('Lighter ownership history exceeded one page');
+            }
+            return response.orders.filter(
+              (row) =>
+                row.ownerAccountIndex === accountIndex &&
+                row.marketIndex === market.marketId,
+            );
+          });
           // The public preflight position read occurred before signer
           // setup and write serialization. Re-read the raw venue position
           // inside the held transition immediately before any create or

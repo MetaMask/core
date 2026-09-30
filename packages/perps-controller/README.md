@@ -130,6 +130,12 @@ or trading-key recovery into another slot. IDs are recorded before dispatch in
 wallet/account/network/market-scoped storage and retained through uncertain
 settlement. Resolved cancellations and exact terminal history prune them;
 storage read errors or corrupt records fail closed before protection changes.
+Ownership bookkeeping reads at most one recent history page and retains
+unproven IDs when that lookup fails. It never deep-scans history or blocks a
+new protection intent solely because an old ID cannot be found. Journal
+settlement remains strict: an observed accepted submission cannot become
+never-landed because of a later missing lookup, and expiry proofs are recomputed
+on each reconciliation rather than persisted across restarts.
 
 Legacy unrecorded reduce-only trigger-market orders on the closing side with
 exactly the current position quantity retain their position-protection contract,
