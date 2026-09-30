@@ -5573,17 +5573,23 @@ describe('AssetsController', () => {
         expect(controller.state.assetsLoadingStatus?.[accountId]).toBe(status),
       );
 
-    it('marks the selected accounts as loading on account switch, then loaded once the fetch settles', async () => {
-      // arrange: a client whose first fetch is frozen mid-flight.
+    it('marks a newly selected account as loading on account switch, then loaded once the fetch settles', async () => {
+      // arrange: a client whose first fetch is frozen mid-flight, and a
+      // never-fetched account to switch to.
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
         { queryApiClient: client },
-        async ({ controller, messenger }) => {
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
           await activateTracking(messenger);
 
-          // act: switch the selected account group, freezing the fetch
-          // mid-flight.
+          const accountB = createMockInternalAccount({
+            id: 'mock-account-id-2',
+          });
+          getSelectedAccountsMock.mockReturnValue([accountB]);
+
+          // act: switch the selected account group, freezing the switch
+          // fetch mid-flight.
           arm();
           switchSelectedAccountGroup(
             messenger,
@@ -5591,19 +5597,24 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/0',
           );
 
-          // assert: the account is marked loading while the fetch is in
-          // flight, then loaded once it settles.
+          // assert: the newly selected account is marked loading while the
+          // fetch is in flight, then loaded once it settles; the account the
+          // startup fetch already settled is never re-marked.
           await waitForAccountLoadingStatus(
             controller,
-            MOCK_ACCOUNT_ID,
+            accountB.id,
             'loading',
           );
+
+          expect(
+            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          ).toBe('loaded');
 
           release();
 
           await waitFor(() =>
             expect(
-              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+              controller.state.assetsLoadingStatus?.[accountB.id],
             ).toBe('loaded'),
           );
         },
@@ -5621,6 +5632,10 @@ describe('AssetsController', () => {
 
           // act: freeze the first account switch mid-flight; it holds the
           // refresh mutex.
+          const accountB = createMockInternalAccount({
+            id: 'mock-account-id-2',
+          });
+          getSelectedAccountsMock.mockReturnValue([accountB]);
           arm();
           switchSelectedAccountGroup(
             messenger,
@@ -5630,16 +5645,16 @@ describe('AssetsController', () => {
 
           await waitForAccountLoadingStatus(
             controller,
-            MOCK_ACCOUNT_ID,
+            accountB.id,
             'loading',
           );
 
           // act: queue a second account switch to a different account while
           // the first is still held.
-          const accountB = createMockInternalAccount({
-            id: 'mock-account-id-2',
+          const accountC = createMockInternalAccount({
+            id: 'mock-account-id-3',
           });
-          getSelectedAccountsMock.mockReturnValue([accountB]);
+          getSelectedAccountsMock.mockReturnValue([accountC]);
           switchSelectedAccountGroup(
             messenger,
             'entropy:mock-keyring-id-1/2',
@@ -5649,25 +5664,26 @@ describe('AssetsController', () => {
           // assert: the queued switch has not fetched yet, so its accounts
           // are not marked while the previous refresh still holds the mutex.
           expect(
-            controller.state.assetsLoadingStatus?.[accountB.id],
+            controller.state.assetsLoadingStatus?.[accountC.id],
           ).toBeUndefined();
 
           // act: let the first fetch finish so the queued switch runs.
           release();
 
           // assert: the queued switch ran, marked its own accounts, and
-          // settled them.
+          // settled them; the startup-settled account was never re-marked.
           await waitFor(() =>
             expect(controller.state.assetsLoadingStatus).toStrictEqual({
               [MOCK_ACCOUNT_ID]: 'loaded',
               [accountB.id]: 'loaded',
+              [accountC.id]: 'loaded',
             }),
           );
         },
       );
     });
 
-    it('does not let an older fetch mark an account loaded while a newer overlapping fetch owns the marker', async () => {
+    it('does not re-mark a settled account when a later forced fetch refreshes it', async () => {
       // arrange: a client whose fetches can be frozen and released one at a
       // time, and an account outside the default selected group.
       const { client, arm, release, getGatedCallCount } =
@@ -5678,40 +5694,43 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
 
-          const account = createMockInternalAccount();
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-refresh',
+          });
 
-          // act: start two overlapping getAssets calls for the same account,
-          // freezing the older one mid-flight so the newer one takes the
-          // marker.
-          arm();
-          const olderFetch = controller.getAssets([account], {
+          // act: complete the account's first fetch so it settles to loaded.
+          const firstFetch = controller.getAssets([account], {
             forceUpdate: true,
           });
-          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
 
-          arm();
-          const newerFetch = controller.getAssets([account], {
-            forceUpdate: true,
-          });
-          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(1));
-
-          await waitForAccountLoadingStatus(controller, account.id, 'loading');
-
-          // act: let the older fetch settle.
-          release();
-          await olderFetch;
-
-          // assert: the newer fetch still owns the marker, so the account
-          // stays loading.
+          // assert: the account is marked loading while the first fetch is
+          // in flight, then loaded once it settles.
           expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loading',
           );
 
-          // act: let the newer fetch settle.
-          release();
-          await newerFetch;
+          await firstFetch;
 
-          // assert: the marker's owner settles it to loaded.
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+            'loaded',
+          );
+
+          // act: refresh the same account, freezing the fetch mid-flight.
+          arm();
+          const refreshFetch = controller.getAssets([account], {
+            forceUpdate: true,
+          });
+          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
+
+          // assert: the settled account stays loaded — a later refresh never
+          // re-marks it, mid-flight or settled.
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+            'loaded',
+          );
+
+          release();
+          await refreshFetch;
+
           expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loaded',
           );
@@ -5719,10 +5738,11 @@ describe('AssetsController', () => {
       );
     });
 
-    it('marks accounts as loading on unlock, then loaded once the fetch settles', async () => {
-      // arrange: a client whose first fetch is frozen mid-flight, and a
+    it('does not re-mark a settled account when unlock refreshes it', async () => {
+      // arrange: a client whose next fetch is frozen mid-flight, and a
       // locked UI-open client state.
-      const { client, arm, release } = createGatedQueryApiClient();
+      const { client, arm, release, getGatedCallCount } =
+        createGatedQueryApiClient();
 
       await withController(
         {
@@ -5730,29 +5750,32 @@ describe('AssetsController', () => {
           clientControllerState: { isUiOpen: true },
         },
         async ({ controller, messenger }) => {
+          // act: complete the startup fetch so the account settles to
+          // loaded, then lock and unlock.
           await activateTracking(messenger);
 
-          // act: lock, then unlock while the unlock fetch is frozen
-          // mid-flight.
+          expect(
+            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          ).toBe('loaded');
+
           messenger.publish('KeyringController:lock');
           arm();
           messenger.publish('KeyringController:unlock');
 
-          // assert: the account is marked loading while the fetch is in
-          // flight, then loaded once it settles.
-          await waitForAccountLoadingStatus(
-            controller,
-            MOCK_ACCOUNT_ID,
-            'loading',
-          );
+          // assert: the unlock refresh is in flight, but the settled
+          // account is not re-marked.
+          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
+
+          expect(
+            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          ).toBe('loaded');
 
           release();
+          await flushPromises();
 
-          await waitFor(() =>
-            expect(
-              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-            ).toBe('loaded'),
-          );
+          expect(
+            controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          ).toBe('loaded');
         },
       );
     });
@@ -5782,7 +5805,9 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
 
-          const account = createMockInternalAccount();
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-direct',
+          });
 
           // act: call getAssets directly, freezing the fetch mid-flight.
           arm();

@@ -93,30 +93,60 @@ describe('trackAssetsLoading', () => {
     });
   });
 
-  it('does not let an older fetch settle an account a newer overlapping fetch owns', async () => {
+  it('does not re-mark a settled account, so a later refresh never re-toggles it', async () => {
     const controller = new FakeAssetsController();
-    const olderFetch = controller.getAssets([ACCOUNT_1], {
+    const firstFetch = controller.getAssets([ACCOUNT_1], {
       forceUpdate: true,
     });
-    const newerFetch = controller.getAssets([ACCOUNT_1], {
+    controller.releaseNextFetch();
+    await firstFetch;
+
+    expect(controller.state.assetsLoadingStatus).toStrictEqual({
+      [ACCOUNT_1.id]: 'loaded',
+    });
+
+    // A later forced refresh of the settled account is not tracked.
+    const refreshFetch = controller.getAssets([ACCOUNT_1], {
       forceUpdate: true,
     });
 
-    expect(controller.state.assetsLoadingStatus?.[ACCOUNT_1.id]).toBe(
-      'loading',
-    );
+    expect(controller.state.assetsLoadingStatus).toStrictEqual({
+      [ACCOUNT_1.id]: 'loaded',
+    });
 
     controller.releaseNextFetch();
-    await olderFetch;
+    await refreshFetch;
 
-    expect(controller.state.assetsLoadingStatus?.[ACCOUNT_1.id]).toBe(
-      'loading',
-    );
+    expect(controller.state.assetsLoadingStatus).toStrictEqual({
+      [ACCOUNT_1.id]: 'loaded',
+    });
+  });
+
+  it('marks only accounts that have never settled within a fetch', async () => {
+    const controller = new FakeAssetsController();
+    const firstFetch = controller.getAssets([ACCOUNT_1], {
+      forceUpdate: true,
+    });
+    controller.releaseNextFetch();
+    await firstFetch;
+
+    const mixedFetch = controller.getAssets([ACCOUNT_1, ACCOUNT_2], {
+      forceUpdate: true,
+    });
+
+    // ACCOUNT_1 is settled and stays loaded; ACCOUNT_2 is on its first fetch.
+    expect(controller.state.assetsLoadingStatus).toStrictEqual({
+      [ACCOUNT_1.id]: 'loaded',
+      [ACCOUNT_2.id]: 'loading',
+    });
 
     controller.releaseNextFetch();
-    await newerFetch;
+    await mixedFetch;
 
-    expect(controller.state.assetsLoadingStatus?.[ACCOUNT_1.id]).toBe('loaded');
+    expect(controller.state.assetsLoadingStatus).toStrictEqual({
+      [ACCOUNT_1.id]: 'loaded',
+      [ACCOUNT_2.id]: 'loaded',
+    });
   });
 
   it('does not mark anything when there are no accounts', async () => {
