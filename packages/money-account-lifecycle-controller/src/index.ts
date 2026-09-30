@@ -3,14 +3,18 @@ export {
   getDefaultMoneyAccountLifecycleControllerState,
 } from './money-account-lifecycle-controller.js';
 export type {
+  AddressRegistration,
+  MoneyAccountLifecycle,
   MoneyAccountLifecycleControllerActions,
   MoneyAccountLifecycleControllerEvents,
   MoneyAccountLifecycleControllerGetStateAction,
   MoneyAccountLifecycleControllerHooks,
   MoneyAccountLifecycleControllerMessenger,
-  MoneyAccountLifecycleControllerMfaDetectedEvent,
   MoneyAccountLifecycleControllerState,
   MoneyAccountLifecycleControllerStateChangedEvent,
-  MoneyAccountLifecycleStatus,
 } from './money-account-lifecycle-controller.js';
 export type { MoneyAccountLifecycleControllerInitAction } from './money-account-lifecycle-controller-method-action-types.js';
+export type {
+  DerivedIdentity,
+  DerivedIdentityStatus,
+} from './chomp-api-service-derived-identities.js';

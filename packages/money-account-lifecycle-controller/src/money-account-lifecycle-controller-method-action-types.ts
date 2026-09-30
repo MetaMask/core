@@ -12,8 +12,10 @@ import type { MoneyAccountLifecycleController } from './money-account-lifecycle-
  * the next trigger after a failed fetch.
  *
  * After each fetch, and whenever the primary Money Account changes, records
- * whether that account is unregistered, a valid SFA, or a valid MFA.
- * Publishes `MoneyAccountLifecycleController:mfaDetected` when it becomes a
+ * whether that account is not in an identity, a valid SFA, or a valid MFA,
+ * along with its identity. After each fetch, or when the recorded lifecycle
+ * changes, looks up whether the identity's current address is registered
+ * with CHOMP, and switches `MoneyAccountController` to the MPC keyring for a
  * valid MFA.
  */
 export type MoneyAccountLifecycleControllerInitAction = {
