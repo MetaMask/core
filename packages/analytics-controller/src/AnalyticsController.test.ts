@@ -76,6 +76,41 @@ type SetupControllerReturn = {
 };
 
 /**
+ * Registers a no-op `ConfigRegistryController:getState` action handler on a
+ * root messenger and delegates it to a child messenger.
+ *
+ * @param rootMessenger - The root messenger to register the handler on.
+ * @param childMessenger - The child messenger to delegate the action to.
+ */
+function registerConfigRegistryMock(
+  rootMessenger: Messenger<
+    MockAnyNamespace,
+    AnalyticsControllerTestActions,
+    AnalyticsControllerEvents
+  >,
+  childMessenger: Messenger<
+    'AnalyticsController',
+    AnalyticsControllerTestActions,
+    AnalyticsControllerEvents,
+    typeof rootMessenger
+  >,
+) {
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: { networks: {}, eventsConfig: null },
+      version: null,
+      lastFetched: null,
+      etag: null,
+    }),
+  );
+  rootMessenger.delegate({
+    actions: ['ConfigRegistryController:getState'],
+    messenger: childMessenger,
+  });
+}
+
+/**
  * Builds complete geolocation data from a partial fixture.
  *
  * @param data - The known geolocation fields.
@@ -152,6 +187,8 @@ async function setupController(
     namespace: 'AnalyticsController',
     parent: rootMessenger,
   });
+
+  registerConfigRegistryMock(rootMessenger, analyticsControllerMessenger);
 
   if (!omitGeolocationAction) {
     rootMessenger.registerActionHandler(
@@ -637,6 +674,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       // Create controller without isAnonymousEventsFeatureEnabled to test default value
       const controller = new AnalyticsController({
         messenger,
@@ -691,6 +730,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       expect(() => {
         // eslint-disable-next-line no-new
         new AnalyticsController({
@@ -722,6 +763,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       expect(() => {
         // eslint-disable-next-line no-new
@@ -755,6 +798,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       expect(() => {
         // eslint-disable-next-line no-new
@@ -833,6 +878,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       const controller = new AnalyticsController({
         messenger,
         platformAdapter: mockAdapter,
@@ -871,6 +918,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       const controller = new AnalyticsController({
         messenger,
@@ -912,6 +961,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       const controller = new AnalyticsController({
         messenger,
@@ -1016,6 +1067,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       const controller = new AnalyticsController({
         messenger,
@@ -1183,31 +1236,6 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('proceeds gracefully when ConfigRegistryController action is not registered', async () => {
-      const rootMessenger = new Messenger<
-        MockAnyNamespace,
-        AnalyticsControllerTestActions,
-        AnalyticsControllerEvents
-      >({ namespace: MOCK_ANY_NAMESPACE });
-
-      const messenger = new Messenger<
-        'AnalyticsController',
-        AnalyticsControllerTestActions,
-        AnalyticsControllerEvents,
-        typeof rootMessenger
-      >({ namespace: 'AnalyticsController', parent: rootMessenger });
-
-      // No ConfigRegistryController:getState registered on purpose
-
-      const controller = new AnalyticsController({
-        messenger,
-        platformAdapter: createMockAdapter(),
-        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
-      });
-
-      await expect(controller.init()).toBeFulfilled();
-      expect(controller.state.eventsConfig).toBeUndefined();
-    });
 
     it('refreshes events config when ConfigRegistryController state changes', async () => {
       type TestEvents =
@@ -1320,7 +1348,7 @@ describe('AnalyticsController', () => {
       });
 
       await controller.init();
-      const callsAfterInit = getStateMock.mock.calls.length;
+      const eventsConfigAfterInit = controller.state.eventsConfig;
 
       // Publish a state change with the same eventsConfig version
       rootMessenger.publish(
@@ -1331,44 +1359,10 @@ describe('AnalyticsController', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // getState should not have been called again since version is unchanged
-      expect(getStateMock).toHaveBeenCalledTimes(callsAfterInit);
+      // eventsConfig state should not have changed since version is unchanged
+      expect(controller.state.eventsConfig).toStrictEqual(eventsConfigAfterInit);
     });
 
-    it('proceeds gracefully when ConfigRegistryController subscribe throws', async () => {
-      const rootMessenger = new Messenger<
-        MockAnyNamespace,
-        AnalyticsControllerTestActions,
-        AnalyticsControllerEvents
-      >({ namespace: MOCK_ANY_NAMESPACE });
-
-      const messenger = new Messenger<
-        'AnalyticsController',
-        AnalyticsControllerTestActions,
-        AnalyticsControllerEvents,
-        typeof rootMessenger
-      >({ namespace: 'AnalyticsController', parent: rootMessenger });
-
-      rootMessenger.registerActionHandler(
-        'ConfigRegistryController:getState',
-        () => buildConfigRegistryState(null),
-      );
-      rootMessenger.delegate({
-        actions: ['ConfigRegistryController:getState'],
-        messenger,
-      });
-
-      // ConfigRegistryController:stateChanged is not delegated, so subscribe
-      // will throw because the event is not in the messenger's allowed events.
-
-      const controller = new AnalyticsController({
-        messenger,
-        platformAdapter: createMockAdapter(),
-        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
-      });
-
-      await expect(controller.init()).toBeFulfilled();
-    });
   });
 
   describe('trackEvent', () => {

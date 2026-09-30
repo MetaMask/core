@@ -895,22 +895,15 @@ export class AnalyticsController extends BaseController<
 
     await this.#fetchEventsConfig();
 
-    try {
-      this.messenger.subscribe(
-        'ConfigRegistryController:stateChanged',
-        (newState) => {
-          if (
-            newState.configs.eventsConfig?.version !== this.#eventsConfigVersion
-          ) {
-            this.#fetchEventsConfig().catch(
-              /* istanbul ignore next */ () => undefined,
-            );
-          }
-        },
-      );
-    } catch {
-      // ConfigRegistryController may not be registered in all environments.
-    }
+    this.messenger.subscribe(
+      'ConfigRegistryController:stateChanged',
+      () => {
+        this.#fetchEventsConfig().catch(
+          /* istanbul ignore next */ () => undefined,
+        );
+      },
+      (state) => state.configs.eventsConfig?.version,
+    );
 
     // Resolve geolocation only when the user is already opted in to product or
     // marketing analytics. For undecided or opted-out users it is deferred to
@@ -1054,15 +1047,9 @@ export class AnalyticsController extends BaseController<
    * Updates in-memory purposes map and persisted state when the version differs.
    */
   async #fetchEventsConfig(): Promise<void> {
-    let eventsConfigState;
-    try {
-      eventsConfigState = this.messenger.call(
-        'ConfigRegistryController:getState',
-      );
-    } catch {
-      // ConfigRegistryController may not be registered in all environments.
-      return;
-    }
+    const eventsConfigState = this.messenger.call(
+      'ConfigRegistryController:getState',
+    );
 
     const remoteEventsConfig = eventsConfigState.configs.eventsConfig;
     if (!remoteEventsConfig) {
