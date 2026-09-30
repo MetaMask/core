@@ -49,6 +49,34 @@ The package exports the controller's parameter, result, provider, and
 messenger types for client integrations. Provider availability and aggregated
 routing are controlled by client configuration and feature flags.
 
+## Rewards discounts and fee previews
+
+The client-owned RewardsController combines VIP, season, and targeted grants into one discount through `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount`.
+Core compares that rewards result against the default fee and subscription waiver; targeted grants are not a fourth fee source.
+
+The method accepts a CAIP account ID and the base builder fee in basis points.
+It returns `Promise<number | RewardsDiscountResponse | null>`. Existing clients can keep returning a numeric discount. Clients that know targeted participation can return the structured form:
+
+```typescript
+import type { RewardsDiscountResponse } from '@metamask/perps-controller';
+// Example response from the client's getPerpsDiscountForAccount implementation.
+const discount: RewardsDiscountResponse = {
+  discountBips: 6500, // 65% off the base builder fee.
+  targetedDiscountApplied: true,
+};
+```
+
+`targetedDiscountApplied: true` means a targeted grant contributes to the returned discount; `false` explicitly reports no targeted participation.
+A numeric response leaves participation unknown, even if its amount matches a known VIP discount. `null` means the discount is unavailable, not zero; avoid caching it and retry on the next fee calculation.
+`PerpsController.calculateFees` returns an optional `feeResolution` with the winning `source`, discount, and participation. When rewards wins, structured responses preserve their participation boolean; numeric responses omit it.
+Default and subscription winners omit the participation field. A grant merely existing on the profile does not mean it was applied to the quote. The whole `feeResolution` field is omitted when the preview cannot apply a resolution or the placement does not charge a builder fee. Subscription eligibility is still
+reported separately when available.
+
+Rewards wins a tie with default. Subscription must be strictly cheaper after venue quantization to win, so ties do not spend subscription allowance. Preview attribution comes from the same resolution used to calculate the quoted rates.
+
+The client owns discount combination and cache freshness. Grants can change independently of VIP tier or season. Core reads the DI result on every resolution, but does not fetch grants, invalidate client caches, or implement the client UI.
+Updated clients must supply participation before their UI can identify targeted discounts; legacy numeric responses cannot provide that attribution.
+
 ## Error codes
 
 `PERPS_ERROR_CODES` / `PerpsErrorCode` are the structured codes returned to
