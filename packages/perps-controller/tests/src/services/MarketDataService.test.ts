@@ -10,6 +10,7 @@ import type {
   Funding,
   MarketInfo,
   FeeCalculationResult,
+  PerpsFeeResolution,
   FeeCalculationParams,
   AssetRoute,
   PerpsPlatformDependencies,
@@ -865,6 +866,109 @@ describe('MarketDataService', () => {
 
       expect(result).toEqual(mockFees);
     });
+
+    it('returns the pricing resolution through targeted, non-targeted, legacy and other source previews', async () => {
+      const resolutions: PerpsFeeResolution[] = [
+        {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          targetedDiscountApplied: true,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          targetedDiscountApplied: false,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'subscription',
+          feeBips: 0,
+          discountBips: 10000,
+          subscription: { eligible: true, reason: 'eligible' },
+        },
+        {
+          source: 'default',
+          feeBips: 10,
+          discountBips: undefined,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+      ];
+      mockProvider.calculateFees.mockResolvedValue({
+        metamaskFeeRate: 0.001,
+        protocolFeeRate: 0.00045,
+      });
+      for (const resolution of resolutions) {
+        const result = await marketDataService.calculateFees({
+          provider: mockProvider,
+          params: {
+            orderType: 'market',
+            symbol: 'BTC',
+            amount: '1000',
+            isMaker: false,
+          },
+          context: { ...mockContext, feeResolution: resolution },
+        });
+        expect(result.feeResolution).toBe(resolution);
+        expect(result.metamaskFeeRate).toBeCloseTo(resolution.feeBips / 10000);
+        expect(result.feeRate).toBeCloseTo(
+          resolution.feeBips / 10000 + 0.00045,
+        );
+        expect(result.feeAmount).toBeCloseTo(
+          (resolution.feeBips / 10000 + 0.00045) * 1000,
+        );
+      }
+      expect(mockProvider.calculateFees).toHaveBeenCalledTimes(
+        resolutions.length,
+      );
+    });
+
+    it.each([
+      { rate: undefined, policy: true, applies: false },
+      { rate: 0, policy: undefined, applies: false },
+      { rate: 0, policy: false, applies: false },
+      { rate: 0, policy: true, applies: true },
+      { rate: 0.001, policy: false, applies: false },
+    ])(
+      'only attributes applicable builder fee previews ($rate, $policy)',
+      async ({ rate, policy, applies }) => {
+        const resolution: PerpsFeeResolution = {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          targetedDiscountApplied: true,
+          subscription: { eligible: false, reason: 'no-source' },
+        };
+        mockProvider.calculateFees.mockResolvedValue({
+          metamaskFeeRate: rate,
+          chargesMetamaskBuilderFee: policy,
+        });
+        const result = await marketDataService.calculateFees({
+          provider: mockProvider,
+          params: {
+            orderType: 'market',
+            symbol: 'BTC',
+            amount: '1000',
+            isMaker: false,
+          },
+          context: { ...mockContext, feeResolution: resolution },
+        });
+        if (applies) {
+          expect(result.feeResolution).toBe(resolution);
+          expect(result.metamaskFeeRate).toBeCloseTo(0.00035);
+        } else {
+          expect(result).not.toHaveProperty('feeResolution');
+        }
+      },
+    );
 
     it('surfaces subscription eligibility and remainingNotionalUsd on the fee preview', async () => {
       const params: FeeCalculationParams = {

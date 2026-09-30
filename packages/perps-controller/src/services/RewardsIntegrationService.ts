@@ -17,7 +17,6 @@ import type {
   PerpsPlatformDependencies,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionFeeWaiverStatus,
-  RewardsDiscountResponse,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
@@ -66,12 +65,13 @@ type NormalizedRewardsDiscount = {
  * - `default` — {@link BUILDER_FEE_CONFIG}, the fee with no reductions.
  * - `rewards` — VIP, season, and targeted, collapsed into one discount by
  *   `RewardsController` (`rewards.getPerpsDiscountForAccount`), so this service
- *   does not re-derive the split. The client mayreport targeted participation
+ *   does not re-derive the split. The client may report targeted participation
  *   via a structured response with a boolean flag.
  * - `subscription` — `0` bips, but only when the eligibility gate passes on a
  *   cached read of the profile's benefits.
  *
- * On a tie the cheaper-to-explain source wins, in the order
+ * Rewards wins ties with default. Subscription must be strictly cheaper after
+ * venue quantization to win, so a tie does not spend subscription allowance.
  * `subscription` > `rewards` > `default`.
  *
  * The benefits cache is stale-while-revalidate: fee resolution is a pure read
@@ -228,11 +228,8 @@ export class RewardsIntegrationService {
     let subscriptionWaiverKind: PerpsFeeResolution['subscriptionWaiverKind'];
     let subscriptionCoveredNotionalUsd: number | undefined;
 
-    // The waiver competes like any other source. A full waiver still wins on
-    // `<=`, but a partial blend only wins when it is genuinely cheaper than the
-    // rewards discount — the ADR's requirement that subscription be able to
-    // lose.
-    //
+    // Full and partial waivers compete with the rewards fee. Subscription
+    // only wins when it produces a genuinely cheaper fee on the wire.
     // Compared *after* venue quantization, because that is the fee the order
     // pays. The builder fee is submitted in integer tenths of a basis point, so
     // a blend like 9.9999 bips is cheaper than the 10-bip default in arithmetic
@@ -260,6 +257,7 @@ export class RewardsIntegrationService {
     ) {
       feeBips = waiver.feeBips;
       source = 'subscription';
+      targetedDiscountApplied = undefined;
       subscriptionWaiverKind = waiver.kind === 'partial' ? 'partial' : 'full';
       subscriptionCoveredNotionalUsd = waiver.coveredNotionalUsd;
     }
@@ -289,7 +287,7 @@ export class RewardsIntegrationService {
       discountBips,
       source,
       subscription,
-      targetedDiscountApplied,
+      ...(targetedDiscountApplied !== undefined && { targetedDiscountApplied  }),
       subscriptionWaiverKind,
       subscriptionCoveredNotionalUsd,
     };
