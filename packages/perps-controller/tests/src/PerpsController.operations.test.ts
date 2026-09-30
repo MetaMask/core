@@ -1727,6 +1727,49 @@ describe('PerpsController', () => {
       refresh.mockRestore();
     });
 
+    it('passes one targeted rewards resolution to the fee preview and returns its attribution', async () => {
+      const params = {
+        orderType: 'market' as const,
+        amount: '100000',
+        symbol: 'BTC',
+      };
+      const resolution = {
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards' as const,
+        targetedDiscountApplied: true,
+        subscription: {
+          eligible: false,
+          reason: 'no-source' as const,
+        },
+      };
+      const resolveFee = jest
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue(resolution);
+        jest
+          .spyOn(
+            RewardsIntegrationService.prototype,
+            'refreshSubscriptionBenefits',
+          )
+          .mockResolvedValue(undefined);
+      const fees = { metamaskFeeRate: 0.00035, feeResolution: resolution };
+      mockMarketDataServiceInstance.calculateFees.mockResolvedValue(fees);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      expect(await controller.calculateFees(params)).toBe(fees);
+      expect(resolveFee).toHaveBeenCalledTimes(1);
+      expect(resolveFee).toHaveBeenCalledWith(1000);
+      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({
+            feeResolution: resolution,
+          }),
+        }),
+      );
+      jest.resetAllMocks();
+    });
+
     it('resolves the preview fee against the order notional', async () => {
       const feeParams = {
         orderType: 'market' as const,

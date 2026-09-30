@@ -105,6 +105,45 @@ describe('TradingService', () => {
   });
 
   describe('placeOrder', () => {
+    it('passes targeted rewards attribution and its discount in the provider resolution, then clears it', async () => {
+      const resolution: PerpsFeeResolution = {
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards',
+        targetedDiscountApplied: true,
+        subscription: { eligible: false, reason: 'no-source' },
+      };
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.setUserFeeResolution = jest.fn();
+      mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
+      mockProvider.placeOrder.mockImplementation(async () => {
+        expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
+          resolution,
+        );
+        expect(mockProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+        return { success: true };
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(1);
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(params);
+      expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
+        undefined,
+      );
+      expect(mockProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+    });
+
     it('preserves the subscription source through order construction', async () => {
       mockProvider.setUserFeeResolution = jest.fn();
       const subscriptionResolution: PerpsFeeResolution = {

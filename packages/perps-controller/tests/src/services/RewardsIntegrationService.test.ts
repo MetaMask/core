@@ -1,5 +1,6 @@
 import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import { quantizeBuilderFeeTenthsBps } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import {
   createMockEvmAccount,
@@ -391,6 +392,157 @@ describe('RewardsIntegrationService', () => {
         source: 'subscription',
       });
     });
+
+    it.each([true, false])(
+      'preserves structured rewards participation (%s) and the numeric discount API',
+      async (targetedDiscountApplied) => {
+        const getDiscount = mockDeps.rewards
+          .getPerpsDiscountForAccount as jest.Mock;
+        getDiscount.mockResolvedValue({
+          discountBips: 6500,
+          targetedDiscountApplied,
+        });
+
+        const resolution = await service.resolveFee();
+
+        expect(resolution).toMatchObject({
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          targetedDiscountApplied,
+        });
+        expect(getDiscount).toHaveBeenCalledTimes(1);
+        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+          'RewardsIntegrationService: Fee resolved',
+          expect.objectContaining({
+            source: 'rewards',
+            targetedDiscountApplied,
+          }),
+        );
+        expect(await service.calculateUserFeeDiscount()).toBe(6500);
+      },
+    );
+
+    it.each([
+      {
+        discountBips: 6500,
+        remaining: 1000,
+        source: 'subscription',
+        tenths: 0,
+      },
+      { discountBips: 6500, remaining: 500, source: 'rewards', tenths: 35 },
+      {
+        discountBips: 6500,
+        remaining: 750,
+        source: 'subscription',
+        tenths: 25,
+      },
+      { discountBips: 10000, remaining: 1000, source: 'rewards', tenths: 0 },
+      { discountBips: 5000, remaining: 500, source: 'rewards', tenths: 50 },
+      // The raw blend is cheaper, but rounding the discount still yields 5000.
+      { discountBips: 5000, remaining: 500.01, source: 'rewards', tenths: 50 },
+      {
+        discountBips: 5000,
+        remaining: 510,
+        source: 'subscription',
+        tenths: 49,
+      },
+    ])(
+      'resolves targeted $discountBips against $remaining USD allowance to $source',
+      async ({ discountBips, remaining, source, tenths }) => {
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue({
+          discountBips,
+          targetedDiscountApplied: true,
+        });
+        wireSubscription(
+          jest
+            .fn()
+            .mockResolvedValue(
+              createBenefits({ remainingNotionalUsd: remaining }),
+            ),
+        );
+        await service.refreshSubscriptionBenefits();
+
+        const resolution = await service.resolveFee(1000);
+
+        expect(resolution.source).toBe(source);
+        expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(
+          tenths,
+        );
+        if (source === 'rewards') {
+          expect(resolution.targetedDiscountApplied).toBe(true);
+        } else {
+          expect(resolution).not.toHaveProperty('targetedDiscountApplied');
+        }
+        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+          'RewardsIntegrationService: Fee resolved',
+          expect.objectContaining({
+            source,
+            targetedDiscountApplied: source === 'rewards' ? true : undefined,
+            rewardsTargetedDiscountApplied: true,
+          }),
+        );
+      },
+    );
+
+    it('observes grant addition, removal and attribution changes without caching the result', async () => {
+      const getDiscount = mockDeps.rewards
+        .getPerpsDiscountForAccount as jest.Mock;
+      for (const response of [
+        { discountBips: 2500, targetedDiscountApplied: false },
+        { discountBips: 6500, targetedDiscountApplied: true },
+        { discountBips: 6500, targetedDiscountApplied: false },
+        { discountBips: 2500, targetedDiscountApplied: false },
+      ]) {
+        getDiscount.mockResolvedValueOnce(response);
+        const resolution = await service.resolveFee();
+        expect(resolution).toMatchObject({ source: 'rewards', ...response });
+        expect(resolution.feeBips).toBeCloseTo(
+          10 * (1 - response.discountBips / 10000),
+        );
+        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+          'RewardsIntegrationService: Fee resolved',
+          expect.objectContaining(response),
+        );
+      }
+      expect(getDiscount).toHaveBeenCalledTimes(4);
+    });
+
+    it.each(['legacy', 'unavailable', 'error'])(
+      'does not retain targeted attribution when the next response is %s',
+      async (nextResponse) => {
+        const getDiscount = mockDeps.rewards
+          .getPerpsDiscountForAccount as jest.Mock;
+        getDiscount.mockResolvedValueOnce({
+          discountBips: 6500,
+          targetedDiscountApplied: true,
+        });
+        expect((await service.resolveFee()).targetedDiscountApplied).toBe(true);
+        if (nextResponse === 'error') {
+          getDiscount.mockRejectedValueOnce(new Error('Rewards unavailable'));
+        } else {
+          getDiscount.mockResolvedValueOnce(
+            nextResponse === 'legacy' ? 0 : null,
+          );
+        }
+
+        const resolution = await service.resolveFee();
+
+        expect(resolution).not.toHaveProperty('targetedDiscountApplied');
+        expect(resolution.source).toBe(
+          nextResponse === 'legacy' ? 'rewards' : 'default',
+        );
+        expect(resolution.discountBips).toBe(
+          nextResponse === 'legacy' ? 0 : undefined,
+        );
+        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+          'RewardsIntegrationService: Fee resolved',
+          expect.objectContaining({ targetedDiscountApplied: undefined }),
+        );
+      },
+    );
 
     it('resolves the subscription source to a 0 bips fee only when the eligibility gate passes', async () => {
       const cases = [
