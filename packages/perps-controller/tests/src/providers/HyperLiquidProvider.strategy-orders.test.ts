@@ -5021,17 +5021,22 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * moves to the xyz DEX before the order and back after it.
      *
      * @param orderResponse - The venue's answer to the order.
-     * @returns The provider's DEX transfers, which the test answers.
+     * @returns The provider's DEX transfers, which the test answers, and the
+     * mocked exchange client.
      */
     const useHip3MarketOrder = (
       orderResponse: Record<string, unknown>,
-    ): { transfer: jest.SpyInstance; order: jest.Mock } => {
+    ): {
+      transfer: jest.SpyInstance;
+      order: jest.Mock;
+      exchangeClient: MockClient;
+    } => {
       let ordered = false;
       const order = jest.fn(async () => {
         ordered = true;
         return orderResponse;
       });
-      useStrategyClients({
+      const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: {
           clearinghouseState: jest
@@ -5058,7 +5063,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      return { transfer: jest.spyOn(provider, 'transferBetweenDexs'), order };
+      return {
+        transfer: jest.spyOn(provider, 'transferBetweenDexs'),
+        order,
+        exchangeClient,
+      };
     };
 
     const HIP3_MARKET_ORDER = {
@@ -5115,6 +5124,35 @@ describe('HyperLiquidProvider - strategy order types', () => {
           { context: { data: { method: unknown } } },
         ]) => [error.message, options.context.data.method],
       );
+
+    it('reads an omitted margin mode from the HIP-3 DEX position slice', async () => {
+      const { transfer, exchangeClient } = useHip3MarketOrder(REFUSED_ORDER);
+      transfer.mockResolvedValueOnce({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      // Only the xyz slice holds the position, so its mode proves the lookup
+      // routes a HIP-3 symbol to its own DEX cache.
+      mockSubscriptionService.getCachedPositionsForDex.mockImplementation(
+        (dexName: string) =>
+          dexName === 'xyz'
+            ? [
+                createMockPosition({
+                  symbol: 'xyz:TSLA',
+                  leverage: { type: 'cross', value: 5 },
+                }),
+              ]
+            : null,
+      );
+
+      await provider.placeOrder({ ...HIP3_MARKET_ORDER, leverage: 5 });
+
+      expect(exchangeClient.updateLeverage).toHaveBeenCalledWith({
+        asset: 110000,
+        isCross: true,
+        leverage: 5,
+      });
+    });
 
     it('fails a HIP-3 order with KEYRING_LOCKED, sending nothing, when its collateral transfer cannot be signed', async () => {
       const { transfer, order } = useHip3MarketOrder(REFUSED_ORDER);
