@@ -46,6 +46,8 @@
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.integration.cjs",
+    "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.unit.cjs",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
