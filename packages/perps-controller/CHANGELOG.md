@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change. ([#10855](https://github.com/MetaMask/core/pull/10855))
-- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
+- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known. ([#10587](https://github.com/MetaMask/core/pull/10587))
 
 ### Changed
 
@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When `terminalApi.globalSnapshotUrl` is set, `getMarkets` builds its list from the same global snapshot fetch and cache as `getMarketDataWithPrices` and does not call `GET /v1/perpetuals`. `useTerminalApi` does not gate that list. A rejected or unavailable snapshot falls back to the provider. Without a snapshot URL, `getMarkets` still uses the legacy Terminal `/v1` path ([#10855](https://github.com/MetaMask/core/pull/10855))
   - Snapshot list rows omit `marginMode`, `onlyIsolated`, and `isDelisted`, and set `marginTableId` to `0`. The v4 market payload has no margin table.
   - `skipFilters: true` uses provider discovery to include markets on DEXes outside the snapshot's configured set.
+- **BREAKING:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
+  - Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
 
@@ -218,8 +220,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
 - Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
-- **Breaking:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
-- Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
 
 ### Removed
 
