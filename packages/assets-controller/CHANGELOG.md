@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- On the v5 balance path, stop seeding every enabled chain's native onto an account when the update arrives after that account is no longer selected. Selecting the account group again drops stored balances whose chain namespace is outside the account's scopes ([#10567](https://github.com/MetaMask/core/pull/10567))
+- On the v5 balance path, stop seeding every enabled chain's native onto an account when the update arrives after that account is no longer selected ([#10567](https://github.com/MetaMask/core/pull/10567))
+- On unlock, drop stored balances whose chain namespace is outside the selected account's scopes ([#10567](https://github.com/MetaMask/core/pull/10567))
 
 ## [17.0.0]
 
