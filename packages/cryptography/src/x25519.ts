@@ -1,3 +1,5 @@
+import { getRandomBytes } from './random.js';
+import type { KeyPair } from './types.js';
 import { buildPKCS8Header, toPKCS8 } from './utils.js';
 
 const X25519_KEY_LENGTH = 32;
@@ -11,6 +13,20 @@ X25519_BASE_POINT[0] = 9;
 const X25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x6e]);
 
 /**
+ * Generate a new random X25519 key pair.
+ *
+ * @returns The raw 32-byte X25519 private key and 32-byte X25519 public key.
+ */
+export async function generateKeyPair(): Promise<KeyPair> {
+  const privateKey = getRandomBytes(X25519_KEY_LENGTH);
+
+  return {
+    privateKey,
+    publicKey: await getPublicKey(privateKey),
+  };
+}
+
+/**
  * Perform scalar multiplication of a point by a private key,
  * specified as the X25519 function in RFC 7748, Section 5.
  *
@@ -21,7 +37,7 @@ const X25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x6e]);
 async function scalarMultiply(
   privateKey: BufferSource,
   publicKey: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (privateKey.byteLength !== X25519_KEY_LENGTH) {
     throw new Error(
       `Invalid private key length: Private key must be exactly ${X25519_KEY_LENGTH} bytes for X25519.`,
@@ -68,7 +84,7 @@ async function scalarMultiply(
  */
 export async function getPublicKey(
   privateKey: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   // X25519 public keys are derived as X25519(k, 9)
   return scalarMultiply(privateKey, X25519_BASE_POINT);
 }
@@ -83,7 +99,7 @@ export async function getPublicKey(
 export async function getSharedSecret(
   privateKey: BufferSource,
   publicKey: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   // X25519 shared secrets are derived as X25519(a, K_b)
   return scalarMultiply(privateKey, publicKey);
 }

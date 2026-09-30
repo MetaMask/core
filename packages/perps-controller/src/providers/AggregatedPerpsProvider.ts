@@ -17,8 +17,10 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { isProviderOnTestnet } from '../services/providerNetwork.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
@@ -96,6 +98,7 @@ import type {
   PerpsReadOptions,
   PerpsFeeResolution,
 } from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -158,6 +161,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   readonly #deps: PerpsPlatformDependencies;
 
+  readonly #isTestnet: boolean | undefined;
+
   readonly #router: ProviderRouter;
 
   readonly #subscriptionMux: SubscriptionMultiplexer;
@@ -167,6 +172,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     this.#defaultProvider = config.defaultProvider;
     this.#aggregationMode = config.aggregationMode ?? 'all';
     this.#deps = config.infrastructure;
+    this.#isTestnet = config.isTestnet;
 
     // Initialize router with default provider
     this.#router = new ProviderRouter({
@@ -1095,6 +1101,53 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     return this.#getDefaultProvider().isReadyToTrade();
+  }
+
+  /**
+   * Prepare every provider in turn, so a hardware wallet sees one prompt at a
+   * time. A provider that throws is logged with its provider ID and counts as
+   * not ready.
+   *
+   * @returns The not-ready result of the first provider, in registration
+   * order, that is not ready; else ready.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    let notReady: ReadyToTradeResult | undefined;
+    for (const [providerId, provider] of this.#getActiveProviders()) {
+      let result: ReadyToTradeResult | undefined;
+      try {
+        result = await provider.prepareTradingWallet?.();
+      } catch (caughtError) {
+        // Providers report their own failures, so a throw here is unexpected.
+        const error = ensureError(
+          caughtError,
+          'AggregatedPerpsProvider.prepareTradingWallet',
+        );
+        // The provider's own network: Lighter can be pinned to testnet.
+        const isProviderTestnet = isProviderOnTestnet(
+          providerId,
+          this.#isTestnet,
+        );
+        this.#deps.logger.error(error, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: providerId,
+            ...(isProviderTestnet !== undefined && {
+              network: isProviderTestnet ? 'testnet' : 'mainnet',
+            }),
+          },
+          context: {
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId },
+          },
+        });
+        result = { ready: false, error: error.message };
+      }
+      if (result && !result.ready) {
+        notReady ??= result;
+      }
+    }
+    return notReady ?? { ready: true };
   }
 
   async disconnect(): Promise<DisconnectResult> {

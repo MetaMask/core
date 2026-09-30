@@ -345,8 +345,8 @@ describe('HyperLiquidWalletService', () => {
       expect(address).toBe(mockEvmAccount.address);
     });
 
-    it('returns false for software wallet', () => {
-      expect(service.isSelectedHardwareWallet()).toBe(false);
+    it('requires no signature confirmation for an HD keyring account', () => {
+      expect(service.requiresSignatureConfirmation()).toBe(false);
     });
 
     it.each([
@@ -355,7 +355,7 @@ describe('HyperLiquidWalletService', () => {
       'OneKey Hardware',
       'Lattice Hardware',
       'QR Hardware Wallet Device',
-    ])('returns true for %s wallet', (keyringType) => {
+    ])('requires signature confirmation for %s', (keyringType) => {
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -373,7 +373,7 @@ describe('HyperLiquidWalletService', () => {
         return undefined;
       });
 
-      expect(service.isSelectedHardwareWallet()).toBe(true);
+      expect(service.requiresSignatureConfirmation()).toBe(true);
     });
   });
 
@@ -469,8 +469,8 @@ describe('HyperLiquidWalletService', () => {
       );
     });
 
-    it('should return keyring unlocked status via isKeyringUnlocked()', () => {
-      expect(service.isKeyringUnlocked()).toBe(true);
+    it('reports whether the main-account signer is ready from the keyring lock state', () => {
+      expect(service.isMainAccountSignerReady()).toBe(true);
 
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (action === 'KeyringController:getState') {
@@ -479,7 +479,7 @@ describe('HyperLiquidWalletService', () => {
         return undefined;
       });
 
-      expect(service.isKeyringUnlocked()).toBe(false);
+      expect(service.isMainAccountSignerReady()).toBe(false);
     });
 
     it('should handle keyring controller initialization errors', async () => {
