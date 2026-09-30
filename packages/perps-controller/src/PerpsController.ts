@@ -1039,6 +1039,9 @@ export class PerpsController extends BaseController<
 
   #initializationPromise: Promise<void> | null = null;
 
+  // Actions that saw a disconnect wait here for the client's follow-up init().
+  readonly #initializationStartWaiters = new Set<() => void>();
+
   #isReinitializing = false;
 
   #reinitializationOperationPromise: Promise<void> | null = null;
@@ -2192,7 +2195,31 @@ export class PerpsController extends BaseController<
     }
 
     this.#initializationPromise = this.#performInitialization();
+    this.#initializationStartWaiters.forEach((notifyStarted) =>
+      notifyStarted(),
+    );
     return this.#initializationPromise;
+  }
+
+  /**
+   * Resolve once a new initialization starts, or after the timeout.
+   *
+   * @param timeoutMs - Longest time to wait for init() to be called.
+   * @returns A promise that resolves when init starts or the timeout elapses.
+   */
+  async #waitForInitializationStart(timeoutMs: number): Promise<void> {
+    let notifyStarted = (): void => undefined;
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    this.#initializationStartWaiters.add(notifyStarted);
+    const timeout = setTimeout(notifyStarted, timeoutMs);
+    try {
+      await started;
+    } finally {
+      clearTimeout(timeout);
+      this.#initializationStartWaiters.delete(notifyStarted);
+    }
   }
 
   /**
@@ -2717,9 +2744,16 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
+    // The context the action was issued under. A client reconnect
+    // (disconnect then init) that switches account, network or provider must
+    // not carry the action into the new context.
+    const issuedContext = this.#getActionContext();
+    let awaitedDisconnect = false;
+    let awaitedInitializationStart = false;
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
+        awaitedDisconnect = true;
         await pendingDisconnect;
         continue;
       }
@@ -2739,8 +2773,43 @@ export class PerpsController extends BaseController<
         continue;
       }
 
+      // Clients reconnect with disconnect() followed by init(), and the
+      // disconnect settles before init() is called. Give that init a bounded
+      // window to start rather than failing an action the reconnect will
+      // serve. Nothing here starts a connection the client did not ask for.
+      if (
+        awaitedDisconnect &&
+        !awaitedInitializationStart &&
+        !this.isInitialized &&
+        !pendingInitialization
+      ) {
+        awaitedInitializationStart = true;
+        await this.#waitForInitializationStart(
+          PERPS_CONSTANTS.ConnectionTimeoutMs,
+        );
+        continue;
+      }
+
+      if (awaitedDisconnect && this.#getActionContext() !== issuedContext) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+
       return this.getActiveProvider();
     }
+  }
+
+  /**
+   * Identify the account, network and provider an action runs under.
+   *
+   * @returns A key that changes when any of them changes.
+   */
+  #getActionContext(): string {
+    const address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
+    return [
+      address?.toLowerCase() ?? '',
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      this.state.activeProvider,
+    ].join('|');
   }
 
   /**
