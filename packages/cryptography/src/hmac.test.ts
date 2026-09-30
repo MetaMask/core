@@ -4,16 +4,16 @@ import { hmacSha256, hmacSha384, hmacSha512 } from './hmac.js';
 
 const key = hexToBytes(
   '0xf38a650903309967f2073b437852f77c87af7529cd5c85f4d2bdcf470083553cf38a650903309967f2073b437852f77c87af7529cd5c85f4d2bdcf470083553c',
-) as Uint8Array<ArrayBuffer>;
+);
 
 // RFC 4231 Test Case 1: key = 20 bytes of 0x0b, data = "Hi There"
 // https://datatracker.ietf.org/doc/html/rfc4231#section-4.2
 const rfcKey = new Uint8Array(20).fill(0x0b);
-const rfcData = stringToBytes('Hi There') as Uint8Array<ArrayBuffer>;
+const rfcData = stringToBytes('Hi There');
 
 describe('hmacSha256', () => {
   it('signs the provided data using the provided key', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha256(key, data);
     expect(bytesToHex(signature)).toBe(
       '0x3f4157aeba208bfca4c6b836b359c01b4b2c8a7b00437b90444c13962a8be031',
@@ -21,7 +21,7 @@ describe('hmacSha256', () => {
   });
 
   it('accepts an ArrayBuffer key and data', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha256(key.buffer, data.buffer);
     expect(bytesToHex(signature)).toBe(
       '0x3f4157aeba208bfca4c6b836b359c01b4b2c8a7b00437b90444c13962a8be031',
@@ -29,7 +29,7 @@ describe('hmacSha256', () => {
   });
 
   it('accepts a DataView key and data', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha256(
       new DataView(key.buffer),
       new DataView(data.buffer),
@@ -67,7 +67,7 @@ describe('hmacSha256', () => {
 
 describe('hmacSha384', () => {
   it('signs the provided data using the provided key', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha384(key, data);
     expect(bytesToHex(signature)).toBe(
       '0x2d2f38676bb8a033fb3c593d38ef9e489ed099fda5f2236d37e34a22771edc7d3433b02532e376972955659b61b4b210',
@@ -75,7 +75,7 @@ describe('hmacSha384', () => {
   });
 
   it('accepts an ArrayBuffer key and data', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha384(key.buffer, data.buffer);
     expect(bytesToHex(signature)).toBe(
       '0x2d2f38676bb8a033fb3c593d38ef9e489ed099fda5f2236d37e34a22771edc7d3433b02532e376972955659b61b4b210',
@@ -83,7 +83,7 @@ describe('hmacSha384', () => {
   });
 
   it('accepts a DataView key and data', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha384(
       new DataView(key.buffer),
       new DataView(data.buffer),
@@ -121,7 +121,7 @@ describe('hmacSha384', () => {
 
 describe('hmacSha512', () => {
   it('signs the provided data using the provided key', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha512(key, data);
     expect(bytesToHex(signature)).toBe(
       '0x0ac1aa3960d8b5d8a485062b1794c7fa7dd3c63dac585bc30b6782215c63393c9ca34421030768675141359843d9d1e8012d7e6762b48e16e70df64824c266cf',
@@ -129,7 +129,7 @@ describe('hmacSha512', () => {
   });
 
   it('accepts an ArrayBuffer key and data', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha512(key.buffer, data.buffer);
     expect(bytesToHex(signature)).toBe(
       '0x0ac1aa3960d8b5d8a485062b1794c7fa7dd3c63dac585bc30b6782215c63393c9ca34421030768675141359843d9d1e8012d7e6762b48e16e70df64824c266cf',
@@ -137,7 +137,7 @@ describe('hmacSha512', () => {
   });
 
   it('accepts a DataView key and data', async () => {
-    const data = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('bar');
     const signature = await hmacSha512(
       new DataView(key.buffer),
       new DataView(data.buffer),

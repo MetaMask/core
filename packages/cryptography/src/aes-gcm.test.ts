@@ -6,32 +6,24 @@ import { decrypt, encrypt } from './aes-gcm.js';
 // https://csrc.nist.rip/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-spec.pdf
 
 // Test Case 2
-const nistKey2 = hexToBytes(
-  '0x00000000000000000000000000000000',
-) as Uint8Array<ArrayBuffer>;
-const nistIv2 = hexToBytes(
-  '0x000000000000000000000000',
-) as Uint8Array<ArrayBuffer>;
-const nistPlaintext2 = hexToBytes(
-  '0x00000000000000000000000000000000',
-) as Uint8Array<ArrayBuffer>;
+const nistKey2 = hexToBytes('0x00000000000000000000000000000000');
+const nistIv2 = hexToBytes('0x000000000000000000000000');
+const nistPlaintext2 = hexToBytes('0x00000000000000000000000000000000');
 const nistCiphertext2 = hexToBytes(
   '0x0388dace60b6a392f328c2b971b2fe78ab6e47d42cec13bdf53a67b21257bddf',
-) as Uint8Array<ArrayBuffer>;
+);
 
 // Test Case 15
 const nistKey15 = hexToBytes(
   '0xfeffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308',
-) as Uint8Array<ArrayBuffer>;
-const nistIv15 = hexToBytes(
-  '0xcafebabefacedbaddecaf888',
-) as Uint8Array<ArrayBuffer>;
+);
+const nistIv15 = hexToBytes('0xcafebabefacedbaddecaf888');
 const nistPlaintext15 = hexToBytes(
   '0xd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255',
-) as Uint8Array<ArrayBuffer>;
+);
 const nistCiphertext15 = hexToBytes(
   '0x522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015adb094dac5d93471bdec1a502270e3cc6c',
-) as Uint8Array<ArrayBuffer>;
+);
 
 describe('encrypt', () => {
   it('matches test case 2', async () => {
