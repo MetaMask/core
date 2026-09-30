@@ -249,31 +249,22 @@
       "count": 1
     }
   },
-  "packages/accounts-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 17
-    },
-    "typescript/no-unsafe-call": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 14
     },
     "typescript/unbound-method": {
       "count": 9
     }
   },
+  "packages/accounts-controller/tests/expectations.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
   "packages/accounts-controller/tests/mocks.ts": {
     "no-unused-vars": {
       "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 2
     }
   },
   "packages/address-book-controller/jest.config.cjs": {

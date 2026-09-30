@@ -34,9 +34,10 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
 import type { Version4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createExpectedInternalAccount } from '../tests/expectations.js';
 import {
-  createExpectedInternalAccount,
   createMockInternalAccount,
   createMockInternalAccountOptions,
   ETH_EOA_METHODS,
@@ -66,11 +67,11 @@ type RootMessenger = Messenger<
   AllAccountsControllerEvents
 >;
 
-jest.mock('uuid');
+vi.mock('uuid');
 // `v4` is overloaded; naming the signature used here avoids resolving to the
 // last overload, which returns a `Uint8Array`.
-const mockUUID = jest.mocked<() => string>(uuidV4);
-const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
+const mockUUID = vi.mocked<() => string>(uuidV4);
+const actualUUID = (await vi.importActual<typeof import('uuid')>('uuid')).v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
@@ -80,8 +81,8 @@ const defaultState: AccountsControllerState = {
   accountIdByAddress: {},
 };
 
-const mockGetKeyringByType = jest.fn();
-const mockGetState = jest.fn();
+const mockGetKeyringByType = vi.fn();
+const mockGetState = vi.fn();
 
 const mockAccount: InternalAccount = {
   id: 'mock-id',
@@ -457,7 +458,7 @@ describe('AccountsController', () => {
         messenger,
       });
 
-      const listMultichainAccountsSpy = jest.spyOn(
+      const listMultichainAccountsSpy = vi.spyOn(
         accountsController,
         'listMultichainAccounts',
       );
@@ -610,7 +611,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValue([
             {
               type: KeyringTypes.snap,
-              getAccountByAddress: jest
+              getAccountByAddress: vi
                 .fn()
                 .mockReturnValueOnce(mockAccount3)
                 .mockReturnValueOnce(mockAccount4),
@@ -751,7 +752,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValue([
             {
               type: KeyringTypes.snap,
-              getAccountByAddress: jest
+              getAccountByAddress: vi
                 .fn()
                 .mockReturnValueOnce(null)
                 .mockReturnValueOnce(mockAccount4),
@@ -892,9 +893,7 @@ describe('AccountsController', () => {
         const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
           mockSnapV2SnapId,
           {
-            lookupByAddress: jest
-              .fn()
-              .mockReturnValue(mockSnapV2KeyringAccount),
+            lookupByAddress: vi.fn().mockReturnValue(mockSnapV2KeyringAccount),
           },
         );
 
@@ -959,7 +958,7 @@ describe('AccountsController', () => {
         const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
           'mock-snap-v2-id',
           {
-            lookupByAddress: jest.fn().mockReturnValue(undefined),
+            lookupByAddress: vi.fn().mockReturnValue(undefined),
           },
         );
 
@@ -1013,7 +1012,7 @@ describe('AccountsController', () => {
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
             // Plain object — does NOT pass instanceof KeyringV1Adapter
-            { lookupByAddress: jest.fn() },
+            { lookupByAddress: vi.fn() },
           ]),
         );
 
@@ -1198,7 +1197,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValue([
             {
               type: KeyringTypes.snap,
-              getAccountByAddress: jest.fn().mockReturnValueOnce(null),
+              getAccountByAddress: vi.fn().mockReturnValueOnce(null),
             },
           ]),
         );
@@ -1334,7 +1333,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const accountsAddedListener = jest.fn();
+        const accountsAddedListener = vi.fn();
         messenger.subscribe(
           'AccountsController:accountsAdded',
           accountsAddedListener,
@@ -1386,7 +1385,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const mockEventsOrder = jest.fn();
+        const mockEventsOrder = vi.fn();
         messenger.subscribe('AccountsController:accountAdded', () => {
           mockEventsOrder('AccountsController:accountAdded');
         });
@@ -1430,7 +1429,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+        const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1749,7 +1748,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+        const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1812,7 +1811,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const accountsRemovedListener = jest.fn();
+        const accountsRemovedListener = vi.fn();
         messenger.subscribe(
           'AccountsController:accountsRemoved',
           accountsRemovedListener,
@@ -1864,7 +1863,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const mockEventsOrder = jest.fn();
+        const mockEventsOrder = vi.fn();
         messenger.subscribe('AccountsController:accountRemoved', () => {
           mockEventsOrder('AccountsController:accountRemoved');
         });
@@ -2077,7 +2076,7 @@ describe('AccountsController', () => {
         ],
       };
 
-      const mockEventsOrder = jest.fn();
+      const mockEventsOrder = vi.fn();
 
       messenger.subscribe('AccountsController:accountAdded', () => {
         mockEventsOrder('AccountsController:accountAdded');
@@ -2164,7 +2163,7 @@ describe('AccountsController', () => {
         },
       };
 
-      const mockRePublishedCallback = jest.fn();
+      const mockRePublishedCallback = vi.fn();
       messenger.subscribe(
         'AccountsController:accountBalancesUpdated',
         mockRePublishedCallback,
@@ -2185,7 +2184,7 @@ describe('AccountsController', () => {
         },
       };
 
-      const mockRePublishedCallback = jest.fn();
+      const mockRePublishedCallback = vi.fn();
       messenger.subscribe(
         'AccountsController:accountAssetListUpdated',
         mockRePublishedCallback,
@@ -2226,7 +2225,7 @@ describe('AccountsController', () => {
         },
       };
 
-      const mockRePublishedCallback = jest.fn();
+      const mockRePublishedCallback = vi.fn();
       messenger.subscribe(
         'AccountsController:accountTransactionsUpdated',
         mockRePublishedCallback,
@@ -2302,7 +2301,7 @@ describe('AccountsController', () => {
 
     it('should not emit an update if the selected account does not change', () => {
       const messenger = buildMessenger();
-      const spy = jest.spyOn(messenger, 'publish');
+      const spy = vi.spyOn(messenger, 'publish');
       const { accountsController, triggerMultichainNetworkChange } =
         setupAccountsController({
           initialState: {
@@ -2466,7 +2465,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValue([
           {
             type: KeyringTypes.snap,
-            getAccountByAddress: jest
+            getAccountByAddress: vi
               .fn()
               .mockReturnValueOnce(mockSnapAccount)
               .mockReturnValueOnce(mockSnapAccount2),
@@ -3298,7 +3297,7 @@ describe('AccountsController', () => {
       const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
         mockSnapV2SnapId,
         {
-          lookupByAddress: jest.fn().mockReturnValue(mockSnapV2KeyringAccount),
+          lookupByAddress: vi.fn().mockReturnValue(mockSnapV2KeyringAccount),
         },
       );
 
@@ -3441,7 +3440,7 @@ describe('AccountsController', () => {
           },
         });
 
-      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+      const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.clearState();
 
@@ -3473,7 +3472,7 @@ describe('AccountsController', () => {
           },
         });
 
-      const accountsRemovedListener = jest.fn();
+      const accountsRemovedListener = vi.fn();
       accountsControllerMessenger.subscribe(
         'AccountsController:accountsRemoved',
         accountsRemovedListener,
@@ -3493,7 +3492,7 @@ describe('AccountsController', () => {
           initialState: getDefaultAccountsControllerState(),
         });
 
-      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+      const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.clearState();
 
@@ -4119,7 +4118,7 @@ describe('AccountsController', () => {
           },
         });
 
-      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+      const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.setSelectedAccount(mockNonEvmAccount.id);
 
@@ -4197,7 +4196,7 @@ describe('AccountsController', () => {
     it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
       const expectedTimestamp = Number(new Date('2024-01-02'));
 
-      jest.spyOn(Date, 'now').mockImplementation(() => expectedTimestamp);
+      vi.spyOn(Date, 'now').mockImplementation(() => expectedTimestamp);
 
       const { accountsController } = setupAccountsController(mockState);
 
@@ -4216,7 +4215,7 @@ describe('AccountsController', () => {
       const { accountsController, accountsControllerMessenger } =
         setupAccountsController(mockState);
 
-      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+      const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.setAccountNameAndSelectAccount(
         mockAccount.id,
@@ -4253,7 +4252,7 @@ describe('AccountsController', () => {
     it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
       const expectedTimestamp = Number(new Date('2024-01-02'));
 
-      jest.spyOn(Date, 'now').mockImplementationOnce(() => expectedTimestamp);
+      vi.spyOn(Date, 'now').mockImplementationOnce(() => expectedTimestamp);
 
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -4289,7 +4288,7 @@ describe('AccountsController', () => {
           },
         });
 
-      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+      const messengerSpy = vi.spyOn(accountsControllerMessenger, 'publish');
 
       accountsController.setAccountName(mockAccount.id, 'new name');
 
@@ -4593,18 +4592,15 @@ describe('AccountsController', () => {
 
   describe('actions', () => {
     beforeEach(() => {
-      jest.spyOn(AccountsController.prototype, 'setSelectedAccount');
-      jest.spyOn(AccountsController.prototype, 'listAccounts');
-      jest.spyOn(AccountsController.prototype, 'listMultichainAccounts');
-      jest.spyOn(AccountsController.prototype, 'setAccountName');
-      jest.spyOn(AccountsController.prototype, 'updateAccounts');
-      jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
-      jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
-      jest.spyOn(AccountsController.prototype, 'getAccount');
-      jest.spyOn(
-        AccountsController.prototype,
-        'setAccountNameAndSelectAccount',
-      );
+      vi.spyOn(AccountsController.prototype, 'setSelectedAccount');
+      vi.spyOn(AccountsController.prototype, 'listAccounts');
+      vi.spyOn(AccountsController.prototype, 'listMultichainAccounts');
+      vi.spyOn(AccountsController.prototype, 'setAccountName');
+      vi.spyOn(AccountsController.prototype, 'updateAccounts');
+      vi.spyOn(AccountsController.prototype, 'getAccountByAddress');
+      vi.spyOn(AccountsController.prototype, 'getSelectedAccount');
+      vi.spyOn(AccountsController.prototype, 'getAccount');
+      vi.spyOn(AccountsController.prototype, 'setAccountNameAndSelectAccount');
     });
 
     describe('setSelectedAccount', () => {
