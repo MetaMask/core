@@ -1360,6 +1360,7 @@ export class MarketDataService {
       const resolutionApplies =
         context.feeResolution !== undefined &&
         fees.metamaskFeeRate !== undefined &&
+        fees.chargesMetamaskBuilderFee !== false &&
         (fees.metamaskFeeRate !== 0 || fees.chargesMetamaskBuilderFee === true);
 
       return {
