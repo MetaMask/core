@@ -28,6 +28,6 @@
     },
     {
       "path": "../cryptography/tsconfig.lint.json"
-    },
+    }
   ]
 }

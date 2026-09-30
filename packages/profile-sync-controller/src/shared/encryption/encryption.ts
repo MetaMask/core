@@ -1,8 +1,8 @@
+import { decrypt, encrypt } from '@metamask/cryptography/aes-gcm';
+import { getErrorMessage } from '@metamask/utils';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
-import { decrypt, encrypt } from '@metamask/cryptography/aes-gcm';
-import { getErrorMessage } from '@metamask/utils';
 
 import type { NativeScrypt } from '../types/encryption.js';
 import {
@@ -222,7 +222,10 @@ class EncryptorDecryptor {
     return concatBytes(iv, ciphertext);
   }
 
-  async #decrypt(ciphertextAndNonce: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
+  async #decrypt(
+    ciphertextAndNonce: Uint8Array,
+    key: Uint8Array,
+  ): Promise<Uint8Array> {
     // Create buffers of nonce and ciphertext.
     const nonce = ciphertextAndNonce.slice(0, ALGORITHM_NONCE_SIZE);
     const ciphertext = ciphertextAndNonce.slice(
