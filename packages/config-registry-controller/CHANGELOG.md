@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add events-config support: `ConfigRegistryApiService` now fetches from `/v1/config/events-config` and `ConfigRegistryController` caches the result in `configs.eventsConfig`; requires `ConfigRegistryApiService:fetchEventsConfig` in `ConfigRegistryControllerMessenger`'s `AllowedActions` ([#10448](https://github.com/MetaMask/core/pull/10448))
+- Add `ConfigRegistryApiService.fetchEventsConfig`, which hits `/v1/config/events-config` ([#10448](https://github.com/MetaMask/core/pull/10448))
+
+### Changed
+
+- **BREAKING:** `ConfigRegistryControllerMessenger` requires `ConfigRegistryApiService:fetchEventsConfig` in its allowed actions ([#10448](https://github.com/MetaMask/core/pull/10448))
+- `ConfigRegistryController` now caches the result from `/v1/config/events-config` in `configs.eventsConfig` in its polling loop ([#10448](https://github.com/MetaMask/core/pull/10448))
 
 ### Changed
 
