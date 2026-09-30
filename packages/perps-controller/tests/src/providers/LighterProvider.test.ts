@@ -11,6 +11,7 @@ import type {
   Order,
   OrderBookData,
   OrderFill,
+  OrderParams,
 } from '../../../src/types/index.js';
 import type {
   LighterSignerBridge,
@@ -1539,6 +1540,388 @@ describe('LighterProvider', () => {
         '[LighterProvider] getMarginModeLock unavailable',
         { symbol: 'BTC', error: 'down' },
       );
+    });
+  });
+
+  describe('standalone trigger orders', () => {
+    describe.each([
+      ['stop_market', 2, false],
+      ['stop_limit', 3, true],
+      ['take_profit_market', 4, false],
+      ['take_profit_limit', 5, true],
+    ] as const)('%s', (orderType, wireType, isLimit) => {
+      it.each([
+        [true, false],
+        [false, false],
+        [true, true],
+        [false, true],
+      ])(
+        'preserves buy=%s and reduceOnly=%s in the native wire intent',
+        async (isBuy, reduceOnly) => {
+          const { provider, calls } = buildProvider();
+          const params: OrderParams = {
+            symbol: 'BTC',
+            isBuy,
+            reduceOnly,
+            size: '0.001',
+            orderType,
+            triggerPrice: '95000',
+            maxSlippageBps: 100,
+            ...(isLimit && { price: '95100' }),
+          };
+
+          const validation = await provider.validateOrder(params);
+          const result = await provider.placeOrder(params);
+
+          expect(validation).toStrictEqual({ isValid: true });
+          expect(result.success).toBe(true);
+          const orderCall = calls.find(
+            (call) => call.function === '_signCreateOrder',
+          );
+          const marketExecutionPrice = isBuy ? '959500' : '940500';
+          expect(orderCall?.params.slice(3, 11)).toStrictEqual([
+            '100',
+            isLimit ? '951000' : marketExecutionPrice,
+            isBuy ? 0 : 1,
+            wireType,
+            isLimit ? 1 : 0,
+            reduceOnly ? 1 : 0,
+            '950000',
+            -1,
+          ]);
+        },
+      );
+    });
+
+    it.each([
+      undefined,
+      '',
+      '0',
+      '-1',
+      'NaN',
+      'Infinity',
+      '90000USD',
+      '0.01',
+      '0.11',
+      '429496729.6',
+    ])(
+      'rejects unrepresentable trigger price %s before signer setup',
+      async (triggerPrice) => {
+        const { provider, calls } = buildProvider();
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'stop_market',
+          triggerPrice,
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation.isValid).toBe(false);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(validation.error);
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it.each(['stop_limit', 'take_profit_limit'] as const)(
+      'rejects missing %s execution price before signer setup',
+      async (orderType) => {
+        const { provider, calls } = buildProvider();
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType,
+          triggerPrice: '95000',
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation.isValid).toBe(false);
+        expect(result.error).toBe(validation.error);
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it.each([NaN, Infinity, -1, 10000])(
+      'rejects trigger-market slippage %s before signer setup',
+      async (maxSlippageBps) => {
+        const { provider, calls } = buildProvider();
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'stop_market',
+          triggerPrice: '95000',
+          maxSlippageBps,
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation.isValid).toBe(false);
+        expect(result.error).toBe(validation.error);
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it('reports only native standalone trigger support for a known active market', async () => {
+      const { provider, calls } = buildProvider();
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+
+      expect(capabilities).toStrictEqual({
+        status: 'ready',
+        providerId: 'lighter',
+        supportedStrategies: [],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each(['GTC', 'IOC', 'ALO'] as const)(
+      'rejects a caller-selected %s time-in-force on a standalone trigger',
+      async (timeInForce) => {
+        const { provider, calls } = buildProvider();
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'stop_limit',
+          price: '95100',
+          triggerPrice: '95000',
+          timeInForce,
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation).toStrictEqual({
+          isValid: false,
+          error: 'ORDER_TIME_IN_FORCE_NOT_SUPPORTED',
+        });
+        expect(result.error).toBe(validation.error);
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it.each([
+      { takeProfitPrice: '' },
+      { stopLossPrice: '90000' },
+      { takeProfitSize: '0.001' },
+      { tpslLinkage: 'position' as const },
+      { twapDuration: 5 },
+    ])('rejects extra trigger intent %j before signer setup', async (extra) => {
+      const { provider, calls } = buildProvider();
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+        ...extra,
+      };
+
+      const validation = await provider.validateOrder(params);
+      const result = await provider.placeOrder(params);
+
+      expect(validation.isValid).toBe(false);
+      expect(result.error).toBe(validation.error);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('sizes a trigger-market USD order at its trigger without a live-price slippage check', async () => {
+      const { provider, calls } = buildProvider();
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: 'NaN',
+        usdAmount: '95',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+        maxSlippageBps: 100,
+        priceAtCalculation: 100000,
+      };
+
+      const validation = await provider.validateOrder(params);
+      const result = await provider.placeOrder(params);
+
+      expect(validation).toStrictEqual({ isValid: true });
+      expect(result.success).toBe(true);
+      expect(
+        calls.find((call) => call.function === '_signCreateOrder')?.params[3],
+      ).toBe('100');
+    });
+
+    it('enforces the maker minimum for a trigger limit before signer setup', async () => {
+      const { provider, calls } = buildProvider();
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.0001',
+        orderType: 'stop_limit',
+        triggerPrice: '95000',
+        price: '95100',
+      };
+
+      const validation = await provider.validateOrder(params);
+      const result = await provider.placeOrder(params);
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('below the Lighter minimum');
+      expect(result.error).toBe(validation.error);
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each(['stop_limit', 'take_profit_limit'] as const)(
+      'never enlarges a below-minimum %s even when it currently closes the full position',
+      async (orderType) => {
+        const { provider, calls, clientInstance } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], position: '0.0001' }],
+            },
+          ],
+        });
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.0001',
+          orderType,
+          triggerPrice: '95000',
+          price: '95100',
+          reduceOnly: true,
+          isFullClose: true,
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain('below the Lighter minimum');
+        expect(result.error).toBe(validation.error);
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it('reports metadata read failures as unavailable capabilities', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      clientInstance.getOrderBooks.mockRejectedValue(
+        new Error('Venue offline'),
+      );
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+
+      expect(capabilities).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_unavailable',
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it('refuses native trigger placement on an inactive market', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+      };
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+      const validation = await provider.validateOrder(params);
+      const result = await provider.placeOrder(params);
+
+      expect(capabilities).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'order_market_unsupported',
+      });
+      expect(validation.isValid).toBe(false);
+      expect(result.error).toBe(validation.error);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('aborts a trigger intent after the wallet changes during metadata preflight', async () => {
+      const { provider, clientInstance, calls, getUserAddressMock } =
+        buildProvider();
+      let releaseMetadata = (): void => undefined;
+      const metadataGate = new Promise<void>((resolve) => {
+        releaseMetadata = resolve;
+      });
+      clientInstance.getOrderBooks.mockImplementation(async () => {
+        await metadataGate;
+        return [BTC_MARKET];
+      });
+      const placement = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+      });
+      expect(clientInstance.getOrderBooks).toHaveBeenCalled();
+
+      getUserAddressMock.mockReturnValue(`0x${'b'.repeat(40)}`);
+      releaseMetadata();
+      const result = await placement;
+
+      expect(result.success).toBe(false);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('returns unavailable capabilities after provider teardown', async () => {
+      const { provider } = buildProvider();
+      await provider.initialize();
+
+      await provider.disconnect();
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+
+      expect(capabilities).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('returns unavailable capabilities for a missing market', async () => {
+      const { provider, calls } = buildProvider();
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'NOPE',
+      });
+
+      expect(capabilities).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'market_not_found',
+      });
+      expect(calls).toHaveLength(0);
     });
   });
 

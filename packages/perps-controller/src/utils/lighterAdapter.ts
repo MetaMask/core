@@ -105,6 +105,7 @@ export function adaptMarketFromLighter(
   return {
     name: market.symbol,
     szDecimals: market.supportedSizeDecimals,
+    priceDecimals: market.supportedPriceDecimals,
     maxLeverage,
     marginTableId: 0, // Lighter does not use margin tables
     minimumOrderSize: parseFloat(market.minQuoteAmount),

@@ -759,6 +759,8 @@ export type DisconnectResult = {
 export type MarketInfo = {
   name: string; // HyperLiquid: universe name (asset symbol)
   szDecimals: number; // HyperLiquid: size decimals
+  /** Fixed decimal price grid, when the venue declares one. */
+  priceDecimals?: number;
   maxLeverage: number; // HyperLiquid: max leverage
   marginTableId: number; // HyperLiquid: margin requirements table ID
   marginMode?: 'strictIsolated' | 'noCross'; // HyperLiquid market capability
@@ -1726,11 +1728,12 @@ export type GetScalePriceLadderParams = {
   providerId?: PerpsProviderType;
 };
 
-/** Provider-owned strategy capabilities for the selected market route. */
+/** Reasons provider-owned order capabilities are unavailable for a market. */
 export type DirectProviderOrderCapabilitiesUnavailableReason =
   | 'provider_unavailable'
   | 'invalid_symbol'
   | 'market_not_found'
+  | 'order_market_unsupported'
   | 'strategy_market_unsupported';
 
 export type RoutedOrderCapabilitiesUnavailableReason =
@@ -2045,7 +2048,7 @@ export type PerpsProvider = {
   readonly routesOrdersByProviderId?: boolean;
 
   /**
-   * Return strategy capabilities for the provider/market route. Providers may
+   * Return order capabilities for the provider/market route. Providers may
    * omit this hook; the controller then reports capabilities as unavailable.
    */
   getOrderCapabilities?(

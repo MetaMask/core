@@ -107,6 +107,26 @@ a free slot instead: the Lighter API answers "api key not found" for
 `GET /api/v1/apikeys?account_index=<account>&api_key_index=<slot>` when the
 slot is free.
 
+## Lighter standalone trigger orders
+
+Lighter supports `stop_market`, `stop_limit`, `take_profit_market` and
+`take_profit_limit` through `placeOrder`. Supply a positive `triggerPrice` on
+the market's fixed price grid; limit execution also requires `price`. Market
+execution applies the caller's slippage protection to the trigger level, and
+USD sizing uses that level rather than the current market price. Both trigger
+and execution prices must fit the venue's wire range.
+
+Leave `timeInForce` unset: pending triggers use the venue's no-expiry setting,
+with IOC execution for trigger markets and GTT execution for trigger limits.
+`reduceOnly` retains the requested quantity. Below-minimum trigger limits are
+refused even when they would currently close the full position; a position can
+grow before activation. Attached TP/SL and strategy fields are unsupported on
+these standalone orders.
+
+`getOrderCapabilities` reports these types only for active, known markets.
+`MarketInfo.priceDecimals` exposes Lighter's fixed price grid for callers
+deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

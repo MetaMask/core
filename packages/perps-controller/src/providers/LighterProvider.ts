@@ -45,7 +45,9 @@ import {
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
   LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
   LIGHTER_ORDER_TYPE_STOP_LOSS,
+  LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
   LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
   LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
@@ -85,6 +87,9 @@ import type {
   FeeCalculationParams,
   FeeCalculationResult,
   Funding,
+  DirectProviderOrderCapabilities,
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  GetOrderCapabilitiesParams,
   GetAccountStateParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -106,6 +111,7 @@ import type {
   OrderFill,
   OrderParams,
   OrderResult,
+  TriggerOrderType,
   PerpsMarginModeLock,
   PerpsMarketData,
   PerpsPlatformDependencies,
@@ -173,6 +179,11 @@ import {
   adaptPriceUpdateFromLighter,
   adaptPriceUpdateFromLighterWsStat,
 } from '../utils/lighterAdapter.js';
+import {
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+  TRIGGER_ORDER_TYPES,
+} from '../utils/orderTypes.js';
 
 type LighterFillQuery = GetOrderFillsParams & {
   symbol?: string;
@@ -321,7 +332,7 @@ const snapToLighterSizeGrid = (
  * @returns Whether the order rests as a maker order.
  */
 const isLighterMakerOrder = (params: OrderParams): boolean =>
-  params.orderType === 'limit' && params.timeInForce !== 'IOC';
+  isLimitExecutionOrderType(params.orderType) && params.timeInForce !== 'IOC';
 
 /**
  * Parse a candle field without JavaScript's null/boolean/blank coercions.
@@ -969,10 +980,10 @@ const lighterLeverageError = (leverage: number | undefined): string | null => {
 
 /**
  * Derive the protection/execution price a market order signs from its
- * reference price — shared by placement and both validators so wire-range
+ * reference price, either a live price or a trigger level. Shared by placement and both validators so wire-range
  * checks always inspect the exact value the signer receives.
  *
- * @param referencePrice - Fresh venue reference price.
+ * @param referencePrice - Fresh venue price or validated trigger level.
  * @param isBuy - Order side; buys protect above, sells below.
  * @param slippageFraction - Slippage tolerance (validated < 1).
  * @returns The slippage-adjusted execution price.
@@ -990,6 +1001,124 @@ const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
 const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
 const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
 const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.zklighter.elliot.ai';
+const LIGHTER_TRIGGER_WIRE_TYPES: Readonly<Record<TriggerOrderType, number>> =
+  Object.freeze({
+    stop_market: LIGHTER_ORDER_TYPE_STOP_LOSS,
+    stop_limit: LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+    take_profit_market: LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+    take_profit_limit: LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
+  });
+
+/**
+ * Refuse trigger fields that the native standalone transaction cannot carry.
+ *
+ * @param params - Caller order intent.
+ * @returns A validation error, or null when the shape is supported.
+ */
+const getLighterTriggerIntentError = (params: OrderParams): string | null => {
+  if (!isTriggerOrderType(params.orderType)) {
+    return params.triggerPrice === undefined
+      ? null
+      : PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED;
+  }
+  if (params.timeInForce !== undefined) {
+    return PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED;
+  }
+  if (
+    params.takeProfitPrice !== undefined ||
+    params.stopLossPrice !== undefined
+  ) {
+    return PERPS_ERROR_CODES.ORDER_TRIGGER_TPSL_UNSUPPORTED;
+  }
+  const unsupportedFields = [
+    'takeProfitSize',
+    'stopLossSize',
+    'tpslLinkage',
+    'grouping',
+    'clientOrderId',
+    'twapDuration',
+    'twapRandomize',
+    'scaleMinPrice',
+    'scaleMaxPrice',
+    'scaleNumOrders',
+    'scaleSkew',
+    'chaseIntervalMs',
+    'chaseMaxDurationMs',
+    'chaseMaxRepricings',
+    'chaseMaxDistanceBps',
+  ] as const satisfies readonly (keyof OrderParams)[];
+  const unsupported = unsupportedFields.find(
+    (field) => params[field] !== undefined,
+  );
+  return unsupported
+    ? `Lighter standalone triggers do not support ${unsupported}`
+    : null;
+};
+
+/**
+ * Resolve the native trigger prices before any signer or account mutation.
+ *
+ * @param params - Standalone trigger intent.
+ * @param market - Venue price precision.
+ * @returns Sizing reference, execution protection and the exact trigger wire value.
+ */
+const resolveLighterTriggerPrices = (
+  params: OrderParams,
+  market: LighterOrderBookMeta,
+): {
+  referencePrice: number;
+  executionPrice: number;
+  triggerPriceInt: number;
+} => {
+  if (params.triggerPrice === undefined || params.triggerPrice === '') {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+  }
+  const triggerPrice = parseFinitePositive(params.triggerPrice);
+  if (triggerPrice === null) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE);
+  }
+  const triggerPriceInt = toSignerWirePriceInteger(
+    triggerPrice,
+    market.supportedPriceDecimals,
+  );
+  if (
+    fromLighterInteger(triggerPriceInt, market.supportedPriceDecimals) !==
+    triggerPrice
+  ) {
+    throw new Error('Trigger price does not align with the Lighter price grid');
+  }
+  if (isLimitExecutionOrderType(params.orderType)) {
+    const price = parseFinitePositive(params.price ?? '');
+    if (price === null) {
+      throw new Error(
+        `Invalid limit price ${params.price}: must be a positive number`,
+      );
+    }
+    return { referencePrice: price, executionPrice: price, triggerPriceInt };
+  }
+  const slippageFraction =
+    params.maxSlippageBps === undefined
+      ? (params.slippage ?? 0.05)
+      : params.maxSlippageBps / 10_000;
+  if (
+    !Number.isFinite(slippageFraction) ||
+    slippageFraction < 0 ||
+    slippageFraction >= 1
+  ) {
+    throw new Error(
+      `Invalid slippage tolerance ${slippageFraction * 10_000} bps: must be at least 0 and below 10000`,
+    );
+  }
+  return {
+    referencePrice: triggerPrice,
+    executionPrice: deriveLighterExecutionPrice(
+      triggerPrice,
+      params.isBuy,
+      slippageFraction,
+    ),
+    triggerPriceInt,
+  };
+};
 
 /** A definitive venue response that the selected wallet has no account. */
 class LighterAccountNotFoundError extends Error {
@@ -5265,6 +5394,51 @@ export class LighterProvider implements PerpsProvider {
   // Market Data Operations (Public Reads)
   // ============================================================================
 
+  /**
+   * Report native standalone triggers for an active, known market. Explicit
+   * margin modes and strategies remain unreported until their write paths exist.
+   *
+   * @param params - Market route to inspect.
+   * @returns Native trigger types or the reason the market is unavailable.
+   */
+  async getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<DirectProviderOrderCapabilities> {
+    const unavailable = (
+      reason: DirectProviderOrderCapabilitiesUnavailableReason,
+    ): DirectProviderOrderCapabilities =>
+      Object.freeze({
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason,
+      });
+    if (!params.symbol.trim()) {
+      return unavailable('invalid_symbol');
+    }
+    if (this.#isDisconnected) {
+      return unavailable('provider_unavailable');
+    }
+    if (this.#marketsBySymbol.size === 0) {
+      const initialized = await this.initialize();
+      if (!initialized.success) {
+        return unavailable('provider_unavailable');
+      }
+    }
+    const market = this.#marketsBySymbol.get(params.symbol);
+    if (!market) {
+      return unavailable('market_not_found');
+    }
+    if (market.status !== 'active') {
+      return unavailable('order_market_unsupported');
+    }
+    return Object.freeze({
+      status: 'ready',
+      providerId: this.protocolId,
+      supportedStrategies: Object.freeze([]),
+      supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+    });
+  }
+
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
     try {
       const markets = await this.#clientService.getOrderBooks();
@@ -5662,8 +5836,16 @@ export class LighterProvider implements PerpsProvider {
           error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
         };
       }
-      if (params.orderType !== 'limit' && params.orderType !== 'market') {
+      if (
+        params.orderType !== 'limit' &&
+        params.orderType !== 'market' &&
+        !isTriggerOrderType(params.orderType)
+      ) {
         return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+      }
+      const triggerIntentError = getLighterTriggerIntentError(params);
+      if (triggerIntentError) {
+        return { success: false, error: triggerIntentError };
       }
       // User intent is never silently dropped: fields this venue path does
       // not execute are rejected so the caller can adapt, not surprised.
@@ -5703,7 +5885,13 @@ export class LighterProvider implements PerpsProvider {
           error: `Unknown Lighter market: ${params.symbol}`,
         };
       }
-      if (params.orderType === 'limit' && !params.price) {
+      if (isTriggerOrderType(params.orderType) && market.status !== 'active') {
+        return {
+          success: false,
+          error: 'Lighter standalone triggers require an active market',
+        };
+      }
+      if (isLimitExecutionOrderType(params.orderType) && !params.price) {
         return { success: false, error: 'Limit order requires a price' };
       }
       if (params.leverage !== undefined) {
@@ -5736,7 +5924,12 @@ export class LighterProvider implements PerpsProvider {
       // separate so usdAmount sizing is never distorted by the protection
       // offset.
       let referencePrice: number;
-      if (params.orderType === 'limit') {
+      const triggerPrices = isTriggerOrderType(params.orderType)
+        ? resolveLighterTriggerPrices(params, market)
+        : undefined;
+      if (triggerPrices) {
+        referencePrice = triggerPrices.referencePrice;
+      } else if (params.orderType === 'limit') {
         // STRICT full-string parse: '90000USD' prefix-parses under
         // parseFloat and must never become signed intent.
         const parsedLimitPrice = parseFinitePositive(params.price ?? '');
@@ -5752,7 +5945,7 @@ export class LighterProvider implements PerpsProvider {
           params.price ?? String(params.currentPrice ?? 0),
         );
       }
-      let executionPrice = referencePrice;
+      let executionPrice = triggerPrices?.executionPrice ?? referencePrice;
       if (params.orderType === 'market') {
         const resolved = await this.#resolveMarketReferencePrice(
           params.symbol,
@@ -5837,9 +6030,13 @@ export class LighterProvider implements PerpsProvider {
         // extra exposure results and dust positions stay closable. The
         // isFullClose flag is a hint, never trusted — a partial close
         // bumped to the minimum would close more than the caller asked.
-        const verifiedFullClose = params.reduceOnly
-          ? await this.#isVerifiedFullClose(params.symbol, requestedSize)
-          : false;
+        // A dormant trigger must retain its quantity even if the position
+        // grows before activation; today's full-close proof cannot authorize
+        // a larger future close.
+        const verifiedFullClose =
+          params.reduceOnly && !triggerPrices
+            ? await this.#isVerifiedFullClose(params.symbol, requestedSize)
+            : false;
         if (!verifiedFullClose) {
           return {
             success: false,
@@ -5857,6 +6054,12 @@ export class LighterProvider implements PerpsProvider {
         market.supportedPriceDecimals,
       );
       const sizeInt = toSignerWireInteger(size, market.supportedSizeDecimals);
+      let orderTypeInt = LIGHTER_ORDER_TYPE_MARKET;
+      if (isTriggerOrderType(params.orderType)) {
+        orderTypeInt = LIGHTER_TRIGGER_WIRE_TYPES[params.orderType];
+      } else if (params.orderType === 'limit') {
+        orderTypeInt = LIGHTER_ORDER_TYPE_LIMIT;
+      }
 
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
       // Margin mode is sent only with an explicit leverage update. An
@@ -5922,17 +6125,18 @@ export class LighterProvider implements PerpsProvider {
               String(sizeInt),
               String(priceInt),
               params.isBuy ? 0 : 1,
-              params.orderType === 'limit'
-                ? LIGHTER_ORDER_TYPE_LIMIT
-                : LIGHTER_ORDER_TYPE_MARKET,
-              params.orderType === 'limit' && params.timeInForce !== 'IOC'
+              orderTypeInt,
+              isLighterMakerOrder(params)
                 ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
                 : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
               params.reduceOnly ? 1 : 0,
-              String(LIGHTER_NO_TRIGGER_PRICE),
-              // GTT orders auto-expire in 28 days (signer sentinel -1);
-              // IOC orders must carry a zero expiry.
-              params.orderType === 'limit' && params.timeInForce !== 'IOC'
+              String(
+                triggerPrices?.triggerPriceInt ?? LIGHTER_NO_TRIGGER_PRICE,
+              ),
+              // Triggers remain pending even when they execute as IOC.
+              // Only ordinary immediate orders use a zero expiry.
+              isTriggerOrderType(params.orderType) ||
+              isLighterMakerOrder(params)
                 ? LIGHTER_ORDER_EXPIRY_NONE
                 : 0,
               await nextNonce(),
@@ -7469,8 +7673,16 @@ export class LighterProvider implements PerpsProvider {
     }
     // Mirrors placeOrder's own rejections so validation never approves an
     // order shape the placement path would refuse.
-    if (params.orderType !== 'limit' && params.orderType !== 'market') {
+    if (
+      params.orderType !== 'limit' &&
+      params.orderType !== 'market' &&
+      !isTriggerOrderType(params.orderType)
+    ) {
       return { isValid: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+    }
+    const triggerIntentError = getLighterTriggerIntentError(params);
+    if (triggerIntentError) {
+      return { isValid: false, error: triggerIntentError };
     }
     if (params.takeProfitPrice || params.stopLossPrice) {
       return {
@@ -7485,10 +7697,13 @@ export class LighterProvider implements PerpsProvider {
         error: 'Lighter placement does not support post-only (ALO) yet',
       };
     }
-    if (params.orderType === 'limit' && !params.price) {
+    if (isLimitExecutionOrderType(params.orderType) && !params.price) {
       return { isValid: false, error: 'Limit order requires a price' };
     }
-    if (params.orderType === 'limit' && params.price !== undefined) {
+    if (
+      isLimitExecutionOrderType(params.orderType) &&
+      params.price !== undefined
+    ) {
       // Strict finite parity with placement, LIMIT ONLY: 'Infinity' and
       // prefix-numeric strings ('90000USD') both parse under a bare
       // parseFloat check but placement refuses them. Market placement
@@ -7528,6 +7743,12 @@ export class LighterProvider implements PerpsProvider {
         error: `Unknown Lighter market: ${params.symbol}`,
       };
     }
+    if (isTriggerOrderType(params.orderType) && market.status !== 'active') {
+      return {
+        isValid: false,
+        error: 'Lighter standalone triggers require an active market',
+      };
+    }
     if (params.leverage !== undefined) {
       // Same authoritative-metadata requirement as placement.
       const maxLeverage = await this.#requireMarketMaxLeverage(params.symbol);
@@ -7553,7 +7774,11 @@ export class LighterProvider implements PerpsProvider {
     // the wire-range check below inspects the exact signed value.
     let referencePrice: number;
     let executionPrice: number;
-    if (params.orderType === 'market') {
+    if (isTriggerOrderType(params.orderType)) {
+      const resolved = resolveLighterTriggerPrices(params, market);
+      referencePrice = resolved.referencePrice;
+      executionPrice = resolved.executionPrice;
+    } else if (params.orderType === 'market') {
       const slippageFraction =
         params.maxSlippageBps === undefined
           ? (params.slippage ?? 0.05)
@@ -7634,7 +7859,7 @@ export class LighterProvider implements PerpsProvider {
         // can THROW (capability gates, venue-data integrity): a validator
         // must resolve to an explicit invalid result, never reject.
         let verifiedFullClose = false;
-        if (params.reduceOnly) {
+        if (params.reduceOnly && !isTriggerOrderType(params.orderType)) {
           try {
             verifiedFullClose = await this.#isVerifiedFullClose(
               params.symbol,

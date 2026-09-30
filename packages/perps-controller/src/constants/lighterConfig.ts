@@ -163,7 +163,9 @@ export function getLighterTransactionOutcome(
 export const LIGHTER_ORDER_TYPE_LIMIT = 0;
 export const LIGHTER_ORDER_TYPE_MARKET = 1;
 export const LIGHTER_ORDER_TYPE_STOP_LOSS = 2;
+export const LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT = 3;
 export const LIGHTER_ORDER_TYPE_TAKE_PROFIT = 4;
+export const LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT = 5;
 
 /** Grouped-orders grouping type: one-cancels-the-other (OCO). */
 export const LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER = 2;
@@ -181,7 +183,7 @@ export const LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL = 0;
 export const LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME = 1;
 export const LIGHTER_TIME_IN_FORCE_POST_ONLY = 2;
 
-/** Sentinel for "no expiry" on GTT orders (per lighter SDKs). */
+/** Default pending expiry for GTT and trigger orders (per lighter SDKs). */
 export const LIGHTER_ORDER_EXPIRY_NONE = -1;
 /** Sentinel for "no trigger price". */
 export const LIGHTER_NO_TRIGGER_PRICE = 0;

@@ -46,6 +46,7 @@ describe('lighterAdapter', () => {
       expect(market).toStrictEqual({
         name: 'BTC',
         szDecimals: 5,
+        priceDecimals: 1,
         maxLeverage: 25,
         marginTableId: 0,
         minimumOrderSize: 10,
