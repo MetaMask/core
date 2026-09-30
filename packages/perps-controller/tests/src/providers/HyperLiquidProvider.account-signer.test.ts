@@ -8,6 +8,7 @@ import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type { PerpsTypedDataPayload } from '../../../src/types/index.js';
 import {
   APPROVE_BUILDER_FEE_PAYLOAD,
+  L1_PAYLOAD,
   MAIN_ADDRESS,
   MAIN_SIGNATURE,
   USER_SIGNED_PAYLOAD,
@@ -15,7 +16,7 @@ import {
 import {
   BTC_MARKET_ORDER,
   BUILDER_FEE_WRITE,
-  MIGRATION_WRITE,
+  SILENT_MIGRATION_WRITE,
   createAccountSignerProvider,
   migrationAttempted,
   referralAttempted,
@@ -51,11 +52,12 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
 
     await accountSignerProvider.getMarketDataWithPrices();
 
-    expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
-      MIGRATION_WRITE,
+    // Without an agent, the main account signs the L1 migration.
+    expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+      SILENT_MIGRATION_WRITE,
     ]);
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-      [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
+      [MAIN_ADDRESS, L1_PAYLOAD],
     ]);
     expect(keyringCalls(call)).toStrictEqual([]);
   });
@@ -77,7 +79,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(infoClient.userAbstraction.mock.calls).toStrictEqual([
       [{ user: MAIN_ADDRESS }],
     ]);
-    expect(exchangeClient.userSetAbstraction).not.toHaveBeenCalled();
+    expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(keyringCalls(call)).toStrictEqual([]);
   });
@@ -88,8 +90,8 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
 
     await accountSignerProvider.getMarketDataWithPrices();
 
-    expect(exchangeClient.userSetAbstraction.mock.calls).toStrictEqual([
-      MIGRATION_WRITE,
+    expect(exchangeClient.agentSetAbstraction.mock.calls).toStrictEqual([
+      SILENT_MIGRATION_WRITE,
     ]);
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(migrationAttempted()).toBe(false);
@@ -100,7 +102,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
       [
         PerpsAnalyticsEvent.AccountSetup,
         {
-          [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'dexAbstraction',
+          [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: 'default',
           [PERPS_EVENT_PROPERTY.STATUS]:
             PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
         },

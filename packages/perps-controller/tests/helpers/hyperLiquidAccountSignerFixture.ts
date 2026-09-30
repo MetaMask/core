@@ -30,10 +30,7 @@ import {
   PerpsSigningCache,
   TradingReadinessCache,
 } from '../../src/services/TradingReadinessCache.js';
-import {
-  HL_ABSTRACTION_WIRE,
-  HL_UNIFIED_ACCOUNT_MODE,
-} from '../../src/types/hyperliquid-types.js';
+import { HL_ABSTRACTION_WIRE } from '../../src/types/hyperliquid-types.js';
 import type {
   HyperLiquidCredentials,
   PerpsAgentAccount,
@@ -48,7 +45,6 @@ import {
   L1_PAYLOAD,
   MAIN_ADDRESS,
   MAIN_SIGNATURE,
-  USER_SIGNED_PAYLOAD,
   signThroughWallet,
 } from './agentFixtures.js';
 import {
@@ -86,9 +82,6 @@ export const BTC_MARKET_ORDER = {
 } as const;
 
 // The SDK writes the provider makes for the selected account on mainnet.
-export const MIGRATION_WRITE = [
-  { user: MAIN_ADDRESS, abstraction: HL_UNIFIED_ACCOUNT_MODE },
-];
 export const SILENT_MIGRATION_WRITE = [
   { abstraction: HL_ABSTRACTION_WIRE.unifiedAccount },
 ];
@@ -293,7 +286,7 @@ type AccountSignerOptions = {
     isReady?: () => boolean;
     requiresSignatureConfirmation?: () => boolean;
   };
-  abstraction?: 'dexAbstraction' | 'default' | 'unifiedAccount';
+  abstraction?: 'default' | 'unifiedAccount';
   getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
   onAgentRejected?: jest.Mock;
   // Sign through a KeyringController instead of accountSigner.
@@ -368,7 +361,6 @@ export function createAccountSignerProvider(
       return response;
     };
   const exchangeClient = createMockExchangeClient({
-    userSetAbstraction: jest.fn(signThroughSdkWallet(USER_SIGNED_PAYLOAD)),
     agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
     setReferrer: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
     approveBuilderFee: jest.fn(
@@ -387,7 +379,7 @@ export function createAccountSignerProvider(
   const infoClient = createMockInfoClient({
     userAbstraction: jest
       .fn()
-      .mockResolvedValue(options.abstraction ?? 'dexAbstraction'),
+      .mockResolvedValue(options.abstraction ?? 'default'),
     ...options.info,
   });
   // Each provider gets its own client service (and so its own SDK clients

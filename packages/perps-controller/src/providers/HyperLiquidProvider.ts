@@ -67,6 +67,7 @@ import {
 import type {
   FrontendOrder,
   OrderType as HyperLiquidOrderType,
+  OrderProcessingStatus,
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
@@ -264,7 +265,45 @@ const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
   [DETAILED_ORDER_TYPES.STOP_MARKET]: 'market',
   [DETAILED_ORDER_TYPES.TAKE_PROFIT_LIMIT]: 'limit',
   [DETAILED_ORDER_TYPES.TAKE_PROFIT_MARKET]: 'market',
+  [DETAILED_ORDER_TYPES.TWAP_SLICE]: 'market',
+  [DETAILED_ORDER_TYPES.VAULT_CLOSE]: 'market',
+  [DETAILED_ORDER_TYPES.SPOT_DUST_CONVERSION]: 'market',
 } as const satisfies Record<HyperLiquidOrderType, Order['orderType']>;
+
+const HISTORICAL_ORDER_STATUS_BY_SDK_STATUS = {
+  open: 'open',
+  filled: 'filled',
+  triggered: 'triggered',
+  canceled: 'canceled',
+  marginCanceled: 'canceled',
+  vaultWithdrawalCanceled: 'canceled',
+  openInterestCapCanceled: 'canceled',
+  selfTradeCanceled: 'canceled',
+  reduceOnlyCanceled: 'canceled',
+  siblingFilledCanceled: 'canceled',
+  delistedCanceled: 'canceled',
+  liquidatedCanceled: 'canceled',
+  outcomeSettledCanceled: 'canceled',
+  scheduledCancel: 'canceled',
+  internalCancel: 'canceled',
+  reduceOnlyRejected: 'canceled',
+  rejected: 'rejected',
+  tickRejected: 'rejected',
+  minTradeNtlRejected: 'rejected',
+  perpMarginRejected: 'rejected',
+  badAloPxRejected: 'rejected',
+  iocCancelRejected: 'rejected',
+  badTriggerPxRejected: 'rejected',
+  marketOrderNoLiquidityRejected: 'rejected',
+  positionIncreaseAtOpenInterestCapRejected: 'rejected',
+  positionFlipAtOpenInterestCapRejected: 'rejected',
+  tooAggressiveAtOpenInterestCapRejected: 'rejected',
+  openInterestIncreaseRejected: 'rejected',
+  insufficientSpotBalanceRejected: 'rejected',
+  oracleRejected: 'rejected',
+  perpMaxPositionRejected: 'rejected',
+  tooManyOpenOrdersRejected: 'rejected',
+} as const satisfies Record<OrderProcessingStatus, Order['status']>;
 
 /**
  * Type guard to check if a status is an object (not a string literal like "waitingForFill")
@@ -2396,7 +2435,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * re-probe. The probe is cheap (~100ms), non-throwing, and returns the
    * full deposit/withdraw history. A non-empty array means the wallet has
    * interacted with Hyperliquid at least once — necessary and sufficient
-   * for `agentSetAbstraction` / `userSetAbstraction` / `setReferrer` to
+   * for `agentSetAbstraction` / `setReferrer` to
    * succeed.
    *
    * If the probe itself throws (transient network), returns `true` and does
@@ -2495,14 +2534,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    * across provider reconnections (critical for hardware wallets).
    *
    * @param options - Optional configuration.
-   * @param options.allowUserSigning - When true, runs the EIP-712 user-signed migration for `dexAbstraction` accounts. Defaults to false so init does not surface a signing prompt; action-time entry points (trading, withdraw) pass true.
+   * @param options.allowUserSigning - When true, runs the migration for `default` / `disabled` accounts. Defaults to false so init does not surface a signing prompt; action-time entry points (trading, withdraw) pass true.
    * @private
    */
   async #ensureUnifiedAccountEnabled(options?: {
     allowUserSigning?: boolean;
   }): Promise<void> {
-    // dexAbstraction → unifiedAccount requires an EIP-712 prompt (HL blocks
-    // the agent path for that transition). Init calls with allowUserSigning=false so
+    // Without an agent, the migration is signed by the main wallet, which can
+    // prompt (hardware wallets). Init calls with allowUserSigning=false so
     // viewing the Perps section never surfaces a signing dialog. Trading and
     // withdraw entry points pass allowUserSigning=true to drive the migration when
     // the user actually intends to act.
@@ -2541,19 +2580,19 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Check if another provider instance is currently attempting this operation
     // This prevents concurrent signing attempts across providers during reconnection
-    const inFlightPromise = PerpsSigningCache.isInFlight(
+    let inFlightPromise = PerpsSigningCache.isInFlight(
       'unifiedAccount',
       network,
       userAddress,
     );
-    if (inFlightPromise) {
+    while (inFlightPromise) {
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: Unified Account setup in-flight, waiting...',
         { network, userAddress },
       );
       await inFlightPromise;
       // The other instance may have finished without writing the cache (e.g.
-      // an init-time call deferred a dexAbstraction migration). If the cache
+      // an init-time call deferred the migration). If the cache
       // is still empty and we are an action-time caller (allowUserSigning=true),
       // we must run our own attempt — otherwise the trade/withdraw would
       // proceed in the deprecated mode.
@@ -2561,7 +2600,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (postWaitCache?.attempted) {
         return;
       }
-      // Fall through to acquire our own lock and retry.
+      // Another waiter may have taken the lock first. The lock is checked
+      // and taken with no await in between, so only one waiter gets it.
+      inFlightPromise = PerpsSigningCache.isInFlight(
+        'unifiedAccount',
+        network,
+        userAddress,
+      );
     }
 
     // Set in-flight lock to prevent concurrent attempts
@@ -2587,8 +2632,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Skip the migration entirely for wallets that have no Hyperliquid
       // account yet. HL creates accounts server-side on first USDC deposit;
-      // before that, both `agentSetAbstraction` and `userSetAbstraction`
-      // reject with "User or API Wallet 0x... does not exist." — formerly
+      // before that, `agentSetAbstraction` rejects with "User or API Wallet 0x... does not exist." — formerly
       // the top source of `feature:perps` Sentry events on 7.75.1.
       // The probe is cheap, non-throwing, and cached.
       const isRegistered = await this.#isWalletOnHyperliquid(
@@ -2667,11 +2711,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Bail on unknown modes BEFORE firing analytics or attempting dispatch.
       // Keeps `migration_required` actionable (only fires for modes we can
       // actually migrate) and avoids re-emitting on every reconnection.
-      if (
-        currentMode !== 'dexAbstraction' &&
-        currentMode !== 'default' &&
-        currentMode !== 'disabled'
-      ) {
+      if (currentMode !== 'default' && currentMode !== 'disabled') {
         this.#deps.debugLogger.log(
           'HyperLiquidProvider: Unknown abstraction mode, skipping Unified Account migration',
           { user: userAddress, network, mode: currentMode },
@@ -2716,10 +2756,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
       });
 
-      // Enable Unified Account mode.
-      // - default / disabled: agent wallet can do this silently (no prompt)
-      // - dexAbstraction: HL blocks the agent transition — requires the user's main
-      //   wallet to sign an EIP-712 action via userSetAbstraction (one-time prompt)
+      // Enable Unified Account mode (default / disabled → unifiedAccount).
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: Enabling Unified Account mode',
         {
@@ -2730,21 +2767,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         },
       );
 
-      const exchangeClient = this.#clientService.getExchangeClient();
-      if (currentMode === 'dexAbstraction') {
-        // Requires EIP-712 signature from the user's main wallet (one-time migration).
-        // HL blocks the dexAbstraction → unifiedAccount transition via the agent wallet,
-        // so userSetAbstraction (user-signed) is the only path for legacy users.
-        await exchangeClient.userSetAbstraction({
-          user: userAddress,
-          abstraction: HL_UNIFIED_ACCOUNT_MODE,
-        });
-      } else {
-        // default / disabled — silent agent transition, no user prompt
-        await exchangeClient.agentSetAbstraction({
-          abstraction: HL_ABSTRACTION_WIRE.unifiedAccount,
-        });
-      }
+      await this.#clientService.getExchangeClient().agentSetAbstraction({
+        abstraction: HL_ABSTRACTION_WIRE.unifiedAccount,
+      });
 
       this.#deps.debugLogger.log(
         '✅ HyperLiquidProvider: Unified Account enabled successfully',
@@ -2829,29 +2854,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      // Cache failure ONLY for the user-prompted path
-      // (`dexAbstraction → unifiedAccount` via `userSetAbstraction`). The
-      // rationale for caching is "don't re-prompt a user who already saw the
-      // signature dialog and rejected it" — that doesn't apply to:
-      //   - Read-only userAbstraction lookup failures (no prompt; transient).
-      //   - Silent agent-key paths (`default`/`disabled` → `agentSetAbstraction`
-      //     does not show a UI prompt; failures are typically transient HL
-      //     outages and pinning them would leave users stuck in the
-      //     deprecated mode for the rest of the session).
-      // Action-time retries pick up the unmigrated state and try again.
-      if (currentMode === 'dexAbstraction') {
-        TradingReadinessCache.set(network, userAddress, {
-          attempted: true,
-          enabled: false,
-        });
-      } else {
-        // Silent agent-key failure (default/disabled) or read-only
-        // userAbstraction lookup failure — neither is a final state, so
-        // signal #ensureReady to drop its memoized promise and retry on
-        // the next entry instead of pinning the user in the deprecated
-        // mode for the provider's lifetime.
-        this.#unifiedAccountSetupNeedsRetry = true;
-      }
+      // Agent-path failures and read-only userAbstraction lookup failures
+      // are not final: signal #ensureReady to drop its memoized promise and
+      // retry on the next entry instead of pinning the user in the
+      // deprecated mode for the provider's lifetime.
+      this.#unifiedAccountSetupNeedsRetry = true;
 
       const errorMessage = ensureError(
         error,
@@ -2864,10 +2871,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           user: userAddress,
           network,
           error: errorMessage,
-          // Cache writes only happen on the user-prompted dexAbstraction
-          // path (see P2-B logic above). Reflect that here so retry
-          // behaviour is debuggable from the log alone.
-          cached: currentMode === 'dexAbstraction',
         },
       );
 
@@ -3103,9 +3106,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // First ensure basic initialization is complete
     await this.#ensureReady();
 
-    // dexAbstraction users were deferred during init to avoid an EIP-712 prompt
-    // on Perps section open. Drive the migration here, gated by its own cache so
-    // already-migrated or already-rejected users are not re-prompted.
+    // The migration was deferred during init to avoid a signing prompt on
+    // Perps section open. Drive it here, gated by its own cache so
+    // already-migrated users are not re-prompted.
     await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
 
     // Reset right before the check, with no await in between, so a failure
@@ -12242,38 +12245,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       const orders: Order[] = (rawOrders || []).map((rawOrder) => {
         const { order, status, statusTimestamp } = rawOrder;
 
-        // Normalize status
-        let normalizedStatus: Order['status'];
-        switch (status) {
-          case 'open':
-            normalizedStatus = 'open';
-            break;
-          case 'filled':
-            normalizedStatus = 'filled';
-            break;
-          case 'canceled':
-          case 'marginCanceled':
-          case 'vaultWithdrawalCanceled':
-          case 'openInterestCapCanceled':
-          case 'selfTradeCanceled':
-          case 'reduceOnlyCanceled':
-          case 'siblingFilledCanceled':
-          case 'delistedCanceled':
-          case 'liquidatedCanceled':
-          case 'scheduledCancel':
-          case 'reduceOnlyRejected':
-            normalizedStatus = 'canceled';
-            break;
-          case 'rejected':
-            // case 'minTradeNtlRejected':
-            normalizedStatus = 'rejected';
-            break;
-          case 'triggered':
-            normalizedStatus = 'triggered';
-            break;
-          default:
-            normalizedStatus = 'queued';
-        }
+        // Statuses newer than the SDK types stay visible as queued.
+        const normalizedStatus: Order['status'] = hasProperty(
+          HISTORICAL_ORDER_STATUS_BY_SDK_STATUS,
+          status,
+        )
+          ? HISTORICAL_ORDER_STATUS_BY_SDK_STATUS[status]
+          : 'queued';
 
         const adaptedOrder = adaptOrderFromSDK(order, undefined);
         // limitPx is also populated as a slippage cap for market orders, so the
@@ -14780,9 +14758,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Run the deferred account migration, builder fee and referral setup ahead
    * of the first order. Results are cached, so an already-ready account signs
-   * nothing. A declined migration is not asked again, and a referral whose
-   * MetaMask code is not ready yet is checked again by the next call rather
-   * than by orders.
+   * nothing. A referral whose MetaMask code is not ready yet is checked again
+   * by the next call rather than by orders.
    *
    * @returns The readiness result described on
    * `PerpsController.prepareTradingWallet`.

@@ -34,7 +34,6 @@ import {
   signThroughWallet,
   TESTNET_ACCOUNT,
   unknownWalletError,
-  USER_SIGNED_PAYLOAD,
 } from '../helpers/agentFixtures.js';
 import { createMockInfoClient } from '../helpers/providerMocks.js';
 import {
@@ -128,11 +127,6 @@ class MockExchangeClient {
 
   async agentSetAbstraction(params: unknown): Promise<unknown> {
     await this.#write('agentSetAbstraction', params, L1_PAYLOAD);
-    return OK_RESPONSE;
-  }
-
-  async userSetAbstraction(params: unknown): Promise<unknown> {
-    await this.#write('userSetAbstraction', params, USER_SIGNED_PAYLOAD);
     return OK_RESPONSE;
   }
 
@@ -779,11 +773,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expectHostSaw(call, { agentRequests: [] });
   });
 
-  it('prepares the migration and builder fee on the main account and the referral on the agent', async () => {
+  it('prepares the builder fee on the main account and the migration and referral on the agent', async () => {
     // A legacy account with no referral that has not approved the builder
     // fee yet.
     mockVenue.infoClient = createMockInfoClient({
-      userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+      userAbstraction: jest.fn().mockResolvedValue('default'),
       maxBuilderFee: jest.fn().mockResolvedValueOnce(0).mockResolvedValue(1),
     });
     const { controller, call } = createController();
@@ -792,13 +786,13 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     const result = await controller.prepareTradingWallet();
 
     expect(result).toStrictEqual({ ready: true });
-    // The user-signed migration and approval stay on the main account; the
-    // referral is an L1 action, so the agent signs it.
+    // The user-signed approval stays on the main account; the migration
+    // and the referral are L1 actions, so the agent signs them.
     expect(mockVenue.writes).toStrictEqual([
       {
-        write: 'userSetAbstraction',
-        params: { user: MAIN_ADDRESS, abstraction: 'unifiedAccount' },
-        signer: MAIN_ADDRESS,
+        write: 'agentSetAbstraction',
+        params: { abstraction: 'u' },
+        signer: AGENT_ADDRESS,
       },
       {
         write: 'setReferrer',
@@ -815,10 +809,12 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       },
     ]);
     expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
-      [MAIN_ADDRESS, USER_SIGNED_PAYLOAD],
       [MAIN_ADDRESS, APPROVE_BUILDER_FEE_PAYLOAD],
     ]);
-    expect(agentSigner.signTypedData.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
+    expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+      [L1_PAYLOAD],
+      [L1_PAYLOAD],
+    ]);
     expectHostSaw(call, { agentRequests: [MAINNET_ACCOUNT] });
   });
 });
