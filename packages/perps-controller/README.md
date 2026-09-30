@@ -129,12 +129,15 @@ durable client/venue IDs, even after position growth, shrinkage, provider restar
 or trading-key recovery into another slot. IDs are recorded before dispatch in
 wallet/account/network/market-scoped storage and retained through uncertain
 settlement. Resolved cancellations and exact terminal history prune them;
-missing or corrupt storage fails closed before protection changes.
+storage read errors or corrupt records fail closed before protection changes.
 
 Legacy unrecorded reduce-only trigger-market orders on the closing side with
 exactly the current position quantity retain their position-protection contract,
-including standalone orders placed through `placeOrder`. Classification reads the
-current position inside the write lock. Known IOC and GTT wire intents can be
+including standalone orders placed through `placeOrder`. Protection created
+before this ownership upgrade, or after its local records are lost, has no
+recorded ownership IDs. If that position has resized, the old trigger remains
+legacy and may need explicit cancellation before new protection is established.
+Classification reads the current position inside the write lock. Known IOC and GTT wire intents can be
 replaced or removed; an unknown time-in-force refuses the change. Independent
 partial triggers and trigger limits are preserved. Use explicit cancellation to
 remove those orders. Quantity does not determine ownership of Core-created TP/SL.

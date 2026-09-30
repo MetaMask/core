@@ -217,6 +217,7 @@ function createMockBridge(): MockBridgeBundle {
             return {
               txInfo: JSON.stringify({
                 createOrder: true,
+                ClientOrderIndex: Number(call.params[2]),
                 Nonce: Number((call.params as (string | number)[]).at(-1)),
                 ExpiredAt: Date.now() + 599_000,
               }),
@@ -4785,7 +4786,17 @@ describe('LighterProvider', () => {
       txInfo: string,
     ): StagedCreateBatch | undefined => {
       const nonce = nonceFromTxInfo(txInfo);
-      const at = stagedCreates.findIndex((batch) => batch.nonce === nonce);
+      const clientId = (JSON.parse(txInfo) as { ClientOrderIndex?: number })
+        .ClientOrderIndex;
+      // A signed-but-never-dispatched create can share the next nonce with
+      // a retry. Match its actual wire client ID rather than committing the
+      // first signature staged under that nonce.
+      const at = stagedCreates.findIndex(
+        (batch) =>
+          batch.nonce === nonce &&
+          (clientId === undefined ||
+            batch.creates.some((entry) => entry.clientOrderIndex === clientId)),
+      );
       return at >= 0 ? stagedCreates.splice(at, 1)[0] : undefined;
     };
     const takeStagedCancel = (txInfo: string): StagedCancel | undefined => {
@@ -5064,6 +5075,232 @@ describe('LighterProvider', () => {
   };
 
   describe('round-12 venue integrity and serialized TP/SL lifecycle', () => {
+    it('retains live creation ownership when the extra post-settlement read lags empty', async () => {
+      const infra = createMockInfrastructure();
+      const { provider, clientInstance, bridge } = buildProvider({
+        platformDependencies: infra,
+      });
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      const read = clientInstance.getActiveOrders.getMockImplementation() as (
+        ...args: unknown[]
+      ) => Promise<unknown>;
+      let reads = 0;
+      clientInstance.getActiveOrders.mockImplementation(
+        async (...args: unknown[]) => {
+          reads += 1;
+          if (reads === 4) {
+            return { code: 200, orders: [] };
+          }
+          return read(...args);
+        },
+      );
+      expect(
+        (
+          await provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '90000',
+          })
+        ).success,
+      ).toBe(true);
+      const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+      expect(
+        (
+          JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+            orders: unknown[];
+          }
+        ).orders,
+      ).toHaveLength(1);
+      clientInstance.getActiveOrders.mockImplementation(read);
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.2' }],
+          },
+        ],
+      });
+      expect(
+        (
+          await provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          })
+        ).success,
+      ).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+    });
+
+    it.each([
+      'canceled-post-only',
+      'canceled-reduce-only',
+      'canceled-position-not-allowed',
+      'canceled-margin-not-allowed',
+      'canceled-too-much-slippage',
+      'canceled-not-enough-liquidity',
+      'canceled-self-trade',
+      'canceled-expired',
+      'canceled-oco',
+      'canceled-child',
+      'canceled-liquidation',
+      'canceled-invalid-balance',
+    ])(
+      'prunes exact %s terminal ownership and permits protection at capacity',
+      async (status) => {
+        const infra = createMockInfrastructure();
+        const { provider, clientInstance, bridge } = buildProvider({
+          platformDependencies: infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        venue.seedTrigger('stop-loss', '90000');
+        const terminal = venue.rawTriggers.pop();
+        expect(terminal).toBeDefined();
+        if (!terminal) {
+          throw new Error('Test terminal missing');
+        }
+        venue.rawInactive.push({ ...terminal, status });
+        const orders = Array.from({ length: 255 }, (_, index) => ({
+          clientId: String(index + 1),
+          orderId: null,
+        }));
+        await infra.diskCache.setItem(
+          `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
+          JSON.stringify({
+            version: 1,
+            orders: [
+              ...orders,
+              {
+                clientId: String(terminal.clientOrderIndex),
+                orderId: String(terminal.orderIndex),
+              },
+            ],
+          }),
+        );
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        expect(venue.rawTriggers).toHaveLength(1);
+      },
+    );
+
+    it('retries immediately after an ownership write fails once, without a never-sent journal', async () => {
+      const infra = createMockInfrastructure();
+      const disk = jest.mocked(infra.diskCache);
+      const write = disk.setItem.getMockImplementation();
+      let failed = false;
+      disk.setItem.mockImplementation(async (key: string, value: string) => {
+        if (!failed && key.startsWith('lighterManagedTpsl:')) {
+          failed = true;
+          throw new Error('one ownership write failure');
+        }
+        return write?.(key, value);
+      });
+      const { provider, clientInstance, bridge } = buildProvider({
+        platformDependencies: infra,
+      });
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      expect(
+        (
+          await provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '90000',
+          })
+        ).success,
+      ).toBe(false);
+      const retry = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(retry.error).toBeUndefined();
+      expect(retry.success).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+    });
+
+    it.each(['lighterTpslJournalOp:', 'lighterTpslJournal:'])(
+      'rolls back pre-dispatch ownership on a %s write failure and permits retry',
+      async (prefix) => {
+        const infra = createMockInfrastructure();
+        const disk = jest.mocked(infra.diskCache);
+        const write = disk.setItem.getMockImplementation();
+        let failed = false;
+        disk.setItem.mockImplementation(async (key: string, value: string) => {
+          if (!failed && key.startsWith(prefix)) {
+            failed = true;
+            throw new Error('one journal write failure');
+          }
+          return write?.(key, value);
+        });
+        const { provider, clientInstance, bridge } = buildProvider({
+          platformDependencies: infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(false);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        expect(
+          (
+            JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+              orders: unknown[];
+            }
+          ).orders,
+        ).toHaveLength(0);
+        const retry = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(retry.error).toBeUndefined();
+        expect(retry.success).toBe(true);
+        expect(venue.rawTriggers).toHaveLength(1);
+      },
+    );
+
+    it('prunes an exact expired never-landed create without erasing an uncertain live identity', async () => {
+      const infra = createMockInfrastructure();
+      const { provider, clientInstance, bridge } = buildProvider({
+        platformDependencies: infra,
+      });
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.failBeforeCommitOnce(14);
+      expect(
+        (
+          await provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '90000',
+          })
+        ).success,
+      ).toBe(false);
+      const later = Date.now() + 700_000;
+      const clock = jest.spyOn(Date, 'now').mockReturnValue(later);
+      try {
+        const retry = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(retry.error).toBeUndefined();
+        expect(retry.success).toBe(true);
+        expect(venue.rawTriggers).toHaveLength(1);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        expect(
+          (
+            JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+              orders: unknown[];
+            }
+          ).orders,
+        ).toHaveLength(1);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
     it.each(['read', 'write', 'corrupt'] as const)(
       'fails closed on managed ownership %s failure before protection mutation',
       async (failure) => {
@@ -6317,8 +6554,9 @@ describe('LighterProvider', () => {
       let journalWrites = 0;
       (infra.diskCache.setItem as jest.Mock).mockImplementation(
         async (key: string, value: string) => {
-          if (key.startsWith('lighterTpslJournal:') && !key.includes('Index')) {
+          if (key.startsWith('lighterTpslJournalOp:')) {
             journalWrites += 1;
+            // The stable pointer is written once; test the payload update.
             // Attempt 1 (the create) persists; attempt 2 (first cancel)
             // fails to persist.
             if (journalWrites === 2) {

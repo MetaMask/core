@@ -392,6 +392,8 @@ type TpslCreateAttempt = {
   attemptId: number;
   /** See TpslCancelAttempt.terminalStatus. */
   terminalStatus?: number;
+  /** Ephemeral proof from exact-hash absence after signed expiry; re-proved after restart. */
+  neverLanded?: true;
   /** The venue nonce this submission attempted to consume. */
   nonce: number;
   /** 'accepted' only after the venue's 200 was OBSERVED. */
@@ -2843,20 +2845,21 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Record every journalled creation before dispatch. At proven settlement,
-   * prune only this operation's absent creations and cancelled venue IDs.
+   * prune only proven cancelled venue IDs. A lagging book never erases a create.
    * Unrelated or uncertain IDs from another slot's operation are retained.
    *
    * @param settlementKey - Captured settlement identity.
    * @param journal - Operation whose IDs are being updated.
    * @param settledActive - Strict active book after authoritative settlement.
+   * @returns Newly inserted client IDs, for rollback of a failed pre-dispatch write.
    */
   readonly #updateManagedTpsl = async (
     settlementKey: string,
     journal: TpslJournalState,
     settledActive?: LighterApiOrder[],
-  ): Promise<void> => {
+  ): Promise<string[]> => {
     const key = this.#managedTpslKey(settlementKey);
-    await withStorageMutex(key, async () => {
+    return await withStorageMutex(key, async () => {
       const orders = new Map(
         (await this.#readManagedTpsl(settlementKey)).map((entry) => [
           entry.clientId,
@@ -2865,11 +2868,17 @@ export class LighterProvider implements PerpsProvider {
       );
       const createdIds = new Set(
         journal.attempts.flatMap((attempt) =>
-          attempt.kind === 'create' ? attempt.clientIds.map(String) : [],
+          attempt.kind === 'create' &&
+          attempt.neverLanded !== true &&
+          getLighterTransactionOutcome(attempt.terminalStatus) !== 'failed'
+            ? attempt.clientIds.map(String)
+            : [],
         ),
       );
-      for (const clientId of createdIds) {
+      const inserted: string[] = [];
+      for (const clientId of settledActive ? [] : createdIds) {
         if (!orders.has(clientId)) {
+          inserted.push(clientId);
           orders.set(clientId, { clientId, orderId: null });
         }
       }
@@ -2889,8 +2898,8 @@ export class LighterProvider implements PerpsProvider {
               orderId: String(active.orderIndex),
             });
           } else if (
-            createdIds.has(clientId) ||
-            (entry.orderId !== null && cancelledIds.has(entry.orderId))
+            entry.orderId !== null &&
+            cancelledIds.has(entry.orderId)
           ) {
             orders.delete(clientId);
           }
@@ -2904,6 +2913,33 @@ export class LighterProvider implements PerpsProvider {
       await this.#deps.diskCache.setItem(
         key,
         JSON.stringify({ version: 1, orders: [...orders.values()] }),
+      );
+      return inserted;
+    });
+  };
+
+  /**
+   * Drop IDs only with explicit pre-dispatch, terminal-failure or expiry proof.
+   *
+   * @param settlementKey - Captured settlement identity.
+   * @param clientIds - Exact IDs proven incapable of creating a live order.
+   */
+  readonly #discardManagedTpslIds = async (
+    settlementKey: string,
+    clientIds: string[],
+  ): Promise<void> => {
+    if (clientIds.length === 0) {
+      return;
+    }
+    const key = this.#managedTpslKey(settlementKey);
+    await withStorageMutex(key, async () => {
+      const orders = await this.#readManagedTpsl(settlementKey);
+      await this.#deps.diskCache.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          orders: orders.filter((entry) => !clientIds.includes(entry.clientId)),
+        }),
       );
     });
   };
@@ -2934,11 +2970,28 @@ export class LighterProvider implements PerpsProvider {
     );
     const terminalIds = new Set(
       inactive
-        .filter((row) =>
-          ['filled', 'executed', 'canceled', 'cancelled', 'rejected'].includes(
-            row.status.toLowerCase(),
-          ),
-        )
+        .filter((row) => {
+          const status = row.status.toLowerCase();
+          if (status === 'rejected') {
+            return true;
+          }
+          if (status === 'executed') {
+            return parseStrictDecimal(row.remainingBaseAmount) === 0;
+          }
+          try {
+            // The adapter is the canonical venue status vocabulary, including
+            // OCO, reduce-only, expiry and other cancellation causes.
+            const adapted = adaptOrderFromLighter(row, String(row.marketIndex));
+            return (
+              adapted.status === 'canceled' ||
+              (adapted.status === 'filled' &&
+                parseStrictDecimal(row.remainingBaseAmount) === 0)
+            );
+          } catch {
+            // Unknown states retain ownership rather than guessing termination.
+            return false;
+          }
+        })
         .map((row) => String(row.clientOrderIndex)),
     );
     if (terminalIds.size === 0) {
@@ -3514,31 +3567,46 @@ export class LighterProvider implements PerpsProvider {
           );
         }
       }
-      // Payload first, under the operation's OWN key — then the pointer.
-      await this.#deps.diskCache.setItem(
-        this.#tpslJournalOpKey(settlementKey, journal.operationId),
-        JSON.stringify({
-          version: 4,
-          recordedAt: journal.recordedAt,
-          operationId: journal.operationId,
-          createdAt: journal.createdAt,
-          nextAttemptId: journal.nextAttemptId,
-          apiKeyIndex: this.#apiKeyIndex,
-          intent: journal.intent,
-          phase: journal.phase,
-          priorGrouping: journal.priorGrouping,
-          priorTriggers: journal.priorTriggers,
-          attempts: journal.attempts,
-        }),
+      const previous = danglingPointer
+        ? null
+        : await this.#loadTpslJournal(settlementKey);
+      const priorCreateIds = new Set(
+        previous?.attempts.flatMap((attempt) =>
+          attempt.kind === 'create' ? attempt.clientIds.map(String) : [],
+        ) ?? [],
+      );
+      // Ownership must succeed BEFORE publishing an unknown journal attempt.
+      // A failed ownership write therefore leaves no never-sent obligation.
+      const insertedOwnership = await this.#updateManagedTpsl(
+        settlementKey,
+        journal,
       );
       try {
         await this.#deps.diskCache.setItem(
-          baseKey,
+          this.#tpslJournalOpKey(settlementKey, journal.operationId),
           JSON.stringify({
-            pointerVersion: 1,
+            version: 4,
+            recordedAt: journal.recordedAt,
             operationId: journal.operationId,
+            createdAt: journal.createdAt,
+            nextAttemptId: journal.nextAttemptId,
+            apiKeyIndex: this.#apiKeyIndex,
+            intent: journal.intent,
+            phase: journal.phase,
+            priorGrouping: journal.priorGrouping,
+            priorTriggers: journal.priorTriggers,
+            attempts: journal.attempts,
           }),
         );
+        if (!pointerAlreadyOurs) {
+          await this.#deps.diskCache.setItem(
+            baseKey,
+            JSON.stringify({
+              pointerVersion: 1,
+              operationId: journal.operationId,
+            }),
+          );
+        }
       } catch (error) {
         // Pointer write failed on the FIRST persist of this operation:
         // remove the freshly written payload so no orphan accumulates.
@@ -3551,6 +3619,12 @@ export class LighterProvider implements PerpsProvider {
             )
             .catch(() => undefined);
         }
+        // Only brand-new attempts absent from the previous durable journal
+        // are known never dispatched. Retain all prior committed identities.
+        await this.#discardManagedTpslIds(
+          settlementKey,
+          insertedOwnership.filter((id) => !priorCreateIds.has(id)),
+        );
         throw error;
       }
     });
@@ -3558,7 +3632,6 @@ export class LighterProvider implements PerpsProvider {
     // marker recorded earlier in this session — otherwise later read
     // kicks would skip it until a restart or another mutation.
     this.#tpslRecoveryGeneration = -1;
-    await this.#updateManagedTpsl(settlementKey, journal);
   };
 
   /**
@@ -4131,6 +4204,16 @@ export class LighterProvider implements PerpsProvider {
     if (reconciled === 'unresolved') {
       return false;
     }
+    await this.#discardManagedTpslIds(
+      settlementKey,
+      journalEntry.attempts.flatMap((attempt) =>
+        attempt.kind === 'create' &&
+        (attempt.neverLanded === true ||
+          getLighterTransactionOutcome(attempt.terminalStatus) === 'failed')
+          ? attempt.clientIds.map(String)
+          : [],
+      ),
+    );
     const persistEntry = async (): Promise<void> => {
       this.#tpslUnsettled.set(settlementKey, journalEntry);
       await this.#persistTpslJournal(settlementKey, journalEntry);
@@ -4583,6 +4666,9 @@ export class LighterProvider implements PerpsProvider {
       // payload can no longer be accepted.
       if (Date.now() <= attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS) {
         return 'unresolved';
+      }
+      if (attempt.kind === 'create') {
+        attempt.neverLanded = true;
       }
       // Expired and venue-confirmed absent: authoritatively never landed —
       // its reserved nonce may be released UNLESS a later dispatch (a
