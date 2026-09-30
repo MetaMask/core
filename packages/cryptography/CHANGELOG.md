@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Initial release ([#10282](https://github.com/MetaMask/core/pull/10282), [#10431](https://github.com/MetaMask/core/pull/10431), [#10403](https://github.com/MetaMask/core/pull/10403), [#10468](https://github.com/MetaMask/core/pull/10468), [#10503](https://github.com/MetaMask/core/pull/10503), [#10563](https://github.com/MetaMask/core/pull/10563), [#10506](https://github.com/MetaMask/core/pull/10506), [#10608](https://github.com/MetaMask/core/pull/10608), [#10571](https://github.com/MetaMask/core/pull/10571), [#10572](https://github.com/MetaMask/core/pull/10572), [#10573](https://github.com/MetaMask/core/pull/10573), [#10613](https://github.com/MetaMask/core/pull/10613))
@@ -19,4 +21,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `encrypt` and `decrypt` functions for AES-GCM symmetric encryption exported via `@metamask/cryptography/aes-gcm`
   - Add `getRandomBytes` function for generating cryptographically secure random bytes
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/cryptography@1.0.0
