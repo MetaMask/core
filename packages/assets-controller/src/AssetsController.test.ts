@@ -444,7 +444,6 @@ describe('AssetsController', () => {
         assetPreferences: {},
         selectedCurrency: 'usd',
         assetsLoadingStatus: {},
-        assetsLoadingTokens: {},
       });
     });
 
@@ -475,7 +474,6 @@ describe('AssetsController', () => {
           assetPreferences: {},
           selectedCurrency: 'usd',
           assetsLoadingStatus: {},
-          assetsLoadingTokens: {},
         });
       });
     });
@@ -634,7 +632,6 @@ describe('AssetsController', () => {
           customAssets: {},
           selectedCurrency: 'usd',
           assetsLoadingStatus: {},
-          assetsLoadingTokens: {},
         });
 
         // Action handlers should be registered

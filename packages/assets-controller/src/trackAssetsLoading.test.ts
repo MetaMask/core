@@ -3,10 +3,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { AssetsControllerState } from './AssetsController.js';
 import { trackAssetsLoading } from './trackAssetsLoading.js';
 
-type FakeControllerState = Pick<
-  AssetsControllerState,
-  'assetsLoadingStatus' | 'assetsLoadingTokens'
->;
+type FakeControllerState = Pick<AssetsControllerState, 'assetsLoadingStatus'>;
 
 const ACCOUNT_1: InternalAccount = {
   id: 'account-1',
@@ -38,7 +35,6 @@ class FakeAssetsController {
 
   state: FakeControllerState = {
     assetsLoadingStatus: {},
-    assetsLoadingTokens: {},
   };
 
   update(callback: (state: FakeControllerState) => void): void {
@@ -78,8 +74,6 @@ describe('trackAssetsLoading', () => {
       [ACCOUNT_1.id]: 'loading',
       [ACCOUNT_2.id]: 'loading',
     });
-    expect(controller.state.assetsLoadingTokens[ACCOUNT_1.id]).toBeDefined();
-
     controller.releaseNextFetch();
     await fetchPromise;
 
@@ -87,7 +81,6 @@ describe('trackAssetsLoading', () => {
       [ACCOUNT_1.id]: 'loaded',
       [ACCOUNT_2.id]: 'loaded',
     });
-    expect(controller.state.assetsLoadingTokens).toStrictEqual({});
   });
 
   it('settles the loading status when the fetch fails', async () => {
@@ -100,7 +93,6 @@ describe('trackAssetsLoading', () => {
     expect(controller.state.assetsLoadingStatus).toStrictEqual({
       [ACCOUNT_1.id]: 'loaded',
     });
-    expect(controller.state.assetsLoadingTokens).toStrictEqual({});
   });
 
   it('does not let an older fetch settle an account a newer overlapping fetch owns', async () => {
@@ -130,7 +122,6 @@ describe('trackAssetsLoading', () => {
     const fetchPromise = controller.getAssets([], { forceUpdate: true });
 
     expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-    expect(controller.state.assetsLoadingTokens).toStrictEqual({});
 
     controller.releaseNextFetch();
     await fetchPromise;
@@ -143,7 +134,6 @@ describe('trackAssetsLoading', () => {
     const fetchPromise = controller.getAssets([ACCOUNT_1]);
 
     expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-    expect(controller.state.assetsLoadingTokens).toStrictEqual({});
 
     controller.releaseNextFetch();
     await fetchPromise;

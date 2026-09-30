@@ -503,7 +503,6 @@ export type AssetsControllerState = {
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
   assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
-  assetsLoadingTokens: Record<AccountId, number>;
 };
 
 // ============================================================================

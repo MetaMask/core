@@ -11,10 +11,17 @@ type AssetsLoadingStateUpdater = Pick<AssetsController, 'state'> & {
   update: (
     callback: (state: {
       assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
-      assetsLoadingTokens: Record<AccountId, number>;
     }) => void,
   ) => void;
 };
+
+/**
+ * Per-controller ownership tokens, mapping each account to the most recent
+ * tracked fetch that claimed it. Deliberately kept out of controller state:
+ * this is an implementation detail of overlap handling, not something
+ * consumers should read or persist.
+ */
+const loadingTokenOwners = new WeakMap<object, Map<AccountId, number>>();
 
 let loadingTokenCounter = 0;
 
@@ -35,9 +42,12 @@ function markAssetsLoading(
   }
   loadingTokenCounter += 1;
   const token = loadingTokenCounter;
+  const owners =
+    loadingTokenOwners.get(controller) ?? new Map<AccountId, number>();
+  loadingTokenOwners.set(controller, owners);
   controller.update((state) => {
     for (const account of accounts) {
-      state.assetsLoadingTokens[account.id] = token;
+      owners.set(account.id, token);
       state.assetsLoadingStatus[account.id] = 'loading';
     }
   });
@@ -61,8 +71,12 @@ function markAssetsSettled(
   if (token === 0) {
     return;
   }
+  const owners = loadingTokenOwners.get(controller);
+  if (owners === undefined) {
+    return;
+  }
   const ownedAccounts = accounts.filter(
-    (account) => controller.state.assetsLoadingTokens[account.id] === token,
+    (account) => owners.get(account.id) === token,
   );
   if (ownedAccounts.length === 0) {
     return;
@@ -70,7 +84,7 @@ function markAssetsSettled(
   controller.update((state) => {
     for (const account of ownedAccounts) {
       state.assetsLoadingStatus[account.id] = 'loaded';
-      delete state.assetsLoadingTokens[account.id];
+      owners.delete(account.id);
     }
   });
 }

@@ -28,7 +28,6 @@ function createState(
   return {
     assetsInfo: {},
     assetsLoadingStatus: {},
-    assetsLoadingTokens: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},

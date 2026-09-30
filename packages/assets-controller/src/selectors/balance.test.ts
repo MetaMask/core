@@ -21,7 +21,6 @@ function arrangeAssetsControllerState(
     assetsBalance: {},
     assetsInfo: {},
     assetsLoadingStatus: {},
-    assetsLoadingTokens: {},
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},

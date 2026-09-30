@@ -48,7 +48,6 @@ export function buildEmptyAssetsState(
   return {
     assetsInfo: {},
     assetsLoadingStatus: {},
-    assetsLoadingTokens: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},

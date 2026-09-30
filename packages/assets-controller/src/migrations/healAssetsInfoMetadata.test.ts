@@ -548,7 +548,6 @@ describe('tempHealAssetsInfoMetadata', () => {
     return {
       assetsInfo: {},
       assetsLoadingStatus: {},
-      assetsLoadingTokens: {},
       assetsBalance: {},
       assetsPrice: {},
       customAssets: {},
