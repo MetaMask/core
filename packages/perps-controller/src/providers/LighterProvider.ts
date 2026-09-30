@@ -5381,11 +5381,14 @@ export class LighterProvider implements PerpsProvider {
     return token.token;
   };
 
-  readonly #ensureMarkets = async (): Promise<
-    Map<string, LighterOrderBookMeta>
-  > => {
-    if (this.#marketsBySymbol.size === 0) {
-      await this.initialize();
+  readonly #ensureMarkets = async (
+    forceRefresh = false,
+  ): Promise<Map<string, LighterOrderBookMeta>> => {
+    if (forceRefresh || this.#marketsBySymbol.size === 0) {
+      const result = await this.initialize();
+      if (forceRefresh && !result.success) {
+        throw new Error(result.error ?? 'Lighter market metadata unavailable');
+      }
     }
     return this.#marketsBySymbol;
   };
@@ -5418,13 +5421,13 @@ export class LighterProvider implements PerpsProvider {
     if (this.#isDisconnected) {
       return unavailable('provider_unavailable');
     }
-    if (this.#marketsBySymbol.size === 0) {
-      const initialized = await this.initialize();
-      if (!initialized.success) {
-        return unavailable('provider_unavailable');
-      }
+    let markets: Map<string, LighterOrderBookMeta>;
+    try {
+      markets = await this.#ensureMarkets(true);
+    } catch {
+      return unavailable('provider_unavailable');
     }
-    const market = this.#marketsBySymbol.get(params.symbol);
+    const market = markets.get(params.symbol);
     if (!market) {
       return unavailable('market_not_found');
     }
@@ -5877,7 +5880,9 @@ export class LighterProvider implements PerpsProvider {
       // and account setup are deferred until it passes so invalid intent
       // causes zero bridge calls (no client creation or key registration
       // side effects).
-      const markets = await this.#ensureMarkets();
+      const markets = await this.#ensureMarkets(
+        isTriggerOrderType(params.orderType),
+      );
       const market = markets.get(params.symbol);
       if (!market) {
         return {
@@ -6134,7 +6139,8 @@ export class LighterProvider implements PerpsProvider {
                 triggerPrices?.triggerPriceInt ?? LIGHTER_NO_TRIGGER_PRICE,
               ),
               // Triggers remain pending even when they execute as IOC.
-              // Only ordinary immediate orders use a zero expiry.
+              // The signer expands -1 to its 28-day default expiry;
+              // only ordinary immediate orders use a zero expiry.
               isTriggerOrderType(params.orderType) ||
               isLighterMakerOrder(params)
                 ? LIGHTER_ORDER_EXPIRY_NONE
@@ -6757,14 +6763,30 @@ export class LighterProvider implements PerpsProvider {
                 String(order.marketIndex),
             ),
           );
-          const staleTriggers = openOrders.filter(
-            (order) =>
+          const staleTriggers = openOrders.filter((order) => {
+            const raw = rawOrders.find(
+              (row) => String(row.orderIndex) === order.orderId,
+            );
+            // Position protection is a full-quantity trigger-market close.
+            // Independent partial orders and trigger limits retain their
+            // separate execution and quantity intent during update/removal.
+            const isPositionProtection =
               order.symbol === params.symbol &&
               order.reduceOnly &&
-              (Boolean(order.orderType?.includes('stop')) ||
-                Boolean(order.orderType?.includes('take')) ||
-                order.isTrigger === true),
-          );
+              (raw?.type === 'stop-loss' || raw?.type === 'take-profit') &&
+              order.side === (Number(position.size) > 0 ? 'sell' : 'buy') &&
+              parseFinitePositive(order.size) ===
+                Math.abs(Number(position.size));
+            if (
+              isPositionProtection &&
+              raw?.timeInForce !== 'immediate-or-cancel'
+            ) {
+              throw new Error(
+                `Lighter TP/SL update for ${params.symbol} refused: existing trigger order ${order.orderId} cannot be faithfully restored as position protection (unsupported time-in-force), so it will not be cancelled`,
+              );
+            }
+            return isPositionProtection;
+          });
           // The prior triggers' EXACT wire intents ride along with the
           // journal: a crash can still restore/rollback faithfully. A
           // stale trigger that CANNOT be faithfully restored (unknown
@@ -7735,7 +7757,9 @@ export class LighterProvider implements PerpsProvider {
     if (!hasUsdSizing && parseFinitePositive(params.size) === null) {
       return { isValid: false, error: 'Order size must be positive' };
     }
-    const markets = await this.#ensureMarkets();
+    const markets = await this.#ensureMarkets(
+      isTriggerOrderType(params.orderType),
+    );
     const market = markets.get(params.symbol);
     if (!market) {
       return {

@@ -1782,7 +1782,7 @@ export type PerpsOrderCapabilities =
 /** Reasons a direct provider cannot produce a Scale price ladder. */
 export type DirectProviderScalePriceLadderUnavailableReason = Exclude<
   DirectProviderOrderCapabilitiesUnavailableReason,
-  'strategy_market_unsupported'
+  'strategy_market_unsupported' | 'order_market_unsupported'
 >;
 
 /** Reasons a provider-routed Scale price ladder cannot be produced. */

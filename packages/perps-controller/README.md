@@ -113,17 +113,27 @@ Lighter supports `stop_market`, `stop_limit`, `take_profit_market` and
 `take_profit_limit` through `placeOrder`. Supply a positive `triggerPrice` on
 the market's fixed price grid; limit execution also requires `price`. Market
 execution applies the caller's slippage protection to the trigger level, and
-USD sizing uses that level rather than the current market price. Both trigger
+USD sizing uses that level rather than the current market price. Protection
+defaults to 5% when neither `maxSlippageBps` nor `slippage` is supplied. Both trigger
 and execution prices must fit the venue's wire range.
 
-Leave `timeInForce` unset: pending triggers use the venue's no-expiry setting,
+Leave `timeInForce` unset: pending triggers use the signer's default 28-day expiry,
 with IOC execution for trigger markets and GTT execution for trigger limits.
 `reduceOnly` retains the requested quantity. Below-minimum trigger limits are
 refused even when they would currently close the full position; a position can
 grow before activation. Attached TP/SL and strategy fields are unsupported on
 these standalone orders.
 
+Position TP/SL replacement and removal preserve trigger limits and partial
+trigger-market orders. A reduce-only, IOC trigger-market order on the closing
+side with exactly the current position quantity counts as position protection,
+including one placed through `placeOrder`; `updatePositionTPSL` replaces or
+removes that full-position protection. Use explicit cancellation to remove
+independent partial or limit triggers.
+
 `getOrderCapabilities` reports these types only for active, known markets.
+Capabilities and trigger preflight refresh public metadata and fail closed on
+read errors instead of relying on a session's old active-market snapshot.
 `MarketInfo.priceDecimals` exposes Lighter's fixed price grid for callers
 deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 

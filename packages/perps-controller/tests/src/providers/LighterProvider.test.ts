@@ -1690,6 +1690,111 @@ describe('LighterProvider', () => {
       expect(calls).toHaveLength(0);
     });
 
+    it('refreshes cached capability metadata before approving an inactive market', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      expect(
+        (await provider.getOrderCapabilities({ symbol: 'BTC' })).status,
+      ).toBe('ready');
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+      };
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+      const validation = await provider.validateOrder(params);
+      const result = await provider.placeOrder(params);
+
+      expect(capabilities).toMatchObject({
+        status: 'unavailable',
+        reason: 'order_market_unsupported',
+      });
+      expect(validation.isValid).toBe(false);
+      expect(result.success).toBe(false);
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each(['', '   '])(
+      'refuses the empty capability symbol %j without metadata or signer work',
+      async (symbol) => {
+        const { provider, clientInstance, calls } = buildProvider();
+
+        const result = await provider.getOrderCapabilities({ symbol });
+
+        expect(result).toStrictEqual({
+          status: 'unavailable',
+          providerId: 'lighter',
+          reason: 'invalid_symbol',
+        });
+        expect(clientInstance.getOrderBooks).not.toHaveBeenCalled();
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it.each(['market', 'limit'] as const)(
+      'rejects stray triggerPrice on a basic %s before signer work',
+      async (orderType) => {
+        const { provider, calls } = buildProvider();
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType,
+          price: '95100',
+          triggerPrice: '95000',
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation).toStrictEqual({
+          isValid: false,
+          error: 'ORDER_TRIGGER_PRICE_NOT_SUPPORTED',
+        });
+        expect(result.error).toBe(validation.error);
+        expect(calls).toHaveLength(0);
+      },
+    );
+
+    it('does not reuse an old active snapshot when native metadata refresh fails', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      expect(
+        (await provider.getOrderCapabilities({ symbol: 'BTC' })).status,
+      ).toBe('ready');
+      clientInstance.getOrderBooks.mockRejectedValue(
+        new Error('Venue metadata offline'),
+      );
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+      };
+
+      const capability = await provider.getOrderCapabilities({ symbol: 'BTC' });
+      const validation = await provider.validateOrder(params);
+      const result = await provider.placeOrder(params);
+
+      expect(capability).toMatchObject({
+        status: 'unavailable',
+        reason: 'provider_unavailable',
+      });
+      expect(validation).toStrictEqual({
+        isValid: false,
+        error: 'Venue metadata offline',
+      });
+      expect(result.error).toBe(validation.error);
+      expect(calls).toHaveLength(0);
+    });
+
     it.each(['GTC', 'IOC', 'ALO'] as const)(
       'rejects a caller-selected %s time-in-force on a standalone trigger',
       async (timeInForce) => {
@@ -4401,8 +4506,8 @@ describe('LighterProvider', () => {
       clientOrderIndex: orderIndex,
       marketIndex: 1,
       ownerAccountIndex: 28,
-      initialBaseAmount: '0.001',
-      remainingBaseAmount: '0.001',
+      initialBaseAmount: ACCOUNT.positions[0].position,
+      remainingBaseAmount: ACCOUNT.positions[0].position,
       price: '80000',
       isAsk: true,
       type,
@@ -4473,6 +4578,7 @@ describe('LighterProvider', () => {
       type: string;
       triggerPrice: string;
       clientOrderIndex: number;
+      baseAmount: string;
     };
     type StagedCreateBatch = {
       creates: StagedCreate[];
@@ -4598,6 +4704,8 @@ describe('LighterProvider', () => {
         const row = {
           ...buildRawTrigger(orderIndex, create.type, create.triggerPrice),
           clientOrderIndex: create.clientOrderIndex,
+          initialBaseAmount: create.baseAmount,
+          remainingBaseAmount: create.baseAmount,
         };
         if (createTerminalMode === 'none') {
           rawTriggers.push(row);
@@ -4828,6 +4936,10 @@ describe('LighterProvider', () => {
                 type: singleTypeByWire[Number(wireParams[6])] ?? 'stop-loss',
                 triggerPrice: String(Number(wireParams[9]) / 10),
                 clientOrderIndex: Number(wireParams[2]),
+                baseAmount: String(
+                  Number(wireParams[3]) /
+                    10 ** BTC_MARKET.supportedSizeDecimals,
+                ),
               },
             ],
             txHash: result.txHash ?? 'missing',
@@ -4844,6 +4956,10 @@ describe('LighterProvider', () => {
               type: wireParams[base + 5] === 4 ? 'take-profit' : 'stop-loss',
               triggerPrice: String(Number(wireParams[base + 8]) / 10),
               clientOrderIndex: Number(wireParams[base + 1]),
+              baseAmount: String(
+                Number(wireParams[base + 2]) /
+                  10 ** BTC_MARKET.supportedSizeDecimals,
+              ),
             });
           }
           const result = (await realImplementation(call)) as {
@@ -4929,6 +5045,81 @@ describe('LighterProvider', () => {
   };
 
   describe('round-12 venue integrity and serialized TP/SL lifecycle', () => {
+    it.each([
+      ['stop_market', '0.001'],
+      ['take_profit_market', '0.001'],
+      ['stop_limit', '0.001'],
+      ['take_profit_limit', '0.001'],
+      ['stop_limit', '0.1'],
+      ['take_profit_limit', '0.1'],
+    ] as const)(
+      'preserves a standalone reduce-only %s of size %s through position TP/SL replacement and removal',
+      async (orderType, size) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const placed = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: false,
+          size,
+          orderType,
+          triggerPrice: '95000',
+          ...(orderType.endsWith('_limit') && { price: '95100' }),
+          reduceOnly: true,
+        });
+        const standalone = venue.rawTriggers.find(
+          (row) => String(row.clientOrderIndex) === placed.orderId,
+        );
+        expect(placed.success).toBe(true);
+        expect(standalone).toBeDefined();
+
+        const updated = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+        });
+        const removed = await provider.updatePositionTPSL({ symbol: 'BTC' });
+
+        expect(updated.success).toBe(true);
+        expect(removed.success).toBe(true);
+        expect(venue.rawTriggers).toContainEqual(standalone);
+        expect(
+          calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .some(
+              (call) =>
+                String(call.params[2]) === String(standalone?.orderIndex),
+            ),
+        ).toBe(false);
+      },
+    );
+    it.each(['stop_market', 'take_profit_market'] as const)(
+      'replaces a standalone full-position %s under the documented position-protection contract',
+      async (orderType) => {
+        const { provider, clientInstance, bridge } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const placed = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType,
+          triggerPrice: '95000',
+          reduceOnly: true,
+        });
+
+        const updated = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+        });
+
+        expect(updated.success).toBe(true);
+        expect(
+          venue.rawTriggers.some(
+            (row) => String(row.clientOrderIndex) === placed.orderId,
+          ),
+        ).toBe(false);
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(venue.rawTriggers[0].triggerPrice).toBe('110000');
+      },
+    );
     it("a malformed venue position size ('0.1oops') fails closed with an explicit error and zero signer mutation", async () => {
       const { provider, calls, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue({
