@@ -83,13 +83,17 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
 function createMockApiClient(
   priceResponse: Record<string, unknown> = {},
   supportedNetworks: string[] = ['eip155:1'],
+  partialSupportNetworks: string[] = [],
 ): MockApiClient {
   return {
     prices: {
       fetchV3SpotPrices: jest.fn().mockResolvedValue(priceResponse),
       fetchPriceV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedNetworks,
-        partialSupport: [],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: partialSupportNetworks,
+        },
       }),
     },
   };
@@ -118,6 +122,7 @@ function setupController(
     getSelectedCurrency?: () => SupportedCurrency;
     pollInterval?: number;
     supportedNetworks?: string[];
+    partialSupportNetworks?: string[];
     getAssetsState?: () => AssetsControllerState;
   } = {},
 ): SetupResult {
@@ -127,10 +132,15 @@ function setupController(
     getSelectedCurrency = (): SupportedCurrency => 'usd',
     pollInterval,
     supportedNetworks = ['eip155:1'],
+    partialSupportNetworks = [],
     getAssetsState: getAssetsStateOverride,
   } = options;
 
-  const apiClient = createMockApiClient(priceResponse, supportedNetworks);
+  const apiClient = createMockApiClient(
+    priceResponse,
+    supportedNetworks,
+    partialSupportNetworks,
+  );
 
   const getAssetsState =
     getAssetsStateOverride ??
@@ -201,7 +211,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -233,7 +243,7 @@ describe('PriceDataSource', () => {
       balanceState: {
         'mock-account-id': {
           'not-a-valid-caip19': { amount: '999' },
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -304,7 +314,7 @@ describe('PriceDataSource', () => {
       getSelectedCurrency: () => 'eur',
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -326,10 +336,10 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
         'other-account-id': {
-          [MOCK_TOKEN_ASSET]: { amount: '1000000' },
+          [MOCK_TOKEN_ASSET]: { amount: '1000' },
         },
       },
       priceResponse: {
@@ -353,14 +363,106 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          [polygonAsset]: { amount: '5000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
         },
       },
       priceResponse: {
         [polygonAsset]: createMockPriceData(0.5),
       },
       supportedNetworks: ['eip155:1', 'eip155:137'],
+    });
+
+    await controller.fetch(createDataRequest({ chainIds: [CHAIN_POLYGON] }));
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [polygonAsset],
+      expect.anything(),
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch includes assets on partialSupport.spotPricesV3 networks', async () => {
+    const polygonAsset =
+      'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+        [polygonAsset]: createMockPriceData(0.5),
+      },
+      supportedNetworks: ['eip155:1'],
+      partialSupportNetworks: ['eip155:137'],
+    });
+
+    await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    );
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      expect.arrayContaining([MOCK_NATIVE_ASSET, polygonAsset]),
+      expect.anything(),
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch excludes assets only listed under partialSupport.spotPricesV2', async () => {
+    const polygonAsset =
+      'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+    apiClient.prices.fetchPriceV2SupportedNetworks.mockResolvedValue({
+      fullSupport: ['eip155:1'],
+      partialSupport: {
+        spotPricesV2: ['eip155:137'],
+        spotPricesV3: [],
+      },
+    });
+
+    await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    );
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.anything(),
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch tolerates a legacy array-shaped partialSupport', async () => {
+    const polygonAsset =
+      'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [polygonAsset]: { amount: '250' },
+        },
+      },
+      priceResponse: {
+        [polygonAsset]: createMockPriceData(0.5),
+      },
+    });
+    apiClient.prices.fetchPriceV2SupportedNetworks.mockResolvedValue({
+      fullSupport: ['eip155:1'],
+      partialSupport: ['eip155:137'],
     });
 
     await controller.fetch(createDataRequest({ chainIds: [CHAIN_POLYGON] }));
@@ -383,7 +485,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
           [tronBandwidthAsset]: { amount: '1000' },
           [tronEnergyAsset]: { amount: '5000' },
           [tronStakedAsset]: { amount: '10000' },
@@ -408,8 +510,8 @@ describe('PriceDataSource', () => {
     const { controller } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          [MOCK_TOKEN_ASSET]: { amount: '1000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [MOCK_TOKEN_ASSET]: { amount: '1000' },
         },
       },
       priceResponse: {
@@ -432,7 +534,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
     });
@@ -466,7 +568,7 @@ describe('PriceDataSource', () => {
     const { controller, assetsUpdateHandler } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -498,7 +600,7 @@ describe('PriceDataSource', () => {
       pollInterval: 5000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -526,7 +628,7 @@ describe('PriceDataSource', () => {
       pollInterval: 60000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -559,7 +661,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -713,7 +815,7 @@ describe('PriceDataSource', () => {
       pollInterval: 5000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -942,7 +1044,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -966,7 +1068,7 @@ describe('PriceDataSource', () => {
       pollInterval: 10_000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1001,7 +1103,7 @@ describe('PriceDataSource', () => {
       pollInterval,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1122,7 +1224,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1163,7 +1265,7 @@ describe('PriceDataSource', () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1186,7 +1288,7 @@ describe('PriceDataSource', () => {
         ({
           assetsBalance: {
             'mock-account-id': {
-              [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+              [MOCK_NATIVE_ASSET]: { amount: '1.5' },
             },
           },
         }) as AssetsControllerState,
@@ -1206,8 +1308,8 @@ describe('PriceDataSource', () => {
       pollInterval: 5000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          [polygonAsset]: { amount: '5000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
         },
       },
       priceResponse: {

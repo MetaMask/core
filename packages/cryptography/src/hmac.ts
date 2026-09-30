@@ -27,7 +27,7 @@ export async function hmacSha256(
   key: BufferSource,
   data: BufferSource,
   options?: HmacOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return hmac(key, 'SHA-256', data, options);
 }
 
@@ -43,7 +43,7 @@ export async function hmacSha384(
   key: BufferSource,
   data: BufferSource,
   options?: HmacOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return hmac(key, 'SHA-384', data, options);
 }
 
@@ -59,7 +59,7 @@ export async function hmacSha512(
   key: BufferSource,
   data: BufferSource,
   options?: HmacOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return hmac(key, 'SHA-512', data, options);
 }
 
@@ -77,7 +77,7 @@ async function hmac(
   hash: HashFunction,
   data: BufferSource,
   options: HmacOptions = {},
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (key.byteLength === 0) {
     throw new Error(
       `Unsafe key length: Key must not be zero bytes for HMAC-${hash}.`,

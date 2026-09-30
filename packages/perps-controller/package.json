@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "18.0.1",
+  "version": "19.0.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -76,7 +76,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
-    "@nktkas/hyperliquid": "^0.33.1",
+    "@nktkas/hyperliquid": "^0.33.3",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
     "uuid": "^11.1.1"

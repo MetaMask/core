@@ -1197,6 +1197,53 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('keeps liquidation data when HyperLiquid omits the liquidated user', async () => {
+      const mockCallback = jest.fn();
+      mockSubscriptionClient.userFills.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              fills: [
+                {
+                  oid: BigInt(12345),
+                  coin: 'BTC',
+                  side: 'A',
+                  sz: '0.1',
+                  px: '45000',
+                  fee: '5',
+                  time: Date.now(),
+                  closedPnl: '-500',
+                  dir: 'Close Long',
+                  feeToken: 'USDC',
+                  liquidation: {
+                    markPx: '44900',
+                    method: 'backstop',
+                  },
+                },
+              ],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = service.subscribeToOrderFills({
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockCallback.mock.calls[0][0][0].liquidation).toStrictEqual({
+        liquidatedUser: undefined,
+        markPx: '44900',
+        method: 'backstop',
+      });
+
+      unsubscribe();
+    });
+
     it('enriches WS fills with detailedOrderType from cached orders', async () => {
       // Arrange — subscribe to orders first so #cachedOrders gets populated
       const orderCallback = jest.fn();

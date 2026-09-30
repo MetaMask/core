@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1302.0.0",
+  "version": "1305.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -31,7 +31,7 @@
     "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
     "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
     "get-changed-workspaces": "node scripts/get-changed-workspaces.ts",
-    "lint": "yarn lint:oxlint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all && yarn codeowners:check",
+    "lint": "yarn lint:tsc:check && yarn lint:oxlint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all && yarn codeowners:check",
     "lint:dependencies": "knip --config knip.config.mts --dependencies && yarn dedupe --check",
     "lint:dependencies:fix": "knip --config knip.config.mts --dependencies && yarn dedupe",
     "lint:fix": "yarn lint:oxlint --fix --prune-suppressions && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix && yarn messenger-action-types:generate && yarn readme-content:update && yarn codeowners:generate",
@@ -40,8 +40,11 @@
     "lint:oxlint": "oxlint",
     "lint:teams": "node --import ./scripts/resolver/register.ts --experimental-transform-types scripts/lint-teams-json.ts",
     "lint:tsc": "tsc --build tsconfig.lint.json",
+    "lint:tsc:check": "node --experimental-strip-types scripts/lint-tsc.ts",
     "lint:tsc:clean": "yarn lint:tsc:only-clean && yarn lint:tsc",
     "lint:tsc:only-clean": "rimraf -g 'packages/*/.tsc-lint-cache' '.tsc-lint-cache'",
+    "lint:tsc:prune": "node --experimental-strip-types scripts/lint-tsc.ts --prune-suppressions",
+    "lint:tsc:suppress": "node --experimental-strip-types scripts/lint-tsc.ts --suppress-all",
     "lint:tsconfigs": "node --import ./scripts/resolver/register.ts --experimental-transform-types scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
     "lint:tsconfigs:fix": "node --import ./scripts/resolver/register.ts --experimental-transform-types scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
@@ -113,7 +116,6 @@
     "yargs": "^17.7.3"
   },
   "resolutions": {
-    "@nktkas/hyperliquid@npm:^0.33.1": "patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch",
     "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch"
   },
   "simple-git-hooks": {
