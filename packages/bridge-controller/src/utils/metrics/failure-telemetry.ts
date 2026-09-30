@@ -4,6 +4,8 @@ import { SwapBridgeErrorCode } from './constants.js';
  * Classify a thrown value for Quotes Error. Quote fetch always stays in the
  * `quote` phase; this only chooses `error_code`.
  *
+ * Submit and status failure classifiers live in `@metamask/bridge-status-controller`.
+ *
  * @param error - The thrown value from quote fetch.
  * @returns The Mixpanel `error_code`.
  */

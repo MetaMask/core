@@ -81,14 +81,14 @@ function buildFiatQuote(
   relayQuoteOverride?: Partial<RelayQuote>,
 ): TransactionPayQuote<FiatQuote> {
   const relayQuote = {
-    ...(RELAY_QUOTE_MOCK.original as unknown as RelayQuote),
+    ...RELAY_QUOTE_MOCK.original,
     ...relayQuoteOverride,
-  } as RelayQuote;
+  };
   return {
     ...RELAY_QUOTE_MOCK,
     original: { rampsQuote: {} as never, relayQuote },
     strategy: TransactionPayStrategy.Fiat,
-  } as unknown as TransactionPayQuote<FiatQuote>;
+  };
 }
 
 function buildCallMock({

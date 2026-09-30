@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../account-tree-controller"
@@ -27,6 +24,9 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../multichain-transactions-controller"
     },
     {
       "path": "../network-enablement-controller"
@@ -57,6 +57,12 @@
     },
     {
       "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

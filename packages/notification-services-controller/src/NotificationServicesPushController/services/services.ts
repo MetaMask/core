@@ -155,6 +155,12 @@ export async function activatePushNotifications(
     return null;
   }
 
+  // The links API rejects an empty address list. Skipping that request still
+  // returns the token created above.
+  if (params.addresses.length === 0) {
+    return regToken;
+  }
+
   await updateLinksAPI({
     bearerToken: params.bearerToken,
     addresses: params.addresses,

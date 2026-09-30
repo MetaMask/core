@@ -1,5 +1,5 @@
 import type { NetworkClientId } from '@metamask/network-controller';
-import { merge, pickBy } from 'lodash';
+import { merge, pickBy } from 'lodash-es';
 
 import { CHAIN_IDS } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';

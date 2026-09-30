@@ -35,7 +35,10 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import {
+  RecommendedAction,
+  RequestSourceFlow,
+} from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -1484,7 +1487,10 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    if (!nftMetadata) {
+    if (nftMetadata) {
+      // Sanitize provided metadata
+      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
+    } else {
       const fetchedMetadata = await this.#getNftInformation(
         checksumHexAddress,
         tokenId,
@@ -1492,9 +1498,6 @@ export class NftController extends BaseController<
       );
       // Sanitize metadata
       nftMetadata = await this.#sanitizeNftMetadata(fetchedMetadata);
-    } else {
-      // Sanitize provided metadata
-      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
     }
 
     const { contracts: newNftContracts } = await this.#addNftContracts(
@@ -2299,6 +2302,7 @@ export class NftController extends BaseController<
           const bulkScanResponse = await this.messenger.call(
             'PhishingController:bulkScanUrls',
             batch,
+            RequestSourceFlow.NftDetection,
           );
 
           // Collect blocked URLs from this batch

@@ -1,5 +1,8 @@
 import { InternalProvider } from './internal-provider.js';
 
+export { MockInternalProvider } from './mock-internal-provider.js';
+export type { MockInternalProviderStub } from './mock-internal-provider.js';
+
 export * from './provider-from-middleware.js';
 
 /**

@@ -57,9 +57,8 @@ export const toCurrencyValues = (
           minAmountValueInCurrency,
         }),
       },
-      feeData:
-        feeData &&
-        Object.fromEntries(
+      feeData: feeData && {
+        ...Object.fromEntries(
           Object.values(FeeType)
             .filter((feeType) => feeData[feeType])
             .map((feeType) => [
@@ -69,6 +68,12 @@ export const toCurrencyValues = (
               ),
             ]),
         ),
+        ...(feeData.reserve && {
+          reserve: feeData.reserve.map(
+            (reserve) => toCurrency(reserve, usdToFiatExchangeRate) ?? {},
+          ),
+        }),
+      },
       ...((priceImpactFiat ?? adjustedReturnFiat ?? costFiat) && {
         priceData: {
           ...(priceImpactFiat && {

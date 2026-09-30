@@ -4,7 +4,7 @@ import {
 } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { isValidSemVerVersion } from '@metamask/utils';
+import { hasProperty, isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
@@ -491,6 +491,30 @@ export class RemoteFeatureFlagController extends BaseController<
           const segmentationId = this.#getSegmentationId(remoteFeatureFlagName);
 
           if (!segmentationId) {
+            // The identifier needed to group this flag is unavailable, as it
+            // is when `init` runs before whatever backs these getters is
+            // ready. Exposing the unresolved threshold array would
+            // flip the flag for the end user until the next fetch.
+            if (
+              hasProperty(
+                this.#processedRemoteFeatureFlags,
+                remoteFeatureFlagName,
+              )
+            ) {
+              processedFlags[remoteFeatureFlagName] =
+                this.#processedRemoteFeatureFlags[remoteFeatureFlagName];
+              // Keep the group name alongside the value it was selected with,
+              // so consumers segmenting on it do not see a value with no group.
+              const previousGroup =
+                this.state.featureFlagThresholdGroups?.[remoteFeatureFlagName];
+              if (previousGroup) {
+                featureFlagThresholdGroups[remoteFeatureFlagName] =
+                  previousGroup;
+              }
+              continue;
+            }
+
+            // No previous value to preserve, as on a fresh install.
             processedFlags[remoteFeatureFlagName] = processedValue;
             continue;
           }

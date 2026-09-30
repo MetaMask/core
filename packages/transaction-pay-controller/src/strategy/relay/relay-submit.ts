@@ -18,6 +18,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -397,7 +398,7 @@ async function resolveSettledAmount({
   let settlementHash: Hex | undefined;
 
   if (hasPolledTargetHash) {
-    settlementHash = completion.targetHash as Hex;
+    settlementHash = completion.targetHash;
   } else if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
     settlementHash = submittedSourceHash;
   }
@@ -573,9 +574,9 @@ function normalizeParams(
 /**
  * Validate the source token balance is sufficient for the relay deposit.
  *
- * Reads the live balance from TokenBalancesController and compares it against
- * the quote's required source amount to prevent submitting transactions that
- * will revert on-chain due to insufficient balance.
+ * Reads the live balance from the network and compares it against the quote's
+ * required source amount to prevent submitting transactions that will revert
+ * on-chain due to insufficient balance.
  *
  * @param quote - Relay quote containing the required source amount.
  * @param messenger - Controller messenger.
@@ -816,7 +817,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
     maxFeePerGas: relayParams?.maxFeePerGas,
     maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
     to: delegation.to,
@@ -883,7 +884,8 @@ async function submitViaTransactionController(
   const isSourceGasFeeSponsored =
     transaction.isGasFeeSponsored &&
     quote.request.sourceChainId === transaction.chainId &&
-    quote.request.targetChainId === transaction.chainId;
+    quote.request.targetChainId === transaction.chainId &&
+    accountSupports7702(messenger, from);
 
   const gasFeeToken =
     !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken

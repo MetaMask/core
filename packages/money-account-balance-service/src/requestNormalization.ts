@@ -1,6 +1,6 @@
 import { Infer } from '@metamask/superstruct';
 
-import type { NormalizedVaultApyResponse } from './response.types';
+import type { NormalizedVaultApyResponse } from './response.types.js';
 import { VaultApyRawResponseStruct } from './structs.js';
 import { convertAprToApy } from './utils.js';
 

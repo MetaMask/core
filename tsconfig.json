@@ -5,7 +5,11 @@
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
+      "@metamask/utils": ["./packages/utils/src/index.ts"]
+    }
   },
   "references": [
     {
@@ -16,6 +20,9 @@
     },
     {
       "path": "./packages/address-book-controller"
+    },
+    {
+      "path": "./packages/advanced-chart-core"
     },
     {
       "path": "./packages/ai-controllers"
@@ -210,6 +217,9 @@
       "path": "./packages/notification-services-controller"
     },
     {
+      "path": "./packages/package-template"
+    },
+    {
       "path": "./packages/passkey-controller"
     },
     {
@@ -232,6 +242,9 @@
     },
     {
       "path": "./packages/preferences-controller"
+    },
+    {
+      "path": "./packages/profile-controller"
     },
     {
       "path": "./packages/profile-metrics-controller"
@@ -298,6 +311,9 @@
     },
     {
       "path": "./packages/user-operation-controller"
+    },
+    {
+      "path": "./packages/utils"
     },
     {
       "path": "./packages/wallet"

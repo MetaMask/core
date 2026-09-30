@@ -1,33 +1,17 @@
 import { getDefaultKycControllerState } from './KycController.js';
-import {
-  selectIsKycRequiredForProduct,
-  selectKycPhase,
-  selectKycSumSub,
-} from './selectors.js';
+import { selectKycSessionStatus, selectKycVendor } from './selectors.js';
 
 describe('selectors', () => {
-  it('selectKycPhase returns the current phase', () => {
-    const state = { ...getDefaultKycControllerState(), phase: 'form' as const };
-    expect(selectKycPhase(state)).toBe('form');
+  it('selectKycVendor returns the current vendor', () => {
+    const state = {
+      ...getDefaultKycControllerState(),
+      vendor: 'iron' as const,
+    };
+    expect(selectKycVendor(state)).toBe('iron');
   });
 
-  it('selectKycSumSub returns the sub-flow state', () => {
+  it('selectKycSessionStatus returns the session status', () => {
     const state = getDefaultKycControllerState();
-    expect(selectKycSumSub(state)).toStrictEqual(state.sumsub);
-  });
-
-  describe('selectIsKycRequiredForProduct', () => {
-    it('returns the cached requirement for a product', () => {
-      const state = {
-        ...getDefaultKycControllerState(),
-        kycRequiredByProduct: { ramps: true },
-      };
-      expect(selectIsKycRequiredForProduct('ramps')(state)).toBe(true);
-    });
-
-    it('returns undefined when the product has not been checked', () => {
-      const state = getDefaultKycControllerState();
-      expect(selectIsKycRequiredForProduct('card')(state)).toBeUndefined();
-    });
+    expect(selectKycSessionStatus(state)).toBeNull();
   });
 });

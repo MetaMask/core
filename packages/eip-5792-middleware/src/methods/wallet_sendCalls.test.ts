@@ -126,7 +126,7 @@ describe('wallet_sendCalls', () => {
   });
 
   it('throws if missing properties', async () => {
-    params[0].from = undefined as never;
+    params[0].from = undefined;
     params[0].chainId = undefined as never;
     params[0].calls = undefined as never;
     params[0].atomicRequired = undefined as never;
@@ -197,8 +197,8 @@ describe('wallet_sendCalls', () => {
   });
 
   it('throws if addresses are wrong length', async () => {
-    params[0].from = '0x123' as never;
-    params[0].calls[0].to = '0x123' as never;
+    params[0].from = '0x123';
+    params[0].calls[0].to = '0x123';
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params

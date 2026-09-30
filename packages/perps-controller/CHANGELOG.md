@@ -7,6 +7,228 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+
+### Fixed
+
+- Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
+
+## [19.0.0]
+
+### Added
+
+- Add `TWAP_SLICE`, `VAULT_CLOSE` and `SPOT_DUST_CONVERSION` to `DETAILED_ORDER_TYPES` for the HyperLiquid order types added in `@nktkas/hyperliquid` 0.33.3 ([#10591](https://github.com/MetaMask/core/pull/10591))
+- Add `PerpsController.getMarginModeLock` (and the `PerpsController:getMarginModeLock` messenger action) plus the optional `PerpsProvider.getMarginModeLock`, reporting the margin mode an asset is locked to by an open position or resting order/TWAP so clients can keep their margin-mode picker in sync with what order placement will accept. HyperLiquid implements it; other providers report `not_implemented`. ([#10414](https://github.com/MetaMask/core/pull/10414))
+- Implement `getMarginModeLock` for Lighter, reporting the mode an open position binds to its market. ([#10414](https://github.com/MetaMask/core/pull/10414))
+- Add optional `supportedMarginModes` to ready order capabilities; HyperLiquid reports `['isolated', 'cross']` for main-DEX markets and `['isolated']` for HIP-3 or isolated-only assets, so clients stop inferring margin-mode support from the provider. ([#10414](https://github.com/MetaMask/core/pull/10414))
+- Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
+  - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
+  - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
+- Add optional `accountSigner` to `PerpsPlatformDependencies` so clients without a `KeyringController` can sign through their own wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Export the new `PerpsAccountSigner` and `PerpsTypedDataPayload` types
+  - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it and never call the `KeyringController:*` messenger actions; the signing address still comes from the messenger's selected account
+  - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code
+  - `requiresSignatureConfirmation()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
+- Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Add optional `providerCredentials.hyperliquid.getAgentSigner(account)`, which resolves the approved agent (new exported `PerpsAgentSigner` and `PerpsAgentAccount` types) when an L1 action is signed for that main account and network, including the unified-account migration the provider may sign while connecting
+  - An agent `getAgentSigner` returns is kept for the provider's lifetime or until `setAgentSigner`/`clearAgentSigners`; `null` and failures are asked again at the next L1 action
+  - An agent whose signing throws fails that action with `KEYRING_LOCKED` and stays in use, so a host calls `clearAgentSigners` when its agent key locks
+  - Add `PerpsController:setAgentSigner(account, agentSigner)` (`PerpsControllerSetAgentSignerAction`) to bind an agent to an explicit main account and network, or pin that account to the main wallet with `null`; the controller keeps bindings across provider re-creation; `setAgentSigner()` can be called on the controller before `init`, and the messenger action is available once `init` has run
+  - Add `PerpsController:clearAgentSigners` (`PerpsControllerClearAgentSignersAction`) to forget every agent, for example when the wallet locks, so the next L1 action asks `getAgentSigner` again
+  - Add optional `PerpsProvider.clearAgentSigners`, implemented by the HyperLiquid provider
+  - An agent the venue rejects as unknown (revoked or expired, for example after the user approves another unnamed agent) is dropped, together with a `setAgentSigner` binding to it, so the next L1 action asks `getAgentSigner` again; the rejected action fails with `KEYRING_LOCKED` instead of `EXCHANGE_ACCOUNT_NOT_FOUND`
+  - Add optional `providerCredentials.hyperliquid.onAgentRejected(account, agentAddress)`, called with the agent's address as the client supplied it for each write the venue rejects with that agent, so the client can re-check its approval
+  - The exported `HyperLiquidProvider` accepts the matching optional `getAgentSigner` and `onAgentRejected` constructor options and implements `clearAgentSigners`
+  - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, ...) always stay on the main account; approving the agent remains the client's job
+  - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
+- Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run the deferred trading setup before the first order, so its signatures happen in a guided session: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - The builder fee and the Lighter registration are signed by the main account; with an agent, the HyperLiquid referral and unified-account migration are signed by the agent
+  - Resolves a `ReadyToTradeResult` that is `ready: true` once an account is selected, the main-account signer is ready and none of these steps will need a signature again before the first order, and `ready: false` while one will be retried, including after an agent could not sign; `ready: false` carries `KEYRING_LOCKED` while the signer is not ready, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue yet, `NO_ACCOUNT_SELECTED`, `PROVIDER_LIFECYCLE_STALE` when the provider or account changed during setup, or the message of the logged error that stopped setup; the aggregated provider prepares every provider in turn
+  - A HyperLiquid referral whose MetaMask referral code is not ready yet does not hold the result back; the next `prepareTradingWallet` checks the code again, and orders do not
+  - Implemented by the exported `HyperLiquidProvider` and by the Lighter provider, which resolves `ready: true` at once when it is read-only (no signer bridge), an account is selected and the main-account signer is ready
+- Add optional `isTestnet` to `AggregatedProviderConfig`, which tags the errors the aggregated provider logs with the network ([#10559](https://github.com/MetaMask/core/pull/10559))
+
+### Changed
+
+- **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#10591](https://github.com/MetaMask/core/pull/10591))
+- **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
+- Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
+  - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
+
+### Removed
+
+- **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig` ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
+  - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
+- Remove the HyperLiquid `dexAbstraction` to Unified Account migration, which prompted the main wallet through `userSetAbstraction`; HyperLiquid retired the `dexAbstraction` mode, and `default` / `disabled` accounts still migrate through `agentSetAbstraction` ([#10591](https://github.com/MetaMask/core/pull/10591))
+
+### Fixed
+
+- HyperLiquid historical orders report `rejected` for the venue's specific rejection statuses (`tickRejected`, `perpMarginRejected`, `tooManyOpenOrdersRejected`, ...) and `canceled` for `outcomeSettledCanceled` and `internalCancel`, instead of `queued` ([#10591](https://github.com/MetaMask/core/pull/10591))
+- Only one HyperLiquid unified-account migration runs at a time when several callers wait on an attempt that ends without a cached result, such as a migration deferred at init for a hardware wallet ([#10591](https://github.com/MetaMask/core/pull/10591))
+- HyperLiquid writes that fail because the keyring is locked now fail with `KEYRING_LOCKED` and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Before, they failed with the SDK's "Failed to sign the typed data using the wallet" message, or with `TPSL_UPDATE_FAILED` for a TP/SL update whose builder fee was not approved yet
+  - Covers orders, edits, single and batch cancels (TWAP, scale and chase cancels included), position closes, TP/SL updates and clears, margin updates, withdrawals and transfers between DEXs, including the HIP-3 transfers around an order
+- HyperLiquid `cancelOrders` reports each order of a batch with its own result when an entry fails: orders the venue cancelled are no longer reported as failed with the batch's error ([#10559](https://github.com/MetaMask/core/pull/10559))
+- HyperLiquid orders that set leverage without `marginMode` now keep the open position's margin mode instead of switching to isolated, so flipping a Cross position no longer fails with "Cannot switch leverage type with open position" ([#10588](https://github.com/MetaMask/core/pull/10588))
+- Wait up to `PERPS_CONSTANTS.ConnectionTimeoutMs` for the client's follow-up `init()` when a controller action (such as `placeOrder`) was waiting on a `disconnect()`, so an order submitted during a disconnect-then-init reconnect is placed instead of failing with `CLIENT_NOT_INITIALIZED` ([#10589](https://github.com/MetaMask/core/pull/10589))
+  - If that reconnect switched the selected account, the network or the active provider, the action fails with `PROVIDER_LIFECYCLE_STALE` instead of running under the new context.
+
+## [18.0.1]
+
+### Fixed
+
+- Accept Terminal v3 HIP-3 snapshot markets whose `provider` is the Hyperliquid venue while `dex` carries the HIP-3 DEX (for example `xyz`). ([#10429](https://github.com/MetaMask/core/pull/10429))
+  - Previous validation required `provider === dex` for non-`main` markets, which rejected the live Terminal payload (`provider: "hyperliquid"`, `dex: "xyz"`) and forced clients onto the Hyperliquid fallback without tags/`listedAt`.
+
+## [18.0.0]
+
+### Added
+
+- Add optional `subscriptionWaiverKind` (`'full' | 'partial'`) and `subscriptionCoveredNotionalUsd` fields to `PerpsFeeResolution`, reporting how much of an order the subscription allowance covered. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Add the `perpsSubscriptionFeeWaiverEnabled` remote feature flag, which disables the subscription fee source on its own without affecting rewards or the default builder fee. An absent or malformed flag reads as enabled. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Export the subscription fee-waiver helpers from the `utils` barrel, including `hasFeeReductionAppliedFlag` and `isSubscriptionProgramCloid` for decoding a marked client order ID, and add an exact `./utils` subpath export so the barrel is importable as `@metamask/perps-controller/utils`. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Add an optional `chargesMetamaskBuilderFee` field to `FeeCalculationResult`, which reports whether a placement can carry a MetaMask builder fee at all. A `metamaskFeeRate` of `0` is otherwise ambiguous between a venue or order type that has no builder field and a fully waived fee. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Add an optional `registerTradingAddress` hook to the injected `subscription` dependency, for registering the current HyperLiquid trading address (CAIP-10) against the subscription profile. The injected hook remains a fallback for clients that do not provide `SubscriptionController:registerAddress`. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Add optional `fillId` field to the `OrderFill` type, an opaque execution identifier (built from HyperLiquid `coin`, `time` and `tid`, or Lighter `tradeId`) so clients can tell apart two executions of one order that share `orderId`, `timestamp`, `size` and `price` ([#10384](https://github.com/MetaMask/core/pull/10384))
+
+### Changed
+
+- **BREAKING:** `PerpsControllerAllowedActions` now includes `SubscriptionController:getBenefits` and the structural `SubscriptionController:registerAddress` action, so benefits hydration can run over the action `@metamask/subscription-controller` already exposes. Its micro-USD allowances are converted to USD at the boundary. ([#10294](https://github.com/MetaMask/core/pull/10294))
+  - This is a type break for every client, including clients that do not register the action. `Messenger` requires each child action to exist in the parent action union, so a strict parent messenger type must include both action types before it will build; the registration handler accepts a CAIP-10 string and returns `Promise<void>`. Runtime behavior is unchanged for those clients — an unregistered action falls back to the injected `subscription` dependency — but the build does not pass without the type. Coordinate the Mobile and Extension messenger updates with this release.
+- **BREAKING:** `PerpsController.calculateFees` now quotes the subscription fee waiver as a blended rate derived from the order notional, so `feeRate`, `feeAmount`, `metamaskFeeRate`, and `metamaskFeeAmount` can differ from previous releases when a subscription waiver applies. ([#10294](https://github.com/MetaMask/core/pull/10294))
+  - Pass the order notional (USD) as `FeeCalculationParams.amount`. It is now required for quote/submit parity, and omitting it changes the quote rather than preserving the previous one: a waiver whose remaining allowance is bounded is withheld entirely from a quote with no notional, so the preview reports the next-lowest source while a submit that can derive a notional still applies the waiver. A waiver with no reported allowance bound is unaffected.
+  - Quoted rates are also repriced when rewards win, not only under a subscription waiver, and are quantized to the venue's tenths of a basis point so a quote equals the charged rate.
+- Resolve the subscription fee waiver as `0` bips when the remaining allowance covers the order notional and `MaxFee × (1 − remaining / orderNotional)` otherwise, and let that rate compete in the lowest-fee comparison — a partial waiver can now lose to a VIP or season discount. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Mark the order's client order ID with the subscription program marker and a `fee_reduction_applied` flag on every placement, replace, TP/SL, batch-close, modify, and chase path when the subscription source wins and actually reduced the fee. Any other fee source leaves the client order ID untouched, as does a subscription waiver whose remaining allowance is too small to change the charged fee. ([#10294](https://github.com/MetaMask/core/pull/10294))
+  - A client order ID supplied by the caller through `OrderParams.clientOrderId` is never rewritten, so such orders are submitted exactly as requested and are not attributed to the subscription program. Only client order IDs this package generates carry the marking, and that provenance is tracked explicitly rather than inferred from the ID's leading bytes — a caller-supplied ID beginning with a reserved marker is still preserved.
+  - Scale-ladder client order IDs keep their own group marker and rung index, so group recovery and cancel-by-client-order-ID are unaffected. A ladder's reserved flag byte is set when the waiver applies, but `hasFeeReductionAppliedFlag` does not report it — see the Fixed entry below. Scale fills and fills on caller-supplied client order IDs therefore receive the discount without a decodable marker; attributing them needs a correlation other than the client order ID.
+  - The subscription program marker is the registered id `0x0100`, zero-extended into the 4-byte marker field.
+- Register the current HyperLiquid trading address with the subscription profile during `calculateFees`, and re-register it after the selected account changes. ([#10294](https://github.com/MetaMask/core/pull/10294))
+  - The CAIP-10 identifier names HyperLiquid's own chain (`eip155:999`, or `eip155:998` on testnet), not the wallet's currently selected network, so it matches the chain a fill decoded off the HyperLiquid fan-out reports.
+
+### Deprecated
+
+- Deprecate `PerpsController.approveSubscriptionBuilderFee`, `PerpsProvider.approveSubscriptionBuilderFee`, and the dedicated subscription builder address configuration. Subscription attribution now rides on the order's client order ID rather than a separate approved builder, so the controller method is a no-op that always resolves `true` — nothing needs approving, and a `false` would read as a setup failure to a caller that branches on it. The provider-side approval machinery is retained but unreachable from order construction. ([#10294](https://github.com/MetaMask/core/pull/10294))
+
+### Fixed
+
+- Report `source: 'subscription'` only when the waiver survives the venue's fee quantization. The builder fee is submitted in integer tenths of a basis point, so a blend a fraction below the default rounds to the same charge; such an order was labelled as subscription-sourced with a `0` bips discount while paying full price, disagreeing with the client order ID, which already withheld its marking in that case. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Leave a fee tie to the source that already holds it, rather than claiming it for the subscription waiver. A blend that merely matched the winning rate — a 5-bip blend against a 5-bip VIP discount, or a full waiver against a rewards rate already at `0` — was reported as `source: 'subscription'`, which marks the client order ID and spends the remaining allowance without making the order any cheaper. The waiver now has to be strictly cheaper at venue precision to win. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Reprice a quote whose `metamaskFeeRate` reads `0` because a concurrent fully waived submit left that rate in provider state. An ordinary preview racing such a submit inherited the other order's waiver and quoted no MetaMask fee; the provider's own builder-fee policy now distinguishes that from a placement that genuinely carries no fee. Repricing a `0` rate is opt-in: a provider that does not report `chargesMetamaskBuilderFee` keeps its own rate, so a `PerpsProvider` implementation written before that field existed cannot gain a MetaMask fee it does not charge. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Reject client order IDs that match the subscription program marker and length but contain non-hex characters from `isSubscriptionProgramCloid`, which no longer treats such a value as a marked ID. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Trust the `fee_reduction_applied` flag only on a client order ID carrying the subscription program marker. The flag byte occupies a position that held random entropy in Scale-ladder client order IDs placed before this release, so reading it on any other client order ID reports roughly half of those historical ladders as fee-waived. As a result `hasFeeReductionAppliedFlag` returns `false` for a marked Scale rung, which keeps its own group marker; Scale attribution needs a correlation other than the client order ID. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Mark the client order ID of every chase replacement when the chase was placed under a subscription waiver. The marking read the live fee resolution, which the trading service clears as soon as the initial placement returns, so a replacement paid the discounted fee the session captured while shipping an unmarked ID. The decision is now captured with the session's builder fee, for the same reason. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Withhold the subscription waiver when the allowance is bounded and the order notional cannot be determined. Such an order previously resolved as a full waiver, charging nothing on an order of unknown size and over-consuming the allowance. An unbounded allowance is unaffected. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a batch close from the positions of the provider that submits it. The notional previously summed every aggregated provider's positions, while the batch routes to one, which could inflate the notional and shrink the waiver. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Honor `closeAll` ahead of `symbols` when pricing a batch close, matching the provider's own selection precedence. A `closeAll` request that also carried a symbol list was priced from the filtered subset while the batch closed every position, so the waiver was granted against a smaller notional than the order submitted. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a partial TP/SL update from the trigger size it submits rather than the whole position. `takeProfitSize` and `stopLossSize` are honored by the provider, so a partial trigger on a large position was priced against the full position notional and blended a fee on an order the remaining allowance covered outright. The larger of the two sizes prices the action, since both triggers are submitted under one builder context. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price each TP/SL trigger from its own price and absolute size, using the full position size when a trigger size is omitted. If any included trigger cannot be priced, withhold a bounded waiver for the batch. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Discard a trading-address registration whose profile was invalidated while it was in flight. The completion previously cached the address regardless, so a new profile reusing that address skipped its own registration and left its fills unattributable. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Preserve a cached benefits snapshot when a registered `SubscriptionController:getBenefits` handler rejects or throws synchronously and no injected `subscription` dependency exists to fall back to. The rejection was previously swallowed and stored as a successful "no subscription" result, erasing a waiver the user was still entitled to. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Drop a cached subscription waiver when `SubscriptionController:getBenefits` reports the profile is not subscribed. That rejection is a definitive answer rather than a failed read — the controller clears its own benefits state on the same path — so preserving the cached snapshot kept granting the waiver for the rest of the staleness window after entitlement ended. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Stop marking the client order ID of an order edit. HyperLiquid's `modify` action carries no builder field, so no MetaMask fee is charged on it, and marking reported a fee reduction on an order that paid nothing. The replacement inherits the resting order's own attribution. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a trigger placement (stop or take-profit) from its trigger price. Such an order carries no limit price, so its notional could not be derived and a bounded waiver was withheld from an order the provider prices later. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a Scale ladder from the midpoint of `scaleMinPrice` and `scaleMaxPrice`. A Scale placement states no single price, so its notional could not be derived and a bounded waiver was withheld at submit after a preview that quoted one. A stated `usdAmount` still takes precedence. Chase and TWAP placements state no price at all and remain priced from `usdAmount` or the quoted market price. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Read the subscription metadata attached to a fee preview from the same resolution as the quoted rates. They were two separate reads, so a cache invalidation or feature-flag change between them could return metadata describing a waiver the rates did not reflect. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Require positive evidence of a perps benefit before granting the waiver. `products.perps` is always present on the benefits response, so its existence proved nothing: a profile eligible for other products but carrying no perps builder fee, allowance or cap was granted an unbounded full waiver. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Reject a malformed client order ID in `hasFeeReductionAppliedFlag` and `readSubscriptionCloidFlags`. Only length and prefix were validated, so a flag byte such as `1z` parsed as `1` and reported the order as fee-reduced. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Leave quoted fee amounts untouched when the supplied order notional is zero or negative. Such a value is not an order size and previously produced negative `feeAmount` and `metamaskFeeAmount` figures. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Distinguish an unregistered benefits action from a handler that throws on its first call. The latter was treated as the former and cached as a successful "no subscription" result. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Reprice a fee preview to the undiscounted builder fee when the default source wins, rather than returning the provider's own rate. The provider's rate reflects the discount the last submit pushed into it, so a concurrent order could leak its discount into an unrelated quote. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a take-profit/stop-loss update from the position read back through the routed provider when the caller supplies neither a position snapshot nor tracking data. Both are optional, and a bounded waiver is withheld without a notional, so a valid update silently lost the waiver. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a close from the position the write can actually reach. A close read positions across every active provider and matched on symbol alone, so in aggregated mode a batch close summed positions it could not close, and a routed single close could price another provider's position for the same symbol. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Quantize the previewed MetaMask builder fee to the venue's tenths of a basis point, matching what submit charges. A blended rate of 6.667 bips was previously quoted as 6.667 and charged as 6.6. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Hydrate subscription benefits for a client that registers `SubscriptionController:getBenefits` without also injecting the optional `subscription` dependency. Both the eligibility read and the benefits refresh previously required the injected dependency, so a client adopting only the controller action always resolved as having no subscription source and never received a waiver. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Price a position close from the loaded position when the close parameters do not carry a notional. A full close commonly passes only a symbol, which previously resolved as an unbounded waiver rather than blending against the position's value; a partial close is now priced from the position's value per unit. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Resolve the subscription fee waiver against the order notional on the submit path, not just in previews. Order placement, order edits, position closes, batch closes, take-profit/stop-loss updates, and position flips previously resolved the waiver with no notional, so a bounded allowance always resolved as a full waiver — an order was quoted a blended rate and then charged nothing, over-consuming the allowance and marking its client order ID as fully waived. ([#10294](https://github.com/MetaMask/core/pull/10294))
+- Register the newly selected trading address immediately on an account switch. Clearing the session's registrations alone only re-registered on the next fee preview, so an order submitted straight after a switch went unattributed. ([#10294](https://github.com/MetaMask/core/pull/10294))
+
+## [17.4.0]
+
+### Added
+
+- Add optional `id` field to `PerpsMarketData` type, populated from the v3 Terminal snapshot endpoint ([#10356](https://github.com/MetaMask/core/pull/10356))
+
+### Changed
+
+- Bump `GLOBAL_SNAPSHOT_SCHEMA_VERSION` from `2` to `3` to consume the v3 `/perpetuals` Terminal endpoint, which adds a stable `id` per market ([#10356](https://github.com/MetaMask/core/pull/10356))
+
+## [17.3.0]
+
+### Fixed
+
+- Use Lighter's reported executed amount for order filled sizes so canceled orders do not appear fully filled. ([#10308](https://github.com/MetaMask/core/pull/10308))
+
+## [17.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+### Fixed
+
+- Normalize Lighter order timestamps from seconds to milliseconds for client date displays. ([#10187](https://github.com/MetaMask/core/pull/10187))
+- Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values. ([#10187](https://github.com/MetaMask/core/pull/10187))
+
+## [17.1.0]
+
+### Added
+
+- Add `MarketCategory.Memecoin` (`'memecoin'`) as a new UI-only filter category and expose it via `MARKET_CATEGORIES` and `MarketTypeFilter`. ([#10168](https://github.com/MetaMask/core/pull/10168))
+  - Derived in `matchesCategory` from a non-HIP-3 crypto market carrying the `'memecoin'` tag.
+  - Overlaps with the `'crypto'` filter by design — memecoin markets appear under both pills.
+
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [16.2.0]
+
+### Added
+
+- Add `ORDER_MARGIN_MODE_INVALID`, `ORDER_MARGIN_MODE_UNSUPPORTED`, `ORDER_MARGIN_MODE_POSITION_OPEN`, and `ORDER_MARGIN_MODE_ORDER_OPEN` to the exported `PerpsErrorCode` union. ([#10136](https://github.com/MetaMask/core/pull/10136))
+  - Expanding `PerpsErrorCode` is a minor. Clients should handle unknown codes in a catch-all rather than an exhaustive `Record<PerpsErrorCode, …>`. Existing callers that omit `marginMode` keep the same runtime behavior.
+- Add explicit HyperLiquid `OrderParams.marginMode` selection with market-capability and open-position/order/TWAP guards, and expose the venue's `MarketInfo.marginMode` capability. ([#10136](https://github.com/MetaMask/core/pull/10136))
+
+### Fixed
+
+- Keep the terminal HyperLiquid TWAP record when a completing fill ties `lastUpdated` with the activation, so a finished schedule is no longer reported as live. ([#10122](https://github.com/MetaMask/core/pull/10122))
+  - The venue reports one lifecycle as several `twapHistory` entries, an activation plus a terminal record, and slice fills are looked up by `twapId` so every entry of a schedule receives the same fills. `entry.time` is a whole-second value, so when the final fill is what completed the schedule its millisecond timestamp outranks both entries' own timestamps and both derive an identical `lastUpdated`.
+  - Collapsing entries with `>=` admitted that tie. The venue returns the terminal record first, so the activation was iterated last and overwrote it, `resolveTwapOrderStatus` mapped `activated` to `Active`, and the schedule stayed listed as live carrying the activation's zero executed size while offering a cancel the venue can no longer act on. Schedules that were `terminated` stop seconds after their last fill, never tie, and were unaffected.
+  - Terminality is now decided before timestamps, and `lastUpdated` is compared strictly so an equal value keeps the record already collapsed. Termination is still only ever taken from venue status and never inferred from elapsed time, so collateral cannot be reclaimed from a live TWAP. Both the polled read and the subscription adapter are corrected.
+- Handle zero minimum order amounts and margin fractions reported by Lighter for inactive markets by omitting unusable retired rows, while keeping valid delisted metadata and active market values strict. ([#10110](https://github.com/MetaMask/core/pull/10110))
+- Resolve Lighter accounts from sparse address-discovery rows and every API-key slot, settle confirmed missing accounts to an empty state, and preserve the last authoritative state across transport, authentication, and malformed-response failures. ([#10119](https://github.com/MetaMask/core/pull/10119))
+- Accept Lighter trade rows that omit the counterparty's realized PnL while continuing to require a valid PnL for the selected account. ([#10119](https://github.com/MetaMask/core/pull/10119))
+- Stop emitting a debug log for every Lighter price-stream frame. ([#10119](https://github.com/MetaMask/core/pull/10119))
+
+## [16.1.0]
+
+### Fixed
+
+- Revalidate HyperLiquid positions over HTTP before reporting a WebSocket cache miss during a TP/SL update. ([#10101](https://github.com/MetaMask/core/pull/10101))
+  - A current DEX slice is stamped with the connection epoch, which proves it belongs to the live subscription but not that it has caught up with the most recent fill. `updatePositionTPSL` therefore treated the post-fill window, where the position exists on the venue but has not yet been published, as identical to a position that was closed, and returned `POSITION_NOT_FOUND` without making a request.
+  - Only `updatePositionTPSL` opts in. `closePosition`, `closePositions` and the margin operations keep failing closed on a cache miss, because they act on a position the user is looking at: an unpublished position is not rendered, so those flows cannot reach the post-fill window. TP/SL attachment is the one path a client fires automatically within milliseconds of placing an order, with no human in the loop. Keeping the opt-in narrow also keeps the added REST traffic off the batch paths.
+  - A cache hit still returns the WebSocket slice untouched, so a stale size on a symbol that is present is resolved exactly as before, and the reduce-only sizing guarantees added in [#10037](https://github.com/MetaMask/core/pull/10037) are unaffected.
+
 ## [16.0.0]
 
 ### Added
@@ -866,7 +1088,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
+[17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...@metamask/perps-controller@17.3.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...@metamask/perps-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...@metamask/perps-controller@17.0.0
+[16.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...@metamask/perps-controller@16.2.0
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...@metamask/perps-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...@metamask/perps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...@metamask/perps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...@metamask/perps-controller@15.0.0

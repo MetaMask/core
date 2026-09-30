@@ -13,6 +13,7 @@ export const USER_STORAGE_FEATURE_NAMES = {
   notifications: 'notifications',
   accounts: 'accounts_v2',
   addressBook: 'addressBook',
+  rampsOrders: 'rampsOrders',
 };
 
 export type UserStorageGenericFeatureName = string;
@@ -40,7 +41,7 @@ export const getFeatureAndKeyFromPath = (
 
   const [feature, key] = path.split('.');
 
-  return { feature, key } as UserStorageGenericFeatureAndKey;
+  return { feature, key };
 };
 
 /**

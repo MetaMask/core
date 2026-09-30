@@ -7,9 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
+### Added
+
+- Add `fetchVaultRate`, which reads a vault's current Accountant exchange rate from `GET /v1/vaults/:address/rate` and is exposed as the `MoneyAccountApiDataService:fetchVaultRate` action. Export `VaultRateResponse`, `VaultRateOptions`, and `MoneyAccountApiDataServiceFetchVaultRateAction` ([#10504](https://github.com/MetaMask/core/pull/10504))
+
 ### Changed
 
+- Response validation now tolerates unknown fields returned by the Money Account API instead of throwing `MoneyAccountApiResponseValidationError`, so additive backend changes no longer break clients ([#10538](https://github.com/MetaMask/core/pull/10538))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+## [2.0.0]
+
+### Added
+
+- Add optional `fresh` option to `fetchPositions` that cancels in-flight reads, fetches with a zero stale time, invalidates the result for subsequent reads, and sends `Cache-Control: no-cache` so the Money API skips its Nest response cache when supported ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Accept optional additive `musd_balance_updated_at` on the positions `balance` summary ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Accept vault metadata on each position returned by `fetchPositions`: `chain_id`, `vault_key`, `name`, `asset_symbol`, and `asset_decimals` ([#10500](https://github.com/MetaMask/core/pull/10500))
+- Accept multi-asset balance fields `by_asset` and `total_balance_usd` on the positions `balance` summary, and export `AssetBalance` ([#10500](https://github.com/MetaMask/core/pull/10500))
+
+### Changed
+
+- **BREAKING:** `effective_apy` on a vault position is now `string | null`. `null` means the position has been invested for fewer than 28 days, and is distinct from a rate of zero ([#10500](https://github.com/MetaMask/core/pull/10500))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [0.4.1]
 
@@ -49,7 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...@metamask/money-account-api-data-service@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...@metamask/money-account-api-data-service@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.0...@metamask/money-account-api-data-service@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.3.0...@metamask/money-account-api-data-service@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.2.0...@metamask/money-account-api-data-service@0.3.0

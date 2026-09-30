@@ -38,6 +38,23 @@ export {
   isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
 } from './utils.js';
+export {
+  extractSignatureAddresses,
+  DEFAULT_MAX_SIGNATURE_ADDRESSES,
+  MAX_SIGNATURE_ADDRESSES_CEILING,
+} from './signature-address-extraction.js';
+export type {
+  ExtractedSignatureAddresses,
+  ExtractSignatureAddressesOptions,
+} from './signature-address-extraction.js';
+export {
+  REQUEST_SOURCE_HEADER,
+  UNKNOWN_REQUEST_SOURCE,
+  RequestSourceFlow,
+  RequestSourcePlatform,
+  buildRequestSource,
+} from './request-source.js';
+export type { RequestSource } from './request-source.js';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,

@@ -207,9 +207,14 @@ export class MultichainAccountGroup<
   /**
    * Gets the account IDs for this multichain account.
    *
+   * @param provider - An optional provider to restrict the account IDs to.
    * @returns The account IDs.
    */
-  getAccountIds(): Account['id'][] {
+  getAccountIds(provider?: Bip44AccountProvider<Account>): Account['id'][] {
+    if (provider) {
+      return [...(this.#providerToAccounts.get(provider) ?? [])];
+    }
+
     return [...this.#accountToProvider.keys()];
   }
 

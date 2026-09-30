@@ -6,8 +6,10 @@
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
   "metamask/authenticated-user-storage": "team-auth-engineers",
+  "metamask/profile-controller": "team-accounts-framework",
   "metamask/profile-sync-controller": "team-accounts-framework",
   "metamask/ramps-controller": "team-money-movement",
+  "metamask/advanced-chart-core": "team-assets",
   "metamask/assets-controller": "team-assets",
   "metamask/assets-controllers": "team-assets",
   "metamask/network-enablement-controller": "team-assets",
@@ -45,6 +47,7 @@
   "metamask/client-controller": "team-core-platform,team-extension-platform,team-mobile-platform",
   "metamask/base-controller": "team-core-platform",
   "metamask/base-data-service": "team-core-platform",
+  "metamask/utils": "team-core-platform",
   "metamask/build-utils": "team-core-platform",
   "metamask/composable-controller": "team-core-platform",
   "metamask/connectivity-controller": "team-core-platform",
@@ -68,7 +71,7 @@
   "metamask/claims-controller": "team-shield",
   "metamask/announcement-controller": "team-core-extension-ux,team-mobile-ux",
   "metamask/client-utils": "team-core-extension-ux,team-mobile-ux",
-  "metamask/core-backend": "team-core-platform,team-assets",
+  "metamask/core-backend": "team-assets",
   "metamask/eth-block-tracker": "team-core-platform",
   "metamask/eth-json-rpc-middleware": "team-core-platform,team-confirmations",
   "metamask/eth-json-rpc-provider": "team-core-platform",
@@ -96,5 +99,6 @@
   "metamask/platform-api-docs": "team-core-platform",
   "metamask/smart-transactions-controller": "team-transactions",
   "metamask/kyc-controller": "team-universal-kyc",
-  "metamask/cryptography": "team-core-platform"
+  "metamask/cryptography": "team-core-platform",
+  "metamask/package-template": "team-core-platform"
 }

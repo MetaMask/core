@@ -1,13 +1,20 @@
-import * as changelogConflicts from './lib/changelog-conflicts.js';
-import { main } from './merge-changelog-conflicts.js';
+import { jest } from '@jest/globals';
 
-jest.mock('./lib/changelog-conflicts');
+// `jest.mock` does not apply to ES modules, so the module registry is stubbed
+// with `jest.unstable_mockModule` and the modules under test are imported
+// dynamically afterwards.
+jest.unstable_mockModule('./lib/changelog-conflicts.js', () => ({
+  resolveChangelogConflicts: jest.fn(),
+}));
+
+const changelogConflicts = await import('./lib/changelog-conflicts.js');
+const { main } = await import('./merge-changelog-conflicts.js');
 
 describe('merge-changelog-conflicts', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'log').mockImplementation();
-    jest.spyOn(console, 'warn').mockImplementation();
-    jest.spyOn(console, 'error').mockImplementation();
+    jest.spyOn(console, 'log').mockReturnValue(undefined);
+    jest.spyOn(console, 'warn').mockReturnValue(undefined);
+    jest.spyOn(console, 'error').mockReturnValue(undefined);
     // The module under test invokes `main()` once as a side effect of being
     // imported (using the auto-mocked, undefined-returning
     // `resolveChangelogConflicts`), which leaves a stale exit code.
@@ -20,7 +27,7 @@ describe('merge-changelog-conflicts', () => {
 
   it('logs a message and exits cleanly when there are no conflicted files', async () => {
     jest
-      .spyOn(changelogConflicts, 'resolveChangelogConflicts')
+      .mocked(changelogConflicts.resolveChangelogConflicts)
       .mockResolvedValue({ resolved: [], skipped: [] });
 
     await main();
@@ -33,7 +40,7 @@ describe('merge-changelog-conflicts', () => {
 
   it('logs each resolved file and exits cleanly', async () => {
     jest
-      .spyOn(changelogConflicts, 'resolveChangelogConflicts')
+      .mocked(changelogConflicts.resolveChangelogConflicts)
       .mockResolvedValue({
         resolved: [
           { path: 'packages/example/CHANGELOG.md', mergedEntryCount: 2 },
@@ -54,7 +61,7 @@ describe('merge-changelog-conflicts', () => {
 
   it('warns about skipped files and exits with a non-zero code', async () => {
     jest
-      .spyOn(changelogConflicts, 'resolveChangelogConflicts')
+      .mocked(changelogConflicts.resolveChangelogConflicts)
       .mockResolvedValue({
         resolved: [],
         skipped: [

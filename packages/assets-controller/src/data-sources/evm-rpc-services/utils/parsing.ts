@@ -5,7 +5,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type { ChainId } from '../types/index.js';
 

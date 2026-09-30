@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-shadow
 import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers.js';

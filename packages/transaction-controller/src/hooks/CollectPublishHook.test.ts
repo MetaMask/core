@@ -1,4 +1,4 @@
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
 import { flushPromises } from '../../../../tests/helpers.js';
 import type { TransactionMeta } from '../index.js';

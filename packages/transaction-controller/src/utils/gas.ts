@@ -57,7 +57,6 @@ export type EstimateGasBatchResult = {
 
 export const log = createModuleLogger(projectLogger, 'gas');
 
-export const FIXED_GAS = '0x5208';
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
 export const MAX_GAS_BLOCK_PERCENT = 90;
 export const INTRINSIC_GAS = 21000;
@@ -516,11 +515,6 @@ async function getGas(
     return [txMeta.txParams.gas, undefined, txMeta.txParams.gas];
   }
 
-  if (await requiresFixedGas(request)) {
-    log('Using fixed value', FIXED_GAS);
-    return [FIXED_GAS, undefined, FIXED_GAS];
-  }
-
   const {
     blockGasLimit,
     estimatedGas,
@@ -567,60 +561,6 @@ async function getGas(
   log('Buffered gas', bufferedGas);
 
   return [bufferedGas, simulationFails, estimatedGas, gasRevert];
-}
-
-/**
- * Determine if the gas for the provided request should be fixed.
- *
- * @param options - The options object.
- * @param options.messenger - The messenger instance for communication.
- * @param options.txMeta - The transaction meta object.
- * @param options.isCustomNetwork - Whether the network is a custom network.
- * @returns Whether the gas should be fixed.
- */
-async function requiresFixedGas({
-  messenger,
-  txMeta,
-  isCustomNetwork,
-}: UpdateGasRequest): Promise<boolean> {
-  const {
-    networkClientId,
-    txParams: { to, data, type },
-  } = txMeta;
-
-  if (
-    isCustomNetwork ||
-    !to ||
-    data ||
-    type === TransactionEnvelopeType.setCode
-  ) {
-    return false;
-  }
-
-  const code = await getCode(messenger, networkClientId, to);
-
-  return !code || code === '0x';
-}
-
-/**
- * Get the contract code for the provided address.
- *
- * @param messenger - The messenger instance for communication.
- * @param networkClientId - The network client ID.
- * @param address - The address to get the code for.
- * @returns The contract code.
- */
-async function getCode(
-  messenger: TransactionControllerMessenger,
-  networkClientId: NetworkClientId,
-  address: string,
-): Promise<string | undefined> {
-  return (await rpcRequest({
-    messenger,
-    networkClientId,
-    method: 'eth_getCode',
-    params: [address, 'latest'],
-  })) as string | undefined;
 }
 
 /**

@@ -117,9 +117,10 @@ describe('PerpsController — market categories & filtering', () => {
       expect(categories).not.toContain('new');
     });
 
-    it('includes all 7 data categories', () => {
+    it('includes all 8 data categories', () => {
       const categories = controller.getMarketCategories();
       expect(categories).toContain('crypto');
+      expect(categories).toContain('memecoin');
       expect(categories).toContain('stock');
       expect(categories).toContain('pre-ipo');
       expect(categories).toContain('index');

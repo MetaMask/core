@@ -29,9 +29,9 @@ import {
   BillingPortalResponseStruct,
   GetSubscriptionsResponseStruct,
   PricingResponseStruct,
-  StartCryptoSubscriptionResponseStruct,
   StartSubscriptionResponseStruct,
   SubscriptionApiGeneralResponseStruct,
+  SubscriptionBenefitsResponseStruct,
   SubscriptionEligibilityArrayStruct,
   SubscriptionStruct,
   UpdatePaymentMethodCardResponseStruct,
@@ -53,6 +53,7 @@ import type {
   SubmitUserEventRequest,
   Subscription,
   SubscriptionApiGeneralResponse,
+  SubscriptionBenefitsResponse,
   SubscriptionEligibility,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -66,6 +67,7 @@ export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
 
 const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptions',
+  'getBenefits',
   'cancelSubscription',
   'unCancelSubscription',
   'startSubscriptionWithCard',
@@ -202,6 +204,27 @@ export class SubscriptionService extends BaseDataService<
   }
 
   /**
+   * Fetches the user's subscription benefits.
+   *
+   * @returns The benefits response.
+   */
+  async getBenefits(): Promise<SubscriptionBenefitsResponse> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getBenefits',
+      requestParams: null,
+      path: 'benefits',
+      method: 'POST',
+      body: {},
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetBenefits,
+    });
+
+    return create(jsonResponse, SubscriptionBenefitsResponseStruct);
+  }
+
+  /**
    * Cancels a subscription.
    *
    * @param params - The cancel subscription request.
@@ -216,11 +239,17 @@ export class SubscriptionService extends BaseDataService<
       profileKey,
       bearerToken,
       methodName: 'cancelSubscription',
-      requestParams: params,
+      requestParams: {
+        subscriptionId: params.subscriptionId,
+        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+        cancellationReason: params.cancellationReason,
+      },
       path,
       method: 'POST',
       body: {
         cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+        cancellationReason: params.cancellationReason,
+        cancellationFeedback: params.cancellationFeedback,
       },
       errorMessage: SubscriptionServiceErrorMessage.FailedToCancelSubscription,
     });
@@ -291,7 +320,8 @@ export class SubscriptionService extends BaseDataService<
    * Starts a subscription with a crypto payment method.
    *
    * @param request - The start crypto subscription request.
-   * @returns The created subscription response.
+   * @returns The created subscription. Unlike card checkout, the Subscription
+   * API creates the subscription immediately and returns it in full.
    * @throws If `products` is empty.
    * @throws If the request does not use exactly one of `rawTransaction`
    * (ERC-20 approval) or `delegationHash` (delegation).
@@ -320,7 +350,7 @@ export class SubscriptionService extends BaseDataService<
         SubscriptionServiceErrorMessage.FailedToStartSubscriptionWithCrypto,
     });
 
-    return create(jsonResponse, StartCryptoSubscriptionResponseStruct);
+    return create(jsonResponse, SubscriptionStruct);
   }
 
   /**

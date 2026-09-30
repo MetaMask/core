@@ -1,4 +1,5 @@
 import type {
+  PriceV2SupportedNetworksResponse,
   SupportedCurrency,
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
@@ -13,10 +14,10 @@ import type {
   DataResponse,
   FungibleAssetPrice,
   Middleware,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
-import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import { fetchWithTimeout, safeNormalizeAssetId } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -40,6 +41,38 @@ const FRESHNESS_TTL_POLL_RATIO = 0.9;
 const PRICE_API_BATCH_SIZE = 50;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Extracts the CAIP-2 chain IDs the Price API v3 spot-prices endpoint
+ * supports from a `/v2/supportedNetworks` response.
+ *
+ * The endpoint returns `partialSupport` as an object keyed by spot-price
+ * endpoint (`{ spotPricesV2, spotPricesV3 }`). Since this data source only
+ * calls `/v3/spot-prices`, only `spotPricesV3` is relevant. A legacy
+ * array-shaped `partialSupport` is still accepted so a transient schema
+ * change does not disable price fetching.
+ *
+ * @param response - The supported networks response.
+ * @param response.fullSupport - Chains supported by every endpoint.
+ * @param response.partialSupport - Chains supported by specific endpoints.
+ * @returns Unique CAIP-2 chain IDs supported by v3 spot prices.
+ */
+function getV3SpotPriceSupportedChainIds(response: {
+  fullSupport?: string[];
+  partialSupport?:
+    | string[]
+    | Partial<PriceV2SupportedNetworksResponse['partialSupport']>;
+}): Set<string> {
+  const { fullSupport, partialSupport } = response;
+  const partial = Array.isArray(partialSupport)
+    ? partialSupport
+    : (partialSupport?.spotPricesV3 ?? []);
+  return new Set([...(fullSupport ?? []), ...partial]);
+}
 
 // ============================================================================
 // OPTIONS
@@ -68,6 +101,8 @@ export type PriceDataSourceOptions = PriceDataSourceConfig & {
   queryApiClient: ApiPlatformClient;
   /** Function returning the currently-active ISO 4217 currency code */
   getSelectedCurrency: () => SupportedCurrency;
+  /** Current AssetsController state. Used for balance-based pricing and freshness checks. */
+  getAssetsState: () => AssetsControllerState;
 };
 
 // ============================================================================
@@ -133,9 +168,9 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
  * This data source:
  * - Fetches prices from Price API v3 spot-prices endpoint
  * - Supports one-time fetch and subscription-based polling
- * - In subscribe mode, uses getAssetsState from SubscriptionRequest to read assetsBalance and fetch prices
+ * - In subscribe mode, uses constructor `getAssetsState` to read assetsBalance and fetch prices
  *
- * Usage: Create with queryApiClient; subscribe() requires getAssetsState in the request for balance-based pricing.
+ * Usage: Create with queryApiClient and getAssetsState; subscribe() polls prices for held assets.
  */
 export class PriceDataSource {
   static readonly controllerName = CONTROLLER_NAME;
@@ -161,6 +196,8 @@ export class PriceDataSource {
    */
   readonly #deduper: DedupingBatchFetcher<Caip19AssetId, FungibleAssetPrice>;
 
+  readonly #getAssetsState: () => AssetsControllerState;
+
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -168,7 +205,6 @@ export class PriceDataSource {
       cleanup: () => void;
       request: DataRequest;
       onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
-      getAssetsState?: () => AssetsControllerStateInternal;
     }
   > = new Map();
 
@@ -177,6 +213,7 @@ export class PriceDataSource {
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.#getAssetsState = options.getAssetsState;
     this.#deduper = new DedupingBatchFetcher({
       fetchBatch: (
         assetIds,
@@ -210,7 +247,7 @@ export class PriceDataSource {
       // Extract response from context
       const { response, request } = ctx;
 
-      const statePrices = (ctx.getAssetsState()?.assetsPrice ?? {}) as Record<
+      const statePrices = (this.#getAssetsState()?.assetsPrice ?? {}) as Record<
         string,
         FungibleAssetPrice
       >;
@@ -227,7 +264,7 @@ export class PriceDataSource {
         response.detectedAssets ?? {},
       )) {
         for (const assetId of detectedAccountAssets) {
-          const normalizedAssetId = normalizeAssetId(assetId);
+          const normalizedAssetId = safeNormalizeAssetId(assetId);
           const alreadyQueued = request.assetsForPriceUpdate?.some(
             (queuedId) =>
               queuedId === assetId || queuedId === normalizedAssetId,
@@ -253,12 +290,22 @@ export class PriceDataSource {
         return next(ctx);
       }
 
+      const supportedNetworks = await this.#getSupportedNetworks();
+      const supportedAssetIds = this.#filterAssetsByNetwork(
+        priceableAssetIds,
+        supportedNetworks,
+      );
+
+      if (supportedAssetIds.length === 0) {
+        return next(ctx);
+      }
+
       if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(priceableAssetIds);
+        this.#deduper.invalidateKeys(supportedAssetIds);
       }
 
       try {
-        const spotPrices = await this.#fetchSpotPrices(priceableAssetIds);
+        const spotPrices = await this.#fetchSpotPrices(supportedAssetIds);
         response.assetsPrice = {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
@@ -403,18 +450,11 @@ export class PriceDataSource {
    * Filters by accounts and chains from the request.
    *
    * @param request - Data request with accounts and chainIds filters.
-   * @param getAssetsState - State access; when omitted, returns [].
    * @returns Array of CAIP-19 asset IDs from balance state.
    */
-  #getAssetIdsFromBalanceState(
-    request: DataRequest,
-    getAssetsState?: () => AssetsControllerStateInternal,
-  ): Caip19AssetId[] {
-    if (!getAssetsState) {
-      return [];
-    }
+  #getAssetIdsFromBalanceState(request: DataRequest): Caip19AssetId[] {
     try {
-      const state = getAssetsState();
+      const state = this.#getAssetsState();
       const assetIds = new Set<Caip19AssetId>();
 
       const accountIds = request.accountsWithSupportedChains.map(
@@ -434,9 +474,7 @@ export class PriceDataSource {
             continue;
           }
 
-          for (const assetId of Object.keys(
-            accountBalances as Record<string, unknown>,
-          )) {
+          for (const assetId of Object.keys(accountBalances)) {
             // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
               try {
@@ -466,32 +504,81 @@ export class PriceDataSource {
     }
   }
 
+  /**
+   * Price API networks supported by the v3 spot-prices endpoint
+   * (`fullSupport` plus `partialSupport.spotPricesV3`).
+   *
+   * @returns CAIP-2 chain IDs; empty on error.
+   */
+  async #getSupportedNetworks(): Promise<Set<string>> {
+    try {
+      const response = await fetchWithTimeout(
+        (): Promise<PriceV2SupportedNetworksResponse> =>
+          this.#apiClient.prices.fetchPriceV2SupportedNetworks(),
+        this.#fetchTimeoutMs,
+      );
+
+      return getV3SpotPriceSupportedChainIds(response);
+    } catch (error) {
+      log('Failed to fetch price supported networks', { error });
+      return new Set();
+    }
+  }
+
+  /**
+   * Keeps asset IDs whose chain is in `supportedNetworks`.
+   *
+   * @param assetIds - CAIP-19 asset IDs.
+   * @param supportedNetworks - Supported CAIP-2 chain IDs.
+   * @returns Matching IDs, or all IDs if the set is empty.
+   */
+  #filterAssetsByNetwork(
+    assetIds: Caip19AssetId[],
+    supportedNetworks: Set<string>,
+  ): Caip19AssetId[] {
+    if (supportedNetworks.size === 0) {
+      return assetIds;
+    }
+    return assetIds.filter((assetId) => {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        const chainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        return supportedNetworks.has(chainId);
+      } catch {
+        return false;
+      }
+    });
+  }
+
   // ============================================================================
   // FETCH
   // ============================================================================
 
   /**
    * Fetch prices for assets held by the accounts and chains in the request.
-   * When getAssetsState is provided, gets asset IDs from balance state; otherwise returns empty.
+   * Reads asset IDs from balance state via the constructor `getAssetsState`.
    *
    * @param request - The data request specifying accounts and chains.
-   * @param getAssetsState - Optional state access (e.g. from SubscriptionRequest).
    * @returns DataResponse containing asset prices.
    */
-  async fetch(
-    request: DataRequest,
-    getAssetsState?: () => AssetsControllerStateInternal,
-  ): Promise<DataResponse> {
+  async fetch(request: DataRequest): Promise<DataResponse> {
     const response: DataResponse = {};
 
-    // Get asset IDs from balance state when state access is provided
-    const rawAssetIds = this.#getAssetIdsFromBalanceState(
-      request,
-      getAssetsState,
-    );
+    // Get asset IDs from balance state
+    const rawAssetIds = this.#getAssetIdsFromBalanceState(request);
 
     // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
-    const assetIds = rawAssetIds.filter(isPriceableAsset);
+    const priceableAssetIds = rawAssetIds.filter(isPriceableAsset);
+
+    if (priceableAssetIds.length === 0) {
+      return response;
+    }
+
+    const supportedNetworks = await this.#getSupportedNetworks();
+    const assetIds = this.#filterAssetsByNetwork(
+      priceableAssetIds,
+      supportedNetworks,
+    );
 
     if (assetIds.length === 0) {
       return response;
@@ -532,13 +619,9 @@ export class PriceDataSource {
       if (existing) {
         existing.request = request;
         existing.onAssetsUpdate = subscriptionRequest.onAssetsUpdate;
-        existing.getAssetsState = subscriptionRequest.getAssetsState;
 
         try {
-          const fetchResponse = await this.fetch(
-            request,
-            subscriptionRequest.getAssetsState,
-          );
+          const fetchResponse = await this.fetch(request);
           if (
             fetchResponse.assetsPrice &&
             Object.keys(fetchResponse.assetsPrice).length > 0
@@ -570,7 +653,7 @@ export class PriceDataSource {
       Math.floor(pollInterval * FRESHNESS_TTL_POLL_RATIO),
     );
 
-    // Create poll function - fetches prices using getAssetsState from subscription.
+    // Create poll function - fetches prices using constructor getAssetsState.
     // The freshness TTL naturally gates re-fetches: assets fetched less than
     // `priceFreshnessTtlMs` ago are skipped, preventing duplicates when middleware
     // or other triggers already fetched the same assets between polls.
@@ -583,10 +666,7 @@ export class PriceDataSource {
           return;
         }
 
-        const fetchResponse = await this.fetch(
-          subscription.request,
-          subscription.getAssetsState,
-        );
+        const fetchResponse = await this.fetch(subscription.request);
 
         // Only report if we got prices
         if (
@@ -610,14 +690,13 @@ export class PriceDataSource {
       pollFn().catch(console.error);
     }, pollInterval);
 
-    // Store subscription (getAssetsState from request for balance-based pricing)
+    // Store subscription
     this.#activeSubscriptions.set(subscriptionId, {
       cleanup: () => {
         clearInterval(timer);
       },
       request,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-      getAssetsState: subscriptionRequest.getAssetsState,
     });
 
     // Initial fetch

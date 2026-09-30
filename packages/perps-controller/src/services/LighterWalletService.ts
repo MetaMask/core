@@ -13,9 +13,9 @@
  * 2. Venue-key (Schnorr/ECgFp5) signatures over L2 transactions, produced
  *    inside the injected signer bridge from client-managed key material.
  *
- * Signature routing goes through
- * `KeyringController:signPersonalMessage` when a messenger is available,
- * or through an injected `LighterPersonalSigner` for headless use.
+ * Signature routing goes through the injected `accountSigner` when one is
+ * set, else `KeyringController:signPersonalMessage`. The L1 address always
+ * comes from the messenger's selected account.
  */
 
 import { bytesToHex } from '@metamask/utils';
@@ -24,11 +24,12 @@ import type { Hex } from '@metamask/utils';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
-import type {
-  LighterNetwork,
-  LighterPersonalSigner,
-} from '../types/lighter-types.js';
+import type { LighterNetwork } from '../types/lighter-types.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import {
+  isAccountSignerReady,
+  isMainAccountSignerReady,
+} from './accountSigner.js';
 
 export class LighterWalletService {
   #isTestnet: boolean;
@@ -37,23 +38,15 @@ export class LighterWalletService {
 
   readonly #messenger: PerpsControllerMessenger | undefined;
 
-  readonly #personalSigner: LighterPersonalSigner | undefined;
-
-  readonly #l1Address: string | undefined;
-
   constructor(
     deps: PerpsPlatformDependencies,
     options: {
       isTestnet?: boolean;
       messenger?: PerpsControllerMessenger;
-      personalSigner?: LighterPersonalSigner;
-      l1Address?: string;
     } = {},
   ) {
     this.#deps = deps;
     this.#messenger = options.messenger;
-    this.#personalSigner = options.personalSigner;
-    this.#l1Address = options.l1Address;
     this.#isTestnet = options.isTestnet ?? true;
   }
 
@@ -67,29 +60,59 @@ export class LighterWalletService {
    * @returns The EVM address.
    */
   getUserAddress(): string {
-    if (this.#messenger) {
-      const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
-      if (!evmAccount?.address) {
-        throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
-      }
-      return evmAccount.address;
+    const evmAccount = this.#messenger
+      ? getSelectedEvmAccountFromMessenger(this.#messenger)
+      : undefined;
+    if (!evmAccount?.address) {
+      throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
-    if (this.#l1Address) {
-      return this.#l1Address;
-    }
-    throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
+    return evmAccount.address;
+  }
+
+  /**
+   * Whether the main account can sign now: the injected account signer's
+   * readiness when one is set, else the keyring's unlock state.
+   *
+   * @returns True when the main account is available for signing.
+   */
+  isMainAccountSignerReady(): boolean {
+    return isMainAccountSignerReady(
+      this.#deps.accountSigner,
+      () =>
+        this.#messenger?.call('KeyringController:getState').isUnlocked ?? false,
+    );
   }
 
   /**
    * Sign an EIP-191 personal message with the user's L1 account.
    *
-   * Routes through the keyring when a messenger is present, else the
-   * injected headless signer.
+   * Routes through the injected account signer when one is set, else the
+   * keyring.
    *
    * @param message - Plaintext message to sign.
    * @returns 65-byte signature as 0x-prefixed hex.
    */
   async signPersonalMessage(message: string): Promise<string> {
+    const { accountSigner } = this.#deps;
+    if (accountSigner) {
+      if (!isAccountSignerReady(accountSigner)) {
+        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      }
+      const address = this.getUserAddress() as Hex;
+      this.#deps.debugLogger.log('LighterWalletService: personal_sign', {
+        address,
+      });
+      try {
+        return await accountSigner.signPersonalMessage(address, message);
+      } catch (error) {
+        // A signer that locked while signing throws its own error.
+        if (!isAccountSignerReady(accountSigner)) {
+          throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED, { cause: error });
+        }
+        throw error;
+      }
+    }
+
     if (this.#messenger) {
       const { isUnlocked } = this.#messenger.call('KeyringController:getState');
       if (!isUnlocked) {
@@ -105,10 +128,6 @@ export class LighterWalletService {
         'KeyringController:signPersonalMessage',
         { from: address, data },
       );
-    }
-
-    if (this.#personalSigner) {
-      return await this.#personalSigner(message);
     }
 
     throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);

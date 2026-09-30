@@ -23,6 +23,7 @@ import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
   PerpsPlatformDependencies,
+  PerpsTypedDataPayload,
 } from '../types/index.js';
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
@@ -45,19 +46,9 @@ export type ValidCandleInterval = CandlePeriod;
  * Extracted for reuse across initialize(), toggleTestnet(), and ensureSubscriptionClient() methods.
  */
 export type HyperLiquidWalletParams = {
-  signTypedData: (params: {
-    domain: {
-      name: string;
-      version: string;
-      chainId: number;
-      verifyingContract: Hex;
-    };
-    types: {
-      [key: string]: { name: string; type: string }[];
-    };
-    primaryType: string;
-    message: Record<string, unknown>;
-  }) => Promise<Hex>;
+  /** The main account; the SDK recognizes the wallet and keys nonces by it. */
+  address: Hex;
+  signTypedData: (params: PerpsTypedDataPayload) => Promise<Hex>;
   getChainId?: () => Promise<number>;
 };
 

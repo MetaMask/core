@@ -37,7 +37,15 @@ function BlockTrackerPollingControllerMixin<
     TBase,
     PollingInput
   >(Base) {
-    #activeListeners: Record<string, (options: Json) => Promise<void>> = {};
+    // This field is public (rather than using `#`) so that declaration
+    // emission can describe it. Private/protected members on the class
+    // returned by an exported mixin function trigger TS4094, and giving the
+    // mixin an explicit return type to work around that breaks consumers
+    // that supply the base class's own type arguments via
+    // `BlockTrackerPollingController()<Name, State, Messenger>`. The
+    // leading underscore signals "internal, do not use" without needing
+    // true privacy.
+    _activeListeners: Record<string, (options: Json) => Promise<void>> = {};
 
     abstract _getNetworkClientById(
       networkClientId: NetworkClientId,
@@ -46,7 +54,7 @@ function BlockTrackerPollingControllerMixin<
     _startPolling(input: PollingInput): void {
       const key = getKey(input);
 
-      if (this.#activeListeners[key]) {
+      if (this._activeListeners[key]) {
         return;
       }
 
@@ -56,7 +64,7 @@ function BlockTrackerPollingControllerMixin<
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         networkClient.blockTracker.addListener('latest', updateOnNewBlock);
-        this.#activeListeners[key] = updateOnNewBlock;
+        this._activeListeners[key] = updateOnNewBlock;
       } else {
         throw new Error(
           `Unable to retrieve blockTracker for networkClientId ${input.networkClientId}`,
@@ -70,13 +78,13 @@ function BlockTrackerPollingControllerMixin<
         networkClientId as NetworkClientId,
       );
 
-      if (networkClient && this.#activeListeners[key]) {
-        const listener = this.#activeListeners[key];
+      if (networkClient && this._activeListeners[key]) {
+        const listener = this._activeListeners[key];
         if (listener) {
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/no-misused-promises
           networkClient.blockTracker.removeListener('latest', listener);
-          delete this.#activeListeners[key];
+          delete this._activeListeners[key];
         }
       }
     }

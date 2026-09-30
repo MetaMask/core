@@ -22,12 +22,19 @@ import {
   getLocalTransactionStatus,
   isNftStandard,
 } from './helpers/transactions.js';
-import type { TransactionGroup } from './helpers/transactions.js';
+import type {
+  GetKnownTokenDecimals,
+  TransactionGroup,
+} from './helpers/transactions.js';
 
 const evmNativeDecimals = 18;
 
 /**
  * Maps a local TransactionController group into the shared activity item shape.
+ *
+ * Fungible ERC-20 amounts are only emitted when a decimals scale is known
+ * (`transferInformation`, `contractTokenMetadata`, static metadata, or
+ * `getKnownTokenDecimals`). Native amounts always use 18 decimals.
  *
  * @param transactionGroup - The transaction group to map, optionally enriched by the client.
  * @returns The normalized activity item.
@@ -40,6 +47,7 @@ export function mapLocalTransaction(
     contractTokenMetadata?: { symbol?: string; decimals?: number };
     activityStatus?: ActivityItem['status'];
     fees?: Fee[];
+    getKnownTokenDecimals?: GetKnownTokenDecimals;
   },
 ): ActivityItem {
   const { initialTransaction, primaryTransaction } = transactionGroup;
@@ -72,6 +80,21 @@ export function mapLocalTransaction(
   const tokenContractAddress = isPermit2Approve
     ? undefined
     : (transferInformation?.contractAddress ?? (to || undefined));
+
+  const resolveErc20Metadata = (
+    contractAddress: string,
+  ): { symbol?: string; decimals?: number } => {
+    const known = getKnownTokenMetadata(chainId, contractAddress);
+    const host = transactionGroup.getKnownTokenDecimals?.(
+      chainId,
+      contractAddress,
+    );
+
+    return {
+      symbol: known?.symbol ?? host?.symbol,
+      decimals: known?.decimals ?? host?.decimals,
+    };
+  };
 
   const getNativeToken = (
     transaction: TransactionGroup['initialTransaction'],
@@ -116,20 +139,25 @@ export function mapLocalTransaction(
       return undefined;
     }
 
+    const known = resolveErc20Metadata(contractAddress);
     const symbol =
       transaction.transferInformation?.symbol ??
-      transactionGroup.contractTokenMetadata?.symbol;
+      transactionGroup.contractTokenMetadata?.symbol ??
+      known.symbol;
     const decimals =
       transaction.transferInformation?.decimals ??
-      transactionGroup.contractTokenMetadata?.decimals;
+      transactionGroup.contractTokenMetadata?.decimals ??
+      known.decimals;
     const amount = transaction.transferInformation?.amount;
     const assetId = formatAddressToAssetId(contractAddress, chainId);
 
     return {
       direction,
+      assetType: 'erc20',
       ...(symbol ? { symbol } : {}),
       ...(assetId ? { assetId } : {}),
-      ...(amount ? { amount } : {}),
+      // Fail closed: never emit base-unit amounts without a known scale.
+      ...(amount && decimals !== undefined ? { amount } : {}),
       ...(decimals === undefined ? {} : { decimals }),
     };
   };
@@ -149,7 +177,7 @@ export function mapLocalTransaction(
       return undefined;
     }
 
-    const tokenMetadata = getKnownTokenMetadata(chainId, contractAddress);
+    const tokenMetadata = resolveErc20Metadata(contractAddress);
 
     const isWrappedNativeToken = equalsIgnoreCase(
       contractAddress,
@@ -162,23 +190,24 @@ export function mapLocalTransaction(
       : undefined;
 
     const decimals =
-      transaction.transferInformation?.amount === undefined
-        ? (tokenMetadata?.decimals ??
-          transactionGroup.contractTokenMetadata?.decimals ??
-          wrappedNativeTokenDecimals)
-        : transaction.transferInformation.decimals;
+      transaction.transferInformation?.decimals ??
+      tokenMetadata.decimals ??
+      transactionGroup.contractTokenMetadata?.decimals ??
+      wrappedNativeTokenDecimals;
     const tokenAmount = transaction.transferInformation?.amount ?? amount;
     const symbol =
       transaction.transferInformation?.symbol ??
-      tokenMetadata?.symbol ??
+      tokenMetadata.symbol ??
       transactionGroup.contractTokenMetadata?.symbol;
     const assetId = formatAddressToAssetId(contractAddress, chainId);
 
     return {
       direction,
+      assetType: 'erc20',
       ...(symbol ? { symbol } : {}),
       ...(assetId ? { assetId } : {}),
-      ...(tokenAmount ? { amount: tokenAmount } : {}),
+      // Fail closed: never emit base-unit amounts without a known scale.
+      ...(tokenAmount && decimals !== undefined ? { amount: tokenAmount } : {}),
       ...(decimals === undefined ? {} : { decimals }),
     };
   };

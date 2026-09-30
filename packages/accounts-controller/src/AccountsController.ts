@@ -33,8 +33,8 @@ import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { isCaipChainId } from '@metamask/utils';
 import type { CaipChainId } from '@metamask/utils';
-import type { WritableDraft } from 'immer/dist/internal.js';
-import { cloneDeep } from 'lodash';
+import type { WritableDraft } from 'immer';
+import { cloneDeep } from 'lodash-es';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types.js';
 import { projectLogger as log } from './logger.js';
@@ -763,9 +763,18 @@ export class AccountsController extends BaseController<
    * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    */
   clearState(): void {
+    const removedIds = Object.keys(this.state.internalAccounts.accounts);
+
     this.update(() => {
       return getDefaultAccountsControllerState();
     });
+
+    for (const id of removedIds) {
+      this.messenger.publish('AccountsController:accountRemoved', id);
+    }
+    if (removedIds.length > 0) {
+      this.messenger.publish('AccountsController:accountsRemoved', removedIds);
+    }
   }
 
   /**
@@ -1057,9 +1066,7 @@ export class AccountsController extends BaseController<
           );
 
           if (account) {
-            const accounts = Object.values(
-              internalAccounts.accounts,
-            ) as InternalAccount[];
+            const accounts = Object.values(internalAccounts.accounts);
 
             // If it's the first account, we need to select it.
             const lastSelected =
@@ -1134,9 +1141,7 @@ export class AccountsController extends BaseController<
       // If the account no longer exists (or none is selected), we need to re-select another one.
       const { internalAccounts } = state;
       if (!internalAccounts.accounts[previouslySelectedAccount]) {
-        const accounts = Object.values(
-          internalAccounts.accounts,
-        ) as InternalAccount[];
+        const accounts = Object.values(internalAccounts.accounts);
 
         // Get the lastly selected account (according to the current accounts).
         const lastSelectedAccount = this.#getLastSelectedAccount(accounts);

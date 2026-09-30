@@ -1,4 +1,9 @@
 import { AccountGroupId } from '@metamask/account-api';
+import type {
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountsRemovedEvent,
+  AccountsControllerGetStateAction,
+} from '@metamask/accounts-controller';
 import {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
@@ -67,6 +72,7 @@ import { assertStruct } from '@metamask/utils';
 
 import { reportError, withSafeError } from './errors.js';
 import { projectLogger as log } from './logger.js';
+import { SnapAccountCache } from './SnapAccountCache.js';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceEnsureMigratedAction,
@@ -143,7 +149,8 @@ type AllowedActions =
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerWithKeyringV2UnsafeAction
   | AccountTreeControllerGetAccountGroupObjectAction
-  | AccountTreeControllerGetSelectedAccountGroupAction;
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountsControllerGetStateAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -184,7 +191,9 @@ type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | AccountTreeControllerAccountGroupCreatedEvent
   | AccountTreeControllerAccountGroupUpdatedEvent
-  | AccountTreeControllerAccountGroupRemovedEvent;
+  | AccountTreeControllerAccountGroupRemovedEvent
+  | AccountsControllerAccountsAddedEvent
+  | AccountsControllerAccountsRemovedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -265,6 +274,8 @@ export class SnapAccountService {
 
   readonly #tracker: SnapTracker;
 
+  readonly #cache: SnapAccountCache;
+
   readonly #client: KeyringInternalSnapClient;
 
   #migrated = false;
@@ -286,6 +297,7 @@ export class SnapAccountService {
       config?.snapPlatformWatcher,
     );
     this.#tracker = new SnapTracker(messenger);
+    this.#cache = new SnapAccountCache(messenger);
     this.#client = new KeyringInternalSnapClient({
       messenger: messenger.buildChild({
         namespace: 'KeyringInternalSnapClient',
@@ -343,6 +355,11 @@ export class SnapAccountService {
    * keyring.
    */
   #handleUnlock(): void {
+    // Invalidate the Snap account cache to ensure it will be rebuilt on
+    // next access. This allows us to always rebuild it after the `AccountsController`
+    // has re-synced with the `KeyringController`.
+    this.#cache.invalidate();
+
     // eslint-disable-next-line no-void
     void this.ensureMigrated().then(
       async () => {
@@ -450,7 +467,7 @@ export class SnapAccountService {
       this.#migratePromise = this.#migrate()
         .then(() => {
           this.#migrated = true;
-          return undefined;
+          return;
         })
         .catch((error) => {
           // Clear the promise so the next call can retry.
@@ -841,7 +858,20 @@ export class SnapAccountService {
   }
 
   /**
-   * Publishes an account data update event from a Snap.
+   * Publishes an account data update event from a Snap, filtered to the
+   * accounts that the Snap actually owns.
+   *
+   * A Snap can emit `notify:accountTransactionsUpdated`,
+   * `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated` for
+   * account IDs it does not own. Forwarding those updates verbatim would let
+   * one Snap forge transactions, balances, or asset-list entries for accounts
+   * owned by another Snap (or for accounts that do not exist at all).
+   *
+   * The cache is built lazily on first use from `AccountsController:getState`
+   * and kept in sync incrementally via `AccountsController:accountsAdded` /
+   * `AccountsController:accountsRemoved`, so the lookup here is a synchronous
+   * `Map` read — preserving synchronous event handling and avoiding a
+   * per-event keyring round-trip on a path that fires frequently.
    *
    * @param snapId - ID of the Snap.
    * @param event - Account data update event.
@@ -857,28 +887,92 @@ export class SnapAccountService {
       `Forwarding message "${event}" from Snap "${snapId}" as a SnapAccountService event...`,
     );
 
+    let drop = false;
     if (event === KeyringEvent.AccountAssetListUpdated) {
       assertStruct(message, AccountAssetListUpdatedEventStruct);
-      this.#messenger.publish(
-        'SnapAccountService:accountAssetListUpdated',
-        message.params,
+      const assets = this.#filterOwnedAccountEntries(
+        snapId,
+        event,
+        message.params.assets,
       );
+      if (Object.keys(assets).length > 0) {
+        this.#messenger.publish('SnapAccountService:accountAssetListUpdated', {
+          ...message.params,
+          assets,
+        });
+      } else {
+        drop = true;
+      }
     } else if (event === KeyringEvent.AccountBalancesUpdated) {
       assertStruct(message, AccountBalancesUpdatedEventStruct);
-      this.#messenger.publish(
-        'SnapAccountService:accountBalancesUpdated',
-        message.params,
+      const balances = this.#filterOwnedAccountEntries(
+        snapId,
+        event,
+        message.params.balances,
       );
+      if (Object.keys(balances).length > 0) {
+        this.#messenger.publish('SnapAccountService:accountBalancesUpdated', {
+          ...message.params,
+          balances,
+        });
+      } else {
+        drop = true;
+      }
     } else if (event === KeyringEvent.AccountTransactionsUpdated) {
       assertStruct(message, AccountTransactionsUpdatedEventStruct);
-      this.#messenger.publish(
-        'SnapAccountService:accountTransactionsUpdated',
-        message.params,
+      const transactions = this.#filterOwnedAccountEntries(
+        snapId,
+        event,
+        message.params.transactions,
+      );
+      if (Object.keys(transactions).length > 0) {
+        this.#messenger.publish(
+          'SnapAccountService:accountTransactionsUpdated',
+          {
+            ...message.params,
+            transactions,
+          },
+        );
+      } else {
+        drop = true;
+      }
+    }
+
+    if (drop) {
+      log(
+        `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
       );
     }
 
     // We need to return a valid JSON value, so we cannot use `undefined` here.
     return null;
+  }
+
+  /**
+   * Filters an account-keyed map from a Snap's account data update event down
+   * to the entries whose account ID is owned by the Snap.
+   *
+   * @param snapId - ID of the Snap that emitted the event.
+   * @param event - The account data update event being filtered.
+   * @param entries - The account-keyed map to filter.
+   * @returns A new map containing only the entries for accounts the Snap owns.
+   */
+  #filterOwnedAccountEntries<Value>(
+    snapId: SnapId,
+    event: AccountDataUpdatedKeyringEvent,
+    entries: Record<string, Value>,
+  ): Record<string, Value> {
+    const filtered: Record<string, Value> = {};
+    for (const [accountId, value] of Object.entries(entries)) {
+      if (this.#cache.getSnapId(accountId) === snapId) {
+        filtered[accountId] = value;
+      } else {
+        log(
+          `Snap "${snapId}" reported "${event}" for account "${accountId}" it does not own. Skipping.`,
+        );
+      }
+    }
+    return filtered;
   }
 
   // eslint-disable-next-line jsdoc/require-returns

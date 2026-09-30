@@ -1,9 +1,43 @@
-import nock from 'nock';
+import nock, { ReplyFnResult } from 'nock';
 
 type MockReply = {
   status: nock.StatusCode;
   body?: nock.Body;
 };
+
+export const DEFAULT_ADD_FOLLOWER_REPLY = {
+  status: 200,
+  body: {
+    followed: [
+      {
+        profileId: '550e8400-e29b-41d4-a716-446655440000',
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+        name: 'TraderAlice',
+        imageUrl: 'https://example.com/avatar.png',
+      },
+    ],
+  },
+};
+
+export function mockAddFollowerRequest({
+  mockReply,
+  replyFn,
+}: {
+  mockReply?: MockReply;
+  replyFn?: () => ReplyFnResult | Promise<ReplyFnResult>;
+} = {}): nock.Scope {
+  const interceptor = nock('https://social.api.cx.metamask.io:443').put(
+    '/api/v1/users/me/follows',
+    { followerId: '1' },
+  );
+
+  if (replyFn) {
+    return interceptor.reply(replyFn);
+  }
+
+  const reply = mockReply ?? DEFAULT_ADD_FOLLOWER_REPLY;
+  return interceptor.reply(reply.status, reply.body);
+}
 
 export function mockAssets(mockReply?: MockReply): nock.Scope {
   const reply = mockReply ?? {
@@ -39,6 +73,36 @@ export function mockAssets(mockReply?: MockReply): nock.Scope {
         'eip155%3A1%2Fslip44%3A60%2Cbip122%3A000000000019d6689c085ae165831e93%2Fslip44%3A0%2Ceip155%3A1%2Ferc20%3A0x6b175474e89094c44da98b954eedeac495271d0f',
     })
     .reply(reply.status, reply.body);
+}
+
+export function mockCreateDataDeletionTaskRequest({
+  mockReply,
+  replyFn,
+}: {
+  mockReply?: MockReply;
+  replyFn?: () => ReplyFnResult | Promise<ReplyFnResult>;
+} = {}): nock.Scope {
+  const interceptor = nock('https://proxy.example.com/v1beta').post(
+    '/regulations/sources/2',
+    {
+      regulationType: 'DELETE_ONLY',
+      subjectType: 'USER_ID',
+      subjectIds: ['1'],
+    },
+  );
+
+  if (replyFn) {
+    return interceptor.reply(replyFn);
+  }
+
+  const reply = mockReply ?? {
+    status: 200,
+    body: {
+      status: 'ok',
+      regulateId: '99999',
+    },
+  };
+  return interceptor.reply(reply.status, reply.body);
 }
 
 export const TRANSACTIONS_PAGE_2_CURSOR =

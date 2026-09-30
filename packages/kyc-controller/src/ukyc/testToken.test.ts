@@ -8,6 +8,7 @@ import {
   UKYC_KWIL_AUDIENCE,
 } from './constants.js';
 import { canonicalizeJson } from './storageAccessToken.js';
+import type { UkycStorageAccessTokenPayload } from './storageAccessToken.js';
 import { mintUkycTestToken } from './testToken.js';
 
 // A fixed 32-byte secret (all 0x42), as hex, so storage_id and keys are stable.
@@ -23,7 +24,7 @@ const EXPIRES_AT = new Date('2026-07-07T04:00:00Z');
  * @returns The decoded token envelope.
  */
 function decodeHeader(header: string): {
-  payload: Record<string, unknown>;
+  payload: UkycStorageAccessTokenPayload;
   signature: string;
 } {
   const [scheme, creds] = header.split(' ');

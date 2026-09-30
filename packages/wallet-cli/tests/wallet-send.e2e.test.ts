@@ -190,7 +190,7 @@ async function anvilRpc(
               resolve(json.result);
             }
           } catch (error) {
-            reject(error as Error);
+            reject(error);
           }
         });
       },

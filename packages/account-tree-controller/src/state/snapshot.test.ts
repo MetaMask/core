@@ -6,6 +6,7 @@ import type {
 import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
   AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
   toGroupPayloadId,
   toWalletPayloadId,
 } from './payload.js';
@@ -19,6 +20,7 @@ const MOCK_PRIVATE_KEY_PAYLOAD_ID = toWalletPayloadId(
 const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
   id: MOCK_MNEMONIC_PAYLOAD_ID,
   type: AccountWalletPayloadType.Mnemonic,
+  value: [1, 2, 3, 4],
   metadata: { name: 'Wallet 1' },
   groups: [
     {
@@ -41,6 +43,10 @@ const MOCK_PRIVATE_KEY_WALLET: AccountWalletPrivateKeyPayload = {
   groups: [
     {
       id: toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
+      value: {
+        privateKey: [0xde, 0xad, 0xbe, 0xef],
+        encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+      },
       metadata: { name: 'Imported 1', pinned: false, hidden: true },
     },
   ],
@@ -410,6 +416,66 @@ describe('AccountTreeSnapshot', () => {
           ],
         }),
       ).rejects.toThrow('Invalid AccountTreePayload');
+    });
+  });
+
+  describe('stripSecrets', () => {
+    it('removes value from mnemonic wallets', () => {
+      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
+      const stripped = snapshot.stripSecrets();
+      expect(stripped.serialize().wallets[0]).not.toHaveProperty('value');
+    });
+
+    it('removes value from private-key group entries', () => {
+      const snapshot = new AccountTreeSnapshot([MOCK_PRIVATE_KEY_WALLET]);
+      const stripped = snapshot.stripSecrets();
+      expect(stripped.serialize().wallets[0]?.groups[0]).not.toHaveProperty(
+        'value',
+      );
+    });
+
+    it('preserves wallet and group metadata', () => {
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
+      const stripped = snapshot.stripSecrets();
+      const { wallets } = stripped.serialize();
+      expect(wallets[0]?.metadata.name).toBe('Wallet 1');
+      expect(wallets[0]?.groups[0]?.metadata.name).toBe('Account 1');
+      expect(wallets[1]?.metadata.name).toBe('Imported Accounts');
+      expect(wallets[1]?.groups[0]?.metadata.name).toBe('Imported 1');
+    });
+  });
+
+  describe('stripMetadata', () => {
+    it('removes wallet metadata', () => {
+      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
+      const stripped = snapshot.stripMetadata();
+      expect(stripped.serialize().wallets[0]).not.toHaveProperty('metadata');
+    });
+
+    it('removes group metadata', () => {
+      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
+      const stripped = snapshot.stripMetadata();
+      expect(stripped.serialize().wallets[0]?.groups[0]).not.toHaveProperty(
+        'metadata',
+      );
+    });
+
+    it('preserves secret values', () => {
+      const snapshot = new AccountTreeSnapshot([
+        MOCK_MNEMONIC_WALLET,
+        MOCK_PRIVATE_KEY_WALLET,
+      ]);
+      const stripped = snapshot.stripMetadata();
+      const { wallets } = stripped.serialize();
+      expect((wallets[0] as typeof MOCK_MNEMONIC_WALLET).value).toStrictEqual(
+        MOCK_MNEMONIC_WALLET.value,
+      );
+      expect(
+        (wallets[1] as typeof MOCK_PRIVATE_KEY_WALLET).groups[0]?.value,
+      ).toStrictEqual(MOCK_PRIVATE_KEY_WALLET.groups[0]?.value);
     });
   });
 });

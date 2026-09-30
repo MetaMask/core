@@ -9,12 +9,14 @@ export type {
   SupportedCurrency,
   MarketDataDetails,
   ApiPlatformClientOptions,
+  ApiUrls,
   FetchOptions,
 } from './shared-types.js';
 export {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
+  DEFAULT_AUTH_TOKEN_TIMEOUT,
   RETRY_CONFIG,
   calculateRetryDelay,
   getQueryOptionsOverrides,
@@ -33,7 +35,8 @@ export type {
   V6VsCurrency,
   V6DeFiPositionType,
   V6BalanceMetadata,
-  V6TokenMetadata,
+  V6StellarTokenBalanceMetadata,
+  V6TokenBalanceMetadata,
   V6BalanceItem,
   V6BalancesResponse,
   V1SupportedNetworksResponse,
@@ -58,6 +61,8 @@ export type {
   ExchangeRateInfo,
   V1ExchangeRatesResponse,
   PriceSupportedNetworksResponse,
+  PriceV1SupportedNetworksResponse,
+  PriceV2SupportedNetworksResponse,
   V1HistoricalPricesResponse,
   V3HistoricalPricesResponse,
 } from './prices/index.js';

@@ -1,16 +1,15 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "references": [
     {
-      "path": "../assets-controller/tsconfig.build.json"
+      "path": "../accounts-controller/tsconfig.build.json"
     },
     {
-      "path": "../assets-controllers/tsconfig.build.json"
+      "path": "../assets-controller/tsconfig.build.json"
     },
     {
       "path": "../base-controller/tsconfig.build.json"
@@ -41,6 +40,9 @@
     },
     {
       "path": "../sentinel-api-service/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

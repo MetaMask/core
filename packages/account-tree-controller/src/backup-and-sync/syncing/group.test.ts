@@ -551,7 +551,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('logs when group does not exist in user storage', async () => {
       const testContext = {
         ...mockContext,
-      } as BackupAndSyncContext;
+      };
 
       testContext.controller.state.accountGroupsMetadata = {
         [mockLocalGroup.id]: {

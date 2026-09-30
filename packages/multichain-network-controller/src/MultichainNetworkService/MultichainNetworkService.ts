@@ -1,6 +1,6 @@
 import { assert } from '@metamask/superstruct';
 import type { CaipAccountId } from '@metamask/utils';
-import { chunk } from 'lodash';
+import { chunk } from 'lodash-es';
 
 import {
   ActiveNetworksResponseStruct,

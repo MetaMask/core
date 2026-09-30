@@ -1,7 +1,15 @@
-import cli from './cli.js';
-import { commands } from './commands.js';
+import { jest } from '@jest/globals';
 
-jest.mock('./cli');
+// `jest.mock` does not apply to ES modules, so the module registry is stubbed
+// with `jest.unstable_mockModule` and the modules under test are imported
+// dynamically afterwards.
+jest.unstable_mockModule('./cli.js', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+const { default: cli } = await import('./cli.js');
+const { commands } = await import('./commands.js');
 
 describe('create-package/index', () => {
   let originalProcess: typeof globalThis.process;
@@ -16,13 +24,12 @@ describe('create-package/index', () => {
   });
 
   it('executes the CLI application', async () => {
-    const mock = cli as jest.MockedFunction<typeof cli>;
-    mock.mockRejectedValue('foo');
+    jest.mocked(cli).mockRejectedValue('foo');
 
-    jest.spyOn(console, 'error').mockImplementation();
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require, import-x/no-unassigned-import
-    require('.');
+    // Importing the entry point runs it, which is the behaviour under test.
+    await import('./index.js');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(cli).toHaveBeenCalledTimes(1);

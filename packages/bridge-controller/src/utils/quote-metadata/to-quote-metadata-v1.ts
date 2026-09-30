@@ -1,4 +1,4 @@
-import { merge } from 'lodash';
+import { merge } from 'lodash-es';
 
 import type { DeepPartial } from '../../types.js';
 import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';

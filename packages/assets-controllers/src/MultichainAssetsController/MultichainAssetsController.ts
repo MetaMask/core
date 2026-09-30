@@ -159,19 +159,19 @@ const assetsControllerMetadata: StateMetadata<MultichainAssetsControllerState> =
   {
     assetsMetadata: {
       includeInStateLogs: false,
-      persist: true,
+      persist: false,
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
     accountsAssets: {
       includeInStateLogs: false,
-      persist: true,
+      persist: false,
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
     allIgnoredAssets: {
       includeInStateLogs: false,
-      persist: true,
+      persist: false,
       includeInDebugSnapshot: false,
       usedInUi: true,
     },

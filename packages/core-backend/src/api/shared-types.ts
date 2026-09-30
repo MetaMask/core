@@ -136,9 +136,25 @@ export type ApiPlatformClientOptions = {
   clientVersion?: string;
   /** Function to get bearer token for authenticated requests */
   getBearerToken?: () => Promise<string | undefined>;
+  /**
+   * Max time (ms) to wait for `getBearerToken` before sending the request
+   * unauthenticated. The token keeps resolving in the background and is used by
+   * later requests. Set to `0` to always wait for the token.
+   * Defaults to {@link DEFAULT_AUTH_TOKEN_TIMEOUT}.
+   */
+  authTokenTimeout?: number;
   /** Optional custom QueryClient instance */
   queryClient?: QueryClient;
+  /**
+   * Optional overrides for the API base URLs. Any service not specified falls
+   * back to the production URL in {@link API_URLS}. Useful for pointing
+   * clients at dev/local backend environments (e.g. via client env vars).
+   */
+  apiUrls?: Partial<ApiUrls>;
 };
+
+/** Map of API service names to their base URLs. */
+export type ApiUrls = { [Service in keyof typeof API_URLS]: string };
 
 /**
  * Options for API fetch and query methods.
@@ -194,7 +210,7 @@ export function getQueryOptionsOverrides(
     queryKey?: unknown;
     queryFn?: unknown;
   };
-  return rest as Record<string, unknown>;
+  return rest;
 }
 
 // ============================================================================
@@ -211,7 +227,6 @@ export const API_URLS = {
 
 /** Stale times for different data types (ms) */
 export const STALE_TIMES = {
-  AUTH_TOKEN: 5 * 60 * 1000, // 5 minutes - cache the auth token
   PRICES: 30 * 1000, // 30 seconds
   BALANCES: 60 * 1000, // 1 minute
   NETWORKS: 10 * 60 * 1000, // 10 minutes
@@ -223,6 +238,12 @@ export const STALE_TIMES = {
   TRANSACTIONS: 30 * 1000, // 30 seconds
   DEFAULT: 30 * 1000, // 30 seconds
 } as const;
+
+/**
+ * Default max time (ms) to wait for the bearer token before falling back to an
+ * unauthenticated request.
+ */
+export const DEFAULT_AUTH_TOKEN_TIMEOUT = 500;
 
 /** Garbage collection times (ms) */
 export const GC_TIMES = {

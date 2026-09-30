@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../.."
   },
   "references": [
@@ -61,6 +60,15 @@
     },
     {
       "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "../../tests"]

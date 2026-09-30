@@ -35,7 +35,7 @@ function createService(options?: {
   canonicalProfileId?: string;
 }): NeoBankService {
   const rootMessenger = new Messenger({
-    namespace: MOCK_ANY_NAMESPACE as MockAnyNamespace,
+    namespace: MOCK_ANY_NAMESPACE,
   });
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
@@ -225,6 +225,66 @@ describe('NeoBankService', () => {
       const service = createService();
       await expect(service.getAutoramp('ar-1')).rejects.toThrow(
         'Malformed response received from neo-bank autoramp API',
+      );
+    });
+  });
+
+  describe('getAutoramps', () => {
+    it('gets and maps all autoramps for the authenticated customer', async () => {
+      const scope = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(true)
+        .matchHeader('Authorization', 'Bearer test-token')
+        .reply(200, [
+          {
+            id: 'ar-1',
+            customer_id: 'cust-1',
+            status: 'Approved',
+            wallet_address: '0xabc',
+          },
+          {
+            id: 'ar-2',
+            customer_id: 'cust-1',
+            status: 'Authorized',
+            recipient_account: { address: '0xdef' },
+          },
+        ]);
+
+      const service = createService();
+
+      expect(await service.getAutoramps()).toMatchInlineSnapshot(`
+        [
+          {
+            "customerId": "cust-1",
+            "depositRailsSummary": {
+              "ready": false,
+            },
+            "id": "ar-1",
+            "status": "Approved",
+            "walletAddress": "0xabc",
+          },
+          {
+            "customerId": "cust-1",
+            "depositRailsSummary": undefined,
+            "id": "ar-2",
+            "status": "Authorized",
+            "walletAddress": "0xdef",
+          },
+        ]
+      `);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('rejects a malformed list response', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(true)
+        .reply(200, { autoramps: [] });
+
+      const service = createService();
+
+      await expect(service.getAutoramps()).rejects.toThrow(
+        'Malformed response received from neo-bank autoramps API',
       );
     });
   });

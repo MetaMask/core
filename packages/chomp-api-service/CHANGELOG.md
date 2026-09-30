@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1]
+
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+### Fixed
+
+- Ignore unrecognised intent types returned by the CHOMP API instead of failing to parse the whole response ([#10609](https://github.com/MetaMask/core/pull/10609))
+  - `getIntentsByAddress` now omits intents whose `metadata.type` is not a known `ChompIntentType`.
+  - `getServiceDetails` now omits unknown values from each protocol's `intentTypes`.
+
+## [6.0.0]
+
+### Added
+
+- Add `ChompIntentType` export, covering every vault and subscription CHOMP intent type ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Add optional `vedaPremiumProtocol` service-details support alongside the required base `vedaProtocol` ([#10430](https://github.com/MetaMask/core/pull/10430))
+
+### Changed
+
+- **BREAKING:** Widen the intent metadata type union (used by `SendIntentParams`, intent responses, and the service-details `intentTypes` struct) to include `cash-deposit-premium`, `cash-withdrawal-premium`, and `cash-subscription`, alongside the existing `cash-deposit` and `cash-withdrawal` ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+
+### Fixed
+
+- Always fetch `getIntentsByAddress` fresh, so a follow-up read does not reuse a stale intent list and try to create intents that already exist ([#10430](https://github.com/MetaMask/core/pull/10430))
+
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [4.0.2]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
@@ -69,7 +114,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.0...@metamask/chomp-api-service@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...@metamask/chomp-api-service@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.2...@metamask/chomp-api-service@5.0.0
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.1...@metamask/chomp-api-service@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...@metamask/chomp-api-service@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...@metamask/chomp-api-service@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.1...@metamask/chomp-api-service@3.1.0

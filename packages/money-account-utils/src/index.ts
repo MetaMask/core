@@ -22,6 +22,15 @@ export {
   getMoneyAccountDepositAssetId,
   getSharesForWithdrawal,
 } from './transactions.js';
+export {
+  MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME,
+  MONEY_ACCOUNT_VAULT_CONFIG_FLAG_NAME,
+  areMoneyAccountVaultConfigsEqual,
+  getMoneyAccountPremiumVaultConfig,
+  getMoneyAccountVaultConfig,
+  parseMoneyAccountVaultConfig,
+} from './vault-config.js';
+export type { MoneyAccountVaultConfig } from './vault-config.js';
 export type {
   BuildMoneyAccountDepositBatchOptions,
   BuildMoneyAccountDepositPlaceholderBatchOptions,

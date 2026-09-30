@@ -7,13 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.0]
+
+### Changed
+
+- Grant `SubscriptionDelegationService` access to the additional messenger actions required by `SubscriptionDelegationService:startSubscriptionWithDelegation` ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - `ApprovalController:addRequest`, `MoneyAccountUpgradeController:forceUpgradeAccount`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`
+  - Hosts that supply their own root messenger must allow these actions and register `MoneyAccountUpgradeController` before calling `SubscriptionDelegationService:startSubscriptionWithDelegation`.
+- Bump `@metamask/claims-controller` from `^1.0.1` to `^1.0.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/shield-controller` from `^7.0.2` to `^7.0.3` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/subscription-controller` from `^10.0.0` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459), [#10570](https://github.com/MetaMask/core/pull/10570))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+
+## [15.0.1]
+
+### Changed
+
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/subscription-controller` from `^9.1.0` to `^10.0.0` ([#10305](https://github.com/MetaMask/core/pull/10305), [#10416](https://github.com/MetaMask/core/pull/10416), [#10423](https://github.com/MetaMask/core/pull/10423))
+  - Types exposed through `DefaultInstances` and `DefaultState` have changed:
+    - `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` are now optional; consumers must handle missing values.
+    - `TokenPaymentInfo.isVaultShare` was removed; use `isVaultShareToken` instead.
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10420](https://github.com/MetaMask/core/pull/10420), [#10423](https://github.com/MetaMask/core/pull/10423))
+  - Approval-time sponsorship and signing hooks have been removed from types exposed through `DefaultInstances`:
+    - Migrate `isSponsored` and `shouldSign` hooks to `isGasFeeSponsored` and `isExternalSign` transaction metadata. The `hooks` option is required again; pass `hooks: {}` when no hooks are needed.
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/shield-controller` from `^7.0.1` to `^7.0.2` ([#10423](https://github.com/MetaMask/core/pull/10423))
+
+## [14.0.1]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^4.0.0` to `^4.1.0`. ([#10351](https://github.com/MetaMask/core/pull/10351))
+
+### Fixed
+
+- Fixed subscription getBenefits delegation in the `SubscriptionController` init. ([#10355](https://github.com/MetaMask/core/pull/10355))
+
+## [14.0.0]
+
+### Added
+
+- Wire `SubscriptionDelegationService` into the default wallet initialization. ([#10130](https://github.com/MetaMask/core/pull/10130))
+  - Stateless orchestrator for Money Account Plus cash-subscription delegation setup via `SubscriptionDelegationService:prepareDelegation`.
+  - Delegates `AuthenticatedUserStorageService:listDelegations`, `AuthenticatedUserStorageService:createDelegation`, `ChompApiService:verifyDelegation`, `ChompApiService:createIntents`, `ChompApiService:getIntentsByAddress`, `DelegationController:signDelegation`, `MoneyAccountBalanceService:fetchBalanceWithFallback`, `RemoteFeatureFlagController:getState`, and `SubscriptionController:getPricing` from the wallet root messenger.
+  - Hosts must register `AuthenticatedUserStorageService`, `ChompApiService`, `DelegationController`, `MoneyAccountBalanceService`, and `SubscriptionController` on the supplied root messenger before calling `prepareDelegation`; `RemoteFeatureFlagController` is already initialized by default.
+
+### Changed
+
+- **BREAKING:** Change license from `(MIT OR Apache-2.0)` to the ConsenSys Software Inc. Non-Commercial Use license ([#10074](https://github.com/MetaMask/core/pull/10074))
+  - Use of this package is now limited to Non-Commercial Use as defined in `LICENSE`. If your use falls outside of that, reach out to communications@metamask.io.
+- Bump `@metamask/claims-controller` from `^1.0.0` to `^1.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/shield-controller` from `^7.0.0` to `^7.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/subscription-controller` from `^9.0.0` to `^9.1.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10280](https://github.com/MetaMask/core/pull/10280))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/claims-controller` from `^0.6.1` to `^1.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/shield-controller` from `^6.0.1` to `^7.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/subscription-controller` from `^8.0.1` to `^9.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/approval-controller` from `^9.0.2` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/config-registry-controller` from `^3.1.0` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/connectivity-controller` from `^0.3.0` to `^1.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/gas-fee-controller` from `^26.3.2` to `^27.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/passkey-controller` from `^3.1.0` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.1` to `^11.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [12.0.3]
+
 ### Changed
 
 - Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
-- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
-- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.1` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.1` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [12.0.2]
@@ -217,7 +309,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...@metamask/wallet@15.1.0
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...@metamask/wallet@15.0.1
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@15.0.0
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...@metamask/wallet@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.3...@metamask/wallet@13.0.0
+[12.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...@metamask/wallet@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...@metamask/wallet@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...@metamask/wallet@12.0.0
