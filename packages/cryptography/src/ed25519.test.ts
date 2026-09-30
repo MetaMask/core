@@ -111,10 +111,7 @@ describe('getPublicKey', () => {
 
 describe('sign', () => {
   it('signs the provided data with the private key', async () => {
-    const signature = await sign(
-      privateKey,
-      stringToBytes('foo'),
-    );
+    const signature = await sign(privateKey, stringToBytes('foo'));
     expect(bytesToHex(signature)).toBe(
       '0x0062c22e7ff3c86a9af932d2641b5c532e6b8d7c05c489467cc875c3b27bebd2463010fc816e65b520e60f40ef192ee79e85a9cea918bd2a41d566ee6aeba50b',
     );
@@ -156,11 +153,7 @@ describe('verify', () => {
     const signature = hexToBytes(
       '0x0062c22e7ff3c86a9af932d2641b5c532e6b8d7c05c489467cc875c3b27bebd2463010fc816e65b520e60f40ef192ee79e85a9cea918bd2a41d566ee6aeba50b',
     );
-    const verified = await verify(
-      publicKey,
-      signature,
-      stringToBytes('foo'),
-    );
+    const verified = await verify(publicKey, signature, stringToBytes('foo'));
     expect(verified).toBe(true);
   });
 

@@ -6,15 +6,9 @@ import { decrypt, encrypt } from './aes-gcm.js';
 // https://csrc.nist.rip/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-spec.pdf
 
 // Test Case 2
-const nistKey2 = hexToBytes(
-  '0x00000000000000000000000000000000',
-);
-const nistIv2 = hexToBytes(
-  '0x000000000000000000000000',
-);
-const nistPlaintext2 = hexToBytes(
-  '0x00000000000000000000000000000000',
-);
+const nistKey2 = hexToBytes('0x00000000000000000000000000000000');
+const nistIv2 = hexToBytes('0x000000000000000000000000');
+const nistPlaintext2 = hexToBytes('0x00000000000000000000000000000000');
 const nistCiphertext2 = hexToBytes(
   '0x0388dace60b6a392f328c2b971b2fe78ab6e47d42cec13bdf53a67b21257bddf',
 );
@@ -23,9 +17,7 @@ const nistCiphertext2 = hexToBytes(
 const nistKey15 = hexToBytes(
   '0xfeffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308',
 );
-const nistIv15 = hexToBytes(
-  '0xcafebabefacedbaddecaf888',
-);
+const nistIv15 = hexToBytes('0xcafebabefacedbaddecaf888');
 const nistPlaintext15 = hexToBytes(
   '0xd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255',
 );
