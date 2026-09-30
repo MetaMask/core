@@ -1707,11 +1707,6 @@
       "count": 5
     }
   },
-  "packages/base-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/base-data-service/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
