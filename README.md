@@ -726,6 +726,7 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> remote_feature_flag_controller;
+  subscription_controller --> seedless_onboarding_controller;
   subscription_controller --> transaction_controller;
   subscription_controller --> utils;
   transaction_controller --> accounts_controller;
