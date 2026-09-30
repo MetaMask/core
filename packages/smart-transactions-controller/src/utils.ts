@@ -155,8 +155,10 @@ export async function handleFetch(request: string, options?: RequestInit) {
   const response = await fetch(request, options);
   const json = await response.json();
   if (!response.ok) {
+    //|| request.includes('getFees')) {
     console.log(`response`, response);
     throw Object.assign(new Error(`Fetch error: ${response.status}`), {
+      // data: { error: 'TEST ERROR', details: 'TEST DETAILS' }, //
       data: mapKeysToCamel(json),
     });
   }
