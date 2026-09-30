@@ -72,7 +72,6 @@ type NormalizedRewardsDiscount = {
  *
  * Rewards wins ties with default. Subscription must be strictly cheaper after
  * venue quantization to win, so a tie does not spend subscription allowance.
- * `subscription` > `rewards` > `default`.
  *
  * The benefits cache is stale-while-revalidate: fee resolution is a pure read
  * of the cached snapshot, while preview and lifecycle callers refresh it
