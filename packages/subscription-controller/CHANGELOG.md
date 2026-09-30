@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/money-account-balance-service` from `^3.1.1` to `^3.1.2` ([#10624](https://github.com/MetaMask/core/pull/10624))
+
 ## [11.0.0]
 
 ### Added

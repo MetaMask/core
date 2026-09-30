@@ -275,8 +275,8 @@ const TradeStruct = type({
   makerFee: optional(NonNegativeFinancialNumberStruct),
   takerPositionSizeBefore: NonNegativeDecimalStringStruct,
   makerPositionSizeBefore: NonNegativeDecimalStringStruct,
-  takerPositionSignChanged: boolean(),
-  makerPositionSignChanged: boolean(),
+  takerPositionSignChanged: optional(boolean()),
+  makerPositionSignChanged: optional(boolean()),
 });
 
 const ResponseStructs = {
