@@ -10898,6 +10898,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
         return {
           success: true,
+          childOrderIds: [],
           // No orderId since we only cancelled orders, didn't place new ones
         };
       }
@@ -11013,9 +11014,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
       if (placementAccepted) {
+        // Only response-correlated IDs form a receipt. A waitingForTrigger
+        // acknowledgement without an ID cannot be attributed from book changes.
+        const childOrderIds = initialPlacementOutcomes.flatMap((outcome) =>
+          outcome.orderId === undefined ? [] : [outcome.orderId],
+        );
+        const completeReceipt =
+          childOrderIds.length === orders.length &&
+          childOrderIds.every((id) => Number(id) > 0) &&
+          new Set(childOrderIds).size === childOrderIds.length;
         return {
           success: true,
           orderId: 'TP/SL orders placed',
+          ...(completeReceipt ? { childOrderIds } : {}),
         };
       }
 

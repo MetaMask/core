@@ -4872,6 +4872,7 @@ export class LighterProvider implements PerpsProvider {
    * @param options - Aggregation options.
    * @param options.createdGroups - Per-attempt aggregation groups over
    * the created ids (see inline doc).
+   * @param options.receiptIdentity - Account and market bound to a new receipt.
    * @returns Outcome: 'settled' when every id is accounted for and no
    * created id failed ('executedCreated' marks created ids that reached a
    * SUCCESS terminal state — filled/executed — instead of resting
@@ -4894,9 +4895,11 @@ export class LighterProvider implements PerpsProvider {
        * semantics).
        */
       createdGroups?: number[][];
+      /** Require exact venue IDs for the current operation receipt. */
+      receiptIdentity?: { accountIndex: number; marketIndex: number };
     } = {},
   ): Promise<
-    | { outcome: 'settled'; executedCreated: boolean }
+    | { outcome: 'settled'; executedCreated: boolean; childOrderIds: string[] }
     | {
         outcome: 'created-terminal-failed';
         /** New legs still resting ACTIVE despite a failed sibling. */
@@ -4923,6 +4926,37 @@ export class LighterProvider implements PerpsProvider {
         missingFromActive.length > 0
           ? await readInactive(missingFromActive)
           : [];
+      const childOrderIds: string[] = [];
+      if (options.receiptIdentity) {
+        for (const clientId of expectation.createdClientIds) {
+          const active = rawActive.filter(
+            (row) => String(row.clientOrderIndex) === String(clientId),
+          );
+          const matches =
+            active.length > 0
+              ? active
+              : rawInactive.filter(
+                  (row) => String(row.clientOrderIndex) === String(clientId),
+                );
+          if (matches.length === 0) {
+            continue; // Existing settlement polling retains the obligation.
+          }
+          const [row] = matches;
+          if (
+            matches.length !== 1 ||
+            row.ownerAccountIndex !== options.receiptIdentity.accountIndex ||
+            row.marketIndex !== options.receiptIdentity.marketIndex ||
+            !Number.isSafeInteger(row.orderIndex) ||
+            row.orderIndex <= 0 ||
+            childOrderIds.includes(String(row.orderIndex))
+          ) {
+            throw new Error(
+              'Lighter TP/SL receipt identity is invalid or ambiguous',
+            );
+          }
+          childOrderIds.push(String(row.orderIndex));
+        }
+      }
       // Per-id classification. Success is EXACT-whitelisted
       // ('filled'/'executed') AND requires a strictly ZERO remaining size
       // (a 'filled' row with remainder is not a proven execution);
@@ -4998,7 +5032,11 @@ export class LighterProvider implements PerpsProvider {
             survivingActiveClientIds: failedGroupActiveIds,
           };
         }
-        return { outcome: 'settled', executedCreated: anyGroupSuccess };
+        return {
+          outcome: 'settled',
+          executedCreated: anyGroupSuccess,
+          childOrderIds,
+        };
       }
       await new Promise((resolve) =>
         setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
@@ -6989,6 +7027,7 @@ export class LighterProvider implements PerpsProvider {
       let singleOrderPayload: LighterCreateOrderWireParams | null = null;
       let groupedOrderPayload: LighterGroupedOrderWireParams | null = null;
       let createdClientIds: number[] = [];
+      let childOrderIds: string[] = [];
       let createdIdsNeedingFinalCheck: number[] = [];
       let preflightPositionWireSize: number | null = null;
       let preflightPositionSign: 1 | -1 | null = null;
@@ -7569,6 +7608,9 @@ export class LighterProvider implements PerpsProvider {
                 createdClientIds,
                 cancelledOrderIds: [],
               },
+              {
+                receiptIdentity: { accountIndex, marketIndex: market.marketId },
+              },
             );
             if (createVisibility.outcome === 'timeout') {
               throw new Error(
@@ -7620,6 +7662,7 @@ export class LighterProvider implements PerpsProvider {
             // in the final settlement check (no duplicate high-weight
             // inactive read); active-at-barrier ids are still re-verified
             // there (they can terminal-fail before the cancels settle).
+            childOrderIds = createVisibility.childOrderIds;
             createdIdsNeedingFinalCheck = createVisibility.executedCreated
               ? []
               : createdClientIds;
@@ -7656,6 +7699,9 @@ export class LighterProvider implements PerpsProvider {
                       attempt.kind === 'cancel',
                   )
                   .map((attempt) => attempt.orderId),
+              },
+              {
+                receiptIdentity: { accountIndex, marketIndex: market.marketId },
               },
             );
             if (settled.outcome === 'timeout') {
@@ -7706,6 +7752,17 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after the previous protection was already removed; the position's protection could NOT be safely re-established automatically — MANUAL re-establishment is required (a new explicit TP/SL update resolves this state)`,
               );
             }
+            if (
+              createdIdsNeedingFinalCheck.length > 0 &&
+              (settled.childOrderIds.length !== childOrderIds.length ||
+                settled.childOrderIds.some(
+                  (id, index) => id !== childOrderIds[index],
+                ))
+            ) {
+              throw new Error(
+                'Lighter TP/SL receipt identity changed during settlement',
+              );
+            }
             await this.#clearTpslJournal(
               settlementKey,
               journal.operationId,
@@ -7724,7 +7781,7 @@ export class LighterProvider implements PerpsProvider {
         },
         generationAtIntent,
       );
-      return { success: true };
+      return { success: true, childOrderIds };
     } catch (error) {
       const wrappedError = ensureError(
         error,

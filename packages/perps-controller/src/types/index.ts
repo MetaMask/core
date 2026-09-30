@@ -389,6 +389,12 @@ export type OrderResult = {
   // When TP/SL protection cannot be fully restored, these identify the old
   // orders that survived, may still be live when reconciliation failed, or were
   // recreated; an empty array means none are known or potentially live.
+  // Successful position TP/SL updates may return an exact receipt: newly
+  // created venue IDs in request order (TP then SL), including children that
+  // already executed or were cancelled by OCO. A successful removal returns
+  // []. Absence means exact receipt identity is unavailable, not zero children.
+  // These IDs establish ownership, not current resting status; re-read before
+  // cancellation. They exclude the old protection cancelled by replacement.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
   /**

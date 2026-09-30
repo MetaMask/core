@@ -1618,6 +1618,60 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it.each([
+      {
+        label: 'resting',
+        statuses: [{ resting: { oid: 71 } }, { resting: { oid: 72 } }],
+        ids: ['71', '72'],
+      },
+      {
+        label: 'filled',
+        statuses: [{ filled: { oid: 71 } }, { resting: { oid: 72 } }],
+        ids: ['71', '72'],
+      },
+      {
+        label: 'waiting',
+        statuses: ['waitingForTrigger', { resting: { oid: 72 } }],
+        ids: undefined,
+      },
+      {
+        label: 'duplicate',
+        statuses: [{ resting: { oid: 71 } }, { resting: { oid: 71 } }],
+        ids: undefined,
+      },
+      {
+        label: 'zero',
+        statuses: [{ resting: { oid: 0 } }, { resting: { oid: 72 } }],
+        ids: undefined,
+      },
+    ])(
+      'returns only complete response-correlated TP/SL receipts: $label',
+      async ({ statuses, ids }) => {
+        useStrategyClients({
+          exchange: {
+            order: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: { data: { statuses } },
+            }),
+          },
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(true);
+        expect(result.childOrderIds).toStrictEqual(ids);
+      },
+    );
+
+    it('returns an empty receipt for successful TP/SL removal', async () => {
+      useStrategyClients();
+      expect(
+        await provider.updatePositionTPSL({ symbol: 'ETH' }),
+      ).toMatchObject({ success: true, childOrderIds: [] });
+    });
+
     it('accepts an old TP/SL order that is already gone before replacement', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
@@ -1658,6 +1712,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: true,
         orderId: 'TP/SL orders placed',
+        childOrderIds: ['123'],
       });
       expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
         exchangeClient.order.mock.invocationCallOrder[0],

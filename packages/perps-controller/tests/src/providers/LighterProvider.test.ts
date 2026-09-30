@@ -6573,6 +6573,116 @@ describe('LighterProvider', () => {
       ).toHaveLength(0);
     });
 
+    it.each(['single', 'pair', 'filled', 'oco-mixed'] as const)(
+      'returns exact position protection receipts for %s',
+      async (mode) => {
+        const { provider, clientInstance, bridge } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const oldId = venue.seedTrigger('stop-loss', '80000');
+        if (mode === 'filled' || mode === 'oco-mixed') {
+          venue.setCreateTerminal(mode);
+        }
+        const pair = mode === 'pair' || mode === 'oco-mixed';
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          ...(pair ? { takeProfitPrice: '110000' } : {}),
+        });
+        expect(result.success).toBe(true);
+        const created = [...venue.rawTriggers, ...venue.rawInactive].filter(
+          (row) => row.orderIndex !== oldId,
+        );
+        expect(result.childOrderIds).toStrictEqual(
+          created.map((row) => String(row.orderIndex)),
+        );
+        expect(result.childOrderIds).toHaveLength(pair ? 2 : 1);
+      },
+    );
+
+    it.each([
+      'account',
+      'market',
+      'duplicate-client',
+      'duplicate-id',
+      'unsafe-id',
+      'changed-id',
+    ])(
+      'retains the journal for an invalid position protection receipt: %s',
+      async (invalid) => {
+        const infra = createMockInfrastructure();
+        const { provider, clientInstance, bridge } = buildProvider({
+          platformDependencies: infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const oldId = venue.seedTrigger('stop-loss', '80000');
+        const read = clientInstance.getActiveOrders.getMockImplementation();
+        if (!read) {
+          throw new Error('missing venue reader');
+        }
+        const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
+        let receiptReads = 0;
+        clientInstance.getActiveOrders.mockImplementation(
+          async (...args: unknown[]) => {
+            const response = (await read(...args)) as {
+              orders: RawTriggerOrder[];
+            };
+            const rows = response.orders.map((row: RawTriggerOrder) => ({
+              ...row,
+            }));
+            const created = rows.filter(
+              (row: RawTriggerOrder) => row.orderIndex !== oldId,
+            );
+            if (created.length > 0) {
+              receiptReads += 1;
+              if (invalid === 'account') {
+                created[0].ownerAccountIndex = 99;
+              }
+              if (invalid === 'market') {
+                created[0].marketIndex = 99;
+              }
+              if (invalid === 'unsafe-id') {
+                created[0].orderIndex = Number.MAX_SAFE_INTEGER + 1;
+              }
+              if (invalid === 'duplicate-client') {
+                rows.push({ ...created[0] });
+              }
+              if (invalid === 'duplicate-id') {
+                created[1].orderIndex = created[0].orderIndex;
+              }
+              if (invalid === 'changed-id' && receiptReads > 1) {
+                created[0].orderIndex += 50;
+              }
+            }
+            return { ...response, orders: rows };
+          },
+        );
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('receipt identity');
+        expect(result.childOrderIds).toBeUndefined();
+        expect(removeItem).not.toHaveBeenCalledWith(
+          expect.stringContaining('lighterTpslJournal:'),
+        );
+      },
+    );
+
+    it('returns an empty position protection receipt after removal', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      expect(
+        await provider.updatePositionTPSL({ symbol: 'BTC' }),
+      ).toMatchObject({
+        success: true,
+        childOrderIds: [],
+      });
+      expect(venue.rawTriggers).toHaveLength(0);
+    });
+
     it('rejects unsupported partial TP/SL sizes before any read or mutation', async () => {
       const { provider, calls } = buildProvider();
       // The venue path always wires the FULL position size; silently
