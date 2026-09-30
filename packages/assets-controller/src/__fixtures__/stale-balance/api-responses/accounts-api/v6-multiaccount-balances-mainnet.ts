@@ -1,5 +1,5 @@
 /**
- * Real capture of GET https://accounts.api.cx.metamask.io/v6/multiaccount/balances?accountIds=eip155%3A1%3A0x9decde522cc1285efe18afde31c79e89dee2e91e (2026-02-13).
+ * Real capture of GET https://accounts.api.cx.metamask.io/v6/multiaccount/balances?accountIds=eip155%3A1%3A0x9decde522cc1285efe18afde31c79e89dee2e91e (2026-09-30).
  */
 const v6MultiAccountBalancesMainnet = {
   balances: [
@@ -30,7 +30,7 @@ const v6MultiAccountBalancesMainnet = {
       object: 'token',
       type: 'erc20',
       assetId: 'eip155:1/erc20:0x1bb9b64927e0c5e207c9db4093b3738eef5d8447',
-      name: 'Vector',
+      name: 'Vector Reserve',
       symbol: 'VEC',
       decimals: 9,
       balance: '17.369879411',
@@ -281,7 +281,7 @@ const v6MultiAccountBalancesMainnet = {
       object: 'token',
       type: 'erc20',
       assetId: 'eip155:1/erc20:0xadd353fb2e2c563383ff3272a500f3e7134dafe4',
-      name: 'Tuna Chain',
+      name: 'Tunachain',
       symbol: 'TUNA',
       decimals: 18,
       balance: '2130.630400000000000000',

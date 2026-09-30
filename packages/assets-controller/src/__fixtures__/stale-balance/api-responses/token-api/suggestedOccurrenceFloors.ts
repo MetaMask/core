@@ -1,5 +1,5 @@
 /**
- * Real capture of GET https://token.api.cx.metamask.io/v1/suggestedOccurrenceFloors (2026-02-13).
+ * Real capture of GET https://token.api.cx.metamask.io/v1/suggestedOccurrenceFloors (2026-09-30).
  */
 const suggestedOccurrenceFloors = {
   '1': 3,

@@ -68,8 +68,9 @@ function mockChainIdNetwork(): nock.Scope {
 
 /**
  * Intercept `GET {ACCOUNTS}/v2/supportedNetworks`. The capture claims BNB
- * Chain and mainnet; solana was trimmed so the keyring snap owns it, and
- * Hoodi was never supported so the RPC fallback owns it.
+ * Chain and mainnet, and lists solana under `partialSupport` as captured;
+ * the Solana account still balances through the keyring snap. Hoodi was
+ * never supported so the RPC fallback owns it.
  *
  * @returns The nock scope.
  */

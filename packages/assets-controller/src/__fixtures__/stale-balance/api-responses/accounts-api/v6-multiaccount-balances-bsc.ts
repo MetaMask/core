@@ -1,5 +1,5 @@
 /**
- * Real capture of GET https://accounts.api.cx.metamask.io/v6/multiaccount/balances?accountIds=eip155%3A56%3A0x9decde522cc1285efe18afde31c79e89dee2e91e (2026-02-13).
+ * Real capture of GET https://accounts.api.cx.metamask.io/v6/multiaccount/balances?accountIds=eip155%3A56%3A0x9decde522cc1285efe18afde31c79e89dee2e91e (2026-09-30).
  */
 const v6MultiAccountBalancesBsc = {
   balances: [
@@ -100,7 +100,7 @@ const v6MultiAccountBalancesBsc = {
       symbol: 'BUSD',
       decimals: 18,
       balance: '0.671315783745192035',
-      securityResultType: 'Verified',
+      securityResultType: 'Benign',
     },
     {
       accountId: 'eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e',
@@ -198,26 +198,15 @@ const v6MultiAccountBalancesBsc = {
       name: 'WEB5 Inu',
       symbol: 'WEB5',
       decimals: 9,
-      balance: '724720.878200336',
+      balance: '724722.877364055',
       securityResultType: 'Warning',
     },
     {
       accountId: 'eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e',
       object: 'token',
       type: 'erc20',
-      assetId: 'eip155:56/erc20:0x800a25741a414ea6e6e2b382435081a479a8cc3c',
-      name: 'SEOR Network',
-      symbol: 'SEOR',
-      decimals: 18,
-      balance: '10444.444444800000000000',
-      securityResultType: 'Benign',
-    },
-    {
-      accountId: 'eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e',
-      object: 'token',
-      type: 'erc20',
       assetId: 'eip155:56/erc20:0x8632055b9caeebef7c7dccd95461608ca5378839',
-      name: 'Atlantis Metaverse',
+      name: 'TAU Token',
       symbol: 'TAU',
       decimals: 18,
       balance: '2937.500000000000000000',
@@ -286,7 +275,7 @@ const v6MultiAccountBalancesBsc = {
       name: 'SafeBlast',
       symbol: 'BLAST',
       decimals: 9,
-      balance: '108056.524610166',
+      balance: '108056.780001461',
       securityResultType: 'Benign',
     },
     {
@@ -298,17 +287,6 @@ const v6MultiAccountBalancesBsc = {
       symbol: 'MM72',
       decimals: 18,
       balance: '72.000720067858500000',
-      securityResultType: 'Benign',
-    },
-    {
-      accountId: 'eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e',
-      object: 'token',
-      type: 'erc20',
-      assetId: 'eip155:56/erc20:0xe57f73eb27da9d17f90c994744d842e95700c100',
-      name: 'Pepe AI',
-      symbol: 'PEPEAI',
-      decimals: 9,
-      balance: '12345.543210000',
       securityResultType: 'Benign',
     },
     {

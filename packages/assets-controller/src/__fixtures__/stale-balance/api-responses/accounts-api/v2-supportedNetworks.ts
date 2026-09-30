@@ -1,7 +1,5 @@
 /**
- * Real capture of GET https://accounts.api.cx.metamask.io/v2/supportedNetworks (2026-02-13).
- * Trimmed from the real capture: solana removed from partialSupport so the
- * Accounts API does not claim the snap-owned chain in this suite.
+ * Real capture of GET https://accounts.api.cx.metamask.io/v2/supportedNetworks (2026-09-30).
  */
 const accountsV2SupportedNetworks = {
   fullSupport: [
@@ -20,7 +18,11 @@ const accountsV2SupportedNetworks = {
     'eip155:5042',
     'eip155:50',
   ],
-  partialSupport: ['tron:728126428', 'stellar:pubnet'],
+  partialSupport: [
+    'tron:728126428',
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+    'stellar:pubnet',
+  ],
 } as const;
 
 export default accountsV2SupportedNetworks;

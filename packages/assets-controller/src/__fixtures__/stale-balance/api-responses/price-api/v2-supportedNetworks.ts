@@ -1,5 +1,5 @@
 /**
- * Real capture of GET https://price.api.cx.metamask.io/v2/supportedNetworks (2026-02-13).
+ * Real capture of GET https://price.api.cx.metamask.io/v2/supportedNetworks (2026-09-30).
  */
 const pricesV2SupportedNetworks = {
   fullSupport: [
