@@ -375,9 +375,7 @@ describe('lighterAdapter', () => {
 
               expect(fill.direction).toBe(expected);
               expect(fill.pnl).toBe(pnl);
-              if (pnl === undefined) {
-                expect(fill).not.toHaveProperty('pnl');
-              }
+              expect(Object.hasOwn(fill, 'pnl')).toBe(pnl !== undefined);
             }
           }
         },
