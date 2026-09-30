@@ -26,18 +26,26 @@ import type {
   ChompApiServiceGetDerivedIdentitiesAction,
   DerivedIdentity,
 } from './chomp-api-service-derived-identities.js';
+import type { MoneyAccountControllerUseMpcKeyringAction } from './money-account-controller-mpc-keyring.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
+import type { MoneyAccountUpgradeControllerGetRegistrationStatusAction } from './money-account-upgrade-controller-registration-status.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
-export type MoneyAccountLifecycleStatus =
-  | { status: 'unregistered' }
-  | { status: 'sfa' }
-  | { status: 'mfa'; currentAddress: string };
+export type MoneyAccountLifecycle =
+  | { type: 'notInIdentity' }
+  | { type: 'sfa' | 'mfa'; identity: DerivedIdentity };
+
+export type AddressRegistration = {
+  isRegistered: boolean;
+};
 
 export type MoneyAccountLifecycleControllerState = {
   moneyAccounts: {
-    [moneyAccountAddress: string]: MoneyAccountLifecycleStatus;
+    [moneyAccountAddress: string]: MoneyAccountLifecycle;
+  };
+  addressRegistrations: {
+    [address: string]: AddressRegistration;
   };
 };
 
@@ -48,11 +56,18 @@ const moneyAccountLifecycleControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
+  addressRegistrations: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<MoneyAccountLifecycleControllerState>;
 
 export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLifecycleControllerState {
   return {
     moneyAccounts: {},
+    addressRegistrations: {},
   };
 }
 
@@ -72,6 +87,8 @@ type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
   | KeyringControllerGetStateAction
   | MoneyAccountControllerGetMoneyAccountAction
+  | MoneyAccountControllerUseMpcKeyringAction
+  | MoneyAccountUpgradeControllerGetRegistrationStatusAction
   | RemoteFeatureFlagControllerGetStateAction;
 
 export type MoneyAccountLifecycleControllerStateChangedEvent =
@@ -80,14 +97,8 @@ export type MoneyAccountLifecycleControllerStateChangedEvent =
     MoneyAccountLifecycleControllerState
   >;
 
-export type MoneyAccountLifecycleControllerMfaDetectedEvent = {
-  type: `${typeof CONTROLLER_NAME}:mfaDetected`;
-  payload: [{ moneyAccountAddress: string; currentAddress: string }];
-};
-
 export type MoneyAccountLifecycleControllerEvents =
-  | MoneyAccountLifecycleControllerStateChangedEvent
-  | MoneyAccountLifecycleControllerMfaDetectedEvent;
+  MoneyAccountLifecycleControllerStateChangedEvent;
 
 type AllowedEvents =
   | KeyringControllerStateChangeEvent
@@ -148,10 +159,6 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
   }
 
-  get derivedIdentities(): DerivedIdentity[] | undefined {
-    return this.#derivedIdentities;
-  }
-
   /**
    * Fetches derived identities from CHOMP whenever the feature is enabled and
    * the wallet is unlocked with an HD keyring. Identities are cleared on lock
@@ -159,8 +166,10 @@ export class MoneyAccountLifecycleController extends BaseController<
    * the next trigger after a failed fetch.
    *
    * After each fetch, and whenever the primary Money Account changes, records
-   * whether that account is unregistered, a valid SFA, or a valid MFA.
-   * Publishes `MoneyAccountLifecycleController:mfaDetected` when it becomes a
+   * whether that account is not in an identity, a valid SFA, or a valid MFA,
+   * along with its identity. After each fetch, or when the recorded lifecycle
+   * changes, looks up whether the identity's current address is registered
+   * with CHOMP, and switches `MoneyAccountController` to the MPC keyring for a
    * valid MFA.
    */
   init(): void {
@@ -178,7 +187,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       this.#sync(),
     );
     this.messenger.subscribe('MoneyAccountController:stateChange', () =>
-      this.#updateMoneyAccountStatus(),
+      this.#updateMoneyAccountLifecycle({ isRehydrating: false }),
     );
     this.#sync();
   }
@@ -223,7 +232,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       .then(({ identities }) => {
         if (this.#derivedIdentitiesFetch === derivedIdentitiesFetch) {
           this.#derivedIdentities = identities;
-          this.#updateMoneyAccountStatus();
+          this.#updateMoneyAccountLifecycle({ isRehydrating: true });
         }
       })
       .catch((error: unknown) => {
@@ -234,7 +243,11 @@ export class MoneyAccountLifecycleController extends BaseController<
       });
   }
 
-  #updateMoneyAccountStatus(): void {
+  #updateMoneyAccountLifecycle({
+    isRehydrating,
+  }: {
+    isRehydrating: boolean;
+  }): void {
     if (!this.#derivedIdentities) {
       return;
     }
@@ -247,28 +260,52 @@ export class MoneyAccountLifecycleController extends BaseController<
         return;
       }
 
-      const status = getMoneyAccountLifecycleStatus(
+      const lifecycle = getMoneyAccountLifecycle(
         moneyAccount.address,
         this.#derivedIdentities,
       );
       const moneyAccountKey = moneyAccount.address.toLowerCase();
-      if (deepEqual(this.state.moneyAccounts[moneyAccountKey], status)) {
+      const hasChanged = !deepEqual(
+        this.state.moneyAccounts[moneyAccountKey],
+        lifecycle,
+      );
+      if (hasChanged) {
+        this.update((state) => {
+          state.moneyAccounts[moneyAccountKey] = lifecycle;
+        });
+      }
+
+      if (
+        lifecycle.type === 'notInIdentity' ||
+        (!hasChanged && !isRehydrating)
+      ) {
         return;
       }
 
-      this.update((state) => {
-        state.moneyAccounts[moneyAccountKey] = status;
-      });
-
-      if (status.status === 'mfa') {
-        this.messenger.publish(`${CONTROLLER_NAME}:mfaDetected`, {
-          moneyAccountAddress: moneyAccount.address,
-          currentAddress: status.currentAddress,
-        });
+      const { currentAddress } = lifecycle.identity;
+      if (lifecycle.type === 'mfa') {
+        this.messenger
+          .call('MoneyAccountController:useMpcKeyring', {
+            moneyAccountAddress: moneyAccount.address,
+            mpcAddress: currentAddress,
+          })
+          .catch((error: unknown) => this.#reportError(error));
       }
+      this.#fetchRegistrationStatus(currentAddress);
     } catch (error) {
       this.#reportError(error);
     }
+  }
+
+  #fetchRegistrationStatus(address: string): void {
+    this.messenger
+      .call('MoneyAccountUpgradeController:getRegistrationStatus', address)
+      .then(({ isRegistered }) => {
+        this.update((state) => {
+          state.addressRegistrations[address.toLowerCase()] = { isRegistered };
+        });
+      })
+      .catch((error: unknown) => this.#reportError(error));
   }
 
   #reportError(error: unknown): void {
@@ -278,27 +315,26 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 }
 
-function getMoneyAccountLifecycleStatus(
+function getMoneyAccountLifecycle(
   moneyAccountAddress: string,
   identities: DerivedIdentity[],
-): MoneyAccountLifecycleStatus {
+): MoneyAccountLifecycle {
   const normalizedAddress = moneyAccountAddress.toLowerCase();
   const isMoneyAccountAddress = (address: string): boolean =>
     address.toLowerCase() === normalizedAddress;
 
-  if (
-    identities.some(({ currentAddress }) =>
-      isMoneyAccountAddress(currentAddress),
-    )
-  ) {
-    return { status: 'sfa' };
+  const sfaIdentity = identities.find(({ currentAddress }) =>
+    isMoneyAccountAddress(currentAddress),
+  );
+  if (sfaIdentity) {
+    return { type: 'sfa', identity: sfaIdentity };
   }
 
   const successor = identities.find(({ previousAddresses }) =>
     previousAddresses.some(isMoneyAccountAddress),
   );
   if (!successor) {
-    return { status: 'unregistered' };
+    return { type: 'notInIdentity' };
   }
 
   if (successor.status !== 'DONE') {
@@ -307,7 +343,7 @@ function getMoneyAccountLifecycleStatus(
     );
   }
 
-  return { status: 'mfa', currentAddress: successor.currentAddress };
+  return { type: 'mfa', identity: successor };
 }
 
 function isWalletReady({
