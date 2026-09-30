@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
 - `NftController` now attributes its `PhishingController:bulkScanUrls` calls to the `nft-detection` request source, so NFT metadata URL scans are distinguishable from other callers in phishing-detection service metrics ([#10357](https://github.com/MetaMask/core/pull/10357))
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 
 ## [112.0.4]
 

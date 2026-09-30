@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@ethersproject/bytes` from `^5.7.0` to `^5.8.0` ([#10480](https://github.com/MetaMask/core/pull/10480))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/transactions` from `^5.7.0` to `^5.8.0` ([#10483](https://github.com/MetaMask/core/pull/10483))
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 
 ## [27.0.3]
 
