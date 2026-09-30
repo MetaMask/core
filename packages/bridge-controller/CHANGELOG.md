@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Rename `recurring_buy` FeatureId to `recurring_order` ([#10631](https://github.com/MetaMask/core/pull/10631))
+- Bump `@metamask/assets-controllers` from `^112.0.4` to `^112.1.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
 
 ## [81.4.0]
 
