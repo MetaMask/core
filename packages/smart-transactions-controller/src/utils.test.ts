@@ -793,4 +793,30 @@ describe('src/utils.js', () => {
       );
     });
   });
+
+  describe('getErrorData', () => {
+    it('returns data.error from a thrown fetch error object', () => {
+      const error = Object.assign({}, new Error('Fetch error: 400'), {
+        data: { error: 'too_cheap' },
+      });
+
+      expect(error instanceof Error).toBe(false);
+      expect(utils.getErrorData(error)).toBe('too_cheap');
+    });
+
+    it('returns data.error from a thrown fetch error object', () => {
+      const error = Object.assign({}, new Error('Fetch error: 400'), {
+        data: { error: { message: 'too_cheap' } },
+      });
+
+      expect(error instanceof Error).toBe(false);
+      expect(utils.getErrorData(error)).toBe(
+        '{"error":{"message":"too_cheap"}}',
+      );
+    });
+
+    it('returns error.message for a real Error', () => {
+      expect(utils.getErrorData(new Error('boom'))).toBe('boom');
+    });
+  });
 });
