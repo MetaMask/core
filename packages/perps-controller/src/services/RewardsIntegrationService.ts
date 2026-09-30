@@ -208,7 +208,8 @@ export class RewardsIntegrationService {
 
     if (rewardsDiscount !== undefined) {
       const rewardsFeeBips =
-        DEFAULT_FEE_BIPS * (1 - rewardsDiscount.discountBips / BASIS_POINTS_DIVISOR);
+        DEFAULT_FEE_BIPS *
+        (1 - rewardsDiscount.discountBips / BASIS_POINTS_DIVISOR);
       // `<=` so an equal rewards fee still reports the rewards source, keeping
       // a resolved 0% discount distinguishable from an unresolved one.
       if (rewardsFeeBips <= feeBips) {
@@ -287,7 +288,7 @@ export class RewardsIntegrationService {
       discountBips,
       source,
       subscription,
-      ...(targetedDiscountApplied !== undefined && { targetedDiscountApplied  }),
+      ...(targetedDiscountApplied !== undefined && { targetedDiscountApplied }),
       subscriptionWaiverKind,
       subscriptionCoveredNotionalUsd,
     };
@@ -735,7 +736,9 @@ export class RewardsIntegrationService {
    * @returns A normalized discount with discountBips and optionally targetedDiscountApplied,
    * or undefined when unavailable.
    */
-  async #calculateRewardsDiscount(): Promise<NormalizedRewardsDiscount | undefined> {
+  async #calculateRewardsDiscount(): Promise<
+    NormalizedRewardsDiscount | undefined
+  > {
     try {
       const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
@@ -795,10 +798,11 @@ export class RewardsIntegrationService {
       // Use rewards via DI (no RewardsController in Core yet).
       // The rewards controller needs the perps MetaMask builder base fee in
       // bips to convert an absolute VIP fee into a discount fraction.
-      const discountResponse = await this.#deps.rewards.getPerpsDiscountForAccount(
-        caipAccountId,
-        DEFAULT_FEE_BIPS,
-      );
+      const discountResponse =
+        await this.#deps.rewards.getPerpsDiscountForAccount(
+          caipAccountId,
+          DEFAULT_FEE_BIPS,
+        );
 
       // null = subscription state not hydrated yet; surface as undefined so
       // callers don't treat it as a definitive "no discount" answer.

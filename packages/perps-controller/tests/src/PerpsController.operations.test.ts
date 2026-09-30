@@ -1746,12 +1746,12 @@ describe('PerpsController', () => {
       const resolveFee = jest
         .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
         .mockResolvedValue(resolution);
-        jest
-          .spyOn(
-            RewardsIntegrationService.prototype,
-            'refreshSubscriptionBenefits',
-          )
-          .mockResolvedValue(undefined);
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
       const fees = { metamaskFeeRate: 0.00035, feeResolution: resolution };
       mockMarketDataServiceInstance.calculateFees.mockResolvedValue(fees);
       markControllerAsInitialized();
