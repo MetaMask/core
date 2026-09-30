@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
+  - `AssetsController` subscribes to `MultichainTransactionsController:transactionConfirmed` so non-EVM (Snap keyring) transactions trigger the same post-transaction balance refresh as EVM `TransactionController:transactionConfirmed`.
+  - Consumers must delegate `MultichainTransactionsController:transactionConfirmed` onto the Assets controller messenger. Without that delegation the subscription is registered and never fires.
+
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
