@@ -27,45 +27,6 @@ const ADDITION = {
   baseCount: 2,
 };
 
-/**
- * Stubs the Git commands that the script runs.
- *
- * @param args - The arguments to this function.
- * @param args.mergeBase - The commit that `git merge-base` should report, or
- * null if it should fail.
- * @param args.fileContents - The suppressions file that `git show` should
- * produce, or null if it should fail.
- * @param args.refExists - Whether `git rev-parse` should resolve the ref.
- */
-function mockGit({
-  mergeBase = 'abc123',
-  fileContents = JSON.stringify(BASE),
-  refExists = true,
-}: {
-  mergeBase?: string | null;
-  fileContents?: string | null;
-  refExists?: boolean;
-} = {}): void {
-  jest.mocked(execa).mockImplementation((async (
-    _file: string,
-    args: string[],
-  ) => {
-    const succeed = (stdout: string): { stdout: string; exitCode: number } => ({
-      stdout,
-      exitCode: 0,
-    });
-    const fail = { stdout: '', exitCode: 1 };
-
-    if (args[0] === 'merge-base') {
-      return mergeBase === null ? fail : succeed(`${mergeBase}\n`);
-    }
-    if (args[0] === 'rev-parse') {
-      return refExists ? succeed('abc123') : fail;
-    }
-    return fileContents === null ? fail : succeed(fileContents);
-  }) as never);
-}
-
 describe('lintTscRatchet', () => {
   let originalProcess: typeof globalThis.process;
 
@@ -75,6 +36,9 @@ describe('lintTscRatchet', () => {
     // may have set.
     globalThis.process = { ...globalThis.process, exitCode: undefined };
     jest.spyOn(console, 'log').mockReturnValue(undefined);
+    jest.mocked(execa).mockResolvedValue({
+      stdout: JSON.stringify(BASE),
+    } as never);
     jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue(CURRENT);
     jest.mocked(tscSuppressions.findAddedSuppressions).mockReturnValue([]);
   });
@@ -83,55 +47,29 @@ describe('lintTscRatchet', () => {
     globalThis.process = originalProcess;
   });
 
-  it('compares the current suppressions against the merge base', async () => {
-    mockGit({ mergeBase: 'abc123' });
-
+  it('compares against the first parent of the merge commit CI checks out', async () => {
     await lintTscRatchet([]);
 
-    expect(execa).toHaveBeenCalledWith(
+    expect(jest.mocked(execa).mock.calls[0]?.slice(0, 2)).toStrictEqual([
       'git',
-      ['merge-base', 'HEAD', 'origin/main'],
-      expect.objectContaining({ reject: false }),
-    );
-    expect(execa).toHaveBeenCalledWith(
-      'git',
-      ['show', 'abc123:tsc-suppressions.json'],
-      expect.objectContaining({ reject: false }),
-    );
+      ['show', 'HEAD^1:tsc-suppressions.json'],
+    ]);
     expect(tscSuppressions.findAddedSuppressions).toHaveBeenCalledWith({
       current: CURRENT,
       base: BASE,
     });
   });
 
-  it('compares against the given base branch when one is passed', async () => {
-    mockGit();
+  it('compares against the ref it is given', async () => {
+    await lintTscRatchet(['origin/main']);
 
-    await lintTscRatchet(['--base', 'origin/some-branch']);
-
-    expect(execa).toHaveBeenCalledWith(
-      'git',
-      ['merge-base', 'HEAD', 'origin/some-branch'],
-      expect.objectContaining({ reject: false }),
-    );
-  });
-
-  it('falls back to the base ref when the merge base cannot be determined', async () => {
-    mockGit({ mergeBase: null });
-
-    await lintTscRatchet([]);
-
-    expect(execa).toHaveBeenCalledWith(
+    expect(jest.mocked(execa).mock.calls[0]?.slice(0, 2)).toStrictEqual([
       'git',
       ['show', 'origin/main:tsc-suppressions.json'],
-      expect.objectContaining({ reject: false }),
-    );
+    ]);
   });
 
   it('leaves the exit code alone when nothing has been added', async () => {
-    mockGit();
-    jest.mocked(tscSuppressions.findAddedSuppressions).mockReturnValue([]);
-
     await lintTscRatchet([]);
 
     expect(tscSuppressions.printAddedSuppressions).toHaveBeenCalledWith([]);
@@ -139,7 +77,6 @@ describe('lintTscRatchet', () => {
   });
 
   it('exits with a non-zero code when suppressions have been added', async () => {
-    mockGit();
     jest
       .mocked(tscSuppressions.findAddedSuppressions)
       .mockReturnValue([ADDITION]);
@@ -152,21 +89,10 @@ describe('lintTscRatchet', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('throws when the ref to compare against cannot be resolved', async () => {
-    mockGit({ mergeBase: null, refExists: false });
+  it('throws when the baseline cannot be read, rather than passing', async () => {
+    jest.mocked(execa).mockRejectedValue(new Error('unknown revision'));
 
-    await expect(lintTscRatchet([])).rejects.toThrow(
-      'Cannot resolve origin/main. Fetch the base branch and try again.',
-    );
+    await expect(lintTscRatchet([])).rejects.toThrow('unknown revision');
     expect(tscSuppressions.findAddedSuppressions).not.toHaveBeenCalled();
-  });
-
-  it('skips the check when the base has no suppressions file to compare against', async () => {
-    mockGit({ fileContents: null });
-
-    await lintTscRatchet([]);
-
-    expect(tscSuppressions.findAddedSuppressions).not.toHaveBeenCalled();
-    expect(process.exitCode).toBeUndefined();
   });
 });

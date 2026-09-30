@@ -180,14 +180,11 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-          # Full history so the merge base with the base branch can be found.
-          fetch-depth: 0
+          # The pull request is checked out as the merge of the branch into its
+          # base, and the check reads the base from the first parent.
+          fetch-depth: 2
       - name: Run yarn lint:tsc:ratchet
-        shell: bash
-        run: |
-          yarn lint:tsc:ratchet --base "origin/${BASE_REF#refs/heads/}"
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+        run: yarn lint:tsc:ratchet
       - name: Require clean working directory
         shell: bash
         run: |
