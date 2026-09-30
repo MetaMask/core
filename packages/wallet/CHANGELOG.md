@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Wire up `ConfigRegistryApiService:fetchEventsConfig` action handler in `configRegistryController` initialization ([#10448](https://github.com/MetaMask/core/pull/10448))
+
 - Bump `@metamask/claims-controller` from `^1.0.1` to `^1.0.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/shield-controller` from `^7.0.2` to `^7.0.3` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/subscription-controller` from `^10.0.0` to `^10.0.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
-- Wire up `ConfigRegistryApiService:fetchEventsConfig` action handler in `configRegistryController` initialization ([#10448](https://github.com/MetaMask/core/pull/10448))
 
 ## [15.0.1]
 
