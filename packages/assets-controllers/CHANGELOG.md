@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.1.0]
+
 ### Added
 
 - Add optional `securityData` property to `RwaToken`, populated when `includeTokenSecurityData` is requested ([#10542](https://github.com/MetaMask/core/pull/10542))
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
 - `NftController` now attributes its `PhishingController:bulkScanUrls` calls to the `nft-detection` request source, so NFT metadata URL scans are distinguishable from other callers in phishing-detection service metrics ([#10357](https://github.com/MetaMask/core/pull/10357))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
 
 ## [112.0.4]
 
@@ -3556,7 +3559,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.0...HEAD
+[112.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...@metamask/assets-controllers@112.1.0
 [112.0.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...@metamask/assets-controllers@112.0.4
 [112.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.2...@metamask/assets-controllers@112.0.3
 [112.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.1...@metamask/assets-controllers@112.0.2
