@@ -3430,8 +3430,7 @@ export type PerpsPlatformDependencies = {
      * Get fee discount for an account from the RewardsController.
      *
      * Returns either:
-     * - A numeric discount in basis points (e.g., 6500 = 65% discount) from
-     * legacy clients (targeted participation is unknown)
+     * - A numeric discount in basis points (e.g., 6500 = 65% discount) from legacy clients (targeted participation is unknown)
      * - A structured response with `discountBips` and `targetedDiscountApplied`
      *   when targeted participation is available
      * - `null` when subscription state hasn't hydrated yet
