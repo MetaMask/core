@@ -218,6 +218,10 @@ function createMockBridge(): MockBridgeBundle {
               txInfo: JSON.stringify({
                 createOrder: true,
                 ClientOrderIndex: Number(call.params[2]),
+                OrderExpiry:
+                  Number(call.params[10]) === -1
+                    ? Date.now() + 28 * 24 * 60 * 60 * 1000
+                    : Number(call.params[10]),
                 Nonce: Number((call.params as (string | number)[]).at(-1)),
                 ExpiredAt: Date.now() + 599_000,
               }),
@@ -253,6 +257,16 @@ function createMockBridge(): MockBridgeBundle {
             return {
               txInfo: JSON.stringify({
                 createGroupedOrders: true,
+                Orders: Array.from(
+                  { length: Number(call.params[2]) },
+                  (_, index) => ({
+                    ClientOrderIndex: Number(call.params[4 + index * 10]),
+                    OrderExpiry:
+                      Number(call.params[12 + index * 10]) === -1
+                        ? Date.now() + 28 * 24 * 60 * 60 * 1000
+                        : Number(call.params[12 + index * 10]),
+                  }),
+                ),
                 Nonce: Number((call.params as (string | number)[]).at(-1)),
                 ExpiredAt: Date.now() + 599_000,
               }),
@@ -5075,6 +5089,327 @@ describe('LighterProvider', () => {
   };
 
   describe('round-12 venue integrity and serialized TP/SL lifecycle', () => {
+    it.each([false, true])(
+      'retains exact signed order expiry before dispatch and after settlement, grouped=%s',
+      async (grouped) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({ platformDependencies: infra });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        const send = built.clientInstance.sendTx.getMockImplementation() as
+          | ((type: number, info: string) => Promise<unknown>)
+          | undefined;
+        if (!send) {
+          throw new Error('Missing test transport');
+        }
+        const expected: { clientId: string; orderExpiry: number }[] = [];
+        const beforeDispatch: unknown[][] = [];
+        built.clientInstance.sendTx.mockImplementation(
+          async (type: number, info: string) => {
+            if (type === 14 || type === 28) {
+              const signed = JSON.parse(info) as {
+                ClientOrderIndex: number;
+                OrderExpiry: number;
+                Orders?: { ClientOrderIndex: number; OrderExpiry: number }[];
+              };
+              const rows = signed.Orders ?? [signed];
+              expected.push(
+                ...rows.map((row) => ({
+                  clientId: String(row.ClientOrderIndex),
+                  orderExpiry: row.OrderExpiry,
+                })),
+              );
+              const stored = JSON.parse(
+                (await infra.diskCache.getItem(key)) ?? '',
+              ) as { orders: unknown[] };
+              beforeDispatch.push(stored.orders);
+            }
+            return send(type, info);
+          },
+        );
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '90000',
+          ...(grouped ? { takeProfitPrice: '110000' } : {}),
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        expect(expected).toHaveLength(grouped ? 2 : 1);
+        expect(beforeDispatch).toHaveLength(1);
+        for (const entry of expected) {
+          expect(beforeDispatch[0]).toContainEqual(
+            expect.objectContaining(entry),
+          );
+        }
+        const stored = JSON.parse(
+          (await infra.diskCache.getItem(key)) ?? '',
+        ) as { orders: unknown[] };
+        for (const entry of expected) {
+          expect(stored.orders).toContainEqual(expect.objectContaining(entry));
+        }
+      },
+    );
+
+    it.each(['buried', 'unavailable'])(
+      'reclaims expired ownership at capacity with %s history across restart',
+      async (history) => {
+        const infra = createMockInfrastructure();
+        const first = buildProvider({ platformDependencies: infra });
+        const venue = setupTriggerVenue(first.clientInstance, first.bridge);
+        expect(
+          (
+            await first.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        const stored = JSON.parse(
+          (await infra.diskCache.getItem(key)) ?? '',
+        ) as {
+          orders: { clientId: string; orderId: string; orderExpiry: number }[];
+        };
+        const original = stored.orders[0];
+        const signedCall = (
+          first.clientInstance.sendTx.mock.calls as [number, string][]
+        ).find(([type]: [number]) => type === 14);
+        if (!original || !signedCall) {
+          throw new Error('Missing initial protection');
+        }
+        const signed = JSON.parse(signedCall[1]) as { OrderExpiry: number };
+        const clock = jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(signed.OrderExpiry + 30_001);
+        try {
+          await first.provider.disconnect();
+          const next = buildProvider({ platformDependencies: infra });
+          const restartedVenue = setupTriggerVenue(
+            next.clientInstance,
+            next.bridge,
+          );
+          const terminal = venue.rawTriggers[0];
+          if (!terminal) {
+            throw new Error('Missing history template');
+          }
+          restartedVenue.rawInactive.push({
+            ...terminal,
+            status: 'canceled-oco',
+          });
+          for (let index = 0; index < 100; index += 1) {
+            restartedVenue.rawInactive.push({
+              ...terminal,
+              clientOrderIndex: 100_000 + index,
+              orderIndex: 100_000 + index,
+              status: 'canceled',
+            });
+          }
+          await infra.diskCache.setItem(
+            key,
+            JSON.stringify({
+              version: 1,
+              orders: [
+                original,
+                ...Array.from({ length: 255 }, (_, index) => ({
+                  clientId: String(index + 1),
+                  orderId: null,
+                  orderExpiry: signed.OrderExpiry,
+                })),
+              ],
+            }),
+          );
+          if (history === 'unavailable') {
+            next.clientInstance.getInactiveOrders.mockRejectedValue(
+              new Error('history unavailable'),
+            );
+          }
+          const result = await next.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+            takeProfitPrice: '110000',
+          });
+          expect(result.error).toBeUndefined();
+          expect(result.success).toBe(true);
+          expect(restartedVenue.rawTriggers).toHaveLength(2);
+          expect(
+            next.clientInstance.getInactiveOrders.mock.calls.length,
+          ).toBeLessThanOrEqual(1);
+          expect(
+            (
+              JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+                orders: unknown[];
+              }
+            ).orders,
+          ).toHaveLength(2);
+        } finally {
+          clock.mockRestore();
+        }
+      },
+    );
+
+    it.each(['future', 'slack', 'legacy', 'active'])(
+      'retains %s ownership at capacity and refuses new protection',
+      async (condition) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({ platformDependencies: infra });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const now = Date.now();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        const expiryOffset = {
+          future: 600_000,
+          slack: -30_000,
+          legacy: -30_001,
+          active: -30_001,
+        }[condition];
+        const orders = Array.from({ length: 256 }, (_, index) => ({
+          clientId: String(index + 1),
+          orderId: null,
+          ...(condition === 'legacy'
+            ? {}
+            : {
+                orderExpiry: now + expiryOffset,
+              }),
+        }));
+        try {
+          if (condition === 'active') {
+            for (const entry of orders) {
+              venue.seedTrigger('stop-loss', '90000');
+              const row = venue.rawTriggers.at(-1);
+              if (!row) {
+                throw new Error('Missing active protection');
+              }
+              row.clientOrderIndex = Number(entry.clientId);
+              row.type = 'stop-loss-limit';
+            }
+          }
+          await infra.diskCache.setItem(
+            key,
+            JSON.stringify({ version: 1, orders }),
+          );
+          const result = await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          });
+          expect(result.success).toBe(false);
+          expect(result.error).toContain('ownership is full');
+          expect(
+            built.clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+              [14, 15, 28].includes(type),
+            ),
+          ).toHaveLength(0);
+          expect(
+            (
+              JSON.parse((await infra.diskCache.getItem(key)) ?? '') as {
+                orders: unknown[];
+              }
+            ).orders,
+          ).toStrictEqual(orders);
+        } finally {
+          clock.mockRestore();
+        }
+      },
+    );
+
+    it.each([null, -1, 0, 1.5, '123456', Number.MAX_SAFE_INTEGER + 1])(
+      'rejects corrupt persisted order expiry %s before mutation',
+      async (orderExpiry) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({ platformDependencies: infra });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        await infra.diskCache.setItem(
+          key,
+          JSON.stringify({
+            version: 1,
+            orders: [{ clientId: '4242', orderId: null, orderExpiry }],
+          }),
+        );
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain(
+          'Invalid Lighter managed TP/SL ownership',
+        );
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+            [14, 15, 28].includes(type),
+          ),
+        ).toHaveLength(0);
+      },
+    );
+
+    it.each([
+      [false, 'expiry'],
+      [true, 'expiry'],
+      [false, 'identity'],
+      [true, 'identity'],
+      [true, 'duplicate'],
+      [true, 'count'],
+    ] as const)(
+      'refuses invalid signed order %s/%s proof before dispatch',
+      async (grouped, failure) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({ platformDependencies: infra });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        venue.seedTrigger('stop-loss', '90000');
+        const { execute } = built.bridge as { execute: jest.Mock };
+        const sign = execute.getMockImplementation() as
+          | ((
+              call: LighterWasmCall,
+            ) => Promise<{ txInfo: string; txHash: string }>)
+          | undefined;
+        if (!sign) {
+          throw new Error('Missing test signer');
+        }
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          const result = await sign(call);
+          if (
+            call.function === '_signCreateOrder' ||
+            call.function === '_signCreateGroupedOrders'
+          ) {
+            const wire = JSON.parse(result.txInfo) as {
+              ClientOrderIndex: number;
+              OrderExpiry: number;
+              Orders?: { ClientOrderIndex: number; OrderExpiry: number }[];
+            };
+            const rows = wire.Orders ?? [wire];
+            if (failure === 'expiry') {
+              rows[0].OrderExpiry = -1;
+            } else if (failure === 'identity') {
+              rows[0].ClientOrderIndex = 1234;
+            } else if (failure === 'duplicate') {
+              rows[1].ClientOrderIndex = rows[0].ClientOrderIndex;
+            } else {
+              wire.Orders?.pop();
+            }
+            return { ...result, txInfo: JSON.stringify(wire) };
+          }
+          return result;
+        });
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          ...(grouped ? { takeProfitPrice: '110000' } : {}),
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('no usable order expiry identity');
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+            [14, 15, 28].includes(type),
+          ),
+        ).toHaveLength(0);
+        expect(
+          await infra.diskCache.getItem(
+            `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
+          ),
+        ).toBeNull();
+      },
+    );
+
     it('bounds orphan ownership pruning without blocking protection on deep history', async () => {
       const infra = createMockInfrastructure();
       const built = buildProvider({ platformDependencies: infra });
@@ -5510,6 +5845,9 @@ describe('LighterProvider', () => {
         const infra = createMockInfrastructure();
         const diskMocks = jest.mocked(infra.diskCache);
         const originalGet = diskMocks.getItem.getMockImplementation();
+        if (!originalGet) {
+          throw new Error('Missing test disk reader');
+        }
         diskMocks.getItem.mockImplementation(async (key: string) => {
           if (key.startsWith('lighterManagedTpsl:')) {
             if (failure === 'read') {
@@ -5519,7 +5857,7 @@ describe('LighterProvider', () => {
               return '{"version":1,"orders":[{"clientId":"bad"}]}';
             }
           }
-          return originalGet?.(key);
+          return originalGet(key);
         });
         const originalSet = diskMocks.setItem.getMockImplementation();
         diskMocks.setItem.mockImplementation(
@@ -6249,10 +6587,12 @@ describe('LighterProvider', () => {
         ) as {
           orders: { clientId: string; orderId: string | null }[];
         };
-        expect(owned.orders).toContainEqual({
-          clientId: String(create.clientIds[0]),
-          orderId: String(venueB.rawTriggers[0].orderIndex),
-        });
+        expect(owned.orders).toContainEqual(
+          expect.objectContaining({
+            clientId: String(create.clientIds[0]),
+            orderId: String(venueB.rawTriggers[0].orderIndex),
+          }),
+        );
         second.clientInstance.getAccountByIndex.mockResolvedValue({
           code: 200,
           accounts: [

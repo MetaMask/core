@@ -400,6 +400,8 @@ type TpslCreateAttempt = {
   outcome: 'unknown' | 'accepted';
   /** Created client ids (nonempty). */
   clientIds: number[];
+  /** Signed absolute ORDER expiries, aligned with clientIds; legacy may omit. */
+  orderExpiries?: number[];
   /** The signed transaction hash (known BEFORE submission). */
   txHash: string;
   /**
@@ -573,6 +575,8 @@ type TpslJournalState = {
 type ManagedTpslOrder = {
   clientId: string;
   orderId: string | null;
+  /** Signed absolute order expiry (ms); unknown for legacy records. */
+  orderExpiry?: number;
 };
 
 /**
@@ -645,6 +649,65 @@ const requireSignedTxIdentity = (signed: {
     );
   }
   return { txHash, expiresAt };
+};
+
+/**
+ * Capture each exact client's signed absolute order expiry. Transaction expiry
+ * only bounds acceptance, so it cannot prove a resting order has ended.
+ *
+ * @param signed - Bridge signing result.
+ * @param signed.txInfo - Signed single or grouped wire payload.
+ * @param clientIds - Expected client identities, in journal order.
+ * @returns Index-aligned absolute order expiries, in milliseconds.
+ */
+const requireSignedOrderExpiries = (
+  signed: { txInfo?: string },
+  clientIds: number[],
+): number[] => {
+  const invalid = (): Error =>
+    new Error(
+      'Lighter signing result carries no usable order expiry identity; refusing protection changes',
+    );
+  let payload: unknown;
+  try {
+    payload = JSON.parse(signed.txInfo ?? '');
+  } catch {
+    throw invalid();
+  }
+  if (typeof payload !== 'object' || payload === null) {
+    throw invalid();
+  }
+  const wire = payload as Record<string, unknown>;
+  const rows = clientIds.length === 1 ? [wire] : wire.Orders;
+  if (!Array.isArray(rows) || rows.length !== clientIds.length) {
+    throw invalid();
+  }
+  const expiries = new Map<number, number>();
+  for (const row of rows) {
+    if (typeof row !== 'object' || row === null) {
+      throw invalid();
+    }
+    const { ClientOrderIndex: clientId, OrderExpiry: orderExpiry } =
+      row as Record<string, unknown>;
+    if (
+      typeof clientId !== 'number' ||
+      !clientIds.includes(clientId) ||
+      expiries.has(clientId) ||
+      typeof orderExpiry !== 'number' ||
+      !Number.isSafeInteger(orderExpiry) ||
+      orderExpiry <= Date.now()
+    ) {
+      throw invalid();
+    }
+    expiries.set(clientId, orderExpiry);
+  }
+  return clientIds.map((clientId) => {
+    const expiry = expiries.get(clientId);
+    if (expiry === undefined) {
+      throw invalid();
+    }
+    return expiry;
+  });
 };
 
 /**
@@ -2826,7 +2889,11 @@ export class LighterProvider implements PerpsProvider {
           Number(order.clientId) > 0 &&
           (order.orderId === null ||
             (typeof order.orderId === 'string' &&
-              /^\d{1,20}$/u.test(order.orderId)))
+              /^\d{1,20}$/u.test(order.orderId))) &&
+          (order.orderExpiry === undefined ||
+            (typeof order.orderExpiry === 'number' &&
+              Number.isSafeInteger(order.orderExpiry) &&
+              order.orderExpiry > 0))
         );
       })
     ) {
@@ -2866,20 +2933,29 @@ export class LighterProvider implements PerpsProvider {
           entry,
         ]),
       );
-      const createdIds = new Set(
+      const createdOrders = new Map(
         journal.attempts.flatMap((attempt) =>
           attempt.kind === 'create' &&
           attempt.neverLanded !== true &&
           getLighterTransactionOutcome(attempt.terminalStatus) !== 'failed'
-            ? attempt.clientIds.map(String)
+            ? attempt.clientIds.map((id, index): [string, ManagedTpslOrder] => [
+                String(id),
+                {
+                  clientId: String(id),
+                  orderId: null,
+                  ...(attempt.orderExpiries === undefined
+                    ? {}
+                    : { orderExpiry: attempt.orderExpiries[index] }),
+                },
+              ])
             : [],
         ),
       );
       const inserted: string[] = [];
-      for (const clientId of settledActive ? [] : createdIds) {
+      for (const [clientId, entry] of settledActive ? [] : createdOrders) {
         if (!orders.has(clientId)) {
           inserted.push(clientId);
-          orders.set(clientId, { clientId, orderId: null });
+          orders.set(clientId, entry);
         }
       }
       if (settledActive) {
@@ -2894,7 +2970,7 @@ export class LighterProvider implements PerpsProvider {
           );
           if (active) {
             orders.set(clientId, {
-              clientId,
+              ...entry,
               orderId: String(active.orderIndex),
             });
           } else if (
@@ -2945,7 +3021,7 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Prune recent ownership only when exact inactive IDs prove termination.
+   * Prune ownership on exact terminal history or signed order expiry plus slack.
    * Absence from an active read alone never discards an uncertain creation.
    * Bookkeeping reads are bounded and best-effort, unlike journal settlement.
    *
@@ -2966,16 +3042,30 @@ export class LighterProvider implements PerpsProvider {
     if (missing.length === 0) {
       return;
     }
-    const missingIds = new Set(missing.map((entry) => entry.clientId));
-    let inactive: LighterApiOrder[];
-    try {
-      inactive = await readRecentInactive();
-    } catch (error) {
-      this.#deps.debugLogger.log(
-        '[LighterProvider] TP/SL ownership history unavailable; retaining uncertain IDs',
-        { error: String(error) },
-      );
-      return;
+    const expired = new Map(
+      missing
+        .filter(
+          (entry) =>
+            entry.orderExpiry !== undefined &&
+            Date.now() - entry.orderExpiry > LIGHTER_TX_EXPIRY_SLACK_MS,
+        )
+        .map((entry) => [entry.clientId, entry.orderExpiry]),
+    );
+    const missingIds = new Set(
+      missing
+        .filter((entry) => !expired.has(entry.clientId))
+        .map((entry) => entry.clientId),
+    );
+    let inactive: LighterApiOrder[] = [];
+    if (missingIds.size > 0) {
+      try {
+        inactive = await readRecentInactive();
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          '[LighterProvider] TP/SL ownership history unavailable; retaining uncertain IDs',
+          { error: String(error) },
+        );
+      }
     }
     const terminalIds = new Set(
       inactive
@@ -3006,7 +3096,7 @@ export class LighterProvider implements PerpsProvider {
         })
         .map((row) => String(row.clientOrderIndex)),
     );
-    if (terminalIds.size === 0) {
+    if (terminalIds.size === 0 && expired.size === 0) {
       return;
     }
     const key = this.#managedTpslKey(settlementKey);
@@ -3016,7 +3106,14 @@ export class LighterProvider implements PerpsProvider {
         key,
         JSON.stringify({
           version: 1,
-          orders: current.filter((entry) => !terminalIds.has(entry.clientId)),
+          orders: current.filter(
+            (entry) =>
+              !terminalIds.has(entry.clientId) &&
+              !(
+                expired.has(entry.clientId) &&
+                expired.get(entry.clientId) === entry.orderExpiry
+              ),
+          ),
         }),
       );
     });
@@ -3148,7 +3245,11 @@ export class LighterProvider implements PerpsProvider {
           attempt.clientIds.length >= 1 &&
           attempt.clientIds.length <= 2 &&
           attempt.clientIds.every(isWireId) &&
-          new Set(attempt.clientIds).size === attempt.clientIds.length
+          new Set(attempt.clientIds).size === attempt.clientIds.length &&
+          (attempt.orderExpiries === undefined ||
+            (Array.isArray(attempt.orderExpiries) &&
+              attempt.orderExpiries.length === attempt.clientIds.length &&
+              attempt.orderExpiries.every(isExpiry)))
         );
       }
       if (attempt.kind === 'cancel') {
@@ -3648,7 +3749,7 @@ export class LighterProvider implements PerpsProvider {
           );
         } catch (rollbackError) {
           // Keep ownership conservatively if storage also fails during rollback.
-          // A later bounded bookkeeping read cannot block on these orphan IDs.
+          // Bounded bookkeeping can reclaim them after their signed order expiry.
           this.#deps.debugLogger.log(
             '[LighterProvider] pre-dispatch ownership rollback failed; retaining IDs',
             { error: String(rollbackError) },
@@ -7406,6 +7507,10 @@ export class LighterProvider implements PerpsProvider {
               nonce: createNonce,
               outcome: 'unknown',
               clientIds: [...createdClientIds],
+              orderExpiries: requireSignedOrderExpiries(
+                signed,
+                createdClientIds,
+              ),
               txHash: createIdentity.txHash,
               expiresAt: createIdentity.expiresAt,
               role: 'replacement',

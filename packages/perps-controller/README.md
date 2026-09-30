@@ -130,9 +130,16 @@ or trading-key recovery into another slot. IDs are recorded before dispatch in
 wallet/account/network/market-scoped storage and retained through uncertain
 settlement. Resolved cancellations and exact terminal history prune them;
 storage read errors or corrupt records fail closed before protection changes.
-Ownership bookkeeping reads at most one recent history page and retains
-unproven IDs when that lookup fails. It never deep-scans history or blocks a
-new protection intent solely because an old ID cannot be found. Journal
+Ownership bookkeeping reads at most one recent history page. New records include
+the exact client's signed absolute order expiry. When the active book no longer
+contains an ID, it can be reclaimed after that expiry plus 30 seconds of clock
+slack, even if terminal history is buried or unavailable. Transaction expiry
+does not prove an order has expired. Active IDs and unexpired missing IDs remain
+owned; legacy records with unknown order expiry need exact terminal history.
+Bookkeeping never deep-scans history. Ownership is capped at 256 entries per
+wallet/account/network/market. If verified cleanup cannot make room, new
+protection creation refuses before dispatch rather than forgetting uncertain
+orders. Known live orders can still be explicitly cancelled. Journal
 settlement remains strict: an observed accepted submission cannot become
 never-landed because of a later missing lookup, and expiry proofs are recomputed
 on each reconciliation rather than persisted across restarts.
