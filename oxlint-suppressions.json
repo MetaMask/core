@@ -3296,11 +3296,6 @@
       "count": 11
     }
   },
-  "packages/keyring-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/keyring-controller/src/KeyringController.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
@@ -3315,10 +3310,13 @@
       "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 1
     },
     "typescript/unbound-method": {
       "count": 19
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {

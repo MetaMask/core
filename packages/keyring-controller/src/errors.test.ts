@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { KeyringControllerErrorMessage } from './constants.js';
 import {
   isKeyringControllerError,
