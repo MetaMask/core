@@ -413,7 +413,7 @@ export function valueToBytes(value: Bytes): Uint8Array<ArrayBuffer> {
  * @returns The concatenated bytes as `Uint8Array`.
  */
 export function concatBytes(values: Bytes[]): Uint8Array<ArrayBuffer> {
-  const normalizedValues = new Array(values.length);
+  const normalizedValues = new Array<Uint8Array<ArrayBuffer>>(values.length);
   let byteLength = 0;
 
   for (let i = 0; i < values.length; i++) {
@@ -425,11 +425,12 @@ export function concatBytes(values: Bytes[]): Uint8Array<ArrayBuffer> {
   }
 
   const bytes = new Uint8Array(byteLength);
-  for (let i = 0, offset = 0; i < normalizedValues.length; i++) {
+  let offset = 0;
+  for (const normalizedValue of normalizedValues) {
     // While we could simply spread the values into an array and use
     // `Uint8Array.from`, that is a lot slower than using `Uint8Array.set`.
-    bytes.set(normalizedValues[i], offset);
-    offset += normalizedValues[i].length;
+    bytes.set(normalizedValue, offset);
+    offset += normalizedValue.length;
   }
 
   return bytes;
