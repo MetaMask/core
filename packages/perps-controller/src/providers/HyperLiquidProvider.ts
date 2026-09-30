@@ -1778,13 +1778,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return provider-owned strategy and margin-mode support for a routed
-   * market. HyperLiquid metadata has no per-market strategy flags. This
-   * provider advertises its implemented strategies uniformly after confirming
-   * the routed market exists; margin modes follow the market's metadata.
+   * Return provider-owned standalone trigger, strategy and margin-mode support
+   * for a routed market. HyperLiquid advertises its implemented trigger types
+   * and strategies uniformly after confirming the routed market exists;
+   * margin modes follow the market's metadata.
    *
    * @param params - Required market route context.
-   * @returns Supported strategy order types and margin modes.
+   * @returns Supported standalone trigger types, strategies and margin modes.
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
