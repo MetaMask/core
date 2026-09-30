@@ -41,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
-- Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#10591](https://github.com/MetaMask/core/pull/10591))
+- Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - The re-exported `FrontendOrder.orderType` adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`; historical orders of these types report `orderType: 'market'`
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
 
@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig` ([#10559](https://github.com/MetaMask/core/pull/10559))
   - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
   - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
-- Remove the HyperLiquid `dexAbstraction` to Unified Account migration, which prompted the main wallet through `userSetAbstraction`; HyperLiquid retired the `dexAbstraction` mode, and `default` / `disabled` accounts still migrate through `agentSetAbstraction` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Remove the HyperLiquid `dexAbstraction` to Unified Account migration, which prompted the main wallet through `userSetAbstraction`; HyperLiquid retired the `dexAbstraction` mode, and `default` / `disabled` accounts still migrate through `agentSetAbstraction` ([#10591](https://github.com/MetaMask/core/pull/10591))
 
 ### Fixed
 
