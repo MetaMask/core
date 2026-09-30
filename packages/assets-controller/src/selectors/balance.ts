@@ -9,7 +9,7 @@ import {
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type { AssetsControllerState } from '../AssetsController.js';
 import type {
@@ -241,6 +241,13 @@ function mergeBalancesIntoMap(args: {
       continue;
     }
 
+    // Balances without a matching `assetsInfo` entry are not renderable
+    // (no symbol/name/decimals), so they are excluded from aggregation.
+    const meta = metadata[typedAssetId];
+    if (!meta) {
+      continue;
+    }
+
     const info = getAssetInfo(assetInfoCache, typedAssetId);
     if (!isChainEnabledByMap(enabledNetworkMap, info.chainId)) {
       continue;
@@ -248,7 +255,6 @@ function mergeBalancesIntoMap(args: {
 
     const amountStr = getAmountFromBalance(accountBalances[typedAssetId]);
     const amountBn = toBigNumberOrZero(amountStr);
-    const meta = metadata[typedAssetId];
     if (amountBn.isZero()) {
       continue; // skip zeros early to reduce map pressure
     }
@@ -261,9 +267,9 @@ function mergeBalancesIntoMap(args: {
 
     out.set(typedAssetId, {
       amount: amountBn,
-      decimals: meta?.decimals,
-      symbol: meta?.symbol,
-      name: meta?.name,
+      decimals: meta.decimals,
+      symbol: meta.symbol,
+      name: meta.name,
     });
   }
 }
@@ -299,8 +305,7 @@ export function getInternalAccountsForGroup(
   type GroupWithAccounts = { accounts?: AccountId[] };
   const getGroups = (
     walletItem: (typeof wallets)[keyof typeof wallets],
-  ): Record<string, GroupWithAccounts> =>
-    (walletItem?.groups ?? {}) as Record<string, GroupWithAccounts>;
+  ): Record<string, GroupWithAccounts> => walletItem?.groups ?? {};
 
   for (const wallet of Object.values(wallets)) {
     const group = getGroups(wallet)[groupId];
@@ -334,8 +339,7 @@ function getAccountIdsInSameGroup(
   type GroupWithAccounts = { accounts?: AccountId[] };
   const getGroups = (
     walletItem: (typeof wallets)[keyof typeof wallets],
-  ): Record<string, GroupWithAccounts> =>
-    (walletItem?.groups ?? {}) as Record<string, GroupWithAccounts>;
+  ): Record<string, GroupWithAccounts> => walletItem?.groups ?? {};
 
   for (const wallet of Object.values(wallets)) {
     const group = getGroups(wallet)[groupId];
@@ -459,7 +463,7 @@ function aggregateBalances(
   const startTime = trace ? performance.now() : 0;
   const { assetsBalance, assetsInfo, assetPreferences, assetsPrice } = state;
 
-  const metadata = (assetsInfo ?? {}) as Record<Caip19AssetId, AssetMetadata>;
+  const metadata = assetsInfo;
 
   const hasPrices =
     Boolean(assetsPrice) &&
@@ -479,8 +483,7 @@ function aggregateBalances(
 
   for (const account of accountsToAggregate) {
     const accountId = account.id;
-    const accountBalances =
-      assetsBalance?.[accountId] ?? ({} as Record<Caip19AssetId, AssetBalance>);
+    const accountBalances = assetsBalance?.[accountId] ?? {};
 
     mergeBalancesIntoMap({
       out: merged,

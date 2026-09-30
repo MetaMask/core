@@ -289,7 +289,8 @@ function buildRelayRequestFromAmountFiat({
  * @param params - Combined quote inputs.
  * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding relay fee estimate.
  * @param params.amountFiat - User-entered fiat amount.
- * @param params.fiatQuote - Selected ramps quote.
+ * @param params.fiatQuote - Selected ramps quote, with fees already reconciled
+ * to the resolved provider by `RampsController:getQuoteWithFees`.
  * @param params.relayQuote - Estimated relay quote.
  * @returns A single fiat strategy quote with split fee buckets.
  * @remarks

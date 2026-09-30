@@ -81,6 +81,16 @@ export type MultichainTransactionsControllerTransactionSubmittedEvent = {
 };
 
 /**
+ * Event emitted when a transaction fails. Covers post-broadcast, on-chain
+ * failures, which reach this controller only through the account's transaction
+ * history.
+ */
+export type MultichainTransactionsControllerTransactionFailedEvent = {
+  type: `${typeof controllerName}:transactionFailed`;
+  payload: [Transaction];
+};
+
+/**
  * Returns the state of the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerGetStateAction =
@@ -111,7 +121,8 @@ export type MultichainTransactionsControllerActions =
 export type MultichainTransactionsControllerEvents =
   | MultichainTransactionsControllerStateChange
   | MultichainTransactionsControllerTransactionConfirmedEvent
-  | MultichainTransactionsControllerTransactionSubmittedEvent;
+  | MultichainTransactionsControllerTransactionSubmittedEvent
+  | MultichainTransactionsControllerTransactionFailedEvent;
 
 /**
  * Messenger type for the MultichainTransactionsController.
@@ -313,6 +324,10 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           chainUpdates.forEach(({ chain, entry }) => {
+            // Using `@ts-ignore` instead of `@ts-expect-error` since this error
+            // comes and goes after unrelated changes.
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore: TS2589: Type instantiation is excessively deep and possibly infinite.
             state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
           });
         });
@@ -381,6 +396,13 @@ export class MultichainTransactionsController extends BaseController<
     if (updatedTransaction.status === TransactionStatus.Submitted) {
       this.messenger.publish(
         'MultichainTransactionsController:transactionSubmitted',
+        updatedTransaction,
+      );
+    }
+
+    if (updatedTransaction.status === TransactionStatus.Failed) {
+      this.messenger.publish(
+        'MultichainTransactionsController:transactionFailed',
         updatedTransaction,
       );
     }

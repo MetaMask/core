@@ -369,7 +369,7 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
-    it('serializes the optional proof field for each account that has one and omits it for those that do not', async () => {
+    it('serializes the optional proof and account source for each account that has them and omits them for those that do not', async () => {
       const mockFetch = jest.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify({ data: { success: true } }), {
@@ -388,18 +388,40 @@ describe('ProfileMetricsService', () => {
         'ProfileMetricsService:submitMetrics',
         createMockRequest({
           accounts: [
-            { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
-            { address: '0xAccountWithoutProof', scopes: ['eip155:1'] },
+            {
+              address: '0xMnemonicAccount',
+              scopes: ['eip155:1'],
+              accountSource: 'mnemonic',
+              proof,
+            },
+            {
+              address: '0xImportedAccount',
+              scopes: ['eip155:1'],
+              accountSource: 'imported',
+            },
+            { address: '0xUnknownAccount', scopes: ['eip155:1'] },
           ],
         }),
       );
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.accounts).toStrictEqual([
-        { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
-        { address: '0xAccountWithoutProof', scopes: ['eip155:1'] },
+        {
+          address: '0xMnemonicAccount',
+          scopes: ['eip155:1'],
+          account_source: 'mnemonic',
+          proof,
+        },
+        {
+          address: '0xImportedAccount',
+          scopes: ['eip155:1'],
+          account_source: 'imported',
+        },
+        { address: '0xUnknownAccount', scopes: ['eip155:1'] },
       ]);
-      expect(body.accounts[1]).not.toHaveProperty('proof');
+      for (const account of body.accounts) {
+        expect(account).not.toHaveProperty('accountSource');
+      }
     });
   });
 

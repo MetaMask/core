@@ -13,6 +13,7 @@ import {
   selectHasPlacedFirstOrder,
   selectMarketFilterPreferences,
   selectOrderBookGrouping,
+  selectMarginMode,
   selectRecentlyViewedMarkets,
   selectProLayoutPreferences,
   selectOrderBookPreferences,
@@ -347,6 +348,7 @@ describe('PerpsController selectors', () => {
                 limitPrice: '45000',
                 orderType: 'limit',
                 reduceOnly: true,
+                direction: 'short',
                 timestamp: now,
               },
             },
@@ -365,6 +367,7 @@ describe('PerpsController selectors', () => {
         limitPrice: '45000',
         orderType: 'limit',
         reduceOnly: true,
+        direction: 'short',
       });
     });
 
@@ -607,6 +610,45 @@ describe('PerpsController selectors', () => {
       const result = selectOrderBookGrouping(state, 'BTC');
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('selectMarginMode', () => {
+    it('returns the mainnet margin mode when not on testnet', () => {
+      const state = {
+        isTestnet: false,
+        tradeConfigurations: {
+          mainnet: { BTC: { marginMode: 'cross' } },
+          testnet: { BTC: { marginMode: 'isolated' } },
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectMarginMode(state, 'BTC')).toBe('cross');
+    });
+
+    it('returns the testnet margin mode when on testnet', () => {
+      const state = {
+        isTestnet: true,
+        tradeConfigurations: {
+          mainnet: { BTC: { marginMode: 'cross' } },
+          testnet: { BTC: { marginMode: 'isolated' } },
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectMarginMode(state, 'BTC')).toBe('isolated');
+    });
+
+    it('returns undefined when margin mode is not set', () => {
+      const state = {
+        isTestnet: false,
+        tradeConfigurations: {
+          mainnet: { BTC: { leverage: 10 } },
+          testnet: {},
+        },
+      } as unknown as PerpsControllerState;
+
+      expect(selectMarginMode(state, 'BTC')).toBeUndefined();
+      expect(selectMarginMode(state, 'SOL')).toBeUndefined();
     });
   });
 

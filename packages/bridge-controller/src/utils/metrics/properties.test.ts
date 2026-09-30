@@ -288,7 +288,7 @@ describe('properties', () => {
     it('should use native asset when srcTokenAddress is not provided', () => {
       const result = getRequestParams(
         {
-          srcChainId: 'eip155:1' as CaipChainId,
+          srcChainId: 'eip155:1',
           destChainId: '2',
           srcTokenAddress: undefined,
           destTokenAddress: '0x456',
@@ -308,7 +308,7 @@ describe('properties', () => {
     it('should use native asset when formatAddressToAssetId returns null', () => {
       const result = getRequestParams(
         {
-          srcChainId: 'eip155:1' as CaipChainId,
+          srcChainId: 'eip155:1',
           destChainId: '2',
           srcTokenAddress: '123',
           destTokenAddress: '456',
@@ -436,6 +436,7 @@ describe('properties', () => {
           "price_impact": 0,
           "provider": "bridge1_bridge1",
           "quoted_time_minutes": 1,
+          "slippage_limit": 0,
           "token_symbol_destination": "USDC",
           "token_symbol_source": "ETH",
           "usd_amount_source": 0,
@@ -445,6 +446,40 @@ describe('properties', () => {
           "warnings": [],
         }
       `);
+
+      const quoteWithSlippage = {
+        ...mockQuoteResponseV2,
+        quote: {
+          ...mockQuoteResponseV2.quote,
+          slippage: 0.5,
+        },
+      };
+
+      expect(
+        getQuotesReceivedProperties(
+          quoteWithSlippage,
+          [],
+          true,
+          undefined,
+          undefined,
+          undefined,
+          { slippage_limit: 3.5 },
+        ).slippage_limit,
+      ).toBe(3.5);
+      expect(
+        getQuotesReceivedProperties(
+          quoteWithSlippage,
+          [],
+          true,
+          undefined,
+          undefined,
+          undefined,
+          { custom_slippage: true, slippage_limit: undefined },
+        ).slippage_limit,
+      ).toBe(0.5);
+      expect(
+        getQuotesReceivedProperties(quoteWithSlippage).slippage_limit,
+      ).toBe(0.5);
     });
 
     it('should return empty source and null destination token symbols when activeQuote is null', () => {
@@ -452,6 +487,35 @@ describe('properties', () => {
 
       expect(result.token_symbol_source).toBe('');
       expect(result.token_symbol_destination).toBeNull();
+      expect(result.slippage_limit).toBe(0);
+    });
+
+    it('should use client fallbacks and explicit slippage context', () => {
+      const result = getQuotesReceivedProperties(
+        null,
+        [],
+        true,
+        undefined,
+        undefined,
+        undefined,
+        {
+          custom_slippage: true,
+          slippage_limit: 3.5,
+          usd_amount_source: 100,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+        },
+      );
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          custom_slippage: true,
+          slippage_limit: 3.5,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+          usd_amount_source: 100,
+        }),
+      );
     });
 
     it('should derive token symbols from the active quote asset metadata', () => {

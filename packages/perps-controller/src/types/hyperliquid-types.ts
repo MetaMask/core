@@ -12,6 +12,7 @@ import type {
   SpotClearinghouseStateResponse,
   MetaResponse,
   FrontendOpenOrdersResponse,
+  HistoricalOrdersResponse,
   MetaAndAssetCtxsResponse,
   AllMidsResponse,
   PredictedFundingsResponse,
@@ -27,7 +28,7 @@ import type {
  * `unifiedAccount` / `portfolioMargin`: spot is unified with perps;
  * `withdraw3` draws from the unified ledger, spot folds into perps collateral.
  *
- * `disabled` (Standard) / `dexAbstraction` (deprecated) / `default` (unset):
+ * `disabled` (Standard) / `default` (unset):
  * spot and perps are separate ledgers; spot is NOT auto-collateral until the
  * user is migrated to unified mode.
  */
@@ -50,8 +51,7 @@ export const HL_ABSTRACTION_WIRE = {
 
 /**
  * Long-form abstraction-mode value targeted by the migration. Used as the
- * `abstraction` parameter for `userSetAbstraction` and as the success / target
- * value reported by Account Setup analytics.
+ * success / target value reported by Account Setup analytics.
  */
 export const HL_UNIFIED_ACCOUNT_MODE = 'unifiedAccount' as const;
 
@@ -61,13 +61,13 @@ export const HL_UNIFIED_ACCOUNT_MODE = 'unifiedAccount' as const;
  * `foldIntoCollateral` option.
  *
  * Fail-CLOSED on missing mode: until userAbstraction has been resolved we do
- * NOT fold spot, because over-reporting withdrawable funds for Standard /
- * dexAbstraction users (which `withdraw3` cannot actually draw) is worse than
+ * NOT fold spot, because over-reporting withdrawable funds for Standard
+ * users (which `withdraw3` cannot actually draw) is worse than
  * briefly under-reporting for Unified users during the initial subscription
  * window or a transient REST outage.
  *
  * @param mode - Abstraction mode from `userAbstraction` endpoint; null/undefined means unknown.
- * @returns `true` when spot folds into spendable/withdrawable (Unified / Portfolio); `false` for Standard / DEX abstraction / unknown.
+ * @returns `true` when spot folds into spendable/withdrawable (Unified / Portfolio); `false` for Standard / default / unknown.
  */
 export function hyperLiquidModeFoldsSpot(
   mode?: HyperLiquidAbstractionMode | null,
@@ -92,6 +92,7 @@ export type PredictedFunding = PredictedFundingsResponse[number];
 export type FrontendOrder = FrontendOpenOrdersResponse[number];
 export type SDKOrderParams = OrderParameters['orders'][number];
 export type OrderType = FrontendOrder['orderType'];
+export type OrderProcessingStatus = HistoricalOrdersResponse[number]['status'];
 
 // Re-export Response types for convenience
 export type {

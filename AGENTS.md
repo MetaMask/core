@@ -62,14 +62,14 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 - `jest.config.scripts.js` defines shared Jest settings for all directories in `scripts/`.
 - `packages/**/jest.config.js` (and `scripts/create-package/package-template/jest.config.js`) customizes Jest settings for each package.
 
-#### ESLint
+#### Oxlint
 
-- `eslint.config.mjs` configures ESLint for the entire monorepo.
-- `eslint-suppressions.json` isn't a config file per se, but defines ESLint errors that are being ignored (temporarily).
+- `oxlint.config.ts` configures Oxlint for the entire monorepo.
+- `oxlint-suppressions.json` isn't a config file per se, but defines Oxlint errors that are being ignored (temporarily).
 
-#### Prettier
+#### Oxfmt
 
-- `.prettierrc.js` configures Prettier for the entire repo.
+- `.oxfmtrc.json` configures Oxlint for the entire repo.
 
 #### TypeDoc
 
@@ -127,7 +127,7 @@ For more on these commands, see:
 ### Linting and formatting
 
 - Run `yarn lint` to check for code quality issues across the monorepo.
-- Run `yarn validate:changelog` to check for formatting issues in changelogs.
+- Run `yarn changelog:validate` to check for formatting issues in changelogs.
 - Run `yarn lint:fix` to automatically fix fixable violations.
 
 ### Building packages
@@ -158,7 +158,7 @@ Each consumer-facing change to a package should be accompanied by one or more en
   - Do not simply reuse the PR title in the entry, but describe exact changes to the API or usable surface area of the project.
   - When there are multiple upgrades to a package in the same release, combine them into a single entry.
   - Each changelog entry should describe one kind of change; if an entry describes too many things, split it up.
-- After updating a changelog, run `yarn validate:changelog` and fix any errors reported.
+- After updating a changelog, run `yarn changelog:validate` and fix any errors reported.
 
 ## Creating releases
 
@@ -228,7 +228,7 @@ Environment prerequisites (Node LTS + Yarn 4 via Corepack + `yarn install`) are 
 
 Standard lint/test/build commands are documented above and in `docs/processes/`. Non-obvious caveats for this environment:
 
-- `yarn build` (whole monorepo, via `ts-bridge`) takes ~100s. `yarn lint:eslint` takes ~3–4 minutes.
+- `yarn build` (whole monorepo, via `tsc --build`) takes ~100s. `yarn lint:eslint` takes ~3–4 minutes.
 - `yarn lint:eslint` runs `build:only-clean` first, which **deletes all `packages/*/dist`**. Run `yarn build` again afterward if you need the built artifacts (tests don't need `dist`; they run TS/Babel directly).
 - The full `yarn lint` does much more than ESLint (constraints, `knip` dependency checks, changelog/teams/tsconfig/codeowners checks); prefer `yarn lint:eslint` for a quick code-quality pass.
 - Per-package tests are fast: `yarn workspace <package-name> run test`. `yarn test` across all packages is heavy.

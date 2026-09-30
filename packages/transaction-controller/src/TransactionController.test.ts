@@ -15,7 +15,9 @@ import {
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -38,12 +40,8 @@ import { errorCodes, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
-// Necessary for mocking
-// eslint-disable-next-line import-x/namespace
-import * as uuidModule from 'uuid';
+import { v1 as uuidV1 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { flushPromises, jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
@@ -198,9 +196,7 @@ function buildMockBlockTracker(
   latestBlockNumber: string,
   provider: InternalProvider,
 ): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker({ provider });
-  fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
-  return fakeBlockTracker;
+  return new MockPollingBlockTracker({ provider, latestBlockNumber });
 }
 
 /**
@@ -419,7 +415,9 @@ describe('TransactionController', () => {
     jest.useRealTimers();
   });
 
-  const uuidModuleMock = jest.mocked(uuidModule);
+  // `v1` is overloaded; naming the signature used here avoids resolving to the
+  // last overload, which returns a `Uint8Array`.
+  const uuidV1Mock = jest.mocked<() => string>(uuidV1);
   const rpcRequestMock = jest.mocked(rpcRequest);
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
@@ -657,19 +655,15 @@ describe('TransactionController', () => {
       async () => false,
     );
 
-    rootMessenger.registerActionHandler(
-      'NetworkController:getState',
-      () =>
-        ({
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
-          ...network.state,
-        }) as NetworkState,
-    );
+    rootMessenger.registerActionHandler('NetworkController:getState', () => ({
+      ...getDefaultNetworkControllerState(),
+      selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
+      ...network.state,
+    }));
 
     rootMessenger.registerActionHandler(
       'NetworkController:getNetworkClientRegistry',
-      () => ({}) as never,
+      () => ({}),
     );
 
     rootMessenger.registerActionHandler(
@@ -819,7 +813,7 @@ describe('TransactionController', () => {
       return timeCounter;
     });
 
-    uuidModuleMock.v1.mockReturnValue(MOCK_V1_UUID);
+    uuidV1Mock.mockReturnValue(MOCK_V1_UUID);
 
     rpcRequestMock.mockImplementation(async ({ method }) => {
       if (method === 'eth_sendRawTransaction') {
@@ -830,7 +824,7 @@ describe('TransactionController', () => {
         return '0x0';
       }
 
-      return undefined;
+      return;
     });
 
     getNonceLockSpy = jest.fn().mockResolvedValue({
@@ -862,8 +856,8 @@ describe('TransactionController', () => {
               chainId: CHAIN_ID_MOCK,
             },
             id: NETWORK_CLIENT_ID_MOCK,
-            provider: new FakeProvider(),
-          } as unknown as NetworkClientConfiguration;
+            provider: new MockInternalProvider(),
+          };
         }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
         getNonceLock: getNonceLockSpy,
@@ -942,6 +936,7 @@ describe('TransactionController', () => {
     it('sets default state', () => {
       const { controller } = setupController();
       expect(controller.state).toStrictEqual({
+        batchTransactionCounts: {},
         methodData: {},
         transactions: [],
         transactionBatches: [],
@@ -1919,7 +1914,7 @@ describe('TransactionController', () => {
     });
 
     it('increments nonce when adding a new non-cancel non-speedup transaction', async () => {
-      uuidModuleMock.v1
+      uuidV1Mock
         .mockImplementationOnce(() => 'aaaab1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')
         .mockImplementationOnce(() => 'bbbb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
 
@@ -3224,7 +3219,7 @@ describe('TransactionController', () => {
             return '0x0';
           }
 
-          return undefined;
+          return;
         });
 
         const { result } = await controller.addTransaction(
@@ -3261,7 +3256,7 @@ describe('TransactionController', () => {
             return '0x0';
           }
 
-          return undefined;
+          return;
         });
 
         const { result } = await controller.addTransaction(
@@ -3852,7 +3847,7 @@ describe('TransactionController', () => {
 
         existingSubmitHistory[99] = {
           chainId: CHAIN_IDS.LINEA_MAINNET,
-        } as unknown as SubmitHistoryEntry;
+        };
 
         const { controller } = setupController({
           messengerOptions: {
@@ -4205,7 +4200,7 @@ describe('TransactionController', () => {
         'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
       const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
       const mockNonce = '0x9';
-      uuidModuleMock.v1.mockImplementationOnce(() => cancelTransactionId);
+      uuidV1Mock.mockImplementationOnce(() => cancelTransactionId);
       rpcRequestMock.mockResolvedValueOnce('transaction-hash');
 
       const { controller } = setupController({
@@ -4253,7 +4248,7 @@ describe('TransactionController', () => {
         'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
       const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
       const mockNonce = '0x9';
-      uuidModuleMock.v1.mockImplementationOnce(() => cancelTransactionId);
+      uuidV1Mock.mockImplementationOnce(() => cancelTransactionId);
 
       const { controller } = setupController({
         options: {
@@ -6376,7 +6371,7 @@ describe('TransactionController', () => {
           return '0x0';
         }
 
-        return undefined;
+        return;
       });
       const { controller } = setupController({
         options: {
@@ -8681,6 +8676,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "lastFetchedBlockNumbers": {},
           "methodData": {},
           "submitHistory": [],
@@ -8721,6 +8717,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "methodData": {},
           "transactionBatches": [],
           "transactions": [],

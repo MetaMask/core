@@ -69,12 +69,14 @@ get selectedAccounts(): InternalAccount[]
 
 #### 1.3 Subscribe to External Events
 
-| Event                                              | Handler                          | Purpose               |
-| -------------------------------------------------- | -------------------------------- | --------------------- |
-| `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`    | Track active accounts |
-| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()` | Track enabled chains  |
-| `KeyringController:unlock`                         | `start()`                        | Start subscriptions   |
-| `KeyringController:lock`                           | `stop()`                         | Stop subscriptions    |
+| Event                                              | Handler                          | Purpose                                |
+| -------------------------------------------------- | -------------------------------- | -------------------------------------- |
+| `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`    | Refresh when the user switches groups  |
+| `AccountTreeController:initialized`                | `updateActive()`                 | Start tracking once the tree is built  |
+| `AccountTreeController:uninitialized`              | `updateActive()`                 | Stop tracking when the tree is cleared |
+| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()` | Track enabled chains                   |
+| `KeyringController:unlock`                         | `start()`                        | Start subscriptions                    |
+| `KeyringController:lock`                           | `stop()`                         | Stop subscriptions                     |
 
 #### 1.4 Register Action Handlers
 
@@ -297,8 +299,8 @@ destroy()
   // Per-account balances
   assetsBalance: {
     "account-uuid-1": {
-      "eip155:1/slip44:60": { amount: "1000000000000000000" },
-      "eip155:1/erc20:0xA0b8...": { amount: "1000000" },
+      "eip155:1/slip44:60": { amount: "1" },
+      "eip155:1/erc20:0xA0b8...": { amount: "1" },
     },
     "account-uuid-2": { ... },
   },
@@ -409,7 +411,7 @@ const balances = await messenger.call(
 Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
 
 interface AssetBalance {
-  amount: string; // Raw amount as string (e.g., "1000000000000000000" for 1 ETH)
+  amount: string; // Converted amount (e.g., "1" for 1 ETH)
 }
 ```
 
@@ -425,7 +427,7 @@ const balances = await messenger.call(
   },
 );
 
-// Get raw ETH balance
+// Get ETH balance
 const ethBalance = balances[accountId]['eip155:1/slip44:60'].amount;
 ```
 
@@ -534,7 +536,7 @@ await messenger.call(
   {
     assetsBalance: {
       'account-uuid-1': {
-        'eip155:1/slip44:60': { amount: '1000000000000000000' },
+        'eip155:1/slip44:60': { amount: '1' },
       },
     },
   },
@@ -587,8 +589,8 @@ messenger.subscribe('AssetsController:balanceChanged', (event) => {
 {
   accountId: AccountId; // Account UUID
   assetId: Caip19AssetId; // "eip155:1/slip44:60"
-  previousAmount: string; // "1000000000000000000"
-  newAmount: string; // "2000000000000000000"
+  previousAmount: string; // "1"
+  newAmount: string; // "2"
 }
 ```
 

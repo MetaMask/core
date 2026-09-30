@@ -2,7 +2,7 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
@@ -356,6 +356,9 @@ export class TransactionPayController extends BaseController<
           originalPaymentToken?.address?.toLowerCase() ||
         current.paymentToken?.chainId !== originalPaymentToken?.chainId;
 
+      const isPaymentTokenBalanceUpdated =
+        current.paymentToken?.balanceRaw !== originalPaymentToken?.balanceRaw;
+
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
@@ -376,12 +379,32 @@ export class TransactionPayController extends BaseController<
       ) {
         updateSourceAmounts(
           transactionId,
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
           current as never,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
           this.messenger,
           this.#getBalance,
         );
 
         shouldUpdateQuotes = true;
+      } else if (
+        isPaymentTokenBalanceUpdated &&
+        current.isMaxAmount &&
+        !current.isPostQuote
+      ) {
+        // On max the source amount is the payment token balance, so a
+        // refreshed balance must re-derive it, otherwise the amount stays at
+        // whatever the balance was when the token was selected. Quotes are not
+        // requested again here: the balance is refreshed by `updateQuotes`
+        // itself, which reads the re-derived amounts before building requests.
+        updateSourceAmounts(
+          transactionId,
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
+          current as never,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
+          this.messenger,
+          this.#getBalance,
+        );
       }
 
       if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {

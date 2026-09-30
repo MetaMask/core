@@ -10,7 +10,6 @@ import type { PerpsControllerMessenger } from '../src/PerpsController.js';
 import type { PerpsPlatformDependencies } from '../src/types/index.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({}));
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -31,9 +30,8 @@ const noopDebugLogger = {
 
 function buildMockInfrastructure(): PerpsPlatformDependencies {
   return {
-    logger: noopLogger as unknown as PerpsPlatformDependencies['logger'],
-    debugLogger:
-      noopDebugLogger as unknown as PerpsPlatformDependencies['debugLogger'],
+    logger: noopLogger,
+    debugLogger: noopDebugLogger,
     metrics: {
       trackEvent: jest.fn(),
     } as unknown as PerpsPlatformDependencies['metrics'],

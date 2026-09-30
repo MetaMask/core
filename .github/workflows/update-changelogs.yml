@@ -92,7 +92,7 @@ jobs:
   react-to-comment:
     name: React to the comment
     needs: is-release
-    if: needs.is-release.outputs.is-release == 'true' && github.event_name == 'issue_comment'
+    if: github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     environment: default-branch
     permissions:
@@ -123,7 +123,7 @@ jobs:
   update-changelogs:
     name: Update changelogs
     needs: is-release
-    if: ${{ needs.is-release.outputs.is-release == 'true' }}
+    if: needs.is-release.outputs.is-release == 'true' || github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     environment: default-branch
     permissions:

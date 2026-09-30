@@ -231,28 +231,30 @@ export const processDomainList = (list: string[]): string[][] => {
  * @param override.blocklist - the optional blocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
+ * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @returns the default phishing detector configuration.
  */
 export const getDefaultPhishingDetectorConfig = ({
   allowlist = [],
   blocklist = [],
+  c2DomainBlocklist = [],
   fuzzylist = [],
   tolerance = DEFAULT_TOLERANCE,
 }: {
   allowlist?: string[];
   blocklist?: string[];
+  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
-}): PhishingDetectorConfiguration => {
-  return {
-    allowlist: processDomainList(allowlist),
-    // We can assume that blocklist is already separated into hostname-only entries
-    // and hostname+path entries so we do not need to separate it again.
-    blocklist: processDomainList(blocklist),
-    fuzzylist: processDomainList(fuzzylist),
-    tolerance,
-  };
-};
+}): PhishingDetectorConfiguration => ({
+  allowlist: processDomainList(allowlist),
+  // We can assume that blocklist is already separated into hostname-only entries
+  // and hostname+path entries so we do not need to separate it again.
+  blocklist: processDomainList(blocklist),
+  c2DomainBlocklist,
+  fuzzylist: processDomainList(fuzzylist),
+  tolerance,
+});
 
 /**
  * Processes the configurations for the phishing detector, filtering out any invalid configs.

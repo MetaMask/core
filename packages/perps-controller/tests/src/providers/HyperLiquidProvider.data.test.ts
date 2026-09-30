@@ -311,9 +311,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -427,8 +424,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -437,6 +434,10 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
+      // Per-DEX position slices. Default to "nothing published", so these tests
+      // keep the aggregate behaviour they were written against.
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
@@ -945,14 +946,14 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
     });
 
-    it('runs user-signed unified account migration before withdrawing for dexAbstraction users', async () => {
+    it('runs unified account migration before withdrawing for default-mode users', async () => {
       const exchangeClient = createMockExchangeClient();
       mockClientService.getExchangeClient = jest
         .fn()
         .mockReturnValue(exchangeClient);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
-          userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
+          userAbstraction: jest.fn().mockResolvedValue('default'),
         }),
       );
 
@@ -973,9 +974,8 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.withdraw(withdrawParams);
 
       expect(result.success).toBe(true);
-      expect(exchangeClient.userSetAbstraction).toHaveBeenCalledWith({
-        user: '0x1234567890123456789012345678901234567890',
-        abstraction: 'unifiedAccount',
+      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
+        abstraction: 'u',
       });
       expect(exchangeClient.withdraw3).toHaveBeenCalledWith({
         destination: '0x1234567890123456789012345678901234567890',
@@ -1453,7 +1453,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
     });
   });
 });

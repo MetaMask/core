@@ -46,6 +46,7 @@ export function buildNoOpQuote(
       },
       targetNetwork: zeroFiat(),
     },
+    isInputBased: false,
     original: null,
     request: {
       from,

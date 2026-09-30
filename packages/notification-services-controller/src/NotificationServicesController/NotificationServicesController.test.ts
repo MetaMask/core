@@ -34,6 +34,7 @@ import {
 } from './__fixtures__/mockAddresses.js';
 import {
   mockGetOnChainNotificationsConfig,
+  mockUpdateOnChainNotifications,
   mockGetAPINotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
@@ -90,16 +91,16 @@ const clearAPICache = (): void => {
   notificationsConfigCache.clear();
 };
 
-const prefsFromAddresses = (
-  accounts: { address: string; enabled: boolean }[],
+// An initialized preferences blob. `walletActivity.accounts` is always empty:
+// wallet-activity addresses come from the keyring and their enabled state from
+// the Trigger API, never from here.
+const mockPreferences = (
+  overrides?: Partial<NotificationPreferences>,
 ): NotificationPreferences => ({
   walletActivity: {
     inAppNotificationsEnabled: true,
     pushNotificationsEnabled: true,
-    accounts: accounts.map((a) => ({
-      address: a.address.toLowerCase() as `0x${string}`,
-      enabled: a.enabled,
-    })),
+    accounts: [],
   },
   marketing: {
     inAppNotificationsEnabled: false,
@@ -116,18 +117,18 @@ const prefsFromAddresses = (
   },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+  ...overrides,
 });
 
-const prefsFromAddressesWithMarketingInAppNotifications = (
-  accounts: { address: string; enabled: boolean }[],
+const mockPreferencesWithMarketingInApp = (
   inAppNotificationsEnabled: boolean,
-): NotificationPreferences => ({
-  ...prefsFromAddresses(accounts),
-  marketing: {
-    inAppNotificationsEnabled,
-    pushNotificationsEnabled: false,
-  },
-});
+): NotificationPreferences =>
+  mockPreferences({
+    marketing: {
+      inAppNotificationsEnabled,
+      pushNotificationsEnabled: false,
+    },
+  });
 
 describe('NotificationServicesController', () => {
   afterEach(() => {
@@ -173,7 +174,7 @@ describe('NotificationServicesController', () => {
         'KeyringController:stateChange',
         {
           keyrings: [{ accounts }],
-        } as KeyringControllerState,
+        },
         [],
       );
     };
@@ -197,10 +198,17 @@ describe('NotificationServicesController', () => {
         ) => Promise<void>;
         mockEnable: jest.SpyInstance;
         mockDisable: jest.SpyInstance;
+        mockAddPushNotificationLinks: jest.Mock;
+        mockDeletePushNotificationLinks: jest.Mock;
       }> => {
         const mocks = arrangeMocks();
-        const { messenger, globalMessenger, mockKeyringControllerGetState } =
-          mocks;
+        const {
+          messenger,
+          globalMessenger,
+          mockKeyringControllerGetState,
+          mockAddPushNotificationLinks,
+          mockDeletePushNotificationLinks,
+        } = mocks;
         mockKeyringControllerGetState.mockReturnValue({
           isUnlocked: true,
           keyrings: [
@@ -249,6 +257,8 @@ describe('NotificationServicesController', () => {
         const cleanup = (): void => {
           mockEnable.mockClear();
           mockDisable.mockClear();
+          mockAddPushNotificationLinks.mockClear();
+          mockDeletePushNotificationLinks.mockClear();
         };
 
         const act = async (
@@ -281,50 +291,83 @@ describe('NotificationServicesController', () => {
           cleanup();
         };
 
-        return { act, actMultiple, mockEnable, mockDisable };
+        return {
+          act,
+          actMultiple,
+          mockEnable,
+          mockDisable,
+          mockAddPushNotificationLinks,
+          mockDeletePushNotificationLinks,
+        };
       };
 
       it('event KeyringController:stateChange will not add or remove triggers when feature is disabled', async () => {
-        const { act, mockEnable, mockDisable } =
-          await arrangeActAssertKeyringTest({
-            isNotificationServicesEnabled: false,
-          });
+        const {
+          act,
+          mockEnable,
+          mockDisable,
+          mockAddPushNotificationLinks,
+          mockDeletePushNotificationLinks,
+        } = await arrangeActAssertKeyringTest({
+          isNotificationServicesEnabled: false,
+        });
 
         // listAccounts has a new address
         await act([ADDRESS_1, ADDRESS_2], () => {
           expect(mockEnable).not.toHaveBeenCalled();
           expect(mockDisable).not.toHaveBeenCalled();
+          expect(mockAddPushNotificationLinks).not.toHaveBeenCalled();
+          expect(mockDeletePushNotificationLinks).not.toHaveBeenCalled();
         });
       });
 
       it('event KeyringController:stateChange will update notification triggers when keyring accounts change', async () => {
-        const { act, mockEnable, mockDisable } =
-          await arrangeActAssertKeyringTest({
-            subscriptionAccountsSeen: [ADDRESS_1],
-          });
+        const {
+          act,
+          mockEnable,
+          mockDisable,
+          mockAddPushNotificationLinks,
+          mockDeletePushNotificationLinks,
+        } = await arrangeActAssertKeyringTest({
+          subscriptionAccountsSeen: [ADDRESS_1],
+        });
 
         // Act - if list accounts has been seen, then will not update
         await act([ADDRESS_1], () => {
           expect(mockEnable).not.toHaveBeenCalled();
           expect(mockDisable).not.toHaveBeenCalled();
+          expect(mockAddPushNotificationLinks).not.toHaveBeenCalled();
+          expect(mockDeletePushNotificationLinks).not.toHaveBeenCalled();
         });
 
         // Act - if a new address in list, then will update
         await act([ADDRESS_1, ADDRESS_2], () => {
           expect(mockEnable).toHaveBeenCalled();
           expect(mockDisable).not.toHaveBeenCalled();
+          expect(mockAddPushNotificationLinks).toHaveBeenCalledWith([
+            ADDRESS_2,
+          ]);
+          expect(mockDeletePushNotificationLinks).not.toHaveBeenCalled();
         });
 
         // Act - if the list doesn't have an address, then we need to delete
         await act([ADDRESS_2], () => {
           expect(mockEnable).not.toHaveBeenCalled();
           expect(mockDisable).toHaveBeenCalled();
+          expect(mockAddPushNotificationLinks).not.toHaveBeenCalled();
+          expect(mockDeletePushNotificationLinks).toHaveBeenCalledWith([
+            ADDRESS_1,
+          ]);
         });
 
         // If the address is added back to the list, we will perform an update
         await act([ADDRESS_1, ADDRESS_2], () => {
           expect(mockEnable).toHaveBeenCalled();
           expect(mockDisable).not.toHaveBeenCalled();
+          expect(mockAddPushNotificationLinks).toHaveBeenCalledWith([
+            ADDRESS_1,
+          ]);
+          expect(mockDeletePushNotificationLinks).not.toHaveBeenCalled();
         });
       });
 
@@ -381,6 +424,8 @@ describe('NotificationServicesController', () => {
       // Arrange
       const mocks = arrangeMocks();
       const mockAPIGetNotificationConfig = mocks.mockGetNotificationPreferences;
+      // Supplies the enabled wallet-activity addresses that push registers for.
+      mockGetOnChainNotificationsConfig().persist();
       modifications?.(mocks);
 
       // Act
@@ -511,12 +556,13 @@ describe('NotificationServicesController', () => {
   describe('checkAccountsPresence', () => {
     it('returns Record with accounts that have notifications enabled', async () => {
       const mocks = mockNotificationMessenger();
-      mocks.mockGetNotificationPreferences.mockResolvedValueOnce(
-        prefsFromAddresses([
-          { address: ADDRESS_1, enabled: true },
-          { address: ADDRESS_2, enabled: false },
-        ]),
-      );
+      const mockTriggerQuery = mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [
+          { address: ADDRESS_1.toLowerCase(), enabled: true },
+          { address: ADDRESS_2.toLowerCase(), enabled: false },
+        ],
+      });
 
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
@@ -527,11 +573,52 @@ describe('NotificationServicesController', () => {
         ADDRESS_2,
       ]);
 
-      expect(mocks.mockGetNotificationPreferences).toHaveBeenCalled();
+      expect(mockTriggerQuery.isDone()).toBe(true);
       expect(result).toStrictEqual({
         [ADDRESS_1]: true,
         [ADDRESS_2]: false,
       });
+    });
+
+    it('reports accounts the Trigger API does not know about as disabled', async () => {
+      const mocks = mockNotificationMessenger();
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [{ address: ADDRESS_1.toLowerCase(), enabled: true }],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      const result = await controller.checkAccountsPresence([
+        ADDRESS_1,
+        ADDRESS_3,
+      ]);
+
+      expect(result).toStrictEqual({
+        [ADDRESS_1]: true,
+        [ADDRESS_3]: false,
+      });
+    });
+
+    it('throws rather than reporting every account as disabled when the Trigger API is unreadable', async () => {
+      const mocks = mockNotificationMessenger();
+      mockErrorLog();
+      mockGetOnChainNotificationsConfig({
+        status: 500,
+        body: { error: 'mock api failure' },
+      });
+
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await expect(
+        controller.checkAccountsPresence([ADDRESS_1, ADDRESS_2]),
+      ).rejects.toThrow('Failed to read wallet-activity subscriptions');
+      expect(controller.state.isCheckingAccountsPresence).toBe(false);
     });
   });
 
@@ -555,7 +642,7 @@ describe('NotificationServicesController', () => {
     };
 
     describe('when AUS preferences are not initialized (preferences are null)', () => {
-      it('writes a fresh preferences blob using hardcoded defaults, current Trigger API wallet account state, and supplied marketing flags', async () => {
+      it('writes a fresh preferences blob using hardcoded defaults, no wallet-activity addresses, and supplied marketing flags', async () => {
         const {
           messenger,
           mockEnablePushNotifications,
@@ -588,6 +675,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers({
           hasMarketingConsent: true,
@@ -604,16 +692,7 @@ describe('NotificationServicesController', () => {
           walletActivity: {
             inAppNotificationsEnabled: true,
             pushNotificationsEnabled: true,
-            accounts: [
-              {
-                address: ADDRESS_1.toLowerCase(),
-                enabled: true,
-              },
-              {
-                address: ADDRESS_2.toLowerCase(),
-                enabled: false,
-              },
-            ],
+            accounts: [],
           },
           marketing: {
             inAppNotificationsEnabled: false,
@@ -624,8 +703,11 @@ describe('NotificationServicesController', () => {
           agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
           priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
         });
+        // Every address this installation holds, including the one whose
+        // wallet-activity subscription is disabled.
         expect(mockEnablePushNotifications).toHaveBeenCalledWith([
           ADDRESS_1.toLowerCase(),
+          ADDRESS_2.toLowerCase(),
         ]);
       });
 
@@ -656,6 +738,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers({
           registerPushNotifications: false,
@@ -668,11 +751,10 @@ describe('NotificationServicesController', () => {
         expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
 
-      it('enables all wallet-activity accounts when Trigger API has no enabled accounts for first-time setup', async () => {
+      it('subscribes all keyring accounts in the Trigger API when none are subscribed yet', async () => {
         const {
           messenger,
           mockEnablePushNotifications,
-          mockUpdateNotifications,
           mockKeyringControllerGetState,
         } = arrangeMocks({
           configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
@@ -695,20 +777,116 @@ describe('NotificationServicesController', () => {
             { address: ADDRESS_2.toLowerCase(), enabled: false },
           ],
         });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+        let subscribeBody: unknown;
+        mockTriggerUpdate.on('request', (_req, _interceptor, body) => {
+          subscribeBody = JSON.parse(body as string);
+        });
 
         const controller = new NotificationServicesController({
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
         expect(mockTriggerQuery.isDone()).toBe(true);
-        const [writtenPrefs] = mockUpdateNotifications.mock.calls[0];
-        expect(writtenPrefs.walletActivity.accounts).toStrictEqual([
+        expect(mockTriggerUpdate.isDone()).toBe(true);
+        expect(subscribeBody).toStrictEqual([
           { address: ADDRESS_1.toLowerCase(), enabled: true },
           { address: ADDRESS_2.toLowerCase(), enabled: true },
         ]);
+        // The keyring reports checksummed addresses, but push registration
+        // must get the same lower-case form the Trigger API echoes back.
+        expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+          ADDRESS_1.toLowerCase(),
+          ADDRESS_2.toLowerCase(),
+        ]);
+      });
+
+      it('fails without subscribing anything when the Trigger API config cannot be read', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockDisablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 500,
+          body: { error: 'mock api failure' },
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await expect(controller.createOnChainTriggers()).rejects.toThrow(
+          'Failed to create On Chain triggers',
+        );
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        // No preferences blob, so a retry is still treated as a first-time
+        // setup and can seed the subscriptions this run failed to create.
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+      });
+
+      it('leaves existing Trigger API subscriptions alone, so previously disabled accounts stay disabled', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 200,
+          body: [
+            { address: ADDRESS_1.toLowerCase(), enabled: true },
+            { address: ADDRESS_2.toLowerCase(), enabled: false },
+          ],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
         expect(mockEnablePushNotifications).toHaveBeenCalledWith([
           ADDRESS_1.toLowerCase(),
           ADDRESS_2.toLowerCase(),
@@ -725,6 +903,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -745,6 +924,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers({
           productAnnouncementEnabled: true,
@@ -794,6 +974,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -846,6 +1027,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -890,6 +1072,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -899,6 +1082,72 @@ describe('NotificationServicesController', () => {
         expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
           ADDRESS_1,
         ]);
+      });
+
+      it('does not write preferences or unregister push when the keyring has no accounts', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        // Writing the blob here would make the next run a re-subscribe with no
+        // chance to seed accounts; unregistering would drop an existing device.
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
+
+      it('does not write preferences or unregister push when the keyring is locked', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
     });
 
@@ -911,21 +1160,171 @@ describe('NotificationServicesController', () => {
           mockUpdateNotifications,
         } = arrangeMocks({
           configurePrefs: (mock) =>
-            mock.mockResolvedValueOnce(
-              prefsFromAddresses([{ address: ADDRESS_1, enabled: true }]),
-            ),
+            mock.mockResolvedValueOnce(mockPreferences()),
         });
+        mockGetOnChainNotificationsConfig();
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
 
         const controller = new NotificationServicesController({
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
         expect(mockGetConfig).toHaveBeenCalled();
         expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockTriggerUpdate.isDone()).toBe(false);
         expect(mockEnablePushNotifications).toHaveBeenCalled();
+      });
+
+      it('leaves existing push links alone on re-subscribe when the keyring has no accounts', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
+
+      it('leaves existing push links alone on re-subscribe when the keyring is locked', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
+
+      it('does not re-subscribe accounts on the daily re-subscribe when the user disabled them all', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 200,
+          body: [
+            { address: ADDRESS_1.toLowerCase(), enabled: false },
+            { address: ADDRESS_2.toLowerCase(), enabled: false },
+          ],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        // Wallet activity stays disabled, but the device remains linked to
+        // every address it holds.
+        await waitFor(() => {
+          expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+            ADDRESS_1.toLowerCase(),
+            ADDRESS_2.toLowerCase(),
+          ]);
+        });
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      });
+
+      it('ignores the legacy wallet-activity push toggle when registering push notifications', async () => {
+        const { messenger, mockEnablePushNotifications } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(
+              mockPreferences({
+                walletActivity: {
+                  inAppNotificationsEnabled: true,
+                  pushNotificationsEnabled: false,
+                  accounts: [],
+                },
+              }),
+            ),
+        });
+        mockGetOnChainNotificationsConfig();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        await waitFor(() => {
+          expect(mockEnablePushNotifications).toHaveBeenCalled();
+        });
       });
 
       it('preserves user preferences when re-subscribing using enableMetamaskNotifications', async () => {
@@ -936,10 +1335,10 @@ describe('NotificationServicesController', () => {
           mockUpdateNotifications,
         } = arrangeMocks({
           configurePrefs: (mock) =>
-            mock.mockResolvedValueOnce(
-              prefsFromAddresses([{ address: ADDRESS_1, enabled: true }]),
-            ),
+            mock.mockResolvedValueOnce(mockPreferences()),
         });
+        mockGetOnChainNotificationsConfig();
+        mockGetOnChainNotificationsConfig();
 
         const controller = new NotificationServicesController({
           messenger,
@@ -949,6 +1348,7 @@ describe('NotificationServicesController', () => {
             isFeatureAnnouncementsEnabled: false,
           },
         });
+        controller.init();
 
         await controller.enableMetamaskNotifications();
 
@@ -957,6 +1357,47 @@ describe('NotificationServicesController', () => {
         expect(mockGetConfig).toHaveBeenCalled();
         expect(mockUpdateNotifications).not.toHaveBeenCalled();
         expect(mockEnablePushNotifications).toHaveBeenCalled();
+      });
+
+      it('links held addresses when re-enabling with all wallet-activity accounts disabled', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockDisablePushNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 200,
+          body: [{ address: ADDRESS_1.toLowerCase(), enabled: false }],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.enableMetamaskNotifications();
+
+        await waitFor(() => {
+          expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+            ADDRESS_1.toLowerCase(),
+          ]);
+        });
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
       });
     });
 
@@ -967,6 +1408,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       const testScenarios = {
         ...arrangeFailureAuthAssertions(mocks),
@@ -983,19 +1425,29 @@ describe('NotificationServicesController', () => {
 
   describe('disableAccounts', () => {
     const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
-      mockUpdateNotifications: jest.Mock;
+      mockTriggerUpdate: nock.Scope;
+      getRequestBody: () => unknown;
     } => {
       const messengerMocks = mockNotificationMessenger();
-      const mockUpdateNotifications =
-        messengerMocks.mockPutNotificationPreferences;
-      return { ...messengerMocks, mockUpdateNotifications };
+      const mockTriggerUpdate = mockUpdateOnChainNotifications();
+      let requestBody: unknown;
+      mockTriggerUpdate.on('request', (_req, _interceptor, body) => {
+        requestBody = JSON.parse(body as string);
+      });
+      return {
+        ...messengerMocks,
+        mockTriggerUpdate,
+        getRequestBody: () => requestBody,
+      };
     };
 
     it('disables notifications for given accounts', async () => {
       const {
         messenger,
-        mockUpdateNotifications,
+        mockTriggerUpdate,
+        getRequestBody,
         mockDeletePushNotificationLinks,
+        mockPutNotificationPreferences,
       } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
@@ -1004,8 +1456,13 @@ describe('NotificationServicesController', () => {
 
       await controller.disableAccounts([ADDRESS_1]);
 
-      expect(mockUpdateNotifications).toHaveBeenCalled();
-      expect(mockDeletePushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
+      expect(mockTriggerUpdate.isDone()).toBe(true);
+      expect(getRequestBody()).toStrictEqual([
+        { address: ADDRESS_1.toLowerCase(), enabled: false },
+      ]);
+      expect(mockDeletePushNotificationLinks).not.toHaveBeenCalled();
+      // Subscriptions live in the Trigger API, so AUS is left untouched.
+      expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
     });
 
     it('throws errors when invalid auth', async () => {
@@ -1031,19 +1488,29 @@ describe('NotificationServicesController', () => {
 
   describe('enableAccounts', () => {
     const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
-      mockUpdateNotifications: jest.Mock;
+      mockTriggerUpdate: nock.Scope;
+      getRequestBody: () => unknown;
     } => {
       const messengerMocks = mockNotificationMessenger();
-      const mockUpdateNotifications =
-        messengerMocks.mockPutNotificationPreferences;
-      return { ...messengerMocks, mockUpdateNotifications };
+      const mockTriggerUpdate = mockUpdateOnChainNotifications();
+      let requestBody: unknown;
+      mockTriggerUpdate.on('request', (_req, _interceptor, body) => {
+        requestBody = JSON.parse(body as string);
+      });
+      return {
+        ...messengerMocks,
+        mockTriggerUpdate,
+        getRequestBody: () => requestBody,
+      };
     };
 
     it('enables notifications for given accounts', async () => {
       const {
         messenger,
         mockAddPushNotificationLinks,
-        mockUpdateNotifications,
+        mockTriggerUpdate,
+        getRequestBody,
+        mockPutNotificationPreferences,
       } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
@@ -1052,8 +1519,13 @@ describe('NotificationServicesController', () => {
 
       await controller.enableAccounts([ADDRESS_1]);
 
-      expect(mockUpdateNotifications).toHaveBeenCalled();
-      expect(mockAddPushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
+      expect(mockTriggerUpdate.isDone()).toBe(true);
+      expect(getRequestBody()).toStrictEqual([
+        { address: ADDRESS_1.toLowerCase(), enabled: true },
+      ]);
+      expect(mockAddPushNotificationLinks).not.toHaveBeenCalled();
+      // Subscriptions live in the Trigger API, so AUS is left untouched.
+      expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
     });
 
     it('throws errors when invalid auth', async () => {
@@ -1090,11 +1562,10 @@ describe('NotificationServicesController', () => {
     } => {
       const messengerMocks = mockNotificationMessenger();
       messengerMocks.mockGetNotificationPreferences.mockResolvedValue(
-        prefsFromAddressesWithMarketingInAppNotifications(
-          [{ address: '0xTestAddress', enabled: true }],
-          true,
-        ),
+        mockPreferencesWithMarketingInApp(true),
       );
+      // Supplies the enabled wallet-activity addresses.
+      mockGetOnChainNotificationsConfig();
 
       const mockFeatureAnnouncementAPIResult =
         createMockFeatureAnnouncementAPIResult();
@@ -1218,10 +1689,7 @@ describe('NotificationServicesController', () => {
     it('should not fetch feature announcements if AUS marketing in-app notifications are disabled', async () => {
       const { messenger, ...mocks } = arrangeMocks();
       mocks.mockGetNotificationPreferences.mockResolvedValue(
-        prefsFromAddressesWithMarketingInAppNotifications(
-          [{ address: '0xTestAddress', enabled: true }],
-          false,
-        ),
+        mockPreferencesWithMarketingInApp(false),
       );
       const controller = arrangeController(messenger);
 
@@ -1239,15 +1707,62 @@ describe('NotificationServicesController', () => {
       expect(mocks.mockFeatureAnnouncementsAPI.isDone()).toBe(false);
     });
 
+    it('ignores the legacy wallet-activity in-app toggle when fetching wallet notifications', async () => {
+      const { messenger, ...mocks } = arrangeMocks();
+      mocks.mockGetNotificationPreferences.mockResolvedValue(
+        mockPreferences({
+          walletActivity: {
+            inAppNotificationsEnabled: false,
+            pushNotificationsEnabled: true,
+            accounts: [],
+          },
+          marketing: {
+            inAppNotificationsEnabled: true,
+            pushNotificationsEnabled: false,
+          },
+        }),
+      );
+      const controller = arrangeController(messenger);
+
+      const result = await controller.fetchAndUpdateMetamaskNotifications();
+
+      expect(
+        result.filter(
+          (notification) => notification.type === TRIGGER_TYPES.ETH_SENT,
+        ),
+      ).toHaveLength(1);
+      expect(mocks.mockOnChainNotificationsAPI.isDone()).toBe(true);
+
+      // The wallet-activity toggle must not affect other notification types.
+      expect(mocks.mockFeatureAnnouncementsAPI.isDone()).toBe(true);
+    });
+
+    it('should still fetch wallet notifications when the preferences blob is unavailable', async () => {
+      const { messenger, ...mocks } = arrangeMocks();
+      mocks.mockGetNotificationPreferences.mockRejectedValue(
+        new Error('mock storage failure'),
+      );
+      mockErrorLog();
+      const controller = arrangeController(messenger);
+
+      // A storage outage must not silently empty the notification list.
+      const result = await controller.fetchAndUpdateMetamaskNotifications();
+
+      expect(
+        result.filter(
+          (notification) => notification.type === TRIGGER_TYPES.ETH_SENT,
+        ),
+      ).toHaveLength(1);
+      expect(mocks.mockOnChainNotificationsAPI.isDone()).toBe(true);
+    });
+
     it('should handle errors gracefully when fetching notifications', async () => {
       const { messenger, mockGetNotificationPreferences } =
         mockNotificationMessenger();
       mockGetNotificationPreferences.mockResolvedValue(
-        prefsFromAddressesWithMarketingInAppNotifications(
-          [{ address: '0xTestAddress', enabled: true }],
-          true,
-        ),
+        mockPreferencesWithMarketingInApp(true),
       );
+      mockGetOnChainNotificationsConfig();
 
       // Mock APIs to fail
       mockFetchFeatureAnnouncementNotifications({ status: 500 });
@@ -1604,11 +2119,13 @@ describe('NotificationServicesController', () => {
 
     it('should sign a user in if not already signed in', async () => {
       const mocks = arrangeMocks();
+      mockGetOnChainNotificationsConfig();
       mocks.mockIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       await controller.enableMetamaskNotifications();
 
@@ -1622,11 +2139,13 @@ describe('NotificationServicesController', () => {
         // No AUS preferences yet — fresh initialization.
         configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
       });
+      mockGetOnChainNotificationsConfig();
 
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       const promise = controller.enableMetamaskNotifications();
 
@@ -1654,6 +2173,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       await controller.enableMetamaskNotifications({
         registerPushNotifications: false,
@@ -1669,16 +2189,15 @@ describe('NotificationServicesController', () => {
     it('should not create new notification subscriptions when enabling an account that already has notifications', async () => {
       const mocks = arrangeMocks({
         // Mock fully-initialized existing notifications
-        configurePrefs: (mock) =>
-          mock.mockResolvedValueOnce(
-            prefsFromAddresses([{ address: ADDRESS_1, enabled: true }]),
-          ),
+        configurePrefs: (mock) => mock.mockResolvedValueOnce(mockPreferences()),
       });
+      mockGetOnChainNotificationsConfig();
 
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       await controller.enableMetamaskNotifications();
 
@@ -1767,41 +2286,194 @@ describe('NotificationServicesController', () => {
     } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig = messengerMocks.mockGetNotificationPreferences;
-      mockGetConfig.mockResolvedValueOnce(
-        prefsFromAddresses([
-          { address: ADDRESS_1, enabled: true },
-          { address: ADDRESS_2, enabled: true },
-        ]),
-      );
+      mockGetConfig.mockResolvedValueOnce(mockPreferences());
+      messengerMocks.mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_2],
+            type: KeyringTypes.hd,
+            metadata: { id: 'srp-1', name: 'SRP 1' },
+          },
+        ],
+      });
       return { ...messengerMocks, mockGetConfig };
     };
 
-    it('calls push controller and enables notifications for accounts that have subscribed to notifications', async () => {
+    it('links every held address, including accounts with wallet activity disabled', async () => {
       const { messenger, mockGetConfig, mockEnablePushNotifications } =
         arrangeMocks();
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [
+          { address: ADDRESS_1.toLowerCase(), enabled: true },
+          { address: ADDRESS_2.toLowerCase(), enabled: false },
+        ],
+      });
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       // Act
       await controller.enablePushNotifications();
 
       // Assert
-      expect(mockGetConfig).toHaveBeenCalled();
-      // Addresses are stored lower-cased in AUS preferences.
+      expect(mockGetConfig).not.toHaveBeenCalled();
       expect(mockEnablePushNotifications).toHaveBeenCalledWith([
         ADDRESS_1.toLowerCase(),
         ADDRESS_2.toLowerCase(),
       ]);
     });
 
-    it('handles errors gracefully when fetching notification config fails', async () => {
-      const mocks = mockNotificationMessenger();
-      mocks.mockGetNotificationPreferences.mockRejectedValueOnce(
-        new Error('mock api failure'),
+    it('leaves existing push links alone when the keyring has no accounts', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
+      // An empty keyring is not "every account disabled": unregistering here
+      // would drop the device until the next successful re-subscribe.
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+
+    it('leaves existing push links alone when the keyring is locked', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_2],
+            type: KeyringTypes.hd,
+            metadata: { id: 'srp-1', name: 'SRP 1' },
+          },
+        ],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+
+    it('links every held address when wallet activity is disabled for all of them', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+      } = arrangeMocks();
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [
+          { address: ADDRESS_1.toLowerCase(), enabled: false },
+          { address: ADDRESS_2.toLowerCase(), enabled: false },
+        ],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
+      expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+        ADDRESS_1.toLowerCase(),
+        ADDRESS_2.toLowerCase(),
+      ]);
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+    });
+
+    it('links every held address when the Trigger API is unreadable', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+      } = arrangeMocks();
+      mockGetOnChainNotificationsConfig({
+        status: 500,
+        body: { error: 'mock api failure' },
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+        ADDRESS_1.toLowerCase(),
+        ADDRESS_2.toLowerCase(),
+      ]);
+    });
+
+    it('ignores the legacy wallet-activity push toggle and uses Trigger API subscriptions', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+      } = arrangeMocks();
+      mockGetConfig.mockReset();
+      mockGetConfig.mockResolvedValue(
+        mockPreferences({
+          walletActivity: {
+            inAppNotificationsEnabled: true,
+            pushNotificationsEnabled: false,
+            accounts: [],
+          },
+        }),
       );
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [{ address: ADDRESS_1.toLowerCase(), enabled: true }],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
+      expect(mockGetConfig).not.toHaveBeenCalled();
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+        ADDRESS_1.toLowerCase(),
+        ADDRESS_2.toLowerCase(),
+      ]);
+    });
+
+    it('links held addresses without reading a bearer token first', async () => {
+      const mocks = arrangeMocks();
+      mocks.mockGetBearerToken.mockRejectedValue(new Error('mock api failure'));
       mockErrorLog();
 
       const controller = new NotificationServicesController({
@@ -1809,10 +2481,13 @@ describe('NotificationServicesController', () => {
         env: { featureAnnouncements: featureAnnouncementsEnv },
         state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
-      // Should not throw error
       await controller.enablePushNotifications();
-      expect(mocks.mockEnablePushNotifications).not.toHaveBeenCalled();
+      expect(mocks.mockEnablePushNotifications).toHaveBeenCalledWith([
+        ADDRESS_1.toLowerCase(),
+        ADDRESS_2.toLowerCase(),
+      ]);
     });
   });
 
@@ -2157,7 +2832,7 @@ function mockNotificationMessenger(): {
 
   const mockGetNotificationPreferences =
     typedMockAction<AuthenticatedUserStorageServiceGetNotificationPreferencesAction>().mockResolvedValue(
-      prefsFromAddresses([{ address: '0xTestAddress', enabled: true }]),
+      mockPreferences(),
     );
 
   const mockPutNotificationPreferences =
@@ -2278,7 +2953,7 @@ function arrangeFailureAuthAssertions(
 
     // unlikely, but in case it returns null
     noBearerToken: (): jest.Mock =>
-      mocks.mockGetBearerToken.mockResolvedValueOnce(null as unknown as string),
+      mocks.mockGetBearerToken.mockResolvedValueOnce(null),
 
     rejectedBearerToken: (): jest.Mock =>
       mocks.mockGetBearerToken.mockRejectedValueOnce(

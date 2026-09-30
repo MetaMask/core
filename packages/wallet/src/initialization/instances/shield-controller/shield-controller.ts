@@ -36,9 +36,9 @@ export const shieldController: InitializationConfiguration<
       events: [
         // ShieldController subscribes to :stateChange internally; the
         // delegation must match until those controllers migrate to :stateChanged.
-        // eslint-disable-next-line no-restricted-syntax
+
         'TransactionController:stateChange',
-        // eslint-disable-next-line no-restricted-syntax
+
         'SignatureController:stateChange',
       ],
     });

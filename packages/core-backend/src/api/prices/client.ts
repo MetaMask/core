@@ -14,12 +14,7 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import {
-  BaseApiClient,
-  API_URLS,
-  STALE_TIMES,
-  GC_TIMES,
-} from '../base-client.js';
+import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
 import { getQueryOptionsOverrides } from '../shared-types.js';
 import type {
   FetchOptions,
@@ -29,7 +24,8 @@ import type {
 import type {
   CoinGeckoSpotPrice,
   V1ExchangeRatesResponse,
-  PriceSupportedNetworksResponse,
+  PriceV1SupportedNetworksResponse,
+  PriceV2SupportedNetworksResponse,
   V1HistoricalPricesResponse,
   V3SpotPricesResponse,
   V3HistoricalPricesResponse,
@@ -65,12 +61,12 @@ export class PricesApiClient extends BaseApiClient {
    */
   getPriceV1SupportedNetworksQueryOptions(
     options?: FetchOptions,
-  ): FetchQueryOptions<PriceSupportedNetworksResponse> {
+  ): FetchQueryOptions<PriceV1SupportedNetworksResponse> {
     return {
       queryKey: ['prices', 'v1SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<PriceSupportedNetworksResponse>(
-          API_URLS.PRICES,
+        this.fetch<PriceV1SupportedNetworksResponse>(
+          this.apiUrls.PRICES,
           '/v1/supportedNetworks',
           { signal },
         ),
@@ -88,7 +84,7 @@ export class PricesApiClient extends BaseApiClient {
    */
   async fetchPriceV1SupportedNetworks(
     options?: FetchOptions,
-  ): Promise<PriceSupportedNetworksResponse> {
+  ): Promise<PriceV1SupportedNetworksResponse> {
     return this.queryClient.fetchQuery(
       this.getPriceV1SupportedNetworksQueryOptions(options),
     );
@@ -102,12 +98,12 @@ export class PricesApiClient extends BaseApiClient {
    */
   getPriceV2SupportedNetworksQueryOptions(
     options?: FetchOptions,
-  ): FetchQueryOptions<PriceSupportedNetworksResponse> {
+  ): FetchQueryOptions<PriceV2SupportedNetworksResponse> {
     return {
       queryKey: ['prices', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<PriceSupportedNetworksResponse>(
-          API_URLS.PRICES,
+        this.fetch<PriceV2SupportedNetworksResponse>(
+          this.apiUrls.PRICES,
           '/v2/supportedNetworks',
           { signal },
         ),
@@ -120,12 +116,15 @@ export class PricesApiClient extends BaseApiClient {
   /**
    * Get price supported networks in CAIP format (v2 endpoint).
    *
+   * `partialSupport` is an object keyed by spot price endpoint
+   * (`spotPricesV2`, `spotPricesV3`), not a flat array.
+   *
    * @param options - Fetch options including cache settings.
    * @returns The supported networks response.
    */
   async fetchPriceV2SupportedNetworks(
     options?: FetchOptions,
-  ): Promise<PriceSupportedNetworksResponse> {
+  ): Promise<PriceV2SupportedNetworksResponse> {
     return this.queryClient.fetchQuery(
       this.getPriceV2SupportedNetworksQueryOptions(options),
     );
@@ -155,7 +154,7 @@ export class PricesApiClient extends BaseApiClient {
           return {};
         }
         return this.fetch<V1ExchangeRatesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           '/v1/exchange-rates',
           {
             signal,
@@ -201,7 +200,7 @@ export class PricesApiClient extends BaseApiClient {
       queryKey: ['prices', 'v1FiatExchangeRates'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1ExchangeRatesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           '/v1/exchange-rates/fiat',
           { signal },
         ),
@@ -238,7 +237,7 @@ export class PricesApiClient extends BaseApiClient {
       queryKey: ['prices', 'v1CryptoExchangeRates'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1ExchangeRatesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           '/v1/exchange-rates/crypto',
           { signal },
         ),
@@ -290,7 +289,7 @@ export class PricesApiClient extends BaseApiClient {
           return {};
         }
         return this.fetch<Record<string, CoinGeckoSpotPrice>>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           '/v1/spot-prices',
           {
             signal,
@@ -345,7 +344,7 @@ export class PricesApiClient extends BaseApiClient {
           return { id: '', price: 0 };
         }
         return this.fetch<CoinGeckoSpotPrice>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/spot-prices/${coinId}`,
           {
             signal,
@@ -423,7 +422,7 @@ export class PricesApiClient extends BaseApiClient {
           return {};
         }
         return this.fetch<Record<string, Record<string, number>>>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/chains/${chainIdDecimal}/spot-prices`,
           {
             signal,
@@ -496,7 +495,7 @@ export class PricesApiClient extends BaseApiClient {
         signal,
       }: QueryFunctionContext): Promise<MarketDataDetails> => {
         return this.fetch<MarketDataDetails>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/chains/${chainIdDecimal}/spot-prices/${tokenAddress}`,
           {
             signal,
@@ -580,7 +579,7 @@ export class PricesApiClient extends BaseApiClient {
           return {};
         }
         return this.fetch<Record<string, MarketDataDetails>>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v2/chains/${chainIdDecimal}/spot-prices`,
           {
             signal,
@@ -676,7 +675,7 @@ export class PricesApiClient extends BaseApiClient {
           return {};
         }
         return this.fetch<V3SpotPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           '/v3/spot-prices',
           {
             signal,
@@ -753,7 +752,7 @@ export class PricesApiClient extends BaseApiClient {
       queryKey: ['prices', 'v1HistoricalByCoinId', coinId, queryOptions],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1HistoricalPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/historical-prices/${coinId}`,
           {
             signal,
@@ -839,7 +838,7 @@ export class PricesApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1HistoricalPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/chains/${chainIdDecimal}/historical-prices`,
           {
             signal,
@@ -923,7 +922,7 @@ export class PricesApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1HistoricalPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/chains/${chainIdDecimal}/historical-prices/${tokenAddress}`,
           {
             signal,
@@ -1000,7 +999,7 @@ export class PricesApiClient extends BaseApiClient {
       queryKey: ['prices', 'v3Historical', chainId, assetType, queryOptions],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V3HistoricalPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v3/historical-prices/${chainId}/${assetType}`,
           {
             signal,
@@ -1080,7 +1079,7 @@ export class PricesApiClient extends BaseApiClient {
       queryKey: ['prices', 'v1GraphByCoinId', coinId, currency, includeOHLC],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V3HistoricalPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/historical-prices-graph/${coinId}`,
           {
             signal,
@@ -1151,7 +1150,7 @@ export class PricesApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V3HistoricalPricesResponse>(
-          API_URLS.PRICES,
+          this.apiUrls.PRICES,
           `/v1/chains/${chainIdDecimal}/historical-prices-graph/${tokenAddress}`,
           {
             signal,

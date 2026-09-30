@@ -9,7 +9,191 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/ramps-controller` from `^26.0.1` to `^26.1.0` ([#10569](https://github.com/MetaMask/core/pull/10569))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** Read token metadata, balances, and prices directly from `AssetsController` state ([#10461](https://github.com/MetaMask/core/pull/10461))
+  - Consumers must delegate `AccountsController:getState`, `AssetsController:getState`, and `AssetsController:stateChange` to the Pay messenger, and unified asset state must be populated before using Pay.
+  - The `assetsUnifyState` feature flag branching and the `AssetsController:getStateForTransactionPay` action are no longer used, and the four separate asset `stateChange` subscriptions are replaced by a single `AssetsController:stateChange`.
+  - Replaced the `@metamask/assets-controllers` dependency with `@metamask/accounts-controller`.
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/ramps-controller` from `^26.0.0` to `^26.0.1` ([#10541](https://github.com/MetaMask/core/pull/10541))
+
+## [29.2.3]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^25.1.1` to `^26.0.0` ([#10489](https://github.com/MetaMask/core/pull/10489))
+
+## [29.2.2]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^16.1.1` to `^17.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459), [#10474](https://github.com/MetaMask/core/pull/10474))
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/ramps-controller` from `^25.1.0` to `^25.1.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+
+## [29.2.1]
+
+### Fixed
+
+- Cap max-amount post-quote source amounts to the amount encoded in the original transaction, so Relay deposits are no longer quoted for more than the batch funds ([#10392](https://github.com/MetaMask/core/pull/10392))
+  - Post-quote batches prepend the original transaction to fund the source account, so a balance refreshed after that amount was encoded could produce a deposit that reverted with `Token balance is too low`.
+  - Synthetic sources (HyperLiquid, Polymarket deposit wallet) and payment overrides build their funding from the quote amount itself and are not capped.
+
+## [29.2.0]
+
+### Changed
+
+- Price server pay strategy quotes on the same basis as the relay strategy ([#10342](https://github.com/MetaMask/core/pull/10342))
+  - Quotes now default to exact-input pricing on the source amount, instead of expected-output pricing on the target amount, using exact output only for bundled calls, deposit-and-order types, and Money Account post-quote deposits.
+  - `ServerStrategy.supports` no longer declines `perpsDepositAndOrder` and `predictDepositAndOrder`.
+- Bump `@metamask/ramps-controller` from `^25.0.0` to `^25.1.0` ([#10402](https://github.com/MetaMask/core/pull/10402))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/transaction-controller` from `^71.0.0` to `^72.0.0` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/assets-controller` from `^16.1.0` to `^16.1.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/assets-controllers` from `^112.0.2` to `^112.0.3` ([#10423](https://github.com/MetaMask/core/pull/10423))
+
+### Fixed
+
+- Populate `TransactionPayQuote.targetAmount` on server pay strategy quotes, which previously always reported zero ([#10342](https://github.com/MetaMask/core/pull/10342))
+  - The fiat and USD values are now derived from the quote's output amount and the target token fiat rate, matching the relay strategy. They remain zero only when no fiat rate is available for the target token.
+- Fix single-step server pay strategy quotes failing to submit with an invalid transaction envelope type error ([#10342](https://github.com/MetaMask/core/pull/10342))
+  - The relay deposit type is now passed as a transaction option instead of within the transaction parameters, where it was misread as an EVM envelope type.
+
+## [29.1.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^24.0.0` to `^25.0.0` ([#10393](https://github.com/MetaMask/core/pull/10393))
+
+## [29.1.0]
+
+### Changed
+
+- Gate the server pay strategy per transaction type so flows can be enabled individually ([#10312](https://github.com/MetaMask/core/pull/10312))
+  - `ServerStrategy.supports` now also requires a transaction type listed in the new `payStrategies.server.enabledTransactionTypes` remote feature flag, which defaults to empty.
+  - `ServerStrategy.supports` now declines flows using capabilities the strategy does not implement yet, regardless of the flag.
+- Support subsidized max Relay deposits using atomic `EXACT_OUTPUT` quotes with transaction calls embedded, gated by `payStrategies.relay.atomicMaxEnabled` (disabled by default, with per-transaction-type overrides). ([#10224](https://github.com/MetaMask/core/pull/10224))
+  - Honor the client's `atomic` hint: atomic max quotes use the source-token budget adjusted to destination decimals for 1:1 subsidized stablecoin routes, without a discovery quote or reusing the original deposit amount. Unsubsidized responses are re-quoted non-atomically.
+  - Non-atomic hints start with `EXACT_INPUT` and upgrade to atomic execution when subsidized.
+  - Atomic promotion errors retain the `Atomic promotion failed` prefix through standard quote error handling and strategy fallback.
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^71.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386))
+
+## [29.0.2]
+
+### Fixed
+
+- Re-derive max-amount source amounts when the payment token balance is refreshed, so quotes are no longer requested with the balance the token had when it was selected ([#10325](https://github.com/MetaMask/core/pull/10325))
+  - Previously a max amount selected before the token balance loaded requested a zero source amount, which returned no quotes.
+
+## [29.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `@metamask/ramps-controller` from `^23.0.0` to `^24.0.0` ([#10326](https://github.com/MetaMask/core/pull/10326))
+
+## [29.0.0]
+
+### Added
+
+- Add optional `TransactionPayQuote.areFeesIncludedInSourceAmount` so totals can avoid double-counting fees already included in the source amount: when `true`, those quote fees are subtracted from the overall total; when `false` or omitted, they remain as separate fee components (direct mUSD quotes set `false` for fee-on-top pricing) ([#9317](https://github.com/MetaMask/core/pull/9317))
+
+### Changed
+
+- **BREAKING:** The `TransactionPayController` messenger now requires `RampsController:getQuoteWithFees` in place of `RampsController:getQuotes`; clients that do not update this delegation will throw when requesting fiat quotes ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- **BREAKING:** Direct Monad mUSD quotes now split native provider and source-network fees across `fees.provider` and `fees.sourceNetwork`, instead of placing the combined fee in `fees.provider` with a zero source-network fee; `targetAmount` now prefers `amountOutInFiat` when present ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- Move native Transak fee lookup and reconciliation into `RampsController:getQuoteWithFees`, while preserving existing fee-on-top totals and falling back to the aggregator quote when native fee data is unavailable or unusable ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/assets-controllers` from `^112.0.1` to `^112.0.2` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/ramps-controller` from `^22.0.0` to `^23.0.0` ([#10259](https://github.com/MetaMask/core/pull/10259))
+
+### Fixed
+
+- Fall back to the entered fiat amount, rather than the crypto output amount, when a direct mUSD quote is missing `amountOutInFiat`, so a crypto value is not placed in the fiat target field ([#10238](https://github.com/MetaMask/core/pull/10238))
+- Detect nested `perpsDepositAndOrder` and `predictDepositAndOrder` transactions when selecting `EXACT_OUTPUT` Relay quotes ([#10222](https://github.com/MetaMask/core/pull/10222))
+- Clear stale quote errors when the payment token changes ([#10239](https://github.com/MetaMask/core/pull/10239))
+
+## [28.0.2]
+
+### Fixed
+
+- Restore `EXACT_OUTPUT` Relay quotes for `predictDepositAndOrder` flows so Predict deposit-and-order trades keep a guaranteed output amount.
+
+## [28.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/ramps-controller` from `^21.0.0` to `^22.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/assets-controllers` from `^111.2.0` to `^112.0.0` ([#10152](https://github.com/MetaMask/core/pull/10152), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/assets-controller` from `^15.1.0` to `^16.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/gas-fee-controller` from `^26.3.2` to `^27.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/ramps-controller` from `^20.3.0` to `^21.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/sentinel-api-service` from `^1.0.1` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [27.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.1` ([#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/assets-controller` from `^14.0.3` to `^15.0.1` ([#10088](https://github.com/MetaMask/core/pull/10088), [#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/assets-controllers` from `^111.1.3` to `^111.1.4` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/ramps-controller` from `^20.2.0` to `^20.3.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+### Fixed
+
+- Prevent same-chain Relay source transactions from inheriting gas sponsorship when the paying account does not support EIP-7702 ([#10126](https://github.com/MetaMask/core/pull/10126))
+
+## [27.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
+### Fixed
+
+- Prevent Relay quotes from offering EIP-7702 gas fee token sponsorship when the source account does not support EIP-7702 ([#9897](https://github.com/MetaMask/core/pull/9897))
+
+## [27.1.0]
+
+### Changed
+
+- Use `EXACT_INPUT` Relay quotes when no transaction is embedded, except for `perpsDepositAndOrder` flows that require a guaranteed target amount; expose optional `TransactionPayQuote.isInputBased` and `TransactionPayTotals.isInputBased` flags; and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))
 - Bump `@metamask/sentinel-api-service` from `^1.0.0` to `^1.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bump `@metamask/ramps-controller` from `^20.0.0` to `^20.2.0` ([#10004](https://github.com/MetaMask/core/pull/10004), [#10005](https://github.com/MetaMask/core/pull/10005))
 
 ## [27.0.0]
 
@@ -1474,7 +1658,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.3...@metamask/transaction-pay-controller@30.0.0
+[29.2.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.2...@metamask/transaction-pay-controller@29.2.3
+[29.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.1...@metamask/transaction-pay-controller@29.2.2
+[29.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.0...@metamask/transaction-pay-controller@29.2.1
+[29.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.1...@metamask/transaction-pay-controller@29.2.0
+[29.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.0...@metamask/transaction-pay-controller@29.1.1
+[29.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.2...@metamask/transaction-pay-controller@29.1.0
+[29.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.1...@metamask/transaction-pay-controller@29.0.2
+[29.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.0...@metamask/transaction-pay-controller@29.0.1
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...@metamask/transaction-pay-controller@29.0.0
+[28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
+[28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.2...@metamask/transaction-pay-controller@28.0.0
+[27.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.1...@metamask/transaction-pay-controller@27.1.2
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.0...@metamask/transaction-pay-controller@27.1.1
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...@metamask/transaction-pay-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.1...@metamask/transaction-pay-controller@27.0.0
 [26.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.0...@metamask/transaction-pay-controller@26.4.1
 [26.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.1...@metamask/transaction-pay-controller@26.4.0

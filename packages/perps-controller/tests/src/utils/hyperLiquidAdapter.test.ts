@@ -1,5 +1,9 @@
 import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
-import { adaptOrderFromSDK } from '../../../src/utils/hyperLiquidAdapter.js';
+import {
+  adaptOrderFromSDK,
+  adaptMarketFromSDK,
+  buildHyperLiquidFillId,
+} from '../../../src/utils/hyperLiquidAdapter.js';
 
 /**
  * Builds a minimal valid `FrontendOrder` fixture, overridable per test.
@@ -101,5 +105,54 @@ describe('adaptOrderFromSDK', () => {
 
     expect(result.takeProfitPrice).toBeUndefined();
     expect(result.stopLossPrice).toBeUndefined();
+  });
+});
+
+describe('adaptMarketFromSDK margin capability', () => {
+  it.each(['strictIsolated', 'noCross', undefined] as const)(
+    'preserves venue restriction %s',
+    (marginMode) => {
+      const market = {
+        name: 'BTC',
+        szDecimals: 3,
+        maxLeverage: 50,
+        marginTableId: 1,
+        marginMode,
+      };
+
+      const result = adaptMarketFromSDK(market);
+
+      expect(result.marginMode).toBe(marginMode);
+    },
+  );
+});
+
+describe('buildHyperLiquidFillId', () => {
+  const fill = { coin: 'BTC', time: 1699999999999, tid: 111111111111111 };
+
+  it('combines coin, time and tid', () => {
+    expect(buildHyperLiquidFillId(fill)).toBe(
+      'BTC:1699999999999:111111111111111',
+    );
+  });
+
+  it('keeps the HIP-3 dex prefix in the coin segment', () => {
+    expect(buildHyperLiquidFillId({ ...fill, coin: 'xyz:TSLA' })).toBe(
+      'xyz:TSLA:1699999999999:111111111111111',
+    );
+  });
+
+  it('separates fills sharing a tid on a different coin or block time', () => {
+    const ids = new Set([
+      buildHyperLiquidFillId(fill),
+      buildHyperLiquidFillId({ ...fill, coin: 'ETH' }),
+      buildHyperLiquidFillId({ ...fill, time: fill.time + 1 }),
+    ]);
+
+    expect(ids.size).toBe(3);
+  });
+
+  it.each([undefined, null])('returns undefined when tid is %s', (tid) => {
+    expect(buildHyperLiquidFillId({ ...fill, tid })).toBeUndefined();
   });
 });

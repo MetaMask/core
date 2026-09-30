@@ -17,8 +17,10 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { isProviderOnTestnet } from '../services/providerNetwork.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
@@ -45,6 +47,8 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -57,6 +61,8 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
@@ -65,6 +71,10 @@ import type {
   OrderResult,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsMarginModeLock,
+  PerpsScalePriceLadder,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
@@ -74,6 +84,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -87,6 +98,7 @@ import type {
   PerpsReadOptions,
   PerpsFeeResolution,
 } from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -123,7 +135,7 @@ export class ChaseOrderSuspensionError extends Error {
  * const aggregated = new AggregatedPerpsProvider({
  *   providers: new Map([
  *     ['hyperliquid', hlProvider],
- *     ['myx', myxProvider],
+ *     ['lighter', lighterProvider],
  *   ]),
  *   defaultProvider: 'hyperliquid',
  *   infrastructure: deps,
@@ -133,7 +145,7 @@ export class ChaseOrderSuspensionError extends Error {
  * const positions = await aggregated.getPositions();
  *
  * // Write: routes to specific or default provider
- * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
+ * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'lighter', ... });
  * ```
  */
 export class AggregatedPerpsProvider implements PerpsProvider {
@@ -149,6 +161,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   readonly #deps: PerpsPlatformDependencies;
 
+  readonly #isTestnet: boolean | undefined;
+
   readonly #router: ProviderRouter;
 
   readonly #subscriptionMux: SubscriptionMultiplexer;
@@ -158,6 +172,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     this.#defaultProvider = config.defaultProvider;
     this.#aggregationMode = config.aggregationMode ?? 'all';
     this.#deps = config.infrastructure;
+    this.#isTestnet = config.isTestnet;
 
     // Initialize router with default provider
     this.#router = new ProviderRouter({
@@ -204,6 +219,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       );
     }
     return provider;
+  }
+
+  /**
+   * Which provider a write with this route actually reaches.
+   *
+   * `protocolId` is `aggregated` and `getPositions` spans every active
+   * provider, so a caller that needs to reason about one write — pricing the
+   * positions a close can actually touch, for instance — cannot infer the route
+   * from either. This reports it explicitly.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId(providerId?: PerpsProviderType): PerpsProviderType {
+    return providerId ?? this.#defaultProvider;
   }
 
   /**
@@ -318,6 +348,90 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         reason: 'provider_unavailable',
       };
     }
+  }
+
+  /**
+   * Resolve the margin-mode lock with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The lock reported by the selected provider.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getMarginModeLock) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const lock = await provider.getMarginModeLock({ ...params, providerId });
+      if (lock.providerId !== undefined && lock.providerId !== providerId) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...lock, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin mode lock unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Normalize a Scale price ladder through the selected provider route.
+   *
+   * @param params - Market, ladder bounds, count, and optional explicit route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the selected provider cannot normalize the requested ladder.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getScalePriceLadder) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    const result = await provider.getScalePriceLadder({
+      ...params,
+      providerId,
+    });
+    if (result.providerId !== undefined && result.providerId !== providerId) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_routable',
+      };
+    }
+    return { ...result, providerId };
   }
 
   // ============================================================================
@@ -694,6 +808,70 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return provider.withdraw(params);
   }
 
+  /**
+   * Aggregate parked manual TP/SL recoveries from every underlying
+   * provider implementing the durable-settlement contract. Storage
+   * errors PROPAGATE — a corrupt store degrading to "nothing pending"
+   * would hide an under-protected position.
+   *
+   * @returns Pending manual-recovery entries across providers.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([, provider]) =>
+        provider.getPendingManualRecoveries
+          ? provider.getPendingManualRecoveries()
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Aggregate recovered-dispatch outcomes from every underlying provider
+   * implementing the durable-settlement contract.
+   *
+   * @returns Pending recovered-dispatch outcomes across providers.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([, provider]) =>
+        provider.getRecoveredDispatches
+          ? provider.getRecoveredDispatches()
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id on
+   * whichever underlying provider owns it.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const capable = this.#getActiveProviders().filter(
+      ([, provider]) =>
+        typeof provider.acknowledgeRecoveredDispatch === 'function',
+    );
+    if (capable.length === 0) {
+      throw new Error(
+        'No perps provider has recovered dispatches to acknowledge',
+      );
+    }
+    let lastError: Error | null = null;
+    for (const [, provider] of capable) {
+      try {
+        await provider.acknowledgeRecoveredDispatch?.(recoveryId);
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    throw lastError as Error;
+  }
+
   // ============================================================================
   // Validation (Route to specific provider)
   // ============================================================================
@@ -732,17 +910,23 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    return this.#getDefaultProvider().calculateLiquidationPrice(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateLiquidationPrice(params);
   }
 
   async calculateMaintenanceMargin(
     params: MaintenanceMarginParams,
   ): Promise<number> {
-    return this.#getDefaultProvider().calculateMaintenanceMargin(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateMaintenanceMargin(params);
   }
 
-  async getMaxLeverage(asset: string): Promise<number> {
-    return this.#getDefaultProvider().getMaxLeverage(asset);
+  async getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number> {
+    const [, provider] = this.#getProviderOrDefault(providerId);
+    return provider.getMaxLeverage(asset);
   }
 
   async calculateFees(
@@ -750,6 +934,15 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.calculateFees(params);
+  }
+
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    const [, provider] = this.#getProviderOrDefault(
+      params.providerId ?? params.position.providerId,
+    );
+    return provider.previewPositionModify(params);
   }
 
   // ============================================================================
@@ -782,6 +975,43 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#subscriptionMux.subscribeToOrders({
       ...params,
       providers: this.#getActiveProviders(),
+    });
+  }
+
+  /**
+   * Stream TWAP updates from the default provider only.
+   *
+   * Unlike `getTwapOrders`, this does not fan out: HyperLiquid is the sole
+   * venue with a native TWAP push channel today, so a mux would add
+   * multi-provider merge semantics with nothing to merge. Callers needing the
+   * aggregated view across providers keep using `getTwapOrders`.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function; a no-op when the default provider has no
+   * native TWAP push channel.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const defaultProviderId = this.#defaultProvider;
+    // Read the map directly: #getDefaultProvider throws when the default is
+    // unavailable, and this method's contract is a no-op cleanup, not a throw.
+    const provider = this.#providers.get(defaultProviderId);
+    if (!provider?.subscribeToTwapOrders) {
+      return () => {
+        // No-op: default provider exposes no native TWAP push channel
+      };
+    }
+    return provider.subscribeToTwapOrders({
+      ...params,
+      // Stamp the same way getTwapOrders does, so swapping a poll for this
+      // subscription does not silently drop providerId from every schedule.
+      callback: (twapOrders, isSnapshot) =>
+        params.callback(
+          twapOrders.map((order) => ({
+            ...order,
+            providerId: defaultProviderId,
+          })),
+          isSnapshot,
+        ),
     });
   }
 
@@ -837,6 +1067,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
+  /**
+   * Approve the dedicated subscription builder on the HyperLiquid provider.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder; nothing on the order path reads this.
+   * @returns Whether the builder is approved.
+   */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
     const provider =
       this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
@@ -864,6 +1101,53 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     return this.#getDefaultProvider().isReadyToTrade();
+  }
+
+  /**
+   * Prepare every provider in turn, so a hardware wallet sees one prompt at a
+   * time. A provider that throws is logged with its provider ID and counts as
+   * not ready.
+   *
+   * @returns The not-ready result of the first provider, in registration
+   * order, that is not ready; else ready.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    let notReady: ReadyToTradeResult | undefined;
+    for (const [providerId, provider] of this.#getActiveProviders()) {
+      let result: ReadyToTradeResult | undefined;
+      try {
+        result = await provider.prepareTradingWallet?.();
+      } catch (caughtError) {
+        // Providers report their own failures, so a throw here is unexpected.
+        const error = ensureError(
+          caughtError,
+          'AggregatedPerpsProvider.prepareTradingWallet',
+        );
+        // The provider's own network: Lighter can be pinned to testnet.
+        const isProviderTestnet = isProviderOnTestnet(
+          providerId,
+          this.#isTestnet,
+        );
+        this.#deps.logger.error(error, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: providerId,
+            ...(isProviderTestnet !== undefined && {
+              network: isProviderTestnet ? 'testnet' : 'mainnet',
+            }),
+          },
+          context: {
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId },
+          },
+        });
+        result = { ready: false, error: error.message };
+      }
+      if (result && !result.ready) {
+        notReady ??= result;
+      }
+    }
+    return notReady ?? { ready: true };
   }
 
   async disconnect(): Promise<DisconnectResult> {

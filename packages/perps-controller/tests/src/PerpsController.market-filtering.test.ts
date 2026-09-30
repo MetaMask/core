@@ -26,13 +26,8 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 jest.mock('../../src/utils/wait', () => ({
   wait: jest.fn().mockResolvedValue(undefined),
@@ -122,9 +117,10 @@ describe('PerpsController — market categories & filtering', () => {
       expect(categories).not.toContain('new');
     });
 
-    it('includes all 7 data categories', () => {
+    it('includes all 8 data categories', () => {
       const categories = controller.getMarketCategories();
       expect(categories).toContain('crypto');
+      expect(categories).toContain('memecoin');
       expect(categories).toContain('stock');
       expect(categories).toContain('pre-ipo');
       expect(categories).toContain('index');

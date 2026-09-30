@@ -68,7 +68,7 @@ import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
@@ -205,6 +205,12 @@ import {
  * the state and which parts should be persisted.
  */
 const metadata: StateMetadata<TransactionControllerState> = {
+  batchTransactionCounts: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   transactions: {
     includeInStateLogs: true,
     persist: true,
@@ -281,6 +287,9 @@ export type MethodData = {
  * Transaction controller state
  */
 export type TransactionControllerState = {
+  /** Number of transactions to sign for each active batch. */
+  batchTransactionCounts: Record<string, number>;
+
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
@@ -660,6 +669,7 @@ export enum ApprovalState {
  */
 function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
+    batchTransactionCounts: {},
     methodData: {},
     transactions: [],
     transactionBatches: [],
@@ -870,10 +880,8 @@ export class TransactionController extends BaseController<
           networkClientId,
         );
       }) as NetworkController['getNetworkClientById'],
-      getNetworkClientRegistry: (() =>
-        this.messenger.call(
-          'NetworkController:getNetworkClientRegistry',
-        )) as NetworkController['getNetworkClientRegistry'],
+      getNetworkClientRegistry: () =>
+        this.messenger.call('NetworkController:getNetworkClientRegistry'),
       removePendingTransactionTrackerListeners:
         this.#removePendingTransactionTrackerListeners.bind(this),
       createNonceTracker: this.#createNonceTracker.bind(this),
@@ -1248,7 +1256,7 @@ export class TransactionController extends BaseController<
             },
           );
 
-          return undefined;
+          return;
         })
         .catch(noop);
     }
@@ -1279,7 +1287,7 @@ export class TransactionController extends BaseController<
           },
         );
 
-        return undefined;
+        return;
       })
       .catch(noop);
 
@@ -3957,7 +3965,7 @@ export class TransactionController extends BaseController<
     try {
       return await this.#publishTransaction(transactionMeta);
     } catch (error: unknown) {
-      if (this.#isTransactionAlreadyConfirmedError(error as Error)) {
+      if (this.#isTransactionAlreadyConfirmedError(error)) {
         throw new Error('Previous transaction is already confirmed');
       }
       throw error;

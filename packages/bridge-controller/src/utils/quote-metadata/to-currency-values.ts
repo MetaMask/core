@@ -34,10 +34,11 @@ export const toCurrencyValues = (
     quote: { src, dest, feeData, priceData },
   } = quote;
 
-  const { adjustedReturn, priceImpact } = priceData ?? {};
+  const { adjustedReturn, priceImpact, cost } = priceData ?? {};
 
   const priceImpactFiat = toCurrency(priceImpact, usdToFiatExchangeRate);
   const adjustedReturnFiat = toCurrency(adjustedReturn, usdToFiatExchangeRate);
+  const costFiat = toCurrency(cost, usdToFiatExchangeRate);
 
   const minAmountValueInCurrency = toCurrency(
     {
@@ -56,9 +57,8 @@ export const toCurrencyValues = (
           minAmountValueInCurrency,
         }),
       },
-      feeData:
-        feeData &&
-        Object.fromEntries(
+      feeData: feeData && {
+        ...Object.fromEntries(
           Object.values(FeeType)
             .filter((feeType) => feeData[feeType])
             .map((feeType) => [
@@ -68,13 +68,22 @@ export const toCurrencyValues = (
               ),
             ]),
         ),
-      ...((priceImpactFiat ?? adjustedReturnFiat) && {
+        ...(feeData.reserve && {
+          reserve: feeData.reserve.map(
+            (reserve) => toCurrency(reserve, usdToFiatExchangeRate) ?? {},
+          ),
+        }),
+      },
+      ...((priceImpactFiat ?? adjustedReturnFiat ?? costFiat) && {
         priceData: {
           ...(priceImpactFiat && {
             priceImpact: priceImpactFiat,
           }),
           ...(adjustedReturnFiat && {
             adjustedReturn: adjustedReturnFiat,
+          }),
+          ...(costFiat && {
+            cost: costFiat,
           }),
         },
       }),

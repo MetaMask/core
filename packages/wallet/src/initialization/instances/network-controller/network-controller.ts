@@ -39,7 +39,7 @@ export const networkController: InitializationConfiguration<
 
       events: [
         'ConfigRegistryController:stateChanged',
-        // eslint-disable-next-line no-restricted-syntax
+
         'RemoteFeatureFlagController:stateChange',
       ],
     });

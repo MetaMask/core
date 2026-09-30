@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+## [2.1.0]
+
+### Added
+
+- Add `executeMutation` protected method to `BaseDataService` to allow for making server-state-mutating requests ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - These kinds of requests are never retried, unlike queries.
+  - To use this, create a method in your data service class which takes whatever arguments you need, plus a optional final argument called `globalId`; then call `executeMutation` with a `mutationKey`, `globalId`, and `mutationFn`. See `ExampleDataService` in this package for an example.
+  - A `MutationKey` type is also available.
+- Add protected `cancelQueries` so subclasses can abort in-flight reads before a forced refresh ([#10454](https://github.com/MetaMask/core/pull/10454))
+
+### Changed
+
+- The payload for `:cacheUpdated` and `:cacheUpdated:${hash}` events now includes an `objectType` property, which is either "query" or "mutation" ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+### Fixed
+
+- Allow `QueryKey` to be not only mutable, but also readonly ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - This allows the `queryKey` argument to `fetchQuery` or `fetchInfiniteQuery` to be extracted to its own variable (as long as `as const` is used to type the query key).
+
 ## [1.0.0]
 
 ### Added
@@ -78,7 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@2.0.0...@metamask/base-data-service@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@1.0.0...@metamask/base-data-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.3...@metamask/base-data-service@1.0.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.2...@metamask/base-data-service@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.1...@metamask/base-data-service@0.1.2

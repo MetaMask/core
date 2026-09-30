@@ -183,14 +183,14 @@ const MockStatusResponse = {
     destChainId = 10,
   } = {}): StatusResponse => ({
     status: 'FAILED' as StatusTypes,
-    bridge: 'debridge' as BridgeId,
+    bridge: 'debridge',
     srcChain: {
       chainId: srcChainId,
       txHash: srcTxHash,
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
+        assetId: `eip155:${srcChainId}/slip44:60`,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -314,7 +314,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   bridgeTxMeta: {
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
-  } as TransactionMeta,
+  },
   quoteResponse: {
     ...{
       quote: getMockQuote({ srcChainId, destChainId }),
@@ -1179,7 +1179,7 @@ describe('BridgeStatusController constructor', () => {
                     chain_id_destination: 'eip155:10',
                     // eslint-disable-next-line jest/no-conditional-expect
                     chain_id_source: expect.any(String),
-                    custom_slippage: true,
+                    custom_slippage: false,
                     destination_transaction: 'PENDING',
                     feature_id: 'unified_swap_bridge',
                     gas_included: false,
@@ -1778,6 +1778,19 @@ describe('BridgeStatusController', () => {
         // Assertions
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        const failedCall = messengerCallSpy.mock.calls.find(
+          ([action, eventName]) =>
+            action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+            eventName === UnifiedSwapBridgeEventName.Failed,
+        );
+        expect(failedCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            failure_phase: 'source_execution',
+            error_code: 'status_failed_without_reason',
+            source_hash_present: true,
+            destination_hash_present: false,
+          }),
+        );
         expect(messengerPublishSpy).not.toHaveBeenCalledWith(
           'BridgeStatusController:destinationTransactionCompleted',
         );
@@ -1914,7 +1927,7 @@ describe('BridgeStatusController', () => {
                     type: transactionType,
                     status: transactionStatus,
                     id: transactionId,
-                  } as TransactionMeta,
+                  },
                 },
               );
               await flushPromises();
@@ -5004,7 +5017,10 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
                 "error_message": "Failed to submit cross-chain swap batch transaction: unknown account in trade data",
+                "failure_phase": "broadcast",
                 "feature_id": "unified_swap_bridge",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5013,6 +5029,8 @@ describe('BridgeStatusController', () => {
                 "price_impact": 0,
                 "provider": "lifi_across",
                 "quoted_time_minutes": 0,
+                "slippage_limit": 0,
+                "source_hash_present": false,
                 "stx_enabled": true,
                 "swap_type": "single_chain",
                 "token_address_destination": "eip155:10/slip44:60",
@@ -5092,7 +5110,10 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
                 "error_message": "Failed to update cross-chain swap transaction batch: tradeMeta not found",
+                "failure_phase": "broadcast",
                 "feature_id": "unified_swap_bridge",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5101,6 +5122,8 @@ describe('BridgeStatusController', () => {
                 "price_impact": 0,
                 "provider": "lifi_across",
                 "quoted_time_minutes": 0,
+                "slippage_limit": 0,
+                "source_hash_present": false,
                 "stx_enabled": true,
                 "swap_type": "single_chain",
                 "token_address_destination": "eip155:10/slip44:60",
@@ -5590,17 +5613,17 @@ describe('BridgeStatusController', () => {
               ...baseHistoryItem,
               actionId: 'pre-submission-action-id',
               txMetaId: undefined,
-            } as BridgeHistoryItem,
+            },
             'action-id-for-tracking': {
               ...baseHistoryItem,
               actionId: 'action-id-for-tracking',
               txMetaId: undefined,
-            } as BridgeHistoryItem,
+            },
             'action-id-for-rejection': {
               ...baseHistoryItem,
               actionId: 'action-id-for-rejection',
               txMetaId: undefined,
-            } as BridgeHistoryItem,
+            },
           },
         },
       });
@@ -5684,7 +5707,10 @@ describe('BridgeStatusController', () => {
               "chain_id_destination": "eip155:42161",
               "chain_id_source": "eip155:42161",
               "custom_slippage": false,
+              "destination_hash_present": false,
+              "error_code": "unknown",
               "error_message": "Transaction failed. tx-error",
+              "failure_phase": "broadcast",
               "feature_id": "unified_swap_bridge",
               "gas_included": false,
               "gas_included_7702": false,
@@ -5696,6 +5722,8 @@ describe('BridgeStatusController', () => {
               "quoted_time_minutes": 0,
               "quoted_vs_used_gas_ratio": 0,
               "security_warnings": [],
+              "slippage_limit": 0,
+              "source_hash_present": false,
               "source_transaction": "FAILED",
               "stx_enabled": false,
               "swap_type": "crosschain",
@@ -5871,8 +5899,11 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": true,
+                "destination_hash_present": false,
                 "destination_transaction": "FAILED",
+                "error_code": "unknown",
                 "error_message": "Transaction failed. tx-error",
+                "failure_phase": "source_execution",
                 "feature_id": "quick_buy_follow_trading",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5885,6 +5916,7 @@ describe('BridgeStatusController', () => {
                 "quoted_vs_used_gas_ratio": 0,
                 "security_warnings": [],
                 "slippage_limit": 0,
+                "source_hash_present": true,
                 "source_transaction": "COMPLETE",
                 "stx_enabled": false,
                 "swap_type": "single_chain",
@@ -5949,8 +5981,11 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": true,
+                "destination_hash_present": false,
                 "destination_transaction": "FAILED",
+                "error_code": "unknown",
                 "error_message": "Transaction failed. tx-error",
+                "failure_phase": "source_execution",
                 "feature_id": "quick_buy_explore",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5963,6 +5998,7 @@ describe('BridgeStatusController', () => {
                 "quoted_vs_used_gas_ratio": 0,
                 "security_warnings": [],
                 "slippage_limit": 0,
+                "source_hash_present": true,
                 "source_transaction": "COMPLETE",
                 "stx_enabled": false,
                 "swap_type": "single_chain",
@@ -6101,7 +6137,7 @@ describe('BridgeStatusController', () => {
               chainId: CHAIN_IDS.ARBITRUM,
               networkClientId: 'eth-id',
               time: Date.now(),
-              txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+              txParams: { from: '0xaccount1' },
               type: TransactionType.bridge,
               status: TransactionStatus.failed,
               id: 'bridgeTxMetaId1',
@@ -6895,7 +6931,7 @@ describe('BridgeStatusController', () => {
         );
         rootMessenger.registerActionHandler(
           'AuthenticationController:getBearerToken',
-          (async () => 'auth-token') as never,
+          async () => 'auth-token',
         );
       };
 
@@ -7071,7 +7107,7 @@ describe('BridgeStatusController', () => {
           if (action === 'AccountsController:getAccountByAddress') {
             return mockSelectedAccount;
           }
-          return undefined;
+          return;
         });
 
       it('reports SUBMITTED for every quote in the batch under the shared tx hash', async () => {
@@ -7189,7 +7225,7 @@ describe('BridgeStatusController', () => {
                   id: BATCH_TX_META_ID,
                   hash: BATCH_SRC_TX_HASH,
                   nestedTransactions: [{ type: TransactionType.swap }],
-                } as unknown as TransactionMeta,
+                },
               },
             );
 
@@ -7298,6 +7334,153 @@ describe('BridgeStatusController', () => {
         );
       });
     });
+
+    describe('intent-based swaps', () => {
+      const INTENT_TX_META_ID = 'intentTxMetaId1';
+      const INTENT_SRC_TX_HASH = '0xintentSrcTxHash1';
+
+      /**
+       * Builds a history item for an intent-based order. The quote carries
+       * `intent` data, which is what marks the trade as backend-tracked.
+       *
+       * @param startTime - When the trade started, used to decide whether
+       * startup seeding considers the item.
+       * @returns The intent txHistory keyed by history id.
+       */
+      function buildIntentHistory(
+        startTime = 1729964825189,
+      ): Record<string, BridgeHistoryItem> {
+        const item = MockTxHistory.getPending({
+          txMetaId: INTENT_TX_META_ID,
+          srcTxHash: INTENT_SRC_TX_HASH,
+          startTime,
+        })[INTENT_TX_META_ID];
+
+        return {
+          [INTENT_TX_META_ID]: {
+            ...item,
+            quoteId: 'intent-quote-1',
+            quote: {
+              ...item.quote,
+              intent: {
+                protocol: 'cowswap',
+                order: {
+                  sellToken: '0x0000000000000000000000000000000000000001',
+                  buyToken: '0x0000000000000000000000000000000000000002',
+                  validTo: 1717027200,
+                  appData: 'some-app-data',
+                  appDataHash: '0xabcd',
+                  feeAmount: '100',
+                  kind: 'sell',
+                  partiallyFillable: false,
+                  sellAmount: '1000',
+                },
+                typedData: {
+                  types: {},
+                  primaryType: 'Order',
+                  domain: {},
+                  message: {},
+                },
+              },
+            },
+          },
+        };
+      }
+
+      const getIntentMessengerCall = () =>
+        jest.fn((...args: unknown[]) => {
+          const action = args[0] as string;
+          if (action === 'TransactionController:getState') {
+            return { transactions: [] };
+          }
+          if (action === 'AuthenticationController:getBearerToken') {
+            return Promise.resolve('auth-token');
+          }
+          return;
+        });
+
+      it.each([
+        {
+          description: 'submitted',
+          status: TransactionStatus.submitted,
+          type: TransactionType.swap,
+        },
+        {
+          description: 'confirmed',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.swap,
+        },
+        {
+          description: 'failed',
+          status: TransactionStatus.failed,
+          type: TransactionType.swap,
+        },
+      ])(
+        'does not report any quote status when the intent tx is $description',
+        async ({ status, type }) => {
+          const onQuoteStatusManagerError = jest.fn();
+
+          await withController(
+            {
+              options: {
+                isQuoteStatusManagerEnabled: () => true,
+                onQuoteStatusManagerError,
+                state: { txHistory: buildIntentHistory() },
+              },
+              mockMessengerCall: getIntentMessengerCall(),
+            },
+            async ({ controller, rootMessenger }) => {
+              rootMessenger.publish(
+                'TransactionController:transactionStatusUpdated',
+                {
+                  transactionMeta: {
+                    chainId: CHAIN_IDS.ARBITRUM,
+                    networkClientId: 'eth-id',
+                    time: Date.now(),
+                    txParams: {} as unknown as TransactionParams,
+                    type,
+                    status,
+                    id: INTENT_TX_META_ID,
+                    hash: INTENT_SRC_TX_HASH,
+                  },
+                },
+              );
+
+              // The backend owns the quote status of intent orders, so the
+              // client neither creates a tracking entry nor marks the history
+              // item as reported.
+              expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+              expect(
+                controller.state.txHistory[INTENT_TX_META_ID]
+                  .reportedSubmittedTxHash,
+              ).toBeUndefined();
+              // Finalizing an untracked quote surfaces a "entry was not found"
+              // error, so silence here proves finalization was never attempted.
+              expect(onQuoteStatusManagerError).not.toHaveBeenCalled();
+            },
+          );
+        },
+      );
+
+      it('does not seed a quote status entry for an intent order on startup', async () => {
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: { txHistory: buildIntentHistory(Date.now()) },
+            },
+            mockMessengerCall: getIntentMessengerCall(),
+          },
+          async ({ controller }) => {
+            expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+            expect(
+              controller.state.txHistory[INTENT_TX_META_ID]
+                .reportedSubmittedTxHash,
+            ).toBeUndefined();
+          },
+        );
+      });
+    });
   });
 
   describe('seeding quote status entries from history on startup', () => {
@@ -7327,7 +7510,7 @@ describe('BridgeStatusController', () => {
         if (actionType === 'AuthenticationController:getBearerToken') {
           return Promise.resolve('auth-token');
         }
-        return undefined;
+        return;
       });
 
     const getSeedHistoryItem = ({

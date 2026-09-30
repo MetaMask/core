@@ -24,6 +24,7 @@ export {
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
 } from './hyperLiquidAdapter.js';
 export * from './hyperLiquidOrderBookProcessor.js';
+export * from './hyperLiquidPositionPreview.js';
 export * from './hyperLiquidValidation.js';
 export * from './idUtils.js';
 export * from './marketDataTransform.js';
@@ -37,6 +38,7 @@ export * from './significantFigures.js';
 export * from './sortMarkets.js';
 export * from './standaloneInfoClient.js';
 export * from './stringParseUtils.js';
+export * from './subscriptionFeeWaiver.js';
 export * from './transferData.js';
 export * from './wait.js';
 

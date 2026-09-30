@@ -32,7 +32,6 @@ import {
   getFakeProvider,
 } from '../tests/helpers.js';
 import {
-  API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
 } from './constants.js';
@@ -1096,8 +1095,8 @@ describe('SmartTransactionsController', () => {
         const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
         const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(API_BASE_URL)
-          .post(`/networks/${ethereumChainIdDec}/getFees`)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
           .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx, approvalTx);
@@ -1123,8 +1122,8 @@ describe('SmartTransactionsController', () => {
         const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
         const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(API_BASE_URL)
-          .post(`/networks/${ethereumChainIdDec}/getFees`)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
           .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx, approvalTx);
@@ -1142,8 +1141,8 @@ describe('SmartTransactionsController', () => {
           createUnsignedTransaction(ethereumChainIdDec);
         tradeTx.nonce = undefined;
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(API_BASE_URL)
-          .post(`/networks/${ethereumChainIdDec}/getFees`)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
           .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx);
@@ -1159,8 +1158,8 @@ describe('SmartTransactionsController', () => {
         const tradeTx = createUnsignedTransaction(sepoliaChainIdDec);
         const approvalTx = createUnsignedTransaction(sepoliaChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(API_BASE_URL)
-          .post(`/networks/${sepoliaChainIdDec}/getFees`)
+        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
+          .post(`/v1/networks/${sepoliaChainIdDec}/getFees`)
           .reply(200, getFeesApiResponse);
 
         expect(
@@ -1203,9 +1202,9 @@ describe('SmartTransactionsController', () => {
         const signedCanceledTransaction = createSignedCanceledTransaction();
         const submitTransactionsApiResponse =
           createSubmitTransactionsApiResponse(); // It has uuid.
-        nock(API_BASE_URL)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
           .post(
-            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
           )
           .reply(200, submitTransactionsApiResponse);
 
@@ -1248,16 +1247,16 @@ describe('SmartTransactionsController', () => {
             createSubmitTransactionsApiResponse();
 
           // First API mock for the case without nonce
-          nock(API_BASE_URL)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
             .post(
-              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             )
             .reply(200, submitTransactionsApiResponse);
 
           // Second API mock for the case with nonce
-          nock(API_BASE_URL)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
             .post(
-              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             )
             .reply(200, submitTransactionsApiResponse);
 
@@ -1313,9 +1312,9 @@ describe('SmartTransactionsController', () => {
           const signedTransaction = createSignedTransaction();
           const submitTransactionsApiResponse =
             createSubmitTransactionsApiResponse();
-          nock(API_BASE_URL)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
             .post(
-              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             )
             .reply(200, submitTransactionsApiResponse);
 
@@ -1368,9 +1367,9 @@ describe('SmartTransactionsController', () => {
           const signedTransaction = createSignedTransaction();
           const submitTransactionsApiResponse =
             createSubmitTransactionsApiResponse();
-          nock(API_BASE_URL)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
             .post(
-              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             )
             .reply(200, submitTransactionsApiResponse);
 
@@ -1407,9 +1406,9 @@ describe('SmartTransactionsController', () => {
         const signedTransaction2 = createSignedTransaction();
         const submitTransactionsApiResponse =
           createSubmitTransactionsApiResponse(); // It has uuid.
-        nock(API_BASE_URL)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
           .post(
-            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
           )
           .reply(200, submitTransactionsApiResponse);
 
@@ -1447,9 +1446,9 @@ describe('SmartTransactionsController', () => {
 
         // Verify that the request body has empty rawCancelTxs array when signedCanceledTransactions is omitted
         let requestBody: any;
-        nock(API_BASE_URL)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
           .post(
-            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             (body) => {
               requestBody = body;
               return true;
@@ -1485,9 +1484,9 @@ describe('SmartTransactionsController', () => {
         ];
 
         let requestBody: any;
-        nock(API_BASE_URL)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
           .post(
-            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             (body) => {
               requestBody = body;
               return true;
@@ -1516,9 +1515,9 @@ describe('SmartTransactionsController', () => {
           createSubmitTransactionsApiResponse();
 
         let requestBody: any;
-        nock(API_BASE_URL)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
           .post(
-            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             (body) => {
               requestBody = body;
               return true;
@@ -1544,9 +1543,9 @@ describe('SmartTransactionsController', () => {
         const submitTransactionsApiResponse =
           createSubmitTransactionsApiResponse();
 
-        nock(API_BASE_URL)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
           .post(
-            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
           )
           .reply(200, submitTransactionsApiResponse);
 
@@ -1582,8 +1581,8 @@ describe('SmartTransactionsController', () => {
         const uuids = ['uuid1'];
         const pendingBatchStatusApiResponse =
           createPendingBatchStatusApiResponse();
-        nock(API_BASE_URL)
-          .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .get(`/v1/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
           .reply(200, pendingBatchStatusApiResponse);
 
         const params = uuids.map((uuid) => ({
@@ -1646,8 +1645,8 @@ describe('SmartTransactionsController', () => {
           const uuids = ['uuid2'];
           const successBatchStatusApiResponse =
             createSuccessBatchStatusApiResponse();
-          nock(API_BASE_URL)
-            .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .get(`/v1/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
             .reply(200, successBatchStatusApiResponse);
 
           const params = uuids.map((uuid) => ({
@@ -2150,8 +2149,8 @@ describe('SmartTransactionsController', () => {
   describe('cancelSmartTransaction', () => {
     it('sends POST call to Transactions API', async () => {
       await withController(async ({ controller }) => {
-        const apiCall = nock(API_BASE_URL)
-          .post(`/networks/${ethereumChainIdDec}/cancel`)
+        const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
           .reply(200, { message: 'successful' });
 
         await controller.cancelSmartTransaction('uuid1');
@@ -2167,8 +2166,8 @@ describe('SmartTransactionsController', () => {
           bearerToken,
         },
         async ({ controller }) => {
-          const apiCall = nock(API_BASE_URL)
-            .post(`/networks/${ethereumChainIdDec}/cancel`)
+          const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
             .matchHeader('Authorization', `Bearer ${bearerToken}`)
             .reply(200, { message: 'successful' });
 
@@ -2414,7 +2413,7 @@ describe('SmartTransactionsController', () => {
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             1,
-            `${API_BASE_URL}/networks/${convertHexToDecimal(
+            `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${convertHexToDecimal(
               ChainId.mainnet,
             )}/batchStatus?uuids=uuid1`,
             fetchHeaders,
@@ -2424,7 +2423,7 @@ describe('SmartTransactionsController', () => {
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             2,
-            `${API_BASE_URL}/networks/${convertHexToDecimal(
+            `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${convertHexToDecimal(
               ChainId.mainnet,
             )}/batchStatus?uuids=uuid1`,
             fetchHeaders,
@@ -2435,7 +2434,7 @@ describe('SmartTransactionsController', () => {
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             3,
-            `${API_BASE_URL}/networks/${convertHexToDecimal(
+            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
               ChainId.sepolia,
             )}/batchStatus?uuids=uuid2`,
             fetchHeaders,
@@ -2445,7 +2444,7 @@ describe('SmartTransactionsController', () => {
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             5,
-            `${API_BASE_URL}/networks/${convertHexToDecimal(
+            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
               ChainId.sepolia,
             )}/batchStatus?uuids=uuid2`,
             fetchHeaders,
@@ -2462,7 +2461,7 @@ describe('SmartTransactionsController', () => {
           // check that the mainnet polling has stopped while the sepolia polling continues
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             6,
-            `${API_BASE_URL}/networks/${convertHexToDecimal(
+            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
               ChainId.sepolia,
             )}/batchStatus?uuids=uuid2`,
             fetchHeaders,
@@ -2470,7 +2469,7 @@ describe('SmartTransactionsController', () => {
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             7,
-            `${API_BASE_URL}/networks/${convertHexToDecimal(
+            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
               ChainId.sepolia,
             )}/batchStatus?uuids=uuid2`,
             fetchHeaders,
@@ -2897,9 +2896,8 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const apiUrl = API_BASE_URL;
-          nock(apiUrl)
-            .post(`/networks/${ethereumChainIdDec}/getFees`)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
             .reply(200, createGetFeesApiResponse());
 
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
@@ -2923,10 +2921,9 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const apiUrl = API_BASE_URL;
-          nock(apiUrl)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
             .post(
-              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
             )
             .reply(200, createSubmitTransactionsApiResponse());
 
@@ -2958,9 +2955,8 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const apiUrl = API_BASE_URL;
-          nock(apiUrl)
-            .post(`/networks/${ethereumChainIdDec}/cancel`)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
             .reply(200, {});
 
           await controller.cancelSmartTransaction('uuid1');
@@ -3007,10 +3003,9 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const apiUrl = API_BASE_URL;
           const expectedResponse = createGetFeesApiResponse();
-          nock(apiUrl)
-            .post(`/networks/${ethereumChainIdDec}/getFees`)
+          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
             .reply(200, expectedResponse);
 
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);

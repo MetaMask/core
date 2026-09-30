@@ -1,10 +1,15 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
+    "allowImportingTsExtensions": true,
     "outDir": "./dist",
+    "rewriteRelativeImportExtensions": true,
     "rootDir": "./src"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../utils/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

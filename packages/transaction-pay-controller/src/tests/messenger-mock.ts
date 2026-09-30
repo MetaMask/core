@@ -1,7 +1,6 @@
-import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
+import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
+import { getDefaultAssetsControllerState } from '@metamask/assets-controller';
+import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
@@ -46,10 +45,13 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
  * @param options.skipRegister - Whether to skip registering action handlers.
  * @returns The mock messenger and associated mock functions.
  */
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+// TS2742: The inferred type of 'getMessengerMock' cannot be named without a
+// reference to '../../../../node_modules/@metamask/transaction-controller/dist/utils/gas.js'.
+// This is likely not portable. A type annotation is necessary.
 export function getMessengerMock({
   skipRegister,
-}: { skipRegister?: boolean } = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}: { skipRegister?: boolean } = {}): any {
   const getControllerStateMock: jest.MockedFn<
     TransactionPayControllerGetStateAction['handler']
   > = jest.fn();
@@ -84,23 +86,16 @@ export function getMessengerMock({
     TransactionControllerUpdateTransactionAction['handler']
   > = jest.fn();
 
-  const getTokensControllerStateMock: jest.MockedFn<
-    TokensControllerGetStateAction['handler']
-  > = jest.fn();
+  const getAccountsControllerStateMock: jest.MockedFn<
+    AccountsControllerGetStateAction['handler']
+  > = jest.fn().mockReturnValue({
+    accountIdByAddress: {},
+    internalAccounts: { accounts: {}, selectedAccount: '' },
+  });
 
-  const getTokenBalanceControllerStateMock: jest.MockedFn<
-    TokenBalancesControllerGetStateAction['handler']
-  > = jest.fn();
-
-  const getTokenRatesControllerStateMock: jest.MockedFn<
-    TokenRatesControllerGetStateAction['handler']
-  > = jest.fn();
-
-  const getCurrencyRateControllerStateMock = jest.fn();
-
-  const getAccountTrackerControllerStateMock: jest.MockedFn<
-    AccountTrackerControllerGetStateAction['handler']
-  > = jest.fn();
+  const getAssetsControllerStateMock: jest.MockedFn<
+    AssetsControllerGetStateAction['handler']
+  > = jest.fn().mockReturnValue(getDefaultAssetsControllerState());
 
   const getNetworkClientByIdMock: jest.MockedFn<
     NetworkControllerGetNetworkClientByIdAction['handler']
@@ -145,8 +140,6 @@ export function getMessengerMock({
   const simulateTransactionsMock: jest.MockedFn<
     SentinelApiServiceSimulateTransactionsAction['handler']
   > = jest.fn();
-
-  const getAssetsControllerStateMock = jest.fn();
 
   const getKeyringControllerStateMock: jest.MockedFn<
     KeyringControllerGetStateAction['handler']
@@ -212,28 +205,8 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
-      'TokensController:getState',
-      getTokensControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'TokenBalancesController:getState',
-      getTokenBalanceControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'TokenRatesController:getState',
-      getTokenRatesControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'AccountTrackerController:getState',
-      getAccountTrackerControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'CurrencyRateController:getState',
-      getCurrencyRateControllerStateMock,
+      'AccountsController:getState',
+      getAccountsControllerStateMock,
     );
 
     messenger.registerActionHandler(
@@ -292,7 +265,7 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
-      'AssetsController:getStateForTransactionPay',
+      'AssetsController:getState',
       getAssetsControllerStateMock,
     );
   }
@@ -306,14 +279,13 @@ export function getMessengerMock({
 
   return {
     addTransactionMock,
+    getAccountsControllerStateMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
-    getAccountTrackerControllerStateMock,
     getControllerStateMock,
-    getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
     getFiatOptionsMock,
     getPaymentOverrideDataMock,
@@ -324,9 +296,6 @@ export function getMessengerMock({
     getNetworkConfigurationByChainIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
-    getTokenBalanceControllerStateMock,
-    getTokenRatesControllerStateMock,
-    getTokensControllerStateMock,
     getTransactionControllerStateMock,
     messenger: messenger as TransactionPayControllerMessenger,
     polymarketGetDepositWalletAddressMock,

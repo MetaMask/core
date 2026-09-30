@@ -13,6 +13,7 @@ import type {
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTypedMessageAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -26,18 +27,38 @@ import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import type { SubscriptionControllerGetBenefitsAction } from '@metamask/subscription-controller';
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
 
 /**
+ * Optional action exposed by clients that own subscription address
+ * registration. It is structural because older SubscriptionController
+ * versions do not expose it yet; callers fall back to the injected hook.
+ */
+export type SubscriptionControllerRegisterAddressAction = {
+  type: `SubscriptionController:registerAddress`;
+  handler: (caipAccountId: string) => Promise<void>;
+};
+
+/**
  * Actions from other controllers that PerpsController is allowed to call.
+ *
+ * `SubscriptionController:getBenefits` is the real action this monorepo's
+ * `SubscriptionController` already exposes, imported rather than restated so
+ * its signature cannot drift from the controller that serves it. A client that
+ * does not register it keeps the injected `subscription` dependency, which
+ * {@link RewardsIntegrationService} falls back to.
  */
 export type PerpsControllerAllowedActions =
+  | SubscriptionControllerGetBenefitsAction
+  | SubscriptionControllerRegisterAddressAction
   | GeolocationControllerGetGeolocationAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
+  | KeyringControllerSignPersonalMessageAction
   | TransactionControllerAddTransactionAction
   | RemoteFeatureFlagControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction

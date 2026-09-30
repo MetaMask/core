@@ -34,7 +34,7 @@ export type RouterSelectParams = {
  * const router = new ProviderRouter({ defaultProvider: 'hyperliquid' });
  *
  * // With explicit provider
- * router.selectProvider({ providerId: 'myx' }); // Returns 'myx'
+ * router.selectProvider({ providerId: 'lighter' }); // Returns 'lighter'
  *
  * // Without explicit provider
  * router.selectProvider({ symbol: 'BTC' }); // Returns 'hyperliquid' (default)

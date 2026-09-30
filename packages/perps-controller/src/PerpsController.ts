@@ -39,7 +39,6 @@ import type {
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
-  PROVIDER_CONFIG,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
@@ -52,11 +51,14 @@ import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
 import { AccountService } from './services/AccountService.js';
+import { isMainAccountSignerReady } from './services/accountSigner.js';
+import { AgentBindings } from './services/agentSigner.js';
 import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
 import { MarketDataService } from './services/MarketDataService.js';
+import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
 import { TerminalMarketService } from './services/TerminalMarketService.js';
@@ -95,6 +97,8 @@ import type {
   GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetPositionsParams,
@@ -102,16 +106,26 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
+  MarginMode,
   MarginResult,
   MarketInfo,
   Order,
   OrderCapabilitiesUnavailableReason,
+  MarginModeLockUnavailableReason,
+  OrderDirection,
   OrderFill,
   OrderParams,
   OrderResult,
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsMarginModeLock,
+  PerpsScalePriceLadder,
+  ScalePriceLadderUnavailableReason,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -119,8 +133,10 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  ReadyToTradeResult,
   SwitchProviderResult,
   ToggleTestnetResult,
   TwapOrder,
@@ -131,6 +147,8 @@ import type {
   GetHistoricalPortfolioParams,
   HistoricalPortfolioResult,
   OrderType,
+  PerpsAgentAccount,
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsLogger,
   PerpsActiveProviderMode,
@@ -143,9 +161,12 @@ import type {
   PerpsTransactionParams,
   PerpsAddTransactionOptions,
   MarketTypeFilter,
-  MYXCredentials,
 } from './types/index.js';
 import type { SortDirection } from './types/index.js';
+import type {
+  LighterAuthConfig,
+  LighterSignerBridge,
+} from './types/lighter-types.js';
 import type {
   PerpsControllerAllowedActions,
   PerpsControllerAllowedEvents,
@@ -214,19 +235,6 @@ function cloneUserDataSnapshot(
 }
 
 /**
- * Returns the first non-empty string from the given values.
- * Env vars default to '' (not null/undefined), so ?? wouldn't fall through.
- *
- * @param vals - String values to check in order.
- * @returns The first non-empty string, or '' if all are empty/undefined.
- */
-export function firstNonEmpty(...vals: (string | undefined)[]): string {
-  return (
-    vals.find((val) => val !== null && val !== undefined && val !== '') ?? ''
-  );
-}
-
-/**
  * Maps an active provider mode to the corresponding exchange key used in the
  * AUS {@link PerpsWatchlistMarkets} schema.
  *
@@ -245,34 +253,8 @@ export function resolveWatchlistExchangeKey(
     Record<PerpsActiveProviderMode, keyof PerpsWatchlistMarkets>
   > = {
     hyperliquid: 'hyperliquid',
-    myx: 'myx',
   };
   return map[activeProvider] ?? null;
-}
-
-/**
- * Resolves MYX auth config from provider credentials, handling
- * testnet/mainnet fallback logic.
- *
- * @param myx - MYX provider credentials.
- * @param isTestnet - Whether the controller is in testnet mode.
- * @returns Resolved appId, apiSecret, and brokerAddress.
- */
-export function resolveMyxAuthConfig(
-  myx: MYXCredentials,
-  isTestnet: boolean,
-): { appId: string; apiSecret: string; brokerAddress: string } {
-  return {
-    appId: isTestnet
-      ? (myx.appIdTestnet ?? '')
-      : firstNonEmpty(myx.appIdMainnet, myx.appIdTestnet),
-    apiSecret: isTestnet
-      ? (myx.apiSecretTestnet ?? '')
-      : firstNonEmpty(myx.apiSecretMainnet, myx.apiSecretTestnet),
-    brokerAddress: isTestnet
-      ? (myx.brokerAddressTestnet ?? '')
-      : firstNonEmpty(myx.brokerAddressMainnet, myx.brokerAddressTestnet),
-  };
 }
 
 // PaymentToken: minimal interface for deposit flow (replaces mobile-only AssetType)
@@ -447,6 +429,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number; // Last used leverage for this market
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -456,6 +439,7 @@ export type PerpsControllerState = {
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
           reduceOnly?: boolean; // Whether the order may only reduce a position
+          direction?: OrderDirection; // Long vs short
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -464,6 +448,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number;
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -473,6 +458,7 @@ export type PerpsControllerState = {
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
           reduceOnly?: boolean; // Whether the order may only reduce a position
+          direction?: OrderDirection; // Long vs short
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -516,7 +502,7 @@ export type PerpsControllerState = {
   selectedPaymentToken: Json | null;
 
   // Cached market data from background preloading (REST snapshots, not WebSocket)
-  // Keyed by "providerId:network" (e.g. 'hyperliquid:mainnet', 'myx:testnet')
+  // Keyed by "providerId:network" (e.g. 'hyperliquid:mainnet', 'lighter:testnet')
   cachedMarketDataByProvider: Record<
     string,
     {
@@ -551,7 +537,6 @@ export type PerpsControllerState = {
  * To change the active provider, modify the `activeProvider` value below:
  * - 'hyperliquid': HyperLiquid provider (default, production)
  * - 'aggregated': Multi-provider aggregation mode
- * - 'myx': MYX provider (future implementation)
  *
  * @returns The default perps controller state.
  */
@@ -919,6 +904,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'calculateMaintenanceMargin',
   'cancelOrder',
   'cancelOrders',
+  'clearAgentSigners',
   'clearAttributionContext',
   'clearDepositResult',
   'clearPendingTradeConfiguration',
@@ -951,16 +937,22 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMarketDataWithPrices',
   'getMarketFilterPreferences',
   'getMarkets',
+  'getMarginMode',
   'getMaxLeverage',
   'getOpenOrders',
   'getOrderBookGrouping',
   'getOrderBookPreferences',
   'getOrderCapabilities',
+  'getMarginModeLock',
+  'getScalePriceLadder',
   'getOrderFills',
   'getOrders',
+  'getPendingManualRecoveries',
   'getPendingTradeConfiguration',
   'getPositions',
   'getSelectedOrderType',
+  'getRecoveredDispatches',
+  'acknowledgeRecoveredDispatch',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
   'getVisibleCandleCount',
@@ -976,6 +968,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'markFirstOrderCompleted',
   'markTutorialCompleted',
   'placeOrder',
+  'prepareTradingWallet',
+  'previewPositionModify',
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
@@ -988,10 +982,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'setProLayoutPreferences',
   'setPerpsMode',
   'setSelectedOrderType',
+  'saveMarginMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
   'saveTradeConfiguration',
+  'setAgentSigner',
   'setAttributionContext',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
@@ -1009,6 +1005,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToOrders',
   'subscribeToPositions',
   'subscribeToPrices',
+  'subscribeToTwapOrders',
   'suspendChaseOrders',
   'switchProvider',
   'toggleTestnet',
@@ -1042,14 +1039,16 @@ export class PerpsController extends BaseController<
 
   #initializationPromise: Promise<void> | null = null;
 
+  // Actions that saw a disconnect wait here for the client's follow-up init().
+  readonly #initializationStartWaiters = new Set<() => void>();
+
   #isReinitializing = false;
 
   #reinitializationOperationPromise: Promise<void> | null = null;
 
   #disconnectOperationPromise: Promise<void> | null = null;
 
-  /** Tracks the async MYX dynamic import so performInitialization can await it. */
-  #myxRegistrationPromise: Promise<void> | null = null;
+  #lighterRegistrationPromise: Promise<void> | null = null;
 
   protected blockedRegionList: BlockedRegionList = {
     list: [],
@@ -1086,39 +1085,32 @@ export class PerpsController extends BaseController<
   #attributionContext: PerpsAttributionContext = {};
 
   /**
-   * Check if MYX provider is enabled via feature flag
-   * Uses same pattern as other feature flags in FeatureFlagConfigurationService
+   * Check if the Lighter provider is enabled.
+   *
+   * Local override (`providerCredentials.lighter.enabled`) wins; otherwise
+   * the remote `perpsLighterProviderEnabled` feature flag decides — but only
+   * for clients that wired the venue signer bridge. A remote flag must not
+   * be able to register a trading provider the client never mounted a
+   * signer for (the gates would otherwise split between core and client).
    *
    * @returns True if the condition is met.
    */
-  #isMYXProviderEnabled(): boolean {
-    const myx = this.#options.clientConfig?.providerCredentials?.myx;
+  #isLighterProviderEnabled(): boolean {
+    const lighter = this.#options.clientConfig?.providerCredentials?.lighter;
 
-    // Local env-var override (MM_PERPS_MYX_PROVIDER_ENABLED) always wins —
-    // matches the UI selector (resolvePerpsMyxProviderEnabled) so controller
-    // and UI agree on whether MYX is available.
-    if (myx?.enabled) {
+    if (lighter?.enabled) {
       return true;
     }
-
-    // Credentials present → MYX is enabled regardless of remote flag.
-    // Use || so empty-string env vars (default '') fall through.
-    const hasCredentials = Boolean(
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-      myx?.appIdTestnet || myx?.appIdMainnet,
-    );
-
-    if (hasCredentials) {
-      return true;
+    if (!lighter?.signerBridge) {
+      return false;
     }
 
-    // No local override or credentials — check remote flag as fallback
     try {
       const remoteState = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
       const remoteFlag =
-        remoteState.remoteFeatureFlags?.perpsMyxProviderEnabled;
+        remoteState.remoteFeatureFlags?.perpsLighterProviderEnabled;
 
       if (isVersionGatedFeatureFlag(remoteFlag)) {
         const validated =
@@ -1136,7 +1128,7 @@ export class PerpsController extends BaseController<
 
   /**
    * Active provider instance for routing operations.
-   * When activeProvider is 'hyperliquid' or 'myx': points to specific provider directly
+   * When activeProvider is 'hyperliquid' or 'lighter': points to specific provider directly
    * When activeProvider is 'aggregated': points to AggregatedPerpsProvider wrapper
    */
   protected activeProviderInstance: PerpsProvider | null = null;
@@ -1149,6 +1141,10 @@ export class PerpsController extends BaseController<
   #standaloneProvider: HyperLiquidProvider | null = null;
 
   #handlersRegistered = false;
+
+  // HyperLiquid agent bindings made through setAgentSigner, kept across
+  // provider instances; they answer before the host's getAgentSigner.
+  readonly #agentBindings: AgentBindings;
 
   #standaloneProviderIsTestnet: boolean | null = null;
 
@@ -1230,6 +1226,9 @@ export class PerpsController extends BaseController<
       clientConfig,
       infrastructure,
     };
+    this.#agentBindings = new AgentBindings(
+      clientConfig?.providerCredentials?.hyperliquid?.getAgentSigner,
+    );
 
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
@@ -1305,6 +1304,39 @@ export class PerpsController extends BaseController<
       this.refreshEligibilityOnFeatureFlagChange.bind(this),
     );
 
+    // Also subscribed for the controller lifetime: the subscription profile
+    // must learn the new trading address after every account switch, and the
+    // preload-scoped account handler is torn down on disconnect, so it cannot
+    // carry this.
+    const forgetRegisteredTradingAddresses = (): void => {
+      this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
+      // Clearing alone only guarantees the *next preview* re-registers. An
+      // order submitted straight after a switch, with no preview in between,
+      // would otherwise be attributed to nothing, so the new address announces
+      // itself here. Fire-and-forget: attribution plumbing must not block or
+      // fail an account switch.
+      const switchedAccount = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      );
+      if (switchedAccount) {
+        this.#rewardsIntegrationService
+          .registerTradingAddress(switchedAccount.address, {
+            isTestnet: this.state.isTestnet,
+          })
+          .catch(() => {
+            /* never blocks an account switch */
+          });
+      }
+    };
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      forgetRegisteredTradingAddresses,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      forgetRegisteredTradingAddresses,
+    );
+
     this.providers = new Map();
 
     // Migrate old persisted data without accountAddress
@@ -1375,7 +1407,7 @@ export class PerpsController extends BaseController<
 
       if (
         providerId === 'hyperliquid' ||
-        (providerId === 'myx' && this.#isMYXProviderEnabled()) ||
+        (providerId === 'lighter' && this.#isLighterProviderEnabled()) ||
         this.providers.has(providerId as PerpsProviderType)
       ) {
         providerIds.add(providerId);
@@ -1936,7 +1968,7 @@ export class PerpsController extends BaseController<
     return this.messenger.call(
       'TransactionController:addTransaction',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      txParams as any,
+      txParams,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { ...(options as any), isInternal: true },
     );
@@ -2163,7 +2195,31 @@ export class PerpsController extends BaseController<
     }
 
     this.#initializationPromise = this.#performInitialization();
+    this.#initializationStartWaiters.forEach((notifyStarted) =>
+      notifyStarted(),
+    );
     return this.#initializationPromise;
+  }
+
+  /**
+   * Resolve once a new initialization starts, or after the timeout.
+   *
+   * @param timeoutMs - Longest time to wait for init() to be called.
+   * @returns A promise that resolves when init starts or the timeout elapses.
+   */
+  async #waitForInitializationStart(timeoutMs: number): Promise<void> {
+    let notifyStarted = (): void => undefined;
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    this.#initializationStartWaiters.add(notifyStarted);
+    const timeout = setTimeout(notifyStarted, timeoutMs);
+    try {
+      await started;
+    } finally {
+      clearTimeout(timeout);
+      this.#initializationStartWaiters.delete(notifyStarted);
+    }
   }
 
   /**
@@ -2232,14 +2288,14 @@ export class PerpsController extends BaseController<
 
         this.#createProviders();
 
-        // Await MYX dynamic import (if started) so MYX is in the providers
-        // map before we assign the active provider. Runs concurrently with
-        // the WebSocket readiness delay for zero additional latency.
+        // Await the Lighter dynamic import (if started) so Lighter is in the
+        // providers map before we assign the active provider. Runs concurrently
+        // with the WebSocket readiness delay for zero additional latency.
         await Promise.all([
           wait(PERPS_CONSTANTS.ReconnectionCleanupDelayMs),
-          this.#myxRegistrationPromise,
+          this.#lighterRegistrationPromise,
         ]);
-        this.#myxRegistrationPromise = null;
+        this.#lighterRegistrationPromise = null;
 
         this.#assignActiveProvider();
 
@@ -2351,96 +2407,108 @@ export class PerpsController extends BaseController<
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
       onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
+      getAgentSigner: this.#agentBindings.resolve,
+      onAgentRejected: (account, agentAddress): void => {
+        this.#agentBindings.release(account, agentAddress);
+        this.#options.clientConfig?.providerCredentials?.hyperliquid?.onAgentRejected?.(
+          account,
+          agentAddress,
+        );
+      },
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
-    // Register MYX provider if enabled via feature flag.
-    // Dynamic import because the MYX package pulls in heavy dependencies we
-    // don't want bundled in extension. Until MYX fixes their package, extension
-    // doesn't ship it — the catch branch silently skips registration.
-    // Uses .then()/.catch() instead of await because #createProviders is not async;
-    // MYX registration completing asynchronously is fine since it's only used when
-    // explicitly enabled and selected.
-    const isMYXEnabled = this.#isMYXProviderEnabled();
-    if (isMYXEnabled) {
-      // IMPORTANT: Must use import() — NOT require() — for core/extension tree-shaking.
-      // require() is synchronous and bundlers include it in the main bundle.
-      // import() enables true code splitting so MYX is excluded when not enabled.
-      // NOTE: Keep the path in a variable so ts-bridge does not rewrite the
-      // import argument and strip the webpackIgnore magic comment in core dist.
-      const myxModulePath = './providers/MYXProvider';
-      this.#myxRegistrationPromise = import(
-        /* webpackIgnore: true */ myxModulePath
+    // Register Lighter provider if enabled (POC). Dynamic import so clients
+    // that do not ship the Lighter files skip registration silently, and so
+    // bundlers can code-split it out when it is not enabled.
+    // Uses .then()/.catch() instead of await because #createProviders is not
+    // async; registration completing asynchronously is fine since the provider
+    // is only used when explicitly enabled and selected.
+    const isLighterEnabled = this.#isLighterProviderEnabled();
+    if (isLighterEnabled) {
+      // NOTE: Keep the path in a variable so bundlers that ignore the
+      // webpackIgnore magic comment (e.g. Metro) cannot statically resolve the
+      // import and pull the Lighter provider into the client bundle.
+      const lighterModulePath = './providers/LighterProvider';
+      this.#lighterRegistrationPromise = import(
+        /* webpackIgnore: true */ lighterModulePath
       )
-        .then(({ MYXProvider }) => {
-          this.registerMYXProvider(MYXProvider);
-          return undefined;
+        .then(({ LighterProvider }) => {
+          this.registerLighterProvider(LighterProvider);
+          return;
         })
-        .catch((error: unknown) => this.handleMYXImportError(error));
+        .catch((error: unknown) => this.handleLighterImportError(error));
     }
   }
 
   /**
-   * Registers the MYX provider after dynamic import resolves.
+   * Registers the Lighter provider after dynamic import resolves.
    *
    * Extracted from the import().then() callback so it can be tested directly
    * (Jest cannot resolve dynamic imports without --experimental-vm-modules).
    *
-   * @param MYXProvider - Constructor class for the MYX provider.
+   * @param LighterProviderClass - Constructor class for the Lighter provider.
    */
-  protected registerMYXProvider(MYXProvider: unknown): void {
-    if (typeof MYXProvider !== 'function') {
-      return;
-    }
-
-    const myxIsTestnet =
-      PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet;
-    const myx = this.#options.clientConfig?.providerCredentials?.myx ?? {};
-    const myxAuthConfig = resolveMyxAuthConfig(myx, myxIsTestnet);
-    const MYXProviderConstructor = MYXProvider as new (opts: {
+  protected registerLighterProvider(
+    LighterProviderClass: new (opts: {
       isTestnet: boolean;
       platformDependencies: PerpsPlatformDependencies;
       messenger: PerpsControllerMessenger;
-      myxAuthConfig: ReturnType<typeof resolveMyxAuthConfig>;
-    }) => PerpsProvider;
-    const myxProvider = new MYXProviderConstructor({
-      isTestnet: myxIsTestnet,
+      lighterAuthConfig: LighterAuthConfig;
+      signerBridge?: LighterSignerBridge;
+    }) => PerpsProvider,
+  ): void {
+    const lighterIsTestnet = isProviderOnTestnet(
+      'lighter',
+      this.state.isTestnet,
+    );
+    const lighter =
+      this.#options.clientConfig?.providerCredentials?.lighter ?? {};
+    const lighterProvider = new LighterProviderClass({
+      isTestnet: lighterIsTestnet,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
-      myxAuthConfig,
+      signerBridge: lighter.signerBridge,
+      lighterAuthConfig: {
+        enabled: lighter.enabled,
+        accountIndex: lighterIsTestnet
+          ? lighter.accountIndexTestnet
+          : lighter.accountIndexMainnet,
+        apiKeyIndex: lighter.apiKeyIndex,
+      },
     });
-    this.providers.set('myx', myxProvider);
-    this.#debugLog('PerpsController: MYX provider registered', {
-      isTestnet: myxIsTestnet,
+    this.providers.set('lighter', lighterProvider);
+    this.#debugLog('PerpsController: Lighter provider registered', {
+      isTestnet: lighterIsTestnet,
     });
   }
 
   /**
-   * Handles errors from the MYX dynamic import.
+   * Handles errors from the Lighter dynamic import.
    *
-   * Module-not-found errors are expected (extension doesn't ship MYX) → debug log.
-   * Other errors indicate constructor/config problems → Sentry via logError.
+   * Module-not-found errors are expected (clients may not ship Lighter) →
+   * debug log. Other errors indicate constructor/config problems → Sentry.
    *
    * @param error - The caught error from the dynamic import or constructor.
    */
-  protected handleMYXImportError(error: unknown): void {
+  protected handleLighterImportError(error: unknown): void {
     const isModuleError =
       (error as Record<string, unknown>)?.code === 'MODULE_NOT_FOUND';
     if (isModuleError) {
       this.#debugLog(
-        'PerpsController: MYX provider module not available, skipping registration',
+        'PerpsController: Lighter provider module not available, skipping registration',
       );
     } else {
       this.#logError(
         error instanceof Error ? error : new Error(String(error)),
-        this.#getErrorContext('createProviders.myx'),
+        this.#getErrorContext('createProviders.lighter'),
       );
     }
   }
 
   /**
    * Assigns the active provider instance based on the current activeProvider state.
-   * Separated from #createProviders so it runs after async MYX registration settles.
+   * Separated from #createProviders so it runs after async provider registration settles.
    */
   #assignActiveProvider(): void {
     const { activeProvider } = this.state;
@@ -2457,6 +2525,7 @@ export class PerpsController extends BaseController<
         providers: this.providers,
         defaultProvider: 'hyperliquid',
         infrastructure: this.#options.infrastructure,
+        isTestnet: this.state.isTestnet,
       });
       this.#debugLog(
         'PerpsController: Using aggregated provider (multi-provider)',
@@ -2467,13 +2536,17 @@ export class PerpsController extends BaseController<
       this.#debugLog(
         `PerpsController: Using direct provider (${activeProvider})`,
       );
-    } else if (activeProvider === 'myx') {
-      const myxProvider = this.providers.get('myx');
-      if (myxProvider) {
-        this.activeProviderInstance = myxProvider;
+    } else {
+      // Any other direct provider, including a value persisted by an older
+      // version whose venue has since been removed. `activeProvider` is
+      // persisted, so throwing here would fail initialization on every
+      // launch — the stale value must self-heal.
+      const directProvider = this.providers.get(activeProvider);
+      if (directProvider) {
+        this.activeProviderInstance = directProvider;
       } else {
         this.#debugLog(
-          'PerpsController: MYX provider not available, falling back to hyperliquid',
+          `PerpsController: ${activeProvider} provider not available, falling back to hyperliquid`,
         );
         this.activeProviderInstance = hyperLiquidProvider;
         this.update((state) => {
@@ -2482,10 +2555,6 @@ export class PerpsController extends BaseController<
       }
       this.#debugLog(
         `PerpsController: Using direct provider (${this.activeProviderInstance === hyperLiquidProvider ? 'hyperliquid' : activeProvider})`,
-      );
-    } else {
-      throw new Error(
-        `Unsupported provider: ${String(activeProvider)}. Currently only 'hyperliquid', 'myx', and 'aggregated' are supported.`,
       );
     }
   }
@@ -2530,7 +2599,7 @@ export class PerpsController extends BaseController<
    * @returns The current controller state cast to PerpsControllerState.
    */
   #getControllerState(): PerpsControllerState {
-    return this.state as unknown as PerpsControllerState;
+    return this.state;
   }
 
   /**
@@ -2600,11 +2669,15 @@ export class PerpsController extends BaseController<
       },
       stateManager: {
         update: (updater: (state: PerpsControllerState) => void) =>
+          // Using `@ts-ignore` instead of `@ts-expect-error` since this error
+          // comes and goes after unrelated changes.
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore: TS2589: Type instantiation is excessively deep and possibly infinite.
           this.update(updater),
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
       ...additionalContext,
-    } as ServiceContext;
+    };
   }
 
   /**
@@ -2671,9 +2744,16 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
+    // The context the action was issued under. A client reconnect
+    // (disconnect then init) that switches account, network or provider must
+    // not carry the action into the new context.
+    const issuedContext = this.#getActionContext();
+    let awaitedDisconnect = false;
+    let awaitedInitializationStart = false;
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
+        awaitedDisconnect = true;
         await pendingDisconnect;
         continue;
       }
@@ -2693,8 +2773,43 @@ export class PerpsController extends BaseController<
         continue;
       }
 
+      // Clients reconnect with disconnect() followed by init(), and the
+      // disconnect settles before init() is called. Give that init a bounded
+      // window to start rather than failing an action the reconnect will
+      // serve. Nothing here starts a connection the client did not ask for.
+      if (
+        awaitedDisconnect &&
+        !awaitedInitializationStart &&
+        !this.isInitialized &&
+        !pendingInitialization
+      ) {
+        awaitedInitializationStart = true;
+        await this.#waitForInitializationStart(
+          PERPS_CONSTANTS.ConnectionTimeoutMs,
+        );
+        continue;
+      }
+
+      if (awaitedDisconnect && this.#getActionContext() !== issuedContext) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+
       return this.getActiveProvider();
     }
+  }
+
+  /**
+   * Identify the account, network and provider an action runs under.
+   *
+   * @returns A key that changes when any of them changes.
+   */
+  #getActionContext(): string {
+    const address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
+    return [
+      address?.toLowerCase() ?? '',
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      this.state.activeProvider,
+    ].join('|');
   }
 
   /**
@@ -2785,6 +2900,134 @@ export class PerpsController extends BaseController<
         resolvedProviderId,
       );
     }
+  }
+
+  /**
+   * Get the margin mode the market is currently locked to by an open
+   * position or resting order, through the active provider route used by
+   * order placement. Never throws; failures report an unavailable status.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The provider-reported margin-mode lock.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    let activeProvider: PerpsProvider;
+    try {
+      activeProvider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin mode lock unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginModeLock').message,
+      });
+      return this.#getUnavailableMarginModeLock(
+        'provider_unavailable',
+        params.providerId,
+      );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableMarginModeLock(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getMarginModeLock) {
+      return this.#getUnavailableMarginModeLock(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    try {
+      const lock = await activeProvider.getMarginModeLock(params);
+      if (
+        lock.status === 'unavailable' &&
+        lock.providerId === undefined &&
+        resolvedProviderId !== undefined
+      ) {
+        return { ...lock, providerId: resolvedProviderId };
+      }
+      return lock;
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin mode lock unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginModeLock').message,
+      });
+      return this.#getUnavailableMarginModeLock(
+        'provider_unavailable',
+        resolvedProviderId,
+      );
+    }
+  }
+
+  #getUnavailableMarginModeLock(
+    reason: MarginModeLockUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsMarginModeLock {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
+  }
+
+  /**
+   * Build a Scale price ladder using the active provider's venue rules.
+   *
+   * @param params - Market, ladder bounds, count, and optional explicit route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the provider cannot normalize the requested ladder.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    let activeProvider: PerpsProvider;
+    try {
+      activeProvider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      this.#debugLog('PerpsController: Scale price ladder unavailable', {
+        error: ensureError(error, 'PerpsController.getScalePriceLadder')
+          .message,
+      });
+      return this.#getUnavailableScalePriceLadder(
+        'provider_unavailable',
+        params.providerId,
+      );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableScalePriceLadder(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getScalePriceLadder) {
+      return this.#getUnavailableScalePriceLadder(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    const result = await activeProvider.getScalePriceLadder(params);
+    if (
+      result.status === 'unavailable' &&
+      result.providerId === undefined &&
+      resolvedProviderId !== undefined
+    ) {
+      return { ...result, providerId: resolvedProviderId };
+    }
+    return result;
+  }
+
+  #getUnavailableScalePriceLadder(
+    reason: ScalePriceLadderUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsScalePriceLadder {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
   }
 
   /**
@@ -3244,7 +3487,7 @@ export class PerpsController extends BaseController<
                 if (requestToUpdate) {
                   // For deposits, we have a txHash immediately, so mark as completed
                   // (the transaction hash means the deposit was successful)
-                  requestToUpdate.status = 'completed' as TransactionStatus;
+                  requestToUpdate.status = 'completed';
                   requestToUpdate.success = true;
                   requestToUpdate.txHash = actualTxHash;
                 }
@@ -3259,7 +3502,7 @@ export class PerpsController extends BaseController<
               });
             }, 100);
 
-            return undefined;
+            return;
           })
           .catch((error) => {
             // Check if user denied/cancelled the transaction
@@ -3309,7 +3552,7 @@ export class PerpsController extends BaseController<
                     (req) => req.id === currentDepositId,
                   );
                   if (requestToUpdate) {
-                    requestToUpdate.status = 'failed' as TransactionStatus;
+                    requestToUpdate.status = 'failed';
                     requestToUpdate.success = false;
                   }
                 }
@@ -3325,12 +3568,12 @@ export class PerpsController extends BaseController<
                 (req) => req.id === currentDepositId,
               );
               if (requestToUpdate) {
-                requestToUpdate.status = 'completed' as TransactionStatus;
+                requestToUpdate.status = 'completed';
                 requestToUpdate.success = true;
                 requestToUpdate.txHash = actualTxHash;
               }
             });
-            return undefined;
+            return;
           })
           .catch((error) => {
             const errorMessage = ensureError(
@@ -3383,7 +3626,7 @@ export class PerpsController extends BaseController<
               (req) => req.id === currentDepositId,
             );
             if (request) {
-              request.status = 'failed' as TransactionStatus;
+              request.status = 'failed';
               request.success = false;
             }
           }
@@ -3655,7 +3898,7 @@ export class PerpsController extends BaseController<
     if (params?.standalone && params.userAddress) {
       // Use activeProviderInstance if available (respects provider abstraction)
       // Fallback to cached standalone provider for pre-initialization discovery
-      // TODO: When adding new providers (MYX), consider a provider factory pattern
+      // TODO: When adding new providers, consider a provider factory pattern
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
       const operation = provider.getPositions(params);
@@ -3693,6 +3936,54 @@ export class PerpsController extends BaseController<
       context: this.#createServiceContext('getOrderFills'),
       forceRefresh: options?.forceRefresh,
     });
+  }
+
+  /**
+   * List TP/SL protection changes the active provider parked for
+   * explicit manual re-establishment. Providers without durable
+   * settlement state return an empty list.
+   *
+   * @returns Pending manual-recovery entries.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.getPendingManualRecoveries) {
+      return [];
+    }
+    return provider.getPendingManualRecoveries();
+  }
+
+  /**
+   * READ-ONLY list of the active provider's recovered-dispatch outcomes
+   * (previously ambiguous submissions later resolved). Providers without
+   * durable dispatch state return an empty list.
+   *
+   * @returns Pending recovered-dispatch outcomes.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.getRecoveredDispatches) {
+      return [];
+    }
+    return provider.getRecoveredDispatches();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+   * refreshing venue state. Throws when the active provider has no
+   * durable dispatch state or the id no longer matches.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   * @returns Resolves when the outcome is acknowledged.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.acknowledgeRecoveredDispatch) {
+      throw new Error(
+        'The active perps provider has no recovered dispatches to acknowledge',
+      );
+    }
+    return provider.acknowledgeRecoveredDispatch(recoveryId);
   }
 
   /**
@@ -4821,6 +5112,26 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Project the isolated position that would remain after a proposed order.
+   * Margin and liquidation availability are independent: a missing liquidation
+   * does not hide a valid margin projection. Cross-margin returns unsupported.
+   *
+   * @param params - Live position plus the proposed order.
+   * @returns Discriminated preview of the resulting position.
+   */
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    const provider = this.getActiveProvider();
+    const context = this.#createServiceContext('previewPositionModify');
+    return this.#marketDataService.previewPositionModify({
+      provider,
+      params,
+      context,
+    });
+  }
+
+  /**
    * Calculate maintenance margin for a specific asset
    * Returns a percentage (e.g., 0.0125 for 1.25%)
    *
@@ -4843,12 +5154,21 @@ export class PerpsController extends BaseController<
    * Get maximum leverage allowed for an asset
    *
    * @param asset - The asset identifier.
+   * @param providerId - Optional provider route for aggregated markets.
    * @returns A promise that resolves to the numeric result.
    */
-  async getMaxLeverage(asset: string): Promise<number> {
+  async getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number> {
     const provider = this.getActiveProvider();
     const context = this.#createServiceContext('getMaxLeverage');
-    return this.#marketDataService.getMaxLeverage({ provider, asset, context });
+    return this.#marketDataService.getMaxLeverage({
+      provider,
+      asset,
+      ...(providerId === undefined ? {} : { providerId }),
+      context,
+    });
   }
 
   /**
@@ -5437,6 +5757,38 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Stream TWAP lifecycle updates through the active provider.
+   *
+   * Providers without a native TWAP push channel do not implement this; the
+   * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
+   * without branching on provider identity.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function to remove the subscription.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const provider = this.getActiveProviderOrNull();
+    if (!provider?.subscribeToTwapOrders) {
+      return () => {
+        // No-op: provider missing or without a native TWAP push channel
+      };
+    }
+    try {
+      return provider.subscribeToTwapOrders(params);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.subscribeToTwapOrders'),
+        this.#getErrorContext('subscribeToTwapOrders', {
+          accountId: params.accountId,
+        }),
+      );
+      return () => {
+        // No-op
+      };
+    }
+  }
+
+  /**
    * Subscribe to live order updates
    *
    * @param params - The operation parameters.
@@ -5632,27 +5984,179 @@ export class PerpsController extends BaseController<
     // cache read and can therefore never start a benefits request while an
     // order is being signed.
     await this.#rewardsIntegrationService.refreshSubscriptionBenefits();
-    const waiverStatus =
-      this.#rewardsIntegrationService.getSubscriptionFeeWaiverStatus();
+
+    // ADR 0064: preview is also where the trading address is announced, so a
+    // fill decoded off the HL fan-out can be attributed back to a profile.
+    // Fire-and-forget — attribution plumbing must not delay or fail a quote.
+    const selectedAccount = getSelectedEvmAccountFromMessenger(this.messenger);
+    if (selectedAccount) {
+      this.#rewardsIntegrationService
+        .registerTradingAddress(selectedAccount.address, {
+          isTestnet: this.state.isTestnet,
+        })
+        .catch(() => {
+          /* never blocks a fee preview */
+        });
+    }
+
+    // The preview quotes the same blended rate the submit path charges, which
+    // is only possible once the order notional reaches the resolver. `amount`
+    // is the order notional in USD for the quote being previewed.
+    const orderNotionalUsd = params.amount
+      ? Number.parseFloat(params.amount)
+      : undefined;
+    const feeResolution =
+      await this.#rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    // Taken from the resolution rather than read separately: a second read can
+    // observe a different snapshot if the cache is invalidated or the feature
+    // flag flips between the two, which would surface metadata describing a
+    // waiver the quoted rates do not reflect.
+    const waiverStatus = feeResolution.subscription;
     const context = this.#createServiceContext('calculateFees', {
       subscriptionFeeWaiver:
         waiverStatus.reason === 'no-source' ? undefined : waiverStatus,
+      feeResolution,
     });
     return this.#marketDataService.calculateFees({ provider, params, context });
   }
 
   /**
-   * Approve the dedicated subscription builder outside order submission.
-   * Until this succeeds, subscription waivers fall back to the ordinary
-   * builder at the standard fee.
+   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for a main
+   * account on a network with an approved agent, or pin them to the main
+   * account with null (`getAgentSigner` is then not asked for that account and
+   * network until `clearAgentSigners`). User-signed actions stay on the main
+   * account, and the agent is never used for another account or network. The
+   * controller keeps the binding across provider re-creation (a provider or
+   * network switch, or re-initialization), so it can also be set before
+   * `init`. Like every controller action, it is available through the
+   * messenger once `init` has run.
    *
-   * @returns Whether the subscription builder is approved.
+   * @param account - The main account and network the agent is approved for.
+   * @param agentSigner - The host-owned agent signer, or null to pin the main
+   * account.
+   */
+  setAgentSigner(
+    account: PerpsAgentAccount,
+    agentSigner: PerpsAgentSigner | null,
+  ): void {
+    this.#agentBindings.set(account, agentSigner);
+    // Drop agents the providers already resolved so the binding applies to
+    // the next L1 action.
+    this.#clearProviderAgentSigners();
+  }
+
+  /**
+   * Forget every HyperLiquid agent, set or resolved, so the next L1 action
+   * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
+   * still pending is discarded too. Call it when the wallet locks (with
+   * `getAgentSigner` returning null while locked) and nothing signs with an
+   * agent until it returns one again. Like every controller action, it is
+   * available through the messenger once `init` has run.
+   */
+  clearAgentSigners(): void {
+    this.#agentBindings.clear();
+    this.#clearProviderAgentSigners();
+  }
+
+  /**
+   * Drop the agents every provider resolved.
+   */
+  #clearProviderAgentSigners(): void {
+    for (const provider of this.providers.values()) {
+      provider.clearAgentSigners?.();
+    }
+  }
+
+  /**
+   * Run the active provider's deferred trading setup ahead of the first order
+   * (HyperLiquid account migration, builder fee and referral; Lighter
+   * venue-key registration), so its signatures happen in one guided session,
+   * such as agent setup, instead of at order time. The builder fee and
+   * Lighter's registration are signed by the main account; with an agent,
+   * the referral and the account migration are L1 actions the agent signs.
+   *
+   * @returns `ready: true` when none of these steps will need a signature
+   * again before the first order, and only while an account is selected and
+   * the main account can sign, whichever provider answered (including
+   * providers without deferred setup, for example in aggregated mode). A
+   * HyperLiquid referral whose MetaMask referral code is not ready yet is
+   * checked again at the next call, not before orders, so it does not hold
+   * it back. Otherwise `ready: false`, without an error while a step will
+   * be asked again (a declined HyperLiquid migration, builder fee or Lighter
+   * registration, or a step the agent could not sign), or with:
+   * - `KEYRING_LOCKED` when the main account cannot sign, before or during
+   * setup;
+   * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
+   * yet;
+   * - `NO_ACCOUNT_SELECTED` when no account is selected;
+   * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
+   * changed during setup;
+   * - otherwise the message of the error that stopped setup, which is logged.
+   * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
+   * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
+   * when no active provider is available.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    const provider = await this.#getActiveProviderWhenReady();
+    // With nothing selected, the AccountsController answers an empty account.
+    const readSelectedAddress = (): string | undefined => {
+      const address = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      )?.address;
+      return address ? address.toLowerCase() : undefined;
+    };
+    const addressAtStart = readSelectedAddress();
+    const result = (await provider.prepareTradingWallet?.()) ?? {
+      ready: true,
+    };
+    const address = readSelectedAddress();
+    // The steps ran for the account selected when they started (in aggregated
+    // mode, one provider after another), so their result is not the current
+    // account's.
+    if (address !== addressAtStart) {
+      return {
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      };
+    }
+    if (!result.ready) {
+      return result;
+    }
+    // A provider with nothing to prepare, alone or aggregated, checks neither
+    // the signer nor the selected account.
+    if (
+      !isMainAccountSignerReady(
+        this.#options.infrastructure.accountSigner,
+        () => this.messenger.call('KeyringController:getState').isUnlocked,
+      )
+    ) {
+      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    }
+    if (!address) {
+      return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
+    }
+    return result;
+  }
+
+  /**
+   * Approve the dedicated subscription builder outside order submission.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder, so there is nothing left to approve. Kept
+   * as a no-op so clients still calling it keep building while they migrate;
+   * remove it once cloid marking is verified in shadow mode.
+   *
+   * Resolves `true`, not `false`. The method answers "is the subscription
+   * builder ready?", and the honest answer is now "nothing needs approving" —
+   * a `false` would read as a setup failure to a caller that branches on it and
+   * could block a waiver that is already fully in effect.
+   * @returns Always `true`; no approval is required.
    */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
-    const provider = this.getActiveProvider();
-    return provider.approveSubscriptionBuilderFee
-      ? provider.approveSubscriptionBuilderFee()
-      : false;
+    this.#debugLog(
+      'PerpsController: approveSubscriptionBuilderFee is a no-op; subscription attribution now rides on the order cloid',
+    );
+    return true;
   }
 
   /**
@@ -6049,6 +6553,7 @@ export class PerpsController extends BaseController<
    * @param config.limitPrice - The limit price.
    * @param config.orderType - The order type.
    * @param config.reduceOnly - Whether the order may only reduce a position.
+   * @param config.direction - Long or short.
    * @param config.selectedPaymentToken - The selected payment token.
    */
   savePendingTradeConfiguration(
@@ -6061,6 +6566,7 @@ export class PerpsController extends BaseController<
       limitPrice?: string;
       orderType?: OrderType;
       reduceOnly?: boolean;
+      direction?: OrderDirection;
       /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
       selectedPaymentToken?: PerpsSelectedPaymentToken | null;
     },
@@ -6109,6 +6615,7 @@ export class PerpsController extends BaseController<
         limitPrice?: string;
         orderType?: OrderType;
         reduceOnly?: boolean;
+        direction?: OrderDirection;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined {
@@ -6204,7 +6711,7 @@ export class PerpsController extends BaseController<
 
       // Handle other simple legacy strings (e.g., 'volume', 'openInterest', etc.)
       return {
-        optionId: pref as SortOptionId,
+        optionId: pref,
         direction: MARKET_SORTING_CONFIG.DefaultDirection,
       };
     }
@@ -6510,6 +7017,51 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Get the saved margin mode (Isolated/Cross) for a market on the current
+   * network. Clients should still let a venue-enforced mode take priority.
+   *
+   * @param symbol - Market symbol
+   * @returns The saved margin mode or undefined if not set
+   */
+  getMarginMode(symbol: string): MarginMode | undefined {
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    return this.state.tradeConfigurations[network]?.[symbol]?.marginMode;
+  }
+
+  /**
+   * Save the margin mode (Isolated/Cross) picked for a market on the current
+   * network. Values other than `isolated` or `cross` are ignored.
+   *
+   * @param symbol - Market symbol
+   * @param marginMode - Margin mode to persist
+   */
+  saveMarginMode(symbol: string, marginMode: MarginMode): void {
+    if (marginMode !== 'isolated' && marginMode !== 'cross') {
+      return;
+    }
+
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+
+    this.#debugLog('PerpsController: Saving margin mode', {
+      symbol,
+      network,
+      marginMode,
+    });
+
+    this.update((state) => {
+      if (!state.tradeConfigurations[network]) {
+        state.tradeConfigurations[network] = {};
+      }
+
+      const existingConfig = state.tradeConfigurations[network][symbol] || {};
+      state.tradeConfigurations[network][symbol] = {
+        ...existingConfig,
+        marginMode,
+      };
+    });
+  }
+
+  /**
    * Toggle watchlist status for a market.
    *
    * Updates local state immediately (optimistic UI) and then syncs the new
@@ -6692,7 +7244,6 @@ export class PerpsController extends BaseController<
     const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
       .watchlistMarkets ?? {
       hyperliquid: { testnet: [], mainnet: [] },
-      myx: { testnet: [], mainnet: [] },
     };
 
     const nextWatchlistMarkets: PerpsWatchlistMarkets = {
@@ -6781,7 +7332,6 @@ export class PerpsController extends BaseController<
           const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
             .watchlistMarkets ?? {
             hyperliquid: { testnet: [], mainnet: [] },
-            myx: { testnet: [], mainnet: [] },
           };
           const nextWatchlistMarkets: PerpsWatchlistMarkets = {
             ...existingWatchlist,

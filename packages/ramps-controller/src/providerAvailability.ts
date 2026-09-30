@@ -1,15 +1,46 @@
 import type { Provider } from './RampsService.js';
 
 /**
+ * Canonicalizes a CAIP-19 asset id for comparison against Ramps API values.
+ *
+ * CAIP-19 does not constrain the case of the asset reference, and the Ramps API
+ * is not consistent about it. Every `eip155` key in `regions/{region}/providers`
+ * `supportedCryptoCurrencies` is lowercase, while `regions/{region}/topTokens`
+ * returns four mainnet `assetId` values EIP-55 checksummed (USDT, USDC, WBTC,
+ * LINK) in both its `topTokens` and `allTokens` lists, with no lowercase
+ * duplicate. Callers also supply checksummed ids of their own from other
+ * controllers, so the two sides of a comparison can disagree on case for the
+ * same asset.
+ *
+ * Non-EVM references are case-sensitive (Solana base58, Tron base58, bitcoin
+ * bech32), so lowercasing is restricted to `eip155` rather than applied to the
+ * whole string. This is a tightening: for EVM ids a plain `toLowerCase()` on
+ * both sides already matched. Current API data carries non-EVM ids in identical
+ * case on both endpoints, so the passthrough guards against future drift rather
+ * than fixing an observed mismatch.
+ *
+ * The namespace itself is matched case-insensitively, so an `EIP155:` prefix
+ * is treated as EVM even though CAIP-19 defines namespaces as lowercase.
+ *
+ * @param assetId - CAIP-19 asset id, in either case form.
+ * @returns The asset id in the form the Ramps API uses.
+ */
+export function normalizeRampsAssetId(assetId: string): string {
+  const trimmedAssetId = assetId.trim();
+  return /^eip155:/iu.test(trimmedAssetId)
+    ? trimmedAssetId.toLowerCase()
+    : trimmedAssetId;
+}
+
+/**
  * Whether a provider serves the given deposit asset.
  *
  * Mirrors the region-provider matching the controller performs internally: a
  * provider serves the asset when its `supportedCryptoCurrencies` map (keyed by
- * CAIP-19 asset id) contains the asset id, compared case-insensitively on both
- * sides. EVM CAIP-19 asset ids may arrive checksummed or lowercased and the
- * providers API returns both forms, so only the lowercased forms are compared.
- * A provider without a `supportedCryptoCurrencies` map is treated as not
- * serving the asset.
+ * CAIP-19 asset id) contains the asset id. Both sides are canonicalized with
+ * {@link normalizeRampsAssetId}, so EVM ids match regardless of checksum
+ * casing while non-EVM references stay case-sensitive. A provider without a
+ * `supportedCryptoCurrencies` map is treated as not serving the asset.
  *
  * @param provider - The provider to test.
  * @param assetId - CAIP-19 asset id of the deposit asset.
@@ -23,9 +54,9 @@ export function providerServesAsset(
   if (!map) {
     return false;
   }
-  const target = assetId.toLowerCase();
+  const target = normalizeRampsAssetId(assetId);
   return Object.keys(map).some(
-    (key) => key.toLowerCase() === target && map[key],
+    (key) => normalizeRampsAssetId(key) === target && map[key],
   );
 }
 

@@ -13,13 +13,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger.js';
 import type { AccountGroupObjectOf } from '../group.js';
+import type { AccountWalletEntropyObject } from '../wallet.js';
 import { EntropyRule } from './entropy.js';
 
 const ETH_EOA_METHODS = [
@@ -312,6 +312,68 @@ describe('EntropyRule', () => {
 
       // Should return EVM account name, not Solana account name
       expect(rule.getComputedAccountGroupName(group)).toBe('Main Account');
+    });
+  });
+
+  describe('getPrimaryEntropySource', () => {
+    it('returns the first HD keyring metadata ID', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
+
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [
+          MOCK_HD_KEYRING_1,
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: 'mock-keyring-id-2', name: 'HD Keyring 2' },
+            accounts: ['0x456'],
+          },
+        ],
+      }));
+
+      expect(rule.getPrimaryEntropySource()).toBe(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+    });
+
+    it('skips non-HD keyrings before the first HD keyring', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
+
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.simple,
+            metadata: { id: 'imported', name: 'Imported' },
+            accounts: ['0xabc'],
+          },
+          MOCK_HD_KEYRING_1,
+        ],
+      }));
+
+      expect(rule.getPrimaryEntropySource()).toBe(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+    });
+
+    it('returns undefined when there is no HD keyring', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
+
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
+
+      expect(rule.getPrimaryEntropySource()).toBeUndefined();
     });
   });
 });

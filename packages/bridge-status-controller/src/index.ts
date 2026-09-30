@@ -52,3 +52,11 @@ export {
   getBatchSellHistoryItemsForTxHash,
   isBatchSellHistoryItem,
 } from './utils/history.js';
+
+export {
+  getHashPresenceProperties,
+  getStatusFailurePhase,
+  getFailurePropertiesFromHistory,
+  getSubmitErrorCode,
+  getBroadcastFailureProperties,
+} from './utils/metrics.js';

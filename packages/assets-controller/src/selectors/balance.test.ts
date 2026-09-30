@@ -164,9 +164,7 @@ describe('balance selectors', () => {
         accountTree:
           undefined as unknown as AccountTreeControllerState['accountTree'],
       };
-      expect(
-        getGroupIdForAccount(noTree as AccountTreeControllerState, accountId1),
-      ).toBeUndefined();
+      expect(getGroupIdForAccount(noTree, accountId1)).toBeUndefined();
     });
   });
 
@@ -307,6 +305,50 @@ describe('balance selectors', () => {
         amount: '54060000000',
       });
       expect(result.totalBalanceInFiat).toBeCloseTo(54060000000 * 2.5634e-11);
+    });
+
+    it('excludes assets that have a balance but no assetsInfo metadata', () => {
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetEth]: { amount: '1' },
+            [assetUsdc]: { amount: '100' },
+          },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          // no entry for assetUsdc
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].assetId).toBe(assetEth);
+    });
+
+    it('excludes assets without assetsInfo metadata from fiat totals', () => {
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetEth]: { amount: '1' },
+            [assetUsdc]: { amount: '100' },
+          },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          // no entry for assetUsdc
+        },
+        assetsPrice: {
+          [assetEth]: testFungibleAssetPrice(2000, 0),
+          [assetUsdc]: testFungibleAssetPrice(1, 0),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.totalBalanceInFiat).toBe(2000);
     });
 
     it('excludes hidden assets', () => {
@@ -733,7 +775,7 @@ describe('wallet-balance selectors', () => {
                 request.parentContext === undefined ? parentSpan : undefined,
               );
             }
-            return undefined;
+            return;
           },
         );
 

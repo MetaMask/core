@@ -1,4 +1,4 @@
-import { merge } from 'lodash';
+import { merge } from 'lodash-es';
 
 import type { DeepPartial } from '../../types.js';
 import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
@@ -106,8 +106,9 @@ export const toQuoteMetadataV1 = (
     }),
     ...includeIfTruthy(priceData?.priceImpact, {
       priceImpact: toTokenAmountValues(priceData?.priceImpact),
-      // Use priceImpact as cost
-      cost: toTokenAmountValues(priceData?.priceImpact),
+    }),
+    ...includeIfTruthy(priceData?.cost, {
+      cost: toTokenAmountValues(priceData?.cost),
     }),
     ...includeIfTruthy(relayer?.[0], {
       relayerFee: toTokenAmountValues(relayer?.[0]),

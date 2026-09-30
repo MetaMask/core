@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "resolveJsonModule": true,
     "rootDir": "../.."
   },
@@ -11,6 +10,9 @@
     },
     {
       "path": "../permission-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

@@ -14,4 +14,13 @@ export type {
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
   AuthenticationControllerRequestProfilePairingAction,
+  AuthenticationControllerGetPartnerIdentityTokenAction,
+  AuthenticationControllerClearStateAction,
+  AuthenticationControllerRefreshEnrolledCredentialsAction,
+  AuthenticationControllerBeginCredentialEnrollmentAction,
+  AuthenticationControllerCompleteCredentialEnrollmentAction,
+  AuthenticationControllerBeginCredentialVerificationAction,
+  AuthenticationControllerCompleteCredentialVerificationAction,
+  AuthenticationControllerGetVerificationTokenAction,
+  AuthenticationControllerClearVerificationSessionAction,
 } from './AuthenticationController-method-action-types.js';

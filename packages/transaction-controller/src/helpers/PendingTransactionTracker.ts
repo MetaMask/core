@@ -6,7 +6,7 @@ import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
@@ -114,7 +114,7 @@ export class PendingTransactionTracker {
     messenger: TransactionControllerMessenger;
     networkClientId: NetworkClientId;
   }) {
-    this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
+    this.hub = new EventEmitter();
 
     const chainId = getChainId({ messenger, networkClientId });
 

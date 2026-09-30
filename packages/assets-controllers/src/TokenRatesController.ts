@@ -12,7 +12,7 @@ import type {
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import {
   reduceInBatchesSerially,
@@ -161,7 +161,7 @@ export type TokenRatesControllerMessenger = Messenger<
 const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
   marketData: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },

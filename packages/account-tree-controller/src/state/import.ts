@@ -168,9 +168,11 @@ function setGroupMetadata(
   localGroupId: AccountGroupId,
   payloadGroupMetadata: AccountWalletMnemonicGroupEntry['metadata'],
 ): void {
-  context.setAccountGroupName(localGroupId, payloadGroupMetadata.name);
-  context.setAccountGroupPinned(localGroupId, payloadGroupMetadata.pinned);
-  context.setAccountGroupHidden(localGroupId, payloadGroupMetadata.hidden);
+  if (payloadGroupMetadata) {
+    context.setAccountGroupName(localGroupId, payloadGroupMetadata.name);
+    context.setAccountGroupPinned(localGroupId, payloadGroupMetadata.pinned);
+    context.setAccountGroupHidden(localGroupId, payloadGroupMetadata.hidden);
+  }
 }
 
 /**
@@ -254,7 +256,9 @@ async function importMnemonicWallet(
     localWallet = findLocalWalletMnemonicFromId(context, id);
   }
 
-  context.setWalletName(localWallet.id, payloadWallet.metadata.name);
+  if (payloadWallet.metadata) {
+    context.setWalletName(localWallet.id, payloadWallet.metadata.name);
+  }
 
   // Apply metadata to groups that are already present locally before attempting
   // to create missing ones. If createMultichainAccountGroups throws partway

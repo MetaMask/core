@@ -77,6 +77,9 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
     symbol,
     dex: null,
   })),
+  buildHyperLiquidFillId: jest.requireActual(
+    '../../../src/utils/hyperLiquidAdapter',
+  ).buildHyperLiquidFillId,
 }));
 
 // Mock DevLogger
@@ -460,6 +463,7 @@ describe('HyperLiquidSubscriptionService', () => {
       isTestnetMode: jest.fn(() => false),
       ensureTransportReady: jest.fn().mockResolvedValue(undefined),
       getConnectionState: jest.fn(() => 'connected'),
+      getConnectionEpoch: jest.fn(() => 1),
     } as any;
 
     // Mock wallet service

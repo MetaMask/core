@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { VALUE_ZERO } from '../constants.js';
 import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler.js';

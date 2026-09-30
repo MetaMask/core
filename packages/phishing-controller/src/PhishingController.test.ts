@@ -34,6 +34,7 @@ import type {
   BulkPhishingDetectionScanResponse,
   PhishingControllerMessenger,
 } from './PhishingController.js';
+import { RequestSourceFlow, RequestSourcePlatform } from './request-source.js';
 import {
   createMockStateChangePayload,
   createMockTransaction,
@@ -76,6 +77,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     transactions: [],
     transactionBatches: [],
+    batchTransactionCounts: {},
     methodData: {},
     lastFetchedBlockNumbers: {},
     submitHistory: [],
@@ -139,9 +141,8 @@ function setupMessenger(options: SetupMessengerOptions = {}): {
       'TransactionController:getState',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax
+
       'TransactionController:stateChange',
     ],
     messenger,
@@ -3057,6 +3058,108 @@ describe('PhishingController', () => {
     });
   });
 
+  describe('request source attribution', () => {
+    // NOTE: nock does not model CORS preflight, so nothing here can catch a
+    // server-side `Access-Control-Allow-Headers` allowlist that omits
+    // `x-request-source`. That is verified against the service, not in tests.
+    const scanResponse: PhishingDetectionScanResult = {
+      hostname: 'example.com',
+      recommendedAction: RecommendedAction.None,
+    };
+
+    it('reports the composed source on a single URL scan', async () => {
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Mobile,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'mobile-browser')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+        RequestSourceFlow.Browser,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports the composed source on a bulk URL scan', async () => {
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Extension,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'extension-nft-detection')
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(200, { results: {}, errors: {} });
+
+      await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        ['https://example.com'],
+        RequestSourceFlow.NftDetection,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports the platform sentinel when a caller omits the flow', async () => {
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Extension,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'extension-unknown')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports the bare sentinel when no platform is configured', async () => {
+      const { rootMessenger } = getPhishingController();
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'unknown')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+        RequestSourceFlow.Browser,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('degrades an unrecognised flow to the platform sentinel', async () => {
+      // Guards the plain-JavaScript call sites, which get no type checking.
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Mobile,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'mobile-unknown')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+        'browsr' as RequestSourceFlow,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+
   describe('bulkScanUrls', () => {
     let rootMessenger: RootMessenger;
 
@@ -4583,10 +4686,11 @@ describe('Address poisoning detection', () => {
   it('hydrates known recipients from confirmed transactions and address book state', () => {
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: CONFIRMED_TX_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -4655,7 +4759,7 @@ describe('Address poisoning detection', () => {
         txParams: {
           from: TEST_ADDRESSES.FROM_ADDRESS,
           to: TOKEN_CONTRACT,
-          value: '0x0' as `0x${string}`,
+          value: '0x0',
           data: transferData,
         },
       },
@@ -4688,6 +4792,118 @@ describe('Address poisoning detection', () => {
     ).toStrictEqual([]);
   });
 
+  it('does not add token contracts from confirmed approve transactions', () => {
+    const TOKEN_CONTRACT =
+      '0xdddd111111111111111111111111111111119999' as `0x${string}`;
+    const CONTRACT_CANDIDATE_ADDRESS =
+      '0xddddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa9999' as `0x${string}`;
+
+    const approveTransaction = createMockTransaction('approve-tx', [], {
+      status: TransactionStatus.confirmed,
+      type: TransactionType.tokenMethodApprove,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: TOKEN_CONTRACT,
+        value: '0x0',
+        data: '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
+      },
+    });
+
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [approveTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(
+      controller.checkAddressPoisoning(CONTRACT_CANDIDATE_ADDRESS),
+    ).toStrictEqual([]);
+  });
+
+  it('hydrates swap-and-send payees rather than the swap contract', () => {
+    const SWAP_CONTRACT =
+      '0xdddd111111111111111111111111111111119999' as `0x${string}`;
+    const CONTRACT_CANDIDATE_ADDRESS =
+      '0xddddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa9999' as `0x${string}`;
+
+    const swapAndSendTransaction = createMockTransaction(
+      'swap-and-send-tx',
+      [],
+      {
+        status: TransactionStatus.confirmed,
+        type: TransactionType.swapAndSend,
+        swapAndSendRecipient: CONFIRMED_TX_RECIPIENT,
+        txParams: {
+          from: TEST_ADDRESSES.FROM_ADDRESS,
+          to: SWAP_CONTRACT,
+          value: '0x0',
+        },
+      },
+    );
+
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [swapAndSendTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+
+    expect(
+      controller.checkAddressPoisoning(CONTRACT_CANDIDATE_ADDRESS),
+    ).toStrictEqual([]);
+  });
+
+  it('ignores confirmed send recipients that are not valid hex addresses', () => {
+    const confirmedTransaction = createMockTransaction(
+      'invalid-recipient-tx',
+      [],
+      {
+        status: TransactionStatus.confirmed,
+        type: TransactionType.simpleSend,
+        txParams: {
+          from: TEST_ADDRESSES.FROM_ADDRESS,
+          to: '0x1',
+          value: '0x0',
+        },
+      },
+    );
+
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
   it('ignores non-confirmed transactions when hydrating known recipients', () => {
     const { messenger } = setupMessenger({
       transactionControllerState: {
@@ -4698,7 +4914,7 @@ describe('Address poisoning detection', () => {
             txParams: {
               from: TEST_ADDRESSES.FROM_ADDRESS,
               to: ADDRESS_BOOK_RECIPIENT,
-              value: '0x0' as `0x${string}`,
+              value: '0x0',
             },
           }),
         ],
@@ -4725,19 +4941,23 @@ describe('Address poisoning detection', () => {
       [],
     );
 
-    rootMessenger.publish('AddressBookController:stateChange', {
-      addressBook: {
-        '0x1': {
-          [ADDRESS_BOOK_RECIPIENT]: {
-            address: ADDRESS_BOOK_RECIPIENT,
-            name: 'Known recipient',
-            chainId: '0x1',
-            memo: '',
-            isEns: false,
+    rootMessenger.publish(
+      'AddressBookController:stateChange',
+      {
+        addressBook: {
+          '0x1': {
+            [ADDRESS_BOOK_RECIPIENT]: {
+              address: ADDRESS_BOOK_RECIPIENT,
+              name: 'Known recipient',
+              chainId: '0x1',
+              memo: '',
+              isEns: false,
+            },
           },
         },
       },
-    });
+      [],
+    );
 
     await new Promise((resolve) => process.nextTick(resolve));
 
@@ -4760,10 +4980,11 @@ describe('Address poisoning detection', () => {
 
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -4794,18 +5015,20 @@ describe('Address poisoning detection', () => {
   it('updates transaction recipients when a confirmed transaction recipient changes', async () => {
     const originalTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const updatedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: CONFIRMED_TX_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({
@@ -4853,18 +5076,20 @@ describe('Address poisoning detection', () => {
   it('keeps duplicate transaction recipients when one matching transaction recipient changes', async () => {
     const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const updatedFirstTransaction = createMockTransaction(
@@ -4872,10 +5097,11 @@ describe('Address poisoning detection', () => {
       [],
       {
         status: TransactionStatus.confirmed,
+        type: TransactionType.simpleSend,
         txParams: {
           from: TEST_ADDRESSES.FROM_ADDRESS,
           to: CONFIRMED_TX_RECIPIENT,
-          value: '0x0' as `0x${string}`,
+          value: '0x0',
         },
       },
     );
@@ -4964,10 +5190,11 @@ describe('Address poisoning detection', () => {
 
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -4997,10 +5224,11 @@ describe('Address poisoning detection', () => {
 
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
 
@@ -5024,10 +5252,11 @@ describe('Address poisoning detection', () => {
   it('rebuilds known recipients when a remove patch does not include the removed transaction', async () => {
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({
@@ -5064,10 +5293,11 @@ describe('Address poisoning detection', () => {
   it('rebuilds known recipients when the transaction array length changes', async () => {
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({
@@ -5105,18 +5335,20 @@ describe('Address poisoning detection', () => {
   it('rebuilds duplicate transaction recipients when transactions are removed', async () => {
     const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
       status: TransactionStatus.confirmed,
+      type: TransactionType.simpleSend,
       txParams: {
         from: TEST_ADDRESSES.FROM_ADDRESS,
         to: ADDRESS_BOOK_RECIPIENT,
-        value: '0x0' as `0x${string}`,
+        value: '0x0',
       },
     });
     const { messenger, rootMessenger } = setupMessenger({

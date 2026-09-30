@@ -1,7 +1,7 @@
 import type { Eip1193Provider } from 'ethers';
 
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
-import { ValidationError, RateLimitedError } from '../errors.js';
+import { MfaError, ValidationError, RateLimitedError } from '../errors.js';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider.js';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -11,22 +11,45 @@ import {
 } from '../utils/messaging-signing-snap-requests.js';
 import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
+  getMfaCredentials,
+  mfaEnroll,
+  mfaEnrollComplete,
+  mfaVerify,
+  mfaVerifyComplete,
+} from './mfa/services.js';
+import type { MfaVerificationAssertion } from './mfa/services.js';
+import type {
+  EnrolledCredential,
+  EnrollmentChallenge,
+  EnrollmentProof,
+  MfaCredentialType,
+  VerificationChallenge,
+  VerificationProof,
+} from './mfa/types.js';
+import {
   authenticate,
   authorizeOIDC,
   getCustomerServiceToken,
   getNonce,
+  getPartnerIdentityToken,
   getUserProfileLineage,
   pairProfiles,
+  pairSocialIdentifier,
 } from './services.js';
 import type { PairProfilesResponse } from './services.js';
 import type {
   AuthConfig,
+  AccessToken,
   AuthSigningOptions,
   AuthStorageOptions,
   AuthType,
   IBaseAuth,
   LoginIdentifierType,
   LoginResponse,
+  OidcTokenAudience,
+  OidcTokenClaims,
+  PairSocialIdentifierParams,
+  ProfileIdentifier,
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
@@ -191,6 +214,191 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await getCustomerServiceToken(this.#config.env, accessToken);
+  }
+
+  async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    entropySourceId?: string,
+  ): Promise<string> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getPartnerIdentityToken(
+      this.#config.env,
+      accessToken,
+      claims,
+      audience,
+    );
+  }
+
+  /**
+   * Begins enrollment of an MFA credential for the primary profile.
+   *
+   * @param type - Credential type to enroll.
+   * @param options - Enrollment options.
+   * @param options.email - Email address, required for email OTP.
+   * @param options.entropySourceId - Entropy source whose profile owns the
+   * credential.
+   * @param options.accessToken - Bearer to use instead of the base session
+   * token; the server requires an AAL2 token once a credential that proves
+   * AAL2 is enrolled.
+   * @returns Enrollment challenge for the client ceremony.
+   */
+  async beginMfaEnrollment(
+    type: MfaCredentialType,
+    options?: {
+      email?: string;
+      entropySourceId?: string;
+      accessToken?: string;
+    },
+  ): Promise<EnrollmentChallenge> {
+    const { email, entropySourceId } = options ?? {};
+    const accessToken =
+      options?.accessToken ?? (await this.getAccessToken(entropySourceId));
+    const result = await mfaEnroll(this.#config.env, accessToken, {
+      credential_type: type,
+      ...(email ? { identifier: email } : {}),
+    });
+
+    if (type === 'passkey') {
+      if (!result.publicKey) {
+        throw new MfaError(
+          'invalid_response',
+          'Passkey enrollment response is missing creation data',
+        );
+      }
+      return {
+        type,
+        flowId: result.flowId,
+        expiresAt: result.expiresAt,
+        publicKey: result.publicKey,
+      };
+    }
+    return {
+      type,
+      flowId: result.flowId,
+      expiresAt: result.expiresAt,
+    };
+  }
+
+  /**
+   * Completes enrollment of an MFA credential.
+   *
+   * @param flowId - Identifier returned by the begin call.
+   * @param proof - Platform attestation or email code.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   */
+  async completeMfaEnrollment(
+    flowId: string,
+    proof: EnrollmentProof,
+    entropySourceId?: string,
+  ): Promise<void> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    await mfaEnrollComplete(this.#config.env, accessToken, {
+      credential_type: proof.type,
+      flow_id: flowId,
+      ...(proof.type === 'passkey'
+        ? { passkey_attestation: proof.attestation }
+        : { otp_code: proof.code }),
+    });
+  }
+
+  /**
+   * Begins verification with an enrolled credential.
+   *
+   * @param type - Credential type to verify.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @returns Verification challenge for the client ceremony.
+   */
+  async beginMfaVerification(
+    type: MfaCredentialType,
+    entropySourceId?: string,
+  ): Promise<VerificationChallenge> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    const result = await mfaVerify(this.#config.env, accessToken, {
+      credential_type: type,
+    });
+
+    if (type === 'passkey') {
+      if (!result.publicKey) {
+        throw new MfaError(
+          'invalid_response',
+          'Passkey verification response is missing request data',
+        );
+      }
+      return {
+        type,
+        flowId: result.flowId,
+        expiresAt: result.expiresAt,
+        publicKey: result.publicKey,
+      };
+    }
+    return {
+      type,
+      flowId: result.flowId,
+      expiresAt: result.expiresAt,
+    };
+  }
+
+  /**
+   * Completes verification with an enrolled credential.
+   *
+   * @param flowId - Identifier returned by the begin call.
+   * @param proof - Platform assertion or email code.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @returns Assertion issued after verification.
+   */
+  async completeMfaVerification(
+    flowId: string,
+    proof: VerificationProof,
+    entropySourceId?: string,
+  ): Promise<MfaVerificationAssertion> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await mfaVerifyComplete(this.#config.env, accessToken, {
+      credential_type: proof.type,
+      flow_id: flowId,
+      ...(proof.type === 'passkey'
+        ? { passkey_assertion: proof.assertion }
+        : { otp_code: proof.code }),
+    });
+  }
+
+  /**
+   * Gets credentials enrolled on the primary profile.
+   *
+   * @param entropySourceId - Entropy source whose profile owns the credentials.
+   * @returns Supported enrolled credentials.
+   */
+  async getMfaCredentials(
+    entropySourceId?: string,
+  ): Promise<EnrolledCredential[]> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getMfaCredentials(this.#config.env, accessToken);
+  }
+
+  /**
+   * Exchanges an MFA verification assertion for an access token carrying the
+   * assurance level the assertion proves.
+   *
+   * @param assertionJwt - Verification assertion.
+   * @returns Access token.
+   */
+  async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
+    return await authorizeOIDC(
+      assertionJwt,
+      this.#config.env,
+      this.#config.platform,
+    );
+  }
+
+  async pairSocialIdentifier(
+    params: PairSocialIdentifierParams,
+    authAccessToken: string,
+  ): Promise<ProfileIdentifier[] | undefined> {
+    return await pairSocialIdentifier(
+      params,
+      authAccessToken,
+      this.#config.env,
+    );
   }
 
   async pairSrpProfiles(

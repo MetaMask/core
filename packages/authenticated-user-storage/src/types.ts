@@ -92,7 +92,6 @@ export type PerpsWatchlistExchange = {
 
 export type PerpsWatchlistMarkets = {
   hyperliquid: PerpsWatchlistExchange;
-  myx: PerpsWatchlistExchange;
 };
 
 export type PerpsPreference = {
@@ -123,6 +122,37 @@ export type NotificationPreferences = {
   socialAI: SocialAIPreference;
   agenticCli: AgenticCliPreference;
   priceAlerts: PriceAlertPreference;
+};
+
+// ---------------------------------------------------------------------------
+// Marketing consent
+// ---------------------------------------------------------------------------
+
+/** Marketing consent for the authenticated user (master toggle). */
+export type MarketingConsent = {
+  marketingConsentEnabled: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Identity-sharing consent
+// ---------------------------------------------------------------------------
+
+/** Partner audience that may receive verified identity claims. */
+export type IdentitySharingAudience = 'kyc' | 'iron';
+
+/**
+ * Granted identity-sharing audiences for the authenticated user.
+ * Only granted keys are present; a missing key is not granted.
+ */
+export type IdentitySharingConsent = {
+  kyc?: boolean;
+  iron?: boolean;
+};
+
+/** Body for granting or revoking a single identity-sharing audience. */
+export type IdentitySharingConsentWrite = {
+  audience: IdentitySharingAudience;
+  granted: boolean;
 };
 
 // ---------------------------------------------------------------------------

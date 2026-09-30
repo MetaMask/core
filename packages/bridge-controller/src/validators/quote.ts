@@ -35,6 +35,7 @@ export enum DiscountType {
   VIP = 'vip',
   PROMO = 'promo',
   DAO = 'dao',
+  SUBSCRIPTION = 'subscription',
 }
 
 export const FeeDataSchema = type({
@@ -156,6 +157,7 @@ export const QuoteSchemaV2 = intersection([
             'usd',
             'valueInCurrency',
           ]),
+          cost: pick(AmountsAndAssetSchema, ['usd', 'valueInCurrency']),
         }),
       ),
     ),
@@ -181,6 +183,10 @@ export const QuoteSchemaV2 = intersection([
        * The gas fees for the quote, excluding any provider or relayer fees
        */
       [FeeType.NETWORK]: optional(array(AmountsAndAssetSchema)),
+      /**
+       * The native balance that must remain in the source account.
+       */
+      reserve: optional(array(AmountsAndAssetSchema)),
       /**
        * The relayer or provider fees for the quote,
        */

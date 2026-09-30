@@ -1,5 +1,5 @@
 import { readJsonFile } from '@metamask/utils/node';
-import execa from 'execa';
+import { execa } from 'execa';
 import path from 'path';
 
 type Workspace = {
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   });
 
   const teams = await readJsonFile<Record<string, string>>(
-    path.resolve(__dirname, '../teams.json'),
+    path.resolve(import.meta.dirname, '../teams.json'),
   );
   const assignedPackageNames = Object.keys(teams);
 

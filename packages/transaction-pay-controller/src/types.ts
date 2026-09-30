@@ -1,19 +1,8 @@
+import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
-  AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerGetStateAction,
   AssetsControllerStateChangeEvent,
 } from '@metamask/assets-controller';
-import type {
-  CurrencyRateControllerGetStateAction,
-  CurrencyRateStateChange,
-  TokenBalancesControllerGetStateAction,
-} from '@metamask/assets-controllers';
-import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokenRatesControllerStateChangeEvent } from '@metamask/assets-controllers';
-import type {
-  TokensControllerGetStateAction,
-  TokensControllerStateChangeEvent,
-} from '@metamask/assets-controllers';
-import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
@@ -30,7 +19,7 @@ import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@m
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
-  RampsControllerGetQuotesAction,
+  RampsControllerGetQuoteWithFeesAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -62,9 +51,8 @@ import type {
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
-  | AccountTrackerControllerGetStateAction
-  | AssetsControllerGetStateForTransactionPayAction
-  | CurrencyRateControllerGetStateAction
+  | AccountsControllerGetStateAction
+  | AssetsControllerGetStateAction
   | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
@@ -72,11 +60,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
+  | RampsControllerGetQuoteWithFeesAction
   | RemoteFeatureFlagControllerGetStateAction
-  | TokenBalancesControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | TokensControllerGetStateAction
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
@@ -88,10 +73,7 @@ export type AllowedActions =
 
 export type AllowedEvents =
   | AssetsControllerStateChangeEvent
-  | CurrencyRateStateChange
   | KeyringControllerUnlockEvent
-  | TokenRatesControllerStateChangeEvent
-  | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
@@ -118,6 +100,9 @@ export type TransactionConfig = {
    * completion. Used by flows whose second-leg amount is only known after
    * Relay settles (EXACT_INPUT max flows) or that require the second leg to
    * originate from a different signer than the Relay solver.
+   * For max deposits enabled by `payStrategies.relay.atomicMaxEnabled`, this
+   * is a subsidy hint: atomic quotes are retried non-atomically if not
+   * subsidized, and subsidized non-atomic quotes are upgraded to atomic.
    */
   atomic?: boolean;
 
@@ -673,6 +658,12 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Fees associated with the transaction pay quote. */
   fees: TransactionPayFees;
 
+  /** Whether fees are subtracted from the destination amount, meaning the input amount is static. */
+  isInputBased?: boolean;
+
+  /** Whether the reported fees are already included in the source amount. */
+  areFeesIncludedInSourceAmount?: boolean;
+
   /** Raw quote data returned by the provider. */
   original: OriginalQuote;
 
@@ -837,6 +828,9 @@ export type TransactionPayTotals = {
 
   /** Total fees for the target transaction and all quotes. */
   fees: TransactionPayFees;
+
+  /** Whether the selected quotes subtract fees from the destination amount, meaning the input amount is static. */
+  isInputBased?: boolean;
 
   /** Total amount of source token required. */
   sourceAmount: Amount;

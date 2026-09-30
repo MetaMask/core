@@ -34,7 +34,7 @@ export const configRegistryController: InitializationConfiguration<
       events: [
         'KeyringController:unlock',
         'KeyringController:lock',
-        // eslint-disable-next-line no-restricted-syntax
+
         'RemoteFeatureFlagController:stateChange',
       ],
     });

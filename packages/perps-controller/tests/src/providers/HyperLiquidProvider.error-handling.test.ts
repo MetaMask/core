@@ -320,9 +320,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -439,8 +436,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -450,6 +447,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -956,21 +955,21 @@ describe('HyperLiquidProvider', () => {
     });
 
     describe('updatePositionTPSL error scenarios', () => {
-      it('handles WebSocket error in getPositions', async () => {
-        // Set up mock BEFORE creating fresh provider (provider calls metaAndAssetCtxs on init)
+      it('maps a failed target-DEX position read to provider unavailable', async () => {
         MockedHyperLiquidClientService.mockImplementation(
           () => mockClientService,
         );
-
-        // Create a fresh provider to test WebSocket errors
         const freshProvider = createTestProvider();
-
-        // Mock getPositions to simulate the WebSocket error being handled
-        jest
-          .spyOn(freshProvider, 'getPositions')
-          .mockImplementation(async () => {
-            throw new Error('WebSocket connection failed');
-          });
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue(null);
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest
+              .fn()
+              .mockRejectedValue(new Error('WebSocket connection failed')),
+          }),
+        );
 
         const updateParams = {
           symbol: 'BTC',
@@ -980,34 +979,7 @@ describe('HyperLiquidProvider', () => {
         const result = await freshProvider.updatePositionTPSL(updateParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('WebSocket connection failed');
-      });
-
-      it('handles non-WebSocket error in getPositions', async () => {
-        // Set up mock BEFORE creating fresh provider (provider calls metaAndAssetCtxs on init)
-        MockedHyperLiquidClientService.mockImplementation(
-          () => mockClientService,
-        );
-
-        // Create a fresh provider to test non-WebSocket errors
-        const freshProvider = createTestProvider();
-
-        // Mock getPositions to simulate a generic API error
-        jest
-          .spyOn(freshProvider, 'getPositions')
-          .mockImplementation(async () => {
-            throw new Error('Generic API error');
-          });
-
-        const updateParams = {
-          symbol: 'BTC',
-          takeProfitPrice: '55000',
-        };
-
-        const result = await freshProvider.updatePositionTPSL(updateParams);
-
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('Generic API error');
+        expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       });
 
       it('handles canceling existing TP/SL orders', async () => {
@@ -2208,7 +2180,7 @@ describe('HyperLiquidProvider', () => {
             }),
           );
           mockSubscriptionService.getCachedAbstractionMode.mockReturnValue(
-            'dexAbstraction',
+            'disabled',
           );
 
           const result = await provider.cancelOrder({
@@ -2223,7 +2195,7 @@ describe('HyperLiquidProvider', () => {
             expect.objectContaining({
               context: expect.objectContaining({
                 data: expect.objectContaining({
-                  abstraction_mode: 'dexAbstraction',
+                  abstraction_mode: 'disabled',
                 }),
               }),
             }),

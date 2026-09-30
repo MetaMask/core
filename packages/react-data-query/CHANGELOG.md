@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for mutations ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - You can now use `useMutation` in your UI files via the UI query client, passing a reference to the action and its called arguments through the `mutationKey` option (e.g. `['SocialService:follow', '0xaaaa', '0xbbbb']`).
+    - This assumes that the data service method you want to call uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, but should also take a trailing `globalId` argument.
+    - Retries are disabled by default.
+  - Also, the query client returned by `createUIQueryClient` is now aware of mutations and will ensure that they are copied from data service query clients properly.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@tanstack/query-core` and `@tanstack/react-query` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@tanstack/react-query` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
 ## [1.0.0]
 
 ### Changed
@@ -54,7 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@1.0.0...@metamask/react-data-query@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...@metamask/react-data-query@1.0.0
 [0.2.2]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...@metamask/react-data-query@0.2.2
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...@metamask/react-data-query@0.2.1

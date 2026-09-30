@@ -22,46 +22,6 @@ export type KycProduct = 'ramps' | 'card' | 'money';
 export type KycVendor = 'moonpay' | 'iron';
 
 /**
- * Vendor-scoped identity for the currently authenticated KYC customer.
- *
- * Exposed to consumers (e.g. ramps) that must attach the vendor customer id to
- * downstream provider calls without reading the full KYC state, which also
- * holds session/access tokens. The identifier is session-scoped: it is only
- * available once the customer has authenticated through the current flow and
- * is cleared on `reset()`.
- */
-export type KycCustomerIdentity = {
-  /** The identity vendor that issued {@link KycCustomerIdentity.id}. */
-  vendor: KycVendor;
-  /** The vendor customer id (e.g. MoonPay customer UUID). */
-  id: string;
-};
-
-/**
- * User-keyed KYC status returned by `GET /kyc/status` and stored for toast /
- * banner rendering. Collapses vendor + SumSub / relay state into the offsite
- * contract.
- */
-export type KycUserStatus =
-  | 'not-started'
-  | 'pending'
-  | 'need-more-information'
-  | 'terminal-failure'
-  | 'completed';
-
-/**
- * Payload from `GET /kyc/status`, including optional fields that power the
- * 3-state error contract (retryable SumSub vs terminal vs EDD).
- */
-export type KycUserStatusResponse = {
-  status: KycUserStatus;
-  /** Present when the user can reopen a SumSub session (retryable path). */
-  sumsubSessionId?: string;
-  /** Machine-readable error code for terminal / EDD UX. */
-  errorCode?: string;
-};
-
-/**
  * Phases of the end-to-end identity flow.
  *
  * - `idle` — nothing started.
@@ -92,26 +52,27 @@ export type KycPhase =
   | 'error';
 
 /**
- * Progress of the SumSub document-verification sub-flow.
- *
- * - `polling` — the SDK finished and the controller is polling the UKYC
- *   backend for the session's final decision (see `KycSessionStatus`). The
- *   sub-flow resolves to `complete` or `failed` once a terminal status arrives.
- * - `vendorProcessing` — session creation reported that the applicant is
- *   already approved on the relay (`kycStatus`) while the vendor is still
- *   finalizing its own decision (`finalStatus`). There is nothing left for the
- *   applicant to do, so the SDK is not launched; see `statusMessage`.
+ * UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
+ * (the vendor-side outcome) draw from the same vocabulary, so they are defined
+ * once here and composed into the sets/checks below rather than repeated as
+ * literals.
  */
-export type KycSumSubStatus =
-  | 'idle'
-  | 'creatingSession'
-  | 'fetchingToken'
-  | 'launching'
-  | 'inProgress'
-  | 'polling'
-  | 'complete'
-  | 'failed'
-  | 'vendorProcessing';
+export const KYC_STATUSES = {
+  approved: 'approved',
+  rejected: 'rejected',
+  retry: 'retry',
+  new: 'new',
+  pending: 'pending',
+} as const;
+
+/**
+ * `finalStatus` values that end session-status polling.
+ */
+export const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+  KYC_STATUSES.approved,
+  KYC_STATUSES.rejected,
+  KYC_STATUSES.retry,
+]);
 
 /**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
@@ -119,10 +80,12 @@ export type KycSumSubStatus =
  * verification decision.
  */
 export type KycSessionStatus = {
+  /** UKYC session id. */
+  id: string;
   /**
    * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`) end polling; any other value
-   * keeps polling.
+   * `completed`, `rejected`, `failed`, `blocked`) are finished decisions; any
+   * other value (e.g. `pending`) means the vendor is still processing.
    */
   finalStatus: string;
   /** Optional human-readable message describing the status. */
@@ -135,6 +98,9 @@ export type KycSessionStatus = {
   vendor: string;
   /** The vendor-specific status. */
   vendorStatus: string;
+  /** The consent status of the session. */
+  consentStatus?: string;
+  idOSStatus?: string;
 };
 
 /**
@@ -164,10 +130,11 @@ export type KycVendorSigning = {
 };
 
 /**
- * A legal document in the session-scoped idOS / KYC-provider catalog
- * (`GET`/`POST /sessions/{sessionId}/disclaimers`).
+ * A legal document in the global idOS / KYC-provider catalog
+ * (`GET /disclaimers`). Carries no consent state, which only exists within a
+ * session.
  */
-export type KycConsentDocument = {
+export type KycCatalogDocument = {
   /** Stable identifier of the legal document. */
   key: string;
   /** Version of the document currently in force. */
@@ -176,7 +143,14 @@ export type KycConsentDocument = {
   title: string;
   /** URL the document body is hosted at. */
   url: string;
-  /** Whether this session already consented to this document version. */
+};
+
+/**
+ * A legal document in the session-scoped idOS / KYC-provider catalog
+ * (`GET`/`POST /sessions/{sessionId}/disclaimers`).
+ */
+export type KycConsentDocument = KycCatalogDocument & {
+  /** Whether the document version has already been consented to. */
   consented: boolean;
 };
 
@@ -190,8 +164,54 @@ export type KycConsentRecord = {
 };
 
 /**
+ * MoonPay vendor T&C1 acceptance persisted under
+ * {@link KycVendorDisclaimersAccepted.moonpay}.
+ */
+export type KycMoonpayVendorDisclaimersAccepted = {
+  /** ISO-8601 timestamp of terms acceptance for MoonPay. */
+  termsAcceptedAt: string;
+};
+
+/**
+ * Iron vendor T&C1 acceptance persisted under
+ * {@link KycVendorDisclaimersAccepted.iron}.
+ */
+export type KycIronVendorDisclaimersAccepted = {
+  /** IDs of Iron vendor disclaimers the customer accepted. */
+  disclaimerIds: string[];
+};
+
+/**
+ * Persisted KYC-provider disclaimer acceptance (T&C2) with a fixed `sumsub`
+ * key.
+ */
+export type KycProviderDisclaimersAccepted = {
+  sumsub: KycConsentRecord[] | null;
+};
+
+/**
+ * Persisted vendor-disclaimer acceptance with fixed `moonpay` and `iron` keys.
+ */
+export type KycVendorDisclaimersAccepted = {
+  moonpay: KycMoonpayVendorDisclaimersAccepted | null;
+  iron: KycIronVendorDisclaimersAccepted | null;
+};
+
+/**
+ * idOS / KYC-provider disclaimer catalog returned by
+ * `GET /disclaimers?country=` (no session — no credential-reuse consent state).
+ */
+export type KycDisclaimersCatalog = {
+  /** idOS legal documents. */
+  idOS: KycCatalogDocument[];
+  /** KYC provider (SumSub) legal documents. */
+  kycProvider: KycCatalogDocument[];
+};
+
+/**
  * Session-scoped disclaimer catalog returned by
- * `GET`/`POST /sessions/{sessionId}/disclaimers`.
+ * `GET`/`POST /sessions/{sessionId}/disclaimers`. Documents additionally report
+ * whether that version was already consented to for the session.
  */
 export type KycSessionDisclaimers = {
   /** idOS legal documents. */
@@ -200,57 +220,4 @@ export type KycSessionDisclaimers = {
   kycProvider: KycConsentDocument[];
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
-};
-
-/**
- * Parameters passed to a platform SumSub launcher.
- */
-export type KycSumSubLaunchParams = {
-  /**
-   * The applicant access token used to initialize the SumSub SDK.
-   */
-  applicantAccessToken: string;
-
-  /**
-   * Called by the SDK when the access token expires; must resolve with a fresh
-   * applicant access token.
-   */
-  onTokenExpiration: () => Promise<string>;
-
-  /**
-   * Called when the SDK reports a status transition.
-   */
-  onStatusChange?: (prevStatus: string, newStatus: string) => void;
-
-  /**
-   * BCP-47 locale for the SDK UI.
-   */
-  locale?: string;
-
-  /**
-   * Enables SDK debug logging.
-   */
-  debug?: boolean;
-};
-
-/**
- * Platform adapter that launches the native/web SumSub SDK.
- *
- * The KYC controller is platform-agnostic and does not import any SDK; each
- * client (mobile / extension / web) injects an implementation of this
- * interface. The controller owns all orchestration (session creation, token
- * exchange, token refresh, state) and only delegates the actual SDK
- * presentation to `launch`.
- */
-export type KycSumSubLauncher = {
-  /**
-   * Whether the underlying SDK is available in the current runtime (e.g. the
-   * native module is linked). When `false`, `startSumSub` fails fast.
-   */
-  isAvailable(): boolean;
-
-  /**
-   * Presents the SumSub verification flow and resolves with the SDK result.
-   */
-  launch(params: KycSumSubLaunchParams): Promise<Record<string, unknown>>;
 };

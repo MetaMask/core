@@ -25,6 +25,8 @@ import type {
   GetAvailableDexsParams,
   LiquidationPriceParams,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   FeeCalculationParams,
   FeeCalculationResult,
   OrderParams,
@@ -32,12 +34,14 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  PerpsProviderType,
   TerminalAssetMetadata,
 } from '../types/index.js';
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
 import { applyMarketFilters } from '../utils/marketUtils.js';
+import { applyFeeResolution } from '../utils/subscriptionFeeWaiver.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -714,7 +718,7 @@ export class MarketDataService {
    * Get available markets
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
    * When `useTerminalApi` is true, attempts the Terminal API first; on failure or empty
-   * response, falls back silently to the HyperLiquid provider path.
+   * response, falls back silently to the provider path.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
@@ -733,7 +737,12 @@ export class MarketDataService {
     isMarketAllowed?: (symbol: string) => boolean;
   }): Promise<MarketInfo[]> {
     const { provider, params, context, isMarketAllowed } = options;
-    const useTerminalApi = params?.useTerminalApi;
+    // The Terminal API describes HYPERLIQUID markets only: serving its
+    // metadata (minimums, leverage caps) while another venue is active
+    // would hand the UI the wrong venue's trading rules — found on
+    // device as a Lighter order form defaulting below the venue floor.
+    const useTerminalApi =
+      params?.useTerminalApi && provider.protocolId === 'hyperliquid';
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -891,7 +900,10 @@ export class MarketDataService {
   }): Promise<PerpsMarketData[]> {
     const { provider, params, context } = options;
     const { globalSnapshot } = context;
-    const useTerminalApi = params?.useTerminalApi;
+    // Legacy Terminal metadata is HyperLiquid-specific. Aggregated and
+    // direct non-HyperLiquid results must retain their own venue metadata.
+    const useTerminalApi =
+      params?.useTerminalApi && provider.protocolId === 'hyperliquid';
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -1209,6 +1221,38 @@ export class MarketDataService {
   }
 
   /**
+   * Project the position that would remain after a proposed order.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - Live position plus the proposed order.
+   * @param options.context - The service context for dependencies.
+   * @returns Discriminated preview of the resulting position.
+   */
+  async previewPositionModify(options: {
+    provider: PerpsProvider;
+    params: PositionModifyPreviewParams;
+    context: ServiceContext;
+  }): Promise<PositionModifyPreviewResult> {
+    const { provider, params } = options;
+
+    try {
+      return await provider.previewPositionModify(params);
+    } catch (error) {
+      this.#deps.logger.error(
+        ensureError(error, 'MarketDataService.previewPositionModify'),
+        {
+          context: {
+            name: 'MarketDataService.previewPositionModify',
+            data: { params },
+          },
+        },
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Calculate maintenance margin for a position
    *
    * @param options - The configuration options.
@@ -1246,18 +1290,22 @@ export class MarketDataService {
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.asset - The asset identifier.
+   * @param options.providerId - Optional route for an aggregated provider.
    * @param options.context - The service context for dependencies.
    * @returns The result of the operation.
    */
   async getMaxLeverage(options: {
     provider: PerpsProvider;
     asset: string;
+    providerId?: PerpsProviderType;
     context: ServiceContext;
   }): Promise<number> {
-    const { provider, asset } = options;
+    const { provider, asset, providerId } = options;
 
     try {
-      return await provider.getMaxLeverage(asset);
+      return providerId === undefined
+        ? await provider.getMaxLeverage(asset)
+        : await provider.getMaxLeverage(asset, providerId);
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.getMaxLeverage'),
@@ -1291,12 +1339,24 @@ export class MarketDataService {
     try {
       const fees = await provider.calculateFees(params);
 
+      // Re-price the MetaMask component from the unified resolution, which the
+      // controller computed against this quote's own order notional. The
+      // provider only knows the discount the last submit pushed into it, so
+      // without this a partial subscription blend would be quoted at a rate the
+      // order does not actually pay.
+      const priced = applyFeeResolution({
+        fees,
+        resolution: context.feeResolution,
+        amount: params.amount,
+        chargesBuilderFee: fees.chargesMetamaskBuilderFee,
+      });
+
       // Read-only preview of the same cached benefits snapshot the fee resolver
-      // reads. The quoted rates are left untouched: surfacing eligibility and
-      // the remaining notional must not mutate the cap or the cache.
+      // reads. Surfacing eligibility and the remaining notional must not mutate
+      // the cap or the cache.
       return context.subscriptionFeeWaiver
-        ? { ...fees, subscription: context.subscriptionFeeWaiver }
-        : fees;
+        ? { ...priced, subscription: context.subscriptionFeeWaiver }
+        : priced;
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.calculateFees'),

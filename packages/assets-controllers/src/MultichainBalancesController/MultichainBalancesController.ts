@@ -126,7 +126,7 @@ const balancesControllerMetadata: StateMetadata<MultichainBalancesControllerStat
   {
     balances: {
       includeInStateLogs: false,
-      persist: true,
+      persist: false,
       includeInDebugSnapshot: false,
       usedInUi: true,
     },

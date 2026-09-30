@@ -96,7 +96,7 @@ export async function extractFrom(
       await Promise.allSettled([rm(tempDir, rmOpts), rm(dir, rmOpts)])
     )
       .filter((r) => r.status === 'rejected')
-      .map((r) => (r as PromiseRejectedResult).reason);
+      .map((r) => r.reason);
 
     // if we failed to clean up, create an aggregate error message
     if (rmErrors.length) {
@@ -172,7 +172,7 @@ async function extractFromTar(
             path: absolutePath,
             binary: entry.path as Binary,
           });
-          return undefined;
+          return;
         },
       },
       binaries,

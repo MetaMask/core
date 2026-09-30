@@ -9,7 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [11.0.0]
+
+### Added
+
+- **BREAKING:** Add `AccountTreeController:removeAccountWallet` ([#10253](https://github.com/MetaMask/core/pull/10253))
+  - It removes all accounts in a non-primary wallet.
+  - It rejects removal of the primary HD wallet.
+  - We now need those new actions on the messenger `MultichainAccountService:removeMultichainAccountWallet`, `KeyringController:removeAccount` and `AccountsController:getAccounts`.
+  - Also reports errors for non-entropy account wallet removal failures, matching the pattern used by `MultichainAccountService:removeMultichainAccountWallet`.
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^33.0.0` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/multichain-account-service` from `^14.0.0` to `^14.1.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/multichain-account-service` from `^13.0.2` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [9.0.0]
+
+### Added
+
+- Add `AccountTreeSnapshot:strip{Metadata,Secrets}` support ([#10112](https://github.com/MetaMask/core/pull/10112))
+  - This can be used to mutate the snapshot before calling `:importState` and ease custom flow integration where secrets and metadata would be imported in 2-steps.
+
+### Changed
+
+- **BREAKING:** `metadata` is now optional on `AccountWalletPayloadMetadata`, `AccountWalletGroupPayloadMetadata`, and all wallet/group payload entry types ([#10112](https://github.com/MetaMask/core/pull/10112))
+  - Consumers reading `metadata` from a snapshot or payload must now guard against `undefined` (e.g. after calling `AccountTreeSnapshot.stripMetadata()`).
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [8.1.0]
+
+### Added
+
+- Add `AccountTreeController:isInitialized` action so consumers can query whether `init()` has completed ([#10059](https://github.com/MetaMask/core/pull/10059))
+
+### Changed
+
 - Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [8.0.0]
 
@@ -674,7 +737,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.1...@metamask/account-tree-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.0...@metamask/account-tree-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@9.0.0...@metamask/account-tree-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...@metamask/account-tree-controller@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...@metamask/account-tree-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...@metamask/account-tree-controller@8.0.0
 [7.6.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.0...@metamask/account-tree-controller@7.6.1
 [7.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.5...@metamask/account-tree-controller@7.6.0

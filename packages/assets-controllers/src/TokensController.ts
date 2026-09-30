@@ -42,7 +42,7 @@ import { isStrictHexString } from '@metamask/utils';
 import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil.js';
@@ -110,19 +110,19 @@ export type TokensControllerState = {
 const metadata: StateMetadata<TokensControllerState> = {
   allTokens: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allIgnoredTokens: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allDetectedTokens: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
@@ -553,10 +553,10 @@ export class TokensController extends BaseController<
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
-      if (previousIndex !== -1) {
-        newTokens[previousIndex] = newEntry;
-      } else {
+      if (previousIndex === -1) {
         newTokens.push(newEntry);
+      } else {
+        newTokens[previousIndex] = newEntry;
       }
 
       const newIgnoredTokens = ignoredTokens.filter(
@@ -791,10 +791,7 @@ export class TokensController extends BaseController<
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
 
-        if (previousImportedIndex !== -1) {
-          // Update existing data of imported token
-          newTokens[previousImportedIndex] = newEntry;
-        } else {
+        if (previousImportedIndex === -1) {
           const ignoredTokenIndex =
             allIgnoredTokens?.[chainId]?.[accountAddress]?.indexOf(address) ??
             -1;
@@ -805,12 +802,15 @@ export class TokensController extends BaseController<
               (token) =>
                 token.address.toLowerCase() === checksumAddress.toLowerCase(),
             );
-            if (previousDetectedIndex !== -1) {
-              newDetectedTokens[previousDetectedIndex] = newEntry;
-            } else {
+            if (previousDetectedIndex === -1) {
               newDetectedTokens.push(newEntry);
+            } else {
+              newDetectedTokens[previousDetectedIndex] = newEntry;
             }
           }
+        } else {
+          // Update existing data of imported token
+          newTokens[previousImportedIndex] = newEntry;
         }
       });
 

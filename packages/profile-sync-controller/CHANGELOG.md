@@ -9,11 +9,128 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+
+### Fixed
+
+- Rely on `@metamask/key-tree` crypto implementation for HMAC-SHA-512 instead of hardcoded `noble` implementation ([#10424](https://github.com/MetaMask/core/pull/10424))
+  - `@metamask/key-tree` uses WebCrypto API if available and fallback to `noble` otherwise.
+  - One note, we expect the platform to provide a fully-compliant WebCrypto (`crypto.subtle`) implementation for this to work (`@metamask/key-tree` detection is global and not "per crypto functions").
+
+## [33.0.0]
+
+### Changed
+
+- **BREAKING:** Rename MFA "step-up" to "credential verification", matching the authentication API's `verify` endpoints ([#10432](https://github.com/MetaMask/core/pull/10432), [#10460](https://github.com/MetaMask/core/pull/10460))
+  - Methods and messenger actions: `beginStepUp` → `beginCredentialVerification`, `completeStepUp` → `completeCredentialVerification`, `getElevatedProfileToken` → `getVerificationToken`, `clearStepUpSession` → `clearVerificationSession`
+  - Constant: `STEP_UP_SESSION_TTL_MS` → `VERIFICATION_SESSION_TTL_MS`
+  - State: `stepUpSessionExpiresAt` is removed; call `getVerificationToken()` to check for a live verification session
+  - Types: `ElevatedProfileToken` → `VerificationToken`, `GetElevatedTokenRequest` → `GetVerificationTokenRequest`, and `StepUp` becomes `Verification` in `BeginStepUpRequest`, `CompleteStepUpRequest`, `StepUpChallenge`, `StepUpProof` and `MfaStepUpAssertion`
+  - Error: `ElevatedTokenInvalidError` (`elevated_token_invalid`) → `VerificationTokenInvalidError` (`verification_token_invalid`)
+  - Trace spans: `MFA Step-Up Begin` / `Complete` → `MFA Verification Begin` / `Complete`
+- **BREAKING:** Accept MFA data as the server sends it ([#10432](https://github.com/MetaMask/core/pull/10432))
+  - `email_otp` credentials without an address are kept: `EnrolledCredential.email` is now optional
+  - Verification tokens are accepted with any `amr` method name and any `aal`: `claims.amr` is widened and `claims.aal` is removed, since the server enforces assurance levels
+- Let one verification cover a whole setup flow ([#10432](https://github.com/MetaMask/core/pull/10432))
+  - The verification session lasts as long as its token, up to 15 minutes instead of 1
+  - Enrolling a credential no longer ends the session
+  - `beginCredentialEnrollment` only uses a session younger than 2 minutes (`ENROLLMENT_MAX_SESSION_AGE_MS`), or than its new `maxSessionAgeMs` option
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.0` to `^11.0.1`. ([#10433](https://github.com/MetaMask/core/pull/10433))
+
+## [32.3.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+## [32.3.0]
+
+### Added
+
+- Support AAL2-gated MFA enrollment and sync the MFA SDK with the latest authentication API spec ([#10374](https://github.com/MetaMask/core/pull/10374))
+  - `beginMfaEnrollment` accepts an `accessToken` option so enrollment can begin with an elevated token
+  - `AuthenticationController.beginCredentialEnrollment` sends the verification token while a step-up session is live, since enrolling additional credentials requires AAL2
+  - Add the `email_socially_verified`, `multi_primary_srp` and `aal2_required` MFA error codes, a `StepUpRequiredError` class, and support for the `retry_after_seconds` error field when computing `retryAfterMs`
+- Add `pairedIdentifierIds` to `UserProfile` in `srpSessionData`, set from the login response and, on the primary SRP session, from the SRP and social pairing responses, so clients can tell whether a profile has been socially paired ([#10394](https://github.com/MetaMask/core/pull/10394))
+
+### Changed
+
+- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+
+## [32.2.0]
+
+### Added
+
+- Add `beginStepUp`, `completeStepUp`, `getElevatedProfileToken` and `clearStepUpSession` to `AuthenticationController`, holding the elevated token in memory only behind a hard-expiring `stepUpSessionExpiresAt` state ([#10267](https://github.com/MetaMask/core/pull/10267))
+- Add `refreshEnrolledCredentials`, `beginCredentialEnrollment` and `completeCredentialEnrollment` to `AuthenticationController`, backed by a memory-only `enrolledCredentials` state and an optional `trace` callback ([#10266](https://github.com/MetaMask/core/pull/10266))
+- Add passkey and email OTP enrollment, verification, credential-list, and elevated-token exchange SDK methods ([#10265](https://github.com/MetaMask/core/pull/10265))
+- Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
+- Add `rampsOrders` to `USER_STORAGE_FEATURE_NAMES` ([#10227](https://github.com/MetaMask/core/pull/10227))
+
+## [32.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+### Fixed
+
+- Point leftover `sdk`, `auth`, and `user-storage` subpath `package.json` files at the ESM build ([#10218](https://github.com/MetaMask/core/pull/10218))
+
+## [32.1.0]
+
+### Added
+
+- Add `AuthenticationController.getPartnerIdentityToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email. ([#10164](https://github.com/MetaMask/core/pull/10164))
+
+## [32.0.0]
+
+### Added
+
+- Add `AuthenticationController.clearState()` to reset the controller to `defaultState` (unsigned, both pairing gates re-armed). Clients call this on wallet reset ([#10165](https://github.com/MetaMask/core/pull/10165))
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
+
+### Changed
+
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Prefer `isRampsSyncingEnabled ?? true` in selectors so wallets upgraded before this field existed keep ramps syncing on by default
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Replace `siwe` with `@signinwithethereum/siwe` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
+  - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.1` to `^11.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [30.0.0]
+
+### Added
+
+- **BREAKING:** Add social identifier pairing after SRP sign-in (`POST /api/v2/profile/pair/identifier`) ([#10128](https://github.com/MetaMask/core/pull/10128))
+  - Add `needsSocialPairing?: boolean` to state (defaults `true`; cleared on success or 409 Conflict; left `true` on other failures so the next `performSignIn` retries; cleared without an API call when the user never logged in with a social provider). If `authConnection` is set but the seedless vault is not written yet, the flag stays `true` so onboarding-in-flight sign-ins can retry. Optional in the type so partial-state selectors stay assignable; treat `undefined` as `true`.
+  - Add optional `isSocialPairingEnabled` config callback (defaults to `() => false`). When it returns `true`, Google/Apple/Telegram seedless users are paired after SRP login and profile pairing. Telegram never sends `email` (clients store a display name there).
+  - Use `SeedlessOnboardingController:getAccessToken` to fetch the social JWT (refreshed when expired).
+  - Add `pairSocialIdentifier` to `JwtBearerAuth` / `SRPJwtBearerAuth` and `PairConflictError` for 409 Conflict.
+
+### Changed
+
 - **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))
   - Derive native SIP-6 keys with `@noble/hashes` HMAC-SHA-512 instead of Web Crypto, so auth works on React Native, whose SubtleCrypto cannot HMAC.
 - Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Add `@metamask/key-tree` and `@noble/curves`; remove unused `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, and `@metamask/snaps-utils` dependencies ([#9824](https://github.com/MetaMask/core/pull/9824))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [29.0.0]
 
@@ -913,7 +1030,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
+[32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1
+[32.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...@metamask/profile-sync-controller@32.3.0
+[32.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.1...@metamask/profile-sync-controller@32.2.0
+[32.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...@metamask/profile-sync-controller@32.1.1
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...@metamask/profile-sync-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@30.0.0...@metamask/profile-sync-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...@metamask/profile-sync-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0
 [28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...@metamask/profile-sync-controller@28.2.0

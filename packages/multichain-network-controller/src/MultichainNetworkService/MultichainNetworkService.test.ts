@@ -1,6 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId } from '@metamask/utils';
-import { chunk } from 'lodash';
+import { chunk } from 'lodash-es';
 
 import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
@@ -90,7 +90,7 @@ describe('MultichainNetworkService', () => {
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
-          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}`,
         );
       }
 
@@ -131,7 +131,7 @@ describe('MultichainNetworkService', () => {
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
-          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}`,
         );
       }
 

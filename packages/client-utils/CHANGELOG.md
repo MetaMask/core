@@ -9,7 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.6.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `eth-chainlist` from `^0.0.795` to `^0.0.844` ([#10438](https://github.com/MetaMask/core/pull/10438), [#10524](https://github.com/MetaMask/core/pull/10524))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+
+## [3.0.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
+
+### Fixed
+
+- Omit fungible `TokenAmount.amount` from API and local activity mappers when decimals are unknown; optional `getKnownTokenDecimals` recovers scale from host token state ([#10256](https://github.com/MetaMask/core/pull/10256))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/core-backend` from `^9.0.0` to `^10.0.0` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^70.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10080](https://github.com/MetaMask/core/pull/10080), [#10046](https://github.com/MetaMask/core/pull/10046), [#10124](https://github.com/MetaMask/core/pull/10124), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [2.1.1]
 
@@ -150,7 +189,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.3...HEAD
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.2...@metamask/client-utils@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.1...@metamask/client-utils@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.0...@metamask/client-utils@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...@metamask/client-utils@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.0...@metamask/client-utils@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.2...@metamask/client-utils@2.1.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.1...@metamask/client-utils@2.0.2

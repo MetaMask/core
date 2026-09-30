@@ -37,7 +37,7 @@ export const accountsController: InitializationConfiguration<
       events: [
         // AccountsController subscribes to :stateChange internally; the
         // delegation must match until that package migrates to :stateChanged.
-        // eslint-disable-next-line no-restricted-syntax
+
         'KeyringController:stateChange',
         'SnapAccountService:accountAssetListUpdated',
         'SnapAccountService:accountBalancesUpdated',

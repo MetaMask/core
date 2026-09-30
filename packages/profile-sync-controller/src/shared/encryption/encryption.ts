@@ -209,10 +209,10 @@ class EncryptorDecryptor {
         try {
           return this.getSalt(e);
         } catch {
-          return undefined;
+          return;
         }
       })
-      .filter((s): s is Uint8Array => s !== undefined);
+      .filter((s): s is Uint8Array<ArrayBuffer> => s !== undefined);
 
     const strSet = new Set(salts.map((arr) => arr.toString()));
     return strSet.size === salts.length;

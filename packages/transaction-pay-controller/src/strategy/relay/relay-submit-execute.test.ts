@@ -1,7 +1,10 @@
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
@@ -12,6 +15,7 @@ import {
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
 import {
+  isSubsidizedRelayQuote,
   getRelayExecuteRequest,
   submitViaRelayExecute,
 } from './relay-submit-execute.js';
@@ -71,12 +75,12 @@ const ORIGINAL_QUOTE_MOCK = {
         {
           data: {
             chainId: 1,
-            data: '0x1234' as Hex,
+            data: '0x1234',
             from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
-            to: '0xfedcb' as Hex,
+            to: '0xfedcb',
             value: '1234',
           },
           status: 'complete',
@@ -109,7 +113,7 @@ describe('Relay Submit Execute', () => {
   let successfulFetchMock: jest.SpyInstance;
   let quote: TransactionPayQuote<RelayQuote>;
   let transaction: TransactionMeta;
-  let allParams: { to?: Hex; data?: Hex; value?: Hex }[];
+  let allParams: TransactionParams[];
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -127,7 +131,7 @@ describe('Relay Submit Execute', () => {
     successfulFetchMock.mockResolvedValue({
       ok: true,
       json: async () => EXECUTE_RESPONSE_MOCK,
-    } as Response);
+    });
 
     quote = {
       fees: {
@@ -157,15 +161,30 @@ describe('Relay Submit Execute', () => {
 
     allParams = [
       {
-        to: '0xfedcb' as Hex,
-        data: '0x1234' as Hex,
-        value: '0x4d2' as Hex,
+        from: FROM_MOCK,
+        to: '0xfedcb',
+        data: '0x1234',
+        value: '0x4d2',
       },
     ];
   });
 
   afterEach(() => {
     successfulFetchMock.mockRestore();
+  });
+
+  describe('isSubsidizedRelayQuote', () => {
+    it.each([
+      [{ fees: { subsidized: { amountUsd: 1 } } }, true],
+      [{ fees: { subsidized: { amountUsd: 0.000001 } } }, true],
+      [{ fees: { subsidized: { amountUsd: 0 } } }, false],
+      [{ fees: { subsidized: { amountUsd: -1 } } }, false],
+      [{}, false],
+      [{ fees: {} }, false],
+      [{ fees: { subsidized: {} } }, false],
+    ])('returns %s for %p', (testQuote, expected) => {
+      expect(isSubsidizedRelayQuote(testQuote as RelayQuote)).toBe(expected);
+    });
   });
 
   describe('submitViaRelayExecute', () => {
@@ -216,11 +235,13 @@ describe('Relay Submit Execute', () => {
 
       const multiParams = [
         {
+          from: FROM_MOCK,
           to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
           data: '0x1111' as Hex,
           value: '0x1' as Hex,
         },
         {
+          from: FROM_MOCK,
           to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
           data: '0x2222' as Hex,
           value: '0x2' as Hex,
@@ -248,8 +269,8 @@ describe('Relay Submit Execute', () => {
     });
 
     it('does not use stale txParams.data from the incoming transaction', async () => {
-      transaction.txParams.data = '0xstaledata' as Hex;
-      transaction.txParams.to = '0xstaleto' as Hex;
+      transaction.txParams.data = '0xstaledata';
+      transaction.txParams.to = '0xstaleto';
 
       await submitViaRelayExecute(quote, transaction, messenger, allParams);
 
@@ -280,7 +301,7 @@ describe('Relay Submit Execute', () => {
     });
 
     it('throws when metamask.signature is missing', async () => {
-      quote.original.metamask.signature = undefined as never;
+      quote.original.metamask.signature = undefined;
 
       await expect(
         submitViaRelayExecute(quote, transaction, messenger, allParams),
@@ -332,6 +353,7 @@ describe('Relay Submit Execute', () => {
     it('uses fallback values for missing data and value in source params', async () => {
       const paramsWithoutDataOrValue = [
         {
+          from: FROM_MOCK,
           to: '0xfedcb' as Hex,
           data: undefined,
           value: undefined,
@@ -367,7 +389,7 @@ describe('Relay Submit Execute', () => {
         json: async () => ({
           message: 'failed to decode param in array[0] invalid JSON input',
         }),
-      } as Response);
+      });
 
       await expect(
         submitViaRelayExecute(quote, transaction, messenger, allParams),
@@ -390,7 +412,7 @@ describe('Relay Submit Execute', () => {
           amountFormatted: '1.00',
           amountUsd: '1.00',
           currency: {
-            address: '0xtoken' as Hex,
+            address: '0xtoken',
             chainId: 137,
             decimals: 6,
           },
@@ -406,9 +428,10 @@ describe('Relay Submit Execute', () => {
 
       allParams = [
         {
-          to: '0xfedcb' as Hex,
-          data: '0xa9059cbb000000000000000000000000abcdef1234567890abcdef1234567890abcdef120000000000000000000000000000000000000000000000000000000000989680' as Hex,
-          value: '0x4d2' as Hex,
+          from: FROM_MOCK,
+          to: '0xfedcb',
+          data: '0xa9059cbb000000000000000000000000abcdef1234567890abcdef1234567890abcdef120000000000000000000000000000000000000000000000000000000000989680',
+          value: '0x4d2',
         },
       ];
     });
@@ -450,7 +473,7 @@ describe('Relay Submit Execute', () => {
     });
 
     it('throws when quote is missing metamask.signature', async () => {
-      quote.original.metamask.signature = undefined as never;
+      quote.original.metamask.signature = undefined;
 
       await expect(
         submitViaRelayExecute(quote, transaction, messenger, allParams),
@@ -542,6 +565,7 @@ describe('Relay Submit Execute', () => {
     it('uses 0x fallback when params.data is undefined', async () => {
       const paramsWithoutData = [
         {
+          from: FROM_MOCK,
           to: '0xfedcb' as Hex,
           data: undefined,
           value: '0x4d2' as Hex,
@@ -569,8 +593,8 @@ describe('Relay Submit Execute', () => {
     });
 
     it('does not regenerate batch txParams when regenerateBatchParams is false (default)', async () => {
-      transaction.txParams.data = '0xoriginaldata2' as Hex;
-      transaction.txParams.to = '0xoriginalto2' as Hex;
+      transaction.txParams.data = '0xoriginaldata2';
+      transaction.txParams.to = '0xoriginalto2';
 
       await getRelayExecuteRequest({
         allParams,
@@ -590,8 +614,8 @@ describe('Relay Submit Execute', () => {
     });
 
     it('does not regenerate txParams when regenerateBatchParams is false (default)', async () => {
-      transaction.txParams.data = '0xoriginaldata' as Hex;
-      transaction.txParams.to = '0xoriginalto' as Hex;
+      transaction.txParams.data = '0xoriginaldata';
+      transaction.txParams.to = '0xoriginalto';
 
       await getRelayExecuteRequest({
         allParams,
@@ -660,11 +684,13 @@ describe('Relay Submit Execute', () => {
 
       const multiParams = [
         {
+          from: FROM_MOCK,
           to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
           data: '0x1111' as Hex,
           value: '0x1' as Hex,
         },
         {
+          from: FROM_MOCK,
           to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
           data: '0x2222' as Hex,
           value: '0x2' as Hex,

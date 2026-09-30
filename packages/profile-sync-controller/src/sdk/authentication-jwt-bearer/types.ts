@@ -16,7 +16,43 @@ export enum AuthType {
  * Orthogonal to {@link SrpLoginTag}: a secondary entropy source can still be
  * `GOOGLE` / `APPLE` / `TELEGRAM` if it is social-backed.
  */
-export type LoginIdentifierType = 'SRP' | 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+export type LoginIdentifierType = 'SRP' | SocialIdentifierType;
+
+/**
+ * Social identifier types accepted by `POST /api/v2/profile/pair/identifier`.
+ * Telegram uses the same Web3Auth access token as Google/Apple; do not send
+ * `email` for Telegram (clients store a display name there, not an address).
+ */
+export type SocialIdentifierType = 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+
+/**
+ * Parameters for attaching a Google/Apple/Telegram identifier to an
+ * existing profile.
+ */
+export type PairSocialIdentifierParams = {
+  identifierType: SocialIdentifierType;
+  socialJwt: string;
+  /**
+   * Required by the API for `GOOGLE`. Optional for `APPLE`. Omit for
+   * `TELEGRAM`.
+   */
+  email?: string;
+};
+/**
+ * Claim names accepted by `POST /api/v2/oidc/token`. Only `email` is
+ * supported; `email_verified` is set by the server when email is present.
+ */
+export type OidcTokenClaim = 'email';
+
+/**
+ * Non-empty list of claims to embed. The API requires at least one name.
+ */
+export type OidcTokenClaims = [OidcTokenClaim, ...OidcTokenClaim[]];
+
+/**
+ * Partner audience stamped on the minted JWT.
+ */
+export type OidcTokenAudience = 'kyc' | 'iron';
 
 /**
  * Tag appended to the SRP login `raw_message` so the auth server can
@@ -49,6 +85,11 @@ export type AccessToken = {
   obtainedAt: number;
 };
 
+export type ProfileIdentifier = {
+  id: string;
+  type: string;
+};
+
 export type UserProfile = {
   /**
    * The "Identifier" used to log in with.
@@ -69,6 +110,11 @@ export type UserProfile = {
    * Server MetaMetrics ID. Allows grouping of user events cross platform.
    */
   metaMetricsId: string;
+  /**
+   * All identifiers attached to this profile (SRP, social, MFA).
+   * Absent on sessions stored before this field existed.
+   */
+  pairedIdentifierIds?: ProfileIdentifier[];
 };
 
 /**

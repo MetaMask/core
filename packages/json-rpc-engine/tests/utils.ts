@@ -1,7 +1,7 @@
 import type { JsonRpcRequest } from '@metamask/utils';
-import type { JsonRpcMiddleware } from 'src/v2/JsonRpcEngineV2';
 
 import { requestProps } from '../src/v2/compatibility-utils.js';
+import type { JsonRpcMiddleware } from '../src/v2/JsonRpcEngineV2.js';
 import type { JsonRpcNotification } from '../src/v2/utils.js';
 
 const jsonrpc = '2.0' as const;
@@ -20,13 +20,12 @@ export const makeRequest = <Request extends JsonRpcRequest = JsonRpcRequest>(
 
 export const makeNotification = <Request extends Partial<JsonRpcRequest>>(
   params: Request = {} as Request,
-): JsonRpcNotification =>
-  ({
-    jsonrpc,
-    method: 'test_request',
-    params: [],
-    ...params,
-  }) as JsonRpcNotification;
+): JsonRpcNotification => ({
+  jsonrpc,
+  method: 'test_request',
+  params: [],
+  ...params,
+});
 
 /**
  * Creates a {@link JsonRpcCall} middleware that returns `null`.

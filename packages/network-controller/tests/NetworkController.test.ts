@@ -10,6 +10,9 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
+import type { MockInternalProviderStub } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
@@ -18,9 +21,6 @@ import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import type { FakeProviderStub } from '../../../tests/fake-provider.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { NetworkStatus } from '../src/constants.js';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
@@ -91,7 +91,9 @@ type Block = {
 };
 
 const createNetworkClientMock = jest.mocked(createNetworkClient);
-const uuidV4Mock = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV4Mock = jest.mocked<() => string>(uuidV4);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
@@ -13092,7 +13094,7 @@ describe('NetworkController', () => {
 
     it('allows calling `getNetworkConfigurationByNetworkClientId` when subscribing to state changes containing new endpoints', async () => {
       const network = buildCustomNetworkConfiguration({
-        chainId: '0x1' as Hex,
+        chainId: '0x1',
         name: 'mainnet',
         nativeCurrency: 'ETH',
         blockExplorerUrls: [],
@@ -16874,7 +16876,7 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker({
+    blockTracker: new MockPollingBlockTracker({
       provider,
     }),
     destroy: (): void => {
@@ -16893,7 +16895,7 @@ function buildFakeClient(
  * default.
  * @returns The object.
  */
-function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
+function buildFakeProvider(stubs: MockInternalProviderStub[] = []): Provider {
   const completeStubs = stubs.slice();
   if (!stubs.some((stub) => stub.request.method === 'eth_getBlockByNumber')) {
     completeStubs.unshift({
@@ -16902,7 +16904,7 @@ function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
       discardAfterMatching: false,
     });
   }
-  return new FakeProvider({ stubs: completeStubs });
+  return new MockInternalProvider({ stubs: completeStubs });
 }
 
 /**
@@ -16931,7 +16933,7 @@ async function setFakeProvider(
     stubs = [],
     stubLookupNetworkWhileSetting = false,
   }: {
-    stubs?: FakeProviderStub[];
+    stubs?: MockInternalProviderStub[];
     stubLookupNetworkWhileSetting?: boolean;
   } = {},
 ): Promise<void> {

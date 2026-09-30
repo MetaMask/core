@@ -1,6 +1,4 @@
-#!/usr/bin/env yarn tsx
-
-import { main } from './manage-codeowners/main.js';
+import { main } from './manage-codeowners/main.ts';
 
 main().catch(function (error) {
   console.error(error);

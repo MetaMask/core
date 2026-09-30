@@ -1,14 +1,11 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
-      "path": "../assets-controller"
+      "path": "../accounts-controller"
     },
     {
-      "path": "../assets-controllers"
+      "path": "../assets-controller"
     },
     {
       "path": "../base-controller"
@@ -39,6 +36,9 @@
     },
     {
       "path": "../sentinel-api-service"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

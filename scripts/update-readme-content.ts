@@ -1,6 +1,4 @@
-#!yarn tsx
-
-import execa from 'execa';
+import { execa } from 'execa';
 import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
@@ -15,7 +13,7 @@ const DEPENDENCY_GRAPH_START_MARKER = '<!-- start dependency graph -->';
 const DEPENDENCY_GRAPH_END_MARKER = '<!-- end dependency graph -->';
 const PACKAGE_LIST_START_MARKER = '<!-- start package list -->';
 const PACKAGE_LIST_END_MARKER = '<!-- end package list -->';
-const README_PATH = path.resolve(__dirname, '../README.md');
+const README_PATH = path.resolve(import.meta.dirname, '../README.md');
 
 main().catch((error) => {
   console.error(error);
@@ -62,7 +60,7 @@ async function main(): Promise<void> {
         'README content is out of date. Run `yarn readme-content:update` to update it.',
       );
       // `process` is a constant.
-      // eslint-disable-next-line require-atomic-updates
+      // oxlint-disable-next-line require-atomic-updates
       process.exitCode = 1;
     }
   } else {

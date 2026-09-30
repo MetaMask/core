@@ -12,7 +12,7 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString, parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { orderBy } from 'lodash';
+import { orderBy } from 'lodash-es';
 import {
   createSelector as createSelector_,
   createStructuredSelector as createStructuredSelector_,
@@ -241,6 +241,7 @@ export const selectExchangeRateByAssetId = (
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
     const marketDataByChain =
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       (marketData as Record<string, EvmTokenExchangeRates> | undefined) ?? {};
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];
@@ -449,7 +450,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): QuoteResponse[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -458,6 +459,18 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
+        if (
+          quotesWithMetadata.every(
+            (quote) => quote.quote.priceData?.cost?.valueInCurrency,
+          )
+        ) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ quote: { priceData } }) =>
+              Number(priceData?.cost?.valueInCurrency),
+            'asc',
+          );
+        }
         if (
           quotesWithMetadata.every(
             (quote) => quote.quote.priceData?.priceImpact?.amount,
@@ -469,7 +482,8 @@ const selectSortedBridgeQuotes = createBridgeSelector(
               Number(priceData?.priceImpact?.amount),
             'asc',
           );
-        } else if (
+        }
+        if (
           quotesWithMetadata.every(
             (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
           )

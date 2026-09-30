@@ -124,6 +124,14 @@ export async function updateQuotes(
       return false;
     }
 
+    // Refreshing the balance above re-derives max source amounts, so read the
+    // latest values instead of the snapshot taken before the refresh. Using
+    // the snapshot quotes a max amount against a stale balance, which requests
+    // a zero source amount when the token was selected before its balance
+    // loaded.
+    const latestSourceAmounts =
+      getSourceAmounts(messenger, transactionId) ?? sourceAmounts;
+
     const requests = buildQuoteRequests({
       atomic,
       from,
@@ -134,7 +142,7 @@ export async function updateQuotes(
       paymentOverride,
       paymentToken,
       refundTo,
-      sourceAmounts,
+      sourceAmounts: latestSourceAmounts,
       tokens,
       transactionId,
     });
@@ -168,9 +176,8 @@ export async function updateQuotes(
 
     const totals = calculateTotals({
       fiatPaymentAmount: fiatPayment?.amountFiat,
-      isMaxAmount,
       messenger,
-      quotes: executableQuotes as TransactionPayQuote<unknown>[],
+      quotes: executableQuotes,
       tokens,
       transaction,
     });
@@ -182,7 +189,7 @@ export async function updateQuotes(
       selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
       hasQuotes: executableQuotes.length > 0,
       isPostQuote,
-      messenger: messenger as never,
+      messenger,
       paymentToken,
       strategy: executableQuotes[0]?.strategy,
       totals,
@@ -190,6 +197,7 @@ export async function updateQuotes(
     });
 
     updateTransactionData(transactionId, (data) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       data.quotes = quotes as never;
       data.quoteError = error;
       data.quotesLastUpdated = Date.now();
@@ -255,7 +263,7 @@ function syncTransaction({
   updateTransaction(
     {
       transactionId,
-      messenger: messenger as never,
+      messenger,
       note: 'Update transaction pay data',
     },
     (tx: TransactionMeta) => {
@@ -373,6 +381,22 @@ function clearControllerIfCurrent(
   if (inFlightQuoteRequests.get(transactionId) === controller) {
     inFlightQuoteRequests.delete(transactionId);
   }
+}
+
+/**
+ * Read the current source amounts for a transaction from controller state.
+ *
+ * @param messenger - Messenger instance.
+ * @param transactionId - ID of the transaction.
+ * @returns The source amounts, or `undefined` if the transaction has none.
+ */
+function getSourceAmounts(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): TransactionPaySourceAmount[] | undefined {
+  return messenger.call('TransactionPayController:getState').transactionData[
+    transactionId
+  ]?.sourceAmounts;
 }
 
 /**

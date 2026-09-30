@@ -1,6 +1,9 @@
 export {
   KycController,
   getDefaultKycControllerState,
+  getDefaultKycProviderDisclaimersAccepted,
+  getDefaultKycVendorDisclaimersAccepted,
+  KYC_PROVIDER_FLOW_STATUSES,
   controllerName,
 } from './KycController.js';
 export type {
@@ -11,38 +14,36 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
-  KycControllerStatusChangedEvent,
+  FetchSessionDisclaimersParams,
+  KycProviderFlowStatus,
 } from './KycController.js';
 export type {
-  KycControllerAcceptTermsAndStartSessionAction,
-  KycControllerBuildAuthFrameUrlAction,
-  KycControllerBuildCheckFrameUrlAction,
-  KycControllerBuildResetFrameUrlAction,
-  KycControllerCheckKycRequiredAction,
-  KycControllerClearSavedTermsAction,
   KycControllerClearStateAction,
-  KycControllerCreateVendorCustomerAction,
-  KycControllerGetCustomerIdentityAction,
-  KycControllerGetKycStatusAction,
-  KycControllerGetSessionStatusAction,
-  KycControllerHandleFrameMessageAction,
-  KycControllerInitializeAction,
-  KycControllerLoadDisclaimersAction,
-  KycControllerRefreshKycStatusAction,
+  KycControllerFetchSessionDisclaimersAction,
+  KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetProviderFlowStatusAction,
+  KycControllerGetSessionStatusForVendorAction,
+  KycControllerHasCompletedSessionDisclaimersAction,
+  KycControllerHasCompletedVendorDisclaimersAction,
+  KycControllerLaunchProviderFlowAction,
+  KycControllerRecordSessionDisclaimersAction,
+  KycControllerRecordVendorDisclaimersAction,
+  KycControllerRefreshSessionStatusAction,
   KycControllerResetAction,
-  KycControllerStartSumSubAction,
+  KycControllerStartSessionAction,
+  KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
   CapabilityAuthorization,
-  CheckKycRequiredParams,
   CreateVendorCustomerParams,
-  CreateSessionParams,
+  CreateMoonpaySessionParams,
   CreateUkycSessionParams,
   EncryptionSchema,
-  FetchSessionDisclaimersParams,
+  FetchSessionDisclaimersByCountryParams,
+  FetchSessionDisclaimersBySessionIdParams,
   GetSessionStatusParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -59,27 +60,24 @@ export type {
   UkycSessionResponse,
 } from './KycService.js';
 export type {
-  KycServiceCheckKycRequiredAction,
   KycServiceCreateVendorCustomerAction,
   KycServiceCreateJourneyAction,
-  KycServiceCreateSessionAction,
+  KycServiceCreateMoonpaySessionAction,
   KycServiceCreateUkycSessionAction,
-  KycServiceFetchDisclaimersAction,
-  KycServiceFetchJwksAction,
-  KycServiceFetchKycStatusAction,
-  KycServiceFetchSessionDisclaimersAction,
+  KycServiceFetchIdosEnclaveJwksAction,
+  KycServiceFetchIdosRelayJwksAction,
+  KycServiceFetchSessionDisclaimersByCountryAction,
+  KycServiceFetchSessionDisclaimersBySessionIdAction,
+  KycServiceFetchVendorDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
+  KycServiceGetSessionStatusForVendorAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
-export {
-  selectIsKycRequiredForProduct,
-  selectKycPhase,
-  selectKycSumSub,
-} from './selectors.js';
+export { selectKycSessionStatus, selectKycVendor } from './selectors.js';
 
 export { alpha2ToAlpha3, ALPHA2_TO_ALPHA3 } from './countryCodes.js';
 export { decryptCredentials, generateKeyPair } from './crypto.js';
@@ -91,22 +89,28 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
-  KycCustomerIdentity,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycSumSubLaunchParams,
-  KycSumSubLauncher,
-  KycSumSubStatus,
-  KycUserStatus,
-  KycUserStatusResponse,
   KycVendor,
+  KycIronVendorDisclaimersAccepted,
+  KycMoonpayVendorDisclaimersAccepted,
+  KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
+export type {
+  KycSumSubLaunchParams,
+  KycSumSubLauncher,
+  KycSumSubSdkStatus,
+  KycSumSubStatus,
+} from './providers/sumsub.js';
 
 // UKYC storage-access-token utilities. Exported so a signed capability token can
 // be minted for testing UKYC Storage (see `mintUkycTestToken`).
@@ -141,3 +145,9 @@ export type {
   MintedUkycTestToken,
   MintUkycTestTokenParams,
 } from './ukyc/testToken.js';
+
+export {
+  clearMoonPaySession,
+  MoonPayFrameHandler,
+} from './vendors/MoonPayFrameHandler.js';
+export type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';

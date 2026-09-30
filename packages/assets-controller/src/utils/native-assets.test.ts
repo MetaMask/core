@@ -1,9 +1,10 @@
-import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 
 import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  isNativeAssetId,
+  NATIVE_ASSETS,
 } from './native-assets.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
@@ -15,13 +16,37 @@ jest.mock('@metamask/controller-utils', () => ({
 const fetchWithErrorHandlingMock = jest.mocked(fetchWithErrorHandling);
 
 describe('buildNativeAssetsFromConstant', () => {
-  it('includes a normalized entry for every value in SPOT_PRICES_SUPPORT_INFO', () => {
+  it('includes a normalized entry for every NATIVE_ASSETS chain', () => {
     const result = buildNativeAssetsFromConstant();
-    const supportInfoValues = Object.values(SPOT_PRICES_SUPPORT_INFO);
 
-    for (const assetId of supportInfoValues) {
-      expect(Object.values(result)).toContain(normalizeAssetId(assetId));
+    for (const [chainId, assetId] of Object.entries(NATIVE_ASSETS)) {
+      expect(result[chainId]).toBe(normalizeAssetId(assetId));
     }
+
+    expect(result['bip122:000000000019d6689c085ae165831e93']).toBe(
+      'bip122:000000000019d6689c085ae165831e93/slip44:0',
+    );
+  });
+});
+
+describe('isNativeAssetId', () => {
+  it('returns true for every NATIVE_ASSETS id', () => {
+    for (const assetId of Object.values(NATIVE_ASSETS)) {
+      expect(isNativeAssetId(assetId)).toBe(true);
+    }
+  });
+
+  it('returns false for non-native tokens on a known chain', () => {
+    expect(
+      isNativeAssetId(
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F',
+      ),
+    ).toBe(false);
+    expect(
+      isNativeAssetId(
+        'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+      ),
+    ).toBe(false);
   });
 });
 

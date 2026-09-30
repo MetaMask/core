@@ -117,7 +117,7 @@ export type MultiplexedAccountParams = {
  *   symbols: ['BTC', 'ETH'],
  *   providers: [
  *     ['hyperliquid', hlProvider],
- *     ['myx', myxProvider],
+ *     ['lighter', lighterProvider],
  *   ],
  *   callback: (prices) => {
  *     // prices have providerId injected

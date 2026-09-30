@@ -1,8 +1,8 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
@@ -10,7 +10,10 @@ import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
-const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
+const MOCK_IDOS_ENCLAVE_URL = 'https://idos-enclave.dev-api.cx.metamask.io';
+const MOCK_IDOS_RELAY_URL = 'https://idos-relay.dev-api.cx.metamask.io';
+const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
+const RESIDENCE_COUNTRY = 'USA';
 
 describe('KycService', () => {
   afterEach(() => {
@@ -28,9 +31,9 @@ describe('KycService', () => {
         .reply(200, disclaimers);
       const { service } = getService({ omitFetch: true });
 
-      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
-        disclaimers,
-      );
+      expect(
+        await service.fetchVendorDisclaimers({ country: 'USA' }),
+      ).toStrictEqual(disclaimers);
     });
 
     it('throws when fetch is not globally available and not provided', () => {
@@ -50,8 +53,7 @@ describe('KycService', () => {
         expect(
           () =>
             new KycService({
-              messenger:
-                messenger as unknown as MockAnyNamespace<KycServiceMessenger>,
+              messenger,
               baseUrl: MOCK_API_URL,
             }),
         ).toThrow(
@@ -99,7 +101,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchDisclaimers', () => {
+  describe('fetchVendorDisclaimers', () => {
     it('returns the disclaimers for a country', async () => {
       const disclaimers = [
         { id: '1', display_name: 'Terms', url: 'https://t' },
@@ -110,9 +112,9 @@ describe('KycService', () => {
         .reply(200, disclaimers);
       const { service } = getService();
 
-      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
-        disclaimers,
-      );
+      expect(
+        await service.fetchVendorDisclaimers({ country: 'USA' }),
+      ).toStrictEqual(disclaimers);
     });
 
     it('throws on a malformed response', async () => {
@@ -123,14 +125,14 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
+        service.fetchVendorDisclaimers({ country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
     it('throws when no bearer token is available', async () => {
       const { service } = getService({ bearerToken: '' });
       await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
+        service.fetchVendorDisclaimers({ country: 'USA' }),
       ).rejects.toThrow(/Unable to obtain an authentication bearer token/u);
     });
 
@@ -142,12 +144,12 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
+        service.fetchVendorDisclaimers({ country: 'USA' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
 
-  describe('createSession', () => {
+  describe('createMoonpaySession', () => {
     it('creates a session and returns the token', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/moonpay/sessions')
@@ -155,7 +157,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.createSession({
+        await service.createMoonpaySession({
           email: 'a@b.co',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
@@ -168,7 +170,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.createSession({
+        service.createMoonpaySession({
           email: 'a@b.co',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
@@ -177,95 +179,69 @@ describe('KycService', () => {
     });
   });
 
-  describe('checkKycRequired', () => {
-    it('returns whether KYC is required (default capabilities)', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required', {
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'ramps' }],
-        })
-        .reply(200, { required: true });
-      const { service } = getService();
-
-      expect(
-        await service.checkKycRequired({
-          accessToken: 'access-1',
-          country: 'USA',
-        }),
-      ).toStrictEqual({ kycRequired: true });
-    });
-
-    it('passes provided capabilities', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required', {
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'card' }],
-        })
-        .reply(200, { required: false });
-      const { service } = getService();
-
-      expect(
-        await service.checkKycRequired({
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'card' }],
-        }),
-      ).toStrictEqual({ kycRequired: false });
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/moonpay/kyc-required').reply(200, {});
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ accessToken: 'access-1', country: 'USA' }),
-      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
-    });
-
-    it('surfaces the specific field mismatch and payload in the error', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required')
-        .reply(200, { required: 'yes' });
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ accessToken: 'access-1', country: 'USA' }),
-      ).rejects.toThrow(
-        /Malformed response received from kyc-required API:.*required.*received: \{"required":"yes"\}/su,
-      );
-    });
-  });
-
-  describe('fetchJwks', () => {
-    it('fetches the JWKS from the Fractal well-known path', async () => {
+  describe('fetchIdosEnclaveJwks', () => {
+    it('fetches the JWKS from the idOS enclave well-known path', async () => {
       const response = {
         keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
       };
-      nock(MOCK_FRACTAL_URL).get('/.well-known/jwks.json').reply(200, response);
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
       const { service } = getService();
 
-      expect(await service.fetchJwks()).toStrictEqual(response);
+      expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
     });
 
-    it('throws when no Fractal base URL is configured', async () => {
+    it('throws when no idOS enclave base URL is configured', async () => {
       // Omit the option entirely so the constructor falls back to ''.
-      const { service } = getService({ fractalEncryptionBaseUrl: null });
+      const { service } = getService({ idosEnclaveBaseUrl: null });
 
-      await expect(service.fetchJwks()).rejects.toThrow(
-        /fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify encryption schemas/u,
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema/u,
       );
     });
 
     it('throws on a malformed response', async () => {
-      nock(MOCK_FRACTAL_URL)
+      nock(MOCK_IDOS_ENCLAVE_URL)
         .get('/.well-known/jwks.json')
         .reply(200, { keys: [{ kty: 'OKP' }] });
       const { service } = getService();
 
-      await expect(service.fetchJwks()).rejects.toThrow(
-        /Malformed response received from JWKS API/u,
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /Malformed response received from idOS enclave JWKS API/u,
+      );
+    });
+  });
+
+  describe('fetchIdosRelayJwks', () => {
+    it('fetches the JWKS from the idOS relay well-known path', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'r1' }],
+      };
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+    });
+
+    it('throws when no idOS relay base URL is configured', async () => {
+      const { service } = getService({ idosRelayBaseUrl: null });
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema/u,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [{ kty: 'OKP' }] });
+      const { service } = getService();
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /Malformed response received from idOS relay JWKS API/u,
       );
     });
   });
@@ -289,8 +265,10 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            body.jwtToken === 'jwt' &&
+            body.jwtToken === 'mock-jwt-token' &&
             body.vendorId === 'moonpay' &&
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             body.wrappedEncryptionKey === undefined &&
             body.ukycCapabilityToken === undefined,
         )
@@ -299,7 +277,8 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
         }),
       ).toStrictEqual(response);
@@ -311,7 +290,8 @@ describe('KycService', () => {
 
       await expect(
         service.createUkycSession({
-          jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
@@ -322,6 +302,7 @@ describe('KycService', () => {
     const wrappedEncryptionDataKey = { nonce: 'nonce-1', data: 'data-1' };
     const wrappedUkycCapabilityToken = { nonce: 'nonce-2', data: 'data-2' };
     const statusResponse = {
+      id: 'sid',
       finalStatus: 'approved',
       statusMessage: 'All good',
       externalUserId: 'ext-1',
@@ -418,6 +399,7 @@ describe('KycService', () => {
   describe('getSessionStatus', () => {
     it('returns the session status', async () => {
       const response = {
+        id: 'sid',
         finalStatus: 'approved',
         statusMessage: 'All good',
         externalUserId: 'ext-1',
@@ -435,6 +417,7 @@ describe('KycService', () => {
 
     it('url-encodes the session id', async () => {
       const response = {
+        id: 'a/b',
         finalStatus: 'pending',
         externalUserId: 'ext-1',
         kycStatus: 'pending',
@@ -514,12 +497,69 @@ describe('KycService', () => {
     });
 
     it('falls back to status-only HttpError when the body is not an object', async () => {
-      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, null);
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, 'null');
       const { service } = getService();
 
       await expect(
         service.getSessionStatus({ sessionId: 'sid' }),
       ).rejects.toThrow(/failed with status '409'$/u);
+    });
+  });
+
+  describe('getSessionStatusForVendor', () => {
+    const response = {
+      id: 'sid',
+      finalStatus: 'approved',
+      statusMessage: 'All good',
+      externalUserId: 'ext-1',
+      kycStatus: 'approved',
+      vendor: 'iron',
+      vendorStatus: 'GREEN',
+    };
+
+    it('returns the latest session status for the vendor', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('iron')).toStrictEqual(
+        response,
+      );
+    });
+
+    it('returns null when no latest session exists for the vendor', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/moonpay').reply(404);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('moonpay')).toBeNull();
+    });
+
+    it('returns null on a 204 response', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(204);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('iron')).toBeNull();
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, { finalStatus: 'approved' });
+      const { service } = getService();
+
+      await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
+        /Malformed response received from latest session status API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response other than 404', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(500);
+      const { service } = getService();
+
+      await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
+        /failed with status '500'/u,
+      );
     });
   });
 
@@ -562,6 +602,25 @@ describe('KycService', () => {
       ).rejects.toThrow(
         /Malformed response received from vendor customers API/u,
       );
+    });
+
+    it('sends one request per call when two calls overlap', async () => {
+      const scope = nock(MOCK_API_URL)
+        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .times(2)
+        .reply(200, {
+          id: 'iron-1',
+          email: 'a@b.co',
+          status: 'SigningsRequired',
+        });
+      const { service } = getService();
+
+      await Promise.all([
+        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+      ]);
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -628,7 +687,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchDisclaimers for a non-MoonPay vendor', () => {
+  describe('fetchVendorDisclaimers for a non-MoonPay vendor', () => {
     it('returns Iron disclaimers for a country', async () => {
       const disclaimers = [
         { id: '1', display_name: 'Iron Terms', url: 'https://t' },
@@ -640,7 +699,10 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchDisclaimers({ vendor: 'iron', country: 'USA' }),
+        await service.fetchVendorDisclaimers({
+          vendor: 'iron',
+          country: 'USA',
+        }),
       ).toStrictEqual(disclaimers);
     });
 
@@ -652,51 +714,90 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimers({ vendor: 'iron', country: 'USA' }),
+        service.fetchVendorDisclaimers({ vendor: 'iron', country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
   });
 
-  describe('checkKycRequired for a non-MoonPay vendor', () => {
-    it('returns whether Iron KYC is required', async () => {
+  describe('fetchSessionDisclaimersByCountry', () => {
+    const documents = {
+      idOS: [
+        {
+          key: 'idos-tos',
+          version: '1',
+          title: 'idOS ToS',
+          url: 'https://idos.example/tos',
+        },
+      ],
+      kycProvider: [
+        {
+          key: 'sumsub-tos',
+          version: '1',
+          title: 'SumSub ToS',
+          url: 'https://sumsub.example/tos',
+        },
+      ],
+    };
+
+    it('returns the global disclaimer catalog for a country', async () => {
       nock(MOCK_API_URL)
-        .post('/vendors/iron/kyc-required')
-        .reply(200, { required: true });
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, documents);
       const { service } = getService();
 
-      expect(await service.checkKycRequired({ vendor: 'iron' })).toStrictEqual({
-        kycRequired: true,
-      });
+      expect(
+        await service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
+      ).toStrictEqual(documents);
     });
 
-    it('throws when accessToken is missing for MoonPay vendor', async () => {
+    it('throws when country is not a 3-character code', async () => {
       const { service } = getService();
 
       await expect(
-        service.checkKycRequired({ vendor: 'moonpay', country: 'USA' }),
-      ).rejects.toThrow('accessToken is required for vendor "moonpay"');
+        service.fetchSessionDisclaimersByCountry({ country: 'US' }),
+      ).rejects.toThrow(/ISO 3166-1 alpha-3/u);
     });
 
-    it('throws when country is missing for MoonPay vendor', async () => {
+    it('throws on a malformed global catalog response', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, {});
       const { service } = getService();
 
       await expect(
-        service.checkKycRequired({ vendor: 'moonpay', accessToken: 'tok' }),
-      ).rejects.toThrow('country is required for vendor "moonpay"');
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
+      ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/iron/kyc-required').reply(200, {});
+    it('throws when the global catalog is missing kycProvider', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, { idOS: [] });
       const { service } = getService();
 
       await expect(
-        service.checkKycRequired({ vendor: 'iron' }),
-      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
+      ).rejects.toThrow(/Malformed response received from disclaimers API/u);
+    });
+
+    it('throws an HttpError on a non-ok global catalog response', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
+      ).rejects.toThrow(/failed with status '500'/u);
     });
   });
 
-  describe('fetchSessionDisclaimers', () => {
-    const catalog = {
+  describe('fetchSessionDisclaimersBySessionId', () => {
+    const documents = {
       idOS: [
         {
           key: 'idos-tos',
@@ -715,6 +816,9 @@ describe('KycService', () => {
           consented: false,
         },
       ],
+    };
+    const catalog = {
+      ...documents,
       credentialReusabilityConsentGiven: false,
     };
 
@@ -723,7 +827,9 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        await service.fetchSessionDisclaimersBySessionId({
+          sessionId: 'sid-1',
+        }),
       ).toStrictEqual(catalog);
     });
 
@@ -732,7 +838,44 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws when the session catalog omits credentialReusabilityConsentGiven', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid-1/disclaimers')
+        .reply(200, documents);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws when a session document omits consented', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid-1/disclaimers')
+        .reply(200, {
+          idOS: [
+            {
+              key: 'idos-tos',
+              version: '1',
+              title: 'idOS ToS',
+              url: 'https://idos.example/tos',
+            },
+          ],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        });
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -743,7 +886,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
@@ -838,30 +981,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchKycStatus', () => {
-    it('returns the simplified user-keyed status', async () => {
-      nock(MOCK_API_URL).get('/kyc/status').reply(200, {
-        status: 'pending',
-        sumsubSessionId: 'ss-1',
-      });
-      const { service } = getService();
-
-      expect(await service.fetchKycStatus()).toStrictEqual({
-        status: 'pending',
-        sumsubSessionId: 'ss-1',
-      });
-    });
-
-    it('throws on an unknown status value', async () => {
-      nock(MOCK_API_URL).get('/kyc/status').reply(200, { status: 'weird' });
-      const { service } = getService();
-
-      await expect(service.fetchKycStatus()).rejects.toThrow(
-        /Malformed response received from kyc status API/u,
-      );
-    });
-  });
-
   describe('createUkycSession vendorId', () => {
     const encryptionSchema: EncryptionSchema = {
       serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
@@ -878,6 +997,8 @@ describe('KycService', () => {
         .post('/sessions', (body) => {
           return (
             body.vendorId === 'moonpay' &&
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             body.vendorMetadata?.moonPayAccessToken === 'tok' &&
             body.wrappedEncryptionKey === undefined &&
             body.ukycCapabilityToken === undefined
@@ -888,7 +1009,8 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { moonPayAccessToken: 'tok' },
         }),
       ).toStrictEqual(response);
@@ -904,6 +1026,8 @@ describe('KycService', () => {
         .post('/sessions', (body) => {
           return (
             body.vendorId === 'iron' &&
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             JSON.stringify(body.vendorMetadata) === '{}'
           );
         })
@@ -912,7 +1036,8 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'iron',
         }),
       ).toStrictEqual(response);
@@ -931,9 +1056,9 @@ describe('KycService', () => {
         .reply(200, disclaimers);
       const { service } = getService({ baseUrl: customUrl });
 
-      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
-        disclaimers,
-      );
+      expect(
+        await service.fetchVendorDisclaimers({ country: 'USA' }),
+      ).toStrictEqual(disclaimers);
     });
 
     it('throws when baseUrl is empty', () => {
@@ -952,7 +1077,7 @@ describe('KycService', () => {
       const { rootMessenger } = getService();
 
       expect(
-        await rootMessenger.call('KycService:fetchDisclaimers', {
+        await rootMessenger.call('KycService:fetchVendorDisclaimers', {
           country: 'USA',
         }),
       ).toStrictEqual([]);
@@ -974,8 +1099,10 @@ type RootMessenger = Messenger<
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
  * @param args.baseUrl - Base URL of the KYC API.
- * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
+ * @param args.idosEnclaveBaseUrl - idOS enclave base URL; `null` omits the
  * option so the service falls back to an empty string.
+ * @param args.idosRelayBaseUrl - idOS relay base URL; `null` omits the option
+ * so the service falls back to an empty string.
  * @param args.omitFetch - When true, omit the `fetch` option so the service
  * falls back to the runtime's native `fetch`.
  * @returns The service, root messenger, and service messenger.
@@ -986,8 +1113,10 @@ function getService({
   defaultPolicy = false,
   baseUrl = MOCK_API_URL,
   // `null` means "omit the option entirely" (exercises the constructor's
-  // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
-  fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
+  // `?? ''` fallback); omitting the field defaults to the mock idOS enclave URL.
+  idosEnclaveBaseUrl = MOCK_IDOS_ENCLAVE_URL,
+  // Same `null` omission convention as `idosEnclaveBaseUrl`.
+  idosRelayBaseUrl = MOCK_IDOS_RELAY_URL,
   // When true, omit the `fetch` option so the service falls back to the
   // runtime's native `fetch` (which nock intercepts).
   omitFetch = false,
@@ -996,7 +1125,8 @@ function getService({
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
-  fractalEncryptionBaseUrl?: string | null;
+  idosEnclaveBaseUrl?: string | null;
+  idosRelayBaseUrl?: string | null;
   omitFetch?: boolean;
 } = {}): {
   service: KycService;
@@ -1031,7 +1161,8 @@ function getService({
     ...(omitFetch ? {} : { fetch }),
     messenger,
     baseUrl,
-    ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
+    ...(idosEnclaveBaseUrl === null ? {} : { idosEnclaveBaseUrl }),
+    ...(idosRelayBaseUrl === null ? {} : { idosRelayBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
 

@@ -4,8 +4,8 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { base64UrlToBytes } from '../encoding.js';
 
 /**
- * Verifies the `jwtChain` returned by the Fractal encryption service against
- * its published JWKS.
+ * Verifies an encryption-schema `jwtChain` against the issuer's published JWKS
+ * (idOS enclave for `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
  *
  * The signature check is done with `@noble/curves` (rather than WebCrypto
  * `subtle`) because not every MetaMask runtime exposes a `subtle`
@@ -14,7 +14,7 @@ import { base64UrlToBytes } from '../encoding.js';
  */
 
 /**
- * A single Ed25519 (OKP) JSON Web Key from the Fractal JWKS.
+ * A single Ed25519 (OKP) JSON Web Key from an issuer JWKS.
  */
 export type Jwk = {
   kty: string;
@@ -65,7 +65,7 @@ function decodeJsonSegment<Type>(segment: string, label: string): Type {
  * published Ed25519 signing key and checks the EdDSA signature over the
  * `header.payload` input. Returns the decoded, verified payload.
  *
- * @param keys - The JWKS keys published by the Fractal encryption service.
+ * @param keys - The issuer JWKS keys used to verify the chain.
  * @param jwtChain - The compact-serialized EdDSA JWT from an encryption schema.
  * @returns The verified JWT payload.
  */
@@ -110,4 +110,34 @@ export function verifyJwtChain(keys: Jwk[], jwtChain: string): JwtChainPayload {
   }
 
   return decodeJsonSegment<JwtChainPayload>(payloadSegment, 'payload');
+}
+
+/**
+ * The encryption-schema fields needed to confirm the attested session server
+ * public key.
+ */
+export type JwtChainEncryptionSchema = {
+  jwtChain: string;
+  serverPublicKey: { x: string };
+};
+
+/**
+ * Confirms that an encryption schema's `serverPublicKey.x` matches the
+ * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
+ * a key that was swapped out-of-band after the chain was signed.
+ *
+ * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
+ * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
+ * @param schema - The encryption schema returned by session creation.
+ */
+export function assertAttestedServerPublicKey(
+  keys: Jwk[],
+  schema: JwtChainEncryptionSchema,
+): void {
+  const jwtChainPayload = verifyJwtChain(keys, schema.jwtChain);
+  if (jwtChainPayload.sessionServerPublicKeyX !== schema.serverPublicKey.x) {
+    throw new Error(
+      'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
+    );
+  }
 }

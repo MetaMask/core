@@ -38,6 +38,7 @@ import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
+  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -55,6 +56,7 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token.js';
+import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import {
@@ -63,7 +65,11 @@ import {
   isPredictWithdraw,
 } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
+import {
+  getRelayMaxQuote,
+  isSubsidizedAtomicMaxQuote,
+  throwAtomicPromotionFailed,
+} from './relay-max.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -82,6 +88,8 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
+type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'> &
+  Partial<Pick<RelayQuoteRequest, 'amount'>>;
 type RelayStepData = RelayTransactionStep['items'][0]['data'];
 
 type RelayGasResult = {
@@ -137,12 +145,32 @@ export async function getRelayQuotes(
       ),
     );
 
-    await validateRelayQuotes({
-      messenger: request.messenger,
-      quotes,
-      signal: request.signal,
-      transaction: request.transaction,
-    });
+    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
+    const otherQuotes = quotes.filter(
+      (quote) => !isSubsidizedAtomicMaxQuote(quote),
+    );
+
+    if (otherQuotes.length > 0) {
+      await validateRelayQuotes({
+        messenger: request.messenger,
+        quotes: otherQuotes,
+        signal: request.signal,
+        transaction: request.transaction,
+      });
+    }
+
+    if (atomicMaxQuotes.length > 0) {
+      try {
+        await validateRelayQuotes({
+          messenger: request.messenger,
+          quotes: atomicMaxQuotes,
+          signal: request.signal,
+          transaction: request.transaction,
+        });
+      } catch (error) {
+        throwAtomicPromotionFailed(error);
+      }
+    }
 
     return quotes;
   } catch (error) {
@@ -161,7 +189,7 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
+  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
 }
 
 /**
@@ -283,7 +311,6 @@ async function getSingleQuote(
 
   const {
     from,
-    isMaxAmount,
     sourceChainId,
     sourceTokenAddress,
     sourceTokenAmount,
@@ -303,19 +330,6 @@ async function getSingleQuote(
   );
 
   try {
-    // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
-    // and we show them how much they'll receive after fees.
-    // For regular flows with a target amount, use EXPECTED_OUTPUT, except
-    // HyperCore deposits, which need a guaranteed amount (see below).
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    const useExactInput = isMaxAmount || request.isPostQuote;
-
-    // HyperCore perps deposits fund an order that requires the full target as
-    // margin, so the delivered amount must be guaranteed rather than expected.
-    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves
-    // the follow-on order short and it fails on insufficient margin.
-    const useExactOutput = !useExactInput && isHypercoreDeposit(request);
-
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
@@ -331,8 +345,7 @@ async function getSingleQuote(
       ? { ...request, recipient: nonAtomicRecipient }
       : request;
 
-    const body: RelayQuoteRequest = {
-      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
+    const body: RelayQuoteRequestDraft = {
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
@@ -345,7 +358,6 @@ async function getSingleQuote(
         : {}),
       recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
-      tradeType: getTradeType(useExactInput, useExactOutput),
       user: from,
     };
 
@@ -385,9 +397,24 @@ async function getSingleQuote(
       body.refundTo = effectiveRequest.refundTo;
     }
 
-    log('Request body', body);
+    const pricing = getQuotePricing({
+      hasCalls: Boolean(body.txs?.length),
+      sourceTokenAmount,
+      targetAmountMinimum,
+      transaction,
+    });
 
-    const quote = await fetchRelayQuote(messenger, body, signal);
+    const finalBody: RelayQuoteRequest = {
+      ...body,
+      // A step that bundled its own calls has already pinned the amount those
+      // calls consume, so it wins over the derived amount.
+      amount: body.amount ?? pricing.amount,
+      tradeType: pricing.tradeType,
+    };
+
+    log('Request body', finalBody);
+
+    const quote = await fetchRelayQuote(messenger, finalBody, signal);
 
     log('Fetched relay quote', quote);
 
@@ -472,7 +499,7 @@ async function resolveNonAtomicRecipient(
 async function processTransactions(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  requestBody: RelayQuoteRequest,
+  requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<boolean> {
   // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
@@ -514,7 +541,13 @@ async function processTransactions(
     return true;
   }
 
-  if (isMaxAmount) {
+  // Eligible atomic max requests carry a destination amount, so the calls
+  // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
+  if (
+    isMaxAmount &&
+    (request.isPostQuote === true ||
+      !isAtomicMaxEnabled(messenger, transaction))
+  ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
 
@@ -526,7 +559,6 @@ async function processTransactions(
   requestBody.authorizationList = normalizeAuthorizationList(
     delegation.authorizationList,
   );
-  requestBody.tradeType = 'EXACT_OUTPUT';
 
   const tokenTransferData = nestedTransactions?.find((nestedTx) =>
     nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
@@ -563,7 +595,7 @@ async function processTransactions(
 async function processMoneyAccountPostQuote(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  requestBody: RelayQuoteRequest,
+  requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { transactionData: transactionDataList } = messenger.call(
@@ -592,7 +624,6 @@ async function processMoneyAccountPostQuote(
   const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.tradeType = 'EXACT_OUTPUT';
   requestBody.amount = rawAmount;
   requestBody.txs = [
     {
@@ -610,42 +641,6 @@ async function processMoneyAccountPostQuote(
   log('Added money account deposit calls to quote body', {
     callCount: overrideCalls.length,
   });
-}
-
-/**
- * Whether the quote deposits into HyperCore USDC.
- *
- * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
- * the quote is built, so the check is against the normalized target.
- *
- * @param request - Normalized quote request.
- * @returns True when the target is HyperCore USDC.
- */
-function isHypercoreDeposit(request: QuoteRequest): boolean {
-  return (
-    !request.isHyperliquidSource &&
-    request.targetChainId === CHAIN_ID_HYPERCORE &&
-    request.targetTokenAddress.toLowerCase() ===
-      HYPERCORE_USDC_ADDRESS.toLowerCase()
-  );
-}
-
-/**
- * Resolve the Relay trade type for a quote.
- *
- * @param useExactInput - Whether the user specified the amount to send.
- * @param useExactOutput - Whether the delivered amount must be guaranteed.
- * @returns The Relay trade type.
- */
-function getTradeType(
-  useExactInput: boolean | undefined,
-  useExactOutput: boolean,
-): RelayQuoteRequest['tradeType'] {
-  if (useExactInput) {
-    return 'EXACT_INPUT';
-  }
-
-  return useExactOutput ? 'EXACT_OUTPUT' : 'EXPECTED_OUTPUT';
 }
 
 /**
@@ -765,6 +760,7 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
+    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = {
@@ -806,6 +802,7 @@ async function normalizeQuote(
       sourceNetwork,
       targetNetwork,
     },
+    isInputBased: quote.request.tradeType === 'EXACT_INPUT',
     original: {
       ...quote,
       metamask,
@@ -831,8 +828,9 @@ function calculateDustUsd(quote: RelayQuote, request: QuoteRequest): BigNumber {
 
   const targetUsdRate = new BigNumber(amountUsd).dividedBy(amountFormatted);
 
-  const dustRaw = new BigNumber(minimumAmount).minus(
-    request.targetAmountMinimum,
+  const dustRaw = BigNumber.maximum(
+    new BigNumber(minimumAmount).minus(request.targetAmountMinimum),
+    0,
   );
 
   return dustRaw.shiftedBy(-targetDecimals).multipliedBy(targetUsdRate);
@@ -901,6 +899,7 @@ function getFiatRates(
  * @param messenger - Controller messenger.
  * @param request - Quote request.
  * @param transaction - Original transaction metadata.
+ * @param accountSupports7702 - Whether the source account supports EIP-7702.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
@@ -908,6 +907,7 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
+  accountSupports7702: boolean | undefined,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
@@ -942,6 +942,7 @@ async function calculateSourceNetworkCost(
   }
 
   if (
+    accountSupports7702 &&
     transaction.isGasFeeSponsored &&
     request.sourceChainId === transaction.chainId &&
     request.targetChainId === transaction.chainId
@@ -1042,6 +1043,14 @@ async function calculateSourceNetworkCost(
   const result = { estimate, max, gasLimits, is7702 };
 
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return result;
+  }
+
+  if (accountSupports7702 === false) {
+    log('Skipping gas station as account does not support EIP-7702', {
+      from,
+    });
+
     return result;
   }
 
@@ -1231,13 +1240,13 @@ function getOriginalTxGasParams(
 
   return {
     chainId: Number(transaction.chainId),
-    data: (txParams.data as Hex) ?? ('0x' as Hex),
+    data: (txParams.data as Hex) ?? '0x',
     from: txParams.from as Hex,
     gas: gas ? String(gas) : undefined,
     maxFeePerGas: '0',
     maxPriorityFeePerGas: '0',
     to,
-    value: (txParams.value as string) ?? '0',
+    value: txParams.value ?? '0',
   };
 }
 

@@ -503,7 +503,7 @@ export type components = {
       body: string;
     };
     LocalizedNotificationCTA: {
-      content: string;
+      /** @description Deeplink URL. Clients open this when the notification is tapped. */
       link: string;
     };
     OnChainNotification: {
@@ -610,7 +610,25 @@ export type components = {
        * @example 2025-10-09T09:45:34.202Z
        */
       created_at: string;
+      template?: components['schemas']['OnChainTemplate'];
       payload: components['schemas']['OnChainPayload'];
+    };
+    /**
+     * @description The notification's copy, already localized into the `locale` sent with the request. This is the same text the clients used to assemble themselves from their own locale files; rendering it server-side keeps every surface (in-app, push, each client) on one set of strings.
+     *     Optional: it is absent when the server cannot render the row — a notification_subtype newer than the server, or a payload it cannot read. Clients must keep their local rendering as a fallback for those, and may drop it once this field is present for every subtype they support.
+     *     Only translated copy lives here. The amount, token name, network name, icons and timestamp are not included: clients already derive those from `payload` and render them with locale-aware, user-configured formatting.
+     */
+    OnChainTemplate: {
+      /**
+       * @description The notification headline.
+       * @example Received from 0x5aAeb...BeAed
+       */
+      title: string;
+      /**
+       * @description Secondary line, present only for the subtypes whose description is translated copy (today lido_withdrawal_requested and lido_stake_ready_to_be_withdrawn). For every other subtype the client composes the secondary line from `payload` as before.
+       * @example You can now withdraw your unstaked stETH
+       */
+      body?: string;
     };
     NotificationInput: {
       /** Format: address */

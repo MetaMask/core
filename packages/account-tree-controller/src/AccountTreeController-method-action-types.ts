@@ -29,6 +29,36 @@ export type AccountTreeControllerReinitAction = {
 };
 
 /**
+ * Whether `init()` has completed and the account tree is ready to consume.
+ * Returns false after `clearState()` until the next successful `init()`.
+ *
+ * @returns True when the controller has been initialized.
+ */
+export type AccountTreeControllerIsInitializedAction = {
+  type: `AccountTreeController:isInitialized`;
+  handler: AccountTreeController['isInitialized'];
+};
+
+/**
+ * Removes an account wallet and all of its underlying accounts.
+ *
+ * The account tree is a derived view of AccountsController state, so this
+ * method intentionally does not mutate tree nodes directly. Account removal
+ * causes AccountsController to publish `accountsRemoved`, which lets
+ * `#handleAccountsRemoved` consistently prune tree nodes, reverse mappings,
+ * metadata, and selection state.
+ *
+ * @param walletId - Account wallet ID.
+ * @throws If the account tree has not been initialized.
+ * @throws If the wallet does not exist.
+ * @throws If the wallet belongs to the primary HD keyring.
+ */
+export type AccountTreeControllerRemoveAccountWalletAction = {
+  type: `AccountTreeController:removeAccountWallet`;
+  handler: AccountTreeController['removeAccountWallet'];
+};
+
+/**
  * Gets the account wallet object from its ID.
  *
  * @param walletId - Account wallet ID.
@@ -277,6 +307,8 @@ export type AccountTreeControllerImportStateAction = {
 export type AccountTreeControllerMethodActions =
   | AccountTreeControllerInitAction
   | AccountTreeControllerReinitAction
+  | AccountTreeControllerIsInitializedAction
+  | AccountTreeControllerRemoveAccountWalletAction
   | AccountTreeControllerGetAccountWalletObjectAction
   | AccountTreeControllerGetAccountWalletObjectsAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction

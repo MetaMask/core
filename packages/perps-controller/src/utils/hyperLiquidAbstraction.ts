@@ -1,7 +1,6 @@
 import type { HyperLiquidAbstractionMode } from '../types/hyperliquid-types.js';
 
 const MIGRATABLE_ABSTRACTION_MODES = new Set<HyperLiquidAbstractionMode>([
-  'dexAbstraction',
   'default',
   'disabled',
 ]);

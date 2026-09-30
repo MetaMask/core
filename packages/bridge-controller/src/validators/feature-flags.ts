@@ -22,6 +22,8 @@ export enum FeatureId {
   DAPP_SWAP = 'dapp_swap',
   BATCH_SELL = 'batch_sell',
   UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
+  LIMIT_ORDER = 'limit_order',
+  RECURRING_ORDER = 'recurring_order',
 }
 
 export const VersionStringSchema = define<string>(

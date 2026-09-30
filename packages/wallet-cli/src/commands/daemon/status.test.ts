@@ -130,7 +130,7 @@ describe('daemon status', () => {
   it('handles non-Error throws from sendCommand', async () => {
     mockPingDaemon.mockResolvedValue({ status: 'responsive' });
     mockSendCommand.mockImplementation(async () =>
-      Promise.reject('string error' as unknown as Error),
+      Promise.reject('string error'),
     );
 
     const { stdout } = await runCommand(DaemonStatus);

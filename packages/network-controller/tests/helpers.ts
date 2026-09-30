@@ -9,7 +9,9 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
-import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
+import type { MockInternalProviderStub } from '@metamask/eth-json-rpc-provider';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -19,9 +21,6 @@ import type {
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
-import type { FakeProviderStub } from '../../../tests/fake-provider.js';
 import { buildTestObject } from '../../../tests/helpers.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
@@ -207,7 +206,6 @@ export function buildNetworkControllerMessenger(
       'AnalyticsController:trackEvent',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       'ConfigRegistryController:stateChanged',
     ],
@@ -231,15 +229,13 @@ function buildFakeNetworkClient({
   providerStubs = [],
 }: {
   configuration: NetworkClientConfiguration;
-  providerStubs?: FakeProviderStub[];
+  providerStubs?: MockInternalProviderStub[];
 }): NetworkClient {
-  const provider = new FakeProvider({ stubs: providerStubs });
+  const provider = new MockInternalProvider({ stubs: providerStubs });
   return {
     configuration,
     provider,
-    blockTracker: new FakeBlockTracker({
-      provider: provider as unknown as InternalProvider,
-    }),
+    blockTracker: new MockPollingBlockTracker({ provider }),
     destroy: (): void => {
       // do nothing
     },

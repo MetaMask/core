@@ -51,14 +51,21 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
-  blocklistPaths?: PathTrie;
   c2DomainBlocklist?: string[];
+  blocklistPaths?: PathTrie;
   fuzzylist: string[][];
   tolerance: number;
 };
 
+type InternalPhishingDetectorConfiguration = Omit<
+  PhishingDetectorConfiguration,
+  'c2DomainBlocklist'
+> & {
+  c2DomainBlocklist?: Set<string>;
+};
+
 export class PhishingDetector {
-  readonly #configs: PhishingDetectorConfiguration[];
+  readonly #configs: InternalPhishingDetectorConfiguration[];
 
   readonly #legacyConfig: boolean;
 
@@ -75,17 +82,23 @@ export class PhishingDetector {
   constructor(opts: PhishingDetectorOptions) {
     // recommended configuration
     if (Array.isArray(opts)) {
-      this.#configs = processConfigs(opts);
+      this.#configs = processConfigs(opts).map((config) => ({
+        ...config,
+        c2DomainBlocklist: new Set<string>(config.c2DomainBlocklist),
+      }));
       this.#legacyConfig = false;
       // legacy configuration
     } else {
       this.#configs = [
-        getDefaultPhishingDetectorConfig({
-          allowlist: opts.whitelist,
-          blocklist: opts.blacklist,
-          fuzzylist: opts.fuzzylist,
-          tolerance: opts.tolerance,
-        }),
+        {
+          ...getDefaultPhishingDetectorConfig({
+            allowlist: opts.whitelist,
+            blocklist: opts.blacklist,
+            fuzzylist: opts.fuzzylist,
+            tolerance: opts.tolerance,
+          }),
+          c2DomainBlocklist: new Set<string>(),
+        },
       ];
       this.#legacyConfig = true;
     }
@@ -296,11 +309,11 @@ export class PhishingDetector {
     const domainsToCheck = generateParentDomains(sourceParts.reverse(), 5);
 
     for (const { c2DomainBlocklist, name, version } of this.#configs) {
-      if (!c2DomainBlocklist || c2DomainBlocklist.length === 0) {
+      if (!c2DomainBlocklist || c2DomainBlocklist.size === 0) {
         continue;
       }
 
-      if (c2DomainBlocklist.includes(hostnameHash)) {
+      if (c2DomainBlocklist.has(hostnameHash)) {
         return {
           name,
           result: true,
@@ -311,7 +324,7 @@ export class PhishingDetector {
 
       for (const domain of domainsToCheck) {
         const domainHash = sha256Hash(domain);
-        if (c2DomainBlocklist.includes(domainHash)) {
+        if (c2DomainBlocklist.has(domainHash)) {
           return {
             name,
             result: true,

@@ -61,14 +61,17 @@ import {
 import {
   AbortReason,
   BatchSellMetricsEventName,
+  FailurePhase,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
+  SwapBridgeErrorCode,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants.js';
 import type {
   BridgeControllerMetricsEventName,
   BridgeControllerMetricsLocation,
 } from './utils/metrics/constants.js';
+import { getQuoteFetchErrorCode } from './utils/metrics/failure-telemetry.js';
 import {
   formatProviderLabel,
   getAccountHardwareType,
@@ -977,10 +980,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotesLoadingStatus = RequestStatus.ERROR;
       });
       // Track event and log error
-      this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuotesError,
-        context,
-      );
+      this.trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.QuotesError, {
+        ...context,
+        failure_phase: FailurePhase.Quote,
+        error_code: getQuoteFetchErrorCode(error),
+      });
       console.log(
         `Failed to ${shouldStream ? 'stream' : 'fetch'} bridge quotes`,
         error,
@@ -1212,7 +1216,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     return {
-      slippage_limit: quoteRequest.slippage,
+      slippage_limit: quoteRequest.slippage ?? 0,
       swap_type: getSwapTypeFromQuote(quoteRequest),
       custom_slippage: isCustomSlippage(quoteRequest.slippage),
       account_hardware_type: accountHardwareType,
@@ -1361,6 +1365,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           refresh_count: this.state.quotesRefreshCount,
+          has_sufficient_funds: !quoteRequest.insufficientBal,
           ...inputPrimaryDenominationProperties,
           ...baseProperties,
         };
@@ -1384,7 +1389,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !quoteRequest.insufficientBal,
+          failure_phase: FailurePhase.Quote,
+          error_code: SwapBridgeErrorCode.QuoteFetchFailed,
           ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.Failed:
+        // Populate the properties that the error occurred before the tx was submitted
+        return {
+          ...baseProperties,
+          ...getRequestParams(
+            quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
+          ...this.#getRequestMetadata(),
+          ...this.#getQuoteFetchData(),
+          ...propertiesFromClient,
         };
       case UnifiedSwapBridgeEventName.AllQuotesOpened:
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
@@ -1398,19 +1417,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getQuoteFetchData(),
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.Failed: {
-        // Populate the properties that the error occurred before the tx was submitted
-        return {
-          ...baseProperties,
-          ...getRequestParams(
-            quoteRequest,
-            this.state.tokenSecurityTypeDestination,
-          ),
-          ...this.#getRequestMetadata(),
-          ...this.#getQuoteFetchData(),
-          ...propertiesFromClient,
-        };
-      }
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
       case UnifiedSwapBridgeEventName.AssetPickerOpened:
         return baseProperties;

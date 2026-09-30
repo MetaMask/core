@@ -9,6 +9,7 @@ import type { LoginResponse, Pair } from './authentication-jwt-bearer/types.js';
 import { JwtBearerAuth } from './authentication.js';
 import {
   NonceRetrievalError,
+  PairConflictError,
   PairError,
   SignInError,
   UnsupportedAuthTypeError,
@@ -659,6 +660,56 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
   });
 });
 
+describe('Authentication - pairSocialIdentifier()', () => {
+  it('pairs a Google identifier', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockPairSocialIdentifierUrl } = arrangeAuthAPIs();
+
+    expect(
+      await auth.pairSocialIdentifier(
+        {
+          identifierType: 'GOOGLE',
+          socialJwt: 'social-jwt',
+          email: 'user@example.com',
+        },
+        'primary-srp-token',
+      ),
+    ).toBeUndefined();
+    expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
+  });
+
+  it('throws PairConflictError when the identifier is already owned', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    arrangeAuthAPIs({
+      mockPairSocialIdentifier: {
+        status: 409,
+        body: {
+          message: 'Identifier already belongs to another profile',
+          error: 'conflict',
+        },
+      },
+    });
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(PairConflictError);
+  });
+
+  it('rejects when called from the SIWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(UnsupportedAuthTypeError);
+  });
+});
+
 describe('Authentication - rejects when calling unrelated methods', () => {
   it('rejects when calling SRP methods in SiWE flow', async () => {
     const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
@@ -679,6 +730,66 @@ describe('Authentication - rejects when calling unrelated methods', () => {
         signMessage: async () => 'MOCK_SIWE_SIGNATURE',
       }),
     ).toThrow(UnsupportedAuthTypeError);
+  });
+});
+
+describe('MFA authentication facade', () => {
+  it('forwards MFA operations to the SRP implementation', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const endpoints = arrangeAuthAPIs();
+    const registration = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        attestationObject: 'attestation',
+        clientDataJSON: 'client-data',
+      },
+    } as const;
+    const assertion = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    } as const;
+
+    expect(await auth.beginMfaEnrollment('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'enroll-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaEnrollment('flow-id', {
+        type: 'passkey',
+        attestation: registration,
+      }),
+    ).toBeUndefined();
+    expect(await auth.beginMfaVerification('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'verify-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaVerification('flow-id', {
+        type: 'passkey',
+        assertion,
+      }),
+    ).toMatchObject({
+      token: expect.any(String),
+      expiresIn: 900,
+    });
+    expect(await auth.getMfaCredentials()).toHaveLength(2);
+    expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
+      accessToken: MOCK_ACCESS_JWT,
+    });
+
+    expect(endpoints.mockMfaEnrollUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaEnrollCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
   });
 });
 

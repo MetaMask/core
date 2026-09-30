@@ -21,10 +21,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -40,8 +36,6 @@ import {
   getDefaultPerpsControllerState,
   InitializationState,
   PerpsMode,
-  firstNonEmpty,
-  resolveMyxAuthConfig,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
@@ -49,6 +43,7 @@ import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js'
 import type {
   AccountState,
   GetAvailableDexsParams,
+  MarginMode,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -57,7 +52,6 @@ import type {
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -139,6 +133,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -373,16 +368,6 @@ class TestablePerpsController extends PerpsController {
 
   public testHasStandaloneProvider(): boolean {
     return this.hasStandaloneProvider();
-  }
-
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
-  }
-
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
   }
 }
 
@@ -1118,6 +1103,7 @@ describe('PerpsController', () => {
         limitPrice: '45000',
         orderType: 'limit' as const,
         reduceOnly: true,
+        direction: 'short' as const,
       };
 
       controller.savePendingTradeConfiguration('BTC', config);
@@ -1125,6 +1111,20 @@ describe('PerpsController', () => {
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toEqual(config);
       expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+
+    it('restores a short direction from a pending trade configuration', () => {
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        direction: 'short',
+      });
+
+      const result = controller.getPendingTradeConfiguration('BTC');
+
+      expect(result).toEqual({
+        amount: '100',
+        direction: 'short',
+      });
     });
 
     it('returns undefined for non-existent pending configuration', () => {
@@ -1501,6 +1501,81 @@ describe('PerpsController', () => {
 
       const savedGrouping = controller.getOrderBookGrouping('BTC');
       expect(savedGrouping).toBe(100);
+    });
+  });
+
+  describe('margin mode', () => {
+    it('saves margin mode for mainnet', () => {
+      controller.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+
+      controller.saveMarginMode('BTC', 'cross');
+
+      expect(controller.getMarginMode('BTC')).toBe('cross');
+      expect(controller.state.tradeConfigurations.mainnet.BTC).toStrictEqual({
+        marginMode: 'cross',
+      });
+    });
+
+    it('saves margin mode for testnet without touching mainnet', () => {
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+      });
+
+      controller.saveMarginMode('ETH', 'isolated');
+
+      expect(controller.getMarginMode('ETH')).toBe('isolated');
+      expect(controller.state.tradeConfigurations.mainnet.ETH).toBeUndefined();
+    });
+
+    it('returns undefined when no margin mode is saved', () => {
+      expect(controller.getMarginMode('SOL')).toBeUndefined();
+    });
+
+    it('overwrites the previous margin mode for the same market', () => {
+      controller.saveMarginMode('BTC', 'cross');
+      controller.saveMarginMode('BTC', 'isolated');
+
+      expect(controller.getMarginMode('BTC')).toBe('isolated');
+    });
+
+    it('preserves existing config when saving margin mode', () => {
+      controller.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+      controller.saveTradeConfiguration('BTC', 5);
+      controller.saveOrderBookGrouping('BTC', 100);
+
+      controller.saveMarginMode('BTC', 'cross');
+
+      expect(controller.getTradeConfiguration('BTC')?.leverage).toBe(5);
+      expect(controller.getOrderBookGrouping('BTC')).toBe(100);
+      expect(controller.getMarginMode('BTC')).toBe('cross');
+    });
+
+    it('ignores values that are not a margin mode', () => {
+      controller.saveMarginMode('BTC', 'cross');
+
+      controller.saveMarginMode('BTC', 'portfolio' as MarginMode);
+
+      expect(controller.getMarginMode('BTC')).toBe('cross');
+    });
+
+    it('exposes margin mode methods as messenger actions', async () => {
+      const messenger = createMockMessenger();
+      const localController = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+
+      await localController.init();
+
+      expect(messenger.registerMethodActionHandlers).toHaveBeenCalledWith(
+        localController,
+        expect.arrayContaining(['getMarginMode', 'saveMarginMode']),
+      );
     });
   });
 

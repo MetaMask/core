@@ -10,6 +10,7 @@ import type {
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
+import { waitFor } from '../__fixtures__/test-utils.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type { ChainId, Caip19AssetId } from '../types.js';
 import {
@@ -60,7 +61,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 /**
@@ -90,13 +91,12 @@ function createBalanceUpdate(overrides?: {
       ...overrides?.postBalance,
     },
     transfers: overrides?.transfers ?? [],
-  } as BalanceUpdate;
+  };
 }
 
 type SetupOptions = {
   groupAccounts?: InternalAccount[];
   selectedAccount?: InternalAccount | null;
-  getAssetType?: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   onAssetsUpdate?: jest.Mock;
   onActiveChainsUpdated?: jest.Mock;
   state?: { activeChains?: ChainId[] };
@@ -107,7 +107,6 @@ type SetupResult = {
   rootMessenger: RootMessenger;
   onAssetsUpdate: jest.Mock;
   onActiveChainsUpdated: jest.Mock;
-  getAssetType: jest.Mock;
   triggerBalanceUpdated: (payload: {
     address: string;
     chain: string;
@@ -166,14 +165,9 @@ function setup(options: SetupOptions = {}): SetupResult {
     () => selectedAccount as InternalAccount,
   );
 
-  const getAssetType = jest
-    .fn()
-    .mockImplementation(options.getAssetType ?? ((): 'native' => 'native'));
-
   const dataSource = new AccountActivityDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
-    getAssetType,
     onAssetsUpdate,
     state,
   });
@@ -204,7 +198,6 @@ function setup(options: SetupOptions = {}): SetupResult {
     rootMessenger,
     onAssetsUpdate,
     onActiveChainsUpdated,
-    getAssetType,
     triggerBalanceUpdated,
     triggerStatusChanged,
     cleanup,
@@ -281,9 +274,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response, request] = onAssetsUpdate.mock.calls[0];
       // `processAccountActivityBalanceUpdates` builds null-prototype objects
       // (`Object.create(null)`), so `toStrictEqual` (which checks prototypes)
@@ -296,21 +289,13 @@ describe('AccountActivityDataSource', () => {
             [ETH_ASSET]: { amount: '1' },
           },
         },
-        assetsInfo: {
-          [ETH_ASSET]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'ETH',
-            decimals: 18,
-          },
-        },
       });
       expect(request).toStrictEqual({
         accountsWithSupportedChains: [
           { account, supportedChains: [CHAIN_MAINNET] },
         ],
         chainIds: [CHAIN_MAINNET],
-        dataTypes: ['balance', 'metadata'],
+        dataTypes: ['balance', 'metadata', 'price'],
       });
 
       cleanup();
@@ -330,9 +315,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id][ETH_ASSET]).toStrictEqual({
         amount: '0.00000114526056',
@@ -341,20 +326,52 @@ describe('AccountActivityDataSource', () => {
       cleanup();
     });
 
-    it('resolves the asset type via the injected getAssetType', async () => {
-      const { getAssetType, triggerBalanceUpdated, cleanup } = setup({
-        getAssetType: () => 'erc20',
+    it('persists Stellar trustline metadata from postBalance', async () => {
+      const STELLAR_CHAIN = 'stellar:pubnet' as ChainId;
+      const STELLAR_ADDRESS =
+        'GCRTHNJHYCV4F4JOAIMUE2ALYPE3C7Q53XTSUVGYJ4UXYIKWZAK7FWPG';
+      const STELLAR_USDC =
+        'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
+      const trustlineMetadata = {
+        authorized: true,
+        limit: '9223372036854775807',
+      };
+      const account = createMockAccount({
+        address: STELLAR_ADDRESS,
+        type: 'stellar:ss58',
+        scopes: [STELLAR_CHAIN],
+      });
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
       });
 
       triggerBalanceUpdated({
-        address: EVM_ADDRESS,
-        chain: CHAIN_MAINNET,
-        updates: [createBalanceUpdate()],
+        address: STELLAR_ADDRESS,
+        chain: STELLAR_CHAIN,
+        updates: [
+          createBalanceUpdate({
+            asset: {
+              type: STELLAR_USDC,
+              unit: 'USDC',
+              decimals: 7,
+            },
+            postBalance: {
+              amount: '201421',
+              metadata: trustlineMetadata,
+            },
+          }),
+        ],
       });
 
-      await Promise.resolve();
-
-      expect(getAssetType).toHaveBeenCalledWith(ETH_ASSET);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsBalance[account.id][STELLAR_USDC]).toStrictEqual({
+        amount: '0.0201421',
+        metadata: trustlineMetadata,
+      });
+      expect(response.assetsInfo).toBeUndefined();
 
       cleanup();
     });
@@ -376,8 +393,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id]).toHaveProperty(
         USDC_ASSET_CHECKSUMMED,
@@ -385,7 +403,7 @@ describe('AccountActivityDataSource', () => {
       expect(response.assetsBalance[account.id]).not.toHaveProperty(
         USDC_ASSET_LOWERCASE,
       );
-      expect(response.assetsInfo).toHaveProperty(USDC_ASSET_CHECKSUMMED);
+      expect(response.assetsInfo).toBeUndefined();
 
       cleanup();
     });
@@ -403,8 +421,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate({ asset: { type: malformedAssetId } })],
       });
 
-      await Promise.resolve();
-
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id]).toHaveProperty(
         malformedAssetId,
@@ -427,9 +446,9 @@ describe('AccountActivityDataSource', () => {
         ...override,
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -449,9 +468,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -468,9 +487,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
 
       cleanup();
     });
@@ -490,9 +509,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
 
       cleanup();
     });
@@ -512,9 +531,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -532,9 +551,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance).toHaveProperty('selected-id');
 
@@ -553,9 +572,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -574,9 +593,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -595,32 +614,9 @@ describe('AccountActivityDataSource', () => {
         }),
       ).not.toThrow();
 
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-
-      cleanup();
-    });
-
-    it('swallows synchronous errors thrown while handling the event', async () => {
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
-        getAssetType: () => {
-          throw new Error('boom');
-        },
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
-
-      expect(() =>
-        triggerBalanceUpdated({
-          address: EVM_ADDRESS,
-          chain: CHAIN_MAINNET,
-          updates: [createBalanceUpdate()],
-        }),
-      ).not.toThrow();
-
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
 
       cleanup();
     });
@@ -830,7 +826,6 @@ describe('AccountActivityDataSource', () => {
       const dataSource = createAccountActivityDataSource({
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
-        getAssetType: () => 'native',
         onAssetsUpdate: jest.fn(),
       });
 

@@ -428,6 +428,7 @@ async function normalizeQuote(
       sourceNetwork,
       targetNetwork,
     },
+    isInputBased: original.request.tradeType === 'exactInput',
     original: {
       ...original,
       metamask,
@@ -436,7 +437,7 @@ async function normalizeQuote(
     sourceAmount,
     targetAmount,
     strategy: TransactionPayStrategy.Across,
-  } as TransactionPayQuote<AcrossQuote>;
+  };
 }
 
 function getFiatRates(

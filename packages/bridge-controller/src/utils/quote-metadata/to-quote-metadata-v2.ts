@@ -61,10 +61,6 @@ export const toQuoteMetadataV2 = (
     : undefined;
   const txFeeAsset = quoteResponseV2?.quote?.feeData?.txFee?.[0]?.asset;
 
-  const priceImpactToUse = {
-    usd: priceImpact?.usd ?? cost?.usd,
-    valueInCurrency: priceImpact?.valueInCurrency ?? cost?.valueInCurrency,
-  };
   const networkFeeToUse = gasFee?.total ?? totalNetworkFee;
 
   return {
@@ -101,11 +97,14 @@ export const toQuoteMetadataV2 = (
         }),
       },
       priceData: {
-        ...includeIfTruthy(priceImpactToUse, {
-          priceImpact: priceImpactToUse,
+        ...includeIfTruthy(priceImpact, {
+          priceImpact,
         }),
         ...includeIfTruthy(adjustedReturn, {
           adjustedReturn,
+        }),
+        ...includeIfTruthy(cost, {
+          cost,
         }),
         swapRate,
       },

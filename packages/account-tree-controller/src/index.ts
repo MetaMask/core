@@ -41,12 +41,17 @@ export type {
   AccountTreeControllerSyncWithUserStorageAction,
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
+  AccountTreeControllerIsInitializedAction,
   AccountTreeControllerReinitAction,
   AccountTreeControllerExportStateAction,
   AccountTreeControllerImportStateAction,
 } from './AccountTreeController-method-action-types.js';
 
 export type { AccountContext } from './AccountTreeController.js';
+export type {
+  RemoveAccountWalletFailure,
+  RemoveAccountWalletFailureContext,
+} from './errors.js';
 
 export {
   AccountTreeController,

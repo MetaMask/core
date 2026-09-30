@@ -311,9 +311,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -427,8 +424,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -438,6 +435,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -534,6 +533,134 @@ describe('HyperLiquidProvider', () => {
       expect(result).toEqual([]);
     });
 
+    it('preserves history when an order is missing runtime-required fields', async () => {
+      mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+        {
+          order: {
+            oid: 123,
+            coin: 'BTC',
+            side: 'A',
+            sz: '0.5',
+            origSz: '1.0',
+            limitPx: '50000',
+            orderType: 'Limit',
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'filled',
+          statusTimestamp: 1640995200000,
+        },
+        {
+          order: {
+            oid: undefined,
+            coin: 'ETH',
+            side: 'B',
+            sz: '0.1',
+            origSz: '0.1',
+            limitPx: '',
+            orderType: undefined,
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'open',
+          statusTimestamp: 1640995300000,
+        },
+      ]);
+
+      const result = await provider.getOrders();
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        orderId: '123',
+        orderType: 'limit',
+      });
+      expect(result[1]).toMatchObject({
+        orderId: '',
+        orderType: 'market',
+      });
+    });
+
+    it.each([
+      ['Limit', 'limit'],
+      ['Market', 'market'],
+      ['Stop Limit', 'limit'],
+      ['Stop Market', 'market'],
+      ['Take Profit Limit', 'limit'],
+      ['Take Profit Market', 'market'],
+      ['Twap Slice', 'market'],
+      ['Vault Close', 'market'],
+      ['Spot Dust Conversion', 'market'],
+      ['Unexpected Limit', 'market'],
+    ])(
+      'maps the exact historical order type %s to %s',
+      async (orderType, expected) => {
+        mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+          {
+            order: {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              origSz: '0.1',
+              limitPx: '50000',
+              orderType,
+              reduceOnly: false,
+              isTrigger: false,
+            },
+            status: 'open',
+            statusTimestamp: 1640995200000,
+          },
+        ]);
+
+        const result = await provider.getOrders();
+
+        expect(result[0].orderType).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['open', 'open'],
+      ['filled', 'filled'],
+      ['triggered', 'triggered'],
+      ['canceled', 'canceled'],
+      ['marginCanceled', 'canceled'],
+      ['outcomeSettledCanceled', 'canceled'],
+      ['internalCancel', 'canceled'],
+      ['scheduledCancel', 'canceled'],
+      ['reduceOnlyRejected', 'canceled'],
+      ['rejected', 'rejected'],
+      ['minTradeNtlRejected', 'rejected'],
+      ['perpMarginRejected', 'rejected'],
+      ['iocCancelRejected', 'rejected'],
+      ['tooManyOpenOrdersRejected', 'rejected'],
+      ['unexpectedStatus', 'queued'],
+    ])(
+      'maps the historical order status %s to %s',
+      async (status, expected) => {
+        mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+          {
+            order: {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              origSz: '0.1',
+              limitPx: '50000',
+              orderType: 'Limit',
+              reduceOnly: false,
+              isTrigger: false,
+            },
+            status,
+            statusTimestamp: 1640995200000,
+          },
+        ]);
+
+        const result = await provider.getOrders();
+
+        expect(result[0].status).toBe(expected);
+      },
+    );
+
     it('properly transform getOrders with reduceOnly and isTrigger fields', async () => {
       const historicalOrdersData = [
         {
@@ -559,6 +686,7 @@ describe('HyperLiquidProvider', () => {
             sz: '0.0',
             origSz: '2.0',
             limitPx: '3500',
+            triggerPx: '3450',
             orderType: 'Take Profit Limit',
             reduceOnly: true,
             isTrigger: true,
@@ -574,12 +702,29 @@ describe('HyperLiquidProvider', () => {
             sz: '0.1',
             origSz: '0.1',
             limitPx: '45000',
+            triggerPx: '45500',
             orderType: 'Stop Market',
             reduceOnly: true,
             isTrigger: true,
           },
           status: 'triggered',
           statusTimestamp: 1640995400000,
+        },
+        {
+          order: {
+            oid: 126,
+            coin: 'ETH',
+            side: 'B',
+            sz: '0.0',
+            origSz: '1.0',
+            limitPx: '3600',
+            triggerPx: '',
+            orderType: 'Market',
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'filled',
+          statusTimestamp: 1640995500000,
         },
       ];
       mockClientService.getInfoClient = jest.fn().mockReturnValue({
@@ -596,7 +741,7 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.getOrders();
 
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(4);
 
       // Check first order - regular limit order (not closing)
       expect(result[0]).toMatchObject({
@@ -622,7 +767,13 @@ describe('HyperLiquidProvider', () => {
         size: '0.0',
         originalSize: '2.0',
         price: '3500',
+        triggerPrice: '3450',
+        triggerOrderType: 'take_profit_limit',
+        filledSize: '2',
+        remainingSize: '0',
         status: 'filled',
+        timestamp: 1640995300000,
+        lastUpdated: 1640995300000,
         detailedOrderType: 'Take Profit Limit',
         reduceOnly: true,
         isTrigger: true,
@@ -637,11 +788,38 @@ describe('HyperLiquidProvider', () => {
         size: '0.1',
         originalSize: '0.1',
         price: '45000',
+        triggerPrice: '45500',
+        triggerOrderType: 'stop_market',
+        filledSize: '0',
+        remainingSize: '0.1',
         status: 'triggered',
+        timestamp: 1640995400000,
+        lastUpdated: 1640995400000,
         detailedOrderType: 'Stop Market',
         reduceOnly: true,
         isTrigger: true,
       });
+
+      // Check fourth order - regular market order with a slippage-cap price
+      expect(result[3]).toMatchObject({
+        orderId: '126',
+        symbol: 'ETH',
+        side: 'buy',
+        orderType: 'market',
+        size: '0.0',
+        originalSize: '1.0',
+        price: '3600',
+        filledSize: '1',
+        remainingSize: '0',
+        status: 'filled',
+        timestamp: 1640995500000,
+        lastUpdated: 1640995500000,
+        detailedOrderType: 'Market',
+        reduceOnly: false,
+        isTrigger: false,
+      });
+      expect(result[3].triggerPrice).toBeUndefined();
+      expect(result[3].triggerOrderType).toBeUndefined();
     });
 
     it('properly transform getOpenOrders with reduceOnly and isTrigger fields', async () => {
@@ -1004,6 +1182,39 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it('keeps liquidation data when HyperLiquid omits the liquidated user', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue([
+            {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              px: '45000',
+              fee: '4.5',
+              feeToken: 'USDC',
+              time: Date.now(),
+              closedPnl: '-500',
+              dir: 'Close Long',
+              liquidation: {
+                markPx: '44900',
+                method: 'backstop',
+              },
+            },
+          ]),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills[0].liquidation).toStrictEqual({
+        liquidatedUser: undefined,
+        markPx: '44900',
+        method: 'backstop',
+      });
+    });
+
     it('handles fills without liquidation data', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1236,6 +1447,134 @@ describe('HyperLiquidProvider', () => {
 
       expect(fills).toHaveLength(1);
       expect(fills[0].detailedOrderType).toBeUndefined();
+    });
+  });
+
+  describe('getOrderFills execution identifier', () => {
+    /**
+     * Two partial executions of ONE order. HyperLiquid does not guarantee
+     * that oid + time + sz + px identifies a single execution, so these
+     * agree on all four and differ only by tid. A client deduplicating on
+     * that four-field tuple silently drops one real trade.
+     */
+    const collidingRawFills = [
+      {
+        oid: 777,
+        coin: 'BTC',
+        side: 'B',
+        sz: '0.5',
+        px: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        time: 1699999999999,
+        closedPnl: '0',
+        dir: 'Open Long',
+        startPosition: '0',
+        tid: 111111111111111,
+      },
+      {
+        oid: 777,
+        coin: 'BTC',
+        side: 'B',
+        sz: '0.5',
+        px: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        time: 1699999999999,
+        closedPnl: '0',
+        dir: 'Open Long',
+        startPosition: '0',
+        tid: 222222222222222,
+      },
+    ];
+
+    it('builds fillId from coin, time and tid for each fill', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue(collidingRawFills),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills).toHaveLength(2);
+      expect(fills[0].fillId).toBe('BTC:1699999999999:111111111111111');
+      expect(fills[1].fillId).toBe('BTC:1699999999999:222222222222222');
+    });
+
+    it('gives distinct fillIds to two executions sharing orderId, timestamp, size and price', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue(collidingRawFills),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      // Premise: the four fields a content-based dedupe key would use are
+      // identical, so nothing but the execution id can separate these.
+      const contentKey = (fill: (typeof fills)[number]) =>
+        `${fill.orderId}-${fill.timestamp}-${fill.size}-${fill.price}`;
+      expect(contentKey(fills[0])).toBe(contentKey(fills[1]));
+
+      expect(fills[0].fillId).toBeDefined();
+      expect(fills[1].fillId).toBeDefined();
+      expect(fills[0].fillId).not.toBe(fills[1].fillId);
+    });
+
+    it('keeps both executions when deduplicated by fillId', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue(collidingRawFills),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      const byFillId = new Map(fills.map((fill) => [fill.fillId, fill]));
+      expect(byFillId.size).toBe(2);
+    });
+
+    it('omits fillId when the venue payload carries no tid', async () => {
+      const { tid, ...withoutTid } = collidingRawFills[0];
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue([withoutTid]),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills).toHaveLength(1);
+      expect(fills[0].fillId).toBeUndefined();
+      // Never the string 'undefined': an absent id must be detectable so a
+      // client can fall back to content matching instead of keying on it.
+      expect(Object.hasOwn(fills[0], 'fillId')).toBe(false);
+    });
+
+    it('leaves the rest of the fill content unchanged', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue([collidingRawFills[0]]),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills[0]).toMatchObject({
+        orderId: '777',
+        symbol: 'BTC',
+        side: 'buy',
+        size: '0.5',
+        price: '50000',
+        fee: '1.25',
+        feeToken: 'USDC',
+        timestamp: 1699999999999,
+        pnl: '0',
+        direction: 'Open Long',
+        startPosition: '0',
+        success: true,
+      });
     });
   });
 
