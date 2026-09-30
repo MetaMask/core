@@ -27,7 +27,7 @@ describe('generateKeyPair', () => {
   it('uses 32 random bytes as the private key and derives the public key from it', async () => {
     const getRandomBytesSpy = jest
       .spyOn(random, 'getRandomBytes')
-      .mockReturnValueOnce(rfcPrivateKey as Uint8Array<ArrayBuffer>);
+      .mockReturnValueOnce(rfcPrivateKey);
 
     const keyPair = await generateKeyPair();
 
@@ -65,18 +65,11 @@ describe('generateKeyPair', () => {
   it('generates a key pair that can sign and verify data', async () => {
     const { privateKey: generatedPrivateKey, publicKey: generatedPublicKey } =
       await generateKeyPair();
-    const data = stringToBytes('foo');
+    const data = stringToBytes('foo') as Uint8Array<ArrayBuffer>;
 
-    const signature = await sign(
-      generatedPrivateKey,
-      data as Uint8Array<ArrayBuffer>,
-    );
+    const signature = await sign(generatedPrivateKey, data);
 
-    const valid = await verify(
-      generatedPublicKey,
-      signature as Uint8Array<ArrayBuffer>,
-      data as Uint8Array<ArrayBuffer>,
-    );
+    const valid = await verify(generatedPublicKey, signature, data);
 
     expect(valid).toBe(true);
   });
