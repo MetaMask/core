@@ -35,13 +35,17 @@ const nistCiphertext15 = hexToBytes(
 
 describe('encrypt', () => {
   it('matches test case 2', async () => {
-    const result = await encrypt(nistKey2, nistPlaintext2, { iv: nistIv2 });
+    const result = await encrypt(nistKey2, nistPlaintext2, {
+      unsafeIv: nistIv2,
+    });
     expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext2));
     expect(bytesToHex(result.iv)).toBe(bytesToHex(nistIv2));
   });
 
   it('matches test case 15', async () => {
-    const result = await encrypt(nistKey15, nistPlaintext15, { iv: nistIv15 });
+    const result = await encrypt(nistKey15, nistPlaintext15, {
+      unsafeIv: nistIv15,
+    });
     expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext15));
     expect(bytesToHex(result.iv)).toBe(bytesToHex(nistIv15));
   });
@@ -63,7 +67,7 @@ describe('encrypt', () => {
 
   it('accepts an ArrayBuffer key, IV and plaintext', async () => {
     const result = await encrypt(nistKey15.buffer, nistPlaintext15.buffer, {
-      iv: nistIv15.buffer,
+      unsafeIv: nistIv15.buffer,
     });
     expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext15));
   });
@@ -72,14 +76,14 @@ describe('encrypt', () => {
     const result = await encrypt(
       new DataView(nistKey15.buffer),
       new DataView(nistPlaintext15.buffer),
-      { iv: new DataView(nistIv15.buffer) },
+      { unsafeIv: new DataView(nistIv15.buffer) },
     );
     expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext15));
   });
 
   it('throws if the key is empty', async () => {
     await expect(
-      encrypt(new Uint8Array(0), nistPlaintext15, { iv: nistIv15 }),
+      encrypt(new Uint8Array(0), nistPlaintext15, { unsafeIv: nistIv15 }),
     ).rejects.toThrow(
       'Invalid key length: Key must not be zero bytes for AES-GCM.',
     );
@@ -87,7 +91,7 @@ describe('encrypt', () => {
 
   it('throws if the IV is empty', async () => {
     await expect(
-      encrypt(nistKey15, nistPlaintext15, { iv: new Uint8Array(0) }),
+      encrypt(nistKey15, nistPlaintext15, { unsafeIv: new Uint8Array(0) }),
     ).rejects.toThrow(
       'Invalid IV length: IV must not be zero bytes for AES-GCM.',
     );
@@ -95,7 +99,7 @@ describe('encrypt', () => {
 
   it('throws if the IV is not 12 bytes', async () => {
     await expect(
-      encrypt(nistKey15, nistPlaintext15, { iv: new Uint8Array(16) }),
+      encrypt(nistKey15, nistPlaintext15, { unsafeIv: new Uint8Array(16) }),
     ).rejects.toThrow(
       'Unsafe IV length: IV must be exactly 12 bytes for AES-GCM. To bypass this check, set the `unsafeIvLength` option to `true`.',
     );

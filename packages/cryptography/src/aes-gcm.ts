@@ -10,7 +10,7 @@ export type AesGcmEncryptOptions = {
    * is generated automatically. It is recommended to use the generated one rather
    * than providing one, to avoid IV reuse.
    */
-  iv?: BufferSource;
+  unsafeIv?: BufferSource;
 } & AesGcmDecryptOptions;
 
 export type AesGcmDecryptOptions = {
@@ -45,7 +45,9 @@ export async function encrypt(
     );
   }
 
-  const iv = toUint8Array(options?.iv ?? getRandomBytes(AES_GCM_IV_LENGTH));
+  const iv = toUint8Array(
+    options?.unsafeIv ?? getRandomBytes(AES_GCM_IV_LENGTH),
+  );
 
   if (iv.byteLength === 0) {
     throw new Error(
