@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `KycController.startSession` accepts an optional `aal2Token`, required only when a UKYC session must be created. `KycService.createUkycSession` requires `aal2Token`. Session creation (`POST /sessions`) sends that token as the `Authorization` bearer value instead of the wallet bearer token from `AuthenticationController:getBearerToken`
+  - Pass `aal2Token` when `startSession` will create a session, and whenever calling `createUkycSession` or `KycService:createUkycSession`
+  - Reusing a session already on state, or the latest vendor session, does not require `aal2Token`
+  - Other KYC requests continue to use the wallet bearer token
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
