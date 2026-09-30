@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-
 - Add `TWAP_SLICE`, `VAULT_CLOSE` and `SPOT_DUST_CONVERSION` to `DETAILED_ORDER_TYPES` for the HyperLiquid order types added in `@nktkas/hyperliquid` 0.33.3 ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
 - Add `PerpsController.getMarginModeLock` (and the `PerpsController:getMarginModeLock` messenger action) plus the optional `PerpsProvider.getMarginModeLock`, reporting the margin mode an asset is locked to by an open position or resting order/TWAP so clients can keep their margin-mode picker in sync with what order placement will accept. HyperLiquid implements it; other providers report `not_implemented`. ([#10414](https://github.com/MetaMask/core/pull/10414))
@@ -59,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
 - Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
+- **Breaking:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
+- Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
 
 ### Removed
 
@@ -78,11 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HyperLiquid orders that set leverage without `marginMode` now keep the open position's margin mode instead of switching to isolated, so flipping a Cross position no longer fails with "Cannot switch leverage type with open position" ([#10588](https://github.com/MetaMask/core/pull/10588))
 - Wait up to `PERPS_CONSTANTS.ConnectionTimeoutMs` for the client's follow-up `init()` when a controller action (such as `placeOrder`) was waiting on a `disconnect()`, so an order submitted during a disconnect-then-init reconnect is placed instead of failing with `CLIENT_NOT_INITIALIZED` ([#10589](https://github.com/MetaMask/core/pull/10589))
   - If that reconnect switched the selected account, the network or the active provider, the action fails with `PROVIDER_LIFECYCLE_STALE` instead of running under the new context.
-
-### Changed
-
-- **Breaking:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
-- Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
 
 ## [18.0.1]
 
