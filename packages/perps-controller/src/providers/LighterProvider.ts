@@ -4480,17 +4480,65 @@ export class LighterProvider implements PerpsProvider {
     const chainId = getLighterChainId(this.#clientService.network);
     const candidates = await this.#signerCandidates(accountIndex, generation);
     for (const apiKeyIndex of candidates) {
-      // Slot selection and WASM ownership change inside the serialized write
-      // section, after older dispatch/ledger work has completely finished.
+      let candidateNonce = 0;
+      let changePubKeyBody = '';
+      let candidateStatus: 'available' | 'matching' = 'matching';
+      // Inspect identity under the same slot and bridge locks as writes.
+      // An unrelated key's ledger must not block discovery of our key.
       const ready = await this.#withVenueWriteLock(
         accountIndex,
         async (nextNonce, submit) => {
-          const nonce = await nextNonce();
+          if (candidateStatus === 'available') {
+            // Reconciliation can raise the nonce floor. The registration
+            // plaintext must bind to the safe nonce, not the probe's seed.
+            const nonce = await nextNonce();
+            if (nonce !== candidateNonce) {
+              const created = await bridge.createClient({
+                chainId,
+                accountIndex,
+                nonce,
+                apiKeyIndex,
+                walletAddress: this.#boundAddress ?? undefined,
+              });
+              this.#assertSession(generation);
+              if (
+                created.error ||
+                !created.success ||
+                created.pk !== this.#venuePublicKey
+              ) {
+                throw new Error(
+                  'Lighter signer identity changed during registration preparation',
+                );
+              }
+              changePubKeyBody = created.body;
+            }
+            await this.#registerVenueKey(
+              accountIndex,
+              changePubKeyBody,
+              generation,
+              async () => nonce,
+              submit,
+            );
+            this.#assertSession(generation);
+            if (bridge.getRecoverableKeyIndices || bridge.getStoredKeyIndices) {
+              await this.#waitForRegisteredKey(accountIndex, generation);
+            }
+          }
+          return true;
+        },
+        generation,
+        apiKeyIndex,
+        async () => {
+          const nonceResponse = await this.#clientService.getNextNonce(
+            accountIndex,
+            apiKeyIndex,
+          );
           this.#assertSession(generation);
+          candidateNonce = nonceResponse.nonce;
           const created = await bridge.createClient({
             chainId,
             accountIndex,
-            nonce,
+            nonce: candidateNonce,
             apiKeyIndex,
             walletAddress: this.#boundAddress ?? undefined,
           });
@@ -4504,7 +4552,7 @@ export class LighterProvider implements PerpsProvider {
           this.#signerIdentity = `${this.#clientService.network}:${accountIndex}:${apiKeyIndex}`;
           this.#signerRecreateParams = { chainId, accountIndex };
           bridgeClientOwners.set(this.#rawSignerBridge(), this.#signerIdentity);
-
+          changePubKeyBody = created.body;
           const status = await this.#venueKeyStatus(accountIndex);
           this.#assertSession(generation);
           if (status === 'occupied') {
@@ -4517,25 +4565,10 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter API key slot ${String(apiKeyIndex)} already contains a different key; reconnect with a client that supports device-key recovery`,
               );
             }
-            return false;
+            return { result: false };
           }
-          if (status === 'available') {
-            await this.#registerVenueKey(
-              accountIndex,
-              created.body,
-              generation,
-              nextNonce,
-              submit,
-            );
-            this.#assertSession(generation);
-            if (bridge.getRecoverableKeyIndices || bridge.getStoredKeyIndices) {
-              await this.#waitForRegisteredKey(accountIndex, generation);
-            }
-          }
-          return true;
+          candidateStatus = status;
         },
-        generation,
-        apiKeyIndex,
       );
       if (ready) {
         this.#kickTpslRecovery();
@@ -4726,6 +4759,10 @@ export class LighterProvider implements PerpsProvider {
    * @param generationAtIntent - Session generation captured when the
    * caller's intent was formed (defaults to now).
    * @param apiKeyIndex - Slot captured when this section was queued.
+   * @param inspectCandidate - Optional read-only identity inspection before
+   * ledger resolution. A nonmatching candidate may return without reading or
+   * changing its unrelated ledger. Matching/available candidates retain all
+   * nonce safeguards before the write section runs.
    * @returns The section's result.
    */
   readonly #withVenueWriteLock = async <Result>(
@@ -4746,6 +4783,7 @@ export class LighterProvider implements PerpsProvider {
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
     apiKeyIndex = this.#apiKeyIndex,
+    inspectCandidate?: () => Promise<{ result: Result } | void>,
   ): Promise<Result> => {
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
@@ -4753,6 +4791,13 @@ export class LighterProvider implements PerpsProvider {
         this.#clearBridgeOwnership();
       }
       this.#apiKeyIndex = apiKeyIndex;
+      if (inspectCandidate) {
+        const inspected = await inspectCandidate();
+        this.#assertSession(generationAtIntent);
+        if (inspected) {
+          return inspected.result;
+        }
+      }
       // Every unresolved prior dispatch (this session OR a previous one —
       // the ledger is durable) must resolve before this section may issue
       // nonces: a restart would otherwise reuse a consumed-but-lagging

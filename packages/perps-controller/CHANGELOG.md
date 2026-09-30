@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `LighterSignerBridge.getRecoverableKeyIndices` and `getStoredKeyIndices` discovery, and an optional `walletAddress` binding on client creation and discovery. Hosts can restore wallet-derived trading keys; Core verifies registered public keys before reuse ([#10618](https://github.com/MetaMask/core/pull/10618))
+- Add optional `LighterSignerBridge.getRecoverableKeyIndices` and `getStoredKeyIndices` discovery, and an optional `walletAddress` binding on client creation and discovery. Hosts can restore wallet-derived trading keys; Core verifies registered public keys before reuse and skips unrelated candidate ledgers without changing them ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Add optional `onError` callbacks and delivery provider identifiers to order and fill subscriptions, including empty aggregated updates, so clients can show and retry failures from the affected provider ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Changed

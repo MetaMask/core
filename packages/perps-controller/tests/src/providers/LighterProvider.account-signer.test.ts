@@ -536,6 +536,176 @@ describe('LighterProvider with accountSigner', () => {
     expect(client.sendTx).not.toHaveBeenCalled();
   });
 
+  it.each(['unresolved', 'quarantined'] as const)(
+    'skips a nonmatching candidate with a %s nonce ledger',
+    async (ledgerState) => {
+      const { provider, client, bridge, accountSigner, calls, deps } =
+        buildProvider({ storedKeyIndices: [] });
+      Object.assign(bridge, {
+        getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+      });
+      client.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [
+          { apiKeyIndex: 7, publicKey: 'ab'.repeat(40) },
+          { apiKeyIndex: 19, publicKey: '9c'.repeat(40) },
+        ],
+      });
+      const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+      const ledger = JSON.stringify({
+        version: 4,
+        consumedFloor: 0,
+        entries:
+          ledgerState === 'unresolved'
+            ? [
+                {
+                  nonce: NEXT_NONCE,
+                  txHash: 'deadbeef',
+                  expiresAt: NOW + TX_EXPIRY_MS,
+                  kind: 14,
+                  intent: 'order:ETH',
+                  owner: null,
+                },
+              ]
+            : [],
+        recovered:
+          ledgerState === 'quarantined'
+            ? [
+                {
+                  recoveryId: '42:deadbeef',
+                  kind: 14,
+                  intent: 'order:ETH',
+                  txHash: 'deadbeef',
+                  outcome: 'unknown',
+                  evidence: 'rest-advance',
+                },
+              ]
+            : [],
+      });
+      await deps.diskCache.setItem(ledgerKey, ledger);
+
+      expect(await provider.prepareTradingWallet()).toStrictEqual({
+        ready: true,
+      });
+
+      expect(
+        calls
+          .filter((call) => call.function === '_createClient')
+          .map((call) => call.params[3]),
+      ).toStrictEqual([7, 19]);
+      expect(await deps.diskCache.getItem(ledgerKey)).toBe(ledger);
+      expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+      expect(client.sendTx).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['unresolved', 'quarantined'] as const)(
+    'retains the %s nonce guard on a matching candidate',
+    async (ledgerState) => {
+      const { provider, client, bridge, calls, deps } = buildProvider({
+        storedKeyIndices: [],
+      });
+      Object.assign(bridge, {
+        getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+      });
+      client.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [
+          { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+          { apiKeyIndex: 19, publicKey: '9c'.repeat(40) },
+        ],
+      });
+      const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+      const ledger = JSON.stringify({
+        version: 4,
+        consumedFloor: 0,
+        entries:
+          ledgerState === 'unresolved'
+            ? [
+                {
+                  nonce: NEXT_NONCE,
+                  txHash: 'deadbeef',
+                  expiresAt: NOW + TX_EXPIRY_MS,
+                  kind: 14,
+                  intent: 'order:ETH',
+                  owner: null,
+                },
+              ]
+            : [],
+        recovered:
+          ledgerState === 'quarantined'
+            ? [
+                {
+                  recoveryId: '42:deadbeef',
+                  kind: 14,
+                  intent: 'order:ETH',
+                  txHash: 'deadbeef',
+                  outcome: 'unknown',
+                  evidence: 'rest-advance',
+                },
+              ]
+            : [],
+      });
+      await deps.diskCache.setItem(ledgerKey, ledger);
+
+      const result = await provider.prepareTradingWallet();
+
+      expect(result.ready).toBe(false);
+      expect(result.error).toMatch(/unresolved|UNKNOWN/u);
+      expect(
+        calls
+          .filter((call) => call.function === '_createClient')
+          .map((call) => call.params[3]),
+      ).not.toContain(19);
+      expect(await deps.diskCache.getItem(ledgerKey)).toBe(ledger);
+      expect(client.sendTx).not.toHaveBeenCalled();
+    },
+  );
+
+  it('recreates registration plaintext when the durable nonce floor exceeds the probe seed', async () => {
+    const { provider, client, bridge, calls, deps, accountSigner, address } =
+      buildProvider({ storedKeyIndices: [] });
+    jest.spyOn(bridge, 'createClient').mockImplementation(async (params) => ({
+      ...(await bridge.execute({
+        function: '_createClient',
+        params: [
+          params.chainId,
+          params.accountIndex,
+          params.nonce,
+          params.apiKeyIndex,
+        ],
+      })),
+      body: `registration nonce=${String(params.nonce)}`,
+    }));
+    await deps.diskCache.setItem(
+      'lighterNonceLedger:testnet:28:7',
+      JSON.stringify({
+        version: 4,
+        consumedFloor: NEXT_NONCE + 1,
+        entries: [],
+        recovered: [],
+      }),
+    );
+
+    expect(await provider.prepareTradingWallet()).toStrictEqual({
+      ready: true,
+    });
+
+    expect(
+      calls
+        .filter((call) => call.function === '_createClient')
+        .map((call) => call.params[2]),
+    ).toStrictEqual([NEXT_NONCE, NEXT_NONCE + 1]);
+    expect(accountSigner.signPersonalMessage).toHaveBeenCalledWith(
+      address,
+      `registration nonce=${String(NEXT_NONCE + 1)}`,
+    );
+    expect(
+      calls.find((call) => call.function === '_signChangePubKey')?.params[2],
+    ).toBe(NEXT_NONCE + 1);
+    expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['wallet-recovery', 'storage-only'] as const)(
     'refuses repeated slot allocation with %s discovery after key loss',
     async (discovery) => {
