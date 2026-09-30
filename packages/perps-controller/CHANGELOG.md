@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
+
 ### Changed
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
@@ -88,9 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - List local recovery obligations across all trading slots with optional `PerpsRecoveredDispatch.apiKeyIndex` and opaque wallet/network/account/slot-bound IDs. Raw pending dispatches have `acknowledgeable:false`; only resolved stored outcomes can be acknowledged, and legacy IDs must be unique across the account ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Wait for in-flight key selection in recovery readers and retain unfinished TP/SL journals after failed signer initialization ([#10618](https://github.com/MetaMask/core/pull/10618))
 - `HyperLiquidProvider.getExchangeClient` initializes the provider's SDK clients before returning the exchange client, so it signs L1 actions with the provider's agent ([#10643](https://github.com/MetaMask/core/pull/10643))
-
-### Added
-- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
 
 ### Fixed
 
