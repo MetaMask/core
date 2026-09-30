@@ -5614,7 +5614,7 @@ __metadata:
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
@@ -5896,7 +5896,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
     jest-environment-jsdom: "npm:^30.5.2"
@@ -5933,7 +5933,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
     jest-environment-jsdom: "npm:^30.5.2"
@@ -6254,7 +6254,7 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     bn.js: "npm:^5.2.5"
     cockatiel: "npm:^3.2.1"
     deepmerge: "npm:^4.3.1"
@@ -7834,7 +7834,7 @@ __metadata:
     "@types/readable-stream": "npm:^2.3.0"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     contentful: "npm:^10.15.0"
     deepmerge: "npm:^4.3.1"
     firebase: "npm:^11.10.0"
@@ -8083,7 +8083,7 @@ __metadata:
     "@nktkas/hyperliquid": "npm:^0.33.3"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
     reselect: "npm:^5.1.1"
@@ -8351,7 +8351,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^30.5.2"
@@ -8682,7 +8682,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^72.0.1"
     "@metamask/utils": "npm:^12.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
@@ -8968,7 +8968,7 @@ __metadata:
     "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     deepmerge: "npm:^4.3.1"
     fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^30.5.2"
@@ -9048,7 +9048,7 @@ __metadata:
     "@types/node": "npm:^22.13.14"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.3.1"
     eth-method-registry: "npm:^4.0.0"
@@ -9095,7 +9095,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.3.1"
     immer: "npm:^11.1.18"
@@ -14340,10 +14340,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bignumber.js@npm:^9.1.2":
-  version: 9.1.2
-  resolution: "bignumber.js@npm:9.1.2"
-  checksum: 10/d89b8800a987225d2c00dcbf8a69dc08e92aa0880157c851c287b307d31ceb2fc2acb0c62c3e3a3d42b6c5fcae9b004035f13eb4386e56d529d7edac18d5c9d8
+"bignumber.js@npm:^9.1.2, bignumber.js@npm:^9.3.1":
+  version: 9.3.1
+  resolution: "bignumber.js@npm:9.3.1"
+  checksum: 10/1be0372bf0d6d29d0a49b9e6a9cefbd54dad9918232ad21fcd4ec39030260773abf0c76af960c6b3b98d3115a3a71e61c6a111812d1395040a039cfa178e0245
   languageName: node
   linkType: hard
 
