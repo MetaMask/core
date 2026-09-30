@@ -1226,11 +1226,14 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
     "TS2352": {
-      "count": 2
+      "count": 6
     },
     "TS2741": {
-      "count": 39
+      "count": 55
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
@@ -1247,16 +1250,16 @@
       "count": 6
     }
   },
-  "packages/transaction-pay-controller/src/utils/ma-vault-deposit.test.ts": {
-    "TS2352": {
-      "count": 1
-    }
-  },
   "packages/transaction-pay-controller/src/utils/provider.test.ts": {
     "TS2353": {
       "count": 1
     },
     "TS7006": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/second-leg.test.ts": {
+    "TS2352": {
       "count": 1
     }
   },
