@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Grant `SubscriptionController` access to `SeedlessOnboardingController:getIsUserAuthenticated` so `SubscriptionController:isUserEligibleForTrial` can tell whether the user is authenticated with social login
+  - Hosts that supply their own root messenger must allow this action before constructing `SubscriptionController`.
+
 ## [15.1.0]
 
 ### Changed
