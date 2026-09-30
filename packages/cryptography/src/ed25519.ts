@@ -14,7 +14,7 @@ const ED25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x70]);
  *
  * @returns The raw 32-byte Ed25519 private key and 32-byte Ed25519 public key.
  */
-export async function generateKey(): Promise<KeyPair> {
+export async function generateKeyPair(): Promise<KeyPair> {
   const keyPair = await globalThis.crypto.subtle.generateKey('Ed25519', true, [
     'sign',
     'verify',

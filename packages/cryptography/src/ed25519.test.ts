@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
 
-import { generateKey, getPublicKey, sign, verify } from './ed25519.js';
+import { generateKeyPair, getPublicKey, sign, verify } from './ed25519.js';
 
 const privateKey = hexToBytes(
   '0xf05665c0091fc75a5a558eddb88acd3ce2a789e15c0e10ceb334849357394ac1',
@@ -21,17 +21,17 @@ const rfcMessage = hexToBytes('0xaf82');
 const rfcSignature =
   '0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a';
 
-describe('generateKey', () => {
+describe('generateKeyPair', () => {
   it('generates a 32-byte private key and a 32-byte public key', async () => {
-    const keyPair = await generateKey();
+    const keyPair = await generateKeyPair();
 
     expect(keyPair.privateKey).toHaveLength(32);
     expect(keyPair.publicKey).toHaveLength(32);
   });
 
   it('generates a different key pair each time', async () => {
-    const first = await generateKey();
-    const second = await generateKey();
+    const first = await generateKeyPair();
+    const second = await generateKeyPair();
 
     expect(bytesToHex(first.privateKey)).not.toBe(
       bytesToHex(second.privateKey),
@@ -41,7 +41,7 @@ describe('generateKey', () => {
 
   it('generates a public key that matches the private key', async () => {
     const { privateKey: generatedPrivateKey, publicKey: generatedPublicKey } =
-      await generateKey();
+      await generateKeyPair();
 
     const derivedPublicKey = await getPublicKey(generatedPrivateKey);
     expect(bytesToHex(derivedPublicKey)).toBe(bytesToHex(generatedPublicKey));
@@ -49,7 +49,7 @@ describe('generateKey', () => {
 
   it('generates a key pair that can sign and verify data', async () => {
     const { privateKey: generatedPrivateKey, publicKey: generatedPublicKey } =
-      await generateKey();
+      await generateKeyPair();
     const data = stringToBytes('foo');
 
     const signature = await sign(generatedPrivateKey, data);
