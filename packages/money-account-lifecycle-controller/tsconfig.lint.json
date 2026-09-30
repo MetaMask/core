@@ -19,6 +19,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-controller/tsconfig.lint.json"
     }
   ]
 }

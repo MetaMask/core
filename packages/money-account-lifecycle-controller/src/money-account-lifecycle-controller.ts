@@ -12,6 +12,10 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  MoneyAccountControllerGetMoneyAccountAction,
+  MoneyAccountControllerStateChangeEvent,
+} from '@metamask/money-account-controller';
+import type {
   FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
@@ -26,13 +30,30 @@ import type { MoneyAccountLifecycleControllerMethodActions } from './money-accou
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
-export type MoneyAccountLifecycleControllerState = Record<never, never>;
+export type MoneyAccountLifecycleStatus =
+  | { status: 'unregistered' }
+  | { status: 'sfa' }
+  | { status: 'mfa'; currentAddress: string };
 
-const moneyAccountLifecycleControllerMetadata =
-  {} satisfies StateMetadata<MoneyAccountLifecycleControllerState>;
+export type MoneyAccountLifecycleControllerState = {
+  moneyAccounts: {
+    [moneyAccountAddress: string]: MoneyAccountLifecycleStatus;
+  };
+};
+
+const moneyAccountLifecycleControllerMetadata = {
+  moneyAccounts: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+} satisfies StateMetadata<MoneyAccountLifecycleControllerState>;
 
 export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLifecycleControllerState {
-  return {};
+  return {
+    moneyAccounts: {},
+  };
 }
 
 const MESSENGER_EXPOSED_METHODS = ['init'] as const;
@@ -50,6 +71,7 @@ export type MoneyAccountLifecycleControllerActions =
 type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
   | KeyringControllerGetStateAction
+  | MoneyAccountControllerGetMoneyAccountAction
   | RemoteFeatureFlagControllerGetStateAction;
 
 export type MoneyAccountLifecycleControllerStateChangedEvent =
@@ -58,11 +80,18 @@ export type MoneyAccountLifecycleControllerStateChangedEvent =
     MoneyAccountLifecycleControllerState
   >;
 
+export type MoneyAccountLifecycleControllerMfaDetectedEvent = {
+  type: `${typeof CONTROLLER_NAME}:mfaDetected`;
+  payload: [{ moneyAccountAddress: string; currentAddress: string }];
+};
+
 export type MoneyAccountLifecycleControllerEvents =
-  MoneyAccountLifecycleControllerStateChangedEvent;
+  | MoneyAccountLifecycleControllerStateChangedEvent
+  | MoneyAccountLifecycleControllerMfaDetectedEvent;
 
 type AllowedEvents =
   | KeyringControllerStateChangeEvent
+  | MoneyAccountControllerStateChangeEvent
   | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type MoneyAccountLifecycleControllerMessenger = Messenger<
@@ -128,6 +157,11 @@ export class MoneyAccountLifecycleController extends BaseController<
    * the wallet is unlocked with an HD keyring. Identities are cleared on lock
    * and refetched on unlock, when the remote feature flag values change, or on
    * the next trigger after a failed fetch.
+   *
+   * After each fetch, and whenever the primary Money Account changes, records
+   * whether that account is unregistered, a valid SFA, or a valid MFA.
+   * Publishes `MoneyAccountLifecycleController:mfaDetected` when it becomes a
+   * valid MFA.
    */
   init(): void {
     if (this.#initialized) {
@@ -142,6 +176,9 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
     this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () =>
       this.#sync(),
+    );
+    this.messenger.subscribe('MoneyAccountController:stateChange', () =>
+      this.#updateMoneyAccountStatus(),
     );
     this.#sync();
   }
@@ -186,6 +223,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       .then(({ identities }) => {
         if (this.#derivedIdentitiesFetch === derivedIdentitiesFetch) {
           this.#derivedIdentities = identities;
+          this.#updateMoneyAccountStatus();
         }
       })
       .catch((error: unknown) => {
@@ -196,11 +234,80 @@ export class MoneyAccountLifecycleController extends BaseController<
       });
   }
 
+  #updateMoneyAccountStatus(): void {
+    if (!this.#derivedIdentities) {
+      return;
+    }
+
+    try {
+      const moneyAccount = this.messenger.call(
+        'MoneyAccountController:getMoneyAccount',
+      );
+      if (!moneyAccount) {
+        return;
+      }
+
+      const status = getMoneyAccountLifecycleStatus(
+        moneyAccount.address,
+        this.#derivedIdentities,
+      );
+      const moneyAccountKey = moneyAccount.address.toLowerCase();
+      if (deepEqual(this.state.moneyAccounts[moneyAccountKey], status)) {
+        return;
+      }
+
+      this.update((state) => {
+        state.moneyAccounts[moneyAccountKey] = status;
+      });
+
+      if (status.status === 'mfa') {
+        this.messenger.publish(`${CONTROLLER_NAME}:mfaDetected`, {
+          moneyAccountAddress: moneyAccount.address,
+          currentAddress: status.currentAddress,
+        });
+      }
+    } catch (error) {
+      this.#reportError(error);
+    }
+  }
+
   #reportError(error: unknown): void {
     this.messenger.captureException?.(
       error instanceof Error ? error : new Error(String(error)),
     );
   }
+}
+
+function getMoneyAccountLifecycleStatus(
+  moneyAccountAddress: string,
+  identities: DerivedIdentity[],
+): MoneyAccountLifecycleStatus {
+  const normalizedAddress = moneyAccountAddress.toLowerCase();
+  const isMoneyAccountAddress = (address: string): boolean =>
+    address.toLowerCase() === normalizedAddress;
+
+  if (
+    identities.some(({ currentAddress }) =>
+      isMoneyAccountAddress(currentAddress),
+    )
+  ) {
+    return { status: 'sfa' };
+  }
+
+  const successor = identities.find(({ previousAddresses }) =>
+    previousAddresses.some(isMoneyAccountAddress),
+  );
+  if (!successor) {
+    return { status: 'unregistered' };
+  }
+
+  if (successor.status !== 'DONE') {
+    throw new Error(
+      `Money account ${moneyAccountAddress} is a previous address of a derived identity with status '${successor.status}'`,
+    );
+  }
+
+  return { status: 'mfa', currentAddress: successor.currentAddress };
 }
 
 function isWalletReady({
