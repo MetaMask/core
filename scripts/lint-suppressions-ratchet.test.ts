@@ -1,8 +1,5 @@
 import { jest } from '@jest/globals';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards.
 jest.unstable_mockModule('./lib/lint-suppressions-ratchet.ts', () => ({
   lintSuppressionsRatchet: jest.fn(),
 }));
