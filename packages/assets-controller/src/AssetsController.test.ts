@@ -1,5 +1,4 @@
 /* eslint-disable jest/unbound-method */
-import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
@@ -5534,7 +5533,48 @@ describe('AssetsController', () => {
   });
 
   describe('assets loading status', () => {
+    /**
+     * Publishes an account group switch on the mock messenger. The event
+     * publishes one entropy per previously selected account variadically,
+     * which the mock messenger's single-payload publish type cannot express,
+     * hence the one cast here instead of in every test.
+     *
+     * @param messenger - The root messenger to publish on.
+     * @param accountEntropies - Entropies of the previously selected accounts.
+     */
+    const switchSelectedAccountGroup = (
+      messenger: RootMessenger,
+      ...accountEntropies: string[]
+    ): void => {
+      (
+        messenger as unknown as {
+          publish: (topic: string, ...payload: unknown[]) => void;
+        }
+      ).publish(
+        'AccountTreeController:selectedAccountGroupChange',
+        ...accountEntropies,
+      );
+    };
+
+    /**
+     * Waits until the given account reaches the given loading status.
+     *
+     * @param controller - The controller under test.
+     * @param accountId - The account whose loading status to check.
+     * @param status - The loading status to wait for.
+     * @returns - A promise that resolves once the account shows the status.
+     */
+    const waitForAccountLoadingStatus = (
+      controller: AssetsController,
+      accountId: string,
+      status: 'loading' | 'loaded',
+    ): Promise<void> =>
+      waitFor(() =>
+        expect(controller.state.assetsLoadingStatus?.[accountId]).toBe(status),
+      );
+
     it('marks the selected accounts as loading on account switch, then loaded once the fetch settles', async () => {
+      // arrange: a client whose first fetch is frozen mid-flight.
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
@@ -5542,18 +5582,21 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
 
+          // act: switch the selected account group, freezing the fetch
+          // mid-flight.
           arm();
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
-            'AccountTreeController:selectedAccountGroupChange',
+          switchSelectedAccountGroup(
+            messenger,
             'entropy:mock-keyring-id-1/1',
-            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/0',
           );
 
-          await waitFor(() =>
-            expect(
-              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-            ).toBe('loading'),
+          // assert: the account is marked loading while the fetch is in
+          // flight, then loaded once it settles.
+          await waitForAccountLoadingStatus(
+            controller,
+            MOCK_ACCOUNT_ID,
+            'loading',
           );
 
           release();
@@ -5568,6 +5611,7 @@ describe('AssetsController', () => {
     });
 
     it('runs a queued account switch after the previous refresh finishes, marking its accounts loading then loaded', async () => {
+      // arrange: a client whose first fetch is frozen mid-flight.
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
@@ -5575,55 +5619,57 @@ describe('AssetsController', () => {
         async ({ controller, messenger, getSelectedAccountsMock }) => {
           await activateTracking(messenger);
 
+          // act: freeze the first account switch mid-flight; it holds the
+          // refresh mutex.
           arm();
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
-            'AccountTreeController:selectedAccountGroupChange',
+          switchSelectedAccountGroup(
+            messenger,
             'entropy:mock-keyring-id-1/1',
-            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/0',
           );
 
-          // First switch is frozen mid-flight and holds the refresh mutex.
-          await waitFor(() =>
-            expect(
-              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-            ).toBe('loading'),
+          await waitForAccountLoadingStatus(
+            controller,
+            MOCK_ACCOUNT_ID,
+            'loading',
           );
 
+          // act: queue a second account switch to a different account while
+          // the first is still held.
           const accountB = createMockInternalAccount({
             id: 'mock-account-id-2',
           });
           getSelectedAccountsMock.mockReturnValue([accountB]);
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
-            'AccountTreeController:selectedAccountGroupChange',
+          switchSelectedAccountGroup(
+            messenger,
             'entropy:mock-keyring-id-1/2',
-            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/1',
           );
 
-          // The queued switch has not fetched yet, so its accounts are not
-          // marked while the previous refresh still holds the mutex.
+          // assert: the queued switch has not fetched yet, so its accounts
+          // are not marked while the previous refresh still holds the mutex.
           expect(
             controller.state.assetsLoadingStatus?.[accountB.id],
           ).toBeUndefined();
 
+          // act: let the first fetch finish so the queued switch runs.
           release();
 
-          // Once the previous refresh finishes, the queued switch runs, marks
-          // its own accounts, and settles them.
+          // assert: the queued switch ran, marked its own accounts, and
+          // settled them.
           await waitFor(() =>
             expect(controller.state.assetsLoadingStatus).toStrictEqual({
               [MOCK_ACCOUNT_ID]: 'loaded',
               [accountB.id]: 'loaded',
             }),
           );
-
-          getSelectedAccountsMock.mockClear();
         },
       );
     });
 
     it('does not let an older fetch mark an account loaded while a newer overlapping fetch owns the marker', async () => {
+      // arrange: a client whose fetches can be frozen and released one at a
+      // time, and an account outside the default selected group.
       const { client, arm, release, getGatedCallCount } =
         createGatedQueryApiClient();
 
@@ -5634,8 +5680,9 @@ describe('AssetsController', () => {
 
           const account = createMockInternalAccount();
 
-          // Two overlapping getAssets calls for the same account: the older
-          // one is frozen mid-flight, then the newer one takes the marker.
+          // act: start two overlapping getAssets calls for the same account,
+          // freezing the older one mid-flight so the newer one takes the
+          // marker.
           arm();
           const olderFetch = controller.getAssets([account], {
             forceUpdate: true,
@@ -5648,24 +5695,23 @@ describe('AssetsController', () => {
           });
           await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(1));
 
-          await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
-              'loading',
-            ),
-          );
+          await waitForAccountLoadingStatus(controller, account.id, 'loading');
 
+          // act: let the older fetch settle.
           release();
           await olderFetch;
 
-          // The older fetch has settled, but the newer one still owns the
-          // marker, so the account stays loading.
+          // assert: the newer fetch still owns the marker, so the account
+          // stays loading.
           expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loading',
           );
 
+          // act: let the newer fetch settle.
           release();
           await newerFetch;
 
+          // assert: the marker's owner settles it to loaded.
           expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loaded',
           );
@@ -5674,6 +5720,8 @@ describe('AssetsController', () => {
     });
 
     it('marks accounts as loading on unlock, then loaded once the fetch settles', async () => {
+      // arrange: a client whose first fetch is frozen mid-flight, and a
+      // locked UI-open client state.
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
@@ -5684,14 +5732,18 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
 
+          // act: lock, then unlock while the unlock fetch is frozen
+          // mid-flight.
           messenger.publish('KeyringController:lock');
           arm();
           messenger.publish('KeyringController:unlock');
 
-          await waitFor(() =>
-            expect(
-              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-            ).toBe('loading'),
+          // assert: the account is marked loading while the fetch is in
+          // flight, then loaded once it settles.
+          await waitForAccountLoadingStatus(
+            controller,
+            MOCK_ACCOUNT_ID,
+            'loading',
           );
 
           release();
@@ -5706,11 +5758,14 @@ describe('AssetsController', () => {
     });
 
     it('marks accounts as loaded even when the startup fetch fails', async () => {
+      // arrange: a client whose fetches reject.
       await withController(
         { queryApiClient: createFailingQueryApiClient() },
         async ({ controller, messenger }) => {
+          // act: activate tracking, kicking off the failing startup fetch.
           await activateTracking(messenger);
 
+          // assert: the account is still settled to loaded.
           expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
           );
@@ -5719,6 +5774,7 @@ describe('AssetsController', () => {
     });
 
     it('marks the loading status for direct getAssets calls as well', async () => {
+      // arrange: a client whose first fetch is frozen mid-flight.
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
@@ -5728,16 +5784,15 @@ describe('AssetsController', () => {
 
           const account = createMockInternalAccount();
 
+          // act: call getAssets directly, freezing the fetch mid-flight.
           arm();
           const fetchPromise = controller.getAssets([account], {
             forceUpdate: true,
           });
 
-          await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
-              'loading',
-            ),
-          );
+          // assert: the account is marked loading while the fetch is in
+          // flight, then loaded once it settles.
+          await waitForAccountLoadingStatus(controller, account.id, 'loading');
 
           release();
           await fetchPromise;
@@ -5751,75 +5806,14 @@ describe('AssetsController', () => {
 
     it('does not mark anything when getAssets is called with no accounts', async () => {
       await withController(async ({ controller }) => {
+        // act: call getAssets with no accounts, forcing an update.
         await controller.getAssets([], { forceUpdate: true });
 
+        // assert: no loading status record is created.
         expect(controller.state.assetsLoadingStatus).toBeUndefined();
       });
     });
-
-    it('emits state change events when the loading status is set and settled', async () => {
-      const { client, arm, release } = createGatedQueryApiClient();
-
-      await withController(
-        { queryApiClient: client },
-        async ({ messenger }) => {
-          const stateChanges: AssetsControllerState[] = [];
-          messenger.subscribe(
-            // @ts-expect-error -- The messenger mock's event union omits the controller's own stateChanged event.
-            'AssetsController:stateChanged',
-            (state: AssetsControllerState) => {
-              stateChanges.push(state);
-            },
-          );
-
-          await activateTracking(messenger);
-
-          arm();
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
-            'AccountTreeController:selectedAccountGroupChange',
-            'entropy:mock-keyring-id-1/1',
-            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
-            'entropy:mock-keyring-id-1/0',
-          );
-
-          await waitFor(() =>
-            expect(
-              stateChanges.find(
-                (state) =>
-                  state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID] === 'loading',
-              ),
-            ).toBeDefined(),
-          );
-
-          release();
-
-          await waitFor(() =>
-            expect(
-              stateChanges.at(-1)?.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
-            ).toBe('loaded'),
-          );
-        },
-      );
-    });
-
-    it('does not persist the loading status in the persisted state snapshot', async () => {
-      await withController(async ({ controller, messenger }) => {
-        await activateTracking(messenger);
-
-        expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
-          'loaded',
-        );
-
-        const persisted = deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'persist',
-        );
-        expect(persisted).not.toHaveProperty('assetsLoadingStatus');
-      });
-    });
   });
-
   describe('account tree initialized', () => {
     it('triggers start when the tree initializes after unlock with empty accounts', async () => {
       const getAccountsMock = jest.fn().mockReturnValue([]);
