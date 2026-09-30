@@ -6,6 +6,7 @@
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
   "metamask/authenticated-user-storage": "team-auth-engineers",
+  "metamask/profile-controller": "team-accounts-framework",
   "metamask/profile-sync-controller": "team-accounts-framework",
   "metamask/ramps-controller": "team-money-movement",
   "metamask/advanced-chart-core": "team-assets",

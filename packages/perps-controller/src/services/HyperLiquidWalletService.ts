@@ -5,10 +5,16 @@ import {
 } from '@metamask/utils';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
-import { getChainId } from '../constants/hyperLiquidConfig.js';
+import {
+  getChainId,
+  HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
+  HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
+} from '../constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
+  PerpsTypedDataPayload,
   PerpsTypedMessageParams,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
@@ -16,6 +22,12 @@ import {
   getSelectedEvmAccountDetailsFromMessenger,
   getSelectedEvmAccountFromMessenger,
 } from '../utils/accountUtils.js';
+import {
+  isAccountSignerReady,
+  isMainAccountSignerReady,
+} from './accountSigner.js';
+import { AgentSignerUnavailableError } from './agentSigner.js';
+import type { HyperLiquidWalletParams } from './HyperLiquidClientService.js';
 
 // Mirrors KeyringTypes from @metamask/keyring-controller. Inlined to keep this
 // service portable between mobile and the core monorepo.
@@ -26,6 +38,25 @@ const HARDWARE_KEYRING_TYPES = new Set<string>([
   'Lattice Hardware',
   'QR Hardware Wallet Device',
 ]);
+
+/**
+ * Returns the agent that signs L1 actions for a main account, or null to sign
+ * them with the main account.
+ */
+type AgentResolver = (mainAddress: Hex) => Promise<PerpsAgentSigner | null>;
+
+/**
+ * Whether a signing request is an L1 action.
+ *
+ * @param params - The typed data the SDK asked the wallet to sign.
+ * @returns True for L1 actions.
+ */
+function isL1Action(params: PerpsTypedDataPayload): boolean {
+  return (
+    params.primaryType === HYPERLIQUID_L1_ACTION_PRIMARY_TYPE &&
+    params.domain.name === HYPERLIQUID_L1_ACTION_DOMAIN_NAME
+  );
+}
 
 /**
  * Service for MetaMask wallet integration with HyperLiquid SDK
@@ -39,31 +70,47 @@ export class HyperLiquidWalletService {
 
   readonly #messenger: PerpsControllerMessengerBase;
 
+  readonly #resolveAgent: AgentResolver | undefined;
+
   constructor(
     deps: PerpsPlatformDependencies,
     messenger: PerpsControllerMessengerBase,
-    options: { isTestnet?: boolean } = {},
+    options: { isTestnet?: boolean; resolveAgent?: AgentResolver } = {},
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
     this.#isTestnet = options.isTestnet ?? false;
+    this.#resolveAgent = options.resolveAgent;
   }
 
   /**
-   * Check if the keyring is currently unlocked
+   * Check whether the main account can sign now: the injected account
+   * signer's readiness when one is set, else the keyring's unlock state.
    *
-   * @returns True if the keyring is unlocked and available for signing.
+   * @returns True when the main account is available for signing.
    */
-  public isKeyringUnlocked(): boolean {
-    return this.#messenger.call('KeyringController:getState').isUnlocked;
+  public isMainAccountSignerReady(): boolean {
+    return isMainAccountSignerReady(
+      this.#deps.accountSigner,
+      () => this.#messenger.call('KeyringController:getState').isUnlocked,
+    );
   }
 
   /**
-   * Check whether the selected EVM account is backed by hardware.
+   * Check whether every signature of the selected EVM account needs a user
+   * confirmation, as with hardware. The injected account signer's
+   * `requiresSignatureConfirmation()` decides when it answers; otherwise the
+   * selected account's keyring type does.
    *
-   * @returns True for MetaMask hardware keyrings; false for software accounts.
+   * @returns True when signatures need a confirmation; false otherwise.
    */
-  public isSelectedHardwareWallet(): boolean {
+  public requiresSignatureConfirmation(): boolean {
+    const declared =
+      this.#deps.accountSigner?.requiresSignatureConfirmation?.();
+    if (declared !== undefined) {
+      return declared;
+    }
+
     const selectedEvmAccount = getSelectedEvmAccountDetailsFromMessenger(
       this.#messenger,
     );
@@ -86,7 +133,7 @@ export class HyperLiquidWalletService {
    * @returns The signature string.
    */
   async #signTypedMessage(msgParams: PerpsTypedMessageParams): Promise<string> {
-    if (!this.isKeyringUnlocked()) {
+    if (!this.isMainAccountSignerReady()) {
       throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
     }
     // Cast needed: PerpsTypedMessageParams uses loose `data: unknown` type
@@ -101,88 +148,97 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Create wallet adapter that implements AbstractViemJsonRpcAccount interface
-   * Required by @nktkas/hyperliquid SDK for signing transactions
+   * Resolve the selected main account. It is read on every signature so an
+   * account switch cannot race a cached adapter.
    *
-   * @returns The wallet adapter with address, signTypedData, and getChainId methods.
+   * @returns The selected main account address.
    */
-  public createWalletAdapter(): {
-    address: Hex;
-    signTypedData: (params: {
-      domain: {
-        name: string;
-        version: string;
-        chainId: number;
-        verifyingContract: Hex;
-      };
-      types: {
-        [key: string]: { name: string; type: string }[];
-      };
-      primaryType: string;
-      message: Record<string, unknown>;
-    }) => Promise<Hex>;
-    getChainId?: () => Promise<number>;
-  } {
-    // Get current EVM account via DI messenger
+  #getSelectedMainAddress(): Hex {
     const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
     if (!evmAccount?.address) {
       throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
     }
 
-    const address = evmAccount.address as Hex;
+    return evmAccount.address as Hex;
+  }
 
-    return {
-      address,
-      signTypedData: async (params: {
-        domain: {
-          name: string;
-          version: string;
-          chainId: number;
-          verifyingContract: Hex;
-        };
-        types: {
-          [key: string]: { name: string; type: string }[];
-        };
-        primaryType: string;
-        message: Record<string, unknown>;
-      }): Promise<Hex> => {
-        // Get FRESH account on every sign to handle account switches
-        // This prevents race conditions where wallet adapter was created with old account
-        const currentEvmAccount = getSelectedEvmAccountFromMessenger(
-          this.#messenger,
-        );
+  /**
+   * Sign typed data with the main account: through the injected account
+   * signer when one is set, else through the keyring.
+   *
+   * @param mainAddress - The selected main account.
+   * @param params - The typed data the SDK asked the wallet to sign.
+   * @returns The signature.
+   */
+  async #signWithMainAccount(
+    mainAddress: Hex,
+    params: PerpsTypedDataPayload,
+  ): Promise<Hex> {
+    this.#deps.debugLogger.log('HyperLiquidWalletService: Signing typed data', {
+      address: mainAddress,
+      primaryType: params.primaryType,
+      domain: params.domain,
+    });
 
-        if (!currentEvmAccount?.address) {
-          throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
+    const { accountSigner } = this.#deps;
+    if (accountSigner) {
+      if (!isAccountSignerReady(accountSigner)) {
+        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      }
+      try {
+        return await accountSigner.signTypedData(mainAddress, params);
+      } catch (error) {
+        // A signer that locked while signing throws its own error.
+        if (!isAccountSignerReady(accountSigner)) {
+          throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED, { cause: error });
         }
+        throw error;
+      }
+    }
 
-        const currentAddress = currentEvmAccount.address as Hex;
+    const signature = await this.#signTypedMessage({
+      from: mainAddress,
+      data: params,
+    });
 
-        // Construct EIP-712 typed data
-        const typedData = {
-          domain: params.domain,
-          types: params.types,
-          primaryType: params.primaryType,
-          message: params.message,
-        };
+    return signature as Hex;
+  }
 
+  /**
+   * Create the wallet adapter the HyperLiquid SDK signs with.
+   *
+   * Every signature is for the currently selected main account. When the
+   * agent resolver returns an agent for that account, L1 actions (orders,
+   * cancels, leverage, ...) are signed by the agent. User-signed actions
+   * (builder fee, withdraw, ...) authorize the main account itself, so the
+   * main account always signs them.
+   *
+   * @returns The wallet adapter with address, signTypedData, and getChainId methods.
+   */
+  public createWalletAdapter(): HyperLiquidWalletParams {
+    return {
+      address: this.#getSelectedMainAddress(),
+      signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
+        const mainAddress = this.#getSelectedMainAddress();
+        const agentSigner =
+          this.#resolveAgent && isL1Action(params)
+            ? await this.#resolveAgent(mainAddress)
+            : null;
+        if (!agentSigner) {
+          return await this.#signWithMainAccount(mainAddress, params);
+        }
         this.#deps.debugLogger.log(
-          'HyperLiquidWalletService: Signing typed data',
-          {
-            address: currentAddress,
-            primaryType: params.primaryType,
-            domain: params.domain,
-          },
+          'HyperLiquidWalletService: Signing L1 action with agent',
+          { address: mainAddress, agent: agentSigner.address },
         );
-
-        // Use messenger to sign typed data
-        const signature = await this.#signTypedMessage({
-          from: currentAddress,
-          data: typedData,
-        });
-
-        return signature as Hex;
+        try {
+          return await agentSigner.signTypedData(params);
+        } catch (error) {
+          // The host could not sign with its agent key (for example it locked
+          // after resolving it). Retryable, like a locked keyring.
+          throw new AgentSignerUnavailableError(error);
+        }
       },
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),

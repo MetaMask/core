@@ -919,6 +919,75 @@ export type PerpsControllerCalculateFeesAction = {
 };
 
 /**
+ * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for a main
+ * account on a network with an approved agent, or pin them to the main
+ * account with null (`getAgentSigner` is then not asked for that account and
+ * network until `clearAgentSigners`). User-signed actions stay on the main
+ * account, and the agent is never used for another account or network. The
+ * controller keeps the binding across provider re-creation (a provider or
+ * network switch, or re-initialization), so it can also be set before
+ * `init`. Like every controller action, it is available through the
+ * messenger once `init` has run.
+ *
+ * @param account - The main account and network the agent is approved for.
+ * @param agentSigner - The host-owned agent signer, or null to pin the main
+ * account.
+ */
+export type PerpsControllerSetAgentSignerAction = {
+  type: `PerpsController:setAgentSigner`;
+  handler: PerpsController['setAgentSigner'];
+};
+
+/**
+ * Forget every HyperLiquid agent, set or resolved, so the next L1 action
+ * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
+ * still pending is discarded too. Call it when the wallet locks (with
+ * `getAgentSigner` returning null while locked) and nothing signs with an
+ * agent until it returns one again. Like every controller action, it is
+ * available through the messenger once `init` has run.
+ */
+export type PerpsControllerClearAgentSignersAction = {
+  type: `PerpsController:clearAgentSigners`;
+  handler: PerpsController['clearAgentSigners'];
+};
+
+/**
+ * Run the active provider's deferred trading setup ahead of the first order
+ * (HyperLiquid account migration, builder fee and referral; Lighter
+ * venue-key registration), so its signatures happen in one guided session,
+ * such as agent setup, instead of at order time. The builder fee, the
+ * migration from `dexAbstraction` and Lighter's registration are signed by
+ * the main account; with an agent, the referral and the silent migration
+ * are L1 actions the agent signs.
+ *
+ * @returns `ready: true` when none of these steps will need a signature
+ * again before the first order, and only while an account is selected and
+ * the main account can sign, whichever provider answered (including
+ * providers without deferred setup, for example in aggregated mode). A
+ * declined HyperLiquid migration is not asked again, and a HyperLiquid
+ * referral whose MetaMask referral code is not ready yet is checked again at
+ * the next call, not before orders, so neither holds it back. Otherwise
+ * `ready: false`, without an error while a step will be asked again (a
+ * declined builder fee or Lighter registration, or a step the agent could
+ * not sign), or with:
+ * - `KEYRING_LOCKED` when the main account cannot sign, before or during
+ * setup;
+ * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
+ * yet;
+ * - `NO_ACCOUNT_SELECTED` when no account is selected;
+ * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
+ * changed during setup;
+ * - otherwise the message of the error that stopped setup, which is logged.
+ * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
+ * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
+ * when no active provider is available.
+ */
+export type PerpsControllerPrepareTradingWalletAction = {
+  type: `PerpsController:prepareTradingWallet`;
+  handler: PerpsController['prepareTradingWallet'];
+};
+
+/**
  * Approve the dedicated subscription builder outside order submission.
  *
  * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
@@ -1467,6 +1536,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerSetAgentSignerAction
+  | PerpsControllerClearAgentSignersAction
+  | PerpsControllerPrepareTradingWalletAction
   | PerpsControllerApproveSubscriptionBuilderFeeAction
   | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction

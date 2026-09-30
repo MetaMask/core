@@ -1,7 +1,11 @@
 /* eslint-disable */
-jest.mock('@nktkas/hyperliquid', () => ({}));
+// The provider checks cancel errors against the SDK's error class.
+jest.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class MockHyperliquidError extends Error {},
+}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import { HyperliquidError } from '@nktkas/hyperliquid';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
@@ -459,8 +463,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -4297,6 +4301,45 @@ describe('HyperLiquidProvider', () => {
         expect(result.results[1].error).toBe(
           PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
         );
+      });
+
+      it('keeps the orders the venue cancelled when the SDK throws for a failed entry', async () => {
+        const statuses = ['success', { error: 'multi-sig required' }];
+        const sdkError = Object.assign(
+          new HyperliquidError('cancel 1: multi-sig required'),
+          {
+            name: 'ApiRequestError',
+            response: {
+              status: 'ok',
+              response: { type: 'cancel', data: { statuses } },
+            },
+          },
+        );
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockRejectedValue(sdkError),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+          { orderId: '456', symbol: 'ETH' },
+        ]);
+
+        expect(result).toStrictEqual({
+          success: true,
+          successCount: 1,
+          failureCount: 1,
+          results: [
+            { orderId: '123', symbol: 'BTC', success: true },
+            {
+              orderId: '456',
+              symbol: 'ETH',
+              success: false,
+              error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+            },
+          ],
+        });
       });
 
       it('rejects a non-ok batch response even when its statuses say success', async () => {

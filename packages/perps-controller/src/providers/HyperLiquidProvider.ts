@@ -48,6 +48,11 @@ import {
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import {
+  AgentSignerUnavailableError,
+  getAgentAccountKey,
+  isAgentSignerUnavailableError,
+} from '../services/agentSigner.js';
 import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
 import {
   HyperLiquidClientService,
@@ -108,7 +113,10 @@ import type {
   GetSupportedPathsParams,
   GetUserDataSnapshotParams,
   HistoricalPortfolioResult,
+  HyperLiquidCredentials,
   InitializeResult,
+  PerpsAgentAccount,
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsProvider,
   PerpsProviderType,
@@ -439,6 +447,9 @@ const getCancelStatusesFromError = (
   return response.data.statuses;
 };
 
+// The address in HyperLiquid's "User or API Wallet 0x... does not exist."
+const UNKNOWN_WALLET_ADDRESS_PATTERN = /user or api wallet (0x[0-9a-f]{40})/iu;
+
 /**
  * Exchange messages that mean a cancel was refused because the order is not on
  * the book any more.
@@ -552,6 +563,9 @@ type CancelOrderBatchOutcome = {
   remainingOrderIds: number[];
   cancelledOrderIds: number[];
   responseComplete: boolean;
+  // KEYRING_LOCKED when the signer could not sign the request. The venue
+  // reports it per entry, so entries it did cancel still count as cancelled.
+  signerFailure?: Error;
 };
 
 type OrderPlacementOutcome = {
@@ -841,6 +855,9 @@ type HyperLiquidProviderOptions = {
   subscriptionBuilderAddressTestnet?: string;
   subscriptionBuilderAddressMainnet?: string;
   onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+  getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
+  // Told when the venue rejects a resolved agent (revoked or expired).
+  onAgentRejected?: HyperLiquidCredentials['onAgentRejected'];
 };
 
 type HandleHip3PreOrderParams = {
@@ -1541,6 +1558,34 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
 
+  readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
+
+  // Incremented by clearAgentSigners so answers pending across a clear are
+  // discarded and asked again.
+  #agentSignersGeneration = 0;
+
+  // The getAgentSigner answer per network and main account (see
+  // getAgentAccountKey), pending or non-null, so an agent is only used for its
+  // account and network, and the agent it resolved to. An entry is dropped
+  // when the venue rejects that agent.
+  readonly #agentSigners = new Map<
+    string,
+    { answer: Promise<PerpsAgentSigner | null>; agent?: PerpsAgentSigner }
+  >();
+
+  // The account and network each agent last signed an L1 action for, keyed by
+  // the lowercased address the venue reports. A rejection is attributed from
+  // it rather than from the selected account, which may have changed while
+  // the write was in flight; an L1 signature names no user, so one agent acts
+  // for one account. Kept across clearAgentSigners, so an agent replaced while
+  // its action was in flight is still recognized.
+  readonly #agentSignedFor = new Map<
+    string,
+    { key: string; account: PerpsAgentAccount; agentAddress: Hex }
+  >();
+
+  readonly #onAgentRejected: HyperLiquidProviderOptions['onAgentRejected'];
+
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
 
@@ -1575,6 +1620,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       options.subscriptionBuilderAddressTestnet;
     this.#subscriptionBuilderAddressMainnet =
       options.subscriptionBuilderAddressMainnet;
+    this.#getAgentSigner = options.getAgentSigner;
+    this.#onAgentRejected = options.onAgentRejected;
     this.#onChaseOrderMaxDistanceReached =
       options.onChaseOrderMaxDistanceReached;
     this.#priceDeviationLimit =
@@ -1604,6 +1651,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#messenger,
       {
         isTestnet,
+        resolveAgent: async (
+          mainAddress: Hex,
+        ): Promise<PerpsAgentSigner | null> =>
+          await this.#resolveAgentSigner(mainAddress),
       },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
@@ -2099,6 +2150,239 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve the agent that signs L1 actions for a main account on the
+   * current network through `getAgentSigner`. A non-null answer is kept;
+   * null and failures are not, so the next L1 action asks again. An answer
+   * pending across clearAgentSigners is discarded and asked again.
+   *
+   * @param mainAddress - The selected main account.
+   * @returns The agent, or null to sign with the main account.
+   */
+  async #resolveAgentSigner(
+    mainAddress: Hex,
+  ): Promise<PerpsAgentSigner | null> {
+    const account: PerpsAgentAccount = {
+      mainAddress,
+      isTestnet: this.#clientService.isTestnetMode(),
+    };
+    const key = getAgentAccountKey(account);
+    const generation = this.#agentSignersGeneration;
+    let entry = this.#agentSigners.get(key);
+    if (!entry) {
+      if (!this.#getAgentSigner) {
+        return null;
+      }
+      let answer: Promise<PerpsAgentSigner | null>;
+      try {
+        answer = this.#getAgentSigner(account);
+      } catch (error) {
+        answer = Promise.reject(error);
+      }
+      entry = { answer };
+      this.#agentSigners.set(key, entry);
+    }
+
+    const pendingEntry = entry;
+    // A clear while this answer was pending wins, so it is asked again. Only a
+    // clear replaces a pending answer: every other removal happens once it
+    // settled, after all its callers resumed.
+    const isSuperseded = (): boolean =>
+      generation !== this.#agentSignersGeneration;
+
+    let agentSigner: PerpsAgentSigner | null;
+    try {
+      agentSigner = await pendingEntry.answer;
+    } catch (error) {
+      if (isSuperseded()) {
+        return await this.#resolveAgentSigner(mainAddress);
+      }
+      this.#agentSigners.delete(key);
+      this.#deps.debugLogger.log('HyperLiquidProvider: getAgentSigner failed', {
+        error: ensureError(error, 'HyperLiquidProvider.resolveAgentSigner')
+          .message,
+      });
+      throw new AgentSignerUnavailableError(error);
+    }
+
+    if (isSuperseded()) {
+      return await this.#resolveAgentSigner(mainAddress);
+    }
+    if (agentSigner) {
+      pendingEntry.agent = agentSigner;
+      // The wallet adapter resolves at every L1 signature, so this records
+      // the account the agent is about to sign for.
+      this.#agentSignedFor.set(agentSigner.address.toLowerCase(), {
+        key,
+        account,
+        agentAddress: agentSigner.address,
+      });
+    } else {
+      this.#agentSigners.delete(key);
+    }
+    return agentSigner;
+  }
+
+  /**
+   * Map and log a failed exchange write, unless the signer could not sign it
+   * (`KEYRING_LOCKED`: a locked keyring, or an unavailable or rejected
+   * agent), which the caller retries.
+   *
+   * @param error - The caught error.
+   * @param method - The write that failed.
+   * @param extra - Context for the log.
+   * @returns The mapped error.
+   */
+  async #reportWriteError(
+    error: unknown,
+    method: string,
+    extra: Record<string, unknown>,
+  ): Promise<Error> {
+    const signerFailure = this.#handleSignerFailure(error, method, extra);
+    if (signerFailure) {
+      return signerFailure;
+    }
+    const mappedError = this.#mapError(error);
+    this.#deps.logger.error(
+      mappedError,
+      await this.#getTradingErrorContext(method, mappedError, extra),
+    );
+    return mappedError;
+  }
+
+  /**
+   * The agent a venue rejection names, with the account and network it last
+   * signed for. HyperLiquid answers "User or API Wallet 0x... does not
+   * exist." with the signer's address, so for a revoked or expired agent it
+   * reads like a wallet with no account.
+   *
+   * @param error - The caught error.
+   * @returns The rejected agent, with its address as the host supplied it
+   * and the account it signed for, or undefined.
+   */
+  #findRejectedAgent(
+    error: unknown,
+  ):
+    | { account: PerpsAgentAccount; key: string; agentAddress: Hex }
+    | undefined {
+    if (
+      this.#agentSignedFor.size === 0 ||
+      !isHyperLiquidUserNotFoundError(error)
+    ) {
+      return undefined;
+    }
+    const reportedAddress = UNKNOWN_WALLET_ADDRESS_PATTERN.exec(
+      ensureError(error, 'HyperLiquidProvider.findRejectedAgent').message,
+    )?.[1];
+    return reportedAddress === undefined
+      ? undefined
+      : this.#agentSignedFor.get(reportedAddress.toLowerCase());
+  }
+
+  /**
+   * Handle a venue rejection of an agent: drop it if it is still the
+   * resolved one, so the next L1 action asks for one again, and tell the
+   * owner of the bindings.
+   *
+   * @param error - The caught error.
+   * @returns True when the error was the rejection of an agent.
+   */
+  #evictRejectedAgent(error: unknown): boolean {
+    const rejected = this.#findRejectedAgent(error);
+    if (!rejected) {
+      return false;
+    }
+    const { account, key, agentAddress } = rejected;
+    if (this.#agentSigners.get(key)?.agent?.address === agentAddress) {
+      this.#agentSigners.delete(key);
+    }
+    this.#deps.debugLogger.log(
+      'HyperLiquidProvider: agent rejected by the venue, asking again',
+      { agent: agentAddress },
+    );
+    try {
+      this.#onAgentRejected?.(account, agentAddress);
+    } catch (callbackError) {
+      this.#deps.debugLogger.log('HyperLiquidProvider: onAgentRejected threw', {
+        error: ensureError(
+          callbackError,
+          'HyperLiquidProvider.evictRejectedAgent',
+        ).message,
+      });
+    }
+    return true;
+  }
+
+  /**
+   * Whether an exchange write failed because its signer could not sign it:
+   * a locked keyring, an unavailable agent, or an agent the venue rejected.
+   * It does not evict; the caller that reports the failure classifies it.
+   *
+   * @param error - The caught error.
+   * @returns True for a signer failure.
+   */
+  #isSignerFailure(error: unknown): boolean {
+    return (
+      isKeyringLockedError(error) ||
+      isAgentSignerUnavailableError(error) ||
+      this.#findRejectedAgent(error) !== undefined
+    );
+  }
+
+  /**
+   * Classify a failed exchange write whose signer could not sign it, evicting
+   * a rejected agent. The next attempt retries.
+   *
+   * @param error - The caught error.
+   * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
+   */
+  #classifySignerFailure(error: unknown): Error | undefined {
+    const rejectedAgent = this.#evictRejectedAgent(error);
+    return rejectedAgent ||
+      isKeyringLockedError(error) ||
+      isAgentSignerUnavailableError(error)
+      ? new Error(PERPS_ERROR_CODES.KEYRING_LOCKED)
+      : undefined;
+  }
+
+  /**
+   * Classify a failed write whose signer could not sign it, and note it as
+   * retryable instead of reporting it.
+   *
+   * @param error - The caught error.
+   * @param method - The write that failed.
+   * @param extra - Context for the debug log.
+   * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
+   */
+  #handleSignerFailure(
+    error: unknown,
+    method: string,
+    extra: Record<string, unknown>,
+  ): Error | undefined {
+    const signerFailure = this.#classifySignerFailure(error);
+    if (signerFailure) {
+      this.#logRetryableSignerFailure(method, extra);
+    }
+    return signerFailure;
+  }
+
+  /**
+   * Note a write that failed because its signer could not sign it; the
+   * caller retries it, so it is not reported as an error.
+   *
+   * @param method - The write that failed.
+   * @param extra - Context for the debug log.
+   */
+  #logRetryableSignerFailure(
+    method: string,
+    extra: Record<string, unknown>,
+  ): void {
+    this.#deps.debugLogger.log(
+      `[${method}] Signer unavailable, the write can be retried`,
+      extra,
+    );
+  }
+
+  /**
    * Decide whether the wallet has a Hyperliquid account.
    *
    * Hyperliquid accounts are created server-side on first USDC deposit.
@@ -2484,11 +2768,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       completeInFlight();
     } catch (error) {
-      // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
-      // in `cause`, so classify the full chain and leave retry caches empty.
-      if (isKeyringLockedError(error)) {
+      // The signer could not sign (a locked keyring, or an unavailable or
+      // rejected agent; HyperLiquid keeps the cause in `cause`): leave the
+      // cache empty and retry later.
+      if (this.#classifySignerFailure(error)) {
         this.#deps.debugLogger.log(
-          '[ensureUnifiedAccountEnabled] Keyring locked, will retry later',
+          '[ensureUnifiedAccountEnabled] Signer unavailable, will retry later',
         );
         this.#unifiedAccountSetupNeedsRetry = true;
         completeInFlight();
@@ -2655,7 +2940,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // the unified balance. Hardware wallets remain deferred to action time to
       // avoid repeated signing prompts while browsing.
       await this.#ensureUnifiedAccountEnabled({
-        allowUserSigning: !this.#walletService.isSelectedHardwareWallet(),
+        allowUserSigning: !this.#walletService.requiresSignatureConfirmation(),
       });
     })();
 
@@ -2701,6 +2986,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #tradingSetupComplete = false;
 
+  // Set when the referral's signer could not sign it, so trading setup is not
+  // marked complete and the referral is attempted again.
+  #referralSetupNeedsRetry = false;
+
+  // Set when the builder's referral code was not ready. It is not the user's
+  // to fix, so it does not hold trading setup back: the next
+  // `prepareTradingWallet` checks it again, but orders do not.
+  #referralAwaitsBuilderCode = false;
+
   readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
 
   /**
@@ -2711,10 +3005,15 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param approvalFailureCode - Operation-specific error to throw when
    * approval is unavailable or fails.
+   * @param options - Options.
+   * @param options.reportSignerFailure - Throw `KEYRING_LOCKED` when the
+   * signer could not sign the approval, even without an approval failure
+   * code (the approval is otherwise non-blocking).
    * @returns The account, network, and configured builder for the action.
    */
   async #ensureBuilderFeeSetup(
     approvalFailureCode?: PerpsErrorCode,
+    options: { reportSignerFailure?: boolean } = {},
   ): Promise<BuilderFeeSetupContext> {
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
@@ -2741,6 +3040,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#builderFeeSetupPromises.set(setupKey, pendingApproval);
     }
 
+    // An approval the signer could not sign is retryable, not a failure.
+    const approvalFailure = (code: PerpsErrorCode): Error =>
+      new Error(
+        this.#walletService.isMainAccountSignerReady()
+          ? code
+          : PERPS_ERROR_CODES.KEYRING_LOCKED,
+      );
+
     try {
       await pendingApproval;
     } catch (error) {
@@ -2748,8 +3055,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         '[ensureBuilderFeeSetup] Builder fee approval failed',
         error,
       );
+      // A signer that could not sign is retryable, not an approval failure.
+      if (approvalFailureCode || options.reportSignerFailure) {
+        const signerFailure = this.#classifySignerFailure(error);
+        if (signerFailure) {
+          throw signerFailure;
+        }
+      }
       if (approvalFailureCode) {
-        throw new Error(approvalFailureCode);
+        throw approvalFailure(approvalFailureCode);
       }
     } finally {
       if (this.#builderFeeSetupPromises.get(setupKey) === pendingApproval) {
@@ -2758,7 +3072,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (approvalFailureCode && !this.#builderFeeCheckCache.has(cacheKey)) {
-      throw new Error(approvalFailureCode);
+      throw approvalFailure(approvalFailureCode);
     }
 
     return context;
@@ -2767,21 +3081,27 @@ export class HyperLiquidProvider implements PerpsProvider {
   #ensureReadyForTrading(options: {
     requiresBuilderFee: true;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    recheckPendingReferral?: boolean;
   }): Promise<BuilderFeeSetupContext>;
 
   #ensureReadyForTrading(options: {
     requiresBuilderFee: false;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    recheckPendingReferral?: boolean;
   }): Promise<undefined>;
 
   #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    recheckPendingReferral?: boolean;
   }): Promise<BuilderFeeSetupContext | undefined>;
 
   async #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
+    // Run the shared setup again to check a builder referral code that was
+    // not ready. Only preparation asks for it; orders do not.
+    recheckPendingReferral?: boolean;
   }): Promise<BuilderFeeSetupContext | undefined> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
@@ -2791,6 +3111,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     // already-migrated or already-rejected users are not re-prompted.
     await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
 
+    // Reset right before the check, with no await in between, so a failure
+    // above does not leave the setup for an order to run.
+    if (options.recheckPendingReferral && this.#referralAwaitsBuilderCode) {
+      this.#tradingSetupComplete = false;
+    }
     if (!this.#tradingSetupComplete && !this.#tradingSetupPromise) {
       const lifecycleGeneration = this.#lifecycleGeneration;
       this.#deps.debugLogger.log(
@@ -2820,8 +3145,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           'Trading setup completion',
         );
 
-        // Only mark complete if keyring was unlocked (signing could actually happen)
-        if (this.#walletService.isKeyringUnlocked()) {
+        // Only mark complete if the main-account signer is ready (signing
+        // could actually happen) and the referral does not need another
+        // attempt.
+        if (
+          this.#walletService.isMainAccountSignerReady() &&
+          !this.#referralSetupNeedsRetry
+        ) {
           this.#tradingSetupComplete = true;
         }
       })();
@@ -4108,6 +4438,40 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Map a rejection the venue reported in a status entry rather than threw,
+   * handling a rejected agent the way a thrown rejection is.
+   *
+   * @param message - The status entry's error.
+   * @returns The mapped error.
+   */
+  #mapStatusError(message: string): Error {
+    const error = new Error(message);
+    return this.#classifySignerFailure(error) ?? this.#mapError(error);
+  }
+
+  /**
+   * The signer failure a venue reported in cancel status entries rather than
+   * threw. One signature covers the whole request, so it is classified (and
+   * reported to the host) once for all its entries.
+   *
+   * @param statuses - The status entries.
+   * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
+   */
+  #classifyStatusSignerFailure(statuses: unknown[]): Error | undefined {
+    for (const status of statuses) {
+      if (isStatusObject(status) && typeof status.error === 'string') {
+        const signerFailure = this.#classifySignerFailure(
+          new Error(status.error),
+        );
+        if (signerFailure) {
+          return signerFailure;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Get error context for logging with searchable tags and context.
    * Enables Sentry dashboard filtering by feature, provider, and network.
    *
@@ -4417,12 +4781,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
       // in `cause`, so classify the full chain and leave retry caches empty.
+      // The caller reports it as retryable.
       if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
           '[ensureBuilderFeeApproval] Keyring locked, will retry later',
         );
         completeInFlight();
-        return;
+        throw error;
       }
 
       // Record failure — will be retried on next trading operation
@@ -4730,6 +5095,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     if (!result.success) {
+      // The signer could not sign the transfer: retryable, not a defect.
+      if (result.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      }
       throw new Error(
         `Auto-transfer failed: ${result.error ?? 'Unknown error'}`,
       );
@@ -5029,6 +5398,14 @@ export class HyperLiquidProvider implements PerpsProvider {
             amount: excessAmount.toFixed(USDC_DECIMALS),
           });
           if (!transferResult.success) {
+            // The signer could not sign the transfer: retryable, not a defect.
+            if (transferResult.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+              this.#deps.debugLogger.log(
+                'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX',
+                { dex: dexName, excessAmount },
+              );
+              return false;
+            }
             throw new Error(
               transferResult.error ?? PERPS_ERROR_CODES.TRANSFER_FAILED,
             );
@@ -5124,6 +5501,12 @@ export class HyperLiquidProvider implements PerpsProvider {
             amount: transferInfo.amount.toFixed(USDC_DECIMALS),
             returnedTo: transferInfo.sourceDex || 'main',
           },
+        );
+      } else if (rollbackResult.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+        // The signer could not sign the transfer: retryable, not a defect.
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX',
+          { dex: dexName, amount: transferInfo.amount },
         );
       } else {
         this.#deps.logger.error(
@@ -5516,6 +5899,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: HandleOrderErrorParams,
   ): Promise<OrderResult> {
     const { error, symbol, orderType, isBuy } = params;
+    const signerFailure = this.#handleSignerFailure(error, 'placeOrder', {
+      symbol,
+      orderType,
+      isBuy,
+    });
+    if (signerFailure) {
+      return createErrorResult(signerFailure, { success: false });
+    }
     const mappedError = this.#mapError(error);
 
     // A wallet with no Hyperliquid account is an expected pre-account state,
@@ -6309,10 +6700,19 @@ export class HyperLiquidProvider implements PerpsProvider {
           a: assetId,
           t: running.twapId,
         });
+        const cancelStatus: unknown = cancelResult.response?.data?.status;
+        // A rejected agent is dropped and reported; the TWAP stays live.
+        if (
+          isStatusObject(cancelStatus) &&
+          typeof cancelStatus.error === 'string'
+        ) {
+          this.#evictRejectedAgent(new Error(cancelStatus.error));
+        }
         remainsLive =
-          classifyCancelStatus(cancelResult.response?.data?.status) ===
-          CancelChildOutcome.Refused;
+          classifyCancelStatus(cancelStatus) === CancelChildOutcome.Refused;
       } catch (error) {
+        // A rejected agent is dropped and reported; the TWAP stays live.
+        this.#evictRejectedAgent(error);
         this.#deps.debugLogger.log(
           'Stale TWAP placement could not be retracted',
           {
@@ -6984,6 +7384,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#chaseTickQueue = this.#chaseTickQueue
         .then(() => this.#runChaseTick(sessionId))
         .catch((error: unknown) => {
+          // A rejected agent is dropped so the next tick asks for another.
+          this.#evictRejectedAgent(error);
           // Resolve the shared queue after every failure. Otherwise one
           // rejected tick prevents all later ticks and teardown from running.
           this.#deps.debugLogger.log('Chase tick failed', {
@@ -7633,7 +8035,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw error;
     }
 
-    return classifyCancelStatus(result.response?.data?.statuses?.[0]);
+    const status: unknown = result.response?.data?.statuses?.[0];
+    const signerFailure = this.#classifyStatusSignerFailure([status]);
+    if (signerFailure) {
+      throw signerFailure;
+    }
+    return classifyCancelStatus(status);
   }
 
   /**
@@ -7662,6 +8069,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
       return outcome;
     } catch (error) {
+      // A rejected agent is dropped and reported; the order stays resting.
+      this.#evictRejectedAgent(error);
       this.#deps.debugLogger.log('Could not retract abandoned chase order', {
         orderId: session.orderId,
         error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
@@ -8118,15 +8527,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       return await this.#cancelChaseOrder(params);
     } catch (error) {
-      const mappedError = this.#mapError(error);
-      this.#deps.logger.error(
-        mappedError,
-        await this.#getTradingErrorContext('cancelOrder', mappedError, {
-          orderId: params.orderId,
-          coin: params.symbol,
-          orderType: params.orderType,
-        }),
-      );
+      const mappedError = await this.#reportWriteError(error, 'cancelOrder', {
+        orderId: params.orderId,
+        coin: params.symbol,
+        orderType: params.orderType,
+      });
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -8227,7 +8632,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       isStatusObject(status) && typeof status.error === 'string'
         ? status.error
         : 'TWAP cancellation failed';
-    return createErrorResult(this.#mapError(new Error(rawError)), {
+    return createErrorResult(this.#mapStatusError(rawError), {
       success: false,
       orderId: params.orderId,
     });
@@ -8262,11 +8667,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       asset: assetId,
       cloid: clientOrderId,
     }));
-    const [remainingOrderIds, remainingClientOrderIds] = await Promise.all([
-      this.#cancelOrderRequests(exchangeClient, cancelRequests),
-      this.#cancelOrderCloidRequests(exchangeClient, cancelByCloidRequests),
+    const [orderCancellation, cloidCancellation] = await Promise.all([
+      this.#cancelOrderRequestBatch(exchangeClient, cancelRequests),
+      this.#cancelOrderCloidRequestBatch(exchangeClient, cancelByCloidRequests),
     ]);
-    const remaining = remainingOrderIds.map(String);
+    const remaining = orderCancellation.remainingOrderIds.map(String);
+    const { remainingClientOrderIds } = cloidCancellation;
 
     /*
      * A rung that filled or was cancelled individually comes back as a
@@ -8288,6 +8694,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       orderIds: remaining,
       clientOrderIds: remainingClientOrderIds,
     });
+    // The signer could not sign a cancel: retryable, not a defect.
+    const signerFailure =
+      orderCancellation.signerFailure ?? cloidCancellation.signerFailure;
+    if (signerFailure) {
+      this.#logRetryableSignerFailure('cancelOrder', {
+        orderId: params.orderId,
+        orderType: params.orderType,
+      });
+      return createErrorResult(signerFailure, {
+        success: false,
+        orderId: params.orderId,
+      });
+    }
     this.#deps.debugLogger.log('Scale group cancel left children resting', {
       groupId: params.orderId,
       remainingOrderIds: remaining.length,
@@ -8421,22 +8840,48 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel-by-CLOID requests.
-   * @returns Client order IDs that may still be pending.
+   * @returns Client order IDs that may still be resting.
    */
   async #cancelOrderCloidRequests(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelByCloidRequest[],
   ): Promise<Hex[]> {
+    return (await this.#cancelOrderCloidRequestBatch(exchangeClient, requests))
+      .remainingClientOrderIds;
+  }
+
+  /**
+   * Cancel pending orders by client order ID, reporting a signer that could
+   * not sign the cancel.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel-by-CLOID requests.
+   * @returns Client order IDs that may still be resting, and the signer
+   * failure when the signer could not sign the request.
+   */
+  async #cancelOrderCloidRequestBatch(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelByCloidRequest[],
+  ): Promise<{ remainingClientOrderIds: Hex[]; signerFailure?: Error }> {
     if (requests.length === 0) {
-      return [];
+      return { remainingClientOrderIds: [] };
     }
 
-    const getRemainingClientOrderIds = (statuses: unknown[]): Hex[] =>
-      requests.flatMap((request, index) =>
-        classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
-          ? [request.cloid]
-          : [],
-      );
+    const classifyStatuses = (
+      statuses: unknown[],
+    ): { remainingClientOrderIds: Hex[]; signerFailure?: Error } => {
+      // A signer failure is classified (and reported) once for the request;
+      // entries the venue cancelled are not resting either way.
+      const signerFailure = this.#classifyStatusSignerFailure(statuses);
+      return {
+        remainingClientOrderIds: requests.flatMap((request, index) =>
+          classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
+            ? [request.cloid]
+            : [],
+        ),
+        ...(signerFailure && { signerFailure }),
+      };
+    };
 
     try {
       const result = await exchangeClient.cancelByCloid({
@@ -8444,14 +8889,25 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
       const statuses = result.response?.data?.statuses ?? [];
       if (result.status !== 'ok' || statuses.length !== requests.length) {
-        return requests.map((request) => request.cloid);
+        return {
+          remainingClientOrderIds: requests.map((request) => request.cloid),
+        };
       }
 
-      return getRemainingClientOrderIds(statuses);
+      return classifyStatuses(statuses);
     } catch (error) {
+      // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
-        return getRemainingClientOrderIds(statuses);
+        return classifyStatuses(statuses);
+      }
+      // The signer could not sign, so nothing was cancelled.
+      const signerFailure = this.#classifySignerFailure(error);
+      if (signerFailure) {
+        return {
+          remainingClientOrderIds: requests.map((request) => request.cloid),
+          signerFailure,
+        };
       }
       this.#deps.debugLogger.log('Order cancellation by CLOID failed', {
         error: ensureError(
@@ -8460,7 +8916,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         ).message,
         clientOrderIds: requests.map((request) => request.cloid),
       });
-      return requests.map((request) => request.cloid);
+      return {
+        remainingClientOrderIds: requests.map((request) => request.cloid),
+      };
     }
   }
 
@@ -8485,6 +8943,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const classifyStatuses = (statuses: unknown[]): CancelOrderBatchOutcome => {
+      // A signer failure is classified (and reported) once for the request;
+      // entries the venue cancelled still count as cancelled.
+      const signerFailure = this.#classifyStatusSignerFailure(statuses);
       const remainingOrderIds: number[] = [];
       const cancelledOrderIds: number[] = [];
       requests.forEach((request, index) => {
@@ -8495,7 +8956,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           cancelledOrderIds.push(request.o);
         }
       });
-      return { remainingOrderIds, cancelledOrderIds, responseComplete: true };
+      return {
+        remainingOrderIds,
+        cancelledOrderIds,
+        responseComplete: true,
+        ...(signerFailure && { signerFailure }),
+      };
     };
 
     try {
@@ -8511,9 +8977,20 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return classifyStatuses(statuses);
     } catch (error) {
+      // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
         return classifyStatuses(statuses);
+      }
+      // The signer could not sign, so nothing was cancelled.
+      const signerFailure = this.#classifySignerFailure(error);
+      if (signerFailure) {
+        return {
+          remainingOrderIds: requests.map((request) => request.o),
+          cancelledOrderIds: [],
+          responseComplete: false,
+          signerFailure,
+        };
       }
       this.#deps.debugLogger.log('Order cancellation batch failed', {
         error: ensureError(error, 'HyperLiquidProvider.cancelOrderRequests')
@@ -9125,6 +9602,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           : { orderId: replacementOrderId }),
       };
     } catch (error) {
+      const signerFailure = this.#handleSignerFailure(error, 'editOrder', {
+        orderId: params.orderId,
+      });
+      if (signerFailure) {
+        return createErrorResult(signerFailure, { success: false });
+      }
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.editOrder'),
         this.#getErrorContext('editOrder', {
@@ -9223,19 +9706,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? status.error
           : 'Order cancellation failed';
 
-      return createErrorResult(this.#mapError(new Error(rawError)), {
+      return createErrorResult(this.#mapStatusError(rawError), {
         success: false,
         orderId: params.orderId,
       });
     } catch (error) {
-      const mappedError = this.#mapError(error);
-      this.#deps.logger.error(
-        mappedError,
-        await this.#getTradingErrorContext('cancelOrder', mappedError, {
-          orderId: params.orderId,
-          coin: params.symbol,
-        }),
-      );
+      const mappedError = await this.#reportWriteError(error, 'cancelOrder', {
+        orderId: params.orderId,
+        coin: params.symbol,
+      });
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -9327,46 +9806,56 @@ export class HyperLiquidProvider implements PerpsProvider {
             };
           }),
         );
-        const result = await exchangeClient.cancel({
-          cancels: cancelRequests,
-        });
-        const statuses = result.response?.data?.statuses ?? [];
+        let statuses: unknown[] | undefined;
+        try {
+          const result = await exchangeClient.cancel({
+            cancels: cancelRequests,
+          });
+          const returnedStatuses = result.response?.data?.statuses ?? [];
+          statuses =
+            result.status === 'ok' &&
+            returnedStatuses.length === ordinaryOrders.length
+              ? returnedStatuses
+              : undefined;
+        } catch (error) {
+          // The SDK throws when any entry failed, with every entry's status.
+          statuses = getCancelStatusesFromError(error, ordinaryOrders.length);
+          if (!statuses) {
+            throw error;
+          }
+        }
 
-        if (
-          result.status === 'ok' &&
-          statuses.length === ordinaryOrders.length
-        ) {
+        if (statuses) {
+          // One signature covers the batch, so a signer failure is classified
+          // (and reported to the host) once. Each entry keeps its own result.
+          const signerFailure = this.#classifyStatusSignerFailure(statuses);
           ordinaryOrders.forEach(({ index, order }, statusIndex) => {
             const status: unknown = statuses[statusIndex];
             const success = status === 'success';
             const statusError =
               isStatusObject(status) && typeof status.error === 'string'
-                ? status.error
+                ? new Error(status.error)
                 : undefined;
+            let error: string = PERPS_ERROR_CODES.BATCH_CANCEL_FAILED;
+            if (statusError) {
+              error =
+                signerFailure && this.#isSignerFailure(statusError)
+                  ? signerFailure.message
+                  : this.#mapError(statusError).message;
+            }
             results[index] = {
               orderId: order.orderId,
               symbol: order.symbol,
               success,
-              ...(success
-                ? {}
-                : {
-                    error:
-                      statusError === undefined
-                        ? PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
-                        : this.#mapError(new Error(statusError)).message,
-                  }),
+              ...(success ? {} : { error }),
             };
           });
         }
       }
     } catch (error) {
-      const mappedError = this.#mapError(error);
-      this.#deps.logger.error(
-        mappedError,
-        await this.#getTradingErrorContext('cancelOrders', mappedError, {
-          orderCount: params.length,
-        }),
-      );
+      const mappedError = await this.#reportWriteError(error, 'cancelOrders', {
+        orderCount: params.length,
+      });
       for (const result of results) {
         if (
           !result.success &&
@@ -9729,16 +10218,20 @@ export class HyperLiquidProvider implements PerpsProvider {
         ],
       };
     } catch (error) {
-      const safeError = ensureError(
-        error,
-        'HyperLiquidProvider.closePositions',
-      );
-      this.#deps.logger.error(
-        safeError,
-        this.#getErrorContext('closePositions', {
-          positionCount: positionsToClose.length,
-        }),
-      );
+      const signerFailure = this.#handleSignerFailure(error, 'closePositions', {
+        positionCount: positionsToClose.length,
+      });
+      const safeError =
+        signerFailure ??
+        ensureError(error, 'HyperLiquidProvider.closePositions');
+      if (!signerFailure) {
+        this.#deps.logger.error(
+          safeError,
+          this.#getErrorContext('closePositions', {
+            positionCount: positionsToClose.length,
+          }),
+        );
+      }
       // Return all selected positions as failed, including unavailable DEXes.
       return {
         success: false,
@@ -10312,16 +10805,25 @@ export class HyperLiquidProvider implements PerpsProvider {
             }
           } catch (error) {
             success = false;
-            this.#deps.logger.error(
-              ensureError(
-                error,
-                'HyperLiquidProvider.updatePositionTPSL.restoreCancelledProtection',
-              ),
-              this.#getErrorContext(
-                'updatePositionTPSL > restoreCancelledProtection',
-                { symbol, grouping: protection.grouping },
-              ),
-            );
+            // A signer that could not sign is retryable, not a defect; the
+            // caller still learns the protection was lost.
+            if (
+              !this.#handleSignerFailure(error, 'updatePositionTPSL', {
+                symbol,
+                grouping: protection.grouping,
+              })
+            ) {
+              this.#deps.logger.error(
+                ensureError(
+                  error,
+                  'HyperLiquidProvider.updatePositionTPSL.restoreCancelledProtection',
+                ),
+                this.#getErrorContext(
+                  'updatePositionTPSL > restoreCancelledProtection',
+                  { symbol, grouping: protection.grouping },
+                ),
+              );
+            }
           }
         }
         return { restoredOrderIds, success };
@@ -10335,14 +10837,31 @@ export class HyperLiquidProvider implements PerpsProvider {
           childOrderIds: [...new Set(survivingOrderIds)],
         });
 
+      // Cancel before placing for both position-bound and standalone partial
+      // triggers. A place-first partial update leaves both trigger sets live
+      // during the cancellation round trip and can reduce more than requested.
+      const oldCancellation = await this.#cancelOrderRequestBatch(
+        exchangeClient,
+        cancelRequests,
+      );
+      // The signer could not sign the cancel. With nothing cancelled the old
+      // protection is still in place, and a clear keeps only what it could
+      // not cancel, so the caller retries. A replacement that cancelled part
+      // of the old protection restores it below.
+      if (
+        oldCancellation.signerFailure &&
+        (orders.length === 0 || oldCancellation.cancelledOrderIds.length === 0)
+      ) {
+        this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
+        return createErrorResult(oldCancellation.signerFailure, {
+          success: false,
+        });
+      }
+
       // Clearing has no replacement batch to preserve. A partial cancellation
       // is reported so the caller can retry the same clear operation.
       if (orders.length === 0) {
-        const remainingOrderIds = await this.#cancelOrderRequests(
-          exchangeClient,
-          cancelRequests,
-        );
-        if (remainingOrderIds.length > 0) {
+        if (oldCancellation.remainingOrderIds.length > 0) {
           throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         }
         this.#deps.debugLogger.log(
@@ -10354,14 +10873,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Cancel before placing for both position-bound and standalone partial
-      // triggers. A place-first partial update leaves both trigger sets live
-      // during the cancellation round trip and can reduce more than requested.
       const confirmedCancelledOldOrderIds = new Set<number>();
-      const oldCancellation = await this.#cancelOrderRequestBatch(
-        exchangeClient,
-        cancelRequests,
-      );
       if (!oldCancellation.responseComplete) {
         const requestedOrderIds = new Set(
           cancelRequests.map((request) => request.o),
@@ -10399,6 +10911,19 @@ export class HyperLiquidProvider implements PerpsProvider {
             ...restoration.restoredOrderIds,
           ]);
         }
+        const survivingOrderIds = [
+          ...new Set([
+            ...oldCancellation.remainingOrderIds.map(String),
+            ...restoration.restoredOrderIds,
+          ]),
+        ];
+        if (oldCancellation.signerFailure) {
+          this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
+          return createErrorResult(oldCancellation.signerFailure, {
+            success: false,
+            childOrderIds: survivingOrderIds,
+          });
+        }
         const updateError = new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         this.#deps.logger.error(
           updateError,
@@ -10410,12 +10935,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
         return createErrorResult(updateError, {
           success: false,
-          childOrderIds: [
-            ...new Set([
-              ...oldCancellation.remainingOrderIds.map(String),
-              ...restoration.restoredOrderIds,
-            ]),
-          ],
+          childOrderIds: survivingOrderIds,
         });
       }
 
@@ -10428,11 +10948,23 @@ export class HyperLiquidProvider implements PerpsProvider {
             builderOrderContext && { builder: builderOrderContext }),
         });
       } catch (error) {
+        // Classify first, so a rejected agent is dropped (and reported) before
+        // the restoration signs.
+        const signerFailure = this.#classifySignerFailure(error);
         const restoration = await restoreCancelledProtection(
           confirmedCancelledOldOrderIds,
         );
         if (!restoration.success) {
           return createProtectionLostResult(restoration.restoredOrderIds);
+        }
+        if (signerFailure) {
+          this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
+          return createErrorResult(signerFailure, {
+            success: false,
+            ...(restoration.restoredOrderIds.length > 0 && {
+              childOrderIds: restoration.restoredOrderIds,
+            }),
+          });
         }
         throw error;
       }
@@ -10525,6 +11057,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
     } catch (error) {
+      const signerFailure = this.#handleSignerFailure(
+        error,
+        'updatePositionTPSL',
+        { symbol: params.symbol },
+      );
+      if (signerFailure) {
+        return createErrorResult(signerFailure, { success: false });
+      }
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
         this.#getErrorContext('updatePositionTPSL', {
@@ -10812,6 +11352,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: true,
       };
     } catch (error) {
+      const signerFailure = this.#handleSignerFailure(error, 'updateMargin', {
+        symbol: params.symbol,
+      });
+      if (signerFailure) {
+        return { success: false, error: signerFailure.message };
+      }
       const safeError = ensureError(error, 'HyperLiquidProvider.updateMargin');
       this.#deps.logger.error(
         safeError,
@@ -13767,6 +14313,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         error: errorMessage,
       };
     } catch (error) {
+      const signerFailure = this.#handleSignerFailure(error, 'withdraw', {
+        assetId: params.assetId,
+      });
+      if (signerFailure) {
+        return createErrorResult(signerFailure, { success: false });
+      }
       const safeError = ensureError(
         error,
         'HyperLiquidProvider.initiateWithdrawal',
@@ -13874,6 +14426,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       throw new Error(PERPS_ERROR_CODES.TRANSFER_FAILED);
     } catch (error) {
+      const signerFailure = this.#handleSignerFailure(
+        error,
+        'transferBetweenDexs',
+        { sourceDex: params.sourceDex, destinationDex: params.destinationDex },
+      );
+      if (signerFailure) {
+        return { success: false, error: signerFailure.message };
+      }
       const safeError = ensureError(
         error,
         'HyperLiquidProvider.transferToSpot',
@@ -14181,6 +14741,115 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     } catch (error) {
       return createErrorResult(error, { success: false });
+    }
+  }
+
+  /**
+   * Forget every agent resolved through `getAgentSigner`, so the next L1
+   * action asks again; an answer still pending is discarded too.
+   */
+  clearAgentSigners(): void {
+    this.#agentSignersGeneration += 1;
+    this.#agentSigners.clear();
+  }
+
+  /**
+   * Run the deferred account migration, builder fee and referral setup ahead
+   * of the first order. Results are cached, so an already-ready account signs
+   * nothing. A declined migration is not asked again, and a referral whose
+   * MetaMask code is not ready yet is checked again by the next call rather
+   * than by orders.
+   *
+   * @returns The readiness result described on
+   * `PerpsController.prepareTradingWallet`.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    // Nothing can be signed, so run no setup (and log nothing) until it can.
+    if (!this.#walletService.isMainAccountSignerReady()) {
+      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    }
+    try {
+      const lifecycleGeneration = this.#lifecycleGeneration;
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      // The result is only for the provider and account it started with.
+      const assertPreparationCurrent = async (): Promise<void> => {
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'Trading wallet preparation',
+        );
+        // A deselected account changed too.
+        const currentAddress = await this.#walletService
+          .getUserAddressWithDefault()
+          .catch(() => undefined);
+        if (currentAddress?.toLowerCase() !== userAddress.toLowerCase()) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+      };
+      await this.#ensureReadyForTrading({
+        requiresBuilderFee: false,
+        recheckPendingReferral: true,
+      });
+      const network = this.#clientService.isTestnetMode()
+        ? 'testnet'
+        : 'mainnet';
+      const isRegistered = await this.#isWalletOnHyperliquid(
+        userAddress,
+        network,
+      );
+      await assertPreparationCurrent();
+      // The venue rejects every write from a wallet with no HyperLiquid account
+      // yet, so it is not asked to sign a builder fee approval either.
+      if (!isRegistered) {
+        return {
+          ready: false,
+          error: this.#walletService.isMainAccountSignerReady()
+            ? PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND
+            : PERPS_ERROR_CODES.KEYRING_LOCKED,
+        };
+      }
+      await this.#ensureBuilderFeeSetup(undefined, {
+        reportSignerFailure: true,
+      });
+      // The builder fee setup ends quietly when the provider disconnects.
+      await assertPreparationCurrent();
+      if (!this.#walletService.isMainAccountSignerReady()) {
+        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      }
+      const ready =
+        this.#tradingSetupComplete &&
+        !this.#unifiedAccountSetupNeedsRetry &&
+        this.#builderFeeCheckCache.has(this.#getCacheKey(network, userAddress));
+      return { ready };
+    } catch (error) {
+      // A step failed because the signer could not sign it (or locked while
+      // it ran): retryable, not logged.
+      if (
+        isKeyringLockedError(error) ||
+        !this.#walletService.isMainAccountSignerReady()
+      ) {
+        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      }
+      const caughtError = ensureError(
+        error,
+        'HyperLiquidProvider.prepareTradingWallet',
+      );
+      if (caughtError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        this.#deps.debugLogger.log(
+          '[prepareTradingWallet] Provider replaced during preparation',
+        );
+      } else if (
+        caughtError.message === PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED
+      ) {
+        this.#deps.debugLogger.log(
+          '[prepareTradingWallet] No account selected',
+        );
+      } else {
+        this.#deps.logger.error(
+          caughtError,
+          this.#getErrorContext('prepareTradingWallet'),
+        );
+      }
+      return { ready: false, error: caughtError.message };
     }
   }
 
@@ -15253,6 +15922,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Note: Non-blocking - failures are logged to Sentry but don't prevent trading
    */
   async #ensureReferralSet(): Promise<void> {
+    this.#referralSetupNeedsRetry = false;
+    this.#referralAwaitsBuilderCode = false;
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const expectedReferralCode = this.#getReferralCode(isTestnet);
@@ -15299,19 +15970,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
-    // Check if another provider is currently attempting this
-    const inFlightPromise = PerpsSigningCache.isInFlight(
+    // Wait while another provider attempts it. That attempt may end without
+    // caching a result (its signer could not sign), so take the lock once it
+    // is free and re-check the cache under it. The lock is checked and taken
+    // with no await in between, so only one of several waiters gets it.
+    let inFlightPromise = PerpsSigningCache.isInFlight(
       'referral',
       network,
       userAddress,
     );
-    if (inFlightPromise) {
+    while (inFlightPromise) {
       this.#deps.debugLogger.log(
         '[ensureReferralSet] Global in-flight, waiting...',
         { network },
       );
       await inFlightPromise;
-      return;
+      inFlightPromise = PerpsSigningCache.isInFlight(
+        'referral',
+        network,
+        userAddress,
+      );
     }
 
     // Set global in-flight lock
@@ -15333,14 +16011,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      const isReady = await this.#isReferralCodeReady();
-      if (!isReady) {
+      const codeStatus = await this.#getReferralCodeStatus();
+      if (codeStatus !== 'ready') {
         this.#deps.debugLogger.log(
           '[ensureReferralSet] Builder referral not ready, skipping',
-          { network },
+          { network, codeStatus },
         );
+        // Don't cache. A failed lookup (already logged) waits for the next
+        // setup; a code that is not ready yet, for the next preparation.
+        this.#referralAwaitsBuilderCode = codeStatus === 'pending';
         completeInFlight();
-        return; // Don't cache - retry when ready
+        return;
       }
 
       // Check if user already has a referral on-chain
@@ -15384,12 +16065,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       completeInFlight();
     } catch (error) {
-      // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
-      // in `cause`, so classify the full chain and leave retry caches empty.
-      if (isKeyringLockedError(error)) {
+      // The signer could not sign (a locked keyring, or an unavailable or
+      // rejected agent; HyperLiquid keeps the cause in `cause`): leave the
+      // cache empty and attempt the referral again at the next setup.
+      if (this.#classifySignerFailure(error)) {
         this.#deps.debugLogger.log(
-          '[ensureReferralSet] Keyring locked, will retry later',
+          '[ensureReferralSet] Signer unavailable, will retry later',
         );
+        this.#referralSetupNeedsRetry = true;
         completeInFlight();
         return;
       }
@@ -15433,11 +16116,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Check if the referral code is ready to be used
+   * Check whether the builder's referral code can be used.
    *
-   * @returns Promise resolving to true if referral code is ready
+   * @returns `ready`, `pending` while the builder's code is not ready yet, or
+   * `failed` when the lookup failed or the code on file does not match (logged).
    */
-  async #isReferralCodeReady(): Promise<boolean> {
+  async #getReferralCodeStatus(): Promise<'ready' | 'pending' | 'failed'> {
     try {
       const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const isTestnet = this.#clientService.isTestnetMode();
@@ -15455,30 +16139,30 @@ export class HyperLiquidProvider implements PerpsProvider {
             `Ready for referrals but there is a config code mismatch ${onFile} vs ${code}`,
           );
         }
-        return true;
+        return 'ready';
       }
 
       // Not ready yet - log as debugLogger since this is expected during setup phase
       this.#deps.debugLogger.log(
-        '[isReferralCodeReady] Referral code not ready',
+        '[getReferralCodeStatus] Referral code not ready',
         {
           stage,
           code,
           referrerAddr,
         },
       );
-      return false;
+      return 'pending';
     } catch (error) {
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.isReferralCodeReady'),
-        this.#getErrorContext('isReferralCodeReady', {
+        ensureError(error, 'HyperLiquidProvider.getReferralCodeStatus'),
+        this.#getErrorContext('getReferralCodeStatus', {
           code: this.#getReferralCode(this.#clientService.isTestnetMode()),
           referrerAddress: this.#getBuilderAddress(
             this.#clientService.isTestnetMode(),
           ),
         }),
       );
-      return false;
+      return 'failed';
     }
   }
 
@@ -15555,6 +16239,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return result?.status === 'ok';
     } catch (error) {
+      // Retryable (a locked keyring, an unavailable agent, or one the venue
+      // rejected): `#ensureReferralSet` retries at the next entry, so it is
+      // not an error to report.
+      if (this.#isSignerFailure(error)) {
+        throw error;
+      }
       // Benign for unfunded wallets — downgrade and rethrow so the outer
       // `#ensureReferralSet` catch self-heals the walletRegistered gate
       // without forwarding to Sentry.
