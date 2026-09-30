@@ -1869,7 +1869,7 @@ describe('PerpsController', () => {
     it('passes one targeted rewards resolution to the fee preview and returns its attribution', async () => {
       const params = {
         orderType: 'market' as const,
-        amount: '100000',
+        amount: '1000',
         symbol: 'BTC',
       };
       const resolution = {
