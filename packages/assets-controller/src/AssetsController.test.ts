@@ -5405,6 +5405,7 @@ describe('AssetsController', () => {
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/1',
+            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/0',
           );
 
@@ -5437,6 +5438,7 @@ describe('AssetsController', () => {
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/1',
+            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/0',
           );
 
@@ -5454,6 +5456,7 @@ describe('AssetsController', () => {
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/2',
+            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/1',
           );
 
@@ -5621,6 +5624,7 @@ describe('AssetsController', () => {
         async ({ messenger }) => {
           const stateChanges: AssetsControllerState[] = [];
           messenger.subscribe(
+            // @ts-expect-error -- The messenger mock's event union omits the controller's own stateChanged event.
             'AssetsController:stateChanged',
             (state: AssetsControllerState) => {
               stateChanges.push(state);
@@ -5633,6 +5637,7 @@ describe('AssetsController', () => {
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/1',
+            // @ts-expect-error -- The selected account group change event publishes variadic account entropies; LifecyclePublish models only one payload argument.
             'entropy:mock-keyring-id-1/0',
           );
 
