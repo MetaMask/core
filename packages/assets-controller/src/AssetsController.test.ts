@@ -13,6 +13,7 @@ import type {
 import type { NetworkState } from '@metamask/network-controller';
 
 import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
+import { waitFor } from './__fixtures__/test-utils.js';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
@@ -4160,18 +4161,16 @@ describe('AssetsController', () => {
           }),
         );
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          {
-            chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
-            forceUpdate: true,
-            bypassServerCache: true,
-          },
-        );
-
-        getAssetsSpy.mockRestore();
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
       });
     });
 
@@ -4189,11 +4188,9 @@ describe('AssetsController', () => {
           }),
         );
 
-        await flushPromises();
-
+        // The subscriber decides synchronously whether to call getAssets, so
+        // no waiting is needed before asserting it was skipped.
         expect(getAssetsSpy).not.toHaveBeenCalled();
-
-        getAssetsSpy.mockRestore();
       });
     });
 
@@ -4208,8 +4205,6 @@ describe('AssetsController', () => {
           status: 'up',
         });
 
-        await flushPromises();
-
         messenger.publish(
           'MultichainTransactionsController:transactionConfirmed',
           createMockKeyringTransaction({
@@ -4218,11 +4213,7 @@ describe('AssetsController', () => {
           }),
         );
 
-        await flushPromises();
-
         expect(getAssetsSpy).not.toHaveBeenCalled();
-
-        getAssetsSpy.mockRestore();
       });
     });
 
@@ -4236,13 +4227,11 @@ describe('AssetsController', () => {
           chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
           status: 'up',
         });
-        await flushPromises();
 
         messenger.publish('AccountActivityService:statusChanged', {
           chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
           status: 'down',
         });
-        await flushPromises();
 
         messenger.publish(
           'MultichainTransactionsController:transactionConfirmed',
@@ -4252,18 +4241,16 @@ describe('AssetsController', () => {
           }),
         );
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          {
-            chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
-            forceUpdate: true,
-            bypassServerCache: true,
-          },
-        );
-
-        getAssetsSpy.mockRestore();
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
       });
     });
 
@@ -4281,11 +4268,7 @@ describe('AssetsController', () => {
           }),
         );
 
-        await flushPromises();
-
         expect(getAssetsSpy).not.toHaveBeenCalled();
-
-        getAssetsSpy.mockRestore();
       });
     });
 
