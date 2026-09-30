@@ -139,9 +139,9 @@ describe('lintSuppressions', () => {
 
   beforeEach(() => {
     originalProcess = globalThis.process;
-    // The exit code is reset because it is global state that another test file
-    // may have set, and `GITHUB_ACTIONS` because this suite itself runs in CI,
-    // where it would otherwise be set for every test.
+    // The exit code is reset because another test file may have set it.
+    // `GITHUB_ACTIONS` is cleared because this suite runs in CI, where it is
+    // set, which would otherwise send every test down the CI path.
     globalThis.process = {
       ...globalThis.process,
       exitCode: undefined,
