@@ -693,14 +693,6 @@
       "count": 1
     }
   },
-  "packages/perps-controller/tests/e2e/lighter.e2e.ts": {
-    "TS2322": {
-      "count": 3
-    },
-    "TS2345": {
-      "count": 3
-    }
-  },
   "packages/perps-controller/tests/helpers/advancedOrders.ts": {
     "TS2322": {
       "count": 2
@@ -789,6 +781,11 @@
       "count": 3
     }
   },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.account-mode.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.advanced-orders.test.ts": {
     "TS2740": {
       "count": 6
@@ -858,6 +855,9 @@
   },
   "packages/perps-controller/tests/src/services/HyperLiquidSubscriptionService.streams.test.ts": {
     "TS2322": {
+      "count": 8
+    },
+    "TS2739": {
       "count": 2
     }
   },
