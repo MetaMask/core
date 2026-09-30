@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 
 ### Removed
 
