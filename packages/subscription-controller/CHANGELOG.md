@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `tokenAddress` on `SubscriptionCryptoPaymentMethod` so `getSubscriptions` keeps the crypto settlement token address
+  - Vault-share payments such as pvmUSD use this address as the premium vault
+  - Omitted on older responses, which still validate
+
 ## [11.0.0]
 
 ### Added

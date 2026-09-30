@@ -87,6 +87,7 @@ const SubscriptionCryptoPaymentMethodStruct = type({
     payerAddress: StrictHexStruct,
     chainId: StrictHexStruct,
     tokenSymbol: string(),
+    tokenAddress: optional(StrictHexStruct),
     error: optional(CryptoPaymentMethodErrorStruct),
   }),
 });

@@ -781,6 +781,100 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('keeps the crypto payment token address', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const tokenAddress = '0xBFeC8c2b1ccea3931a1363E4CaC27352c1C908B7';
+
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  id: 'sub_money_account_plus_123',
+                  products: [
+                    {
+                      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                      unitAmount: 499,
+                      unitDecimals: 2,
+                      currency: 'usd',
+                    },
+                  ],
+                  status: SUBSCRIPTION_STATUSES.provisional,
+                  interval: RECURRING_INTERVALS.month,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCrypto,
+                    crypto: {
+                      payerAddress:
+                        '0x15ffacc73fce2323d469df2cd23251e3e104352e',
+                      chainId: '0x8f',
+                      tokenSymbol: 'pvmUSD',
+                      tokenAddress,
+                      authMethod: 'delegation',
+                      isVaultShareToken: true,
+                    },
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions[0]?.paymentMethod).toMatchObject({
+          type: PAYMENT_TYPES.byCrypto,
+          crypto: {
+            payerAddress: '0x15ffacc73fce2323d469df2cd23251e3e104352e',
+            chainId: '0x8f',
+            tokenSymbol: 'pvmUSD',
+            tokenAddress,
+          },
+        });
+      });
+    });
+
+    it('rejects a crypto payment method with a malformed token address', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  id: 'sub_money_account_plus_123',
+                  products: [
+                    {
+                      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                      unitAmount: 499,
+                      unitDecimals: 2,
+                      currency: 'usd',
+                    },
+                  ],
+                  status: SUBSCRIPTION_STATUSES.active,
+                  interval: RECURRING_INTERVALS.month,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCrypto,
+                    crypto: {
+                      payerAddress:
+                        '0x15ffacc73fce2323d469df2cd23251e3e104352e',
+                      chainId: '0x8f',
+                      tokenSymbol: 'pvmUSD',
+                      tokenAddress: 'not-an-address',
+                    },
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'paymentMethod',
+        );
+      });
+    });
+
     it('accepts the awaiting_funds subscription status', async () => {
       await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
