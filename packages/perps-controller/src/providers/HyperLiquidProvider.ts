@@ -2435,7 +2435,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * re-probe. The probe is cheap (~100ms), non-throwing, and returns the
    * full deposit/withdraw history. A non-empty array means the wallet has
    * interacted with Hyperliquid at least once — necessary and sufficient
-   * for `agentSetAbstraction` / `userSetAbstraction` / `setReferrer` to
+   * for `agentSetAbstraction` / `setReferrer` to
    * succeed.
    *
    * If the probe itself throws (transient network), returns `true` and does

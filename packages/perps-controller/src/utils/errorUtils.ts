@@ -71,7 +71,7 @@ export function ensureError(error: unknown, context?: string): Error {
 
 /**
  * Hyperliquid rejects user-scoped exchange writes (`agentSetAbstraction`,
- * `userSetAbstraction`, `setReferrer`, ...) with this exact message when the
+ * `setReferrer`, ...) with this exact message when the
  * wallet has never funded a Hyperliquid account. It is a benign pre-account
  * state, not an error we should forward to Sentry.
  *
