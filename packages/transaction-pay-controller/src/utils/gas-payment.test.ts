@@ -242,6 +242,27 @@ describe('gas-payment', () => {
         mode: GasPaymentMode.Native,
       });
     });
+
+    it('does not log the resolved mode at quote time', () => {
+      // Without `isSourceGasFeeToken` the gas station has not been consulted,
+      // so `Native` is a default rather than a decision. Logging it claims the
+      // user pays gas in native token while the source token is still in play.
+      resolveGasPayment(PAYMENT_REQUEST_MOCK);
+
+      expect(logMock).not.toHaveBeenCalled();
+    });
+
+    it('logs the resolved mode at submit time', () => {
+      resolveGasPayment({
+        ...PAYMENT_REQUEST_MOCK,
+        isSourceGasFeeToken: false,
+      });
+
+      expect(logMock).toHaveBeenCalledWith(
+        'Gas will be paid with native token',
+        { mode: GasPaymentMode.Native },
+      );
+    });
   });
 
   describe('logGasPaymentOutcome', () => {

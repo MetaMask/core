@@ -46,6 +46,9 @@ export enum GasPaymentMode {
  * request, not one that has happened. For the modes that go through the
  * `TransactionController`, the outcome is only known after publish — see
  * {@link logGasPaymentOutcome}.
+ *
+ * Only emitted at submit time. See {@link resolveGasPayment} for why the
+ * quote-time resolution is too provisional to report.
  */
 const GAS_PAYMENT_MODE_LOG: Record<GasPaymentMode, string> = {
   [GasPaymentMode.Delegation]: 'Gas will be paid by relayer',
@@ -267,13 +270,21 @@ function canUseGasStation(
  * estimating it. At submit time, call it with everything to get the
  * `TransactionController` options.
  *
+ * Only the submit-time resolution is logged. At quote time the gas station has
+ * not been consulted yet, so an absent `isSourceGasFeeToken` collapses to
+ * {@link GasPaymentMode.Native} by default rather than by decision — logging
+ * that would announce the user is paying gas in native token before anything
+ * has ruled out the source token.
+ *
  * @param request - Payment request.
  * @returns The resolved mode and its `TransactionController` options.
  */
 export function resolveGasPayment(request: GasPaymentRequest): GasPayment {
   const gasPayment = getGasPayment(request);
 
-  log(GAS_PAYMENT_MODE_LOG[gasPayment.mode], gasPayment);
+  if (request.isSourceGasFeeToken !== undefined) {
+    log(GAS_PAYMENT_MODE_LOG[gasPayment.mode], gasPayment);
+  }
 
   return gasPayment;
 }
