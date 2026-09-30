@@ -58,7 +58,7 @@
     "@metamask/network-controller": "^37.0.0",
     "@metamask/network-enablement-controller": "^7.0.1",
     "@metamask/utils": "^12.0.0",
-    "reselect": "^5.1.1"
+    "reselect": "^5.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
