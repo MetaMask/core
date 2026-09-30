@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Grant `SubscriptionController` access to `SeedlessOnboardingController:getIsUserAuthenticated` so `SubscriptionController:isUserEligibleForTrial` can tell whether the user is authenticated with social login ([#10622](https://github.com/MetaMask/core/pull/10622))
-  - Hosts that supply their own root messenger must allow this action before constructing `SubscriptionController`.
+- **BREAKING:** Grant `SubscriptionController` access to `SeedlessOnboardingController:getIsUserAuthenticated` ([#10622](https://github.com/MetaMask/core/pull/10622))
+  - Clients must delegate this action to the Wallet messenger.
 
 ## [15.1.0]
 
