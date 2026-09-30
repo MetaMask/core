@@ -567,6 +567,12 @@ type TpslJournalState = {
   priorTriggers: TpslPriorTrigger[];
 };
 
+/** Durable identities of Core-created protection, independent of position size. */
+type ManagedTpslOrder = {
+  clientId: string;
+  orderId: string | null;
+};
+
 /**
  * DURABLE manual-recovery record, SEPARATE from the settlement journal:
  * parking releases the journal slot (so a successor protection intent
@@ -2773,6 +2779,185 @@ export class LighterProvider implements PerpsProvider {
     `lighterTpslJournal:${this.#isTestnet ? 'testnet' : 'mainnet'}:${settlementKey}`;
 
   /**
+   * Protection belongs to the wallet/account/market, not the signing key slot.
+   * A key recovered into another slot must still recognize this device's orders.
+   *
+   * @param settlementKey - Address:accountIndex:apiKeyIndex:symbol identity.
+   * @returns The network-scoped ownership storage key.
+   */
+  readonly #managedTpslKey = (settlementKey: string): string => {
+    const [address, accountIndex, , ...symbolParts] = settlementKey.split(':');
+    const symbol = symbolParts.join(':');
+    return `lighterManagedTpsl:${this.#isTestnet ? 'testnet' : 'mainnet'}:${address}:${accountIndex}:${symbol}`;
+  };
+
+  /**
+   * Read ownership strictly. Storage failure or corruption never means unowned.
+   *
+   * @param settlementKey - Captured settlement identity.
+   * @returns Recorded client and venue identities.
+   */
+  readonly #readManagedTpsl = async (
+    settlementKey: string,
+  ): Promise<ManagedTpslOrder[]> => {
+    const raw = await this.#deps.diskCache.getItem(
+      this.#managedTpslKey(settlementKey),
+    );
+    if (raw === null) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as { version?: unknown; orders?: unknown };
+    if (
+      parsed === null ||
+      parsed.version !== 1 ||
+      !Array.isArray(parsed.orders) ||
+      parsed.orders.length > 256 ||
+      !parsed.orders.every((entry: unknown) => {
+        if (typeof entry !== 'object' || entry === null) {
+          return false;
+        }
+        const order = entry as Partial<ManagedTpslOrder>;
+        return (
+          typeof order.clientId === 'string' &&
+          /^\d{1,15}$/u.test(order.clientId) &&
+          Number.isSafeInteger(Number(order.clientId)) &&
+          Number(order.clientId) > 0 &&
+          (order.orderId === null ||
+            (typeof order.orderId === 'string' &&
+              /^\d{1,20}$/u.test(order.orderId)))
+        );
+      })
+    ) {
+      throw new Error(
+        'Invalid Lighter managed TP/SL ownership; refusing protection changes',
+      );
+    }
+    const orders = parsed.orders as ManagedTpslOrder[];
+    if (new Set(orders.map((entry) => entry.clientId)).size !== orders.length) {
+      throw new Error(
+        'Duplicate Lighter managed TP/SL ownership; refusing protection changes',
+      );
+    }
+    return orders;
+  };
+
+  /**
+   * Record every journalled creation before dispatch. At proven settlement,
+   * prune only this operation's absent creations and cancelled venue IDs.
+   * Unrelated or uncertain IDs from another slot's operation are retained.
+   *
+   * @param settlementKey - Captured settlement identity.
+   * @param journal - Operation whose IDs are being updated.
+   * @param settledActive - Strict active book after authoritative settlement.
+   */
+  readonly #updateManagedTpsl = async (
+    settlementKey: string,
+    journal: TpslJournalState,
+    settledActive?: LighterApiOrder[],
+  ): Promise<void> => {
+    const key = this.#managedTpslKey(settlementKey);
+    await withStorageMutex(key, async () => {
+      const orders = new Map(
+        (await this.#readManagedTpsl(settlementKey)).map((entry) => [
+          entry.clientId,
+          entry,
+        ]),
+      );
+      const createdIds = new Set(
+        journal.attempts.flatMap((attempt) =>
+          attempt.kind === 'create' ? attempt.clientIds.map(String) : [],
+        ),
+      );
+      for (const clientId of createdIds) {
+        if (!orders.has(clientId)) {
+          orders.set(clientId, { clientId, orderId: null });
+        }
+      }
+      if (settledActive) {
+        const cancelledIds = new Set(
+          journal.attempts.flatMap((attempt) =>
+            attempt.kind === 'cancel' ? [attempt.orderId] : [],
+          ),
+        );
+        for (const [clientId, entry] of orders) {
+          const active = settledActive.find(
+            (row) => String(row.clientOrderIndex) === clientId,
+          );
+          if (active) {
+            orders.set(clientId, {
+              clientId,
+              orderId: String(active.orderIndex),
+            });
+          } else if (
+            createdIds.has(clientId) ||
+            (entry.orderId !== null && cancelledIds.has(entry.orderId))
+          ) {
+            orders.delete(clientId);
+          }
+        }
+      }
+      if (orders.size > 256) {
+        throw new Error(
+          'Lighter managed TP/SL ownership is full; refusing further protection changes',
+        );
+      }
+      await this.#deps.diskCache.setItem(
+        key,
+        JSON.stringify({ version: 1, orders: [...orders.values()] }),
+      );
+    });
+  };
+
+  /**
+   * Prune historical ownership only when exact inactive IDs prove termination.
+   * Absence from an active read alone never discards an uncertain creation.
+   *
+   * @param settlementKey - Captured settlement identity.
+   * @param active - Strict active venue book.
+   * @param readInactiveFor - Targeted, captured-account inactive reader.
+   */
+  readonly #pruneManagedTpsl = async (
+    settlementKey: string,
+    active: LighterApiOrder[],
+    readInactiveFor: (ids: number[]) => Promise<LighterApiOrder[]>,
+  ): Promise<void> => {
+    const orders = await this.#readManagedTpsl(settlementKey);
+    const missing = orders.filter(
+      (entry) =>
+        !active.some((row) => String(row.clientOrderIndex) === entry.clientId),
+    );
+    if (missing.length === 0) {
+      return;
+    }
+    const inactive = await readInactiveFor(
+      missing.map((entry) => Number(entry.clientId)),
+    );
+    const terminalIds = new Set(
+      inactive
+        .filter((row) =>
+          ['filled', 'executed', 'canceled', 'cancelled', 'rejected'].includes(
+            row.status.toLowerCase(),
+          ),
+        )
+        .map((row) => String(row.clientOrderIndex)),
+    );
+    if (terminalIds.size === 0) {
+      return;
+    }
+    const key = this.#managedTpslKey(settlementKey);
+    await withStorageMutex(key, async () => {
+      const current = await this.#readManagedTpsl(settlementKey);
+      await this.#deps.diskCache.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          orders: current.filter((entry) => !terminalIds.has(entry.clientId)),
+        }),
+      );
+    });
+  };
+
+  /**
    * Operation-scoped journal payload key: each operation's journal lives
    * under its OWN key so a stale resolver physically cannot overwrite or
    * delete a newer operation's payload — only its own.
@@ -3373,6 +3558,7 @@ export class LighterProvider implements PerpsProvider {
     // marker recorded earlier in this session — otherwise later read
     // kicks would skip it until a restart or another mutation.
     this.#tpslRecoveryGeneration = -1;
+    await this.#updateManagedTpsl(settlementKey, journal);
   };
 
   /**
@@ -3386,12 +3572,14 @@ export class LighterProvider implements PerpsProvider {
    * @param settlementKey - Settlement identity.
    * @param expectedOperationId - The operation this resolver settled;
    * null prunes only a dangling index entry with NO journal behind it.
+   * @param settledActive - Strict active book after the operation settled.
    * @returns True when the obligation was cleared (or already gone);
    * false when a NEWER operation owns the journal (unresolved).
    */
   readonly #clearTpslJournal = async (
     settlementKey: string,
     expectedOperationId: string | null,
+    settledActive?: LighterApiOrder[],
   ): Promise<boolean> => {
     const journalKey = this.#tpslJournalKey(settlementKey);
     const cleared = await withStorageMutex(journalKey, async () => {
@@ -3428,6 +3616,16 @@ export class LighterProvider implements PerpsProvider {
             .catch(() => undefined);
           return false;
         }
+        if (settledActive) {
+          const journal = await this.#loadTpslJournal(settlementKey);
+          if (journal) {
+            await this.#updateManagedTpsl(
+              settlementKey,
+              journal,
+              settledActive,
+            );
+          }
+        }
         await this.#deps.diskCache.removeItem(
           this.#tpslJournalOpKey(settlementKey, expectedOperationId),
         );
@@ -3461,6 +3659,12 @@ export class LighterProvider implements PerpsProvider {
           { settlementKey },
         );
         return false;
+      }
+      if (settledActive) {
+        const journal = await this.#loadTpslJournal(settlementKey);
+        if (journal) {
+          await this.#updateManagedTpsl(settlementKey, journal, settledActive);
+        }
       }
       await this.#deps.diskCache.removeItem(journalKey);
       return true;
@@ -4147,7 +4351,11 @@ export class LighterProvider implements PerpsProvider {
         '[LighterProvider] TP/SL protection requires MANUAL re-establishment',
         { settlementKey, reason },
       );
-      await this.#clearTpslJournal(settlementKey, journalEntry.operationId);
+      await this.#clearTpslJournal(
+        settlementKey,
+        journalEntry.operationId,
+        await readActiveRaw(),
+      );
       return true;
     };
     if (journalEntry.phase === 'manual') {
@@ -4219,6 +4427,7 @@ export class LighterProvider implements PerpsProvider {
     return await this.#clearTpslJournal(
       settlementKey,
       journalEntry.operationId,
+      await readActiveRaw(),
     );
   };
 
@@ -5425,6 +5634,9 @@ export class LighterProvider implements PerpsProvider {
     try {
       markets = await this.#ensureMarkets(true);
     } catch {
+      return unavailable('provider_unavailable');
+    }
+    if (this.#isDisconnected) {
       return unavailable('provider_unavailable');
     }
     const market = markets.get(params.symbol);
@@ -6756,6 +6968,54 @@ export class LighterProvider implements PerpsProvider {
           }
 
           const rawOrders = await readActiveRaw();
+          await this.#pruneManagedTpsl(
+            settlementKey,
+            rawOrders,
+            readInactiveFor,
+          );
+          // The public preflight position read occurred before signer
+          // setup and write serialization. Re-read the raw venue position
+          // inside the held transition immediately before any create or
+          // cancel signature: an intervening fill or side flip would make
+          // the captured cover payload under-sized or wrong-sided.
+          this.#assertSession(generationAtIntent);
+          const liveAccount =
+            await this.#clientService.getAccountByIndex(accountIndex);
+          this.#assertSession(generationAtIntent);
+          const livePosition = liveAccount.accounts[0]?.positions?.find(
+            (entry) => entry.symbol === params.symbol,
+          );
+          const liveMagnitude = livePosition
+            ? parseStrictDecimal(livePosition.position)
+            : null;
+          let liveWireSize: number | null = null;
+          if (
+            liveMagnitude !== null &&
+            Number.isFinite(liveMagnitude) &&
+            liveMagnitude > 0 &&
+            (livePosition?.sign === 1 || livePosition?.sign === -1)
+          ) {
+            try {
+              liveWireSize = toSignerWireInteger(
+                liveMagnitude,
+                market.supportedSizeDecimals,
+              );
+            } catch {
+              liveWireSize = null;
+            }
+          }
+          if (
+            liveWireSize === null ||
+            (wantsReplacement &&
+              (liveWireSize !== preflightPositionWireSize ||
+                livePosition?.sign !== preflightPositionSign))
+          ) {
+            throw new Error(
+              `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
+            );
+          }
+          const managed = await this.#readManagedTpsl(settlementKey);
+          this.#assertSession(generationAtIntent);
           const openOrders = rawOrders.map((order) =>
             adaptOrderFromLighter(
               order,
@@ -6767,25 +7027,26 @@ export class LighterProvider implements PerpsProvider {
             const raw = rawOrders.find(
               (row) => String(row.orderIndex) === order.orderId,
             );
-            // Position protection is a full-quantity trigger-market close.
-            // Independent partial orders and trigger limits retain their
-            // separate execution and quantity intent during update/removal.
-            const isPositionProtection =
+            // Core-owned IDs survive resizing, restart and key-slot recovery.
+            // Legacy unrecorded full-quantity closing trigger markets retain
+            // their historical protection contract, using the in-lock position.
+            // Independent partial and limit triggers are preserved.
+            const isManaged =
+              raw !== undefined &&
+              managed.some(
+                (entry) =>
+                  entry.clientId === String(raw.clientOrderIndex) ||
+                  entry.orderId === order.orderId,
+              );
+            const isLegacyProtection =
+              order.side === (livePosition?.sign === 1 ? 'sell' : 'buy') &&
+              parseFinitePositive(order.size) === liveMagnitude;
+            return (
               order.symbol === params.symbol &&
               order.reduceOnly &&
               (raw?.type === 'stop-loss' || raw?.type === 'take-profit') &&
-              order.side === (Number(position.size) > 0 ? 'sell' : 'buy') &&
-              parseFinitePositive(order.size) ===
-                Math.abs(Number(position.size));
-            if (
-              isPositionProtection &&
-              raw?.timeInForce !== 'immediate-or-cancel'
-            ) {
-              throw new Error(
-                `Lighter TP/SL update for ${params.symbol} refused: existing trigger order ${order.orderId} cannot be faithfully restored as position protection (unsupported time-in-force), so it will not be cancelled`,
-              );
-            }
-            return isPositionProtection;
+              (isManaged || isLegacyProtection)
+            );
           });
           // The prior triggers' EXACT wire intents ride along with the
           // journal: a crash can still restore/rollback faithfully. A
@@ -6964,46 +7225,6 @@ export class LighterProvider implements PerpsProvider {
             wantsReplacement &&
             (singleOrderPayload !== null || groupedOrderPayload !== null)
           ) {
-            // The public preflight position read occurred before signer
-            // setup and write serialization. Re-read the raw venue position
-            // inside the held transition immediately before any create or
-            // cancel signature: an intervening fill or side flip would make
-            // the captured cover payload under-sized or wrong-sided.
-            this.#assertSession(generationAtIntent);
-            const liveAccount =
-              await this.#clientService.getAccountByIndex(accountIndex);
-            this.#assertSession(generationAtIntent);
-            const livePosition = liveAccount.accounts[0]?.positions?.find(
-              (entry) => entry.symbol === params.symbol,
-            );
-            const liveMagnitude = livePosition
-              ? parseStrictDecimal(livePosition.position)
-              : null;
-            let liveWireSize: number | null = null;
-            if (
-              liveMagnitude !== null &&
-              Number.isFinite(liveMagnitude) &&
-              liveMagnitude > 0 &&
-              (livePosition?.sign === 1 || livePosition?.sign === -1)
-            ) {
-              try {
-                liveWireSize = toSignerWireInteger(
-                  liveMagnitude,
-                  market.supportedSizeDecimals,
-                );
-              } catch {
-                liveWireSize = null;
-              }
-            }
-            if (
-              liveWireSize === null ||
-              liveWireSize !== preflightPositionWireSize ||
-              livePosition?.sign !== preflightPositionSign
-            ) {
-              throw new Error(
-                `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
-              );
-            }
             const createNonce = await nextNonce();
             // A lone trigger is an ordinary CreateOrder (same wire
             // layout); only a TP+SL pair uses the grouped OCO transaction.
@@ -7120,7 +7341,11 @@ export class LighterProvider implements PerpsProvider {
                   );
                 }
               }
-              await this.#clearTpslJournal(settlementKey, journal.operationId);
+              await this.#clearTpslJournal(
+                settlementKey,
+                journal.operationId,
+                await readActiveRaw(),
+              );
               throw new Error(
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
               );
@@ -7205,13 +7430,21 @@ export class LighterProvider implements PerpsProvider {
                 operationId: journal.operationId,
                 recordedAt: Date.now(),
               });
-              await this.#clearTpslJournal(settlementKey, journal.operationId);
+              await this.#clearTpslJournal(
+                settlementKey,
+                journal.operationId,
+                await readActiveRaw(),
+              );
               this.#assertSession(generationAtIntent);
               throw new Error(
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after the previous protection was already removed; the position's protection could NOT be safely re-established automatically — MANUAL re-establishment is required (a new explicit TP/SL update resolves this state)`,
               );
             }
-            await this.#clearTpslJournal(settlementKey, journal.operationId);
+            await this.#clearTpslJournal(
+              settlementKey,
+              journal.operationId,
+              await readActiveRaw(),
+            );
             // A switch DURING the final journal-clear await must not let
             // stale A protection report success under B.
             this.#assertSession(generationAtIntent);

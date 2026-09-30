@@ -2014,6 +2014,25 @@ describe('LighterProvider', () => {
       });
     });
 
+    it('fences capabilities when disconnect occurs after metadata resolves', async () => {
+      const { provider } = buildProvider();
+      const initialize = provider.initialize.bind(provider);
+      jest.spyOn(provider, 'initialize').mockImplementation(async () => {
+        const result = await initialize();
+        // Queue teardown between #ensureMarkets resolution and its caller.
+        queueMicrotask(() => {
+          provider.disconnect().catch(() => undefined);
+        });
+        return result;
+      });
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).toMatchObject({
+        status: 'unavailable',
+        reason: 'provider_unavailable',
+      });
+    });
+
     it('returns unavailable capabilities for a missing market', async () => {
       const { provider, calls } = buildProvider();
 
@@ -5045,6 +5064,275 @@ describe('LighterProvider', () => {
   };
 
   describe('round-12 venue integrity and serialized TP/SL lifecycle', () => {
+    it.each(['read', 'write', 'corrupt'] as const)(
+      'fails closed on managed ownership %s failure before protection mutation',
+      async (failure) => {
+        const infra = createMockInfrastructure();
+        const diskMocks = jest.mocked(infra.diskCache);
+        const originalGet = diskMocks.getItem.getMockImplementation();
+        diskMocks.getItem.mockImplementation(async (key: string) => {
+          if (key.startsWith('lighterManagedTpsl:')) {
+            if (failure === 'read') {
+              throw new Error('ownership read failed');
+            }
+            if (failure === 'corrupt') {
+              return '{"version":1,"orders":[{"clientId":"bad"}]}';
+            }
+          }
+          return originalGet?.(key);
+        });
+        const originalSet = diskMocks.setItem.getMockImplementation();
+        diskMocks.setItem.mockImplementation(
+          async (key: string, value: string) => {
+            if (failure === 'write' && key.startsWith('lighterManagedTpsl:')) {
+              throw new Error('ownership write failed');
+            }
+            return originalSet?.(key, value);
+          },
+        );
+        const { provider, clientInstance, bridge } = buildProvider({
+          platformDependencies: infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        venue.seedTrigger('stop-loss', '90000');
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(false);
+        expect(
+          clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+            [14, 15, 28].includes(type),
+          ),
+        ).toHaveLength(0);
+        expect(venue.rawTriggers).toHaveLength(1);
+      },
+    );
+
+    it('records creation ownership before dispatch and retains it through lost response and resize', async () => {
+      const infra = createMockInfrastructure();
+      const { provider, clientInstance, bridge } = buildProvider({
+        platformDependencies: infra,
+      });
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.failResponseOnce(14);
+      const send = clientInstance.sendTx.getMockImplementation() as (
+        type: number,
+        info: string,
+      ) => Promise<unknown>;
+      const observedOwnership: unknown[] = [];
+      clientInstance.sendTx.mockImplementation(
+        async (type: number, info: string) => {
+          if (type === 14) {
+            const stored = await infra.diskCache.getItem(
+              `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
+            );
+            observedOwnership.push(
+              (JSON.parse(stored ?? '') as { orders: unknown[] }).orders,
+            );
+          }
+          return send?.(type, info);
+        },
+      );
+      expect(
+        (
+          await provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '90000',
+          })
+        ).success,
+      ).toBe(false);
+      expect(observedOwnership).toHaveLength(1);
+      expect(observedOwnership[0]).toHaveLength(1);
+      const originalId = venue.rawTriggers[0].orderIndex;
+      clientInstance.sendTx.mockImplementation(send);
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.2' }],
+          },
+        ],
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].orderIndex).not.toBe(originalId);
+      const stored = await infra.diskCache.getItem(
+        `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
+      );
+      expect(
+        (JSON.parse(stored ?? '') as { orders: unknown[] }).orders,
+      ).toHaveLength(1);
+    });
+
+    it('keeps managed ownership across trading key slots and prunes exact terminal history', async () => {
+      const infra = createMockInfrastructure();
+      const first = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(first.clientInstance, first.bridge);
+      expect(
+        (
+          await first.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '90000',
+          })
+        ).success,
+      ).toBe(true);
+      await first.provider.disconnect();
+      const next = buildProvider({
+        platformDependencies: infra,
+        apiKeyIndex: 8,
+      });
+      const nextVenue = setupTriggerVenue(next.clientInstance, next.bridge, {
+        apiKeyIndex: 8,
+      });
+      nextVenue.rawTriggers.push(...venue.rawTriggers);
+      nextVenue.setNextIndex(venue.getNextIndex());
+      next.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.2' }],
+          },
+        ],
+      });
+      expect(
+        (
+          await next.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          })
+        ).success,
+      ).toBe(true);
+      expect(nextVenue.rawTriggers).toHaveLength(1);
+      nextVenue.rawInactive.push({
+        ...nextVenue.rawTriggers[0],
+        status: 'filled',
+        remainingBaseAmount: '0',
+      });
+      nextVenue.rawTriggers.splice(0);
+      expect(
+        (
+          await next.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '84000',
+          })
+        ).success,
+      ).toBe(true);
+      const stored = await infra.diskCache.getItem(
+        `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
+      );
+      expect(
+        (JSON.parse(stored ?? '') as { orders: unknown[] }).orders,
+      ).toHaveLength(1);
+    });
+
+    it.each(['0.2', '0.05'])(
+      'retains managed TP/SL ownership after resizing to %s and restarting',
+      async (size) => {
+        const infra = createMockInfrastructure();
+        const first = buildProvider({ platformDependencies: infra });
+        const venue = setupTriggerVenue(first.clientInstance, first.bridge);
+        expect(
+          (
+            await first.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const originalId = venue.rawTriggers[0].orderIndex;
+        await first.provider.disconnect();
+        const next = buildProvider({ platformDependencies: infra });
+        const nextVenue = setupTriggerVenue(next.clientInstance, next.bridge);
+        nextVenue.rawTriggers.push(...venue.rawTriggers);
+        nextVenue.setNextIndex(venue.getNextIndex());
+        next.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], position: size }],
+            },
+          ],
+        });
+        expect(
+          (
+            await next.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '85000',
+            })
+          ).success,
+        ).toBe(true);
+        expect(nextVenue.rawTriggers).toHaveLength(1);
+        expect(nextVenue.rawTriggers[0].orderIndex).not.toBe(originalId);
+        expect(nextVenue.rawTriggers[0].remainingBaseAmount).toBe(size);
+        // Resize again before removal. Quantity is never the managed identity.
+        next.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [ACCOUNT],
+        });
+        expect(
+          (await next.provider.updatePositionTPSL({ symbol: 'BTC' })).success,
+        ).toBe(true);
+        expect(nextVenue.rawTriggers).toHaveLength(0);
+      },
+    );
+
+    it.each([
+      { position: '0.2', sign: 1 },
+      { position: '0.1', sign: -1 },
+    ])(
+      'uses the in-lock position for legacy removal after %j',
+      async (live) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        venue.seedTrigger('stop-loss', '90000');
+        const read = clientInstance.getActiveOrders.getMockImplementation() as (
+          ...args: unknown[]
+        ) => Promise<unknown>;
+        clientInstance.getActiveOrders.mockImplementation(
+          async (...args: unknown[]) => {
+            // Public preflight already saw .1 long. The book read is inside the lock.
+            clientInstance.getAccountByIndex.mockResolvedValue({
+              code: 200,
+              accounts: [
+                {
+                  ...ACCOUNT,
+                  positions: [{ ...ACCOUNT.positions[0], ...live }],
+                },
+              ],
+            });
+            return read?.(...args);
+          },
+        );
+        expect(
+          (await provider.updatePositionTPSL({ symbol: 'BTC' })).success,
+        ).toBe(true);
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(
+          calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(0);
+      },
+    );
+
+    it('accepts legacy GTT trigger-market protection with a restorable wire intent', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '90000');
+      venue.rawTriggers[0].timeInForce = 'good-till-time';
+      expect(
+        (await provider.updatePositionTPSL({ symbol: 'BTC' })).success,
+      ).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(0);
+    });
+
     it.each([
       ['stop_market', '0.001'],
       ['take_profit_market', '0.001'],

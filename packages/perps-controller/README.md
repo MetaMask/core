@@ -124,12 +124,20 @@ refused even when they would currently close the full position; a position can
 grow before activation. Attached TP/SL and strategy fields are unsupported on
 these standalone orders.
 
-Position TP/SL replacement and removal preserve trigger limits and partial
-trigger-market orders. A reduce-only, IOC trigger-market order on the closing
-side with exactly the current position quantity counts as position protection,
-including one placed through `placeOrder`; `updatePositionTPSL` replaces or
-removes that full-position protection. Use explicit cancellation to remove
-independent partial or limit triggers.
+Position TP/SL replacement and removal recognize Core-created protection by
+durable client/venue IDs, even after position growth, shrinkage, provider restart
+or trading-key recovery into another slot. IDs are recorded before dispatch in
+wallet/account/network/market-scoped storage and retained through uncertain
+settlement. Resolved cancellations and exact terminal history prune them;
+missing or corrupt storage fails closed before protection changes.
+
+Legacy unrecorded reduce-only trigger-market orders on the closing side with
+exactly the current position quantity retain their position-protection contract,
+including standalone orders placed through `placeOrder`. Classification reads the
+current position inside the write lock. Known IOC and GTT wire intents can be
+replaced or removed; an unknown time-in-force refuses the change. Independent
+partial triggers and trigger limits are preserved. Use explicit cancellation to
+remove those orders. Quantity does not determine ownership of Core-created TP/SL.
 
 `getOrderCapabilities` reports these types only for active, known markets.
 Capabilities and trigger preflight refresh public metadata and fail closed on
