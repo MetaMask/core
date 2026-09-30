@@ -2256,8 +2256,10 @@ describe('LighterProvider', () => {
         `lighterTpslManual:testnet:${otherWalletKey}`,
       );
       expect(removeItem).not.toHaveBeenCalled();
-      expect(pending[0].actionNeeded).toContain('previous trading key');
-      expect(pending[0].actionNeeded).toContain('does not clear');
+      expect(pending[0].actionNeeded).toContain(
+        'Initialize the wallet trading key',
+      );
+      expect(pending[0].actionNeeded).not.toContain('previous trading key');
     });
 
     it('replays an authenticated empty orders snapshot to late subscribers', async () => {
@@ -2285,9 +2287,13 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
-    it.each(['none', 'empty', 'filled'])(
-      'withholds full fill replay after an invalid snapshot with %s prior history',
-      async (prior) => {
+    it.each(
+      ['subscribed', 'update'].flatMap((frameType) =>
+        ['none', 'empty', 'filled'].map((prior) => ({ frameType, prior })),
+      ),
+    )(
+      'withholds full fill replay after invalid $frameType fills with $prior prior history',
+      async ({ frameType, prior }) => {
         const { provider } = buildProvider({
           webSocketCtor: fakeCtor,
           registeredKey: '9c'.repeat(40),
@@ -2319,7 +2325,7 @@ describe('LighterProvider', () => {
         }
         callback.mockClear();
         socket.receive({
-          type: 'subscribed/account_all_trades',
+          type: `${frameType}/account_all_trades`,
           trades: { '1': [{ ...trade, size: 'invalid' }] },
         });
         expect(callback).not.toHaveBeenCalled();

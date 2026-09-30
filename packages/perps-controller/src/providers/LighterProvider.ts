@@ -2355,10 +2355,15 @@ export class LighterProvider implements PerpsProvider {
       survivingOrderIds: string[];
       actionNeeded: string;
     }[] = [];
-    const actionNeeded = (settlementKey: string): string =>
-      currentSlotPrefix !== null && settlementKey.startsWith(currentSlotPrefix)
-        ? 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection'
-        : 'Review the position and recorded orders from the previous trading key in Lighter. A current-key TP/SL update does not clear this obligation; initialize the wallet trading key and reconcile the recorded orders before changing protection';
+    const actionNeeded = (settlementKey: string): string => {
+      if (currentSlotPrefix === null) {
+        return 'Initialize the wallet trading key and review the position and recorded TP/SL orders. Reconcile each obligation under its original key before changing protection';
+      }
+      if (settlementKey.startsWith(currentSlotPrefix)) {
+        return 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
+      }
+      return 'Review the position and recorded orders from the previous trading key in Lighter. A current-key TP/SL update does not clear this obligation; initialize the wallet trading key and reconcile the recorded orders before changing protection';
+    };
     // Storage errors PROPAGATE — a corrupt index degrading to "nothing
     // pending" would hide a naked position.
     const manualIndex = await this.#readTpslManualIndex();
