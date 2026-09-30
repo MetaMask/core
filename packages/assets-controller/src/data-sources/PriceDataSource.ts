@@ -1,5 +1,5 @@
 import type {
-  PriceSupportedNetworksResponse,
+  PriceV2SupportedNetworksResponse,
   SupportedCurrency,
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
@@ -41,6 +41,38 @@ const FRESHNESS_TTL_POLL_RATIO = 0.9;
 const PRICE_API_BATCH_SIZE = 50;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Extracts the CAIP-2 chain IDs the Price API v3 spot-prices endpoint
+ * supports from a `/v2/supportedNetworks` response.
+ *
+ * The endpoint returns `partialSupport` as an object keyed by spot-price
+ * endpoint (`{ spotPricesV2, spotPricesV3 }`). Since this data source only
+ * calls `/v3/spot-prices`, only `spotPricesV3` is relevant. A legacy
+ * array-shaped `partialSupport` is still accepted so a transient schema
+ * change does not disable price fetching.
+ *
+ * @param response - The supported networks response.
+ * @param response.fullSupport - Chains supported by every endpoint.
+ * @param response.partialSupport - Chains supported by specific endpoints.
+ * @returns Unique CAIP-2 chain IDs supported by v3 spot prices.
+ */
+function getV3SpotPriceSupportedChainIds(response: {
+  fullSupport?: string[];
+  partialSupport?:
+    | string[]
+    | Partial<PriceV2SupportedNetworksResponse['partialSupport']>;
+}): Set<string> {
+  const { fullSupport, partialSupport } = response;
+  const partial = Array.isArray(partialSupport)
+    ? partialSupport
+    : (partialSupport?.spotPricesV3 ?? []);
+  return new Set([...(fullSupport ?? []), ...partial]);
+}
 
 // ============================================================================
 // OPTIONS
@@ -473,20 +505,20 @@ export class PriceDataSource {
   }
 
   /**
-   * Price API supported networks.
+   * Price API networks supported by the v3 spot-prices endpoint
+   * (`fullSupport` plus `partialSupport.spotPricesV3`).
    *
    * @returns CAIP-2 chain IDs; empty on error.
    */
   async #getSupportedNetworks(): Promise<Set<string>> {
     try {
       const response = await fetchWithTimeout(
-        (): Promise<PriceSupportedNetworksResponse> =>
+        (): Promise<PriceV2SupportedNetworksResponse> =>
           this.#apiClient.prices.fetchPriceV2SupportedNetworks(),
         this.#fetchTimeoutMs,
       );
 
-      const allNetworks = [...response.fullSupport, ...response.partialSupport];
-      return new Set(allNetworks);
+      return getV3SpotPriceSupportedChainIds(response);
     } catch (error) {
       log('Failed to fetch price supported networks', { error });
       return new Set();
