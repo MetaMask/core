@@ -1113,7 +1113,10 @@ describe('AnalyticsController', () => {
         schemaVersion: '1.0.0',
         version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
         timestamp: 1761829548000,
-        events: { SomeEvent: ['product'], MarketingEvent: ['marketing'] },
+        events: {
+          SomeEvent: [AnalyticsPurpose.Product],
+          MarketingEvent: [AnalyticsPurpose.Marketing],
+        },
       };
 
       const rootMessenger = new Messenger<
@@ -1188,12 +1191,12 @@ describe('AnalyticsController', () => {
         schemaVersion: '1.0.0',
         version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
         timestamp: 1761829548000,
-        events: { OldEvent: ['product'] },
+        events: { OldEvent: [AnalyticsPurpose.Product] },
       };
 
       const remoteEventsConfig = {
         ...existingEventsConfig,
-        events: { NewEvent: ['product'] },
+        events: { NewEvent: [AnalyticsPurpose.Product] },
       };
 
       const rootMessenger = new Messenger<
@@ -1245,14 +1248,14 @@ describe('AnalyticsController', () => {
         schemaVersion: '1.0.0',
         version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
         timestamp: 1761829548000,
-        events: { OldEvent: ['product'] },
+        events: { OldEvent: [AnalyticsPurpose.Product] },
       };
 
       const updatedEventsConfig = {
         schemaVersion: '1.0.0',
         version: 'b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1',
         timestamp: 1761829549000,
-        events: { NewEvent: ['marketing'] },
+        events: { NewEvent: [AnalyticsPurpose.Marketing] },
       };
 
       const rootMessenger = new Messenger<
@@ -1311,7 +1314,7 @@ describe('AnalyticsController', () => {
         schemaVersion: '1.0.0',
         version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
         timestamp: 1761829548000,
-        events: { SomeEvent: ['product'] },
+        events: { SomeEvent: [AnalyticsPurpose.Product] },
       };
 
       const rootMessenger = new Messenger<
