@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
-
 ### Added
 
 - Initial release ([#10282](https://github.com/MetaMask/core/pull/10282), [#10431](https://github.com/MetaMask/core/pull/10431), [#10403](https://github.com/MetaMask/core/pull/10403), [#10468](https://github.com/MetaMask/core/pull/10468), [#10503](https://github.com/MetaMask/core/pull/10503), [#10563](https://github.com/MetaMask/core/pull/10563), [#10506](https://github.com/MetaMask/core/pull/10506))
