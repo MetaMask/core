@@ -657,9 +657,9 @@ export type LighterRestTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens from flat. */
+  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens or adds. */
   askAccountPnl?: string;
-  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens from flat. */
+  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens or adds. */
   bidAccountPnl?: string;
   /**
    * Taker/maker fees, present when nonzero. The official model types them
@@ -671,7 +671,7 @@ export type LighterRestTrade = {
   /** Position size (absolute) of each side before the trade executed. */
   takerPositionSizeBefore: string;
   makerPositionSizeBefore: string;
-  /** Whether the side's position sign changed (crossed or left zero). */
+  /** Whether the side's position sign changed (crossed or left zero); omission is unknown. */
   takerPositionSignChanged?: boolean;
   makerPositionSignChanged?: boolean;
 };
