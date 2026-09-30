@@ -5689,7 +5689,7 @@ __metadata:
     jest: "npm:^30.5.2"
     jest-environment-jsdom: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
-    multiformats: "npm:^9.9.0"
+    multiformats: "npm:^14.0.5"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.1.1"
     rimraf: "npm:^6.1.3"
@@ -21824,10 +21824,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"multiformats@npm:^9.9.0":
-  version: 9.9.0
-  resolution: "multiformats@npm:9.9.0"
-  checksum: 10/ad55c7d480d22f4258a68fd88aa2aab744fe0cb1e68d732fc886f67d858b37e3aa6c2cec12b2960ead7730d43be690931485238569952d8a3d7f90fdc726c652
+"multiformats@npm:^14.0.5":
+  version: 14.0.5
+  resolution: "multiformats@npm:14.0.5"
+  checksum: 10/a7964bc6f70983c53acf4161bbc9c6e3821148f2b83be9188d107e897e62d2a9f0e64b710cfa50b3bab5eb19ff41cda627edbd2e0d7c4d908f6131481b58fe30
   languageName: node
   linkType: hard
 
