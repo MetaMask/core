@@ -2,20 +2,20 @@ import { stringToBytes, bytesToHex, hexToBytes } from '@metamask/utils';
 
 import { pbkdf2Sha256, pbkdf2Sha384, pbkdf2Sha512 } from './pbkdf2.js';
 
-const password = stringToBytes('foo') as Uint8Array<ArrayBuffer>;
+const password = stringToBytes('foo');
 const salt = hexToBytes(
   '0xf38a650903309967f2073b437852f77c87af7529cd5c85f4d2bdcf470083553c',
-) as Uint8Array<ArrayBuffer>;
+);
 
 // RFC 7914 Test Case 1: P = "passwd", S = "salt", c = 1
 // https://www.rfc-editor.org/rfc/rfc7914#section-11
-const rfc7914Password = stringToBytes('passwd') as Uint8Array<ArrayBuffer>;
-const rfc7914Salt = stringToBytes('salt') as Uint8Array<ArrayBuffer>;
+const rfc7914Password = stringToBytes('passwd');
+const rfc7914Salt = stringToBytes('salt');
 
 // PBKDF2-HMAC-SHA-512 test vectors: P = "password", S = "salt", c = 1 and c = 2
 // https://github.com/python/cpython/blob/main/Lib/test/test_hashlib.py
-const cpythonPassword = stringToBytes('password') as Uint8Array<ArrayBuffer>;
-const cpythonSalt = stringToBytes('salt') as Uint8Array<ArrayBuffer>;
+const cpythonPassword = stringToBytes('password');
+const cpythonSalt = stringToBytes('salt');
 
 describe('pbkdf2Sha256', () => {
   it('generates a key from a password and a salt using the provided derivation parameters', async () => {
