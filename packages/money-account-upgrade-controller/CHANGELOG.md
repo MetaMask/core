@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/chomp-api-service` from `^6.0.0` to `^6.1.0` ([#10626](https://github.com/MetaMask/core/pull/10626))
+
 ## [5.1.0]
 
 ### Added
