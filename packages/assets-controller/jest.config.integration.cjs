@@ -21,5 +21,12 @@ module.exports = merge(baseConfig, {
   // Only the integration suites; unit tests belong to `jest.config.unit.cjs`
   testMatch: ['**/*.integration.test.[tj]s?(x)'],
 
+  // An array of regexp pattern strings used to skip coverage collection
+  coveragePathIgnorePatterns: [
+    ...baseConfig.coveragePathIgnorePatterns,
+    '/__fixtures__/',
+    '\\.test\\.[tj]sx?$',
+  ],
+
   // Coverage here is informational; the unit suite owns the quality gate
 });

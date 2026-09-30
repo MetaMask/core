@@ -25,14 +25,21 @@ module.exports = merge(baseConfig, {
     '\\.integration\\.test\\.[tj]sx?$',
   ],
 
+  // An array of regexp pattern strings used to skip coverage collection
+  coveragePathIgnorePatterns: [
+    ...baseConfig.coveragePathIgnorePatterns,
+    '/__fixtures__/',
+    '\\.test\\.[tj]sx?$',
+  ],
+
   // Reflects the unit suite alone, unlike the combined thresholds in
   // `jest.config.cjs`
   coverageThreshold: {
     global: {
-      branches: 80.82,
-      functions: 63.57,
-      lines: 78.92,
-      statements: 78.93,
+      branches: 85.46,
+      functions: 92.36,
+      lines: 93.21,
+      statements: 93.25,
     },
   },
 });
