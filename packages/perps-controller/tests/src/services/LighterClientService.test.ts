@@ -346,6 +346,49 @@ describe('LighterClientService', () => {
   });
 
   describe('getTrades', () => {
+    it.each([
+      { taker_position_sign_changed: undefined },
+      { maker_position_sign_changed: undefined },
+      {
+        taker_position_sign_changed: undefined,
+        maker_position_sign_changed: undefined,
+        ask_account_pnl: undefined,
+        bid_account_pnl: undefined,
+      },
+    ])('accepts omitted optional trade fields %j', async (omitted) => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [{ ...VALID_TRADE_WIRE, ...omitted }],
+        }),
+      );
+
+      const response = await buildService().getTrades(28, 'auth-token', {
+        limit: 50,
+      });
+
+      expect(response.trades).toHaveLength(1);
+      expect(response.trades[0].tradeId).toBe(VALID_TRADE_WIRE.trade_id);
+    });
+
+    it.each([null, 'false', 0])(
+      'rejects malformed supplied maker sign flag %s',
+      async (flag) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            trades: [
+              { ...VALID_TRADE_WIRE, maker_position_sign_changed: flag },
+            ],
+          }),
+        );
+
+        await expect(
+          buildService().getTrades(28, 'auth-token', { limit: 50 }),
+        ).rejects.toThrow('Invalid Lighter venue data');
+      },
+    );
+
     it('encodes cursor, from, and market filters', async () => {
       fetchMock.mockResolvedValue(
         mockJsonResponse({ code: 200, next_cursor: 'next', trades: [] }),
@@ -399,8 +442,8 @@ describe('LighterClientService', () => {
       ['negative position magnitude', { taker_position_size_before: '-0.1' }],
       ['missing maker role', { is_maker_ask: undefined }],
       [
-        'missing position sign context',
-        { taker_position_sign_changed: undefined },
+        'malformed position sign context',
+        { taker_position_sign_changed: 'false' },
       ],
     ])('rejects %s in a trade payload', async (_label, override) => {
       fetchMock.mockResolvedValue(

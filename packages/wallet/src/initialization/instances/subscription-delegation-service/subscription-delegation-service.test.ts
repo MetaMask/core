@@ -52,10 +52,15 @@ describe('subscriptionDelegationService', () => {
         'ChompApiService:verifyDelegation',
         'ChompApiService:createIntents',
         'ChompApiService:getIntentsByAddress',
+        'ApprovalController:addRequest',
         'DelegationController:signDelegation',
+        'MoneyAccountUpgradeController:forceUpgradeAccount',
         'MoneyAccountBalanceService:fetchBalanceWithFallback',
         'RemoteFeatureFlagController:getState',
+        'SubscriptionController:getState',
         'SubscriptionController:getPricing',
+        'SubscriptionController:getSubscriptions',
+        'SubscriptionController:startSubscriptionWithCrypto',
       ],
     });
   });

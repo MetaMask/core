@@ -6,7 +6,7 @@ import {
   registerAccountMocks,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
-import { waitFor } from '../__fixtures__/test-utils.js';
+import { waitFor, withZeroedTimestamps } from '../__fixtures__/test-utils.js';
 import { mockWsApis } from '../__fixtures__/ws-price-updates/api-responses/index.js';
 import { registerMainnetNetwork } from '../__fixtures__/ws-price-updates/messenger.js';
 import {
@@ -336,6 +336,16 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
     },
   );
+
+  it('generates snapshot (source of truth)', async () => {
+    const { response } = await runWsUpdatePass({
+      state: buildEmptyAssetsState(),
+      event: buildEthAndUsdcBalanceUpdatedEvent(),
+    });
+
+    // eslint-disable-next-line jest/no-restricted-matchers
+    expect(withZeroedTimestamps(response)).toMatchSnapshot();
+  });
 
   describe('v6 lane: the RPC fallback on the balance pass', () => {
     let result: WsUpdatePassResult;

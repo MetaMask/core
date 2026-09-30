@@ -5765,6 +5765,122 @@ describe('RampsController', () => {
       );
     });
 
+    it('prefers the provider of the most recent completed order over API order', async () => {
+      const incompatible = makeProvider('/providers/moonpay');
+      const coinbase = makeProvider('/providers/coinbase', [ASSET_ID]);
+      const crossmint = makeProvider('/providers/crossmint', [ASSET_ID]);
+      const transak = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, coinbase, crossmint, transak],
+                incompatible,
+              ),
+              orders: [
+                createMockOrder({
+                  provider: crossmint,
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: transak,
+                  createdAt: 2000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: coinbase,
+                  createdAt: 3000,
+                  status: RampsOrderStatus.Failed,
+                }),
+              ],
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(transak);
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('skips previously used providers that do not serve the asset', async () => {
+      const coinbase = makeProvider('/providers/coinbase', [ASSET_ID]);
+      const crossmint = makeProvider('/providers/crossmint', [ASSET_ID]);
+      const moonpay = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [coinbase, crossmint, moonpay],
+                null,
+              ),
+              orders: [
+                createMockOrder({
+                  provider: crossmint,
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: moonpay,
+                  createdAt: 2000,
+                  status: RampsOrderStatus.Completed,
+                }),
+              ],
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(crossmint);
+        },
+      );
+    });
+
+    it('falls back to API order when no previously used provider serves the asset', async () => {
+      const coinbase = makeProvider('/providers/coinbase', [ASSET_ID]);
+      const crossmint = makeProvider('/providers/crossmint', [ASSET_ID]);
+      const moonpay = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [coinbase, crossmint, moonpay],
+                null,
+              ),
+              orders: [
+                createMockOrder({
+                  provider: moonpay,
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+              ],
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(coinbase);
+        },
+      );
+    });
+
     it('is callable via the RampsController:setSelectedProviderForAsset messenger action', async () => {
       const incompatible = makeProvider('/providers/coinbase');
       const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);

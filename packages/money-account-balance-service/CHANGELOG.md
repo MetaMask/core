@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2]
+
+### Fixed
+
+- Stop including balance amounts in `MoneyAccountBalanceValidationError` messages, which are reported via the messenger's `captureException` ([#10619](https://github.com/MetaMask/core/pull/10619))
+
+## [3.1.1]
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^2.0.0` to `^2.1.0` ([#10544](https://github.com/MetaMask/core/pull/10544))
+
 ## [3.1.0]
 
 ### Added
@@ -181,7 +193,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.2...HEAD
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.1...@metamask/money-account-balance-service@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.0...@metamask/money-account-balance-service@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.0.0...@metamask/money-account-balance-service@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.3...@metamask/money-account-balance-service@3.0.0
 [2.4.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.2...@metamask/money-account-balance-service@2.4.3

@@ -232,7 +232,7 @@ export function addSpotBalanceToAccountState(
 ): AccountState {
   // Fail-closed default: align with `hyperLiquidModeFoldsSpot(null) → false`.
   // A caller that omits `options` should NOT silently fold spot — that would
-  // over-report withdrawable funds for Standard / dexAbstraction users.
+  // over-report withdrawable funds for Standard / default users.
   const foldIntoCollateral = options?.foldIntoCollateral ?? false;
 
   const spotBalance = getSpotBalance(spotState);

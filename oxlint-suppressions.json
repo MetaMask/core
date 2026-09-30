@@ -302,6 +302,312 @@
       "count": 1
     }
   },
+  "packages/advanced-chart-core/src/__tests__/index.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/bootstrap.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/bridge.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/loadLibrary.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/resolution.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/timezone.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/dataLifecycle.ts": {
+    "no-shadow": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/core/state.ts": {
+    "no-shadow": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/__tests__/indicators.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/__tests__/legend.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 56
+    },
+    "typescript/unbound-method": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/__tests__/subPane.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/index.ts": {
+    "no-shadow": {
+      "count": 6
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/legend.ts": {
+    "no-shadow": {
+      "count": 10
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/indicators/studies.ts": {
+    "no-shadow": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/features/volume/__tests__/volume.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/volume/index.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/interaction/__tests__/crosshair.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-shadow": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/interaction/__tests__/visibleRange.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/messages/__tests__/handler.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/messages/handler.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/state.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/index.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/socialLeaderboard/__tests__/socialLeaderboard.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/markerHitTest.test.ts": {
+    "no-shadow": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/index.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/pagination/__tests__/priceApi.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/pagination/__tests__/rnBacked.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 13
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 18
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 22
+    }
+  },
+  "packages/advanced-chart-core/src/platform/__tests__/reactNativeHost.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/platform/iframeHost.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/platform/reactNativeHost.ts": {
+    "no-shadow": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/chartType.test.ts": {
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/datafeed.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 13
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/externalLinkBridge.test.ts": {
+    "no-shadow": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/initChart.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    },
+    "typescript/no-unsafe-call": {
+      "count": 9
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 18
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/ohlcvIngestion.test.ts": {
+    "no-shadow": {
+      "count": 4
+    },
+    "no-unsafe-optional-chaining": {
+      "count": 5
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 9
+    },
+    "typescript/no-unsafe-call": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 13
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/scaleLayout.test.ts": {
+    "typescript/no-unsafe-member-access": {
+      "count": 10
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/theme.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 4
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 11
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/tvDomHelpers.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/datafeed.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/externalLinkBridge.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
   "packages/ai-controllers/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -4494,14 +4800,6 @@
       "count": 3
     }
   },
-  "packages/perps-controller/tests/src/services/LighterWalletService.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/unbound-method": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/tests/src/services/TerminalMarketService.test.ts": {
     "no-unsafe-optional-chaining": {
       "count": 1
@@ -4666,6 +4964,11 @@
     }
   },
   "packages/preferences-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/profile-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
     }
@@ -6488,16 +6791,16 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 143
+      "count": 141
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 109
+      "count": 108
     },
     "typescript/no-unsafe-member-access": {
-      "count": 109
+      "count": 108
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-station.test.ts": {
@@ -6648,19 +6951,19 @@
   },
   "packages/transaction-pay-controller/src/utils/token.test.ts": {
     "no-unused-vars": {
-      "count": 4
+      "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 33
+      "count": 56
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 52
+      "count": 55
     },
     "typescript/no-unsafe-member-access": {
-      "count": 52
+      "count": 55
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {
@@ -6673,16 +6976,16 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 20
+      "count": 16
     },
     "typescript/no-unsafe-assignment": {
       "count": 25
     },
     "typescript/no-unsafe-call": {
-      "count": 51
+      "count": 41
     },
     "typescript/no-unsafe-member-access": {
-      "count": 23
+      "count": 19
     }
   },
   "packages/transaction-pay-controller/src/utils/transaction.ts": {
@@ -7352,7 +7655,17 @@
       "count": 2
     }
   },
-  "scripts/lib/workspaces.mts": {
+  "scripts/lib/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lib/tsc-suppressions.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lib/workspaces.ts": {
     "jsdoc/require-param": {
       "count": 1
     },
@@ -7377,7 +7690,12 @@
       "count": 2
     }
   },
-  "scripts/lint-tsconfigs/utils.mts": {
+  "scripts/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lint-tsconfigs/utils.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
     },

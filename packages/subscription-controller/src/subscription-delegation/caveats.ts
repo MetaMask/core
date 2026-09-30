@@ -114,6 +114,7 @@ export function buildSubscriptionCaveats({
 
 export type BuildUnsignedSubscriptionDelegationParams =
   BuildSubscriptionCaveatsParams & {
+    delegateAddress: Hex;
     delegatorAddress: Hex;
     /**
      * Optional salt for tests. When omitted, a random 32-byte salt is generated.
