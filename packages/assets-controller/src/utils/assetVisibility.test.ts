@@ -27,6 +27,8 @@ function createState(
 ): AssetsControllerState {
   return {
     assetsInfo: {},
+    assetsLoadingStatus: {},
+    assetsLoadingTokens: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},

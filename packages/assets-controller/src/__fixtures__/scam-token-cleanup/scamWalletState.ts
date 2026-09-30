@@ -1628,6 +1628,8 @@ export function buildScamWalletState(
   >;
   return {
     assetsInfo,
+    assetsLoadingStatus: {},
+    assetsLoadingTokens: {},
     assetsBalance: {
       [SCAM_WALLET_ACCOUNT_ID]: Object.fromEntries(
         Object.keys(assetsInfo).map((assetId) => [

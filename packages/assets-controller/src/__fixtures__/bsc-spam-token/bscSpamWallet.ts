@@ -48,6 +48,8 @@ export function buildEmptyAssetsState(
 ): AssetsControllerState {
   return {
     assetsInfo: {},
+    assetsLoadingStatus: {},
+    assetsLoadingTokens: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},

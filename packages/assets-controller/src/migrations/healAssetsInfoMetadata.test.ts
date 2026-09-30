@@ -547,6 +547,8 @@ describe('tempHealAssetsInfoMetadata', () => {
   ): AssetsControllerState {
     return {
       assetsInfo: {},
+      assetsLoadingStatus: {},
+      assetsLoadingTokens: {},
       assetsBalance: {},
       assetsPrice: {},
       customAssets: {},

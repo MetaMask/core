@@ -64,6 +64,8 @@ type StateOverrides = {
 
 let currentAssetsState: AssetsControllerState = {
   assetsInfo: {},
+  assetsLoadingStatus: {},
+  assetsLoadingTokens: {},
   assetsBalance: {},
   customAssets: {},
   assetPreferences: {},
@@ -78,6 +80,8 @@ function createContext(
 ): Context {
   currentAssetsState = {
     assetsInfo: {},
+    assetsLoadingStatus: {},
+    assetsLoadingTokens: {},
     assetsBalance: stateOverrides.assetsBalance ?? {},
     customAssets: stateOverrides.customAssets ?? {},
     assetPreferences: stateOverrides.assetPreferences ?? {},
