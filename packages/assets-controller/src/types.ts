@@ -502,7 +502,7 @@ export type AssetsControllerState = {
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
-  assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
+  assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
 };
 
 // ============================================================================

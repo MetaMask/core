@@ -104,17 +104,21 @@ describe('trackAssetsLoading', () => {
       forceUpdate: true,
     });
 
-    expect(controller.state.assetsLoadingStatus[ACCOUNT_1.id]).toBe('loading');
+    expect(controller.state.assetsLoadingStatus?.[ACCOUNT_1.id]).toBe(
+      'loading',
+    );
 
     controller.releaseNextFetch();
     await olderFetch;
 
-    expect(controller.state.assetsLoadingStatus[ACCOUNT_1.id]).toBe('loading');
+    expect(controller.state.assetsLoadingStatus?.[ACCOUNT_1.id]).toBe(
+      'loading',
+    );
 
     controller.releaseNextFetch();
     await newerFetch;
 
-    expect(controller.state.assetsLoadingStatus[ACCOUNT_1.id]).toBe('loaded');
+    expect(controller.state.assetsLoadingStatus?.[ACCOUNT_1.id]).toBe('loaded');
   });
 
   it('does not mark anything when there are no accounts', async () => {

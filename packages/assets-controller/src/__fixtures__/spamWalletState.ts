@@ -290,7 +290,6 @@ export function buildSpamWalletState(
 ): AssetsControllerState {
   return {
     assetsInfo: { ...SPAM_WALLET_ASSETS_INFO },
-    assetsLoadingStatus: {},
     assetsBalance: structuredClone(SPAM_WALLET_BALANCES),
     assetsPrice: structuredClone(SPAM_WALLET_PRICES),
     customAssets: { [ACCOUNT_TWO_ID]: [ARBITRUM_GMX] },

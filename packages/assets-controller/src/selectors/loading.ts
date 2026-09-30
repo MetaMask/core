@@ -16,7 +16,7 @@ export function getAccountLoadingStatus(
   state: Pick<AssetsControllerState, 'assetsLoadingStatus'>,
   accountId: AccountId,
 ): AssetsLoadingStatus | undefined {
-  return state.assetsLoadingStatus[accountId];
+  return state.assetsLoadingStatus?.[accountId];
 }
 
 /**
@@ -50,7 +50,7 @@ export function getAccountGroupLoadingStatus(
   const loadingStatus = state.assetsLoadingStatus;
   const result: Record<AccountId, AssetsLoadingStatus> = {};
   for (const accountId of getAccountIdsForGroup(accountTreeState, groupId)) {
-    const status = loadingStatus[accountId];
+    const status = loadingStatus?.[accountId];
     if (status !== undefined) {
       result[accountId] = status;
     }
@@ -73,7 +73,7 @@ export function isAccountGroupLoading(
 ): boolean {
   const loadingStatus = state.assetsLoadingStatus;
   return getAccountIdsForGroup(accountTreeState, groupId).some(
-    (accountId) => loadingStatus[accountId] === 'loading',
+    (accountId) => loadingStatus?.[accountId] === 'loading',
   );
 }
 

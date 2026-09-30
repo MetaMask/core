@@ -5409,17 +5409,17 @@ describe('AssetsController', () => {
           );
 
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-              'loading',
-            ),
+            expect(
+              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loading'),
           );
 
           release();
 
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-              'loaded',
-            ),
+            expect(
+              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loaded'),
           );
         },
       );
@@ -5442,9 +5442,9 @@ describe('AssetsController', () => {
 
           // First switch is frozen mid-flight and holds the refresh mutex.
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-              'loading',
-            ),
+            expect(
+              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loading'),
           );
 
           const accountB = createMockInternalAccount({
@@ -5460,7 +5460,7 @@ describe('AssetsController', () => {
           // The queued switch has not fetched yet, so its accounts are not
           // marked while the previous refresh still holds the mutex.
           expect(
-            controller.state.assetsLoadingStatus[accountB.id],
+            controller.state.assetsLoadingStatus?.[accountB.id],
           ).toBeUndefined();
 
           release();
@@ -5505,7 +5505,7 @@ describe('AssetsController', () => {
           await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(1));
 
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
               'loading',
             ),
           );
@@ -5515,14 +5515,14 @@ describe('AssetsController', () => {
 
           // The older fetch has settled, but the newer one still owns the
           // marker, so the account stays loading.
-          expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loading',
           );
 
           release();
           await newerFetch;
 
-          expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loaded',
           );
         },
@@ -5545,17 +5545,17 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:unlock');
 
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-              'loading',
-            ),
+            expect(
+              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loading'),
           );
 
           release();
 
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-              'loaded',
-            ),
+            expect(
+              controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loaded'),
           );
         },
       );
@@ -5567,7 +5567,7 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
 
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+          expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
           );
         },
@@ -5590,7 +5590,7 @@ describe('AssetsController', () => {
           });
 
           await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
               'loading',
             ),
           );
@@ -5598,7 +5598,7 @@ describe('AssetsController', () => {
           release();
           await fetchPromise;
 
-          expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
             'loaded',
           );
         },
@@ -5640,7 +5640,7 @@ describe('AssetsController', () => {
             expect(
               stateChanges.find(
                 (state) =>
-                  state.assetsLoadingStatus[MOCK_ACCOUNT_ID] === 'loading',
+                  state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID] === 'loading',
               ),
             ).toBeDefined(),
           );
@@ -5649,7 +5649,7 @@ describe('AssetsController', () => {
 
           await waitFor(() =>
             expect(
-              stateChanges.at(-1)?.assetsLoadingStatus[MOCK_ACCOUNT_ID],
+              stateChanges.at(-1)?.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
             ).toBe('loaded'),
           );
         },
@@ -5660,7 +5660,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         await activateTracking(messenger);
 
-        expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+        expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
           'loaded',
         );
 
