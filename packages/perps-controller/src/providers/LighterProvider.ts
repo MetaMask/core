@@ -2422,6 +2422,10 @@ export class LighterProvider implements PerpsProvider {
    * (previously ambiguous submissions later resolved). Never mutates the
    * ledger — acknowledgment is a separate, per-outcome call so a crash
    * between reading and acting can never silently drop an outcome.
+   * Call after signer initialization has selected the wallet's key slot,
+   * including after an initialization error reports quarantined dispatches.
+   * Before initialization, an empty preferred-slot view is not proof that
+   * every restored key slot has no pending outcomes.
    *
    * @returns The pending recovered-dispatch outcomes.
    */
@@ -4865,6 +4869,9 @@ export class LighterProvider implements PerpsProvider {
         // EVERY error path below keeps the durable entry — a coded venue
         // or HTTP error can mask a commit, so nothing short of an exact
         // authoritative reconciliation may release the nonce.
+        // A switch after append leaves the unsent entry for conservative
+        // reconciliation. It may block until signed expiry plus clock slack;
+        // retaining uncertainty avoids treating a durable append as absent.
         this.#assertSession(generationAtIntent);
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
