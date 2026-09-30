@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
+- **BREAKING:** Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
   - Shield is eligible when the user has not trialed Shield before.
   - Money Account Plus is eligible when the user has not trialed it before and `SeedlessOnboardingController:getIsUserAuthenticated` is true.
 
