@@ -45,6 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
 - Bump `@inquirer/confirm` from `^6.0.11` to `^6.3.2` ([#10517](https://github.com/MetaMask/core/pull/10517))
 - Bump `@inquirer/password` from `^5.1.1` to `^5.2.2` ([#10517](https://github.com/MetaMask/core/pull/10517))
-- Bump `better-sqlite3` from `^12.9.0` to `^12.11.1` ([#10528](https://github.com/MetaMask/core/pull/10528))
+- Bump `better-sqlite3` from `^12.9.0` to `^13.0.3` ([#10528](https://github.com/MetaMask/core/pull/10528), [#10598](https://github.com/MetaMask/core/pull/10598))
 
 [Unreleased]: https://github.com/MetaMask/core/
