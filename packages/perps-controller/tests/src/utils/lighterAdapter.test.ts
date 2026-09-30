@@ -342,6 +342,71 @@ describe('lighterAdapter', () => {
       makerPositionSignChanged: true,
     };
 
+    describe('omitted venue fill context', () => {
+      it.each([true, false])(
+        'normalizes omitted fields for maker=%s',
+        (isMaker) => {
+          for (const isAsk of [true, false]) {
+            for (const [before, size, pnl, expected] of [
+              ['0', '1', undefined, isAsk ? 'Open Short' : 'Open Long'],
+              ['2', '1', undefined, isAsk ? 'Sell' : 'Buy'],
+              ['2', '1', '0', isAsk ? 'Sell' : 'Buy'],
+              ['2', '1', '-1', isAsk ? 'Close Long' : 'Close Short'],
+              ['2', '2', '1', isAsk ? 'Close Long' : 'Close Short'],
+              ['2', '3', '-1', isAsk ? 'Long > Short' : 'Short > Long'],
+            ]) {
+              const trade = {
+                ...REAL_TRADE,
+                isMakerAsk: isAsk === isMaker,
+                size: size as string,
+                makerPositionSizeBefore: isMaker ? (before as string) : '9',
+                takerPositionSizeBefore: isMaker ? '9' : (before as string),
+                makerPositionSignChanged: undefined,
+                takerPositionSignChanged: undefined,
+                askAccountPnl: isAsk ? pnl : '123',
+                bidAccountPnl: isAsk ? '123' : pnl,
+              };
+
+              const fill = adaptFillFromLighterTrade(
+                trade,
+                'SOL',
+                isAsk ? 28 : 7,
+              );
+
+              expect(fill).toMatchObject({
+                direction: expected,
+                pnl: pnl ?? '0',
+              });
+            }
+          }
+        },
+      );
+
+      it.each([null, 'false', 0])(
+        'rejects malformed supplied sign flag %s',
+        (flag) => {
+          for (const isMaker of [true, false]) {
+            const trade = {
+              ...REAL_TRADE,
+              isMakerAsk: isMaker,
+              makerPositionSignChanged: flag,
+              takerPositionSignChanged: flag,
+            };
+
+            expect(() =>
+              adaptFillFromLighterTrade(
+                trade as unknown as Parameters<
+                  typeof adaptFillFromLighterTrade
+                >[0],
+                'SOL',
+                28,
+              ),
+            ).toThrow('Invalid Lighter venue data');
+          }
+        },
+      );
+    });
+
     it('adapts the real venue payload: a taker sell of the full position is Close Long', () => {
       const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
       expect(fill).toMatchObject({
