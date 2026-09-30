@@ -18,11 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Keep HyperLiquid order placement working while the WebSocket reconnects, instead of failing with `CLIENT_NOT_INITIALIZED` or a 3x leverage cap ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-  - Pre-order reads now go over HTTP, which stays available during a reconnect: the margin-mode lock (open orders, TWAP history, asset data), HIP-3 DEX balances and spot metadata, unified-account and referral setup, asset-map rebuilds, and the open-order read in `updatePositionTPSL`.
-  - `getMaxLeverage` no longer requires the WebSocket clients, so orders are validated against the market's maximum leverage rather than the conservative fallback.
-  - Retry pre-order HTTP reads (market metadata and prices, spot metadata, positions and balances, open orders, TWAP history and asset data) up to twice with jittered exponential backoff when HyperLiquid answers 429, instead of failing the order on a transient rate limit.
-- Wait up to `PERPS_CONSTANTS.ConnectionTimeoutMs` for the client's follow-up `init()` when a controller action (such as `placeOrder`) was waiting on a `disconnect()`, so an order submitted during a disconnect-then-init reconnect is placed instead of failing with `CLIENT_NOT_INITIALIZED` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Wait up to `PERPS_CONSTANTS.ConnectionTimeoutMs` for the client's follow-up `init()` when a controller action (such as `placeOrder`) was waiting on a `disconnect()`, so an order submitted during a disconnect-then-init reconnect is placed instead of failing with `CLIENT_NOT_INITIALIZED` ([#10589](https://github.com/MetaMask/core/pull/10589))
   - If that reconnect switched the selected account, the network or the active provider, the action fails with `PROVIDER_LIFECYCLE_STALE` instead of running under the new context.
 
 ## [18.0.1]

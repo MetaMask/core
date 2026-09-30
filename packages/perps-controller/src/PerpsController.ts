@@ -2723,20 +2723,17 @@ export class PerpsController extends BaseController<
     // not carry the action into the new context.
     const issuedContext = this.#getActionContext();
     let awaitedDisconnect = false;
-    let awaitedLifecycleOperation = false;
     let awaitedInitializationStart = false;
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
         awaitedDisconnect = true;
-        awaitedLifecycleOperation = true;
         await pendingDisconnect;
         continue;
       }
 
       const pendingReinitialization = this.#reinitializationOperationPromise;
       if (pendingReinitialization) {
-        awaitedLifecycleOperation = true;
         await pendingReinitialization;
         continue;
       }
@@ -2755,7 +2752,7 @@ export class PerpsController extends BaseController<
       // window to start rather than failing an action the reconnect will
       // serve. Nothing here starts a connection the client did not ask for.
       if (
-        awaitedLifecycleOperation &&
+        awaitedDisconnect &&
         !awaitedInitializationStart &&
         !this.isInitialized &&
         !pendingInitialization
@@ -2781,12 +2778,7 @@ export class PerpsController extends BaseController<
    * @returns A key that changes when any of them changes.
    */
   #getActionContext(): string {
-    let address: string | undefined;
-    try {
-      address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
-    } catch {
-      address = undefined;
-    }
+    const address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
     return [
       address?.toLowerCase() ?? '',
       this.state.isTestnet ? 'testnet' : 'mainnet',

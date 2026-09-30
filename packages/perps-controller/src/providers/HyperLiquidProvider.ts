@@ -237,7 +237,6 @@ import {
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
-import { withRateLimitRetry } from '../utils/rateLimitRetry.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -2137,7 +2136,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     try {
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
       const ledger = await infoClient.userNonFundingLedgerUpdates({
         user: userAddress,
         startTime: 0,
@@ -2182,7 +2181,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
       const signers = await infoClient.userToMultiSigSigners({
         user: userAddress,
       });
@@ -2330,7 +2329,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
 
       // Check current abstraction mode on-chain
       currentMode = await infoClient.userAbstraction({
@@ -2631,10 +2630,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       // This awaits WebSocket transport.ready() to ensure connection is established
       await this.#ensureClientsInitialized();
 
-      // Verify the clients are initialized. Setup reads and exchange writes go
-      // over HTTP, which survives a WebSocket reconnect, so do not require the
-      // WebSocket clients here: that fails orders the exchange can still take.
-      this.#clientService.getInfoClient({ useHttp: true });
+      // Verify clients are properly initialized
+      this.#clientService.ensureInitialized();
 
       // Build asset mapping on first call, or retry if DEX discovery previously failed
       if (this.#symbolToAssetId.size === 0 || !this.#dexDiscoveryComplete) {
@@ -2890,8 +2887,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       { symbol },
     );
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    const mids = await withRateLimitRetry(() =>
-      infoClient.allMids(dexName ? { dex: dexName } : undefined),
+    const mids = await infoClient.allMids(
+      dexName ? { dex: dexName } : undefined,
     );
     const price = parseFloat(mids[symbol] || '0');
 
@@ -3083,7 +3080,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Fetch all available DEXs from HyperLiquid
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const infoClient = this.#clientService.getInfoClient();
     let allDexs;
     try {
       allDexs = await infoClient.perpDexs();
@@ -3240,9 +3237,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     // Pass dex only for HIP-3 DEXs; omit for main DEX (empty string).
     // Testnet API returns null when dex="" is explicitly sent.
-    const meta = await withRateLimitRetry(() =>
-      infoClient.meta(dexName ? { dex: dexName } : undefined),
-    );
+    const meta = await infoClient.meta(dexName ? { dex: dexName } : undefined);
 
     // Defensive validation before caching
     if (!meta?.universe || !Array.isArray(meta.universe)) {
@@ -3478,8 +3473,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const lifecycleGeneration = this.#lifecycleGeneration;
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    const spotMeta = await withRateLimitRetry(() => infoClient.spotMeta());
+    const infoClient = this.#clientService.getInfoClient();
+    const spotMeta = await infoClient.spotMeta();
 
     if (
       this.#isCacheWriteLifecycleCurrent(
@@ -3858,7 +3853,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Fetch metadata for each DEX in parallel using metaAndAssetCtxs
     // Optimization: Check cache first - getMarketDataWithPrices may have already fetched
     // If not cached, fetch via metaAndAssetCtxs and populate cache for other methods
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const infoClient = this.#clientService.getInfoClient();
     const allMetas = await Promise.allSettled(
       dexsToMap.map((dex) => {
         // Check if already cached (e.g., by getMarketDataWithPrices running in parallel)
@@ -4596,15 +4591,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #getBalanceForDex(params: { dex: string | null }): Promise<number> {
     const { dex } = params;
     const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const infoClient = this.#clientService.getInfoClient();
 
     const queryParams = dex
       ? { user: userAddress, dex }
       : { user: userAddress };
 
-    const accountState = await withRateLimitRetry(() =>
-      infoClient.clearinghouseState(queryParams),
-    );
+    const accountState = await infoClient.clearinghouseState(queryParams);
     const adapted = adaptAccountStateFromSDK(accountState);
     return parseFloat(adapted.withdrawableBalance);
   }
@@ -5264,10 +5257,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (position) {
       return { marginMode: position.leverage.type, reason: 'position' };
     }
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const infoClient = this.#clientService.getInfoClient();
     const [orders, twapHistory] = await Promise.all([
       this.#fetchOpenOrders({ dexName }),
-      withRateLimitRetry(() => infoClient.twapHistory({ user })),
+      infoClient.twapHistory({ user }),
     ]);
     await assertSameAccount();
     // Native TWAP schedules are absent from frontendOpenOrders before a slice
@@ -5303,9 +5296,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     });
     if (orders.some((order) => order.coin === symbol) || hasActiveTwap) {
-      const asset = await withRateLimitRetry(() =>
-        infoClient.activeAssetData({ user, coin: symbol }),
-      );
+      const asset = await infoClient.activeAssetData({
+        user,
+        coin: symbol,
+      });
       await assertSameAccount();
       return { marginMode: asset.leverage.type, reason: 'open_order' };
     }
@@ -8807,13 +8801,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null;
   }): Promise<FrontendOrder[]> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    return await withRateLimitRetry(() =>
-      infoClient.frontendOpenOrders({
-        user: userAddress,
-        dex: params.dexName ?? undefined,
-      }),
-    );
+    return await this.#clientService.getInfoClient().frontendOpenOrders({
+      user: userAddress,
+      dex: params.dexName ?? undefined,
+    });
   }
 
   /**
@@ -9872,7 +9863,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Get clients for API calls (#ensureReady already called at method start).
       // Holding the exchange client reference is not itself a write; it is only
       // used below, after the trading setup has run.
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
       const exchangeClient = this.#clientService.getExchangeClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault();
 
@@ -11191,10 +11182,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#ensureClientsInitialized();
       const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const userAddress = await this.#walletService.getUserAddressWithDefault();
-      const state = await withRateLimitRetry(() =>
-        infoClient.clearinghouseState(
-          dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
-        ),
+      const state = await infoClient.clearinghouseState(
+        dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
       );
       if (!Array.isArray(state.assetPositions)) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
@@ -14401,10 +14390,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // Read-only operation: only need client initialization, not full ensureReady()
-      // (no DEX abstraction, referral, or builder fee needed for metadata).
-      // Metadata is read over HTTP, so a WebSocket reconnect must not force the
-      // conservative default leverage onto an order.
+      // (no DEX abstraction, referral, or builder fee needed for metadata)
       await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
 
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(asset);
@@ -15439,7 +15427,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #isReferralCodeReady(): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
       const isTestnet = this.#clientService.isTestnetMode();
       const code = this.#getReferralCode(isTestnet);
       const referrerAddr = this.#getBuilderAddress(isTestnet);
@@ -15489,7 +15477,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #checkReferralSet(): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault();
 
       // Call HyperLiquid API to check if user has a referral set
