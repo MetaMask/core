@@ -10,13 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
-  - Shield is eligible when the user has not trialed Shield before.
-  - Money Account Plus is eligible when the user has not trialed it before and `SeedlessOnboardingController:getIsUserAuthenticated` is true.
-
-### Changed
-
-- **BREAKING:** Grant `SubscriptionControllerMessenger` access to `SeedlessOnboardingController:getIsUserAuthenticated` ([#10622](https://github.com/MetaMask/core/pull/10622))
-  - Clients must delegate this action to the SubscriptionController messenger.
+  - Clients must grant `SubscriptionControllerMessenger` access to `SeedlessOnboardingController:getIsUserAuthenticated` in order to call `SubscriptionController:isUserEligibleForTrial`.
 - Bump `@metamask/money-account-balance-service` from `^3.1.1` to `^3.1.2` ([#10624](https://github.com/MetaMask/core/pull/10624))
 
 ## [11.0.0]
