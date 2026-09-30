@@ -7655,6 +7655,16 @@
       "count": 2
     }
   },
+  "scripts/lib/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lib/tsc-suppressions.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
   "scripts/lib/workspaces.ts": {
     "jsdoc/require-param": {
       "count": 1
@@ -7678,6 +7688,11 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    }
+  },
+  "scripts/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
     }
   },
   "scripts/lint-tsconfigs/utils.ts": {

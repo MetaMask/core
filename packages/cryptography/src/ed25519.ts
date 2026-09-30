@@ -1,3 +1,5 @@
+import { getRandomBytes } from './random.js';
+import { KeyPair } from './types.js';
 import { buildPKCS8Header, toPKCS8 } from './utils.js';
 
 // https://www.rfc-editor.org/rfc/rfc8032
@@ -9,6 +11,20 @@ const ED25519_SIGNATURE_LENGTH = 64;
 const ED25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x70]);
 
 /**
+ * Generate a new random Ed25519 key pair.
+ *
+ * @returns The raw 32-byte Ed25519 private key and 32-byte Ed25519 public key.
+ */
+export async function generateKeyPair(): Promise<KeyPair> {
+  const privateKey = getRandomBytes(ED25519_KEY_LENGTH);
+
+  return {
+    privateKey,
+    publicKey: await getPublicKey(privateKey),
+  };
+}
+
+/**
  * Derive the Ed25519 public key corresponding to the given private key.
  *
  * @param privateKey - The 32-byte Ed25519 private key.
@@ -16,7 +32,7 @@ const ED25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x70]);
  */
 export async function getPublicKey(
   privateKey: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (privateKey.byteLength !== ED25519_KEY_LENGTH) {
     throw new Error(
       `Invalid private key length: Private key must be exactly ${ED25519_KEY_LENGTH} bytes for Ed25519.`,
@@ -61,7 +77,7 @@ export async function getPublicKey(
 export async function sign(
   privateKey: BufferSource,
   data: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (privateKey.byteLength !== ED25519_KEY_LENGTH) {
     throw new Error(
       `Invalid private key length: Private key must be exactly ${ED25519_KEY_LENGTH} bytes for Ed25519.`,
