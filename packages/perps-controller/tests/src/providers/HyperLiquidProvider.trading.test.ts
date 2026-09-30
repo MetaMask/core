@@ -5015,4 +5015,278 @@ describe('HyperLiquidProvider', () => {
       });
     });
   });
+  describe('TAT-4041: order path while the WebSocket reconnects', () => {
+    // HyperLiquidClientService drops its WebSocket clients for the whole
+    // reconnect but keeps the HTTP exchange and info clients. Model that state:
+    // any WebSocket-backed access fails the way the real service does.
+    const simulateWebSocketReconnect = (
+      httpInfoClient: ReturnType<typeof createMockInfoClient>,
+    ): void => {
+      mockClientService.isInitialized.mockReturnValue(false);
+      mockClientService.ensureInitialized.mockImplementation(() => {
+        throw new Error(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+      });
+      mockClientService.getInfoClient.mockImplementation(((options?: {
+        useHttp?: boolean;
+      }) => {
+        if (options?.useHttp) {
+          return httpInfoClient;
+        }
+        throw new Error(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+      }) as unknown as HyperLiquidClientService['getInfoClient']);
+    };
+
+    const expectOnlyHttpInfoReads = (): void => {
+      expect(mockClientService.getInfoClient).toHaveBeenCalled();
+      mockClientService.getInfoClient.mock.calls.forEach(([options]) => {
+        expect(options).toStrictEqual({ useHttp: true });
+      });
+    };
+
+    it('places an order with an explicit margin mode over HTTP', async () => {
+      const twapHistory = jest.fn().mockResolvedValue([]);
+      const activeAssetData = jest
+        .fn()
+        .mockResolvedValue({ leverage: { type: 'isolated', value: 5 } });
+      const httpInfoClient = createMockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        twapHistory,
+        activeAssetData,
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'limit',
+        price: '49000',
+        leverage: 5,
+        marginMode: 'isolated',
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(httpInfoClient.frontendOpenOrders).toHaveBeenCalled();
+      expect(twapHistory).toHaveBeenCalled();
+      expect(activeAssetData).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+        coin: 'BTC',
+      });
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+      expectOnlyHttpInfoReads();
+    });
+
+    it('validates leverage against the market maximum instead of the fallback', async () => {
+      const httpInfoClient = createMockInfoClient({
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 20,
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 20 });
+      expectOnlyHttpInfoReads();
+    });
+
+    it('runs first-trade account setup over HTTP', async () => {
+      const userToMultiSigSigners = jest.fn().mockResolvedValue(null);
+      const httpInfoClient = createMockInfoClient({
+        // A wallet still in the default mode runs the unified-account migration.
+        userAbstraction: jest.fn().mockResolvedValue('default'),
+        userToMultiSigSigners,
+        referral: jest.fn().mockResolvedValue({
+          referrerState: { stage: 'ready', data: { code: 'MMCSI' } },
+          referredBy: { code: 'MMCSI' },
+        }),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(httpInfoClient.userAbstraction).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      expect(userToMultiSigSigners).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      expect(httpInfoClient.referral).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+      expectOnlyHttpInfoReads();
+    });
+
+    it('updates position TP/SL over HTTP', async () => {
+      const httpInfoClient = createMockInfoClient({
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(httpInfoClient.frontendOpenOrders).toHaveBeenCalled();
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+      expectOnlyHttpInfoReads();
+    });
+
+    it('retries a rate-limited pre-order read with backoff', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const rateLimited = Object.assign(new Error('429 Too Many Requests'), {
+        name: 'HttpRequestError',
+        response: { status: 429 },
+      });
+      const twapHistory = jest
+        .fn()
+        .mockRejectedValueOnce(rateLimited)
+        .mockResolvedValue([]);
+      const frontendOpenOrders = jest
+        .fn()
+        .mockRejectedValueOnce(rateLimited)
+        .mockResolvedValue([]);
+      const clearinghouseState = jest
+        .fn()
+        .mockRejectedValueOnce(rateLimited)
+        .mockResolvedValue({ assetPositions: [] });
+      const httpInfoClient = createMockInfoClient({
+        clearinghouseState,
+        frontendOpenOrders,
+        twapHistory,
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'limit',
+        price: '49000',
+        leverage: 5,
+        marginMode: 'isolated',
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(twapHistory).toHaveBeenCalledTimes(2);
+      expect(frontendOpenOrders).toHaveBeenCalledTimes(2);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+    });
+
+    it('places a HIP-3 order that needs a margin transfer over HTTP', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 110000],
+        ],
+      });
+      const accountState = (withdrawable: string): Record<string, unknown> => ({
+        marginSummary: { totalMarginUsed: '0', accountValue: withdrawable },
+        withdrawable,
+        assetPositions: [],
+        crossMarginSummary: {
+          accountValue: withdrawable,
+          totalMarginUsed: '0',
+        },
+      });
+      const clearinghouseState = jest
+        .fn()
+        .mockImplementation((params?: { dex?: string }) =>
+          Promise.resolve(accountState(params?.dex === 'xyz' ? '0' : '10000')),
+        );
+      const xyzMeta = {
+        universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+        collateralToken: 0,
+      };
+      const httpInfoClient = createMockInfoClient({
+        clearinghouseState,
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          Promise.resolve(
+            params?.dex === 'xyz'
+              ? xyzMeta
+              : {
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                },
+          ),
+        ),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            Promise.resolve(
+              params?.dex === 'xyz'
+                ? [xyzMeta, [{ markPx: '100', midPx: '100', oraclePx: '100' }]]
+                : [
+                    {
+                      universe: [
+                        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                      ],
+                    },
+                    [{ markPx: '50000', midPx: '50000', oraclePx: '50000' }],
+                  ],
+            ),
+          ),
+        allMids: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            Promise.resolve(
+              params?.dex === 'xyz'
+                ? { 'xyz:STOCK1': '100' }
+                : { BTC: '50000' },
+            ),
+          ),
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      simulateWebSocketReconnect(httpInfoClient);
+
+      const result = await hip3Provider.placeOrder({
+        symbol: 'xyz:STOCK1',
+        isBuy: true,
+        size: '1',
+        orderType: 'market',
+        leverage: 5,
+      });
+
+      expect(result).toStrictEqual(expect.objectContaining({ success: true }));
+      expect(clearinghouseState).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+        dex: 'xyz',
+      });
+      expect(httpInfoClient.spotMeta).toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().sendAsset,
+      ).toHaveBeenCalled();
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orders: [expect.objectContaining({ a: 110000 })],
+        }),
+      );
+      expectOnlyHttpInfoReads();
+    });
+  });
 });
