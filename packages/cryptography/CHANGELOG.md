@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add an `additionalData` option to AES-GCM `encrypt` and `decrypt`
-- Allow HKDF functions to derive from an empty input when `unsafeInputKeyingMaterial` is set
+- Add an `additionalData` option to AES-GCM `encrypt` and `decrypt` ([#10628](https://github.com/MetaMask/core/pull/10628))
+- Allow HKDF functions to derive from an empty input when `unsafeInputKeyingMaterial` is set ([#10628](https://github.com/MetaMask/core/pull/10628))
 
 ## [1.0.0]
 
