@@ -1,3 +1,4 @@
+import { getRandomBytes } from './random.js';
 import { KeyPair } from './types.js';
 import { buildPKCS8Header, toPKCS8 } from './utils.js';
 
@@ -15,28 +16,11 @@ const ED25519_PKCS8_HEADER = buildPKCS8Header([0x2b, 0x65, 0x70]);
  * @returns The raw 32-byte Ed25519 private key and 32-byte Ed25519 public key.
  */
 export async function generateKeyPair(): Promise<KeyPair> {
-  const keyPair = await globalThis.crypto.subtle.generateKey('Ed25519', true, [
-    'sign',
-    'verify',
-  ]);
-
-  // The WebCrypto API does not support exporting private keys in raw format,
-  // so the seed is extracted from the PKCS8 envelope instead.
-  const pkcs8PrivateKey = await globalThis.crypto.subtle.exportKey(
-    'pkcs8',
-    keyPair.privateKey,
-  );
-
-  const publicKey = await globalThis.crypto.subtle.exportKey(
-    'raw',
-    keyPair.publicKey,
-  );
+  const privateKey = getRandomBytes(ED25519_KEY_LENGTH);
 
   return {
-    privateKey: new Uint8Array<ArrayBuffer>(
-      pkcs8PrivateKey.slice(ED25519_PKCS8_HEADER.length),
-    ),
-    publicKey: new Uint8Array<ArrayBuffer>(publicKey),
+    privateKey,
+    publicKey: await getPublicKey(privateKey),
   };
 }
 
@@ -48,7 +32,7 @@ export async function generateKeyPair(): Promise<KeyPair> {
  */
 export async function getPublicKey(
   privateKey: BufferSource,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (privateKey.byteLength !== ED25519_KEY_LENGTH) {
     throw new Error(
       `Invalid private key length: Private key must be exactly ${ED25519_KEY_LENGTH} bytes for Ed25519.`,
