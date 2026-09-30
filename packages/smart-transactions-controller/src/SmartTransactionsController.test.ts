@@ -104,7 +104,7 @@ const createUnsignedTransaction = (chainId: number) => {
   };
 };
 
-const createGetFeesApiErrorResponse = () => {
+const createGetFeesApiErrorResponse = (): { error: string; detail: string } => {
   return {
     error: 'insufficient funds',
     detail: 'insufficient funds details',

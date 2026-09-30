@@ -804,7 +804,7 @@ describe('src/utils.js', () => {
       expect(utils.getErrorData(error)).toBe('too_cheap');
     });
 
-    it('returns data.error from a thrown fetch error object', () => {
+    it('returns data.error object from a thrown fetch error object', () => {
       const error = Object.assign({}, new Error('Fetch error: 400'), {
         data: { error: { message: 'too_cheap' } },
       });
