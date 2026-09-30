@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support native Lighter standalone `stop_market`, `stop_limit`, `take_profit_market` and `take_profit_limit` placement and validation for active markets, preserving trigger levels, execution protection and reduce-only quantities. Report the supported types through `getOrderCapabilities` and expose the fixed venue grid as optional `MarketInfo.priceDecimals` ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Export Lighter trading-slot bounds/count, registration visibility timeout/poll/attempt cap and fill replay capacity from both `constants` and `constants/lighterConfig`: `LIGHTER_MIN_TRADING_API_KEY_INDEX`, `LIGHTER_MAX_TRADING_API_KEY_INDEX`, `LIGHTER_TRADING_API_KEY_COUNT`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS`, and `LIGHTER_FILL_REPLAY_LIMIT` ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Add optional `supportedTriggerOrderTypes` to ready order capabilities and the public `HYPERLIQUID_ORDER_CAPABILITIES` constant. Hyperliquid reports its implemented standalone stop/take-profit placements; missing declarations mean unsupported, independently of strategy and attached TP/SL support ([#10629](https://github.com/MetaMask/core/pull/10629))
 - Add optional `LighterSignerBridge.getRecoverableKeyIndices` and `getStoredKeyIndices` discovery, and an optional `walletAddress` binding on client creation and discovery. Hosts can restore wallet-derived trading keys; Core verifies registered public keys before reuse and skips unrelated candidate ledgers without changing them ([#10618](https://github.com/MetaMask/core/pull/10618))
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Add `order_market_unsupported` to `DirectProviderOrderCapabilitiesUnavailableReason` for known markets that cannot accept orders. Consumers exhaustively matching this union must include the new reason ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
 - Treat `lighterAuthConfig.apiKeyIndex` as a preferred slot when key discovery is available; `getRecoverableKeyIndices` takes precedence over `getStoredKeyIndices` ([#10618](https://github.com/MetaMask/core/pull/10618))
 - List local recovery obligations across all trading slots with optional `PerpsRecoveredDispatch.apiKeyIndex` and opaque wallet/network/account/slot-bound IDs. Raw pending dispatches have `acknowledgeable:false`; only resolved stored outcomes can be acknowledged, and legacy IDs must be unique across the account ([#10618](https://github.com/MetaMask/core/pull/10618))
