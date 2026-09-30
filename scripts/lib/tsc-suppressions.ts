@@ -419,9 +419,6 @@ export function printReport(report: TscSuppressionsReport): void {
         console.log(`    - ${message}`);
       }
     }
-    console.log(
-      '\nFix these errors, or run `yarn lint:tsc:suppress` if they cannot be fixed yet.',
-    );
   }
 
   if (report.staleSuppressions.length > 0) {
