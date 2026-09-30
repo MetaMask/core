@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
+- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known. ([#10587](https://github.com/MetaMask/core/pull/10587))
 
 ### Changed
 
+- **BREAKING:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
+  - Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
 - Perps error logs include bounded `feature`, `operation`, `action`, and `component` tags for connection, order, position, deposit, and withdrawal failures, while retaining diagnostic values in the log context ([#10681](https://github.com/MetaMask/core/pull/10681))
@@ -192,8 +194,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
 - Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
-- **Breaking:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
-- Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
 
 ### Removed
 
