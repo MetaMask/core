@@ -323,8 +323,10 @@ describe('SubscriptionMultiplexer', () => {
           onError,
         });
         const subscribe = mockLighterProvider[method];
-
-        subscribe?.mock.calls[0][0].onError?.(failure);
+        if (!subscribe) {
+          throw new Error('Missing mocked subscription');
+        }
+        jest.mocked(subscribe).mock.calls[0][0].onError?.(failure);
 
         expect(onError).toHaveBeenCalledWith(failure, 'lighter');
         unsubscribe();

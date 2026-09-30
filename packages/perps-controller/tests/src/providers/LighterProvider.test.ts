@@ -1797,7 +1797,7 @@ describe('LighterProvider', () => {
       expect(result.success).toBe(true);
       const leverageCall = (
         bridge.execute as jest.Mock<
-          Promise<LighterSignerResult>,
+          Promise<LighterSignerResult<LighterSignerOperation>>,
           [LighterWasmCall]
         >
       ).mock.calls.find(
@@ -3276,7 +3276,7 @@ describe('LighterProvider', () => {
       expect(result.success).toBe(true);
       const leverageCall = (
         bridge.execute as jest.Mock<
-          Promise<LighterSignerResult>,
+          Promise<LighterSignerResult<LighterSignerOperation>>,
           [LighterWasmCall]
         >
       ).mock.calls.find(
