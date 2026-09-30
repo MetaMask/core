@@ -245,6 +245,8 @@ export type SubscriptionCryptoPaymentMethod = {
     payerAddress: Hex;
     chainId: Hex;
     tokenSymbol: string;
+    /** Settlement token address; the premium vault for pvmUSD payments. */
+    tokenAddress?: Hex;
     error?: CryptoPaymentMethodError;
   };
 };
