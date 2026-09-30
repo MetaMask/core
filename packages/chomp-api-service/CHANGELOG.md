@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
+### Fixed
+
+- Ignore unrecognised intent types returned by the CHOMP API instead of failing to parse the whole response ([#10609](https://github.com/MetaMask/core/pull/10609))
+  - `getIntentsByAddress` now omits intents whose `metadata.type` is not a known `ChompIntentType`.
+  - `getServiceDetails` now omits unknown values from each protocol's `intentTypes`.
+
 ## [6.0.0]
 
 ### Added

@@ -702,6 +702,16 @@
       "count": 1
     }
   },
+  "packages/assets-controller/jest.config.integration.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/jest.config.unit.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/AssetsController.spam-cleanup.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
