@@ -2256,6 +2256,8 @@ describe('LighterProvider', () => {
         `lighterTpslManual:testnet:${otherWalletKey}`,
       );
       expect(removeItem).not.toHaveBeenCalled();
+      expect(pending[0].actionNeeded).toContain('previous trading key');
+      expect(pending[0].actionNeeded).toContain('does not clear');
     });
 
     it('replays an authenticated empty orders snapshot to late subscribers', async () => {
@@ -2280,6 +2282,212 @@ describe('LighterProvider', () => {
       expect(late).toHaveBeenCalledWith([]);
       unsubscribeLate();
       unsubscribe();
+      await provider.disconnect();
+    });
+
+    it.each(['none', 'empty', 'filled'])(
+      'withholds full fill replay after an invalid snapshot with %s prior history',
+      async (prior) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        const callback = jest.fn();
+        const unsubscribe = provider.subscribeToOrderFills({ callback });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        const trade = {
+          trade_id: 1,
+          market_id: 1,
+          size: '0.001',
+          price: '90000',
+          ask_id: 1,
+          bid_id: 2,
+          ask_account_id: 28,
+          bid_account_id: 7,
+          is_maker_ask: false,
+          timestamp: 1700000000000,
+          taker_position_size_before: '0',
+        };
+        if (prior !== 'none') {
+          socket.receive({
+            type: 'subscribed/account_all_trades',
+            trades: prior === 'empty' ? {} : { '1': [trade] },
+          });
+        }
+        callback.mockClear();
+        socket.receive({
+          type: 'subscribed/account_all_trades',
+          trades: { '1': [{ ...trade, size: 'invalid' }] },
+        });
+        expect(callback).not.toHaveBeenCalled();
+        socket.receive({
+          type: 'update/account_all_trades',
+          trades: { '1': [{ ...trade, trade_id: 2 }] },
+        });
+        expect(callback).toHaveBeenLastCalledWith(
+          [expect.objectContaining({ fillId: '2' })],
+          false,
+        );
+        const late = jest.fn();
+        const unsubscribeLate = provider.subscribeToOrderFills({
+          callback: late,
+        });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(late).not.toHaveBeenCalled();
+        // Only a new validated complete snapshot can restore replay authority.
+        socket.receive({ type: 'subscribed/account_all_trades', trades: {} });
+        const restored = jest.fn();
+        const unsubscribeRestored = provider.subscribeToOrderFills({
+          callback: restored,
+        });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(restored).toHaveBeenCalledWith([], true);
+        unsubscribeRestored();
+        unsubscribeLate();
+        unsubscribe();
+        await provider.disconnect();
+      },
+    );
+
+    it('does not promote a delta before the initial fills snapshot to full replay', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: '9c'.repeat(40),
+      });
+      const unsubscribe = provider.subscribeToOrderFills({
+        callback: jest.fn(),
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      socket.receive({
+        type: 'update/account_all_trades',
+        trades: {
+          '1': [
+            {
+              trade_id: 1,
+              market_id: 1,
+              size: '0.001',
+              price: '90000',
+              ask_id: 1,
+              bid_id: 2,
+              ask_account_id: 28,
+              bid_account_id: 7,
+              is_maker_ask: false,
+              timestamp: 1700000000000,
+              taker_position_size_before: '0',
+            },
+          ],
+        },
+      });
+      const late = jest.fn();
+      const unsubscribeLate = provider.subscribeToOrderFills({
+        callback: late,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      expect(late).not.toHaveBeenCalled();
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it('does not retain complete fill replay after the wallet session changes', async () => {
+      const { provider, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: '9c'.repeat(40),
+      });
+      const unsubscribe = provider.subscribeToOrderFills({
+        callback: jest.fn(),
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      socket.receive({ type: 'subscribed/account_all_trades', trades: {} });
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState().catch(() => undefined);
+      const late = jest.fn();
+      const unsubscribeLate = provider.subscribeToOrderFills({
+        callback: late,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      expect(late).not.toHaveBeenCalled();
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it('reports current-wallet account discovery failures to both trading subscriptions', async () => {
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeCtor,
+        configuredAccountIndex: null,
+      });
+      const failure = new Error('Account discovery transport unavailable');
+      clientInstance.getAccountsByL1Address.mockRejectedValue(failure);
+      const onOrderError = jest.fn();
+      const onFillError = jest.fn();
+      const orders = jest.fn();
+      const fills = jest.fn();
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: orders,
+        onError: onOrderError,
+      });
+      const unsubscribeFills = provider.subscribeToOrderFills({
+        callback: fills,
+        onError: onFillError,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      expect(onOrderError).toHaveBeenCalledWith(failure);
+      expect(onFillError).toHaveBeenCalledWith(failure);
+      expect(orders).not.toHaveBeenCalled();
+      expect(fills).not.toHaveBeenCalled();
+      unsubscribeOrders();
+      unsubscribeFills();
+      await provider.disconnect();
+    });
+
+    it('does not report an old-wallet account discovery failure to a replacement session', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeCtor,
+        configuredAccountIndex: null,
+      });
+      const failure = new Error('Old-wallet discovery unavailable');
+      let failLookup: (error: Error) => void = () => undefined;
+      let lookupStarted: () => void = () => undefined;
+      const started = new Promise<void>((resolveStarted) => {
+        lookupStarted = resolveStarted;
+      });
+      clientInstance.getAccountsByL1Address.mockImplementationOnce(() => {
+        lookupStarted();
+        return new Promise((_resolve, reject) => {
+          failLookup = reject;
+        });
+      });
+      const onOrderError = jest.fn();
+      const onFillError = jest.fn();
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: jest.fn(),
+        onError: onOrderError,
+      });
+      const unsubscribeFills = provider.subscribeToOrderFills({
+        callback: jest.fn(),
+        onError: onFillError,
+      });
+      await started;
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState().catch(() => undefined);
+      failLookup(failure);
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      expect(onOrderError).not.toHaveBeenCalledWith(failure);
+      expect(onFillError).not.toHaveBeenCalledWith(failure);
+      unsubscribeOrders();
+      unsubscribeFills();
       await provider.disconnect();
     });
 

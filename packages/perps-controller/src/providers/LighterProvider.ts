@@ -2319,8 +2319,8 @@ export class LighterProvider implements PerpsProvider {
    * List TP/SL obligations parked in DURABLE manual-recovery state: the
    * venue removed (or rejected) protection in a way that cannot be
    * safely re-established automatically. Surfaced to callers/UI; each
-   * entry resolves when the user issues a new explicit TP/SL update for
-   * the symbol.
+   * current-key entry resolves after a successful explicit TP/SL update.
+   * Previous-key obligations remain until reconciled under their own key.
    *
    * @returns Parked manual-recovery entries.
    */
@@ -2355,8 +2355,10 @@ export class LighterProvider implements PerpsProvider {
       survivingOrderIds: string[];
       actionNeeded: string;
     }[] = [];
-    const actionNeeded =
-      'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
+    const actionNeeded = (settlementKey: string): string =>
+      currentSlotPrefix !== null && settlementKey.startsWith(currentSlotPrefix)
+        ? 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection'
+        : 'Review the position and recorded orders from the previous trading key in Lighter. A current-key TP/SL update does not clear this obligation; initialize the wallet trading key and reconcile the recorded orders before changing protection';
     // Storage errors PROPAGATE — a corrupt index degrading to "nothing
     // pending" would hide a naked position.
     const manualIndex = await this.#readTpslManualIndex();
@@ -2373,7 +2375,7 @@ export class LighterProvider implements PerpsProvider {
           reason: doc.reason,
           priorIntent: doc.priorIntent,
           survivingOrderIds: doc.survivingOrderIds,
-          actionNeeded,
+          actionNeeded: actionNeeded(settlementKey),
         });
       }
     }
@@ -2409,7 +2411,7 @@ export class LighterProvider implements PerpsProvider {
           reason,
           priorIntent: journal.intent,
           survivingOrderIds: [],
-          actionNeeded,
+          actionNeeded: actionNeeded(settlementKey),
         });
       }
     }
@@ -8132,6 +8134,18 @@ export class LighterProvider implements PerpsProvider {
           generation === this.#sessionGeneration
         ) {
           this.#emitAccountBindingReset();
+        } else if (
+          !this.#isDisconnected &&
+          this.#boundAddress !== null &&
+          generation === this.#sessionGeneration &&
+          this.#accountChannelsPromise === setupPromise
+        ) {
+          for (const subscriber of this.#orderSubscribers) {
+            subscriber.onError?.(ensureError(error));
+          }
+          for (const subscriber of this.#fillSubscribers) {
+            subscriber.onError?.(ensureError(error));
+          }
         }
         // An aborted previous-account setup has no authority over the new
         // session. Current-session failures also preserve the last known data.
@@ -8647,6 +8661,11 @@ export class LighterProvider implements PerpsProvider {
         }
       }
     }
+    // A cache is replayable only after a complete validated snapshot.
+    // Missing even one fill invalidates that authority until a new snapshot.
+    if (droppedUnsupportedFill) {
+      this.#wsFills = null;
+    }
     if (fills.length === 0 && !isSnapshot) {
       return;
     }
@@ -8660,19 +8679,21 @@ export class LighterProvider implements PerpsProvider {
       );
       return;
     }
-    const history = isSnapshot ? fills : [...fills, ...(this.#wsFills ?? [])];
-    const seen = new Set<string>();
-    this.#wsFills = history
-      .filter((fill) => {
-        const id = fill.fillId ?? `${fill.orderId}:${fill.timestamp}`;
-        if (seen.has(id)) {
-          return false;
-        }
-        seen.add(id);
-        return true;
-      })
-      .sort((first, second) => second.timestamp - first.timestamp)
-      .slice(0, 100);
+    if (isSnapshot || this.#wsFills !== null) {
+      const history = isSnapshot ? fills : [...fills, ...(this.#wsFills ?? [])];
+      const seen = new Set<string>();
+      this.#wsFills = history
+        .filter((fill) => {
+          const id = fill.fillId ?? `${fill.orderId}:${fill.timestamp}`;
+          if (seen.has(id)) {
+            return false;
+          }
+          seen.add(id);
+          return true;
+        })
+        .sort((first, second) => second.timestamp - first.timestamp)
+        .slice(0, 100);
+    }
     for (const subscriber of this.#fillSubscribers) {
       try {
         subscriber.callback(fills, isSnapshot);
