@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `nanoid` from `^3.3.8` to `^3.3.19` ([#10439](https://github.com/MetaMask/core/pull/10439))
+- Bump `nanoid` from `^3.3.8` to `^6.0.1` ([#10439](https://github.com/MetaMask/core/pull/10439), [#10602](https://github.com/MetaMask/core/pull/10602))
 
 ## [10.0.0]
 
