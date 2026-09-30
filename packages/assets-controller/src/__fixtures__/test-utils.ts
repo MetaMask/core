@@ -49,6 +49,26 @@ export const waitFor = async (
 };
 
 /**
+ * Testing Utility - getIgnoringCase. Look up a record entry ignoring
+ * CAIP-19 address casing, for asserting on state that may be keyed by either
+ * lower-cased or checksummed asset IDs.
+ *
+ * @param record - The record to search.
+ * @param assetId - The asset ID to look up, any casing.
+ * @returns The matching entry, or `undefined` when absent.
+ */
+export const getIgnoringCase = (
+  record: Record<string, unknown>,
+  assetId: string,
+): unknown => {
+  const lowerId = assetId.toLowerCase();
+  const match = Object.keys(record).find(
+    (key) => key.toLowerCase() === lowerId,
+  );
+  return match === undefined ? undefined : record[match];
+};
+
+/**
  * Returns a plain deep clone of the given object with all `lastUpdated`
  * timestamps zeroed, so that snapshots are deterministic.
  *

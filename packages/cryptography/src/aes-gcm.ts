@@ -99,7 +99,7 @@ export async function decrypt(
   iv: BufferSource,
   ciphertext: BufferSource,
   options?: AesGcmDecryptOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (key.byteLength === 0) {
     throw new Error(
       'Invalid key length: Key must not be zero bytes for AES-GCM.',
