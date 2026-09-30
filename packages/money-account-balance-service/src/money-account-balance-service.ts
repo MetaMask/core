@@ -127,6 +127,9 @@ const NON_NEGATIVE_INTEGER_STRING_PATTERN = /^\d+$/u;
  * Validates that balance amounts are non-negative integer strings and that
  * `totalBalance === musdBalance + vmusdValueInMusd`.
  *
+ * Error messages must not include the amounts: these errors are reported to
+ * error monitoring, and exact balances can identify an account.
+ *
  * @param balance - Balance amounts to validate.
  * @throws {@link MoneyAccountBalanceValidationError} when validation fails.
  */
@@ -140,7 +143,7 @@ function assertValidBalanceAmounts(balance: MoneyAccountBalanceResponse): void {
   for (const [field, value] of entries) {
     if (!NON_NEGATIVE_INTEGER_STRING_PATTERN.test(value)) {
       throw new MoneyAccountBalanceValidationError(
-        `Invalid ${field}: expected a non-negative integer string, got '${value}'`,
+        `Invalid ${field}: expected a non-negative integer string`,
       );
     }
   }
@@ -150,7 +153,7 @@ function assertValidBalanceAmounts(balance: MoneyAccountBalanceResponse): void {
     BigInt(balance.totalBalance)
   ) {
     throw new MoneyAccountBalanceValidationError(
-      `Invalid balance invariant: totalBalance (${balance.totalBalance}) must equal musdBalance (${balance.musdBalance}) + vmusdValueInMusd (${balance.vmusdValueInMusd})`,
+      'Invalid balance invariant: totalBalance must equal musdBalance + vmusdValueInMusd',
     );
   }
 }
