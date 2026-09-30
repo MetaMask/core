@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^26.0.1` to `^26.1.0` ([#10569](https://github.com/MetaMask/core/pull/10569))
 - Bump `@metamask/assets-controller` from `^17.0.0` to `^18.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
 
+### Fixed
+
+- Always set `excludeNativeTokenForFee` when origin gas is priced in the source token, so the fee shown in the quote is the fee the user is charged ([#10404](https://github.com/MetaMask/core/pull/10404))
+  - Previously only the across strategy opted in, so for the relay and server strategies the `TransactionController` re-checked the native balance at publish time and silently dropped the gas fee token, billing the user in native token instead.
+
 ## [30.0.0]
 
 ### Changed
@@ -45,11 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/ramps-controller` from `^25.1.0` to `^25.1.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
-
-### Fixed
-
-- Always set `excludeNativeTokenForFee` when origin gas is priced in the source token, so the fee shown in the quote is the fee the user is charged ([#10404](https://github.com/MetaMask/core/pull/10404))
-  - Previously only the across strategy opted in, so for the relay and server strategies the `TransactionController` re-checked the native balance at publish time and silently dropped the gas fee token, billing the user in native token instead.
 
 ## [29.2.1]
 
