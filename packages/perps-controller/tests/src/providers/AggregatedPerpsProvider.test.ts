@@ -1726,6 +1726,10 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: Object.freeze(['twap', 'scale', 'chase']),
+        supportedTriggerOrderTypes: Object.freeze([
+          'stop_market',
+          'take_profit_limit',
+        ]),
         supportedMarginModes: Object.freeze(['isolated', 'cross']),
       });
       mockHLProvider.getOrderCapabilities.mockResolvedValue(capabilities);

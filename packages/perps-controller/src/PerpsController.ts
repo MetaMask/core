@@ -2838,7 +2838,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Get strategy capabilities through the active provider route used by order
+   * Get order capabilities through the active provider route used by order
    * placement. The query waits for in-flight initialization and reports an
    * explicit unavailable status when no provider route can answer reliably.
    *

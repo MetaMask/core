@@ -15,7 +15,10 @@ import type {
   TradingDefaultsConfig,
   FeeRatesConfig,
 } from '../types/perps-types.js';
-import { STRATEGY_ORDER_TYPES } from '../utils/orderTypes.js';
+import {
+  STRATEGY_ORDER_TYPES,
+  TRIGGER_ORDER_TYPES,
+} from '../utils/orderTypes.js';
 import { PROVIDER_CONFIG } from './perpsConfig.js';
 
 // Network constants
@@ -219,6 +222,7 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
   providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
+  supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration

@@ -7009,6 +7009,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
@@ -7025,6 +7031,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
     });
@@ -7038,6 +7050,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
@@ -7066,6 +7084,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedTriggerOrderTypes: [
+            'stop_market',
+            'stop_limit',
+            'take_profit_market',
+            'take_profit_limit',
+          ],
           supportedMarginModes: ['isolated'],
         });
       },
@@ -7151,6 +7175,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
     });
@@ -7261,6 +7291,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7277,6 +7313,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7349,6 +7391,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
 
@@ -7363,6 +7411,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7400,12 +7454,24 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedTriggerOrderTypes: [
+            'stop_market',
+            'stop_limit',
+            'take_profit_market',
+            'take_profit_limit',
+          ],
           supportedMarginModes: ['isolated', 'cross'],
         },
         {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedTriggerOrderTypes: [
+            'stop_market',
+            'stop_limit',
+            'take_profit_market',
+            'take_profit_limit',
+          ],
           supportedMarginModes: ['isolated', 'cross'],
         },
       ]);
@@ -7496,6 +7562,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -7605,6 +7677,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -7655,6 +7733,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7685,6 +7769,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7722,6 +7812,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7938,6 +8034,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);

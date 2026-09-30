@@ -1747,6 +1747,12 @@ type ReadyPerpsOrderCapabilities = Readonly<{
   providerId: PerpsProviderType;
   supportedStrategies: readonly StrategyOrderType[];
   /**
+   * Standalone stop/take-profit placements this market's provider executes.
+   * Omitted means support is not reported; clients must not infer support
+   * from the provider name. Attached or position TP/SL is a separate contract.
+   */
+  supportedTriggerOrderTypes?: readonly TriggerOrderType[];
+  /**
    * Margin modes the market accepts for `OrderParams.marginMode`. Omitted
    * means the provider does not report it, and clients should not offer an
    * explicit margin mode.
