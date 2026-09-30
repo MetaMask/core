@@ -169,15 +169,16 @@ describe('lintSuppressions', () => {
 
     await lintSuppressions([]);
 
-    expect(
-      jest
-        .mocked(execa)
-        .mock.calls.map((call) => call[1])
-        .filter((args) => args[0] === 'show'),
-    ).toStrictEqual([
+    expect(execa).toHaveBeenCalledWith(
+      'git',
       ['show', 'HEAD^1:oxlint-suppressions.json'],
+      expect.anything(),
+    );
+    expect(execa).toHaveBeenCalledWith(
+      'git',
       ['show', 'HEAD^1:tsc-suppressions.json'],
-    ]);
+      expect.anything(),
+    );
   });
 
   it('falls back to the merge base where there is no merge commit, as when run locally', async () => {
@@ -190,15 +191,16 @@ describe('lintSuppressions', () => {
       ['merge-base', 'HEAD', 'origin/main'],
       expect.anything(),
     );
-    expect(
-      jest
-        .mocked(execa)
-        .mock.calls.map((call) => call[1])
-        .filter((args) => args[0] === 'show'),
-    ).toStrictEqual([
+    expect(execa).toHaveBeenCalledWith(
+      'git',
       ['show', 'abc123:oxlint-suppressions.json'],
+      expect.anything(),
+    );
+    expect(execa).toHaveBeenCalledWith(
+      'git',
       ['show', 'abc123:tsc-suppressions.json'],
-    ]);
+      expect.anything(),
+    );
   });
 
   it('takes the merge base against the branch it is given', async () => {
