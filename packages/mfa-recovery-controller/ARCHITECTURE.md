@@ -128,6 +128,61 @@ Versioning:
 pending gets a fresh token then replicates; writing pending retries only
 escrows that do not already have a stored receipt.
 
+## Cubist store sequence
+
+The controller does not call CubeSigner, the registration API, or
+`KeyringController`. A Cubist deploy injects one `RecoveryEscrowProvider`
+(`id: "cubist"`). The caller proves OIDC, calls `ensure-user`, opens the
+session, and constructs `CubistEscrowProvider` before `register`.
+
+`register(recoverySecret, identifiers)` takes an identifier **array** of at
+least two distinct key-bound identifiers. One `siwe` identifier is rejected.
+`applyMutation` is the store: the controller wraps the secret to the escrow
+wrap key, and the Cubist provider persists that payload. `AuthControllerToken`
+is opaque; a stub may put an SRP token in `signature`.
+
+`authenticateIdentifier` asks the injected identifier provider for a key-bound
+token. A SIWE provider signs with `KeyringController.signPersonalMessage`.
+The controller does not. `getRecoverySecret` then challenges the escrow, signs
+the proof of possession locally, calls `getSecret`, and unwraps. `epoch` is
+the replica `version`.
+
+```mermaid
+sequenceDiagram
+  participant Caller as Caller
+  participant Auth as RecoveryAuthProvider
+  participant IdP as SIWE identifier provider
+  participant Ctrl as MfaRecoveryController
+  participant Escrow as Cubist escrow
+
+  Note over Caller,Escrow: proveOidcIdentity, ensure-user, createOidcSession, then new CubistEscrowProvider
+
+  Caller->>Ctrl: register(secret, identifiers)
+  Ctrl->>Auth: getAuthenticatedProfileId
+  Ctrl->>Escrow: isAvailable
+  Ctrl->>Ctrl: persist authorizing
+  Ctrl->>Auth: authorizeRecoveryRequest
+  Note over Auth: stub may set signature to the SRP token
+  Ctrl->>Ctrl: wrap secret, persist writing
+  Ctrl->>Escrow: applyMutation
+  Escrow-->>Ctrl: receipt
+  Ctrl->>Ctrl: clear pending
+
+  Caller->>Ctrl: authenticateIdentifier(siwe)
+  Ctrl->>IdP: getKeyBoundIdentifierToken
+  Note over IdP: signPersonalMessage
+  IdP-->>Ctrl: token
+  Ctrl-->>Caller: identifierSession
+
+  Caller->>Ctrl: getRecoverySecret(identifierSession)
+  Ctrl->>Escrow: generateChallenge
+  Ctrl->>Ctrl: sign proof of possession
+  Ctrl->>Escrow: getSecret
+  Escrow-->>Ctrl: wrapped secret + version
+  Ctrl->>Ctrl: unwrap
+  Ctrl-->>Caller: secret bytes + epoch
+```
+
 ## Read sequence (`getRecoverySecret`)
 
 Reads tolerate down replicas. They do **not** repair pending writes. The
