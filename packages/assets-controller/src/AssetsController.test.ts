@@ -462,7 +462,6 @@ describe('AssetsController', () => {
         customAssets: {},
         assetPreferences: {},
         selectedCurrency: 'usd',
-        assetsLoadingStatus: {},
       });
     });
 
@@ -492,7 +491,6 @@ describe('AssetsController', () => {
           customAssets: {},
           assetPreferences: {},
           selectedCurrency: 'usd',
-          assetsLoadingStatus: {},
         });
       });
     });
@@ -650,7 +648,6 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           selectedCurrency: 'usd',
-          assetsLoadingStatus: {},
         });
 
         // Action handlers should be registered
@@ -5756,7 +5753,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller }) => {
         await controller.getAssets([], { forceUpdate: true });
 
-        expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+        expect(controller.state.assetsLoadingStatus).toBeUndefined();
       });
     });
 

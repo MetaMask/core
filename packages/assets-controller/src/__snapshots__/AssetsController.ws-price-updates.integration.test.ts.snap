@@ -79,7 +79,6 @@ exports[`AssetsController: websocket price updates generates snapshot (source of
       "type": "native",
     },
   },
-  "assetsLoadingStatus": {},
   "assetsPrice": {
     "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
       "allTimeHigh": 1.043,

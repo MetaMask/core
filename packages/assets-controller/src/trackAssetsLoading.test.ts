@@ -33,9 +33,7 @@ const ACCOUNT_2: InternalAccount = {
 class FakeAssetsController {
   readonly holds: (() => void)[] = [];
 
-  state: FakeControllerState = {
-    assetsLoadingStatus: {},
-  };
+  state: FakeControllerState = {};
 
   update(callback: (state: FakeControllerState) => void): void {
     callback(this.state);
@@ -125,23 +123,23 @@ describe('trackAssetsLoading', () => {
     const controller = new FakeAssetsController();
     const fetchPromise = controller.getAssets([], { forceUpdate: true });
 
-    expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+    expect(controller.state.assetsLoadingStatus).toBeUndefined();
 
     controller.releaseNextFetch();
     await fetchPromise;
 
-    expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+    expect(controller.state.assetsLoadingStatus).toBeUndefined();
   });
 
   it('does not track calls that do not force an update', async () => {
     const controller = new FakeAssetsController();
     const fetchPromise = controller.getAssets([ACCOUNT_1]);
 
-    expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+    expect(controller.state.assetsLoadingStatus).toBeUndefined();
 
     controller.releaseNextFetch();
     await fetchPromise;
 
-    expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+    expect(controller.state.assetsLoadingStatus).toBeUndefined();
   });
 });

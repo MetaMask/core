@@ -273,7 +273,6 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     customAssets: {},
     assetPreferences: {},
     selectedCurrency: 'usd',
-    assetsLoadingStatus: {},
   };
 }
 

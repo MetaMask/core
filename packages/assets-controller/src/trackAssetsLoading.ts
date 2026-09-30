@@ -10,7 +10,7 @@ import type { AccountId, AssetsLoadingStatus } from './types.js';
 type AssetsLoadingStateUpdater = Pick<AssetsController, 'state'> & {
   update: (
     callback: (state: {
-      assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
+      assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
     }) => void,
   ) => void;
 };
@@ -46,6 +46,7 @@ function markAssetsLoading(
     loadingTokenOwners.get(controller) ?? new Map<AccountId, number>();
   loadingTokenOwners.set(controller, owners);
   controller.update((state) => {
+    state.assetsLoadingStatus ??= {};
     for (const account of accounts) {
       owners.set(account.id, token);
       state.assetsLoadingStatus[account.id] = 'loading';
@@ -82,6 +83,7 @@ function markAssetsSettled(
     return;
   }
   controller.update((state) => {
+    state.assetsLoadingStatus ??= {};
     for (const account of ownedAccounts) {
       state.assetsLoadingStatus[account.id] = 'loaded';
       owners.delete(account.id);
