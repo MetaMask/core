@@ -15,11 +15,13 @@ import type {
   MoneyAccountControllerGetMoneyAccountAction,
   MoneyAccountControllerStateChangeEvent,
 } from '@metamask/money-account-controller';
+import type { MoneyAccountUpgradeControllerUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
 import type {
@@ -89,6 +91,7 @@ type AllowedActions =
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerUseMpcKeyringAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction
+  | MoneyAccountUpgradeControllerUpgradeAccountAction
   | RemoteFeatureFlagControllerGetStateAction;
 
 export type MoneyAccountLifecycleControllerStateChangedEvent =
@@ -132,6 +135,8 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #derivedIdentities?: DerivedIdentity[];
 
+  readonly #registrationsInFlight = new Set<string>();
+
   constructor({
     messenger,
     state,
@@ -170,7 +175,9 @@ export class MoneyAccountLifecycleController extends BaseController<
    * along with its identity. After each fetch, or when the recorded lifecycle
    * changes, looks up whether the Money Account address, and the identity's
    * current address for a valid MFA, are registered with CHOMP, and switches
-   * `MoneyAccountController` to the MPC keyring for a valid MFA.
+   * `MoneyAccountController` to the MPC keyring for a valid MFA. Registers the
+   * Money Account address through `MoneyAccountUpgradeController` when it is
+   * not registered and is not a valid MFA.
    */
   init(): void {
     if (this.#initialized) {
@@ -288,24 +295,58 @@ export class MoneyAccountLifecycleController extends BaseController<
           .catch((error: unknown) => this.#reportError(error));
       }
 
-      this.#fetchRegistrationStatus(moneyAccount.address);
+      this.#fetchRegistrationStatus(moneyAccount.address, {
+        shouldReconcile: true,
+      });
       if (lifecycle.type === 'mfa') {
-        this.#fetchRegistrationStatus(lifecycle.identity.currentAddress);
+        this.#fetchRegistrationStatus(lifecycle.identity.currentAddress, {
+          shouldReconcile: false,
+        });
       }
     } catch (error) {
       this.#reportError(error);
     }
   }
 
-  #fetchRegistrationStatus(address: string): void {
+  #fetchRegistrationStatus(
+    address: string,
+    { shouldReconcile }: { shouldReconcile: boolean },
+  ): void {
+    const addressKey = address.toLowerCase();
     this.messenger
       .call('MoneyAccountUpgradeController:getRegistrationStatus', address)
       .then(({ isRegistered }) => {
         this.update((state) => {
-          state.addressRegistrations[address.toLowerCase()] = { isRegistered };
+          state.addressRegistrations[addressKey] = { isRegistered };
         });
+
+        const lifecycle = this.state.moneyAccounts[addressKey];
+        if (
+          shouldReconcile &&
+          !isRegistered &&
+          lifecycle &&
+          lifecycle.type !== 'mfa'
+        ) {
+          this.#registerAddress(address);
+        }
       })
       .catch((error: unknown) => this.#reportError(error));
+  }
+
+  #registerAddress(address: string): void {
+    const addressKey = address.toLowerCase();
+    if (this.#registrationsInFlight.has(addressKey)) {
+      return;
+    }
+    this.#registrationsInFlight.add(addressKey);
+
+    this.messenger
+      .call('MoneyAccountUpgradeController:upgradeAccount', address as Hex)
+      .then(() =>
+        this.#fetchRegistrationStatus(address, { shouldReconcile: false }),
+      )
+      .catch((error: unknown) => this.#reportError(error))
+      .finally(() => this.#registrationsInFlight.delete(addressKey));
   }
 
   #reportError(error: unknown): void {

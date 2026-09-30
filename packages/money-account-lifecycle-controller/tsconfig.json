@@ -18,6 +18,9 @@
     },
     {
       "path": "../money-account-controller"
+    },
+    {
+      "path": "../money-account-upgrade-controller"
     }
   ],
   "include": ["../../types", "./src"]
