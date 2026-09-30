@@ -3944,7 +3944,18 @@ export class LighterProvider implements PerpsProvider {
       const ingest = (orders: LighterApiOrder[]): void => {
         for (const order of orders) {
           if (order.ownerAccountIndex === accountIndex) {
-            terminalCache.set(String(order.clientOrderIndex), order);
+            const clientId = String(order.clientOrderIndex);
+            const previous = terminalCache.get(clientId);
+            if (
+              previous &&
+              (previous.orderIndex !== order.orderIndex ||
+                previous.marketIndex !== order.marketIndex)
+            ) {
+              throw new Error(
+                `${LIGHTER_DATA_INTEGRITY_PREFIX} conflicting inactive-order identity for client ${clientId}; TP/SL recovery is still pending`,
+              );
+            }
+            terminalCache.set(clientId, order);
           }
         }
       };

@@ -6599,6 +6599,94 @@ describe('LighterProvider', () => {
       },
     );
 
+    it('retains protection and journal when inactive receipt identities conflict', async () => {
+      const infra = createMockInfrastructure();
+      const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
+      const { provider, clientInstance, bridge } = buildProvider({
+        platformDependencies: infra,
+      });
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      const oldId = venue.seedTrigger('stop-loss', '80000');
+      venue.setCreateTerminal('filled');
+      clientInstance.getInactiveOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: venue.rawInactive.flatMap((row) => [
+          row,
+          { ...row, orderIndex: row.orderIndex + 100 },
+        ]),
+      }));
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('conflicting inactive-order identity');
+      expect(result.childOrderIds).toBeUndefined();
+      expect(venue.rawTriggers.map((row) => row.orderIndex)).toContain(oldId);
+      expect(removeItem).not.toHaveBeenCalledWith(
+        expect.stringContaining('lighterTpslJournal:'),
+      );
+    });
+
+    it.each(['take-profit', 'stop-loss'])(
+      'preserves TP/SL receipt order when %s executes after the barrier',
+      async (executedType) => {
+        const { provider, clientInstance, bridge } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const oldId = venue.seedTrigger('stop-loss', '80000');
+        const read = clientInstance.getActiveOrders.getMockImplementation();
+        if (!read) {
+          throw new Error('missing venue reader');
+        }
+        let creationReads = 0;
+        const expected = new Map<string, string>();
+        clientInstance.getActiveOrders.mockImplementation(
+          async (...args: unknown[]) => {
+            const response = (await read(...args)) as {
+              orders: RawTriggerOrder[];
+            };
+            const created = venue.rawTriggers.filter(
+              (row) => row.orderIndex !== oldId,
+            );
+            if (created.length === 2) {
+              creationReads += 1;
+              for (const row of created) {
+                expected.set(row.type, String(row.orderIndex));
+              }
+              if (creationReads === 2) {
+                venue.rawTriggers.splice(0, venue.rawTriggers.length);
+                venue.rawInactive.push(
+                  ...created
+                    .reverse()
+                    .map((row) => ({
+                      ...row,
+                      status: row.type === executedType ? 'filled' : 'canceled',
+                      remainingBaseAmount:
+                        row.type === executedType
+                          ? '0'
+                          : row.remainingBaseAmount,
+                    })),
+                );
+                return { ...response, orders: [] };
+              }
+            }
+            return response;
+          },
+        );
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(true);
+        expect(result.childOrderIds).toStrictEqual([
+          expected.get('take-profit'),
+          expected.get('stop-loss'),
+        ]);
+        expect(venue.rawTriggers).toHaveLength(0);
+      },
+    );
+
     it.each([
       'account',
       'market',
