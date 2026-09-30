@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change. ([#10855](https://github.com/MetaMask/core/pull/10855))
+- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
 
 ### Changed
 
@@ -117,9 +118,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - List local recovery obligations across all trading slots with optional `PerpsRecoveredDispatch.apiKeyIndex` and opaque wallet/network/account/slot-bound IDs. Raw pending dispatches have `acknowledgeable:false`; only resolved stored outcomes can be acknowledged, and legacy IDs must be unique across the account ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Wait for in-flight key selection in recovery readers and retain unfinished TP/SL journals after failed signer initialization ([#10618](https://github.com/MetaMask/core/pull/10618))
 - `HyperLiquidProvider.getExchangeClient` initializes the provider's SDK clients before returning the exchange client, so it signs L1 actions with the provider's agent ([#10643](https://github.com/MetaMask/core/pull/10643))
-
-### Added
-- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known.
 
 ### Fixed
 
