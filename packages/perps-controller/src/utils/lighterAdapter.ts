@@ -482,7 +482,7 @@ export function adaptFillFromLighterTrade(
     size: trade.size,
     price: trade.price,
     // The venue reports realized pnl per side of the trade.
-    pnl,
+    ...(pnl !== undefined ? { pnl } : {}),
     direction,
     ...(startPosition === undefined ? {} : { startPosition }),
     fee,

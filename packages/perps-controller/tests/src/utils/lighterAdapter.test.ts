@@ -373,10 +373,11 @@ describe('lighterAdapter', () => {
                 isAsk ? 28 : 7,
               );
 
-              expect(fill).toMatchObject({
-                direction: expected,
-                pnl,
-              });
+              expect(fill.direction).toBe(expected);
+              expect(fill.pnl).toBe(pnl);
+              if (pnl === undefined) {
+                expect(fill).not.toHaveProperty('pnl');
+              }
             }
           }
         },
@@ -650,7 +651,8 @@ describe('lighterAdapter', () => {
         28,
       );
 
-      expect(fill).toMatchObject({ pnl: undefined, direction: 'Sell' });
+      expect(fill.direction).toBe('Sell');
+      expect(fill).not.toHaveProperty('pnl');
     });
 
     it.each([
@@ -673,11 +675,8 @@ describe('lighterAdapter', () => {
 
         const fill = adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7);
 
-        expect(fill).toMatchObject({
-          pnl: undefined,
-          direction,
-          startPosition: '0',
-        });
+        expect(fill).toMatchObject({ direction, startPosition: '0' });
+        expect(fill).not.toHaveProperty('pnl');
       },
     );
 

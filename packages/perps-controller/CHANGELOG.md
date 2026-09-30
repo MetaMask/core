@@ -43,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
-
 - **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#10591](https://github.com/MetaMask/core/pull/10591))
 - **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
@@ -58,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Accept Lighter trades that omit position-sign flags or account PnL, retaining side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
+- Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
 - HyperLiquid historical orders report `rejected` for the venue's specific rejection statuses (`tickRejected`, `perpMarginRejected`, `tooManyOpenOrdersRejected`, ...) and `canceled` for `outcomeSettledCanceled` and `internalCancel`, instead of `queued` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Only one HyperLiquid unified-account migration runs at a time when several callers wait on an attempt that ends without a cached result, such as a migration deferred at init for a hardware wallet ([#10591](https://github.com/MetaMask/core/pull/10591))
 - HyperLiquid writes that fail because the keyring is locked now fail with `KEYRING_LOCKED` and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
