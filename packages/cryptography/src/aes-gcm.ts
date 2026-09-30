@@ -15,6 +15,12 @@ export type AesGcmEncryptOptions = {
 
 export type AesGcmDecryptOptions = {
   /**
+   * Associated data authenticated with the ciphertext but not encrypted.
+   * Encryption and decryption must use the same value.
+   */
+  additionalData?: BufferSource;
+
+  /**
    * Skip the IV length check. Using an IV other than 12 bytes deviates from
    * the standard and is considered less safe.
    */
@@ -71,7 +77,7 @@ export async function encrypt(
 
   const ciphertext = await globalThis.crypto.subtle.encrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    { name: 'AES-GCM', iv },
+    getAesGcmAlgorithm(iv, options),
     subtleKey,
     toUint8Array(plaintext),
   );
@@ -122,10 +128,32 @@ export async function decrypt(
 
   const plaintext = await globalThis.crypto.subtle.decrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    { name: 'AES-GCM', iv: toUint8Array(iv) },
+    getAesGcmAlgorithm(toUint8Array(iv), options),
     subtleKey,
     toUint8Array(ciphertext),
   );
 
   return new Uint8Array(plaintext);
+}
+
+/**
+ * Build the WebCrypto AES-GCM parameters.
+ *
+ * @param iv - The initialization vector.
+ * @param options - Options that may include associated data.
+ * @returns The algorithm parameters for `subtle.encrypt` or `subtle.decrypt`.
+ */
+function getAesGcmAlgorithm(
+  iv: Uint8Array<ArrayBuffer>,
+  options?: AesGcmDecryptOptions,
+): AesGcmParams {
+  if (options?.additionalData === undefined) {
+    return { name: 'AES-GCM', iv };
+  }
+
+  return {
+    name: 'AES-GCM',
+    iv,
+    additionalData: toUint8Array(options.additionalData),
+  };
 }

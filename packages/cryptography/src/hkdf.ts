@@ -4,8 +4,9 @@ const MIN_IKM_LENGTH = 32;
 
 export type HkdfOptions = {
   /**
-   * Skip the minimum IKM length check. Using IKM shorter than 32 bytes
-   * reduces the entropy of the derived key material.
+   * Skip the minimum IKM length check. Using IKM shorter than 32 bytes,
+   * including an empty input, reduces the entropy of the derived key material.
+   * An empty input is part of some protocols, such as Noise `Split`.
    */
   unsafeInputKeyingMaterial?: boolean;
 };
@@ -89,9 +90,9 @@ async function hkdf(
   keyLength: number,
   options: HkdfOptions = {},
 ): Promise<Uint8Array<ArrayBuffer>> {
-  if (ikm.byteLength === 0) {
+  if (ikm.byteLength === 0 && !options.unsafeInputKeyingMaterial) {
     throw new Error(
-      `Unsafe input keying material length: IKM must not be zero bytes for HKDF-${hash}.`,
+      `Unsafe input keying material length: IKM must not be zero bytes for HKDF-${hash}. To bypass this check, set the \`unsafeInputKeyingMaterial\` option to \`true\`.`,
     );
   }
 

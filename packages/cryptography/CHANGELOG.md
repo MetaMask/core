@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an `additionalData` option to AES-GCM `encrypt` and `decrypt`
+- Allow HKDF functions to derive from an empty input when `unsafeInputKeyingMaterial` is set
+
 ## [1.0.0]
 
 ### Added
