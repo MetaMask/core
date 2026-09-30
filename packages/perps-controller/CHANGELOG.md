@@ -42,8 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#10591](https://github.com/MetaMask/core/pull/10591))
+- **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
-  - The re-exported `FrontendOrder.orderType` adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`; historical orders of these types report `orderType: 'market'`
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
 
 ### Removed

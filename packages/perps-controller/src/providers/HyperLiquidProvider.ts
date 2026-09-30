@@ -14741,9 +14741,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Run the deferred account migration, builder fee and referral setup ahead
    * of the first order. Results are cached, so an already-ready account signs
-   * nothing. A declined migration is not asked again, and a referral whose
-   * MetaMask code is not ready yet is checked again by the next call rather
-   * than by orders.
+   * nothing. A referral whose MetaMask code is not ready yet is checked again
+   * by the next call rather than by orders.
    *
    * @returns The readiness result described on
    * `PerpsController.prepareTradingWallet`.

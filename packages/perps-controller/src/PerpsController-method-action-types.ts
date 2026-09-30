@@ -963,12 +963,11 @@ export type PerpsControllerClearAgentSignersAction = {
  * again before the first order, and only while an account is selected and
  * the main account can sign, whichever provider answered (including
  * providers without deferred setup, for example in aggregated mode). A
- * declined HyperLiquid migration is not asked again, and a HyperLiquid
- * referral whose MetaMask referral code is not ready yet is checked again at
- * the next call, not before orders, so neither holds it back. Otherwise
- * `ready: false`, without an error while a step will be asked again (a
- * declined builder fee or Lighter registration, or a step the agent could
- * not sign), or with:
+ * HyperLiquid referral whose MetaMask referral code is not ready yet is
+ * checked again at the next call, not before orders, so it does not hold
+ * it back. Otherwise `ready: false`, without an error while a step will
+ * be asked again (a declined HyperLiquid migration, builder fee or Lighter
+ * registration, or a step the agent could not sign), or with:
  * - `KEYRING_LOCKED` when the main account cannot sign, before or during
  * setup;
  * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
