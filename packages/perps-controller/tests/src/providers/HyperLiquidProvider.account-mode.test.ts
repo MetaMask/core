@@ -33,6 +33,10 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createMockExchangeClient,
+  createMockInfoClient,
+} from '../../helpers/providerMocks.js';
+import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -133,192 +137,6 @@ const mockValidateAssetSupport = validateAssetSupport as jest.MockedFunction<
 const mockValidateBalance = validateBalance as jest.MockedFunction<
   typeof validateBalance
 >;
-
-// Mock factory functions - defined once, reused everywhere
-// These reduce duplication and make tests more maintainable
-const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
-  clearinghouseState: jest.fn().mockResolvedValue({
-    marginSummary: {
-      totalMarginUsed: '500',
-      accountValue: '10500',
-    },
-    withdrawable: '9500',
-    assetPositions: [
-      {
-        position: {
-          coin: 'BTC',
-          szi: '0.1',
-          entryPx: '50000',
-          positionValue: '5000',
-          unrealizedPnl: '100',
-          marginUsed: '500',
-          leverage: { type: 'cross', value: 10 },
-          liquidationPx: '45000',
-          maxLeverage: 50,
-          returnOnEquity: '20',
-          cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
-        },
-        type: 'oneWay',
-      },
-      {
-        position: {
-          coin: 'ETH',
-          szi: '1.5',
-          entryPx: '3000',
-          positionValue: '4500',
-          unrealizedPnl: '50',
-          marginUsed: '450',
-          leverage: { type: 'cross', value: 10 },
-          liquidationPx: '2700',
-          maxLeverage: 50,
-          returnOnEquity: '10',
-          cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
-        },
-        type: 'oneWay',
-      },
-    ],
-    crossMarginSummary: {
-      accountValue: '10000',
-      totalMarginUsed: '5000',
-    },
-  }),
-  spotClearinghouseState: jest.fn().mockResolvedValue({
-    balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
-  }),
-  // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
-  // so tests that predated the gate still see spot folded into spendable/withdrawable.
-  userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
-  // Single-signer account by default; Hyperliquid returns null when the user
-  // has no multi-sig signer set.
-  userToMultiSigSigners: jest.fn().mockResolvedValue(null),
-  meta: jest.fn().mockResolvedValue({
-    universe: [
-      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
-      { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
-    ],
-  }),
-  metaAndAssetCtxs: jest.fn().mockResolvedValue([
-    {
-      universe: [
-        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
-        { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
-      ],
-    },
-    [
-      {
-        funding: '0.0001',
-        openInterest: '1000',
-        prevDayPx: '49000',
-        dayNtlVlm: '1000000',
-        markPx: '50000',
-        midPx: '50000',
-        oraclePx: '50000',
-      },
-      {
-        funding: '0.0001',
-        openInterest: '500',
-        prevDayPx: '2900',
-        dayNtlVlm: '500000',
-        markPx: '3000',
-        midPx: '3000',
-        oraclePx: '3000',
-      },
-    ],
-  ]),
-  perpDexs: jest.fn().mockResolvedValue([null]),
-  allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-  frontendOpenOrders: jest.fn().mockResolvedValue([]),
-  referral: jest.fn().mockResolvedValue({
-    referrerState: {
-      stage: 'ready',
-      data: { code: 'MMCSI' },
-    },
-  }),
-  maxBuilderFee: jest.fn().mockResolvedValue(1),
-  userFees: jest.fn().mockResolvedValue({
-    feeSchedule: {
-      cross: '0.00030',
-      add: '0.00010',
-      spotCross: '0.00040',
-      spotAdd: '0.00020',
-    },
-    dailyUserVlm: [],
-  }),
-  userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([
-    {
-      delta: { type: 'deposit', usdc: '100' },
-      time: Date.now(),
-      hash: '0x123abc',
-    },
-    {
-      delta: { type: 'withdraw', usdc: '50' },
-      time: Date.now() - 3600000,
-      hash: '0x456def',
-    },
-  ]),
-  portfolio: jest.fn().mockResolvedValue([
-    null,
-    [
-      null,
-      {
-        accountValueHistory: [
-          [Date.now() - 86400000, '10000'], // 24h ago
-          [Date.now() - 172800000, '9500'], // 48h ago
-          [Date.now() - 259200000, '9000'], // 72h ago
-        ],
-      },
-    ],
-  ]),
-  spotMeta: jest.fn().mockResolvedValue({
-    tokens: [
-      { name: 'USDC', tokenId: '0xdef456', index: 0 },
-      { name: 'USDT', tokenId: '0x789abc', index: 1 },
-    ],
-    universe: [],
-  }),
-  historicalOrders: jest.fn().mockResolvedValue([]),
-  userFills: jest.fn().mockResolvedValue([]),
-  userFillsByTime: jest.fn().mockResolvedValue([]),
-  userFunding: jest.fn().mockResolvedValue([]),
-  ...overrides,
-});
-
-const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
-  modify: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: '123' } }] } },
-  }),
-  cancel: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: ['success'] } },
-  }),
-  withdraw3: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  updateLeverage: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  approveBuilderFee: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  setReferrer: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  sendAsset: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  agentSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
-  ...overrides,
-});
 
 // Create shared mock platform dependencies for provider tests
 const mockPlatformDependencies: PerpsPlatformDependencies =
@@ -430,8 +248,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -925,10 +743,8 @@ describe('HyperLiquidProvider', () => {
           attempted: true,
           success: true,
         });
-        // Keyring is locked
-        (
-          mockWalletService as unknown as { isKeyringUnlocked: jest.Mock }
-        ).isKeyringUnlocked.mockReturnValue(false);
+        // The main account cannot sign.
+        mockWalletService.isMainAccountSignerReady.mockReturnValue(false);
 
         // Act
         await testableProvider.ensureReadyForTrading();
@@ -1876,7 +1692,7 @@ describe('HyperLiquidProvider', () => {
       ).toHaveBeenCalledWith(USER_ADDRESS, 'unifiedAccount');
     });
 
-    it('records unifiedAccount mode after migrating software-wallet dexAbstraction on init', async () => {
+    it('records unifiedAccount mode after migrating dexAbstraction on init when signatures need no confirmation', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
           userAbstraction: jest.fn().mockResolvedValue('dexAbstraction'),
@@ -1894,10 +1710,10 @@ describe('HyperLiquidProvider', () => {
     });
 
     it.each(['dexAbstraction', 'default', 'disabled'] as const)(
-      'defers %s migration on init for hardware wallets',
+      'defers %s migration on init when every signature needs confirmation',
       async (currentMode) => {
         // Arrange
-        mockWalletService.isSelectedHardwareWallet.mockReturnValue(true);
+        mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
         const mockExchangeClient = createMockExchangeClient();
         mockClientService.getInfoClient = jest.fn().mockReturnValue(
           createMockInfoClient({
