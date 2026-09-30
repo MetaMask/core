@@ -99,6 +99,7 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarginModeLock,
+  PerpsOrderPhaseCallback,
   PerpsMarketData,
   PerpsPlatformDependencies,
   PerpsProvider,
@@ -5112,6 +5113,7 @@ export class LighterProvider implements PerpsProvider {
 
   async placeOrder(
     params: OrderParams,
+    _onPhase?: PerpsOrderPhaseCallback,
     inheritedGeneration?: number,
   ): Promise<OrderResult> {
     // Tracks a COMMITTED leverage change so an order failing afterwards
@@ -5729,6 +5731,7 @@ export class LighterProvider implements PerpsProvider {
           priceAtCalculation: params.priceAtCalculation,
           maxSlippageBps: params.maxSlippageBps,
         },
+        undefined,
         generationAtIntent,
       );
     } catch (error) {

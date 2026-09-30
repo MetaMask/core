@@ -32,6 +32,7 @@ import type {
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
   PerpsFeeResolution,
+  PerpsOrderPhaseCallback,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
 import {
@@ -571,13 +572,29 @@ export class TradingService {
         ? (params.trackingData.mmPayTokenSelected ?? 'unknown_token')
         : 'perps_balance';
 
+    // Per-phase trace data, populated as the operation progresses so it's
+    // available in `finally` even when the operation throws. Keyed either as
+    // `phase.<name>_ms` (durations reported below or by the provider via
+    // `onPhase`) or by name directly for the non-timing facts
+    // (`retry_count`, `is_hip3`, `leverage_updated`) only the provider knows.
+    const phaseData: Record<string, number | boolean> = {};
+    const onPhase: PerpsOrderPhaseCallback = (name, value) => {
+      if (name === 'retry_count') {
+        phaseData.retry_count = value;
+      } else if (name === 'is_hip3' || name === 'leverage_updated') {
+        phaseData[name] = Boolean(value);
+      } else {
+        phaseData[`phase.${name}_ms`] = value;
+      }
+    };
+
     try {
       this.#deps.tracer.addBreadcrumb({
         category: 'perps',
         message: 'Order execution started',
         level: 'info',
         data: {
-          payment_token: paymentToken,
+          payment_source: paymentToken,
           market: params.symbol,
           orderType: params.orderType,
         },
@@ -594,18 +611,23 @@ export class TradingService {
           market: params.symbol,
           leverage: String(params.leverage ?? 1),
           isTestnet: String(context.tracingContext.isTestnet),
-          payment_token: paymentToken,
+          payment_source: paymentToken,
         },
         data: {
           isBuy: params.isBuy,
           orderPrice: params.price ?? '',
-          payment_token: paymentToken,
+          payment_source: paymentToken,
         },
       });
 
       // Calculate fee discount at execution time (fresh, secure)
+      const feeResolveStartTime = this.#deps.performance.now();
       const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
         this.#resolveOrderNotionalUsd(params),
+      );
+      onPhase(
+        'fee_resolve',
+        this.#deps.performance.now() - feeResolveStartTime,
       );
 
       this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
@@ -656,7 +678,7 @@ export class TradingService {
           level: 'warning',
           data: {
             thresholdMs: PERPS_CONSTANTS.PlaceOrderTimeoutMs,
-            payment_token: paymentToken,
+            payment_source: paymentToken,
             market: params.symbol,
             orderType: params.orderType,
           },
@@ -670,11 +692,17 @@ export class TradingService {
           },
         );
       }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
-      const result = await this.#withFeeDiscount({
-        provider,
-        feeResolution,
-        operation: () => provider.placeOrder(params),
-      });
+      const providerStartTime = this.#deps.performance.now();
+      let result: OrderResult;
+      try {
+        result = await this.#withFeeDiscount({
+          provider,
+          feeResolution,
+          operation: () => provider.placeOrder(params, onPhase),
+        });
+      } finally {
+        onPhase('provider', this.#deps.performance.now() - providerStartTime);
+      }
       if (orderSubmissionThresholdTimeoutId !== undefined) {
         clearTimeout(orderSubmissionThresholdTimeoutId);
         orderSubmissionThresholdTimeoutId = undefined;
@@ -765,11 +793,19 @@ export class TradingService {
       if (orderSubmissionThresholdTimeoutId !== undefined) {
         clearTimeout(orderSubmissionThresholdTimeoutId);
       }
-      // Always end trace on exit (success or failure)
+      // Always end trace on exit (success or failure). success/reason are
+      // set as tags (not just data) so they're queryable in Sentry.
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.PlaceOrder,
         id: traceId,
-        data: traceData,
+        tags: {
+          ...(traceData ? { success: traceData.success } : {}),
+          ...(traceData?.reason ? { reason: traceData.reason } : {}),
+        },
+        data: {
+          ...traceData,
+          ...phaseData,
+        },
       });
     }
   }

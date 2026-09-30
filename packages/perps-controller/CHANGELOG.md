@@ -9,12 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add per-phase timing to the `Perps Place Order` Sentry trace so it's reliable enough to set a performance budget on. `TradingService.placeOrder` times fee-discount resolution and the overall provider round trip (`phase.fee_resolve_ms`, `phase.provider_ms` on the trace data); `PerpsProvider.placeOrder` gains an optional second parameter, `onPhase`, that a provider can call to report the duration of its own internal steps under the same `phase.<name>_ms` convention. HyperLiquid reports timing for asset-info lookup, trading-readiness/signing, the leverage update, HIP-3 pre- and post-order balance handling, and the exchange submission itself, plus `retry_count`, `is_hip3`, and `leverage_updated` facts the calling service can't observe on its own. `onPhase` is optional and does nothing when a provider omits it (Lighter accepts and ignores it).
+- Add optional `tags` to `PerpsTracer.endTrace`, mirroring `trace()`, so a trace's outcome can be set as a span attribute instead of only trace data.
 - Add `PerpsController.getMarginModeLock` (and the `PerpsController:getMarginModeLock` messenger action) plus the optional `PerpsProvider.getMarginModeLock`, reporting the margin mode an asset is locked to by an open position or resting order/TWAP so clients can keep their margin-mode picker in sync with what order placement will accept. HyperLiquid implements it; other providers report `not_implemented`. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Implement `getMarginModeLock` for Lighter, reporting the mode an open position binds to its market. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Add optional `supportedMarginModes` to ready order capabilities; HyperLiquid reports `['isolated', 'cross']` for main-DEX markets and `['isolated']` for HIP-3 or isolated-only assets, so clients stop inferring margin-mode support from the provider. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
   - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
   - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
+
+### Changed
+
+- Set `success` and `reason` as tags (not just data) on the `Perps Place Order` trace's `endTrace` call, so both are queryable in Sentry instead of only visible on the span's data payload.
+- Rename the `payment_token` trace tag/data key on the `Perps Place Order` span (breadcrumbs, tags, and data) to `payment_source`, since Sentry redacts fields whose name contains `token`, which was silently dropping the value everywhere it was set. This is not a breaking API change — no public TypeScript export changed — but any Sentry query, dashboard, or alert filtering on the `payment_token` tag must be updated to `payment_source`.
 
 ## [18.0.1]
 

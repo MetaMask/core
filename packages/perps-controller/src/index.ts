@@ -208,6 +208,7 @@ export type {
   OrderParams,
   MarginMode,
   OrderResult,
+  PerpsOrderPhaseCallback,
   ScaleOrderChild,
   ChaseOrder,
   ChaseOrderMaxDistanceReached,

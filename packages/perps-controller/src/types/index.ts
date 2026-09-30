@@ -1978,6 +1978,20 @@ export type Funding = {
   transactionHash?: string; // Optional transaction hash
 };
 
+/**
+ * Reports a single named fact for the in-flight `placeOrder` trace span.
+ *
+ * For timed phases (e.g. `get_asset_info`, `exchange_order`) `value` is a
+ * duration in milliseconds; the caller prefixes/suffixes it into a
+ * `phase.<name>_ms` span attribute. A small set of non-timing names
+ * (`retry_count`, `is_hip3`, `leverage_updated`) carry a count or a 0/1
+ * boolean instead, so a single channel reports everything a provider knows
+ * about its own `placeOrder` execution that the calling service cannot
+ * observe from the outside. Optional; a provider that omits calling it loses
+ * nothing beyond that trace detail.
+ */
+export type PerpsOrderPhaseCallback = (name: string, value: number) => void;
+
 export type PerpsProvider = {
   readonly protocolId: string;
 
@@ -2020,7 +2034,10 @@ export type PerpsProvider = {
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their withdrawal routes
 
   // Trading operations → Redux (persisted, optimistic updates)
-  placeOrder(params: OrderParams): Promise<OrderResult>;
+  placeOrder(
+    params: OrderParams,
+    onPhase?: PerpsOrderPhaseCallback,
+  ): Promise<OrderResult>;
   editOrder(params: EditOrderParams): Promise<OrderResult>;
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
@@ -2602,6 +2619,7 @@ export type PerpsTracer = {
   endTrace(params: {
     name: PerpsTraceName;
     id: string;
+    tags?: Record<string, PerpsTraceValue>;
     data?: Record<string, PerpsTraceValue>;
   }): void;
 

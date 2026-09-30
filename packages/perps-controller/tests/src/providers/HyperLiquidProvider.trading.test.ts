@@ -727,6 +727,168 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(false);
     });
 
+    describe('onPhase tracing callback', () => {
+      it('reports timing for each core placeOrder phase', async () => {
+        const orderParams: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        };
+        const onPhase = jest.fn();
+
+        const result = await provider.placeOrder(orderParams, onPhase);
+
+        expect(result.success).toBe(true);
+        for (const phase of [
+          'get_asset_info',
+          'ensure_ready_for_trading',
+          'prepare_asset_for_trading',
+          'exchange_order',
+        ]) {
+          expect(onPhase).toHaveBeenCalledWith(phase, expect.any(Number));
+        }
+        expect(onPhase).toHaveBeenCalledWith('retry_count', 0);
+        expect(onPhase).toHaveBeenCalledWith('is_hip3', 0);
+        expect(onPhase).toHaveBeenCalledWith('leverage_updated', 0);
+        expect(onPhase).not.toHaveBeenCalledWith(
+          'hip3_pre_order',
+          expect.anything(),
+        );
+        expect(onPhase).not.toHaveBeenCalledWith(
+          'hip3_post_order_rebalance',
+          expect.anything(),
+        );
+      });
+
+      it('reports leverage_updated=1 when the order carries a leverage change', async () => {
+        const orderParams: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        };
+        const onPhase = jest.fn();
+
+        await provider.placeOrder(orderParams, onPhase);
+
+        expect(onPhase).toHaveBeenCalledWith('leverage_updated', 1);
+      });
+
+      it('places the order normally when onPhase is omitted', async () => {
+        const orderParams: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        };
+
+        const result = await provider.placeOrder(orderParams);
+
+        expect(result.success).toBe(true);
+      });
+
+      it('reports is_hip3=1 and times hip3_pre_order for a HIP-3 order', async () => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+          useUnifiedAccount: true,
+        });
+        const mockOrder = jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+        });
+        // collateralToken 0 matches USDC at index 0 in the default spotMeta
+        // fixture, so this order passes the USDC-collateral check.
+        const xyzMeta = {
+          universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+          collateralToken: 0,
+        };
+        const xyzAssetCtxs = [
+          {
+            funding: '0.0001',
+            openInterest: '1000',
+            prevDayPx: '95',
+            dayNtlVlm: '100000',
+            markPx: '100',
+            midPx: '100',
+            oraclePx: '100',
+          },
+        ];
+        const mockInfoClient = createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve(xyzMeta)
+              : Promise.resolve({
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                }),
+          ),
+          metaAndAssetCtxs: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) => {
+              if (params?.dex === 'xyz') {
+                return Promise.resolve([xyzMeta, xyzAssetCtxs]);
+              }
+
+              return Promise.resolve([
+                { universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }] },
+                [
+                  {
+                    funding: '0.0001',
+                    openInterest: '1000',
+                    prevDayPx: '49000',
+                    dayNtlVlm: '1000000',
+                    markPx: '50000',
+                    midPx: '50000',
+                    oraclePx: '50000',
+                  },
+                ],
+              ]);
+            }),
+          allMids: jest.fn().mockImplementation((params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              return Promise.resolve({ 'xyz:STOCK1': '100' });
+            }
+
+            return Promise.resolve({ BTC: '50000' });
+          }),
+        });
+
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(mockInfoClient);
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+        const onPhase = jest.fn();
+        const result = await hip3Provider.placeOrder(
+          {
+            symbol: 'xyz:STOCK1',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+            currentPrice: 100,
+          },
+          onPhase,
+        );
+
+        expect(result.success).toBe(true);
+        expect(onPhase).toHaveBeenCalledWith('is_hip3', 1);
+        expect(onPhase).toHaveBeenCalledWith(
+          'hip3_pre_order',
+          expect.any(Number),
+        );
+      });
+    });
+
     it('edits an order successfully', async () => {
       const editParams = {
         orderId: '123',
@@ -1144,6 +1306,94 @@ describe('HyperLiquidProvider', () => {
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         2,
       );
+    });
+
+    it('reports retry_count=1 via onPhase after the $10-minimum retry', async () => {
+      // Create provider with PUMP in the asset mapping
+      provider = createTestProvider({
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+          ['PUMP', 2],
+        ],
+      });
+
+      const pumpUniverse = [
+        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+        { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+        { name: 'PUMP', szDecimals: 2, maxLeverage: 20 },
+      ];
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          meta: jest.fn().mockResolvedValue({ universe: pumpUniverse }),
+          metaAndAssetCtxs: jest.fn().mockResolvedValue([
+            { universe: pumpUniverse },
+            [
+              {
+                funding: '0.0001',
+                openInterest: '1000',
+                prevDayPx: '49000',
+                dayNtlVlm: '1000000',
+                markPx: '50000',
+                midPx: '50000',
+                oraclePx: '50000',
+              },
+              {
+                funding: '0.0001',
+                openInterest: '500',
+                prevDayPx: '2900',
+                dayNtlVlm: '500000',
+                markPx: '3000',
+                midPx: '3000',
+                oraclePx: '3000',
+              },
+              {
+                funding: '0.0001',
+                openInterest: '100',
+                prevDayPx: '0.003',
+                dayNtlVlm: '10000',
+                markPx: '0.003918',
+                midPx: '0.003918',
+                oraclePx: '0.003918',
+              },
+            ],
+          ]),
+          allMids: jest
+            .fn()
+            .mockResolvedValue({ BTC: '50000', ETH: '3000', PUMP: '0.003918' }),
+        }),
+      );
+
+      const orderParams: OrderParams = {
+        symbol: 'PUMP',
+        isBuy: true,
+        size: '2553',
+        orderType: 'market',
+        usdAmount: '10.00',
+        currentPrice: 0.003918,
+      };
+
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue({
+        ...createMockExchangeClient(),
+        order: jest
+          .fn()
+          .mockRejectedValueOnce(
+            new Error('Order must have minimum value of $10'),
+          )
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 456 } }] } },
+          }),
+      });
+
+      const onPhase = jest.fn();
+      const result = await provider.placeOrder(orderParams, onPhase);
+
+      expect(result.success).toBe(true);
+      // The first attempt reports retry_count=0; the recursive retry it
+      // triggers reports retry_count=1, proving the retry happened.
+      expect(onPhase).toHaveBeenCalledWith('retry_count', 0);
+      expect(onPhase).toHaveBeenCalledWith('retry_count', 1);
     });
 
     it('retries size-based order with currentPrice when rejected for $10 minimum', async () => {

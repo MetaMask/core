@@ -124,6 +124,7 @@ import type {
   OrderFill,
   OrderParams,
   OrderResult,
+  PerpsOrderPhaseCallback,
   ScaleOrderChild,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
@@ -866,6 +867,7 @@ type SubmitOrderWithRollbackParams = {
   assetId: number;
   chargesMetamaskBuilderFee: boolean;
   builderFeeSetupContext?: BuilderFeeSetupContext;
+  onPhase?: PerpsOrderPhaseCallback;
 };
 
 type BuilderOrderContext = { b: string; f: number };
@@ -5429,8 +5431,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #submitOrderWithRollback(
     params: SubmitOrderWithRollbackParams,
   ): Promise<OrderResult> {
-    const { orders, grouping, isHip3Order, dexName, transferInfo, symbol } =
-      params;
+    const {
+      orders,
+      grouping,
+      isHip3Order,
+      dexName,
+      transferInfo,
+      symbol,
+      onPhase,
+    } = params;
 
     const exchangeClient = this.#clientService.getExchangeClient();
 
@@ -5451,11 +5460,20 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     try {
-      const result = await exchangeClient.order({
-        orders: this.#applySubscriptionCloid(orders),
-        grouping,
-        ...(builder && { builder }),
-      });
+      const exchangeOrderStartTime = this.#deps.performance.now();
+      let result: Awaited<ReturnType<typeof exchangeClient.order>>;
+      try {
+        result = await exchangeClient.order({
+          orders: this.#applySubscriptionCloid(orders),
+          grouping,
+          ...(builder && { builder }),
+        });
+      } finally {
+        onPhase?.(
+          'exchange_order',
+          this.#deps.performance.now() - exchangeOrderStartTime,
+        );
+      }
 
       if (result.status !== 'ok') {
         throw new Error(`Order failed: ${JSON.stringify(result)}`);
@@ -5474,7 +5492,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Success - auto-rebalance excess funds
       if (isHip3Order && transferInfo && dexName) {
-        await this.#handleHip3PostOrderRebalance({ dexName, transferInfo });
+        const rebalanceStartTime = this.#deps.performance.now();
+        try {
+          await this.#handleHip3PostOrderRebalance({ dexName, transferInfo });
+        } finally {
+          onPhase?.(
+            'hip3_post_order_rebalance',
+            this.#deps.performance.now() - rebalanceStartTime,
+          );
+        }
       }
 
       return {
@@ -5543,14 +5569,33 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Each helper method is focused on a single responsibility.
    *
    * @param params - Order parameters
+   * @param onPhase - Optional trace timing callback; see `PerpsOrderPhaseCallback`.
    * @param retryCount - Internal retry counter to prevent infinite loops (default: 0)
    * @returns A promise that resolves to the result.
    */
-  async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
+  async placeOrder(
+    params: OrderParams,
+    onPhase?: PerpsOrderPhaseCallback,
+    retryCount = 0,
+  ): Promise<OrderResult> {
     // Hoisted so the retry path in the catch block can use the fetched price
     // even when the caller (e.g. flipPosition) omits currentPrice from params.
     let effectivePrice: number | undefined;
+    // Measures a step for the Sentry trace budget even when it throws, so a
+    // step that fails partway still shows up as the slow one.
+    const timePhase = async <TResult>(
+      name: string,
+      fn: () => Promise<TResult>,
+    ): Promise<TResult> => {
+      const start = this.#deps.performance.now();
+      try {
+        return await fn();
+      } finally {
+        onPhase?.(name, this.#deps.performance.now() - start);
+      }
+    };
     try {
+      onPhase?.('retry_count', retryCount);
       this.#deps.debugLogger.log('Placing order via HyperLiquid SDK:', params);
 
       // Basic sync validation (backward compatibility)
@@ -5587,10 +5632,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // 1. Get asset info and current price before validation so price-less
       // callers (e.g. flipPosition) can validate against the live fetched price.
-      const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
-        symbol: params.symbol,
-        dexName,
-      });
+      const { assetInfo, currentPrice, meta } = await timePhase(
+        'get_asset_info',
+        () => this.#getAssetInfo({ symbol: params.symbol, dexName }),
+      );
 
       // A price or partial size that rounds away at the asset precision is
       // caught here, as soon as szDecimals is known and before anything is
@@ -5636,9 +5681,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Kept after validation so invalid orders never trigger signature prompts
       // (builder-fee approval, DEX abstraction enablement, etc.).
       const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
-      const builderFeeSetupContext = await this.#ensureReadyForTrading({
-        requiresBuilderFee: chargesMetamaskBuilderFee,
-      });
+      const builderFeeSetupContext = await timePhase(
+        'ensure_ready_for_trading',
+        () =>
+          this.#ensureReadyForTrading({
+            requiresBuilderFee: chargesMetamaskBuilderFee,
+          }),
+      );
 
       // Debug: Log asset map state before order placement
       const allMapKeys = Array.from(this.#symbolToAssetId.keys());
@@ -5700,28 +5749,34 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       // 5. Update leverage if specified
-      await this.#prepareAssetForTrading({
-        symbol: params.symbol,
-        assetId,
-        leverage: params.leverage,
-        marginMode: params.marginMode,
-      });
+      await timePhase('prepare_asset_for_trading', () =>
+        this.#prepareAssetForTrading({
+          symbol: params.symbol,
+          assetId,
+          leverage: params.leverage,
+          marginMode: params.marginMode,
+        }),
+      );
+      onPhase?.('leverage_updated', params.leverage ? 1 : 0);
 
       // 6. Handle HIP-3 balance management (if applicable)
       const isHip3Order = dexName !== null;
+      onPhase?.('is_hip3', isHip3Order ? 1 : 0);
       let transferInfo: Hip3TransferInfo | null = null;
 
       if (isHip3Order && dexName) {
         const effectiveLeverage = params.leverage ?? assetInfo.maxLeverage ?? 1;
-        const hip3Result = await this.#handleHip3PreOrder({
-          dexName,
-          symbol: params.symbol,
-          orderPrice,
-          positionSize: parseFloat(formattedSize),
-          leverage: effectiveLeverage,
-          isBuy: params.isBuy,
-          maxLeverage: assetInfo.maxLeverage,
-        });
+        const hip3Result = await timePhase('hip3_pre_order', () =>
+          this.#handleHip3PreOrder({
+            dexName,
+            symbol: params.symbol,
+            orderPrice,
+            positionSize: parseFloat(formattedSize),
+            leverage: effectiveLeverage,
+            isBuy: params.isBuy,
+            maxLeverage: assetInfo.maxLeverage,
+          }),
+        );
         transferInfo = hip3Result.transferInfo;
       }
 
@@ -5759,6 +5814,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         assetId,
         chargesMetamaskBuilderFee,
         builderFeeSetupContext,
+        onPhase,
       });
     } catch (error) {
       // Retry mechanism for $10 minimum order errors
@@ -5827,6 +5883,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             ...params,
             usdAmount: adjustedUsdAmount,
           },
+          onPhase,
           1, // Retry count = 1, prevents further retries
         );
       }

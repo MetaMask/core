@@ -470,7 +470,10 @@ describe('TradingService', () => {
       });
 
       expect(result).toEqual(mockOrderResult);
-      expect(mockProvider.placeOrder).toHaveBeenCalledWith(orderParams);
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        orderParams,
+        expect.any(Function),
+      );
       expect(mockProvider.setUserFeeDiscount).toHaveBeenCalledWith(undefined);
     });
 
@@ -504,7 +507,10 @@ describe('TradingService', () => {
 
       expect(result).toEqual(mockOrderResult);
       expect(mockProvider.setUserFeeDiscount).toHaveBeenCalledWith(6500);
-      expect(mockProvider.placeOrder).toHaveBeenCalledWith(orderParams);
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        orderParams,
+        expect.any(Function),
+      );
       expect(mockProvider.setUserFeeDiscount).toHaveBeenLastCalledWith(
         undefined,
       );
@@ -981,14 +987,14 @@ describe('TradingService', () => {
           name: expect.any(String),
           id: 'mock-trace-id',
           tags: expect.objectContaining({
-            payment_token: 'perps_balance',
+            payment_source: 'perps_balance',
           }),
         }),
       );
       expect(mockDeps.tracer.endTrace).toHaveBeenCalled();
     });
 
-    it('adds payment_token tag for order trace (perps_balance when not tradeWithToken)', async () => {
+    it('adds payment_source tag for order trace (perps_balance when not tradeWithToken)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
         isBuy: true,
@@ -1015,13 +1021,13 @@ describe('TradingService', () => {
       expect(mockDeps.tracer.trace).toHaveBeenCalledWith(
         expect.objectContaining({
           tags: expect.objectContaining({
-            payment_token: 'perps_balance',
+            payment_source: 'perps_balance',
           }),
         }),
       );
     });
 
-    it('adds payment_token tag for order trace (token symbol when tradeWithToken)', async () => {
+    it('adds payment_source tag for order trace (token symbol when tradeWithToken)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
         isBuy: true,
@@ -1055,7 +1061,279 @@ describe('TradingService', () => {
       expect(mockDeps.tracer.trace).toHaveBeenCalledWith(
         expect.objectContaining({
           tags: expect.objectContaining({
-            payment_token: 'ETH',
+            payment_source: 'ETH',
+          }),
+        }),
+      );
+    });
+
+    it('uses payment_source (not payment_token) in the order-started breadcrumb, since Sentry redacts fields named payment_token', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.tracer.addBreadcrumb).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Order execution started',
+          data: expect.objectContaining({ payment_source: 'perps_balance' }),
+        }),
+      );
+      expect(mockDeps.tracer.addBreadcrumb).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            payment_token: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('passes an onPhase callback to provider.placeOrder so the provider can report its own timing', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        orderParams,
+        expect.any(Function),
+      );
+    });
+
+    it('attaches fee-resolution and provider phase durations to endTrace data as numeric attributes', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+      let elapsed = 0;
+      (mockDeps.performance.now as jest.Mock).mockImplementation(() => {
+        elapsed += 10;
+        return elapsed;
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            'phase.fee_resolve_ms': expect.any(Number),
+            'phase.provider_ms': expect.any(Number),
+          }),
+        }),
+      );
+    });
+
+    it('forwards phase durations the provider reports via onPhase into endTrace data', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.placeOrder.mockImplementation(async (_params, onPhase) => {
+        onPhase?.('get_asset_info', 12);
+        onPhase?.('exchange_order', 34);
+        return { success: true, orderId: 'order-123' };
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            'phase.get_asset_info_ms': 12,
+            'phase.exchange_order_ms': 34,
+          }),
+        }),
+      );
+    });
+
+    it('records retry_count, is_hip3, and leverage_updated reported by the provider via onPhase', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'xyz:STOCK1',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 5,
+      };
+      mockProvider.placeOrder.mockImplementation(async (_params, onPhase) => {
+        onPhase?.('retry_count', 1);
+        onPhase?.('is_hip3', 1);
+        onPhase?.('leverage_updated', 1);
+        return { success: true, orderId: 'order-123' };
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            retry_count: 1,
+            is_hip3: true,
+            leverage_updated: true,
+          }),
+        }),
+      );
+    });
+
+    it('tags the Place Order span with success so it is queryable in Sentry (not just present in data)', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: expect.objectContaining({ success: true }),
+        }),
+      );
+    });
+
+    it('tags the Place Order span with success=false and reason on business failure', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: false,
+        error: 'Insufficient margin',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            success: false,
+            reason: 'error',
+          }),
+        }),
+      );
+    });
+
+    it('tags the Place Order span with success=false and still attaches phase timings when the provider throws', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+      const error = new Error('Network timeout');
+      mockProvider.placeOrder.mockImplementation(async (_params, onPhase) => {
+        onPhase?.('get_asset_info', 5);
+        throw error;
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        tradingService.placeOrder({
+          provider: mockProvider,
+          params: orderParams,
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        }),
+      ).rejects.toThrow('Network timeout');
+
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            success: false,
+            reason: 'error',
+          }),
+          data: expect.objectContaining({
+            'phase.get_asset_info_ms': 5,
+            'phase.fee_resolve_ms': expect.any(Number),
+            'phase.provider_ms': expect.any(Number),
           }),
         }),
       );
