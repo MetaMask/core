@@ -314,7 +314,8 @@ export type OrderParams = {
   /**
    * Explicit collateral mode. Requires leverage. HyperLiquid validates market
    * support and refuses mode changes with an open position or resting order.
-   * Omit to retain the existing isolated-leverage behavior.
+   * Omit to let the provider choose: HyperLiquid keeps an open position's
+   * mode and otherwise uses isolated.
    */
   marginMode?: MarginMode;
   existingPositionLeverage?: number; // Existing position leverage for validation (protocol constraint)
