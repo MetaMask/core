@@ -6,9 +6,9 @@ const AES_GCM_IV_LENGTH = 12;
 
 export type AesGcmEncryptOptions = {
   /**
-   * The initialization vector (nonce). If not provided, a random 12-byte IV
-   * is generated automatically. It is recommended to let the IV be generated
-   * automatically rather than providing one, to avoid IV reuse.
+   * The initialization vector. If not provided, a random 12-byte IV
+   * is generated automatically. It is recommended to use the generated one rather
+   * than providing one, to avoid IV reuse.
    */
   iv?: BufferSource;
 } & AesGcmDecryptOptions;
