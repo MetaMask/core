@@ -13,6 +13,7 @@ import type {
   RemoteFeatureFlagControllerState,
 } from '@metamask/remote-feature-flag-controller';
 import { createDeferredPromise } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type {
   DerivedIdentitiesResponse,
@@ -790,7 +791,6 @@ describe('MoneyAccountLifecycleController', () => {
         controller.init();
         await flushPromises();
 
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
         expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
           MONEY_ACCOUNT_ADDRESS,
         );
@@ -803,9 +803,12 @@ describe('MoneyAccountLifecycleController', () => {
     it('refreshes the registration status on every identity fetch', async () => {
       await withController(
         async ({ controller, gates, mocks, triggerFlagChange }) => {
+          mocks.upgradeAccount.mockReturnValue(
+            createDeferredPromise<void>().promise,
+          );
           mocks.getRegistrationStatus
-            .mockResolvedValueOnce({ isRegistered: false })
-            .mockResolvedValueOnce({ isRegistered: true });
+            .mockResolvedValueOnce({ isRegistered: true })
+            .mockResolvedValueOnce({ isRegistered: false });
 
           controller.init();
           await flushPromises();
@@ -814,7 +817,7 @@ describe('MoneyAccountLifecycleController', () => {
 
           expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
           expect(controller.state.addressRegistrations).toStrictEqual({
-            [MONEY_ACCOUNT_KEY]: { isRegistered: true },
+            [MONEY_ACCOUNT_KEY]: { isRegistered: false },
           });
         },
       );
@@ -870,6 +873,156 @@ describe('MoneyAccountLifecycleController', () => {
           await flushPromises();
 
           expect(mocks.captureException).toHaveBeenCalledWith(error);
+          expect(controller.state.addressRegistrations).toStrictEqual({
+            [MONEY_ACCOUNT_KEY]: { isRegistered: true },
+          });
+        },
+      );
+    });
+  });
+
+  describe('reconciliation', () => {
+    it('registers an unregistered SFA money account and records the refreshed registration status', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getRegistrationStatus
+          .mockResolvedValueOnce({ isRegistered: false })
+          .mockResolvedValueOnce({ isRegistered: true });
+
+        controller.init();
+        await flushPromises();
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.upgradeAccount).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
+        );
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(controller.state.addressRegistrations).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { isRegistered: true },
+        });
+      });
+    });
+
+    it('registers an unregistered money account that is not in an identity', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
+        mocks.getRegistrationStatus.mockResolvedValueOnce({
+          isRegistered: false,
+        });
+
+        controller.init();
+        await flushPromises();
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
+        );
+      });
+    });
+
+    it('does not register a money account that is already registered', async () => {
+      await withController(async ({ controller, mocks }) => {
+        controller.init();
+        await flushPromises();
+
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not register any address for an MFA', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MFA_IDENTITY],
+        });
+        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
+
+        controller.init();
+        await flushPromises();
+
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not register the money account when it has become an MFA by the time its registration status arrives', async () => {
+      await withController(
+        async ({ controller, gates, mocks, triggerFlagChange }) => {
+          const { promise, resolve } =
+            createDeferredPromise<RegistrationStatus>();
+          mocks.getDerivedIdentities
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
+          mocks.getRegistrationStatus
+            .mockReturnValueOnce(promise)
+            .mockResolvedValue({ isRegistered: false });
+
+          controller.init();
+          await flushPromises();
+          gates.remoteFeatureFlags = { someFlag: true };
+          await triggerFlagChange();
+          resolve({ isRegistered: false });
+          await flushPromises();
+
+          expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not register again when the refreshed registration status is still unregistered', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
+
+        controller.init();
+        await flushPromises();
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(controller.state.addressRegistrations).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
+        });
+      });
+    });
+
+    it('does not start a second registration while one for the same address is in flight', async () => {
+      await withController(
+        async ({ controller, gates, mocks, triggerFlagChange }) => {
+          const { promise } = createDeferredPromise<void>();
+          mocks.upgradeAccount.mockReturnValue(promise);
+          mocks.getRegistrationStatus.mockResolvedValue({
+            isRegistered: false,
+          });
+
+          controller.init();
+          await flushPromises();
+          gates.remoteFeatureFlags = { someFlag: true };
+          await triggerFlagChange();
+
+          expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+          expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('reports a failed registration and retries on the next identity fetch', async () => {
+      await withController(
+        async ({ controller, gates, mocks, triggerFlagChange }) => {
+          const error = new Error('Upgrade failed');
+          mocks.upgradeAccount.mockRejectedValueOnce(error);
+          mocks.getRegistrationStatus
+            .mockResolvedValueOnce({ isRegistered: false })
+            .mockResolvedValueOnce({ isRegistered: false })
+            .mockResolvedValueOnce({ isRegistered: true });
+
+          controller.init();
+          await flushPromises();
+
+          expect(mocks.captureException).toHaveBeenCalledWith(error);
+          expect(controller.state.addressRegistrations).toStrictEqual({
+            [MONEY_ACCOUNT_KEY]: { isRegistered: false },
+          });
+
+          gates.remoteFeatureFlags = { someFlag: true };
+          await triggerFlagChange();
+
+          expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
           expect(controller.state.addressRegistrations).toStrictEqual({
             [MONEY_ACCOUNT_KEY]: { isRegistered: true },
           });
@@ -972,6 +1125,7 @@ type Mocks = {
   getDerivedIdentities: jest.Mock<Promise<DerivedIdentitiesResponse>, []>;
   getMoneyAccount: jest.Mock<MoneyAccount | undefined, []>;
   getRegistrationStatus: jest.Mock<Promise<RegistrationStatus>, [string]>;
+  upgradeAccount: jest.Mock<Promise<void>, [Hex]>;
   useMpcKeyring: jest.Mock<
     Promise<void>,
     [{ moneyAccountAddress: string; mpcAddress: string }]
@@ -1060,6 +1214,7 @@ function getMessenger(
       'MoneyAccountController:getMoneyAccount',
       'MoneyAccountController:useMpcKeyring',
       'MoneyAccountUpgradeController:getRegistrationStatus',
+      'MoneyAccountUpgradeController:upgradeAccount',
       'RemoteFeatureFlagController:getState',
     ],
     events: [
@@ -1113,6 +1268,9 @@ async function withController<ReturnValue>(
     getRegistrationStatus: jest
       .fn<Promise<RegistrationStatus>, [string]>()
       .mockResolvedValue({ isRegistered: true }),
+    upgradeAccount: jest
+      .fn<Promise<void>, [Hex]>()
+      .mockResolvedValue(undefined),
     useMpcKeyring: jest
       .fn<
         Promise<void>,
@@ -1144,6 +1302,10 @@ async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:getRegistrationStatus',
     mocks.getRegistrationStatus,
+  );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountUpgradeController:upgradeAccount',
+    mocks.upgradeAccount,
   );
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',

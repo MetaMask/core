@@ -22,6 +22,9 @@
     },
     {
       "path": "../money-account-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-upgrade-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

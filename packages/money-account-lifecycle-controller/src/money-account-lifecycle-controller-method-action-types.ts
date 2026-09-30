@@ -16,7 +16,9 @@ import type { MoneyAccountLifecycleController } from './money-account-lifecycle-
  * along with its identity. After each fetch, or when the recorded lifecycle
  * changes, looks up whether the Money Account address, and the identity's
  * current address for a valid MFA, are registered with CHOMP, and switches
- * `MoneyAccountController` to the MPC keyring for a valid MFA.
+ * `MoneyAccountController` to the MPC keyring for a valid MFA. Registers the
+ * Money Account address through `MoneyAccountUpgradeController` when it is
+ * not registered and is not a valid MFA.
  */
 export type MoneyAccountLifecycleControllerInitAction = {
   type: `MoneyAccountLifecycleController:init`;
