@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { PhishingDetector } from './PhishingDetector.js';
 import type { PhishingDetectorOptions } from './PhishingDetector.js';
 import { formatHostnameToUrl } from './tests/utils.js';
@@ -89,7 +91,7 @@ describe('PhishingDetector', () => {
         {},
       ])('logs an error when config name is %p', async (mockInvalidName) => {
         // Mock console.error to track error logs without cluttering test output
-        const consoleErrorMock = jest.spyOn(console, 'error');
+        const consoleErrorMock = vi.spyOn(console, 'error');
 
         let detector;
 
@@ -121,7 +123,7 @@ describe('PhishingDetector', () => {
       });
 
       it('drops the invalid config and retains the valid config', async () => {
-        const consoleErrorMock = jest.spyOn(console, 'error');
+        const consoleErrorMock = vi.spyOn(console, 'error');
 
         let detector: PhishingDetector | undefined;
 
@@ -169,7 +171,7 @@ describe('PhishingDetector', () => {
       });
 
       it('logs an error when tolerance is provided without fuzzylist', async () => {
-        const consoleErrorMock = jest.spyOn(console, 'error');
+        const consoleErrorMock = vi.spyOn(console, 'error');
 
         let detector;
 
@@ -210,7 +212,7 @@ describe('PhishingDetector', () => {
         'logs an error when config version is %p',
         async (mockInvalidVersion) => {
           // Mock console.error to track error logs without cluttering test output
-          const consoleErrorMock = jest.spyOn(console, 'error');
+          const consoleErrorMock = vi.spyOn(console, 'error');
 
           let detector;
 
