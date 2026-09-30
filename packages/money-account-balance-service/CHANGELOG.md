@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stop including balance amounts in `MoneyAccountBalanceValidationError` messages, which are reported via the messenger's `captureException` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [3.1.1]
 
 ### Changed
