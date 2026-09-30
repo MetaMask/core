@@ -7,12 +7,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
+  AGENT_ADDRESS,
+  MAIN_SIGNATURE,
+  MAINNET_ACCOUNT,
+  OTHER_MAIN_ADDRESS,
+} from '../helpers/agentFixtures.js';
+import {
   createMockHyperLiquidProvider,
   createMockPosition,
 } from '../helpers/providerMocks.js';
 import {
+  createKeyringMessenger,
+  createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  keyringCalls,
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
@@ -25,6 +34,7 @@ import {
   PERPS_CONSTANTS,
   PERPS_DISK_CACHE_MARKETS,
   PERPS_DISK_CACHE_USER_DATA,
+  PROVIDER_CONFIG,
 } from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
@@ -33,11 +43,14 @@ import {
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import * as AggregatedPerpsProviderModule from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { LighterProvider } from '../../src/providers/LighterProvider.js';
 import type { ServiceContext } from '../../src/services/ServiceContext.js';
 import type {
   AccountState,
   GetAvailableDexsParams,
+  HyperLiquidCredentials,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsMarketData,
@@ -878,6 +891,51 @@ describe('PerpsController', () => {
       );
     });
 
+    it('registerLighterProvider builds Lighter on testnet with its testnet account while Lighter is pinned to testnet', () => {
+      jest.replaceProperty(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        true,
+      );
+      const MockLighterConstructor = jest.fn(() =>
+        createMockHyperLiquidProvider(),
+      );
+      const messenger = createMockMessenger();
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: {
+            lighter: { accountIndexMainnet: 1, accountIndexTestnet: 2 },
+          },
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      expect(controller.state.isTestnet).toBe(false);
+      expect(MockLighterConstructor.mock.calls).toStrictEqual([
+        [
+          {
+            isTestnet: true,
+            platformDependencies: mockInfrastructure,
+            messenger,
+            signerBridge: undefined,
+            lighterAuthConfig: {
+              enabled: undefined,
+              accountIndex: 2,
+              apiKeyIndex: undefined,
+            },
+          },
+        ],
+      ]);
+    });
+
     it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
       const moduleError = Object.assign(
         new Error('Cannot find module ./providers/LighterProvider'),
@@ -906,6 +964,512 @@ describe('PerpsController', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('account and agent signers', () => {
+    /**
+     * A host messenger `call` that answers the keyring state and the selected
+     * account, and nothing else.
+     *
+     * @param options - The host state.
+     * @param options.isUnlocked - Whether the keyring is unlocked.
+     * @param options.selectedAccount - The selected account, if any.
+     * @returns The `call` mock.
+     */
+    function createHostCall({
+      isUnlocked,
+      selectedAccount = createMockEvmAccount(),
+    }: {
+      isUnlocked: boolean;
+      // An account with an empty address stands for no selection. A getter
+      // answers with the account selected at each call.
+      selectedAccount?:
+        | { address: string }
+        | null
+        | (() => { address: string } | null);
+    }): jest.Mock {
+      return jest.fn().mockImplementation((action: string) => {
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked };
+        }
+        if (action === 'AccountsController:getSelectedAccount') {
+          const account =
+            typeof selectedAccount === 'function'
+              ? selectedAccount()
+              : selectedAccount;
+          return account ?? undefined;
+        }
+        return undefined;
+      });
+    }
+
+    it('hands infrastructure.accountSigner to the HyperLiquid and Lighter providers', async () => {
+      const accountSigner = {
+        signTypedData: jest.fn(),
+        signPersonalMessage: jest.fn(),
+      };
+      const messenger = createMockMessenger();
+      const infrastructure = { ...mockInfrastructure, accountSigner };
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure,
+      });
+
+      await controller.init();
+      registerMockLighterProvider(controller);
+
+      expect(
+        (HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>)
+          .mock.calls,
+      ).toStrictEqual([
+        [
+          {
+            isTestnet: false,
+            hip3Enabled: false,
+            allowlistMarkets: [],
+            blocklistMarkets: [],
+            priceDeviationLimit: undefined,
+            platformDependencies: infrastructure,
+            messenger,
+            builderAddressTestnet: undefined,
+            builderAddressMainnet: undefined,
+            subscriptionBuilderAddressTestnet: undefined,
+            subscriptionBuilderAddressMainnet: undefined,
+            onChaseOrderMaxDistanceReached: expect.any(Function),
+            getAgentSigner: expect.any(Function),
+            onAgentRejected: expect.any(Function),
+          },
+        ],
+      ]);
+      expect(
+        (LighterProvider as jest.MockedClass<typeof LighterProvider>).mock
+          .calls,
+      ).toStrictEqual([
+        [
+          {
+            isTestnet: false,
+            platformDependencies: infrastructure,
+            messenger,
+            signerBridge: undefined,
+            lighterAuthConfig: {
+              enabled: undefined,
+              accountIndex: undefined,
+              apiKeyIndex: undefined,
+            },
+          },
+        ],
+      ]);
+    });
+
+    const agentSigner = {
+      address: AGENT_ADDRESS,
+      signTypedData: jest.fn(),
+    } as const;
+
+    /**
+     * The agent resolver the controller handed to the last HyperLiquid
+     * provider it created.
+     *
+     * @returns The resolver.
+     */
+    function getProviderAgentResolver(): NonNullable<
+      HyperLiquidCredentials['getAgentSigner']
+    > {
+      const { calls } = (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mock;
+      const resolver = calls[calls.length - 1][0].getAgentSigner;
+      if (!resolver) {
+        throw new Error('No agent resolver handed to the provider');
+      }
+      return resolver;
+    }
+
+    /**
+     * Register the auto-mocked LighterProvider, which has Lighter's methods
+     * and so no clearAgentSigners.
+     *
+     * @param target - The initialized controller.
+     */
+    function registerMockLighterProvider(
+      target: TestablePerpsController,
+    ): void {
+      target.testRegisterLighterProvider(
+        LighterProvider as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+    }
+
+    it('rejects trading wallet preparation before init like other provider actions', async () => {
+      await expect(controller.prepareTradingWallet()).rejects.toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+    });
+
+    it('runs the agent and preparation actions called through the messenger after init', async () => {
+      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      // A keyring host, unlocked.
+      const { messenger, rootMessenger } =
+        createKeyringMessenger(MAIN_SIGNATURE);
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger,
+      });
+      mockProvider.prepareTradingWallet = jest
+        .fn()
+        .mockResolvedValue({ ready: true });
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { hyperliquid: { getAgentSigner } },
+        },
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      const resolve = getProviderAgentResolver();
+
+      rootMessenger.call(
+        'PerpsController:setAgentSigner',
+        MAINNET_ACCOUNT,
+        null,
+      );
+      const pinned = await resolve(MAINNET_ACCOUNT);
+      rootMessenger.call('PerpsController:clearAgentSigners');
+      const cleared = await resolve(MAINNET_ACCOUNT);
+      const readiness = await rootMessenger.call(
+        'PerpsController:prepareTradingWallet',
+      );
+
+      expect(pinned).toBeNull();
+      expect(cleared).toBe(agentSigner);
+      expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+      expect(readiness).toStrictEqual({ ready: true });
+      expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([[]]);
+    });
+
+    it('drops resolved agents on every provider in aggregated mode, skipping one without clearAgentSigners', async () => {
+      mockProvider.clearAgentSigners = jest.fn();
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      registerMockLighterProvider(controller);
+      const providers = controller.testGetProviders();
+
+      controller.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
+      controller.clearAgentSigners();
+
+      expect([...providers.keys()]).toStrictEqual(['hyperliquid', 'lighter']);
+      expect(providers.get('lighter')).not.toHaveProperty('clearAgentSigners');
+      expect(mockProvider.clearAgentSigners.mock.calls).toStrictEqual([[], []]);
+    });
+
+    it("builds the aggregated provider on the controller's network and live provider map", async () => {
+      const RealAggregatedPerpsProvider =
+        AggregatedPerpsProviderModule.AggregatedPerpsProvider;
+      let providerIdsAtConstruction: string[] = [];
+      const aggregatedConstructor = jest
+        .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
+        .mockImplementation((config) => {
+          providerIdsAtConstruction = [...config.providers.keys()];
+          return new RealAggregatedPerpsProvider(config);
+        });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      await controller.init();
+      registerMockLighterProvider(controller);
+
+      expect(aggregatedConstructor.mock.calls).toStrictEqual([
+        [
+          {
+            providers: expect.any(Map),
+            defaultProvider: 'hyperliquid',
+            infrastructure: mockInfrastructure,
+            isTestnet: true,
+          },
+        ],
+      ]);
+      // Lighter registered after the aggregated provider was built, into the
+      // map it shares with the controller.
+      expect(providerIdsAtConstruction).toStrictEqual(['hyperliquid']);
+      const [[constructedWith]] = aggregatedConstructor.mock.calls;
+      expect(constructedWith.providers).toBe(controller.testGetProviders());
+      expect([...constructedWith.providers.keys()]).toStrictEqual([
+        'hyperliquid',
+        'lighter',
+      ]);
+    });
+
+    it.each([
+      {
+        signer: 'the account signer',
+        canSign: true,
+        expected: { ready: true },
+      },
+      {
+        signer: 'the account signer',
+        canSign: false,
+        expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
+      },
+      { signer: 'the keyring', canSign: true, expected: { ready: true } },
+      {
+        signer: 'the keyring',
+        canSign: false,
+        expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
+      },
+    ])(
+      'reports readiness from $signer when the provider has no deferred setup (can sign: $canSign)',
+      async ({ signer, canSign, expected }) => {
+        const usesKeyring = signer === 'the keyring';
+        const call = createHostCall({ isUnlocked: canSign });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: usesKeyring
+            ? mockInfrastructure
+            : {
+                ...mockInfrastructure,
+                accountSigner: {
+                  signTypedData: jest.fn(),
+                  signPersonalMessage: jest.fn(),
+                  isReady: (): boolean => canSign,
+                },
+              },
+        });
+        await controller.init();
+        call.mockClear();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual(expected);
+        // Only a host without an account signer is asked for its keyring.
+        expect(keyringCalls(call)).toStrictEqual(
+          usesKeyring ? ['KeyringController:getState'] : [],
+        );
+      },
+    );
+
+    it.each([
+      { signer: 'the account signer', usesKeyring: false },
+      { signer: 'the keyring', usesKeyring: true },
+    ])(
+      'reports KEYRING_LOCKED when the provider reports ready while $signer cannot sign',
+      async ({ usesKeyring }) => {
+        // With an account signer, only the account signer is locked: the
+        // keyring would answer unlocked if it were asked.
+        const call = createHostCall({ isUnlocked: !usesKeyring });
+        // For example an aggregated provider whose providers have nothing to
+        // prepare, so none of them checked the signer.
+        mockProvider.prepareTradingWallet = jest
+          .fn()
+          .mockResolvedValue({ ready: true });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: usesKeyring
+            ? mockInfrastructure
+            : {
+                ...mockInfrastructure,
+                accountSigner: {
+                  signTypedData: jest.fn(),
+                  signPersonalMessage: jest.fn(),
+                  isReady: (): boolean => false,
+                },
+              },
+        });
+        await controller.init();
+        call.mockClear();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
+          [],
+        ]);
+        // Only a host without an account signer is asked for its keyring.
+        expect(keyringCalls(call)).toStrictEqual(
+          usesKeyring ? ['KeyringController:getState'] : [],
+        );
+      },
+    );
+
+    it.each([
+      { selection: 'no account', selectedAccount: null },
+      {
+        // What the AccountsController answers with nothing selected.
+        selection: 'an empty account',
+        selectedAccount: { ...createMockEvmAccount(), address: '' },
+      },
+    ])(
+      'reports NO_ACCOUNT_SELECTED when the provider reports ready while $selection is selected',
+      async ({ selectedAccount }) => {
+        // For example a provider without deferred setup, which checks no
+        // account.
+        mockProvider.prepareTradingWallet = jest
+          .fn()
+          .mockResolvedValue({ ready: true });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({
+            call: createHostCall({ isUnlocked: true, selectedAccount }),
+          }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        await controller.init();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        });
+        expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
+          [],
+        ]);
+      },
+    );
+
+    it.each([
+      {
+        change: 'selected',
+        // No account is selected when the preparation starts.
+        startAccount: { ...createMockEvmAccount(), address: '' },
+        nextAccount: createMockEvmAccount(),
+        providerResult: { ready: true },
+      },
+      {
+        change: 'switched',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: OTHER_MAIN_ADDRESS },
+        providerResult: { ready: true },
+      },
+      {
+        change: 'deselected',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: '' },
+        providerResult: { ready: true },
+      },
+      {
+        change: 'switched',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: OTHER_MAIN_ADDRESS },
+        // A not-ready result was prepared for the previous account too.
+        providerResult: {
+          ready: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        },
+      },
+    ])(
+      'reports PROVIDER_LIFECYCLE_STALE when the account is $change while the provider prepares (provider ready: $providerResult.ready)',
+      async ({ startAccount, nextAccount, providerResult }) => {
+        let selectedAccount: { address: string } = startAccount;
+        const call = createHostCall({
+          isUnlocked: true,
+          selectedAccount: () => selectedAccount,
+        });
+        // For example an aggregated provider preparing one provider after
+        // another.
+        mockProvider.prepareTradingWallet = jest.fn(async () => {
+          selectedAccount = nextAccount;
+          return providerResult;
+        });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        await controller.init();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        });
+      },
+    );
+
+    it('returns the prepared result when only the casing of the selected address changes', async () => {
+      const { address } = createMockEvmAccount();
+      let selectedAccount = { ...createMockEvmAccount(), address };
+      const call = createHostCall({
+        isUnlocked: true,
+        selectedAccount: () => selectedAccount,
+      });
+      const prepared = { ready: true };
+      mockProvider.prepareTradingWallet = jest.fn(async () => {
+        selectedAccount = {
+          ...selectedAccount,
+          address: `0x${address.slice(2).toUpperCase()}`,
+        };
+        return prepared;
+      });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({ call }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toBe(prepared);
+    });
+
+    it('returns a provider result that is not ready for another reason unchanged, without asking the keyring', async () => {
+      const notReady = {
+        ready: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      };
+      mockProvider.prepareTradingWallet = jest.fn().mockResolvedValue(notReady);
+      // A locked keyring and no selected account, which would otherwise be
+      // reported instead.
+      const call = createHostCall({ isUnlocked: false, selectedAccount: null });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({ call }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      call.mockClear();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toBe(notReady);
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      });
+      expect(keyringCalls(call)).toStrictEqual([]);
     });
   });
 

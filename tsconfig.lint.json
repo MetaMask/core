@@ -246,6 +246,9 @@
       "path": "./packages/polling-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/profile-controller/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/profile-metrics-controller/tsconfig.lint.json"
     },
     {

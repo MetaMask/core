@@ -24,7 +24,8 @@ import type {
 import type {
   CoinGeckoSpotPrice,
   V1ExchangeRatesResponse,
-  PriceSupportedNetworksResponse,
+  PriceV1SupportedNetworksResponse,
+  PriceV2SupportedNetworksResponse,
   V1HistoricalPricesResponse,
   V3SpotPricesResponse,
   V3HistoricalPricesResponse,
@@ -60,11 +61,11 @@ export class PricesApiClient extends BaseApiClient {
    */
   getPriceV1SupportedNetworksQueryOptions(
     options?: FetchOptions,
-  ): FetchQueryOptions<PriceSupportedNetworksResponse> {
+  ): FetchQueryOptions<PriceV1SupportedNetworksResponse> {
     return {
       queryKey: ['prices', 'v1SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<PriceSupportedNetworksResponse>(
+        this.fetch<PriceV1SupportedNetworksResponse>(
           this.apiUrls.PRICES,
           '/v1/supportedNetworks',
           { signal },
@@ -83,7 +84,7 @@ export class PricesApiClient extends BaseApiClient {
    */
   async fetchPriceV1SupportedNetworks(
     options?: FetchOptions,
-  ): Promise<PriceSupportedNetworksResponse> {
+  ): Promise<PriceV1SupportedNetworksResponse> {
     return this.queryClient.fetchQuery(
       this.getPriceV1SupportedNetworksQueryOptions(options),
     );
@@ -97,11 +98,11 @@ export class PricesApiClient extends BaseApiClient {
    */
   getPriceV2SupportedNetworksQueryOptions(
     options?: FetchOptions,
-  ): FetchQueryOptions<PriceSupportedNetworksResponse> {
+  ): FetchQueryOptions<PriceV2SupportedNetworksResponse> {
     return {
       queryKey: ['prices', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<PriceSupportedNetworksResponse>(
+        this.fetch<PriceV2SupportedNetworksResponse>(
           this.apiUrls.PRICES,
           '/v2/supportedNetworks',
           { signal },
@@ -115,12 +116,15 @@ export class PricesApiClient extends BaseApiClient {
   /**
    * Get price supported networks in CAIP format (v2 endpoint).
    *
+   * `partialSupport` is an object keyed by spot price endpoint
+   * (`spotPricesV2`, `spotPricesV3`), not a flat array.
+   *
    * @param options - Fetch options including cache settings.
    * @returns The supported networks response.
    */
   async fetchPriceV2SupportedNetworks(
     options?: FetchOptions,
-  ): Promise<PriceSupportedNetworksResponse> {
+  ): Promise<PriceV2SupportedNetworksResponse> {
     return this.queryClient.fetchQuery(
       this.getPriceV2SupportedNetworksQueryOptions(options),
     );

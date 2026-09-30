@@ -38,7 +38,7 @@ export async function pbkdf2Sha256(
   iterations: number,
   keyLength: number,
   options?: Pbkdf2Options,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return pbkdf2(password, salt, 'SHA-256', iterations, keyLength, options);
 }
 
@@ -59,7 +59,7 @@ export async function pbkdf2Sha384(
   iterations: number,
   keyLength: number,
   options?: Pbkdf2Options,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return pbkdf2(password, salt, 'SHA-384', iterations, keyLength, options);
 }
 
@@ -80,7 +80,7 @@ export async function pbkdf2Sha512(
   iterations: number,
   keyLength: number,
   options?: Pbkdf2Options,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return pbkdf2(password, salt, 'SHA-512', iterations, keyLength, options);
 }
 
@@ -102,7 +102,7 @@ async function pbkdf2(
   iterations: number,
   keyLength: number,
   options?: Pbkdf2Options,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   if (!options?.unsafeIterations && iterations < MIN_ITERATIONS[hash]) {
     throw new Error(
       `Unsafe number of iterations: Iterations must be at least ${MIN_ITERATIONS[hash]} for PBKDF2-${hash}. To bypass this check, set the \`unsafeIterations\` option to \`true\`.`,

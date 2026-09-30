@@ -7,14 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+
+### Fixed
+
+- Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
+
+## [19.0.0]
+
 ### Added
 
+- Add `TWAP_SLICE`, `VAULT_CLOSE` and `SPOT_DUST_CONVERSION` to `DETAILED_ORDER_TYPES` for the HyperLiquid order types added in `@nktkas/hyperliquid` 0.33.3 ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Add `PerpsController.getMarginModeLock` (and the `PerpsController:getMarginModeLock` messenger action) plus the optional `PerpsProvider.getMarginModeLock`, reporting the margin mode an asset is locked to by an open position or resting order/TWAP so clients can keep their margin-mode picker in sync with what order placement will accept. HyperLiquid implements it; other providers report `not_implemented`. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Implement `getMarginModeLock` for Lighter, reporting the mode an open position binds to its market. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Add optional `supportedMarginModes` to ready order capabilities; HyperLiquid reports `['isolated', 'cross']` for main-DEX markets and `['isolated']` for HIP-3 or isolated-only assets, so clients stop inferring margin-mode support from the provider. ([#10414](https://github.com/MetaMask/core/pull/10414))
 - Persist the Isolated/Cross margin-mode pick per market and network in `tradeConfigurations[network][symbol].marginMode`, so clients can restore it after the order form remounts and share it across Mobile and Extension ([#10464](https://github.com/MetaMask/core/pull/10464))
   - Add `getMarginMode(symbol)` and `saveMarginMode(symbol, marginMode)` methods, exposed as the `PerpsController:getMarginMode` and `PerpsController:saveMarginMode` messenger actions (`PerpsControllerGetMarginModeAction`, `PerpsControllerSaveMarginModeAction`). `saveMarginMode` ignores values other than `isolated` or `cross`.
   - Add the `selectMarginMode(state, symbol)` selector and an optional `marginMode` field on `TradeConfiguration`.
+- Add optional `accountSigner` to `PerpsPlatformDependencies` so clients without a `KeyringController` can sign through their own wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Export the new `PerpsAccountSigner` and `PerpsTypedDataPayload` types
+  - When set, HyperLiquid typed-data signing and Lighter `personal_sign` go through it and never call the `KeyringController:*` messenger actions; the signing address still comes from the messenger's selected account
+  - `isReady()` returning `false` fails signing with the existing `KEYRING_LOCKED` error code
+  - `requiresSignatureConfirmation()` defers HyperLiquid's optional init-time signing prompts like a hardware keyring does; when omitted, the selected account's keyring type decides
+- Add HyperLiquid agent signing so orders, cancels and other L1 actions are signed by a host-owned agent key instead of prompting the main wallet ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Add optional `providerCredentials.hyperliquid.getAgentSigner(account)`, which resolves the approved agent (new exported `PerpsAgentSigner` and `PerpsAgentAccount` types) when an L1 action is signed for that main account and network, including the unified-account migration the provider may sign while connecting
+  - An agent `getAgentSigner` returns is kept for the provider's lifetime or until `setAgentSigner`/`clearAgentSigners`; `null` and failures are asked again at the next L1 action
+  - An agent whose signing throws fails that action with `KEYRING_LOCKED` and stays in use, so a host calls `clearAgentSigners` when its agent key locks
+  - Add `PerpsController:setAgentSigner(account, agentSigner)` (`PerpsControllerSetAgentSignerAction`) to bind an agent to an explicit main account and network, or pin that account to the main wallet with `null`; the controller keeps bindings across provider re-creation; `setAgentSigner()` can be called on the controller before `init`, and the messenger action is available once `init` has run
+  - Add `PerpsController:clearAgentSigners` (`PerpsControllerClearAgentSignersAction`) to forget every agent, for example when the wallet locks, so the next L1 action asks `getAgentSigner` again
+  - Add optional `PerpsProvider.clearAgentSigners`, implemented by the HyperLiquid provider
+  - An agent the venue rejects as unknown (revoked or expired, for example after the user approves another unnamed agent) is dropped, together with a `setAgentSigner` binding to it, so the next L1 action asks `getAgentSigner` again; the rejected action fails with `KEYRING_LOCKED` instead of `EXCHANGE_ACCOUNT_NOT_FOUND`
+  - Add optional `providerCredentials.hyperliquid.onAgentRejected(account, agentAddress)`, called with the agent's address as the client supplied it for each write the venue rejects with that agent, so the client can re-check its approval
+  - The exported `HyperLiquidProvider` accepts the matching optional `getAgentSigner` and `onAgentRejected` constructor options and implements `clearAgentSigners`
+  - An agent only ever signs for the main account and network it was set or resolved for, and user-signed actions (builder fee, withdraw, ...) always stay on the main account; approving the agent remains the client's job
+  - Export `HYPERLIQUID_L1_ACTION_PRIMARY_TYPE` and `HYPERLIQUID_L1_ACTION_DOMAIN_NAME`, the EIP-712 shape that marks an L1 action
+- Add `PerpsController:prepareTradingWallet` (`PerpsControllerPrepareTradingWalletAction`) and optional `PerpsProvider.prepareTradingWallet` to run the deferred trading setup before the first order, so its signatures happen in a guided session: account migration, builder fee and referral on HyperLiquid, venue-key registration on Lighter ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - The builder fee and the Lighter registration are signed by the main account; with an agent, the HyperLiquid referral and unified-account migration are signed by the agent
+  - Resolves a `ReadyToTradeResult` that is `ready: true` once an account is selected, the main-account signer is ready and none of these steps will need a signature again before the first order, and `ready: false` while one will be retried, including after an agent could not sign; `ready: false` carries `KEYRING_LOCKED` while the signer is not ready, `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue yet, `NO_ACCOUNT_SELECTED`, `PROVIDER_LIFECYCLE_STALE` when the provider or account changed during setup, or the message of the logged error that stopped setup; the aggregated provider prepares every provider in turn
+  - A HyperLiquid referral whose MetaMask referral code is not ready yet does not hold the result back; the next `prepareTradingWallet` checks the code again, and orders do not
+  - Implemented by the exported `HyperLiquidProvider` and by the Lighter provider, which resolves `ready: true` at once when it is read-only (no signer bridge), an account is selected and the main-account signer is ready
+- Add optional `isTestnet` to `AggregatedProviderConfig`, which tags the errors the aggregated provider logs with the network ([#10559](https://github.com/MetaMask/core/pull/10559))
+
+### Changed
+
+- **BREAKING:** `OrderFill.liquidation.liquidatedUser` is now optional, since HyperLiquid omits it on some liquidation fills ([#10591](https://github.com/MetaMask/core/pull/10591))
+- **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
+- Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
+  - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
+
+### Removed
+
+- **BREAKING:** Remove the `LighterPersonalSigner` type and the `personalSigner` and `l1Address` fields of `LighterAuthConfig` ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - `PerpsController` never forwarded these fields to the Lighter provider, so they had no effect for controller clients
+  - To sign Lighter L1 messages without a `KeyringController`, set `PerpsPlatformDependencies.accountSigner.signPersonalMessage`; the L1 address comes from the messenger's selected account
+- Remove the HyperLiquid `dexAbstraction` to Unified Account migration, which prompted the main wallet through `userSetAbstraction`; HyperLiquid retired the `dexAbstraction` mode, and `default` / `disabled` accounts still migrate through `agentSetAbstraction` ([#10591](https://github.com/MetaMask/core/pull/10591))
+
+### Fixed
+
+- HyperLiquid historical orders report `rejected` for the venue's specific rejection statuses (`tickRejected`, `perpMarginRejected`, `tooManyOpenOrdersRejected`, ...) and `canceled` for `outcomeSettledCanceled` and `internalCancel`, instead of `queued` ([#10591](https://github.com/MetaMask/core/pull/10591))
+- Only one HyperLiquid unified-account migration runs at a time when several callers wait on an attempt that ends without a cached result, such as a migration deferred at init for a hardware wallet ([#10591](https://github.com/MetaMask/core/pull/10591))
+- HyperLiquid writes that fail because the keyring is locked now fail with `KEYRING_LOCKED` and are no longer reported as errors by the provider or `TradingService` ([#10559](https://github.com/MetaMask/core/pull/10559))
+  - Before, they failed with the SDK's "Failed to sign the typed data using the wallet" message, or with `TPSL_UPDATE_FAILED` for a TP/SL update whose builder fee was not approved yet
+  - Covers orders, edits, single and batch cancels (TWAP, scale and chase cancels included), position closes, TP/SL updates and clears, margin updates, withdrawals and transfers between DEXs, including the HIP-3 transfers around an order
+- HyperLiquid `cancelOrders` reports each order of a batch with its own result when an entry fails: orders the venue cancelled are no longer reported as failed with the batch's error ([#10559](https://github.com/MetaMask/core/pull/10559))
+- HyperLiquid orders that set leverage without `marginMode` now keep the open position's margin mode instead of switching to isolated, so flipping a Cross position no longer fails with "Cannot switch leverage type with open position" ([#10588](https://github.com/MetaMask/core/pull/10588))
+- Wait up to `PERPS_CONSTANTS.ConnectionTimeoutMs` for the client's follow-up `init()` when a controller action (such as `placeOrder`) was waiting on a `disconnect()`, so an order submitted during a disconnect-then-init reconnect is placed instead of failing with `CLIENT_NOT_INITIALIZED` ([#10589](https://github.com/MetaMask/core/pull/10589))
+  - If that reconnect switched the selected account, the network or the active provider, the action fails with `PROVIDER_LIFECYCLE_STALE` instead of running under the new context.
 
 ## [18.0.1]
 
@@ -1027,7 +1088,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0
