@@ -6332,11 +6332,6 @@
       "count": 3
     }
   },
-  "packages/transaction-controller/src/utils/gas-fee-tokens.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 2
-    }
-  },
   "packages/transaction-controller/src/utils/gas-fees.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
