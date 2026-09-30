@@ -180,8 +180,6 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-          # The pull request is checked out as the merge of the branch into its
-          # base, and the check reads the base from the first parent.
           fetch-depth: 2
       - name: Run yarn lint:suppressions:ratchet
         run: yarn lint:suppressions:ratchet
