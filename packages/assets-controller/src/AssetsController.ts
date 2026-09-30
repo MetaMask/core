@@ -25,6 +25,7 @@ import type {
   AccountActivityServiceStatusChangedEvent,
   SupportedCurrency,
 } from '@metamask/core-backend';
+import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
 import type {
   KeyringControllerIsUnlockedAction,
   KeyringControllerLockEvent,
@@ -32,6 +33,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type { MultichainTransactionsControllerTransactionConfirmedEvent } from '@metamask/multichain-transactions-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -354,6 +356,8 @@ type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent
   | TransactionControllerTransactionConfirmedEvent
+  // AssetsController — non-EVM (Snap keyring) transaction confirmations
+  | MultichainTransactionsControllerTransactionConfirmedEvent
   // RpcDataSource, StakedBalanceDataSource
   | NetworkControllerStateChangeEvent
   // AssetsController (default-asset seeding + cross-source asset refresh
@@ -1291,7 +1295,7 @@ export class AssetsController extends BaseController<
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
       (transactionMeta: TransactionMeta) => {
-        this.#refreshAssetsForTransaction(transactionMeta);
+        this.#refreshAssetsForEVMTransaction(transactionMeta);
       },
     );
 
@@ -1302,20 +1306,31 @@ export class AssetsController extends BaseController<
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta: TransactionMeta) => {
-        this.#refreshAssetsForTransaction(transactionMeta);
+        this.#refreshAssetsForEVMTransaction(transactionMeta);
+      },
+    );
+
+    // Non-EVM equivalent of the above: Snap keyrings report transaction
+    // lifecycle through MultichainTransactionsController. When the chain is
+    // not covered by AccountActivity (WebSocket down / unsupported), refresh
+    // via the Accounts API with the server cache bypassed.
+    this.messenger.subscribe(
+      'MultichainTransactionsController:transactionConfirmed',
+      (transaction: KeyringTransaction) => {
+        this.#refreshAssetsForNonEvmTransaction(transaction);
       },
     );
   }
 
   /**
-   * Force-refresh assets for the account/chain of a transaction, unless the
-   * chain is already covered by AccountActivity (real-time WebSocket balances).
-   * Always bypasses the Accounts API's server-side cache so a refresh cannot
-   * be answered with a stale pre-transaction snapshot.
+   * Force-refresh assets for the account/chain of an EVM transaction, unless
+   * the chain is already covered by AccountActivity (real-time WebSocket
+   * balances). Always bypasses the Accounts API's server-side cache so a
+   * refresh cannot be answered with a stale pre-transaction snapshot.
    *
    * @param transactionMeta - The transaction that triggered the refresh.
    */
-  #refreshAssetsForTransaction(transactionMeta: TransactionMeta): void {
+  #refreshAssetsForEVMTransaction(transactionMeta: TransactionMeta): void {
     const hexChainId = transactionMeta.chainId;
     if (!hexChainId) {
       return;
@@ -1323,8 +1338,53 @@ export class AssetsController extends BaseController<
 
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
 
-    // AccountActivity pushes live balance updates for its active chains; a
-    // force getAssets would be redundant and can race the WebSocket path.
+    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
+    if (!fromAddress) {
+      return;
+    }
+
+    this.#refreshAssetsAfterConfirmed(
+      caipChainId,
+      (account) => account.address.toLowerCase() === fromAddress,
+    );
+  }
+
+  /**
+   * Non-EVM counterpart of `#refreshAssetsForEVMTransaction` for transactions
+   * reported by Snap keyrings via
+   * `MultichainTransactionsController`. The keyring `Transaction` already
+   * carries a CAIP-2 `chain` and the internal `account` id, so no address
+   * normalisation is needed.
+   *
+   * @param transaction - The confirmed keyring transaction.
+   */
+  #refreshAssetsForNonEvmTransaction(transaction: KeyringTransaction): void {
+    const { chain, account: accountId } = transaction;
+    if (!chain || !accountId || !isCaipChainId(chain)) {
+      return;
+    }
+
+    this.#refreshAssetsAfterConfirmed(
+      chain,
+      (account) => account.id === accountId,
+    );
+  }
+
+  /**
+   * Shared post-transaction refresh: skip when AccountActivity already pushes
+   * live balances for `caipChainId` (a force fetch would be redundant and can
+   * race the WebSocket path); otherwise run a force `getAssets` for the first
+   * selected account matching `matchAccount`, bypassing the Accounts API's
+   * server-side cache.
+   *
+   * @param caipChainId - CAIP-2 chain the transaction was on.
+   * @param matchAccount - Predicate selecting the originating account among
+   * the currently selected accounts.
+   */
+  #refreshAssetsAfterConfirmed(
+    caipChainId: ChainId,
+    matchAccount: (account: InternalAccount) => boolean,
+  ): void {
     if (
       this.#accountActivityDataSource
         .getActiveChainsSync()
@@ -1333,14 +1393,7 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
-    if (!fromAddress) {
-      return;
-    }
-
-    const matchedAccount = this.#getSelectedAccounts().find(
-      (account) => account.address.toLowerCase() === fromAddress,
-    );
+    const matchedAccount = this.#getSelectedAccounts().find(matchAccount);
     if (!matchedAccount) {
       return;
     }

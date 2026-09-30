@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
+  - `AssetsController` subscribes to `MultichainTransactionsController:transactionConfirmed` so non-EVM (Snap keyring) transactions trigger the same post-transaction balance refresh as EVM `TransactionController:transactionConfirmed`.
+  - Consumers must delegate `MultichainTransactionsController:transactionConfirmed` onto the Assets controller messenger. Without that delegation the subscription is registered and never fires.
 - Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks accounts as loading while their assets are fetched, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
 
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/assets-controllers` from `^112.0.4` to `^112.1.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
 
 ### Fixed
 

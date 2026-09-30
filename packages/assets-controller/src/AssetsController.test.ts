@@ -3,6 +3,7 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -247,6 +248,24 @@ function createMockInternalAccount(
       importTime: Date.now(),
       lastSelected: Date.now(),
     },
+    ...overrides,
+  };
+}
+
+function createMockKeyringTransaction(
+  overrides?: Partial<KeyringTransaction>,
+): KeyringTransaction {
+  return {
+    id: 'mock-tx-id',
+    chain: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+    account: MOCK_ACCOUNT_ID,
+    status: 'confirmed',
+    type: 'send',
+    timestamp: null,
+    from: [],
+    to: [],
+    fees: [],
+    events: [],
     ...overrides,
   };
 }
@@ -4226,6 +4245,131 @@ describe('AssetsController', () => {
         );
 
         getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('force refreshes assets with server cache bypass when a non-EVM transaction is confirmed', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish(
+          'MultichainTransactionsController:transactionConfirmed',
+          createMockKeyringTransaction({
+            chain: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            account: MOCK_ACCOUNT_ID,
+          }),
+        );
+
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
+      });
+    });
+
+    it('does not force refresh assets for a non-EVM transaction from a non-selected account', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish(
+          'MultichainTransactionsController:transactionConfirmed',
+          createMockKeyringTransaction({
+            chain: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            account: 'some-other-account-id',
+          }),
+        );
+
+        // The subscriber decides synchronously whether to call getAssets, so
+        // no waiting is needed before asserting it was skipped.
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not force refresh assets for a non-EVM transaction on an AccountActivity-active chain', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+          status: 'up',
+        });
+
+        messenger.publish(
+          'MultichainTransactionsController:transactionConfirmed',
+          createMockKeyringTransaction({
+            chain: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            account: MOCK_ACCOUNT_ID,
+          }),
+        );
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('force refreshes assets for a non-EVM transaction once the AccountActivity chain goes down', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+          status: 'up',
+        });
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+          status: 'down',
+        });
+
+        messenger.publish(
+          'MultichainTransactionsController:transactionConfirmed',
+          createMockKeyringTransaction({
+            chain: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            account: MOCK_ACCOUNT_ID,
+          }),
+        );
+
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
+      });
+    });
+
+    it('does not force refresh assets for a non-EVM transaction with an invalid chain', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish(
+          'MultichainTransactionsController:transactionConfirmed',
+          createMockKeyringTransaction({
+            chain: 'not-a-caip-chain' as KeyringTransaction['chain'],
+            account: MOCK_ACCOUNT_ID,
+          }),
+        );
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
       });
     });
 
