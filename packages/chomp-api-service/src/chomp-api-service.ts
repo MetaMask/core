@@ -56,6 +56,10 @@ const CHOMP_INTENT_TYPES: ChompIntentType[] = [
   'cash-subscription',
 ];
 
+function isChompIntentType(value: string): value is ChompIntentType {
+  return (CHOMP_INTENT_TYPES as string[]).includes(value);
+}
+
 // === GENERAL ===
 
 /**
@@ -225,7 +229,7 @@ const IntentEntryArrayStruct = array(
       allowance: StrictHexStruct,
       tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
-      type: enums(CHOMP_INTENT_TYPES),
+      type: string(),
     }),
   }),
 );
@@ -242,7 +246,11 @@ const ServiceDetailsProtocolStruct = type({
     }),
   ),
   adapterAddress: StrictHexStruct,
-  intentTypes: array(enums(CHOMP_INTENT_TYPES)),
+  intentTypes: coerce(
+    array(enums(CHOMP_INTENT_TYPES)),
+    array(string()),
+    (intentTypes) => intentTypes.filter(isChompIntentType),
+  ),
 });
 
 const ServiceDetailsResponseStruct = type({
@@ -612,7 +620,8 @@ export class ChompApiService extends BaseDataService<
    * is always fetched fresh (`staleTime: 0`).
    *
    * @param address - The address to look up intents for.
-   * @returns The array of intents for the address.
+   * @returns The array of intents for the address, omitting any with an
+   * intent type this service does not recognise.
    */
   async getIntentsByAddress(address: Hex): Promise<IntentEntry[]> {
     const jsonResponse = await this.fetchQuery({
@@ -636,7 +645,10 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    return create(jsonResponse, IntentEntryArrayStruct);
+    return create(jsonResponse, IntentEntryArrayStruct).filter(
+      (intent): intent is IntentEntry =>
+        isChompIntentType(intent.metadata.type),
+    );
   }
 
   /**
