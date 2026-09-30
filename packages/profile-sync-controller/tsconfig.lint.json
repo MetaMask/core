@@ -25,6 +25,9 @@
     },
     {
       "path": "../controller-utils/tsconfig.lint.json"
-    }
+    },
+    {
+      "path": "../cryptography/tsconfig.lint.json"
+    },
   ]
 }

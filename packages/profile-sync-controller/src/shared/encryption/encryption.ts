@@ -1,8 +1,8 @@
-import { gcm } from '@noble/ciphers/aes';
-import { randomBytes } from '@noble/ciphers/webcrypto';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
+import { decrypt, encrypt } from '@metamask/cryptography/aes-gcm';
+import { getErrorMessage } from '@metamask/utils';
 
 import type { NativeScrypt } from '../types/encryption.js';
 import {
@@ -68,8 +68,7 @@ class EncryptorDecryptor {
         nativeScryptCrypto,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to encrypt string - ${errorMessage}`);
+      throw new Error(`Unable to encrypt string - ${getErrorMessage(e)}`);
     }
   }
 
@@ -93,8 +92,7 @@ class EncryptorDecryptor {
         `Unsupported encrypted data payload - ${encryptedDataStr}`,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to decrypt string - ${errorMessage}`);
+      throw new Error(`Unable to decrypt string - ${getErrorMessage(e)}`);
     }
   }
 
@@ -119,7 +117,7 @@ class EncryptorDecryptor {
     const plaintextRaw = utf8ToBytes(plaintext);
     const ciphertextAndNonceAndSalt = concatBytes(
       salt,
-      this.#encrypt(plaintextRaw, key),
+      await this.#encrypt(plaintextRaw, key),
     );
 
     // Convert to Base64
@@ -174,7 +172,7 @@ class EncryptorDecryptor {
     );
 
     // Decrypt and return result.
-    return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
+    return bytesToUtf8(await this.#decrypt(ciphertextAndNonce, key));
   }
 
   getSalt(encryptedDataStr: string) {
@@ -198,8 +196,7 @@ class EncryptorDecryptor {
         `Unsupported encrypted data payload - ${encryptedDataStr}`,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to get salt - ${errorMessage}`);
+      throw new Error(`Unable to get salt - ${getErrorMessage(e)}`);
     }
   }
 
@@ -218,16 +215,14 @@ class EncryptorDecryptor {
     return strSet.size === salts.length;
   }
 
-  #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
-    const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
-
+  async #encrypt(plaintext: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
     // Encrypt and prepend nonce.
-    const ciphertext = gcm(key, nonce).encrypt(plaintext);
+    const { ciphertext, iv } = await encrypt(key, plaintext);
 
-    return concatBytes(nonce, ciphertext);
+    return concatBytes(iv, ciphertext);
   }
 
-  #decrypt(ciphertextAndNonce: Uint8Array, key: Uint8Array): Uint8Array {
+  async #decrypt(ciphertextAndNonce: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
     // Create buffers of nonce and ciphertext.
     const nonce = ciphertextAndNonce.slice(0, ALGORITHM_NONCE_SIZE);
     const ciphertext = ciphertextAndNonce.slice(
@@ -236,7 +231,7 @@ class EncryptorDecryptor {
     );
 
     // Decrypt and return result.
-    return gcm(key, nonce).decrypt(ciphertext);
+    return decrypt(key, nonce, ciphertext);
   }
 
   async #getOrGenerateScryptKey(
