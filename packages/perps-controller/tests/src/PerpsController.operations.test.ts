@@ -1729,7 +1729,7 @@ describe('PerpsController', () => {
       const feeParams = {
         orderType: 'market' as const,
         isMaker: false,
-        amount: '100000',
+        amount: '1000',
         symbol: 'BTC',
       };
 
