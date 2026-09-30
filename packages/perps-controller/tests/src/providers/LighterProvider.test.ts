@@ -5173,7 +5173,7 @@ describe('LighterProvider', () => {
         const original = stored.orders[0];
         const signedCall = (
           first.clientInstance.sendTx.mock.calls as [number, string][]
-        ).find(([type]: [number]) => type === 14);
+        ).find(([type]) => type === 14);
         if (!original || !signedCall) {
           throw new Error('Missing initial protection');
         }
@@ -5247,7 +5247,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['future', 'slack', 'legacy', 'active'])(
+    it.each(['future', 'slack', 'legacy', 'active'] as const)(
       'retains %s ownership at capacity and refuses new protection',
       async (condition) => {
         const infra = createMockInfrastructure();
@@ -5355,7 +5355,7 @@ describe('LighterProvider', () => {
         const built = buildProvider({ platformDependencies: infra });
         const venue = setupTriggerVenue(built.clientInstance, built.bridge);
         venue.seedTrigger('stop-loss', '90000');
-        const { execute } = built.bridge as { execute: jest.Mock };
+        const execute = jest.spyOn(built.bridge, 'execute');
         const sign = execute.getMockImplementation() as
           | ((
               call: LighterWasmCall,
