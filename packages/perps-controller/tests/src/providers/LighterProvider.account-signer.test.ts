@@ -706,6 +706,41 @@ describe('LighterProvider with accountSigner', () => {
     expect(client.sendTx).toHaveBeenCalledTimes(1);
   });
 
+  it('refuses a changed key during nonce-adjusted registration preparation', async () => {
+    const { provider, client, bridge, deps, accountSigner } = buildProvider({
+      storedKeyIndices: [],
+    });
+    jest.spyOn(bridge, 'createClient').mockImplementation(async (params) => ({
+      ...(await bridge.execute({
+        function: '_createClient',
+        params: [
+          params.chainId,
+          params.accountIndex,
+          params.nonce,
+          params.apiKeyIndex,
+        ],
+      })),
+      pk: params.nonce === NEXT_NONCE ? '9c'.repeat(40) : 'ab'.repeat(40),
+    }));
+    await deps.diskCache.setItem(
+      'lighterNonceLedger:testnet:28:7',
+      JSON.stringify({
+        version: 4,
+        consumedFloor: NEXT_NONCE + 1,
+        entries: [],
+        recovered: [],
+      }),
+    );
+
+    expect(await provider.prepareTradingWallet()).toStrictEqual({
+      ready: false,
+      error: 'Lighter signer identity changed during registration preparation',
+    });
+
+    expect(accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(client.sendTx).not.toHaveBeenCalled();
+  });
+
   it.each(['wallet-recovery', 'storage-only'] as const)(
     'refuses repeated slot allocation with %s discovery after key loss',
     async (discovery) => {
