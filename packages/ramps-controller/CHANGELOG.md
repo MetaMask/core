@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.1.0]
+
+### Changed
+
+- Prefer a provider the user has previously completed an order with (most recent first) over API ranking order when `setSelectedProviderForAsset` switches providers ([#10536](https://github.com/MetaMask/core/pull/10536))
+
 ## [26.0.1]
 
 ### Fixed
@@ -667,7 +673,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...HEAD
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...@metamask/ramps-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...@metamask/ramps-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...@metamask/ramps-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.0...@metamask/ramps-controller@25.1.1

@@ -31,6 +31,8 @@ const TEST_INFURA_PROJECT_ID = '00000000000000000000000000000000';
 const ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
 
 const BIN_PATH = join(__dirname, '..', 'bin', 'run.mjs');
+const ROOT_DIR = join(__dirname, '..', '..', '..');
+const RESOLVER_PATH = join(ROOT_DIR, 'scripts', 'resolver', 'register.ts');
 
 // Each step (spawn the CLI, construct a real Wallet, run PBKDF2 key derivation
 // for the first-run SRP import) is slow; give the whole lifecycle room.
@@ -77,10 +79,20 @@ async function runMm(
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [BIN_PATH, ...args], {
-      env: childEnv,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      process.execPath,
+      [
+        '--import',
+        RESOLVER_PATH,
+        '--experimental-transform-types',
+        BIN_PATH,
+        ...args,
+      ],
+      {
+        env: childEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
 
     let stdout = '';
     let stderr = '';

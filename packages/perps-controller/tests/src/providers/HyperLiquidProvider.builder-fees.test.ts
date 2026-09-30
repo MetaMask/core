@@ -316,9 +316,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -434,8 +431,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -1646,7 +1643,7 @@ describe('HyperLiquidProvider', () => {
       expect(mockCompleteInFlight).toHaveBeenCalled();
     });
 
-    it('skips cache when KEYRING_LOCKED error is thrown', async () => {
+    it('skips cache and rethrows when KEYRING_LOCKED error is thrown', async () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
@@ -1661,12 +1658,14 @@ describe('HyperLiquidProvider', () => {
         createMockExchangeClient({
           approveBuilderFee: jest
             .fn()
-            .mockRejectedValue(new Error('KEYRING_LOCKED')),
+            .mockRejectedValue(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED)),
         }),
       );
 
-      // Act - should resolve without throwing
-      await testableProvider.ensureBuilderFeeApproval();
+      // Act - rethrows, so the caller reports a retryable failure
+      await expect(testableProvider.ensureBuilderFeeApproval()).rejects.toThrow(
+        PERPS_ERROR_CODES.KEYRING_LOCKED,
+      );
 
       // Assert - cache should NOT be set (so it retries when unlocked)
       expect(
@@ -1707,44 +1706,6 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - should not call API when cached
       expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
-    });
-
-    it('waits for in-flight operation instead of duplicating request', async () => {
-      // Arrange - ensure getReferral returns undefined (not cached)
-      (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
-      ).getReferral.mockReturnValue(undefined);
-
-      // Simulate in-flight operation from another provider
-      let resolveInFlight: () => void = () => undefined;
-      const inFlightPromise = new Promise<void>((resolve) => {
-        resolveInFlight = resolve;
-      });
-      (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
-      ).isInFlight.mockReturnValue(inFlightPromise);
-
-      // Act
-      const referralPromise = testableProvider.ensureReferralSet();
-
-      // Resolve the in-flight operation
-      resolveInFlight();
-      await referralPromise;
-
-      // Verify it called isInFlight to check for concurrent operations
-      expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).isInFlight,
-      ).toHaveBeenCalledWith(
-        'referral',
-        'mainnet',
-        '0x1234567890123456789012345678901234567890',
-      );
-
-      // Assert - should not have set its own in-flight lock
-      expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setInFlight,
-      ).not.toHaveBeenCalled();
     });
 
     it('caches success after successful referral setup', async () => {

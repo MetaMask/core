@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "outDir": "./dist",
+    "rewriteRelativeImportExtensions": true,
     "rootDir": "./src"
   },
   "references": [

@@ -4790,14 +4790,6 @@
       "count": 3
     }
   },
-  "packages/perps-controller/tests/src/services/LighterWalletService.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/unbound-method": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/tests/src/services/TerminalMarketService.test.ts": {
     "no-unsafe-optional-chaining": {
       "count": 1
@@ -4962,6 +4954,11 @@
     }
   },
   "packages/preferences-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/profile-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
     }

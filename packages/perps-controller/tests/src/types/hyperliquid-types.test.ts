@@ -9,10 +9,6 @@ describe('hyperLiquidModeFoldsSpot', () => {
     expect(hyperLiquidModeFoldsSpot('portfolioMargin')).toBe(true);
   });
 
-  it('does not fold for dexAbstraction', () => {
-    expect(hyperLiquidModeFoldsSpot('dexAbstraction')).toBe(false);
-  });
-
   it('does not fold for default', () => {
     expect(hyperLiquidModeFoldsSpot('default')).toBe(false);
   });
@@ -23,7 +19,7 @@ describe('hyperLiquidModeFoldsSpot', () => {
 
   it('fail-closes (no fold) when mode is null', () => {
     // Critical: must not over-report withdrawable funds for Standard /
-    // dexAbstraction users when the abstraction mode hasn't been resolved
+    // default users when the abstraction mode hasn't been resolved
     // yet (e.g. WS spot push arrives before REST userAbstraction completes).
     expect(hyperLiquidModeFoldsSpot(null)).toBe(false);
   });
