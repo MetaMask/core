@@ -2331,9 +2331,9 @@ export type PerpsSubscriptionFeeWaiverStatus = {
 /**
  * Fee source that won the unified resolver.
  *
- * `rewards` covers both VIP and season discounts: `RewardsController` already
- * returns the better of the two as a single discount, so the perps controller
- * treats them as one source rather than re-deriving the split.
+ * `rewards` covers VIP, season, and targeted discounts. The client owned
+ * `RewardsController` combines them into a single discount; the perps
+ * controller does not re-derive their contributions.
  */
 export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
 
@@ -3430,14 +3430,19 @@ export type PerpsPlatformDependencies = {
      * Get fee discount for an account from the RewardsController.
      *
      * Returns either:
-     * - A numeric discount in basis points (e.g., 6500 = 65% discount) for legacy
-     *   VIP and season discounts (targeted participation is unknown)
+     * - A numeric discount in basis points (e.g., 6500 = 65% discount) from
+     * legacy clients (targeted participation is unknown)
      * - A structured response with `discountBips` and `targetedDiscountApplied`
      *   when targeted participation is available
      * - `null` when subscription state hasn't hydrated yet
      *
      * Pass the perps MetaMask builder base fee in bips so the rewards
      * controller can convert an absolute VIP fee into a discount fraction.
+     *
+     * The client combines VIP, season, and targeted grants into this discount.
+     * It may change when a grant is added or removed, independently of VIP tier
+     * or season. The client owns freshness; core does not cache this response.
+     * Skip caching null results and retry on the next fee calculation.
      *
      * The client may return either the legacy numeric format or the structured
      * format. The controller normalizes both and carries participation only when
