@@ -27,14 +27,11 @@ jobs:
       - name: Run yarn lint:suppressions
         shell: bash
         run: |
-          if yarn lint:suppressions; then
-            exit 0
-          fi
           if [[ "$IS_WAIVED" == 'true' ]]; then
-            echo "::warning::Suppressions were added, which the '$WAIVER_LABEL' label allows."
+            echo "::warning::Skipped, as the '$WAIVER_LABEL' label allows suppressions to be added."
             exit 0
           fi
-          exit 1
+          yarn lint:suppressions
         env:
           WAIVER_LABEL: allow-new-suppressions
           IS_WAIVED: ${{ contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
