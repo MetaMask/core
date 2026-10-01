@@ -442,6 +442,7 @@ export type PerpsControllerGetRecoveredDispatchesAction = {
  * Explicit non-financial reconciliation with local persistence. Never signs,
  * retries or acknowledges dispatches. Unsupported providers return their local
  * listed state, or an empty list when neither capability is available.
+ * Rejects account, network or provider changes during controller readiness.
  *
  * @returns Newly scoped pending and recovered dispatches.
  */

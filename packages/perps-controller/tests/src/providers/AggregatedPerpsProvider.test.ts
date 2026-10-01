@@ -235,6 +235,36 @@ describe('AggregatedPerpsProvider', () => {
       evidence: 'tx-status:3',
     };
 
+    it('returns only Lighter rows when HyperLiquid has no recovery capabilities', async () => {
+      const reconcile = jest.fn().mockResolvedValue([outcome]);
+      const listing = jest
+        .fn()
+        .mockResolvedValue([{ ...outcome, recoveryId: 'old' }]);
+      expect(mockHLProvider.reconcileRecoveredDispatches).toBeUndefined();
+      expect(mockHLProvider.getRecoveredDispatches).toBeUndefined();
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          [
+            'lighter',
+            {
+              ...mockLighterProvider,
+              getRecoveredDispatches: listing,
+              reconcileRecoveredDispatches: reconcile,
+            },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      expect(await aggregated.reconcileRecoveredDispatches()).toStrictEqual([
+        outcome,
+      ]);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(listing).not.toHaveBeenCalled();
+    });
+
     it('reconciles all providers with listing fallback and propagates failures', async () => {
       const reconcile = jest.fn().mockResolvedValue([outcome]);
       const listing = jest

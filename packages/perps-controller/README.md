@@ -169,11 +169,7 @@ read errors instead of relying on a session's old active-market snapshot.
 `MarketInfo.priceDecimals` exposes Lighter's fixed price grid for callers
 deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 
-## Contributing
-
-This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
-
-### Explicit dispatch reconciliation
+## Explicit dispatch reconciliation
 
 `getRecoveredDispatches()` lists local recovery state. Call
 `reconcileRecoveredDispatches()` only when the user requests a status check.
@@ -191,3 +187,7 @@ never grants permission to resubmit an ambiguous intent. Providers without this
 capability return their local listing, or an empty list if they have no recovery
 state. Aggregation rejects when any provider fails; consumers should retain their
 last known rows alongside that error.
+
+## Contributing
+
+This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

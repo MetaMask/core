@@ -8,6 +8,8 @@
 
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
+  createDeferred,
+  createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
@@ -53,6 +55,7 @@ jest.mock(
 jest.mock('../../src/utils/wait', () => ({
   wait: jest.fn().mockResolvedValue(undefined),
 }));
+import { wait as mockWait } from '../../src/utils/wait';
 
 // Mock stream manager
 const mockStreamManager = {
@@ -2014,6 +2017,182 @@ describe('PerpsController', () => {
   });
 
   describe('durable-settlement surfacing (manual recoveries / recovered dispatches)', () => {
+    it.each(['reconcile', 'listing'] as const)(
+      'rejects reconciliation issued during toggle cleanup before replacement %s work',
+      async (capability) => {
+        await controller.getMarkets({ standalone: true });
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        expect(controller.testHasStandaloneProvider()).toBe(true);
+
+        const cleanupStarted = createDeferred<void>();
+        const releaseCleanup = createDeferred<void>();
+        mockProvider.disconnect.mockImplementationOnce(async () => {
+          cleanupStarted.resolve();
+          await releaseCleanup.promise;
+          return { success: true };
+        });
+        const reconcile = jest.fn().mockResolvedValue([]);
+        const listing = jest.fn().mockResolvedValue([]);
+        const replacement = Object.assign(createMockHyperLiquidProvider(), {
+          getRecoveredDispatches: listing,
+          ...(capability === 'reconcile'
+            ? { reconcileRecoveredDispatches: reconcile }
+            : {}),
+        });
+        jest
+          .mocked(HyperLiquidProvider)
+          .mockImplementationOnce(() => replacement);
+        const initializationStarted = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return releaseInitialization.promise;
+        });
+
+        const toggle = controller.toggleTestnet();
+        await cleanupStarted.promise;
+        expect(controller.state.isTestnet).toBe(false);
+        const pending = controller.reconcileRecoveredDispatches();
+        const rejection = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+
+        releaseCleanup.resolve();
+        await initializationStarted.promise;
+        expect(controller.state.isTestnet).toBe(true);
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initializing,
+        );
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+        releaseInitialization.resolve();
+        await expect(toggle).resolves.toStrictEqual({
+          success: true,
+          isTestnet: true,
+        });
+        await rejection;
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['reconcile', 'listing'] as const)(
+      'rejects an account change during initialization before provider %s work',
+      async (capability) => {
+        let selectedAccount = createMockEvmAccount();
+        const selectedAccountCall = jest.fn();
+        selectedAccountCall.mockImplementation((action: string) => {
+          if (
+            action ===
+            'AccountTreeController:getAccountsFromSelectedAccountGroup'
+          ) {
+            return [selectedAccount];
+          }
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return { remoteFeatureFlags: {} };
+          }
+          return undefined;
+        });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({
+            call: selectedAccountCall,
+          }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        const reconcile = jest.fn().mockResolvedValue([]);
+        const listing = jest.fn().mockResolvedValue([]);
+        const provider = Object.assign(mockProvider, {
+          getRecoveredDispatches: listing,
+          ...(capability === 'reconcile'
+            ? { reconcileRecoveredDispatches: reconcile }
+            : {}),
+        });
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        const initializationStarted = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return releaseInitialization.promise;
+        });
+
+        const initialization = controller.init();
+        await initializationStarted.promise;
+        const pending = controller.reconcileRecoveredDispatches();
+        const rejection = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        selectedAccount = {
+          ...selectedAccount,
+          address: '0x9999999999999999999999999999999999999999',
+        };
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+        releaseInitialization.resolve();
+        await initialization;
+        await rejection;
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['reconcile', 'listing', 'none'] as const)(
+      'waits for same-context initialization before the %s recovery capability',
+      async (capability) => {
+        const rows = [
+          {
+            recoveryId: 'pending',
+            kind: 13,
+            intent: 'withdraw',
+            txHash: null,
+            outcome: 'unknown' as const,
+            evidence: 'unresolved-dispatch',
+            acknowledgeable: false,
+          },
+        ];
+        const reconcile = jest.fn().mockResolvedValue(rows);
+        const listing = jest.fn().mockResolvedValue(rows);
+        const provider = Object.assign(mockProvider, {
+          ...(capability !== 'none' ? { getRecoveredDispatches: listing } : {}),
+          ...(capability === 'reconcile'
+            ? { reconcileRecoveredDispatches: reconcile }
+            : {}),
+        });
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        const initializationStarted = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return releaseInitialization.promise;
+        });
+        const initialization = controller.init();
+        await initializationStarted.promise;
+        let settled = false;
+        const pending = controller
+          .reconcileRecoveredDispatches()
+          .then((result) => {
+            settled = true;
+            return result;
+          });
+        await Promise.resolve();
+        expect(settled).toBe(false);
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+        releaseInitialization.resolve();
+        await initialization;
+        await expect(pending).resolves.toStrictEqual(
+          capability === 'none' ? [] : rows,
+        );
+        expect(reconcile).toHaveBeenCalledTimes(
+          capability === 'reconcile' ? 1 : 0,
+        );
+        expect(listing).toHaveBeenCalledTimes(capability === 'listing' ? 1 : 0);
+      },
+    );
+
     it('registers the reconciliation messenger action during initialization', async () => {
       const register = jest.fn();
       controller = new TestablePerpsController({
