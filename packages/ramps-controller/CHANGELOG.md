@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `RampsController.setSelectedToken` matches `eip155` ERC-20 asset ids case-insensitively and keeps the catalog token's own `assetId`. Non-EVM asset ids still require an exact match ([#10545](https://github.com/MetaMask/core/pull/10545))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
 
 ## [26.1.0]
 

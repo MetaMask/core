@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fetchBlockedProfiles` calls `GET /moderation/blocks/profiles` and returns traders the caller has blocked, most recently blocked first. Pass `cursor` from the previous page; `cursor` is `null` on the last page.
   - `fetchBlockedContent` calls `GET /moderation/blocks/content` and returns comments and replies the caller has blocked, most recently blocked first, with the same cursor pagination.
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
 ## [3.5.0]
 
 ### Added
