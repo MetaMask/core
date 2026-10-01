@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.0]
+
+### Uncategorized
+
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Changed
 
 - Expose structured fetch error data ([#10494](https://github.com/MetaMask/core/pull/10494))
@@ -151,7 +161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.3...@metamask/smart-transactions-controller@27.1.0
 [27.0.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.2...@metamask/smart-transactions-controller@27.0.3
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.1...@metamask/smart-transactions-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.0...@metamask/smart-transactions-controller@27.0.1

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.1.2]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
@@ -35,7 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
 - Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
-
 - `NftController` now attributes its `PhishingController:bulkScanUrls` calls to the `nft-detection` request source, so NFT metadata URL scans are distinguishable from other callers in phishing-detection service metrics ([#10357](https://github.com/MetaMask/core/pull/10357))
 - Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
 
@@ -3571,7 +3572,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.2...HEAD
+[112.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...@metamask/assets-controllers@112.1.2
 [112.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.0...@metamask/assets-controllers@112.1.1
 [112.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...@metamask/assets-controllers@112.1.0
 [112.0.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...@metamask/assets-controllers@112.0.4

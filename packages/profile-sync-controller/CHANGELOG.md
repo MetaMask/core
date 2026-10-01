@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.0]
+
+### Uncategorized
+
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- chore(deps): update lavamoat-lavamoat (major) ([#10518](https://github.com/MetaMask/core/pull/10518))
+- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Changed
 
 - Open the verification session on enrollment and let the server set its lifetime ([#10653](https://github.com/MetaMask/core/pull/10653))
@@ -1040,7 +1052,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...@metamask/profile-sync-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
 [32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1
 [32.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...@metamask/profile-sync-controller@32.3.0

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.4]
+
+### Uncategorized
+
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- chore(deps): update lavamoat-lavamoat (major) ([#10518](https://github.com/MetaMask/core/pull/10518))
+- fix(deps): update lodash monorepo to ^4.18.1 ([#10447](https://github.com/MetaMask/core/pull/10447))
+- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
@@ -340,7 +353,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.4...HEAD
+[7.0.4]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.3...@metamask/shield-controller@7.0.4
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.2...@metamask/shield-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.1...@metamask/shield-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.0...@metamask/shield-controller@7.0.1

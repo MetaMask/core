@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.3.5]
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^82.0.0` to `^82.0.1` ([#10648](https://github.com/MetaMask/core/pull/10648))
@@ -1644,7 +1646,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...HEAD
+[76.3.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.4...@metamask/bridge-status-controller@76.3.5
 [76.3.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.3...@metamask/bridge-status-controller@76.3.4
 [76.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.2...@metamask/bridge-status-controller@76.3.3
 [76.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.1...@metamask/bridge-status-controller@76.3.2

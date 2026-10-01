@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.3]
+
+### Uncategorized
+
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
@@ -281,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.3...HEAD
+[5.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.2...@metamask/profile-metrics-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.1...@metamask/profile-metrics-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...@metamask/profile-metrics-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...@metamask/profile-metrics-controller@5.1.0
