@@ -3988,10 +3988,10 @@ export class PerpsController extends BaseController<
    * wallet/network/account/key and accepts legacy IDs only when unambiguous
    * across local account ledgers. Acknowledgment removes one stored outcome,
    * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
-   * Rejects account, network, provider or lifecycle generation changes while
-   * readiness or acknowledgment completes. A stale-context rejection after provider success
-   * does not undo removal in the issuing account; callers must re-list outcomes
-   * before acting again. Provider rejections propagate unchanged.
+   * Rejects account, network, provider or lifecycle changes while readiness or
+   * acknowledgment completes. A stale rejection after provider success does
+   * not undo removal in the issuing account. Re-list outcomes before acting
+   * again. Provider rejections propagate unchanged.
    *
    * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
    * @returns Resolves when the outcome is acknowledged.
@@ -3999,10 +3999,24 @@ export class PerpsController extends BaseController<
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
     const issuedContext = this.#getActionContext();
     const issuedGeneration = this.#lifecycleGeneration;
-    const provider = await this.#getActiveProviderWhenReady();
-    if (
+    const issuedInstance = this.activeProviderInstance;
+    const isIssuingLifetimeStale = (): boolean =>
       issuedGeneration !== this.#lifecycleGeneration ||
-      issuedContext !== this.#getActionContext()
+      issuedContext !== this.#getActionContext() ||
+      (issuedInstance !== null &&
+        this.getActiveProviderOrNull() !== issuedInstance);
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      if (isIssuingLifetimeStale()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      throw error;
+    }
+    if (
+      isIssuingLifetimeStale() ||
+      this.getActiveProviderOrNull() !== provider
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
@@ -4013,8 +4027,8 @@ export class PerpsController extends BaseController<
     }
     await provider.acknowledgeRecoveredDispatch(recoveryId);
     if (
-      issuedGeneration !== this.#lifecycleGeneration ||
-      issuedContext !== this.#getActionContext()
+      isIssuingLifetimeStale() ||
+      this.getActiveProviderOrNull() !== provider
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }

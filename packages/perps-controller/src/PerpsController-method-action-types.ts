@@ -445,10 +445,10 @@ export type PerpsControllerGetRecoveredDispatchesAction = {
  * wallet/network/account/key and accepts legacy IDs only when unambiguous
  * across local account ledgers. Acknowledgment removes one stored outcome,
  * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
- * Rejects account, network, provider or lifecycle generation changes while
- * readiness or acknowledgment completes. A stale-context rejection after provider success
- * does not undo removal in the issuing account; callers must re-list outcomes
- * before acting again. Provider rejections propagate unchanged.
+ * Rejects account, network, provider or lifecycle changes while readiness or
+ * acknowledgment completes. A stale rejection after provider success does
+ * not undo removal in the issuing account. Re-list outcomes before acting
+ * again. Provider rejections propagate unchanged.
  *
  * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
  * @returns Resolves when the outcome is acknowledged.
