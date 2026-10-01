@@ -1,4 +1,4 @@
-import { defaultAbiCoder } from '@ethersproject/abi';
+import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import type { Web3Provider } from '@ethersproject/providers';
 
 import type {
@@ -6,44 +6,142 @@ import type {
   StakedBalancePollingInput,
 } from './StakedBalanceFetcher.js';
 import {
+  STAKING_INTERFACE,
   StakedBalanceFetcher,
   isStakingContractAssetId,
 } from './StakedBalanceFetcher.js';
 
 const TEST_ADDRESS = '0x9bed78535d6a03a955f1504aadba974d9a29e292';
 const MAINNET_CHAIN_ID = '0x1';
+const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11';
 const INPUT: StakedBalancePollingInput = {
   chainId: MAINNET_CHAIN_ID,
   accountId: 'test-account-id',
   accountAddress: TEST_ADDRESS,
 };
 
+const AGGREGATE3_INTERFACE = new Interface([
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+]);
+
+function encodeUint(value: string): string {
+  return defaultAbiCoder.encode(['uint256'], [value]);
+}
+
 /**
- * Creates a mock Web3Provider that returns the specified shares and assets when called.
+ * Answers one staking sub-call inside the Multicall3 batch.
+ * `totalShares` defaults to `sharesWei` (or 1 when shares are zero) and
+ * `totalAssets` defaults to `assetsWei`, so client-side conversion reproduces
+ * `assetsWei`.
+ *
+ * @param callData - Encoded staking function calldata.
+ * @param options - Shares and vault totals to return.
+ * @param options.sharesWei - `getShares` response.
+ * @param options.assetsWei - Asset value those shares should convert to.
+ * @param options.totalAssetsWei - Override for `totalAssets`.
+ * @param options.totalSharesWei - Override for `totalShares`.
+ * @returns ABI-encoded uint256 return data.
+ */
+function answerStakingSubcall(
+  callData: string,
+  options: {
+    sharesWei: string;
+    assetsWei: string;
+    totalAssetsWei?: string;
+    totalSharesWei?: string;
+  },
+): string {
+  const totalSharesWei =
+    options.totalSharesWei ??
+    (options.sharesWei === '0' ? '1' : options.sharesWei);
+  const totalAssetsWei = options.totalAssetsWei ?? options.assetsWei;
+
+  try {
+    STAKING_INTERFACE.decodeFunctionData('getShares', callData);
+    return encodeUint(options.sharesWei);
+  } catch {
+    // Not getShares.
+  }
+  try {
+    STAKING_INTERFACE.decodeFunctionData('totalAssets', callData);
+    return encodeUint(totalAssetsWei);
+  } catch {
+    // Not totalAssets.
+  }
+  try {
+    STAKING_INTERFACE.decodeFunctionData('totalShares', callData);
+    return encodeUint(totalSharesWei);
+  } catch {
+    // Not totalShares.
+  }
+  throw new Error('Unexpected staking call');
+}
+
+/**
+ * Creates a mock Web3Provider that answers one Multicall3 staking read.
  *
  * @param options - The options for the mock provider.
- * @param options.sharesWei - The shares to return when the provider is called.
- * @param options.assetsWei - The assets to return when the provider is called.
+ * @param options.sharesWei - The shares to return for `getShares`.
+ * @param options.assetsWei - The asset amount those shares should be worth.
+ * @param options.totalAssetsWei - Override for `totalAssets`.
+ * @param options.totalSharesWei - Override for `totalShares`.
  * @returns A mock Web3Provider.
  */
 function createMockProvider(options: {
   sharesWei?: string;
   assetsWei?: string;
-}): jest.Mocked<Web3Provider> {
-  const { sharesWei = '0', assetsWei = '0' } = options;
-  let callCount = 0;
+  totalAssetsWei?: string;
+  totalSharesWei?: string;
+}): { provider: Web3Provider; call: jest.Mock } {
+  const sharesWei = options.sharesWei ?? '0';
+  const assetsWei = options.assetsWei ?? '0';
 
-  const mockCall = jest.fn().mockImplementation(async () => {
-    callCount += 1;
-    if (callCount === 1) {
-      return defaultAbiCoder.encode(['uint256'], [sharesWei]);
-    }
-    return defaultAbiCoder.encode(['uint256'], [assetsWei]);
+  const call = jest.fn().mockImplementation(async (tx: { data: string }) => {
+    const [calls] = AGGREGATE3_INTERFACE.decodeFunctionData(
+      'aggregate3',
+      tx.data,
+    ) as [{ callData: string }[]];
+    const results = calls.map((subcall) => ({
+      success: true,
+      returnData: answerStakingSubcall(subcall.callData, {
+        sharesWei,
+        assetsWei,
+        totalAssetsWei: options.totalAssetsWei,
+        totalSharesWei: options.totalSharesWei,
+      }),
+    }));
+    return AGGREGATE3_INTERFACE.encodeFunctionResult('aggregate3', [results]);
   });
 
   return {
-    call: mockCall,
-  } as unknown as jest.Mocked<Web3Provider>;
+    call,
+    provider: { call } as unknown as Web3Provider,
+  };
 }
 
 function createFetcher(
@@ -96,7 +194,7 @@ describe('StakedBalanceFetcher', () => {
     });
 
     it('accepts config with getNetworkProvider and pollingInterval', () => {
-      const provider = createMockProvider({});
+      const { provider } = createMockProvider({});
       expect(() =>
         createFetcher({
           getNetworkProvider: () => provider,
@@ -108,7 +206,7 @@ describe('StakedBalanceFetcher', () => {
 
   describe('fetchStakedBalance', () => {
     it('returns amount "0" when chain has no staking contract', async () => {
-      const provider = createMockProvider({ sharesWei: '100' });
+      const { provider, call } = createMockProvider({ sharesWei: '100' });
       const fetcher = createFetcher({
         getNetworkProvider: () => provider,
       });
@@ -119,11 +217,11 @@ describe('StakedBalanceFetcher', () => {
       });
 
       expect(result).toStrictEqual({ amount: '0' });
-      expect(provider.call).not.toHaveBeenCalled();
+      expect(call).not.toHaveBeenCalled();
     });
 
     it('returns amount "0" when getShares returns zero', async () => {
-      const provider = createMockProvider({ sharesWei: '0' });
+      const { provider, call } = createMockProvider({ sharesWei: '0' });
       const fetcher = createFetcher({
         getNetworkProvider: () => provider,
       });
@@ -131,11 +229,11 @@ describe('StakedBalanceFetcher', () => {
       const result = await fetcher.fetchStakedBalance(INPUT);
 
       expect(result).toStrictEqual({ amount: '0' });
-      expect(provider.call).toHaveBeenCalledTimes(1);
+      expect(call).toHaveBeenCalledTimes(1);
     });
 
     it('returns human-readable amount when shares and assets are non-zero', async () => {
-      const provider = createMockProvider({
+      const { provider, call } = createMockProvider({
         sharesWei: '1000000000000000000',
         assetsWei: '1500000000000000000', // 1.5 ETH
       });
@@ -146,17 +244,49 @@ describe('StakedBalanceFetcher', () => {
       const result = await fetcher.fetchStakedBalance(INPUT);
 
       expect(result).toStrictEqual({ amount: '1.5' });
-      expect(provider.call).toHaveBeenCalledTimes(2);
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(call).toHaveBeenCalledWith(
+        expect.objectContaining({ to: MULTICALL3_ADDRESS }),
+      );
+    });
+
+    it('converts shares with the vault exchange rate from the same call', async () => {
+      const { provider, call } = createMockProvider({
+        sharesWei: '2000000000000000000',
+        totalAssetsWei: '3000000000000000000',
+        totalSharesWei: '2000000000000000000',
+      });
+      const fetcher = createFetcher({
+        getNetworkProvider: () => provider,
+      });
+
+      const result = await fetcher.fetchStakedBalance(INPUT);
+
+      expect(result).toStrictEqual({ amount: '3' });
+      expect(call).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns the shares themselves when the vault has no total shares', async () => {
+      const { provider } = createMockProvider({
+        sharesWei: '5',
+        totalAssetsWei: '0',
+        totalSharesWei: '0',
+      });
+      const fetcher = createFetcher({
+        getNetworkProvider: () => provider,
+      });
+
+      const result = await fetcher.fetchStakedBalance(INPUT);
+
+      expect(result).toStrictEqual({ amount: '0.000000000000000005' });
     });
 
     it('throws on provider or contract error so callers do not persist false zero', async () => {
-      const provider = createMockProvider({
+      const { provider, call } = createMockProvider({
         sharesWei: '1000000000000000000',
         assetsWei: '1500000000000000000',
       });
-      (provider.call as jest.Mock).mockRejectedValueOnce(
-        new Error('RPC error'),
-      );
+      call.mockRejectedValueOnce(new Error('RPC error'));
 
       const fetcher = createFetcher({
         getNetworkProvider: () => provider,
@@ -186,7 +316,7 @@ describe('StakedBalanceFetcher', () => {
     });
 
     it('works with CAIP-2 chain ID (eip155:1)', async () => {
-      const provider = createMockProvider({
+      const { provider, call } = createMockProvider({
         sharesWei: '0',
       });
       const fetcher = createFetcher({
@@ -199,11 +329,11 @@ describe('StakedBalanceFetcher', () => {
       });
 
       expect(result).toStrictEqual({ amount: '0' });
-      expect(provider.call).toHaveBeenCalledTimes(1);
+      expect(call).toHaveBeenCalledTimes(1);
     });
 
     it('returns whole number when assets have no fractional part', async () => {
-      const provider = createMockProvider({
+      const { provider } = createMockProvider({
         sharesWei: '1',
         assetsWei: '2000000000000000000', // 2 ETH
       });
@@ -219,7 +349,7 @@ describe('StakedBalanceFetcher', () => {
 
   describe('_executePoll', () => {
     it('calls fetchStakedBalance with input', async () => {
-      const provider = createMockProvider({ sharesWei: '0' });
+      const { provider } = createMockProvider({ sharesWei: '0' });
       const fetcher = createFetcher({
         getNetworkProvider: () => provider,
       });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fetch pooled-staking balances with one Multicall3 `eth_call` (`getShares`, `totalAssets`, and `totalShares`) instead of sequential `getShares` and `convertToAssets` calls
+
 ## [18.0.0]
 
 ### Added

@@ -1,4 +1,4 @@
-import { defaultAbiCoder } from '@ethersproject/abi';
+import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { KeyringControllerMessenger } from '@metamask/keyring-controller';
@@ -259,6 +259,75 @@ export function registerRpcDataSourceActions(
   );
 }
 
+const AGGREGATE3_INTERFACE = new Interface([
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+]);
+
+function encodeMockUint(value: string): string {
+  return defaultAbiCoder.encode(['uint256'], [value]);
+}
+
+/**
+ * Answers one staking sub-call. `totalShares` equals `sharesWei` (or 1 when
+ * shares are zero) and `totalAssets` equals `assetsWei`, so conversion
+ * reproduces `assetsWei`.
+ *
+ * @param callData - Encoded staking function calldata.
+ * @param options - Shares and the asset value those shares should convert to.
+ * @param options.sharesWei - `getShares` response.
+ * @param options.assetsWei - Asset value those shares should convert to.
+ * @returns ABI-encoded uint256 return data.
+ */
+function answerMockStakingSubcall(
+  callData: string,
+  options: { sharesWei: string; assetsWei: string },
+): string {
+  try {
+    STAKING_INTERFACE.decodeFunctionData('getShares', callData);
+    return encodeMockUint(options.sharesWei);
+  } catch {
+    // Not getShares.
+  }
+  try {
+    STAKING_INTERFACE.decodeFunctionData('totalAssets', callData);
+    return encodeMockUint(options.assetsWei);
+  } catch {
+    // Not totalAssets.
+  }
+  try {
+    STAKING_INTERFACE.decodeFunctionData('totalShares', callData);
+    return encodeMockUint(options.sharesWei === '0' ? '1' : options.sharesWei);
+  } catch {
+    // Not a staking read.
+  }
+  throw new Error('MOCK FAILURE: Invalid function data');
+}
+
 export function createMockWeb3Provider(
   options = {
     sharesWei: '1000000000000000000',
@@ -267,25 +336,19 @@ export function createMockWeb3Provider(
 ): jest.SpyInstance<ProviderModule.Web3Provider> {
   const mockProvider = jest.spyOn(ProviderModule, 'Web3Provider');
 
-  const mockCalls = jest.fn().mockImplementation((callData) => {
-    // Will decode and return mock shares or throw
-    try {
-      STAKING_INTERFACE.decodeFunctionData('getShares', callData.data);
-      return defaultAbiCoder.encode(['uint256'], [options.sharesWei]);
-    } catch {
-      // do nothing
-    }
-
-    // Will decode and return mock assets or throw
-    try {
-      STAKING_INTERFACE.decodeFunctionData('convertToAssets', callData.data);
-      return defaultAbiCoder.encode(['uint256'], [options.assetsWei]);
-    } catch {
-      // do nothing
-    }
-
-    throw new Error('MOCK FAILURE: Invalid function data');
-  });
+  const mockCalls = jest
+    .fn()
+    .mockImplementation((callData: { data: string }) => {
+      const [calls] = AGGREGATE3_INTERFACE.decodeFunctionData(
+        'aggregate3',
+        callData.data,
+      ) as [{ callData: string }[]];
+      const results = calls.map((call) => ({
+        success: true,
+        returnData: answerMockStakingSubcall(call.callData, options),
+      }));
+      return AGGREGATE3_INTERFACE.encodeFunctionResult('aggregate3', [results]);
+    });
 
   mockProvider.mockReturnValue({
     call: mockCalls,

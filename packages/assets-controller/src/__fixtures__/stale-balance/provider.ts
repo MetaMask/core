@@ -56,7 +56,7 @@ const ERC20_ABI = [
   },
 ];
 
-/** Staking contract ABI subset: `getShares` and `convertToAssets`. */
+/** Staking contract ABI subset: `getShares`, `totalAssets`, and `totalShares`. */
 const STAKING_ABI = [
   {
     inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
@@ -66,9 +66,16 @@ const STAKING_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
-    name: 'convertToAssets',
-    outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+    inputs: [],
+    name: 'totalAssets',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalShares',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -78,11 +85,15 @@ const multicall3Interface = new Interface(MULTICALL3_ABI);
 const erc20Interface = new Interface(ERC20_ABI);
 const stakingInterface = new Interface(STAKING_ABI);
 
-/** Staking-vault responses the provider should give. Mutable between passes. */
+/**
+ * Staking-vault responses the provider should give. Mutable between passes.
+ * `totalShares` is served as `sharesWei` (or 1 when shares are zero) and
+ * `totalAssets` as `assetsWei`, so client-side conversion reproduces `assetsWei`.
+ */
 export type StakingResponses = {
   /** `getShares(account)` response, in wei. */
   sharesWei: string;
-  /** `convertToAssets(shares)` response, in wei. */
+  /** Asset value of those shares, in wei. Served as `totalAssets`. */
   assetsWei: string;
 };
 
@@ -129,6 +140,45 @@ function isFailingToken(
   address: string,
 ): boolean {
   return state.failingTokens.includes(address.toLowerCase());
+}
+
+function encodeStakingUint(value: string): string {
+  return defaultAbiCoder.encode(['uint256'], [value]);
+}
+
+/**
+ * Answers one staking vault read. `totalShares` is `sharesWei` (or 1 when
+ * shares are zero) and `totalAssets` is `assetsWei`, so the client's
+ * conversion reproduces `assetsWei`.
+ *
+ * @param staking - Shares and the asset value those shares should convert to.
+ * @param callData - Encoded staking function calldata.
+ * @returns An aggregate3 result entry.
+ */
+function answerStakingSubcall(
+  staking: StakingResponses,
+  callData: string,
+): { success: boolean; returnData: string } {
+  try {
+    stakingInterface.decodeFunctionData('getShares', callData);
+    return { success: true, returnData: encodeStakingUint(staking.sharesWei) };
+  } catch {
+    // Not getShares.
+  }
+  try {
+    stakingInterface.decodeFunctionData('totalAssets', callData);
+    return { success: true, returnData: encodeStakingUint(staking.assetsWei) };
+  } catch {
+    // Not totalAssets.
+  }
+  try {
+    stakingInterface.decodeFunctionData('totalShares', callData);
+    const totalShares = staking.sharesWei === '0' ? '1' : staking.sharesWei;
+    return { success: true, returnData: encodeStakingUint(totalShares) };
+  } catch {
+    // An unmodeled staking read — treat it as a reverted call.
+    throw new Error('StaleBalanceProvider: unmodeled staking call');
+  }
 }
 
 /**
@@ -178,14 +228,22 @@ function answerAggregate3(
         returnData: defaultAbiCoder.encode(['uint256'], [balance]),
       };
     } catch {
-      // Not a balanceOf call either — a probe we do not model. Answer empty.
-      return { success: true, returnData: '0x' };
+      // Not a balanceOf call; fall through to staking reads.
     }
+
+    const staking = state.stakingByContract[target.toLowerCase()];
+    if (staking) {
+      return answerStakingSubcall(staking, innerCallData);
+    }
+
+    // A probe we do not model. Answer empty.
+    return { success: true, returnData: '0x' };
   });
 
-  // `defaultAbiCoder.encode` always returns a '0x'-prefixed hex string but
-  // is typed as plain `string`.
-  return defaultAbiCoder.encode(['tuple(bool,bytes)[]'], [results]) as Hex;
+  return defaultAbiCoder.encode(
+    ['(bool success, bytes returnData)[]'],
+    [results],
+  ) as Hex;
 }
 
 /**
@@ -234,24 +292,10 @@ export function createStaleBalanceProvider(state: StaleBalanceProviderState): {
 
           const lowerTarget = target.toLowerCase();
 
-          // Staking contract reads.
+          // Direct staking-contract reads (the fetcher batches these via Multicall3).
           const staking = state.stakingByContract[lowerTarget];
           if (staking) {
-            try {
-              stakingInterface.decodeFunctionData('getShares', callData);
-              return defaultAbiCoder.encode(['uint256'], [staking.sharesWei]);
-            } catch {
-              // Not getShares; try convertToAssets.
-            }
-            try {
-              stakingInterface.decodeFunctionData('convertToAssets', callData);
-              return defaultAbiCoder.encode(['uint256'], [staking.assetsWei]);
-            } catch {
-              // An unmodeled staking read — treat it as a reverted call.
-              throw new Error(
-                `StaleBalanceProvider: unmodeled staking call to ${target}`,
-              );
-            }
+            return answerStakingSubcall(staking, callData).returnData;
           }
 
           // Multicall3 aggregate3 batch.

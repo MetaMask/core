@@ -1,7 +1,12 @@
 import { Interface } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
+import type { Hex } from '@metamask/utils';
 
+import {
+  decodeAggregate3Response,
+  encodeAggregate3,
+} from '../clients/MulticallClient.js';
 import type { Address, AccountId, ChainId } from '../types/index.js';
 import {
   getStakingContractAddress,
@@ -47,7 +52,18 @@ export type OnStakedBalanceUpdateCallback = (
   result: StakedBalanceFetchResult,
 ) => void;
 
-/** Staking contract ABI: getShares(account) and convertToAssets(shares). */
+/**
+ * Canonical Multicall3 deployment. Mainnet and Hoodi both use this address,
+ * so one `eth_call` can batch the staking reads.
+ */
+const MULTICALL3_ADDRESS: Address =
+  '0xcA11bde05977b3631167028862bE2a173976CA11';
+
+/**
+ * Staking vault reads needed to value an account's shares in one multicall.
+ * `convertToAssets(shares)` is `shares * totalAssets / totalShares` (floor),
+ * so the two dependent calls collapse into these three independent reads.
+ */
 const STAKING_CONTRACT_ABI = [
   {
     inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
@@ -57,15 +73,24 @@ const STAKING_CONTRACT_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
-    name: 'convertToAssets',
-    outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+    inputs: [],
+    name: 'totalAssets',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalShares',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
 ];
 
 export const STAKING_INTERFACE = new Interface(STAKING_CONTRACT_ABI);
+
+type StakingRead = 'getShares' | 'totalAssets' | 'totalShares';
 
 const STAKING_DECIMALS = 18;
 
@@ -123,15 +148,18 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
   }
 
   /**
-   * Fetches the staked balance for an account on a chain using the same
-   * staking contract as AccountTrackerController (getShares then convertToAssets).
+   * Fetches the staked balance for an account on a chain.
+   * One Multicall3 `eth_call` reads `getShares`, `totalAssets`, and
+   * `totalShares`. The ETH amount is the vault's `convertToAssets` formula:
+   * `shares * totalAssets / totalShares` (floor), or `shares` when the vault
+   * has no shares.
    * Returns a human-readable amount string (e.g. "1.5" for 1.5 ETH).
    * Throws when no provider is available or when the RPC/contract call fails, so
    * callers do not persist a false zero and overwrite existing balances.
    *
    * @param input - Chain, account ID, and address to query.
    * @returns Human-readable staked balance (amount string).
-   * @throws When provider is missing or when getShares/convertToAssets fails.
+   * @throws When provider is missing or when the staking read fails.
    */
   async fetchStakedBalance(
     input: StakedBalancePollingInput,
@@ -148,43 +176,92 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
     }
 
     try {
-      const sharesCalldata = STAKING_INTERFACE.encodeFunctionData('getShares', [
+      const assetsWei = await readStakedAssetsWei(
+        provider,
+        contractAddress as Address,
         accountAddress,
-      ]);
-      const sharesResult = await provider.call({
-        to: contractAddress,
-        data: sharesCalldata,
-      });
-      const sharesRaw = STAKING_INTERFACE.decodeFunctionResult(
-        'getShares',
-        sharesResult,
-      )[0];
-      const sharesBigNum = BigInt(sharesRaw.toString());
-
-      if (sharesBigNum === 0n) {
-        return { amount: '0' };
-      }
-
-      const assetsCalldata = STAKING_INTERFACE.encodeFunctionData(
-        'convertToAssets',
-        [sharesBigNum],
       );
-      const assetsResult = await provider.call({
-        to: contractAddress,
-        data: assetsCalldata,
-      });
-      const assetsRaw = STAKING_INTERFACE.decodeFunctionResult(
-        'convertToAssets',
-        assetsResult,
-      )[0];
-      const assetsWei = BigInt(assetsRaw.toString());
-
-      const amount = weiToHumanReadable(assetsWei, STAKING_DECIMALS);
-      return { amount };
+      return { amount: weiToHumanReadable(assetsWei, STAKING_DECIMALS) };
     } catch (error) {
       throw error instanceof Error
         ? error
         : new Error('StakedBalanceFetcher: failed to fetch staked balance');
     }
   }
+}
+
+/**
+ * StakeWise `convertToAssets`: floor division, or the shares themselves when
+ * the vault has not minted any.
+ *
+ * @param shares - Account shares from `getShares`.
+ * @param totalAssets - Vault `totalAssets()`.
+ * @param totalShares - Vault `totalShares()`.
+ * @returns Asset amount in wei.
+ */
+function convertSharesToAssets(
+  shares: bigint,
+  totalAssets: bigint,
+  totalShares: bigint,
+): bigint {
+  if (totalShares === 0n) {
+    return shares;
+  }
+  return (shares * totalAssets) / totalShares;
+}
+
+function encodeStakingRead(
+  contractAddress: Address,
+  functionName: StakingRead,
+  args: readonly string[] = [],
+): { target: Address; allowFailure: boolean; callData: Hex } {
+  return {
+    target: contractAddress,
+    allowFailure: false,
+    callData: STAKING_INTERFACE.encodeFunctionData(functionName, [
+      ...args,
+    ]) as Hex,
+  };
+}
+
+function decodeStakingUint(functionName: StakingRead, data: string): bigint {
+  const decoded = STAKING_INTERFACE.decodeFunctionResult(functionName, data)[0];
+  return BigInt(decoded.toString());
+}
+
+/**
+ * One `eth_call` to Multicall3: shares plus the vault exchange rate.
+ *
+ * @param provider - Chain provider.
+ * @param contractAddress - Staking vault address.
+ * @param accountAddress - Account whose shares to read.
+ * @returns Staked assets in wei.
+ */
+async function readStakedAssetsWei(
+  provider: Web3Provider,
+  contractAddress: Address,
+  accountAddress: Address,
+): Promise<bigint> {
+  const calls = [
+    encodeStakingRead(contractAddress, 'getShares', [accountAddress]),
+    encodeStakingRead(contractAddress, 'totalAssets', []),
+    encodeStakingRead(contractAddress, 'totalShares', []),
+  ];
+  const result = await provider.call({
+    to: MULTICALL3_ADDRESS,
+    data: encodeAggregate3(calls),
+  });
+  const decoded = decodeAggregate3Response(result as Hex, calls.length);
+  if (decoded.some((entry) => !entry.success)) {
+    throw new Error('StakedBalanceFetcher: staking contract call failed');
+  }
+
+  const shares = decodeStakingUint('getShares', decoded[0].returnData);
+  if (shares === 0n) {
+    return 0n;
+  }
+
+  const totalAssets = decodeStakingUint('totalAssets', decoded[1].returnData);
+  const totalShares = decodeStakingUint('totalShares', decoded[2].returnData);
+  return convertSharesToAssets(shares, totalAssets, totalShares);
 }

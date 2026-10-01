@@ -136,8 +136,8 @@ function stakedAssetId(
 /**
  * Data source for fetching staked ETH balances via on-chain staking contracts.
  *
- * Delegates to {@link StakedBalanceFetcher} for the actual RPC calls
- * (getShares + convertToAssets on ERC-4626-style staking contracts).
+ * Delegates to {@link StakedBalanceFetcher} for the actual RPC call
+ * (one Multicall3 read of getShares, totalAssets, and totalShares).
  * Reports balances as CAIP-19 asset IDs using the ERC20 format with the
  * staking contract address (e.g. "eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df").
  *
