@@ -6105,7 +6105,7 @@ describe('LighterProvider', () => {
       async (state) => {
         const infra = createMockInfrastructure();
         const { provider, clientInstance, bridge, calls } = buildProvider({
-          infra,
+          platformDependencies: infra,
         });
         const venue = setupTriggerVenue(clientInstance, bridge);
         expect(
@@ -6117,6 +6117,10 @@ describe('LighterProvider', () => {
           ).success,
         ).toBe(true);
         const managed = { ...venue.rawTriggers[0] };
+        const managedKey = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        expect(await infra.diskCache.getItem(managedKey)).toContain(
+          String(managed.clientOrderIndex),
+        );
         for (const type of ['stop-loss', 'stop-loss-limit', 'limit']) {
           venue.seedTrigger(type, '85000');
         }
@@ -6176,12 +6180,9 @@ describe('LighterProvider', () => {
           ),
         ).toStrictEqual([]);
         expect(venue.rawTriggers).toStrictEqual(preserved);
-        const ownership = JSON.parse(
-          (await infra.diskCache.getItem(
-            `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
-          )) ?? 'null',
-        ) as { orders: unknown[] } | null;
-        expect(ownership?.orders ?? []).toHaveLength(0);
+        expect(await infra.diskCache.getItem(managedKey)).toBe(
+          JSON.stringify({ version: 1, orders: [] }),
+        );
       },
     );
 
