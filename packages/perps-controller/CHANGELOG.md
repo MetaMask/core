@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `feeSource` to `FeeCalculationResult`, reporting which fee source (`default`, `rewards` or `subscription`) won the fee resolution the quoted MetaMask fee was priced from, so clients can attribute the discount shown in a fee preview without re-deriving it from the rates ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add optional `feeSource` to `FeeCalculationResult`, reporting which fee source (`default`, `rewards` or `subscription`) won the fee resolution the quoted MetaMask fee was priced from, so clients can attribute the discount shown in a fee preview without re-deriving it from the rates ([#10650](https://github.com/MetaMask/core/pull/10650))
   - Absent when the quote was not re-priced from a fee resolution, for example a placement that carries no MetaMask builder fee
   - `rewards` can carry a 0% discount, so check `metamaskFeeRate` before presenting it as a reduction
 - Add `TWAP_SLICE`, `VAULT_CLOSE` and `SPOT_DUST_CONVERSION` to `DETAILED_ORDER_TYPES` for the HyperLiquid order types added in `@nktkas/hyperliquid` 0.33.3 ([#10591](https://github.com/MetaMask/core/pull/10591))
