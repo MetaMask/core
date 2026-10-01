@@ -168,10 +168,11 @@ jobs:
 
   lint-suppressions:
     name: Lint (lint:suppressions)
-    # Only on pull requests, where the branch is checked out as the merge into
-    # its base and the label that waives the check is in reach.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     strategy:
       matrix:
         node-version: [24.x]
@@ -189,15 +190,19 @@ jobs:
           if yarn lint:suppressions; then
             exit 0
           fi
-          if [[ "$IS_WAIVED" == 'true' ]]; then
+          # The labels are read back over the API rather than taken from the
+          # event, which is fixed when the run starts and replayed as it was on
+          # a re-run, so that applying the label and re-running this job works.
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name' | grep --line-regexp --quiet "$WAIVER_LABEL"; then
             echo "::warning::Suppressions were added, which the '$WAIVER_LABEL' label allows."
             exit 0
           fi
-          echo "Apply the '$WAIVER_LABEL' label if these suppressions have to be added."
+          echo "Apply the '$WAIVER_LABEL' label and re-run this job if these suppressions have to be added."
           exit 1
         env:
           WAIVER_LABEL: allow-new-suppressions
-          IS_WAIVED: ${{ contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
       - name: Require clean working directory
         shell: bash
         run: |
