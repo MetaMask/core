@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.2.0]
+
 ### Added
 
 - Add optional request-source attribution parameters to `PhishingController.scanUrl` and `bulkScanUrls`, emitting an `x-request-source` header. ([#10357](https://github.com/MetaMask/core/pull/10357))
@@ -696,7 +698,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...HEAD
+[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.0...@metamask/phishing-controller@18.1.1
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...@metamask/phishing-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...@metamask/phishing-controller@18.0.0

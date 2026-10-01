@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^81.3.3` to `81.4.0`. ([#10580](https://github.com/MetaMask/core/pull/10580))
+- Bump `@metamask/bridge-controller` from `^82.0.0` to `^82.0.1` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [76.3.4]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^81.3.3` to `82.0.0`. ([#10580](https://github.com/MetaMask/core/pull/10580), [#10641](https://github.com/MetaMask/core/pull/10641))
 
 ## [76.3.3]
 
@@ -1636,7 +1642,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.4...HEAD
+[76.3.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.3...@metamask/bridge-status-controller@76.3.4
 [76.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.2...@metamask/bridge-status-controller@76.3.3
 [76.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.1...@metamask/bridge-status-controller@76.3.2
 [76.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.0...@metamask/bridge-status-controller@76.3.1

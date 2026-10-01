@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0]
+
 ### Added
 
 - Add `SocialRealtimeService` for subscribing to Social realtime feed events through the shared backend WebSocket connection ([#10561](https://github.com/MetaMask/core/pull/10561))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
 
 ## [3.4.0]
 
@@ -233,7 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...HEAD
+[3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.3.0...@metamask/social-controllers@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...@metamask/social-controllers@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...@metamask/social-controllers@3.2.0
