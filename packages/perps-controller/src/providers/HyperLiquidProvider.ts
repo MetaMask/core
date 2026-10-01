@@ -53,6 +53,7 @@ import {
   getAgentAccountKey,
   isAgentSignerUnavailableError,
 } from '../services/agentSigner.js';
+import { hasErrorInCauseChain } from '../services/causeChain.js';
 import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
 import {
   HyperLiquidClientService,
@@ -1272,6 +1273,56 @@ const MILLISECONDS_PER_MINUTE = 60_000;
 const MILLISECONDS_PER_SECOND = 1_000;
 
 /**
+ * How long #ensureReady waits before running the unified-account setup again
+ * after its lookup failed on the WebSocket transport. A socket that exhausted
+ * its reconnect budget rejects every request until reconnect() or reinit, so
+ * retrying on every #ensureReady entry only repeats the same failure.
+ */
+const UNIFIED_ACCOUNT_TRANSPORT_RETRY_COOLDOWN_MS = MILLISECONDS_PER_MINUTE;
+
+/**
+ * Fixed messages the SDK gives a `WebSocketRequestError` raised on the client
+ * side of the socket. Error frames the server sends back for a request carry
+ * the server's own text instead.
+ */
+const WEBSOCKET_CLIENT_FAILURE_MESSAGES = [
+  'WebSocket connection permanently terminated',
+  'WebSocket connection closed',
+  'Request timed out after',
+  'Request aborted',
+  'Unknown error while making a WebSocket request',
+];
+
+/**
+ * Whether the WebSocket transport, rather than the venue or the signer, failed
+ * the request. The SDK raises `WebSocketRequestError` for client-side failures
+ * (closed or terminated socket, timeout, abort), usually with the cause
+ * attached, e.g. the `ReconnectingWebSocketError` (`RECONNECTION_LIMIT`,
+ * `TERMINATED_BY_USER`) behind a terminated socket. It also uses
+ * `WebSocketRequestError` for error frames the server sends back; those are
+ * the venue's answer, have no cause and keep the server's text, so they are
+ * not transport errors. The fixed messages cover client-side failures that
+ * have no cause, including on engines that ignore `Error` `cause`.
+ * `HyperLiquidSubscriptionService` keeps its own check for the same SDK errors
+ * on the subscription paths.
+ *
+ * @param error - The caught error.
+ * @returns True when the error, or one in its cause chain, is a WebSocket
+ * transport error.
+ */
+const isWebSocketTransportError = (error: unknown): boolean =>
+  hasErrorInCauseChain(
+    error,
+    (current) =>
+      current.name === 'ReconnectingWebSocketError' ||
+      (current.name === 'WebSocketRequestError' &&
+        (current.cause !== undefined ||
+          WEBSOCKET_CLIENT_FAILURE_MESSAGES.some((message) =>
+            current.message.startsWith(message),
+          ))),
+  );
+
+/**
  * Normalize the TWAP history timestamp documented in seconds while tolerating
  * an already-millisecond value from a future SDK response.
  *
@@ -1520,6 +1571,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   // its memoized promise when this is set so the next entry retries the
   // migration instead of returning the cached resolved promise.
   #unifiedAccountSetupNeedsRetry = false;
+
+  // Earliest Date.now() at which #ensureReady runs the unified-account setup
+  // again after its lookup failed on the WebSocket transport. 0 = no cooldown.
+  #unifiedAccountTransportRetryAt = 0;
 
   // Pending promise to deduplicate concurrent getValidatedDexs() calls
   #pendingValidatedDexsPromise: Promise<(string | null)[]> | null = null;
@@ -2854,6 +2909,31 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
+      // The WebSocket transport could not carry the lookup, typically a
+      // socket that exhausted its reconnect budget (Sentry METAMASK-ZHT9).
+      // That is connectivity, not a migration failure: keep it out of Sentry
+      // and analytics, keep the retry flag, and have #ensureReady wait out a
+      // cooldown instead of repeating the lookup on every entry.
+      if (isWebSocketTransportError(error)) {
+        this.#unifiedAccountTransportRetryAt =
+          Date.now() + UNIFIED_ACCOUNT_TRANSPORT_RETRY_COOLDOWN_MS;
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] WebSocket transport unavailable, will retry after cooldown',
+          {
+            user: userAddress,
+            network,
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.ensureUnifiedAccountEnabled',
+            ).message,
+            cooldownMs: UNIFIED_ACCOUNT_TRANSPORT_RETRY_COOLDOWN_MS,
+          },
+        );
+        this.#unifiedAccountSetupNeedsRetry = true;
+        completeInFlight();
+        return;
+      }
+
       // Agent-path failures and read-only userAbstraction lookup failures
       // are not final: signal #ensureReady to drop its memoized promise and
       // retry on the next entry instead of pinning the user in the
@@ -2939,9 +3019,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       // signing-backed migration during initial setup so the first trade sees
       // the unified balance. Hardware wallets remain deferred to action time to
       // avoid repeated signing prompts while browsing.
-      await this.#ensureUnifiedAccountEnabled({
-        allowUserSigning: !this.#walletService.requiresSignatureConfirmation(),
-      });
+      // After a WebSocket transport failure, skip it until the cooldown is
+      // over. #unifiedAccountSetupNeedsRetry stays set meanwhile, so a later
+      // entry retries. Action-time callers are not gated.
+      if (Date.now() >= this.#unifiedAccountTransportRetryAt) {
+        await this.#ensureUnifiedAccountEnabled({
+          allowUserSigning:
+            !this.#walletService.requiresSignatureConfirmation(),
+        });
+      }
     })();
 
     // Await initialization - keep the promise so subsequent calls resolve immediately
@@ -15648,6 +15734,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#cachedSpotMeta = null;
       this.#dexDiscoveryCache.reset();
       this.#dexDiscoveryComplete = false;
+      this.#unifiedAccountTransportRetryAt = 0;
 
       // Await pending initialization before clearing to prevent the IIFE from
       // setting clientsInitialized = true after disconnect completes
@@ -15811,7 +15898,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves when the operation completes.
    */
   async reconnect(): Promise<void> {
-    return this.#clientService.reconnect();
+    await this.#clientService.reconnect();
+    // The socket was rebuilt: the unified-account setup can run again now.
+    this.#unifiedAccountTransportRetryAt = 0;
   }
 
   /**

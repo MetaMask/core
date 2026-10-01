@@ -1967,6 +1967,288 @@ describe('HyperLiquidProvider', () => {
       expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
     });
 
+    describe('WebSocket transport failures', () => {
+      // Once the Hyperliquid socket exhausts its reconnect budget, every
+      // request on it rejects with this SDK error (Sentry METAMASK-ZHT9).
+      const createReconnectionLimitError = (): Error =>
+        Object.assign(
+          new Error('WebSocket permanently terminated: RECONNECTION_LIMIT'),
+          { name: 'ReconnectingWebSocketError', code: 'RECONNECTION_LIMIT' },
+        );
+      const createTerminatedSocketError = (): Error =>
+        Object.assign(
+          new Error('WebSocket connection permanently terminated'),
+          {
+            name: 'WebSocketRequestError',
+            cause: createReconnectionLimitError(),
+          },
+        );
+      // Longer than any transport cooldown the provider applies.
+      const AFTER_COOLDOWN_MS = 10 * 60 * 1000;
+
+      it('does not report a terminated WebSocket lookup to Sentry and keeps the retry flag', async () => {
+        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValueOnce(createTerminatedSocketError())
+          .mockResolvedValueOnce('unifiedAccount');
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+        const mockCompleteInFlight = jest.fn();
+        (
+          TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        ).setInFlight.mockReturnValue(mockCompleteInFlight);
+
+        await provider.getMarketDataWithPrices();
+
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        expect(
+          mockPlatformDependencies.metrics.trackPerpsEvent,
+        ).not.toHaveBeenCalledWith(
+          'Perp Account Setup',
+          expect.objectContaining({ status: 'failed' }),
+        );
+        expect(
+          (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+            .set,
+        ).not.toHaveBeenCalled();
+        expect(mockCompleteInFlight).toHaveBeenCalledTimes(1);
+
+        // The retry flag survived: once the cooldown is over, the next
+        // entry runs the lookup again and finishes the setup.
+        nowSpy.mockReturnValue(1_000_000 + AFTER_COOLDOWN_MS);
+        await provider.getMarketDataWithPrices();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(
+          (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+            .set,
+        ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+          attempted: true,
+          enabled: true,
+        });
+      });
+
+      it('does not report a bare ReconnectingWebSocketError from the lookup', async () => {
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            userAbstraction: jest
+              .fn()
+              .mockRejectedValue(createReconnectionLimitError()),
+          }),
+        );
+
+        await provider.getMarketDataWithPrices();
+
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      // The SDK raises these without a cause: the close-time rejections
+      // always, and the terminated-socket error on engines that ignore
+      // `Error` `cause`.
+      it.each([
+        'WebSocket connection closed',
+        'WebSocket connection closed before the request was sent',
+        'WebSocket connection permanently terminated',
+      ])(
+        'does not report a client-side WebSocketRequestError without a cause: %s',
+        async (message) => {
+          mockClientService.getInfoClient = jest.fn().mockReturnValue(
+            createMockInfoClient({
+              userAbstraction: jest.fn().mockRejectedValue(
+                Object.assign(new Error(message), {
+                  name: 'WebSocketRequestError',
+                }),
+              ),
+            }),
+          );
+
+          await provider.getMarketDataWithPrices();
+
+          expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        },
+      );
+
+      it('skips the lookup on every entry inside the cooldown after a transport failure', async () => {
+        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValue(createTerminatedSocketError());
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+
+        await provider.getMarketDataWithPrices();
+        nowSpy.mockReturnValue(1_000_000 + 1_000);
+        await provider.getMarketDataWithPrices();
+        await provider.getMarketDataWithPrices();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(1);
+
+        // Still dead after the cooldown: one more lookup, then a new cooldown.
+        nowSpy.mockReturnValue(1_000_000 + AFTER_COOLDOWN_MS);
+        await provider.getMarketDataWithPrices();
+        nowSpy.mockReturnValue(1_000_000 + AFTER_COOLDOWN_MS + 1_000);
+        await provider.getMarketDataWithPrices();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('ends the cooldown when the provider reconnects', async () => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValueOnce(createTerminatedSocketError())
+          .mockResolvedValueOnce('unifiedAccount');
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+        mockClientService.reconnect = jest.fn().mockResolvedValue(undefined);
+
+        await provider.getMarketDataWithPrices();
+        await provider.reconnect();
+        await provider.getMarketDataWithPrices();
+
+        expect(mockClientService.reconnect).toHaveBeenCalledTimes(1);
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+      });
+
+      it('ends the cooldown when the provider disconnects', async () => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValue(createTerminatedSocketError());
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+
+        await provider.getMarketDataWithPrices();
+        await provider.disconnect();
+        await provider.getMarketDataWithPrices();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+      });
+
+      it('still reports a server error frame returned for the lookup', async () => {
+        // The SDK raises the venue's own rejection as a WebSocketRequestError
+        // with no cause; that is an answer, not a transport failure.
+        const serverError = Object.assign(
+          new Error('Invalid request: unknown type userAbstraction'),
+          { name: 'WebSocketRequestError' },
+        );
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            userAbstraction: jest.fn().mockRejectedValue(serverError),
+          }),
+        );
+
+        await provider.getMarketDataWithPrices();
+
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          serverError,
+          expect.objectContaining({
+            context: expect.objectContaining({
+              data: expect.objectContaining({
+                method: 'ensureUnifiedAccountEnabled',
+              }),
+            }),
+          }),
+        );
+      });
+
+      it('does not apply the cooldown to action-time setup', async () => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValue(createTerminatedSocketError());
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+
+        await provider.getMarketDataWithPrices();
+        await provider.prepareTradingWallet();
+
+        // #ensureReady skipped its run inside the cooldown; the trading
+        // path still looked the account up.
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            context: expect.objectContaining({
+              data: expect.objectContaining({
+                method: 'ensureUnifiedAccountEnabled',
+              }),
+            }),
+          }),
+        );
+      });
+
+      it('still reports a non-transport lookup failure and retries it on the next entry', async () => {
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValue(new Error('HL info endpoint timeout'));
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+
+        await provider.getMarketDataWithPrices();
+        await provider.getMarketDataWithPrices();
+
+        // No cooldown outside transport failures.
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(2);
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'HL info endpoint timeout' }),
+          expect.objectContaining({
+            context: expect.objectContaining({
+              data: expect.objectContaining({
+                method: 'ensureUnifiedAccountEnabled',
+              }),
+            }),
+          }),
+        );
+      });
+
+      it('still reports a migration write the user rejected', async () => {
+        mockClientService.getInfoClient = jest.fn().mockReturnValue(
+          createMockInfoClient({
+            userAbstraction: jest.fn().mockResolvedValue('default'),
+          }),
+        );
+        const mockExchangeClient = createMockExchangeClient();
+        mockExchangeClient.agentSetAbstraction = jest
+          .fn()
+          .mockRejectedValue(new Error('User rejected the request.'));
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(mockExchangeClient);
+
+        await provider.getMarketDataWithPrices();
+
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'User rejected the request.' }),
+          expect.objectContaining({
+            context: expect.objectContaining({
+              data: expect.objectContaining({
+                method: 'ensureUnifiedAccountEnabled',
+              }),
+            }),
+          }),
+        );
+        expect(
+          mockPlatformDependencies.metrics.trackPerpsEvent,
+        ).toHaveBeenCalledWith(
+          'Perp Account Setup',
+          expect.objectContaining({
+            status: 'failed',
+            error_message: 'User rejected the request.',
+          }),
+        );
+      });
+    });
+
     // ─────────────────────────────────────────────────
     // Network key (mainnet vs testnet)
     // ─────────────────────────────────────────────────
