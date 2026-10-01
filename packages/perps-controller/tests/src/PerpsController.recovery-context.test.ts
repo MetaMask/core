@@ -8,6 +8,8 @@ import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js'
 import type {
   PerpsActiveProviderMode,
   PerpsProvider,
+  SwitchProviderResult,
+  ToggleTestnetResult,
 } from '../../src/types/index.js';
 import { wait } from '../../src/utils/wait.js';
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
@@ -135,6 +137,42 @@ const CONTEXT_CHANGES: {
       controller.changeContext({ activeProvider: 'aggregated' }),
   },
 ];
+
+const ROLLBACK_CHANGES = [
+  {
+    name: 'provider',
+    change: (
+      controller: RecoveryContextController,
+    ): Promise<SwitchProviderResult> => controller.switchProvider('aggregated'),
+    constructorCalls: 4,
+  },
+  {
+    name: 'network',
+    change: (
+      controller: RecoveryContextController,
+    ): Promise<ToggleTestnetResult> => controller.toggleTestnet(),
+    constructorCalls: 3,
+  },
+];
+
+/**
+ * Fail every target initialization attempt and allow provider-switch rollback.
+ * Network-toggle rollback restores selection but leaves initialization failed.
+ *
+ * @param replacement - New provider available if the rollback reinitializes.
+ */
+function failTargetInitialization(
+  replacement: ReturnType<typeof createMockHyperLiquidProvider>,
+): void {
+  let attempts = 0;
+  jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+    attempts += 1;
+    if (attempts <= 3) {
+      throw new Error('Target provider initialization failed');
+    }
+    return replacement;
+  });
+}
 
 describe('PerpsController recovered-dispatch acknowledgment context', () => {
   beforeEach(() => {
@@ -304,6 +342,157 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     },
   );
 
+  it.each(ROLLBACK_CHANGES)(
+    'refuses held readiness after a failed $name switch restores the context',
+    async ({ change, constructorCalls }) => {
+      const { controller, acknowledge, ledgers, provider } = createFixture();
+      const disconnect = jest.spyOn(provider, 'disconnect');
+      const replacement = Object.assign(createMockHyperLiquidProvider(), {
+        acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+      });
+      failTargetInitialization(replacement);
+
+      const rollback = change(controller);
+      const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+      const settled = result.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      const transition = await rollback;
+
+      expect(transition.success).toBe(false);
+      expect(HyperLiquidProvider).toHaveBeenCalledTimes(constructorCalls);
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.state.isTestnet).toBe(true);
+      expect(await settled).toStrictEqual(
+        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+      );
+      expect(acknowledge).not.toHaveBeenCalled();
+      expect(replacement.acknowledgeRecoveredDispatch).not.toHaveBeenCalled();
+      expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set([LEGACY_ID]));
+      expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+    },
+  );
+
+  it.each(
+    ROLLBACK_CHANGES.flatMap((change) =>
+      (['success', 'rejection'] as const).map((outcome) => ({
+        ...change,
+        outcome,
+      })),
+    ),
+  )(
+    'preserves issuing storage and $outcome after a failed $name switch',
+    async ({ change, constructorCalls, outcome }) => {
+      const { controller, acknowledge, ledgers, provider } = createFixture();
+      const disconnect = jest.spyOn(provider, 'disconnect');
+      const replacement = Object.assign(createMockHyperLiquidProvider(), {
+        acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+      });
+      const started = createDeferred<void>();
+      const completion = createDeferred<void>();
+      const failure = new Error('Original provider rejection after rollback');
+      acknowledge.mockImplementationOnce(async (id) => {
+        started.resolve();
+        await completion.promise;
+        if (outcome === 'rejection') {
+          throw failure;
+        }
+        ledgers.get(ACCOUNT_A)?.delete(id);
+      });
+      const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+      const settled = result.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await started.promise;
+      failTargetInitialization(replacement);
+
+      const transition = await change(controller);
+      completion.resolve();
+      const error = await settled;
+
+      expect(transition.success).toBe(false);
+      expect(HyperLiquidProvider).toHaveBeenCalledTimes(constructorCalls);
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.state.isTestnet).toBe(true);
+      expect(error).toStrictEqual(
+        outcome === 'success'
+          ? new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+          : failure,
+      );
+      expect(error === failure).toBe(outcome === 'rejection');
+      expect(acknowledge).toHaveBeenCalledTimes(1);
+      expect(acknowledge).toHaveBeenCalledWith(LEGACY_ID);
+      expect(replacement.acknowledgeRecoveredDispatch).not.toHaveBeenCalled();
+      expect(ledgers.get(ACCOUNT_A)).toStrictEqual(
+        new Set(outcome === 'success' ? [] : [LEGACY_ID]),
+      );
+      expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+    },
+  );
+
+  it('reports unavailable initialization for a new acknowledgment after a failed network switch', async () => {
+    const { controller, acknowledge, ledgers, provider } = createFixture();
+    const disconnect = jest.spyOn(provider, 'disconnect');
+    failTargetInitialization(createMockHyperLiquidProvider());
+
+    const transition = await controller.toggleTestnet();
+
+    expect(transition.success).toBe(false);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(controller.state.initializationState).toBe(
+      InitializationState.Failed,
+    );
+    expect(controller.isCurrentlyReinitializing()).toBe(false);
+    await expect(
+      controller.acknowledgeRecoveredDispatch(LEGACY_ID),
+    ).rejects.toThrow(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set([LEGACY_ID]));
+    expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+  });
+
+  it('acknowledges through a new initialization after a failed network switch', async () => {
+    const { controller, acknowledge, ledgers } = createFixture();
+    failTargetInitialization(createMockHyperLiquidProvider());
+    const transition = await controller.toggleTestnet();
+    expect(transition.success).toBe(false);
+    const readiness = createDeferred<void>();
+    jest.mocked(wait).mockReturnValueOnce(readiness.promise);
+    const replacement = Object.assign(createMockHyperLiquidProvider(), {
+      acknowledgeRecoveredDispatch: jest.fn(async (id: string) => {
+        ledgers.get(ACCOUNT_A)?.delete(id);
+      }),
+    });
+    jest.mocked(HyperLiquidProvider).mockImplementation(() => replacement);
+    const initialization = controller.init();
+    expect(controller.state.initializationState).toBe(
+      InitializationState.Initializing,
+    );
+    expect(controller.isCurrentlyReinitializing()).toBe(false);
+
+    const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+    const settled = result.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    readiness.resolve();
+    await initialization;
+
+    expect(await settled).toBeUndefined();
+    expect(controller.getActiveProvider()).toBe(replacement);
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(replacement.acknowledgeRecoveredDispatch).toHaveBeenCalledTimes(1);
+    expect(replacement.acknowledgeRecoveredDispatch).toHaveBeenCalledWith(
+      LEGACY_ID,
+    );
+    expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set());
+    expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+  });
+
   it('acknowledges the exact legacy ID in an unchanged context', async () => {
     const { controller, acknowledge, ledgers } = createFixture();
 
@@ -329,6 +518,28 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
 
     expect(acknowledge).toHaveBeenCalledTimes(1);
     expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set());
+    expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+  });
+
+  it('preserves cold-start readiness failure when no provider lifetime existed', async () => {
+    const { controller, acknowledge, ledgers } = createFixture(false);
+    jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+      throw new Error('Cold-start initialization failed');
+    });
+    const initialization = controller.init();
+
+    const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+    const settled = result.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    await initialization;
+
+    expect(await settled).toStrictEqual(
+      new Error(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED),
+    );
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set([LEGACY_ID]));
     expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
   });
 
