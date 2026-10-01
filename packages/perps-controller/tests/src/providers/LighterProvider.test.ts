@@ -1,5 +1,6 @@
 import { webcrypto } from 'crypto';
 
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import {
   LighterApiError,
@@ -6643,7 +6644,7 @@ describe('LighterProvider', () => {
           expectedPosition,
         });
         expect(result.success).toBe(false);
-        expect(result.error).toContain('expected position');
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         expect(
           calls.filter((call) => call.function.startsWith('_sign')),
         ).toHaveLength(0);
@@ -6708,7 +6709,7 @@ describe('LighterProvider', () => {
         releaseSigning();
         const result = await pending;
         expect(result.success).toBe(false);
-        expect(result.error).toContain('expected position');
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         expect(clientInstance.sendTx).not.toHaveBeenCalled();
         expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual([
           oldId,

@@ -2671,7 +2671,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expectedPosition,
         });
         expect(result.success).toBe(false);
-        expect(result.error).toContain('expected position');
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         expect(exchangeClient.cancel).not.toHaveBeenCalled();
         expect(exchangeClient.order).not.toHaveBeenCalled();
       },

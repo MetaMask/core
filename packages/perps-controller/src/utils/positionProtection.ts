@@ -1,5 +1,6 @@
 import { BigNumber } from 'bignumber.js';
 
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { UpdatePositionTPSLParams } from '../types/index.js';
 
 /**
@@ -29,8 +30,6 @@ export function assertExpectedPosition(
     !new BigNumber(expected.size).eq(actual.size) ||
     !new BigNumber(expected.entryPrice).eq(actual.entryPrice)
   ) {
-    throw new Error(
-      'TP/SL expected position changed or is invalid; refresh before retrying',
-    );
+    throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
   }
 }

@@ -1,3 +1,4 @@
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { assertExpectedPosition } from '../../../src/utils/positionProtection.js';
 
 describe('assertExpectedPosition', () => {
@@ -20,13 +21,13 @@ describe('assertExpectedPosition', () => {
     { size: '1', entryPrice: '' },
   ])('rejects invalid matching snapshots %j', (snapshot) => {
     expect(() => assertExpectedPosition(snapshot, snapshot)).toThrow(
-      'expected position',
+      PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
     );
   });
 
   it('rejects a disappeared position', () => {
     expect(() =>
       assertExpectedPosition({ size: '1', entryPrice: '3000' }, undefined),
-    ).toThrow('expected position');
+    ).toThrow(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
   });
 });

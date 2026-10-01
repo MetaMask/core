@@ -1,4 +1,6 @@
 import type {
+  DirectProviderOrderCapabilities,
+  TriggerOrderType,
   PerpsRecoveredDispatch,
   PerpsControllerGetRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
@@ -85,3 +87,13 @@ export type RecoveryConsumerContracts = [
     'PerpsController:acknowledgeRecoveredDispatch'
   >,
 ];
+
+export type TriggerCapabilityConsumerContract = AssertTrue<
+  IsExact<
+    Extract<
+      DirectProviderOrderCapabilities,
+      { status: 'ready' }
+    >['supportedTriggerOrderTypes'],
+    readonly TriggerOrderType[] | undefined
+  >
+>;
