@@ -96,7 +96,7 @@
     "@types/readable-stream": "^2.3.0",
     "@types/semver": "^7.8.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "contentful": "^10.15.0",
+    "contentful": "^11.12.10",
     "deepmerge": "^4.3.1",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
