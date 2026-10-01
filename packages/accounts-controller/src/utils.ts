@@ -173,6 +173,10 @@ export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
 /**
  * Check if a keyring type is a skipped keyring (Money or MPC keyring).
  *
+ * A skipped keyring is one that should be ignored during account
+ * re-synchronization with the `KeyringController` (through `:stateChange` events
+ * or `updateAccounts` calls).
+ *
  * @param keyringType - The account's keyring type.
  * @returns True if the keyring type is considered a skipped keyring, false otherwise.
  */
