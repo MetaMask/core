@@ -14,12 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `init` method, also exposed through the messenger as `MoneyAccountLifecycleController:init`
     - Fetches derived identities from CHOMP while the client's `isEnabled` hook returns `true` and the wallet is unlocked with an HD keyring, refetching on unlock and when the remote feature flag values change
   - Record the primary Money Account's lifecycle in the persisted `moneyAccounts` state, keyed by lowercased Money Account address
-    - The lifecycle is `notInIdentity` when the Money Account address is not among any derived identity's current or previous addresses, a valid `sfa` when it is the current address of a derived identity, or a valid `mfa` when it is a previous address of a derived identity, including one that is migrating to a further address
-    - `sfa` and `mfa` lifecycles include the matching derived identity's `currentAddress`, `previousAddresses`, `status`, and `migration`
+    - The lifecycle is `notInIdentity` when the Money Account address is not among any derived identity's current or previous addresses, a valid `sfa` when it is the current address of a settled derived identity, `migrating` when it is the current address of a derived identity with a pending `migration` to a successor, or a valid `mfa` when it is a previous address of a derived identity, including one that is migrating to a further address
+    - `sfa`, `migrating`, and `mfa` lifecycles include the matching derived identity's `currentAddress`, `previousAddresses`, `status`, and `migration`
     - The lifecycle is re-evaluated after each fetch and whenever `MoneyAccountController` state changes
   - Record whether the Money Account address, and the successor `currentAddress` of a valid MFA, are registered with CHOMP in the persisted `addressRegistrations` state, keyed by lowercased address, using `MoneyAccountUpgradeController:getRegistrationStatus`
     - The registration status is refreshed after each fetch and whenever the recorded lifecycle changes
-  - Register the Money Account address through `MoneyAccountUpgradeController:upgradeAccount` when it is not registered with CHOMP and is not a valid MFA, then refresh its registration status
+  - Register the Money Account address through `MoneyAccountUpgradeController:upgradeAccount` when it is not registered with CHOMP and is either `notInIdentity` or a valid `sfa`, then refresh its registration status
+    - A `migrating` Money Account is never registered, because CHOMP freezes it once it is linked to a successor
     - Failed registrations are reported through the messenger's `captureException` and retried on the next fetch
   - Call `MoneyAccountController:useMpcKeyring` with the Money Account address and its successor `currentAddress` when the Money Account is a valid MFA, after each fetch and whenever the recorded lifecycle changes
   - Add `AddressRegistration`, `MoneyAccountLifecycle`, `MoneyAccountLifecycleControllerActions`, `MoneyAccountLifecycleControllerEvents`, `MoneyAccountLifecycleControllerGetStateAction`, `MoneyAccountLifecycleControllerHooks`, `MoneyAccountLifecycleControllerInitAction`, `MoneyAccountLifecycleControllerMessenger`, `MoneyAccountLifecycleControllerState`, and `MoneyAccountLifecycleControllerStateChangedEvent` types
