@@ -1,4 +1,5 @@
-import type { DerivedIdentity } from './chomp-api-service-derived-identities.js';
+import type { DerivedIdentity } from '@metamask/chomp-api-service';
+
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 
 const MONEY_ACCOUNT_ADDRESS = '0x00000000000000000000000000000000000000Aa';
@@ -8,7 +9,8 @@ const SUCCESSOR_ADDRESS = '0x00000000000000000000000000000000000000Bb';
 const UNRELATED_IDENTITY: DerivedIdentity = {
   currentAddress: '0x0000000000000000000000000000000000000001',
   previousAddresses: ['0x0000000000000000000000000000000000000002'],
-  status: 'NONE',
+  status: 'DONE',
+  migration: null,
 };
 
 describe('getMoneyAccountLifecycle', () => {
@@ -35,6 +37,7 @@ describe('getMoneyAccountLifecycle', () => {
         currentAddress,
         previousAddresses: [],
         status,
+        migration: null,
       };
 
       expect(
@@ -51,6 +54,7 @@ describe('getMoneyAccountLifecycle', () => {
       currentAddress: SUCCESSOR_ADDRESS,
       previousAddresses: [MONEY_ACCOUNT_ADDRESS.toLowerCase()],
       status: 'DONE',
+      migration: null,
     };
 
     expect(
@@ -63,11 +67,13 @@ describe('getMoneyAccountLifecycle', () => {
       currentAddress: MONEY_ACCOUNT_ADDRESS,
       previousAddresses: [],
       status: 'DONE',
+      migration: null,
     };
     const mfaIdentity: DerivedIdentity = {
       currentAddress: SUCCESSOR_ADDRESS,
       previousAddresses: [MONEY_ACCOUNT_ADDRESS],
       status: 'DONE',
+      migration: null,
     };
 
     expect(
@@ -78,17 +84,22 @@ describe('getMoneyAccountLifecycle', () => {
     ).toStrictEqual({ type: 'sfa', identity: sfaIdentity });
   });
 
-  it('throws when the address is a previous address of an identity that is not done', () => {
-    expect(() =>
-      getMoneyAccountLifecycle(MONEY_ACCOUNT_ADDRESS, [
-        {
-          currentAddress: SUCCESSOR_ADDRESS,
-          previousAddresses: [MONEY_ACCOUNT_ADDRESS],
-          status: 'MIGRATING',
-        },
-      ]),
-    ).toThrow(
-      `Money account ${MONEY_ACCOUNT_ADDRESS} is a previous address of a derived identity with status 'MIGRATING'`,
-    );
+  it('returns mfa when the address is a previous address of an identity migrating to a further address', () => {
+    const identity: DerivedIdentity = {
+      currentAddress: SUCCESSOR_ADDRESS,
+      previousAddresses: [MONEY_ACCOUNT_ADDRESS],
+      status: 'MIGRATING',
+      migration: {
+        from: SUCCESSOR_ADDRESS,
+        to: '0x00000000000000000000000000000000000000cc',
+        requiredSteps: ['ROOT_DELEGATION'],
+        completedSteps: [],
+        missingSteps: ['ROOT_DELEGATION'],
+      },
+    };
+
+    expect(
+      getMoneyAccountLifecycle(MONEY_ACCOUNT_ADDRESS, [identity]),
+    ).toStrictEqual({ type: 'mfa', identity });
   });
 });
