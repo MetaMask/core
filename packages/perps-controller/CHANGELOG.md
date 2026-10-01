@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
-- Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#10651](https://github.com/MetaMask/core/pull/10651))
   - After such a failure, provider entry waits one minute before running the setup again instead of retrying every time; `reconnect()` or `disconnect()` ends the wait, and trading and withdraw still run the setup
   - Venue rejections, signing failures and other setup errors are still reported
 
