@@ -44,6 +44,9 @@
       "path": "../remote-feature-flag-controller"
     },
     {
+      "path": "../seedless-onboarding-controller"
+    },
+    {
       "path": "../transaction-controller"
     },
     {
