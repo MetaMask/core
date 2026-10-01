@@ -4,9 +4,8 @@ const MIN_IKM_LENGTH = 32;
 
 export type HkdfOptions = {
   /**
-   * Skip the minimum IKM length check. Using IKM shorter than 32 bytes,
-   * including an empty input, reduces the entropy of the derived key material.
-   * An empty input is part of some protocols, such as Noise `Split`.
+   * Skip the minimum IKM length check. Using IKM shorter than 32 bytes
+   * reduces the entropy of the derived key material.
    */
   unsafeInputKeyingMaterial?: boolean;
 };
