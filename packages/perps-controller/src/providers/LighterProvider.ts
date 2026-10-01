@@ -8744,7 +8744,6 @@ export class LighterProvider implements PerpsProvider {
           // inside the held transition immediately before any create or
           // cancel signature: an intervening fill or side flip would make
           // the captured cover payload under-sized or wrong-sided.
-          this.#assertSession(generationAtIntent);
           const liveAccount =
             await this.#clientService.getAccountByIndex(accountIndex);
           this.#assertSession(generationAtIntent);
