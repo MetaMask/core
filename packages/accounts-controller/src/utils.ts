@@ -100,7 +100,7 @@ export function isNormalKeyringType(
   return (
     !isSnapKeyringType(keyringType) &&
     !isSnapKeyringV2Type(keyringType) &&
-    !isMoneyKeyringType(keyringType)
+    !isSkippedKeyringType(keyringType)
   );
 }
 

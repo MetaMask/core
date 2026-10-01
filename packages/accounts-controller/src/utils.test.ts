@@ -45,6 +45,7 @@ describe('utils', () => {
     const {
       snap: snapKeyringType,
       money: moneyKeyringType,
+      mpc: mpcKeyringType,
       ...keyringTypes
     } = KeyringTypes;
 
@@ -64,6 +65,18 @@ describe('utils', () => {
 
     it('returns false for money keyring type', () => {
       expect(isNormalKeyringType(moneyKeyringType)).toBe(false);
+    });
+
+    it('returns false for MPC keyring type', () => {
+      expect(isNormalKeyringType(mpcKeyringType)).toBe(false);
+    });
+
+    it('returns false for any skipped keyring type', () => {
+      const skippedKeyringTypes =
+        Object.values(KeyringTypes).filter(isSkippedKeyringType);
+      for (const keyringType of skippedKeyringTypes) {
+        expect(isNormalKeyringType(keyringType)).toBe(false);
+      }
     });
   });
 
