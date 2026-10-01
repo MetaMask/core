@@ -6633,7 +6633,17 @@ export class LighterProvider implements PerpsProvider {
           // guard, but release only this exact proven-unsent attempt. A stale
           // session retains quarantine rather than touching another scope.
           this.#assertSession(generationAtIntent);
-          await identity?.onNotDispatched?.();
+          try {
+            await identity?.onNotDispatched?.();
+          } catch (cleanupError) {
+            this.#assertSession(generationAtIntent);
+            this.#deps.debugLogger.log(
+              '[LighterProvider] Proven-unsent dispatch cleanup remains pending',
+              { error: String(cleanupError) },
+            );
+            // Keep the ledger quarantined when its owner could not retire.
+            throw error;
+          }
           this.#assertSession(generationAtIntent);
           const unsentEntry = ledgerEntry;
           if (unsentEntry) {
@@ -7055,7 +7065,6 @@ export class LighterProvider implements PerpsProvider {
             ? {
                 ...adapted,
                 size: `${position.sign === -1 ? '-' : ''}${position.position}`,
-                entryPrice: position.avgEntryPrice,
               }
             : adapted;
         })
@@ -8892,13 +8901,21 @@ export class LighterProvider implements PerpsProvider {
                   sourceJournal.sourceRecoverySettlementKey === undefined &&
                   (!transfer || transfer.state === 'failed')
                 ) {
-                  const cleared = await this.#clearTpslJournal(
-                    sourceKey,
-                    sourceJournal.operationId,
-                  );
-                  this.#assertSession(generationAtIntent);
-                  if (cleared) {
-                    continue;
+                  try {
+                    const cleared = await this.#clearTpslJournal(
+                      sourceKey,
+                      sourceJournal.operationId,
+                    );
+                    this.#assertSession(generationAtIntent);
+                    if (cleared) {
+                      continue;
+                    }
+                  } catch (cleanupError) {
+                    this.#assertSession(generationAtIntent);
+                    this.#deps.debugLogger.log(
+                      '[LighterProvider] Older-slot protection cleanup remains pending',
+                      { error: String(cleanupError) },
+                    );
                   }
                 }
                 throw new Error(

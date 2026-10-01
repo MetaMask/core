@@ -7752,9 +7752,13 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['0.1', '0.03'] as const)(
-      'uses the raw venue decimal for explicit partial request %s before setup',
-      async (quantity) => {
+    it.each(
+      ([1, -1] as const).flatMap((sign) =>
+        (['0.1', '0.03'] as const).map((quantity) => ({ sign, quantity })),
+      ),
+    )(
+      'uses the raw venue decimal for explicit partial request $quantity with sign $sign before setup',
+      async ({ sign, quantity }) => {
         const built = buildProvider();
         const venue = setupTriggerVenue(built.clientInstance, built.bridge);
         const prior = venue.seedTrigger('stop-loss', '90000');
@@ -7765,14 +7769,18 @@ describe('LighterProvider', () => {
             {
               ...ACCOUNT,
               positions: [
-                { ...ACCOUNT.positions[0], position: '0.09999999999999999999' },
+                {
+                  ...ACCOUNT.positions[0],
+                  position: '0.09999999999999999999',
+                  sign,
+                },
               ],
             },
           ],
         });
         const result = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
-          stopLossPrice: '85000',
+          stopLossPrice: sign === 1 ? '85000' : '115000',
           stopLossSize: quantity,
         });
         expect(result.success).toBe(quantity === '0.03');
@@ -7897,6 +7905,99 @@ describe('LighterProvider', () => {
           Array.from({ length: kind === 'pair' ? 2 : 1 }, () => '0.03'),
         );
         expect(venue.rawTriggers).toStrictEqual([]);
+      },
+    );
+
+    it.each([false, true])(
+      'preserves the final position guard when unsent cleanup fails: %s',
+      async (cleanupFails) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        expect(
+          (
+            await built.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const priorProtection = JSON.stringify(venue.rawTriggers);
+        const execute = (
+          built.bridge.execute as jest.Mock
+        ).getMockImplementation() as (
+          call: LighterWasmCall,
+        ) => Promise<unknown>;
+        (built.bridge.execute as jest.Mock).mockImplementation(
+          async (call: LighterWasmCall) => {
+            const signed = await execute(call);
+            if (call.function === '_signCancelOrder') {
+              built.clientInstance.getAccountByIndex.mockResolvedValue({
+                code: 200,
+                accounts: [
+                  {
+                    ...ACCOUNT,
+                    positions: [
+                      { ...ACCOUNT.positions[0], avgEntryPrice: '100001' },
+                    ],
+                  },
+                ],
+              });
+            }
+            return signed;
+          },
+        );
+        const remove = infra.diskCache.removeItem.bind(infra.diskCache);
+        infra.diskCache.removeItem = async (key: string): Promise<void> => {
+          if (cleanupFails && key.startsWith('lighterTpslJournal')) {
+            throw new Error('cleanup storage unavailable');
+          }
+          return remove(key);
+        };
+        built.clientInstance.sendTx.mockClear();
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          stopLossSize: '0.03',
+        });
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(JSON.stringify(venue.rawTriggers)).toBe(priorProtection);
+        const rows = await built.provider.getPendingManualRecoveries();
+        expect(rows).toHaveLength(cleanupFails ? 1 : 0);
+        const writes = (infra.diskCache.setItem as jest.Mock).mock.calls as [
+          string,
+          string,
+        ][];
+        const journalWrites = writes.filter(([name]) =>
+          name.startsWith('lighterTpslJournalOp:'),
+        );
+        const journal = JSON.parse(
+          journalWrites[journalWrites.length - 1][1],
+        ) as { operationId: string };
+        const expectedId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 7, 'BTC', journal.operationId])}`;
+        expect(rows.map((row) => row.recoveryId)).toStrictEqual(
+          cleanupFails ? [expectedId] : [],
+        );
+        const ledger = JSON.parse(
+          (await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7')) ??
+            '{}',
+        ) as { entries: { owner: string | null }[] };
+        expect(
+          ledger.entries.filter((entry) => entry.owner === journal.operationId),
+        ).toHaveLength(cleanupFails ? 1 : 0);
+        const lastJournalWrite = journalWrites[journalWrites.length - 1];
+        expect(await infra.diskCache.getItem(lastJournalWrite[0])).toBe(
+          cleanupFails ? lastJournalWrite[1] : null,
+        );
+        expect(
+          (await built.provider.getPendingManualRecoveries()).map(
+            (row) => row.recoveryId,
+          ),
+        ).toStrictEqual(rows.map((row) => row.recoveryId));
       },
     );
 
@@ -8158,6 +8259,194 @@ describe('LighterProvider', () => {
         expect(
           recoveredVenue.rawTriggers.map((row) => row.initialBaseAmount),
         ).toStrictEqual(['0.04']);
+      },
+    );
+
+    it.each([
+      'source-link',
+      'prepared',
+      'pending',
+      'remove-failure',
+      'cas-conflict',
+    ] as const)(
+      'retains an older-slot zero-attempt partial journal with %s',
+      async (condition) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const execute = (
+          built.bridge.execute as jest.Mock
+        ).getMockImplementation() as (
+          call: LighterWasmCall,
+        ) => Promise<unknown>;
+        (built.bridge.execute as jest.Mock).mockImplementation(
+          async (call: LighterWasmCall) => {
+            if (call.function === '_signCreateOrder') {
+              throw new Error('interrupted');
+            }
+            return execute(call);
+          },
+        );
+        expect(
+          (
+            await built.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '85000',
+              stopLossSize: '0.03',
+            })
+          ).success,
+        ).toBe(false);
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        // Restore the exact durable pre-signing snapshot to model process death,
+        // including a restart before the live error cleanup could run.
+        const writes = (infra.diskCache.setItem as jest.Mock).mock.calls as [
+          string,
+          string,
+        ][];
+        const pointerWrite = writes.find(
+          ([name]) => name === `lighterTpslJournal:testnet:${key}`,
+        );
+        const payloadWrite = writes.find(([name]) =>
+          name.startsWith(`lighterTpslJournalOp:testnet:${key}:`),
+        );
+        if (!pointerWrite || !payloadWrite) {
+          throw new Error('Expected durable pre-dispatch snapshot');
+        }
+        await infra.diskCache.setItem(...pointerWrite);
+        await infra.diskCache.setItem(...payloadWrite);
+        await infra.diskCache.setItem(
+          'lighterTpslJournalIndex:testnet',
+          JSON.stringify([key]),
+        );
+        const payload = JSON.parse(payloadWrite[1]) as {
+          operationId: string;
+          attempts: unknown[];
+          sourceRecoveryOperationId?: string;
+          sourceRecoverySettlementKey?: string;
+        };
+        expect(payload.attempts).toStrictEqual([]);
+        const sourceKey = `${ACCOUNT.l1Address.toLowerCase()}:28:3:BTC`;
+        const successorKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        if (condition === 'source-link') {
+          payload.sourceRecoveryOperationId = 'original-source';
+          payload.sourceRecoverySettlementKey = sourceKey;
+          await infra.diskCache.setItem(
+            payloadWrite[0],
+            JSON.stringify(payload),
+          );
+        }
+        const transferKey = `lighterTpslSuccessor:testnet:${key}:${payload.operationId}`;
+        if (condition === 'prepared' || condition === 'pending') {
+          await infra.diskCache.setItem(
+            transferKey,
+            JSON.stringify({
+              version: 1,
+              sourceSettlementKey: key,
+              sourceOperationId: payload.operationId,
+              successorSettlementKey: successorKey,
+              successorOperationId: 'retained-successor',
+              state: condition,
+              ownedOrderIds: [],
+            }),
+          );
+        }
+        const retainedPayload = await infra.diskCache.getItem(payloadWrite[0]);
+        const retainedTransfer = await infra.diskCache.getItem(transferKey);
+        if (condition === 'remove-failure') {
+          const remove = infra.diskCache.removeItem.bind(infra.diskCache);
+          infra.diskCache.removeItem = async (name: string): Promise<void> => {
+            if (name === payloadWrite[0]) {
+              throw new Error('older-slot cleanup unavailable');
+            }
+            return remove(name);
+          };
+        }
+        const restarted = buildProvider({
+          apiKeyIndex: 19,
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        restarted.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            {
+              accountIndex: 28,
+              apiKeyIndex: 19,
+              nonce: 1,
+              publicKey: '9c'.repeat(40),
+            },
+          ],
+        });
+        const venue = setupTriggerVenue(
+          restarted.clientInstance,
+          restarted.bridge,
+        );
+        const before = await restarted.provider.getPendingManualRecoveries();
+        expect(before).toHaveLength(1);
+        const expectedId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 7, 'BTC', payload.operationId])}`;
+        expect(before[0].recoveryId).toBe(expectedId);
+        const replacementPayload = JSON.stringify({
+          ...payload,
+          operationId: 'newer-operation',
+        });
+        const replacementKey = `lighterTpslJournalOp:testnet:${key}:newer-operation`;
+        if (condition === 'cas-conflict') {
+          const get = infra.diskCache.getItem.bind(infra.diskCache);
+          let replaced = false;
+          infra.diskCache.getItem = async (
+            name: string,
+          ): Promise<string | null> => {
+            if (name === transferKey && !replaced) {
+              replaced = true;
+              // Another owner wins the pointer after the retirement candidate was read.
+              await infra.diskCache.setItem(replacementKey, replacementPayload);
+              await infra.diskCache.setItem(
+                pointerWrite[0],
+                JSON.stringify({
+                  pointerVersion: 1,
+                  operationId: 'newer-operation',
+                }),
+              );
+            }
+            return get(name);
+          };
+        }
+        const result = await restarted.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '84000',
+          stopLossSize: '0.04',
+        });
+        expect(result.error).toBe(
+          'Partial protection requires explicit recovery resolution by recovery ID',
+        );
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(venue.rawTriggers).toStrictEqual([]);
+        expect(
+          (await restarted.provider.getPendingManualRecoveries()).map(
+            (row) => row.recoveryId,
+          ),
+        ).toStrictEqual([
+          condition === 'cas-conflict'
+            ? `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 7, 'BTC', 'newer-operation'])}`
+            : expectedId,
+        ]);
+        expect(await infra.diskCache.getItem(payloadWrite[0])).toBe(
+          condition === 'cas-conflict' ? null : retainedPayload,
+        );
+        expect(await infra.diskCache.getItem(replacementKey)).toBe(
+          condition === 'cas-conflict' ? replacementPayload : null,
+        );
+        expect(await infra.diskCache.getItem(transferKey)).toBe(
+          retainedTransfer,
+        );
+        expect(
+          await infra.diskCache.getItem(
+            `lighterTpslJournal:testnet:${successorKey}`,
+          ),
+        ).toBeNull();
       },
     );
 
