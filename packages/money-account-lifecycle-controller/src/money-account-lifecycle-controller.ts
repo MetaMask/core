@@ -28,15 +28,13 @@ import type {
   ChompApiServiceGetDerivedIdentitiesAction,
   DerivedIdentity,
 } from './chomp-api-service-derived-identities.js';
+import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
+import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountControllerUseMpcKeyringAction } from './money-account-controller-mpc-keyring.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 import type { MoneyAccountUpgradeControllerGetRegistrationStatusAction } from './money-account-upgrade-controller-registration-status.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
-
-export type MoneyAccountLifecycle =
-  | { type: 'notInIdentity' }
-  | { type: 'sfa' | 'mfa'; identity: DerivedIdentity };
 
 export type AddressRegistration = {
   isRegistered: boolean;
@@ -354,37 +352,6 @@ export class MoneyAccountLifecycleController extends BaseController<
       error instanceof Error ? error : new Error(String(error)),
     );
   }
-}
-
-function getMoneyAccountLifecycle(
-  moneyAccountAddress: string,
-  identities: DerivedIdentity[],
-): MoneyAccountLifecycle {
-  const normalizedAddress = moneyAccountAddress.toLowerCase();
-  const isMoneyAccountAddress = (address: string): boolean =>
-    address.toLowerCase() === normalizedAddress;
-
-  const sfaIdentity = identities.find(({ currentAddress }) =>
-    isMoneyAccountAddress(currentAddress),
-  );
-  if (sfaIdentity) {
-    return { type: 'sfa', identity: sfaIdentity };
-  }
-
-  const successor = identities.find(({ previousAddresses }) =>
-    previousAddresses.some(isMoneyAccountAddress),
-  );
-  if (!successor) {
-    return { type: 'notInIdentity' };
-  }
-
-  if (successor.status !== 'DONE') {
-    throw new Error(
-      `Money account ${moneyAccountAddress} is a previous address of a derived identity with status '${successor.status}'`,
-    );
-  }
-
-  return { type: 'mfa', identity: successor };
 }
 
 function isWalletReady({
