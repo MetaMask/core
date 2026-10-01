@@ -13,6 +13,11 @@ updates:
       - dependency-name: '@metamask/*'
       - dependency-name: '@lavamoat/*'
     versioning-strategy: 'increase'
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - '*'
 
   - package-ecosystem: 'github-actions'
     directory: '/'
