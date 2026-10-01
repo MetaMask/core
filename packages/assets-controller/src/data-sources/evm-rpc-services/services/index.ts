@@ -1,5 +1,6 @@
 export {
   TokenDetector,
+  type TokenDetectorApiClient,
   type TokenDetectorConfig,
   type DetectionPollingInput,
   type OnDetectionUpdateCallback,

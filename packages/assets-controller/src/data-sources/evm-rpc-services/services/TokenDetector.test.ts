@@ -1,5 +1,6 @@
+import type { TokenMetadata } from '@metamask/core-backend';
+
 import type { MulticallClient } from '../clients/index.js';
-import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
   Address,
   BalanceOfResponse,
@@ -8,6 +9,7 @@ import type {
 } from '../types/index.js';
 import { TokenDetector } from './TokenDetector.js';
 import type {
+  TokenDetectorApiClient,
   TokenDetectorConfig,
   DetectionPollingInput,
 } from './TokenDetector.js';
@@ -24,6 +26,42 @@ const TEST_TOKEN_3: Address = '0x6B175474E89094C44Da98b954EescdeCB5e6cF8dA';
 
 const MAINNET_CHAIN_ID: ChainId = '0x1';
 const POLYGON_CHAIN_ID: ChainId = '0x89';
+const LINEA_MAINNET_CHAIN_ID: ChainId = '0xe708';
+const MEGAETH_MAINNET_CHAIN_ID: ChainId = '0x10e6';
+const MONAD_CHAIN_ID: ChainId = '0x8f';
+// 0xdef1 = 57073 decimal — intentionally absent from DEFAULT_SUPPORTED_NETWORKS
+const UNSUPPORTED_CHAIN_ID: ChainId = '0xdef1';
+
+/**
+ * Default Token API `/v2/supportedNetworks` payload. Includes every chain the
+ * tests reference so they reach the token-list endpoint unless they opt out.
+ */
+const DEFAULT_SUPPORTED_NETWORKS = {
+  fullSupport: ['eip155:1', 'eip155:137', 'eip155:59144'],
+  partialSupport: ['eip155:4326', 'eip155:143'],
+};
+
+/**
+ * Default `/v1/suggestedOccurrenceFloors` payload (decimal chain ID → floor).
+ * Linea and Monad are 1; mainnet and Polygon are 3; MegaETH is omitted so
+ * tests can assert the fallback.
+ */
+const DEFAULT_SUGGESTED_OCCURRENCE_FLOORS: Record<string, number> = {
+  '1': 3,
+  '137': 3,
+  '143': 1,
+  '59144': 1,
+};
+
+/** Query options the detector sends to `/tokens/{chainId}` (minus the floor). */
+const EXPECTED_TOKEN_LIST_QUERY = {
+  includeNativeAssets: false,
+  includeTokenFees: false,
+  includeAssetType: false,
+  includeERC20Permit: false,
+  includeStorage: false,
+  includeRwaData: true,
+};
 
 // =============================================================================
 // MOCK HELPERS
@@ -47,14 +85,61 @@ function createMockTokenList(
   return tokens.map((token) => ({ ...token }));
 }
 
-function createMockTokensApiClient(
-  tokenListByChain: Record<ChainId, TokenListEntry[]> = {},
-): jest.Mocked<TokensApiClient> {
-  return {
-    fetchTokenList: jest.fn((chainId: ChainId) =>
-      Promise.resolve(tokenListByChain[chainId] ?? []),
+type TokenApi = TokenDetectorApiClient['token'];
+
+type MockTokenApi = {
+  fetchV2SupportedNetworks: jest.MockedFunction<
+    TokenApi['fetchV2SupportedNetworks']
+  >;
+  fetchV1SuggestedOccurrenceFloors: jest.MockedFunction<
+    TokenApi['fetchV1SuggestedOccurrenceFloors']
+  >;
+  fetchTokenList: jest.MockedFunction<TokenApi['fetchTokenList']>;
+};
+
+type MockApiClientOptions = {
+  /** Raw `/tokens/{chainId}` items keyed by hex chain ID. */
+  tokenListByChain?: Record<ChainId, TokenMetadata[]>;
+  supportedNetworks?: { fullSupport: string[]; partialSupport: string[] };
+  suggestedOccurrenceFloors?: Record<string, number>;
+};
+
+/**
+ * Build a stub of the `ApiPlatformClient.token` surface the detector uses.
+ * `fetchTokenList` receives a decimal chain ID (as the real client does) and
+ * resolves the raw items registered for the matching hex chain ID.
+ *
+ * @param options - Payload overrides.
+ * @param options.tokenListByChain - Raw token-list items keyed by hex chain ID.
+ * @param options.supportedNetworks - `/v2/supportedNetworks` payload.
+ * @param options.suggestedOccurrenceFloors - `/v1/suggestedOccurrenceFloors` payload.
+ * @returns The typed client alongside its underlying mocks.
+ */
+function createMockApiClient({
+  tokenListByChain = {},
+  supportedNetworks = DEFAULT_SUPPORTED_NETWORKS,
+  suggestedOccurrenceFloors = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
+}: MockApiClientOptions = {}): {
+  apiClient: TokenDetectorApiClient;
+  mockTokenApi: MockTokenApi;
+} {
+  const mockTokenApi: MockTokenApi = {
+    fetchV2SupportedNetworks: jest
+      .fn<ReturnType<TokenApi['fetchV2SupportedNetworks']>, []>()
+      .mockResolvedValue(supportedNetworks),
+    fetchV1SuggestedOccurrenceFloors: jest
+      .fn<ReturnType<TokenApi['fetchV1SuggestedOccurrenceFloors']>, []>()
+      .mockResolvedValue(suggestedOccurrenceFloors),
+    fetchTokenList: jest.fn((decimalChainId: number) =>
+      Promise.resolve(
+        tokenListByChain[`0x${decimalChainId.toString(16)}`] ?? [],
+      ),
     ),
-  } as unknown as jest.Mocked<TokensApiClient>;
+  };
+  return {
+    apiClient: { token: mockTokenApi } as unknown as TokenDetectorApiClient,
+    mockTokenApi,
+  };
 }
 
 function createMockBalanceResponse(
@@ -72,13 +157,15 @@ function createMockBalanceResponse(
 
 type WithControllerOptions = {
   config?: TokenDetectorConfig;
-  tokenListByChain?: Record<ChainId, TokenListEntry[]>;
+  tokenListByChain?: Record<ChainId, TokenMetadata[]>;
+  supportedNetworks?: { fullSupport: string[]; partialSupport: string[] };
+  suggestedOccurrenceFloors?: Record<string, number>;
 };
 
 type WithControllerCallback<ReturnValue> = (params: {
   controller: TokenDetector;
   mockMulticallClient: jest.Mocked<MulticallClient>;
-  mockTokensApiClient: jest.Mocked<TokensApiClient>;
+  mockTokenApi: MockTokenApi;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -94,18 +181,14 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
   const [options, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { config, tokenListByChain = {} } = options;
+  const { config, ...apiClientOptions } = options;
 
   const mockMulticallClient = createMockMulticallClient();
-  const mockTokensApiClient = createMockTokensApiClient(tokenListByChain);
-  const controller = new TokenDetector(
-    mockMulticallClient,
-    mockTokensApiClient,
-    config,
-  );
+  const { apiClient, mockTokenApi } = createMockApiClient(apiClientOptions);
+  const controller = new TokenDetector(mockMulticallClient, apiClient, config);
 
   try {
-    return await fn({ controller, mockMulticallClient, mockTokensApiClient });
+    return await fn({ controller, mockMulticallClient, mockTokenApi });
   } finally {
     controller.stopAllPolling();
   }
@@ -367,16 +450,392 @@ describe('TokenDetector', () => {
       );
     });
 
-    it('calls the Tokens API with the correct chain ID', async () => {
+    it('calls the Token API with the decimal chain ID and the TokenListController query shape', async () => {
       await withController(
         { tokenListByChain: {} },
-        async ({ controller, mockTokensApiClient }) => {
+        async ({ controller, mockTokenApi }) => {
           await controller.getTokensToCheck(POLYGON_CHAIN_ID);
-          expect(mockTokensApiClient.fetchTokenList).toHaveBeenCalledWith(
-            POLYGON_CHAIN_ID,
-          );
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(137, {
+            occurrenceFloor: 3,
+            ...EXPECTED_TOKEN_LIST_QUERY,
+          });
         },
       );
+    });
+
+    it('does not pass a `first` cap so the API returns the full per-chain list', async () => {
+      // Detection deliberately scans the entire occurrenceFloor list (no
+      // top-N slice) — guard against a client-side cap creeping back in.
+      await withController(async ({ controller, mockTokenApi }) => {
+        await controller.getTokensToCheck(MAINNET_CHAIN_ID);
+        const [, queryOptions] = mockTokenApi.fetchTokenList.mock.calls[0];
+        expect(queryOptions).not.toHaveProperty('first');
+      });
+    });
+
+    describe('occurrence floor', () => {
+      it('uses the suggested occurrence floor from the Token API for Linea', async () => {
+        await withController(async ({ controller, mockTokenApi }) => {
+          await controller.getTokensToCheck(LINEA_MAINNET_CHAIN_ID);
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(
+            59144,
+            expect.objectContaining({ occurrenceFloor: 1 }),
+          );
+        });
+      });
+
+      it('uses the per-chain suggested occurrence floor (Monad → 1)', async () => {
+        await withController(async ({ controller, mockTokenApi }) => {
+          await controller.getTokensToCheck(MONAD_CHAIN_ID);
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(
+            143,
+            expect.objectContaining({ occurrenceFloor: 1 }),
+          );
+        });
+      });
+
+      it('falls back to occurrenceFloor=3 when the chain is missing from suggested floors', async () => {
+        // MegaETH is supported but omitted from DEFAULT_SUGGESTED_OCCURRENCE_FLOORS.
+        await withController(async ({ controller, mockTokenApi }) => {
+          await controller.getTokensToCheck(MEGAETH_MAINNET_CHAIN_ID);
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(
+            4326,
+            expect.objectContaining({ occurrenceFloor: 3 }),
+          );
+        });
+      });
+
+      it('falls back to occurrenceFloor=3 when the suggested floors fetch fails', async () => {
+        await withController(async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV1SuggestedOccurrenceFloors.mockRejectedValue(
+            new Error('floors unavailable'),
+          );
+
+          await controller.getTokensToCheck(LINEA_MAINNET_CHAIN_ID);
+
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(
+            59144,
+            expect.objectContaining({ occurrenceFloor: 3 }),
+          );
+        });
+      });
+    });
+
+    describe('supported networks check', () => {
+      it('returns an empty array for a chain not in the supported-networks list', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [UNSUPPORTED_CHAIN_ID]: [
+                {
+                  address: TEST_TOKEN_1,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(UNSUPPORTED_CHAIN_ID),
+            ).toStrictEqual([]);
+          },
+        );
+      });
+
+      it('does not call the token-list or floors endpoints for unsupported chains', async () => {
+        await withController(async ({ controller, mockTokenApi }) => {
+          await controller.getTokensToCheck(UNSUPPORTED_CHAIN_ID);
+
+          expect(mockTokenApi.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+            1,
+          );
+          expect(
+            mockTokenApi.fetchV1SuggestedOccurrenceFloors,
+          ).not.toHaveBeenCalled();
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
+        });
+      });
+
+      it('returns the token list for a chain in fullSupport', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MAINNET_CHAIN_ID]: [
+                {
+                  address: TEST_TOKEN_1,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+          },
+        );
+      });
+
+      it('returns the token list for a chain in partialSupport', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MEGAETH_MAINNET_CHAIN_ID]: [
+                {
+                  address: TEST_TOKEN_1,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(MEGAETH_MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+          },
+        );
+      });
+
+      it('returns an empty array when the supported-networks request fails', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MAINNET_CHAIN_ID]: [
+                {
+                  address: TEST_TOKEN_1,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          async ({ controller, mockTokenApi }) => {
+            mockTokenApi.fetchV2SupportedNetworks.mockRejectedValue(
+              new Error('Network error'),
+            );
+
+            expect(
+              await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+            ).toStrictEqual([]);
+            expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('token list mapping', () => {
+      it('maps a Token API item to a TokenListEntry preserving aggregators, iconUrl and occurrences', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MAINNET_CHAIN_ID]: [
+                {
+                  address: TEST_TOKEN_1,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                  occurrences: 10,
+                  aggregators: ['coinGecko', 'oneInch', 'sushiSwap'],
+                  iconUrl: 'https://example.com/usdc.png',
+                },
+              ],
+            },
+          },
+          async ({ controller, mockMulticallClient }) => {
+            mockMulticallClient.batchBalanceOf.mockResolvedValue([
+              createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '1'),
+            ]);
+
+            const result = await controller.detectTokens(
+              MAINNET_CHAIN_ID,
+              TEST_ACCOUNT_ID,
+              TEST_ACCOUNT,
+            );
+
+            expect(result.detectedAssets[0]).toMatchObject({
+              symbol: 'USDC',
+              name: 'USD Coin',
+              decimals: 6,
+              image: 'https://example.com/usdc.png',
+              aggregators: ['coinGecko', 'oneInch', 'sushiSwap'],
+            });
+          },
+        );
+      });
+
+      it('defaults symbol and name to empty strings and decimals to 18 when the API omits them', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MAINNET_CHAIN_ID]: [
+                { address: TEST_TOKEN_1 } as unknown as TokenMetadata,
+              ],
+            },
+          },
+          async ({ controller, mockMulticallClient }) => {
+            mockMulticallClient.batchBalanceOf.mockResolvedValue([
+              createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '1'),
+            ]);
+
+            const result = await controller.detectTokens(
+              MAINNET_CHAIN_ID,
+              TEST_ACCOUNT_ID,
+              TEST_ACCOUNT,
+            );
+
+            expect(result.detectedAssets[0]).toMatchObject({
+              symbol: '',
+              name: '',
+              decimals: 18,
+            });
+            expect(result.detectedBalances[0].decimals).toBe(18);
+          },
+        );
+      });
+
+      it('returns an empty array if the token-list response is not an array', async () => {
+        await withController(async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchTokenList.mockResolvedValue({
+            unexpected: 'shape',
+          } as unknown as TokenMetadata[]);
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([]);
+        });
+      });
+    });
+
+    describe('Linea mainnet aggregator filter', () => {
+      // Mirrors the filter applied in `fetchTokenListByChainId`
+      // (assets-controllers/src/token-service.ts) so the RPC token detector
+      // sees the same Linea token set as TokenListController.
+      const lineaItem = (
+        address: Address,
+        aggregators?: string[],
+      ): TokenMetadata => ({
+        address,
+        symbol: 'T',
+        name: 'T',
+        decimals: 18,
+        ...(aggregators ? { aggregators } : {}),
+      });
+
+      it('keeps entries flagged by `lineaTeam` regardless of aggregator count', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [LINEA_MAINNET_CHAIN_ID]: [
+                lineaItem(TEST_TOKEN_1, ['lineaTeam']),
+              ],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(LINEA_MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+          },
+        );
+      });
+
+      it('keeps entries with at least 3 aggregators even without `lineaTeam`', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [LINEA_MAINNET_CHAIN_ID]: [
+                lineaItem(TEST_TOKEN_1, ['agg1', 'agg2', 'agg3']),
+              ],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(LINEA_MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+          },
+        );
+      });
+
+      it('drops entries with fewer than 3 aggregators and no `lineaTeam` flag, or no aggregators at all', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [LINEA_MAINNET_CHAIN_ID]: [
+                lineaItem(TEST_TOKEN_1, ['agg1', 'agg2']),
+                lineaItem(TEST_TOKEN_2),
+              ],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(LINEA_MAINNET_CHAIN_ID),
+            ).toStrictEqual([]);
+          },
+        );
+      });
+
+      it('does not apply the Linea filter on other chains', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MAINNET_CHAIN_ID]: [lineaItem(TEST_TOKEN_1, ['agg1'])],
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+          },
+        );
+      });
+    });
+
+    describe('stale cache fallback', () => {
+      it('serves the previously fetched list when the token-list request fails', async () => {
+        await withController(
+          {
+            tokenListByChain: {
+              [MAINNET_CHAIN_ID]: [
+                {
+                  address: TEST_TOKEN_1,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              ],
+            },
+          },
+          async ({ controller, mockTokenApi }) => {
+            expect(
+              await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+
+            mockTokenApi.fetchTokenList.mockRejectedValue(
+              new Error('HTTP 503'),
+            );
+
+            expect(
+              await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+            ).toStrictEqual([TEST_TOKEN_1]);
+          },
+        );
+      });
+
+      it('returns an empty array when the token-list request fails and nothing is cached', async () => {
+        await withController(async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchTokenList.mockRejectedValue(new Error('HTTP 503'));
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([]);
+        });
+      });
     });
   });
 
@@ -458,43 +917,6 @@ describe('TokenDetector', () => {
           expect(result.detectedBalances).toHaveLength(1);
           expect(result.zeroBalanceAddresses).toHaveLength(0);
           expect(result.failedAddresses).toHaveLength(0);
-        },
-      );
-    });
-
-    it('includes detected asset but omits detectedBalances when token list entry has no decimals', async () => {
-      const tokenList: TokenListEntry[] = [
-        {
-          address: TEST_TOKEN_1,
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: undefined as unknown as number,
-        },
-      ];
-
-      await withController(
-        {
-          config: { tokenDetectionEnabled: () => true },
-          tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
-        },
-        async ({ controller, mockMulticallClient }) => {
-          mockMulticallClient.batchBalanceOf.mockResolvedValue([
-            createMockBalanceResponse(
-              TEST_TOKEN_1,
-              TEST_ACCOUNT,
-              true,
-              '1000000000',
-            ),
-          ]);
-
-          const result = await controller.detectTokens(
-            MAINNET_CHAIN_ID,
-            TEST_ACCOUNT_ID,
-            TEST_ACCOUNT,
-          );
-
-          expect(result.detectedAssets).toHaveLength(1);
-          expect(result.detectedBalances).toHaveLength(0);
         },
       );
     });

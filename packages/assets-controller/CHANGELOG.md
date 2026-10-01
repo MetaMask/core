@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `RpcDataSourceOptions` now requires a `queryApiClient` (`ApiPlatformClient` from `@metamask/core-backend`) and the optional `queryClient` option has been removed from both `RpcDataSourceOptions` and `RpcDataSourceConfig`
+  - `TokenDetector` now reads the per-chain token list through `ApiPlatformClient.token` (`fetchV2SupportedNetworks`, `fetchV1SuggestedOccurrenceFloors`, `fetchTokenList`) instead of the package-local `TokensApiClient`, which has been removed. `AssetsController` passes its existing `queryApiClient`, so consumers constructing `AssetsController` need no changes; consumers constructing `RpcDataSource` directly must pass `queryApiClient`.
+  - Token-list caching and request deduplication are now handled by the shared TanStack Query cache (`['token', ...]` keys) with the `@metamask/core-backend` defaults, replacing the previous instance-level 1h caches and the `['assets-controller','rpc-detection','token-list']` key. Failed token-list requests now go through the client's retry policy before the detector falls back to its stale in-memory list.
+
 ## [18.0.0]
 
 ### Added

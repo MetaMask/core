@@ -504,21 +504,31 @@ Handles price-related operations including spot prices, exchange rates, and hist
 
 #### TokenApiClient
 
-Handles token metadata, lists, and trending/popular token discovery.
+Handles token metadata, lists, search, security data, assets, RWAs, and trending/popular/meme token discovery. Mirrors the endpoints documented at <https://token.api.cx.metamask.io/docs>.
 
-| Method                                                                                  | Description                                  |
-| --------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `fetchNetworks(options?)`                                                               | Get all networks                             |
-| `fetchNetworkByChainId(chainId, options?)`                                              | Get network by chain ID                      |
-| `fetchTokenList(chainId, queryOptions?, options?)`                                      | Get token list for chain                     |
-| `fetchV1TokenMetadata(chainId, address, queryOptions?, options?)`                       | Get token metadata                           |
-| `fetchTokenDescription(chainId, address, options?)`                                     | Get token description                        |
-| `fetchV3TrendingTokens(chainIds, queryOptions?, options?)`                              | Get trending tokens                          |
-| `fetchV3TopGainers(chainIds, queryOptions?, options?)`                                  | Get top gainers/losers                       |
-| `fetchV3PopularTokens(chainIds, queryOptions?, options?)`                               | Get popular tokens                           |
-| `fetchTopAssets(chainId, options?)`                                                     | Get top assets for chain                     |
-| `fetchV1SuggestedOccurrenceFloors(options?)`                                            | Get suggested occurrence floors              |
-| `getNetworksQueryOptions(options?)` … `getV1SuggestedOccurrenceFloorsQueryOptions(...)` | Return TanStack Query options for each fetch |
+| Method                                                                                             | Description                                                      |
+| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `fetchV2SupportedNetworks(options?)`                                                               | Get chains with a Token API token list (v2)                      |
+| `fetchTokenList(chainId, queryOptions?, options?)`                                                 | Get token list for chain                                         |
+| `fetchV1TokenMetadata(chainId, address, queryOptions?, options?)`                                  | Get token metadata                                               |
+| `fetchTokenDescription(chainId, address, options?)`                                                | Get token description                                            |
+| `fetchTokenSearch(query, queryOptions?, options?)`                                                 | Search tokens by asset reference, symbol, or name                |
+| `fetchV1TokenSecurityData(assetIds, queryOptions?, options?)`                                      | Get security data keyed by CAIP-19 asset ID                      |
+| `fetchV1Assets(assetIds, queryOptions?, options?)`                                                 | Get asset metadata by CAIP-19 asset IDs (v1)                     |
+| `fetchV2Assets(assetIds, queryOptions?, options?)`                                                 | Get asset metadata by CAIP-19 asset IDs (v2, `null` for unknown) |
+| `fetchV1Rwas(queryOptions?, options?)`                                                             | Get paginated Real World Assets                                  |
+| `fetchV3TrendingTokens(chainIds, queryOptions?, options?)`                                         | Get trending tokens                                              |
+| `fetchV3TopGainers(chainIds, queryOptions?, options?)`                                             | Get top gainers/losers                                           |
+| `fetchV3PopularTokens(chainIds, queryOptions?, options?)`                                          | Get popular tokens                                               |
+| `fetchV3MemeTokens(queryOptions?, options?)`                                                       | Get paginated launchpad meme tokens                              |
+| `fetchV3TrendingMemeTokens(chainIds, queryOptions?, options?)`                                     | Get trending meme tokens                                         |
+| `fetchTopAssets(chainId, options?)`                                                                | Get top assets for chain                                         |
+| `fetchV1TokensSparkline(queryOptions?, options?)`                                                  | Get paginated sparklines for a curated category                  |
+| `fetchV1SuggestedOccurrenceFloors(options?)`                                                       | Get suggested occurrence floors                                  |
+| `getV2SupportedNetworksQueryOptions(options?)` … `getV1SuggestedOccurrenceFloorsQueryOptions(...)` | Return TanStack Query options for each fetch                     |
+| `invalidateToken()`                                                                                | Invalidate all Token API cache                                   |
+
+> **Note:** `fetchNetworks` / `fetchNetworkByChainId` (and their `get*QueryOptions` counterparts) are deprecated: the `/networks` endpoints no longer exist in production and return 404. Use `fetchV2SupportedNetworks` instead.
 
 #### TokensApiClient
 

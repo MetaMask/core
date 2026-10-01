@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TokenApiClient.fetchV2SupportedNetworks` and `getV2SupportedNetworksQueryOptions`, which call the Token API (`token.api.cx.metamask.io`) `/v2/supportedNetworks` endpoint and return the new `TokenV2SupportedNetworksResponse` type (`fullSupport` / `partialSupport` CAIP-2 chain IDs)
+- Add `TokenApiClient.fetchTokenSearch` and `getTokenSearchQueryOptions` for the Token API `/tokens/search` endpoint, with the new `TokenSearchQueryOptions`, `TokenSearchResult` and `TokenSearchResponse` types. `pageInfo.endCursor` is `string | null` (`null` on the last page)
+- Add `TokenApiClient.fetchV1TokenSecurityData` and `getV1TokenSecurityDataQueryOptions` for the Token API `/v1/tokens/security-data` endpoint, with the new `V1TokenSecurityDataQueryOptions`, `V1TokenSecuritySummary` and `V1TokenSecurityDataResponse` types
+- Add `TokenApiClient.fetchV1Assets` / `getV1AssetsQueryOptions` and `fetchV2Assets` / `getV2AssetsQueryOptions` for the Token API `/assets` and `/v2/assets` endpoints, with the new `AssetsQueryOptions`, `V1Asset`, `V1AssetMarketData`, `V2Asset` and `V2AssetMarketData` types
+- Add `TokenApiClient.fetchV1Rwas` and `getV1RwasQueryOptions` for the Token API `/v1/rwas` endpoint, with the new `V1RwasQueryOptions`, `V1Rwa`, `V1RwasResponse`, `RwaCustodian`, `RwaType`, `RwaIndustry` and `RwaSortBy` types
+- Add `TokenApiClient.fetchV3MemeTokens` / `getV3MemeTokensQueryOptions` and `fetchV3TrendingMemeTokens` / `getV3TrendingMemeTokensQueryOptions` for the Token API `/v3/tokens/meme` and `/v3/tokens/meme/trending` endpoints, with the new `MemeToken`, `MemeTokenRiskData`, `V3MemeTokensQueryOptions`, `V3MemeTokensResponse`, `V3TrendingMemeTokensQueryOptions` and related option enum types
+  - `MemeTokenRiskData` includes the Solana-only `riskScore`, `rugged`, `devHeldPercentage` and `insiderHeldPercentage` fields, and `sniperHeldPercentage` / `bundlerHeldPercentage` are nullable
+- Add `TokenApiClient.fetchV1TokensSparkline` and `getV1TokensSparklineQueryOptions` for the Token API `/v1/tokens/sparkline` endpoint, with the new `V1TokensSparklineQueryOptions`, `V1TokenSparkline`, `V1TokensSparklineResponse`, `V1TokensSparklineCategory` and `V1TokensSparklineSortOption` types
+- Add `TokenRwaData`, `TokenRwaMarketWindow`, `TokenRwaPause`, `TokenFees`, `TokenStorage`, `TokenBlockRegion` and `TokenCursorPageInfo` types describing Token API response fragments
+  - `TokenRwaData.marketCap` and `sharesOutstanding` are omitted when unknown, and `TokenRwaPause` fields are optional because `nextPause` is `{}` when no pause is scheduled
+  - `TokenStorage.balance` and `approval` are optional; the token list omits a slot it has no index for
+- Add optional `occurrenceFloor`, `useSuggestedOccurrenceFloor`, `includeDuplicateSymbolAssets`, `includeNativeAssets`, `includeRwaData`, `includeTokenSecurityData` and `includeLabels` query options to `TokenApiClient.fetchTokenList` and `getTokenListQueryOptions`, now typed as `TokenListQueryOptions`
+- Add optional `includeTokenSecurityData` query option to `TokenApiClient.fetchV1TokenMetadata` and `getV1TokenMetadataQueryOptions`, now typed as `V1TokenMetadataQueryOptions`
+- Add optional `blockRegion`, `includeRwaData`, `includeLabels`, `includeTokenSecurityData`, `includeWssSupportField`, `excludeLabels`, `excludeCommonAssets` and `filterWarning` query options to `TokenApiClient.fetchV3TrendingTokens`, `fetchV3TopGainers` and `fetchV3PopularTokens` (and their `get*QueryOptions` counterparts), typed via the new `V3TokenDiscoveryQueryOptions`, `V3TrendingTokensQueryOptions`, `V3TopGainersQueryOptions` and `V3PopularTokensQueryOptions` types
+  - `fetchV3TrendingTokens` additionally accepts `filterPriceGainOutliers` and `vsCurrency` (`TrendingVsCurrency`)
+  - `fetchV3PopularTokens` additionally accepts `sort` (`PopularTokensSortOption`), `defaultAssetIds` and `excludeAssetIds`
+- Add optional `type`, `erc20Permit`, `fees`, `storage`, `labels`, `rwaData` and `securityData` fields to `TokenMetadata`, and optional `rwaData` and `wssSupport` fields to `TrendingToken`, matching the Token API responses
+- Export `TokenSecurityData`, `TokenSecurityFeature`, `TokenSecurityHolder`, `TokenSecurityMarket`, `TokenSecurityFees`, `TokenSecurityFinancialStats` and `TokenSecurityMetadata` from the package entrypoint
+  - Nullable and omitted fields match production: `maliciousScore` is `string | null`, `fees` and `features` are nullable, `financialStats.topHolders` and `markets` are nullable, `supply`, `holdersCount`, `tradeVolume24h`, `lockedLiquidityPct` and `created` are omitted when unknown, and fee amounts plus `holdingPercentage` are `number | null`
+
+### Changed
+
+- **BREAKING:** `V1TokenDescriptionResponse` is now a map of locale code to description string (`en`, `zh-tw`, ...), matching the Token API `/token/{chainId}/description` response. It was previously typed as `{ description: string }`, which the endpoint does not return
+
+### Deprecated
+
+- Deprecate `TokenApiClient.fetchNetworks`, `fetchNetworkByChainId`, `getNetworksQueryOptions`, `getNetworkByChainIdQueryOptions` and the `NetworkInfo` type; the Token API `/networks` endpoints no longer exist in production and return 404. Use `fetchV2SupportedNetworks` instead
+
 ## [12.0.0]
 
 ### Changed

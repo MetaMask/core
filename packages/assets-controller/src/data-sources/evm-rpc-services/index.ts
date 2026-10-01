@@ -14,13 +14,11 @@ export type {
 export {
   MulticallClient,
   type MulticallClientConfig,
-  TokensApiClient,
-  type TokensApiClientConfig,
-  type TokenListQueryClient,
 } from './clients/index.js';
 export {
   BalanceFetcher,
   TokenDetector,
+  type TokenDetectorApiClient,
   StakedBalanceFetcher,
   getSupportedStakingChainIds,
   getStakingContractAddress,

@@ -1,9 +1,13 @@
+import {
+  ChainId as ControllerChainId,
+  convertHexToDecimal,
+} from '@metamask/controller-utils';
+import type { ApiPlatformClient, TokenMetadata } from '@metamask/core-backend';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../../../logger.js';
 import type { MulticallClient } from '../clients/index.js';
-import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
   AccountId,
   Address,
@@ -21,6 +25,15 @@ import { reduceInBatchesSerially } from '../utils/index.js';
 const log = createModuleLogger(projectLogger, 'TokenDetector');
 
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
+
+/**
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
+ */
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** The slice of the API platform client the detector reads token lists from. */
+export type TokenDetectorApiClient = Pick<ApiPlatformClient, 'token'>;
 
 export type TokenDetectorConfig = {
   /** Function returning whether token detection is enabled (avoids stale value) */
@@ -52,13 +65,25 @@ export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
 
 /**
  * TokenDetector - Detects tokens with non-zero balances via multicall.
- * Fetches the token list from the Tokens API and uses multicall to check balances.
+ *
+ * Fetches the per-chain ERC-20 token list from the Token API via the shared
+ * `ApiPlatformClient` (`token.api.cx.metamask.io/tokens/{chainId}`, the same
+ * endpoint `TokenListController` uses) and uses multicall to check balances.
+ *
+ * Before fetching a chain's list, the detector checks the Token API
+ * `/v2/supportedNetworks` and skips detection for chains that are not listed.
+ * The `occurrenceFloor` query param comes from `/v1/suggestedOccurrenceFloors`
+ * (fallback {@link DEFAULT_OCCURRENCE_FLOOR}), matching `TokenDataSource` spam
+ * filtering. Linea's aggregator filter is applied client-side. Caching and
+ * request deduplication for all three endpoints is handled by
+ * `ApiPlatformClient`'s TanStack Query cache.
+ *
  * Extends StaticIntervalPollingControllerOnly for built-in polling support.
  */
 export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #tokensApiClient: TokensApiClient;
+  readonly #apiClient: TokenDetectorApiClient;
 
   readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
 
@@ -68,12 +93,12 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
 
   constructor(
     multicallClient: MulticallClient,
-    tokensApiClient: TokensApiClient,
+    apiClient: TokenDetectorApiClient,
     config?: TokenDetectorConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
-    this.#tokensApiClient = tokensApiClient;
+    this.#apiClient = apiClient;
     this.#config = {
       tokenDetectionEnabled:
         config?.tokenDetectionEnabled ?? ((): boolean => true),
@@ -120,7 +145,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
 
   /**
    * Fetch the list of token addresses to check for the given chain.
-   * Calls the Tokens API and caches the result for metadata lookups.
+   * Calls the Token API and caches the result for metadata lookups.
    *
    * @param chainId - Chain ID in hex format.
    * @returns Array of token contract addresses.
@@ -223,7 +248,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
 
   async #fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
     try {
-      const list = await this.#tokensApiClient.fetchTokenList(chainId);
+      const list = await this.#fetchTokenList(chainId);
       this.#tokenListCache.set(chainId, list);
       return list;
     } catch (error) {
@@ -234,6 +259,94 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
         error,
       });
       return cached ?? [];
+    }
+  }
+
+  /**
+   * Fetch the ERC-20 token list for a chain from the Token API.
+   *
+   * Returns `[]` without hitting the token-list endpoint when the chain is
+   * not in `/v2/supportedNetworks` (or that check fails). Token-list request
+   * failures propagate to the caller, which falls back to the stale cache.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Token list entries for the chain, after chain-specific filters.
+   */
+  async #fetchTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
+    if (!(await this.#isSupportedChain(chainId))) {
+      return [];
+    }
+
+    const occurrenceFloor = await this.#getOccurrenceFloor(chainId);
+
+    // Same query shape as `TokenListController.getTokensURL` (token-service.ts),
+    // but `occurrenceFloor` comes from `/v1/suggestedOccurrenceFloors`.
+    // No `first=...` cap — the API returns the full per-chain list bounded
+    // server-side by `occurrenceFloor`.
+    const items = await this.#apiClient.token.fetchTokenList(
+      convertHexToDecimal(chainId),
+      {
+        occurrenceFloor,
+        includeNativeAssets: false,
+        includeTokenFees: false,
+        includeAssetType: false,
+        includeERC20Permit: false,
+        includeStorage: false,
+        includeRwaData: true,
+      },
+    );
+
+    return applyChainSpecificFilters(
+      chainId,
+      Array.isArray(items) ? items : [],
+    ).map(toTokenListEntry);
+  }
+
+  /**
+   * Check whether the Token API serves a token list for the given chain.
+   * Any failure of the supported-networks request is treated as "not
+   * supported" so the token-list endpoint is only contacted for known chains.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns `true` when the chain is in `fullSupport` or `partialSupport`.
+   */
+  async #isSupportedChain(chainId: ChainId): Promise<boolean> {
+    try {
+      const { fullSupport, partialSupport } =
+        await this.#apiClient.token.fetchV2SupportedNetworks();
+      const caipChainId = `eip155:${convertHexToDecimal(chainId)}`;
+      return [...fullSupport, ...partialSupport].includes(caipChainId);
+    } catch (error) {
+      log('Failed to fetch supported networks; skipping detection', {
+        chainId,
+        error,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Resolve the `occurrenceFloor` query param for a chain from the Token API
+   * `/v1/suggestedOccurrenceFloors`. Falls back to
+   * {@link DEFAULT_OCCURRENCE_FLOOR} when the chain is missing or the request
+   * fails.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Occurrence floor to send to `/tokens/{chainId}`.
+   */
+  async #getOccurrenceFloor(chainId: ChainId): Promise<number> {
+    try {
+      const floors =
+        await this.#apiClient.token.fetchV1SuggestedOccurrenceFloors();
+      return (
+        floors[String(convertHexToDecimal(chainId))] ?? DEFAULT_OCCURRENCE_FLOOR
+      );
+    } catch (error) {
+      log('Failed to fetch suggested occurrence floors; using default', {
+        chainId,
+        error,
+      });
+      return DEFAULT_OCCURRENCE_FLOOR;
     }
   }
 
@@ -369,4 +482,47 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       aggregators: metadata?.aggregators,
     };
   }
+}
+
+/**
+ * Apply chain-specific filters to a raw token list response, mirroring
+ * `fetchTokenListByChainId` in `assets-controllers/src/token-service.ts`.
+ *
+ * For Linea mainnet, the API returns extras with low aggregator coverage, so
+ * we keep only entries flagged by Linea's own team or seen by ≥3 aggregators.
+ *
+ * @param chainId - Chain ID in hex format.
+ * @param items - Raw items from the API response.
+ * @returns Items after chain-specific filtering.
+ */
+function applyChainSpecificFilters(
+  chainId: ChainId,
+  items: TokenMetadata[],
+): TokenMetadata[] {
+  if (chainId === ControllerChainId['linea-mainnet']) {
+    return items.filter((item) => {
+      const aggregators = item.aggregators ?? [];
+      return aggregators.includes('lineaTeam') || aggregators.length >= 3;
+    });
+  }
+  return items;
+}
+
+/**
+ * Map a Token API list item to the detector's `TokenListEntry`, defaulting
+ * fields the API occasionally omits despite its typed contract.
+ *
+ * @param item - Raw item from the API response.
+ * @returns The token list entry.
+ */
+function toTokenListEntry(item: TokenMetadata): TokenListEntry {
+  return {
+    address: item.address,
+    symbol: item.symbol ?? '',
+    name: item.name ?? '',
+    decimals: item.decimals ?? 18,
+    iconUrl: item.iconUrl,
+    aggregators: item.aggregators,
+    occurrences: item.occurrences,
+  };
 }

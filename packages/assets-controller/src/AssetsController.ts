@@ -1027,11 +1027,10 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
         this.#getNativeAssetForChain(chainId),
-      // Share the API platform's TanStack Query client so the RPC token
-      // detector caches/dedupes its top-token-list fetches alongside the rest
-      // of the package's API calls. Caller-provided rpcConfig.queryClient
-      // wins via the spread below.
-      queryClient: queryApiClient.queryClient,
+      // The RPC token detector reads token lists through the shared API
+      // platform client so its fetches are cached/deduped alongside the rest
+      // of the package's API calls.
+      queryApiClient,
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>

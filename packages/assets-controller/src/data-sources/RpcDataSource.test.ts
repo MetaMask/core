@@ -1,5 +1,6 @@
 /* eslint-disable jest/unbound-method */
 import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
+import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
@@ -39,6 +40,25 @@ const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const [MAINNET_MUSD] = getDefaultTrackedAssetsForChain(MOCK_CHAIN_ID_CAIP);
 type EthereumProvider = { request: jest.Mock };
+
+/**
+ * Minimal `ApiPlatformClient` stub. `RpcDataSource` only hands it to
+ * `TokenDetector`, whose network calls are stubbed per test via
+ * `TokenDetector.prototype` spies, so the Token API surface is never hit here.
+ *
+ * @returns A mock API platform client.
+ */
+function createMockQueryApiClient(): ApiPlatformClient {
+  return {
+    token: {
+      fetchV2SupportedNetworks: jest
+        .fn()
+        .mockResolvedValue({ fullSupport: [], partialSupport: [] }),
+      fetchV1SuggestedOccurrenceFloors: jest.fn().mockResolvedValue({}),
+      fetchTokenList: jest.fn().mockResolvedValue([]),
+    },
+  } as unknown as ApiPlatformClient;
+}
 
 function createBalanceFetchResult(
   overrides?: Partial<BalanceFetchResult>,
@@ -242,6 +262,7 @@ async function withController<ReturnValue>(
   const onActiveChainsUpdated = options.onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
+    queryApiClient: createMockQueryApiClient(),
     onActiveChainsUpdated,
     // Mirrors AssetsController.#getNativeAssetForChain: registered natives
     // from the map, zero-address ERC-20 fallback for unregistered EVM chains.
@@ -314,6 +335,7 @@ describe('createRpcDataSource', () => {
     const { assetsControllerMessenger } = createMockMessengers();
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
+      queryApiClient: createMockQueryApiClient(),
       getAssetsState: getDefaultAssetsControllerState,
       onActiveChainsUpdated: jest.fn(),
       getNativeAssetForChain: jest.fn(),
@@ -3155,6 +3177,7 @@ describe('RpcDataSource', () => {
       });
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,
+        queryApiClient: createMockQueryApiClient(),
         getAssetsState: getDefaultAssetsControllerState,
         onActiveChainsUpdated: jest.fn(),
         getNativeAssetForChain: jest.fn(),
