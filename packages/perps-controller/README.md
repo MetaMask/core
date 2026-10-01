@@ -51,31 +51,34 @@ routing are controlled by client configuration and feature flags.
 
 ## Rewards discounts and fee previews
 
-The client-owned RewardsController combines VIP, season, and targeted grants into one discount through `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount`.
-Core compares that rewards result against the default fee and subscription waiver; targeted grants are not a fourth fee source.
-
-The method accepts a CAIP account ID and the base builder fee in basis points.
-It returns `Promise<number | RewardsDiscountResponse | null>`. Existing clients can keep returning a numeric discount. Clients that know targeted participation can return the structured form:
+The client-owned RewardsController exposes two independent fee candidates.
+`getPerpsDiscountForAccount(account, baseFeeBips)` retains its existing
+`Promise<number | null>` contract for account-scoped VIP and season discounts.
+The optional `getPerpsTradingFeeGrant()` has no account or network input and
+returns an absolute production-Hyperliquid fee with its expiry:
 
 ```typescript
-import type { RewardsDiscountResponse } from '@metamask/perps-controller';
-// Example response from the client's getPerpsDiscountForAccount implementation.
-const discount: RewardsDiscountResponse = {
-  discountBips: 6500, // 65% off the base builder fee.
-  targetedDiscountApplied: true,
+import type { PerpsTradingFeeGrant } from '@metamask/perps-controller';
+
+const grant: PerpsTradingFeeGrant = {
+  feeBips: 3,
+  expiresAt: Date.now() + 60_000,
 };
 ```
 
-`targetedDiscountApplied: true` means a targeted grant contributes to the returned discount; `false` explicitly reports no targeted participation.
-A numeric response leaves participation unknown, even if its amount matches a known VIP discount. `null` means the discount is unavailable, not zero; avoid caching it and retry on the next fee calculation.
-`PerpsController.calculateFees` returns an optional `feeResolution` with the winning `source`, discount, and participation. When rewards wins, structured responses preserve their participation boolean; numeric responses omit it.
-Default and subscription winners omit the participation field. A grant merely existing on the profile does not mean it was applied to the quote. The whole `feeResolution` field is omitted when the preview cannot apply a resolution or the placement does not charge a builder fee. Subscription eligibility is still
-reported separately when available.
+Core retrieves VIP/season and grant concurrently and isolates failures between
+them. It calls the grant method on every resolution and validates that
+`feeBips` is finite and non-negative and that `expiresAt` is finite and still
+in the future after all candidate work settles. The client owns authentication,
+payload validation, and production-Hyperliquid scoping.
 
-Rewards wins a tie with default. Subscription must be strictly cheaper after venue quantization to win, so ties do not spend subscription allowance. Preview attribution comes from the same resolution used to calculate the quoted rates.
-
-The client owns discount combination and cache freshness. Grants can change independently of VIP tier or season. Core reads the DI result on every resolution, but does not fetch grants, invalidate client caches, or implement the client UI.
-Updated clients must supply participation before their UI can identify targeted discounts; legacy numeric responses cannot provide that attribution.
+Core compares both candidates with the default fee and cached subscription
+waiver. Rewards preserves its existing tie with default. A grant wins only when
+strictly cheaper than the current winner after Hyperliquid's tenths-of-a-basis-
+point quantization, so rewards wins a quantized VIP/grant tie and default beats
+a non-reducing grant. Subscription retains the same strictly-cheaper
+quantized-tie policy. `PerpsController.calculateFees` exposes the result through
+its optional `feeResolution`; grant winners report `source: 'grant'`.
 
 ## Error codes
 

@@ -1905,11 +1905,21 @@ export type PerpsSubscriptionFeeWaiverStatus = {
 /**
  * Fee source that won the unified resolver.
  *
- * `rewards` covers VIP, season, and targeted discounts. The client owned
- * `RewardsController` combines them into a single discount; the perps
- * controller does not re-derive their contributions.
+ * `rewards` covers the account-scoped VIP and season discount. `grant` is the
+ * independent Hyperliquid trading-fee grant supplied by RewardsController.
  */
-export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
+export type PerpsFeeSource = 'default' | 'rewards' | 'grant' | 'subscription';
+
+/**
+ * Independent RewardsController fee candidate for production Hyperliquid.
+ */
+export type PerpsTradingFeeGrant = {
+  /** Absolute MetaMask builder fee, in basis points. */
+  feeBips: number;
+
+  /** Expiry as a Unix timestamp in milliseconds. */
+  expiresAt: number;
+};
 
 /**
  * Outcome of the unified fee resolver.
@@ -1931,18 +1941,6 @@ export type PerpsFeeResolution = {
 
   /** Subscription gate outcome, always populated for observability. */
   subscription: PerpsSubscriptionFeeWaiverStatus;
-
-  /**
-   * Whether a targeted rewards discount was applied when the rewards source won.
-   *
-   * Omitted when rewards does not win, or when the rewards controller returns
-   * a legacy numeric response (in which case participation is unknown).
-   *
-   * `true` means a targeted grant was applied; `false` means the client reported
-   * no targeted participation despite the client-owned RewardsController
-   * combining grants into a final discount.
-   */
-  targetedDiscountApplied?: boolean;
 
   /**
    * How much of the order the subscription allowance covered, when the
@@ -2868,23 +2866,6 @@ export type PerpsGlobalSnapshotResult = {
  * Cross-controller communication uses the messenger pattern (messenger.call).
  * Only rewards remains as DI because RewardsController is not yet in Core.
  */
-/**
- * A rewards discount response from the RewardsController.
- *
- * When returned, the `discountBips` field contains the discount in basis
- * points (e.g., 6500 = 65% discount), and `targetedDiscountApplied` indicates
- * whether a targeted rewards grant (separate from VIP/season) was applied.
- *
- * The client owns the combination of VIP, season, and targeted discounts;
- * this controller consumes only the combined result and never reconstructs it.
- */
-export type RewardsDiscountResponse = {
-  /** Discount in basis points (e.g., 6500 = 65%) */
-  discountBips: number;
-  /** True when a targeted rewards grant was applied, false otherwise */
-  targetedDiscountApplied: boolean;
-};
-
 export type PerpsPlatformDependencies = {
   // === Observability (stateless utilities) ===
   logger: PerpsLogger;
@@ -2948,30 +2929,30 @@ export type PerpsPlatformDependencies = {
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {
     /**
-     * Get fee discount for an account from the RewardsController.
+     * Get the VIP and season fee discount for an account.
      *
-     * Returns either:
-     * - A numeric discount in basis points (e.g., 6500 = 65% discount) from legacy clients (targeted participation is unknown)
-     * - A structured response with `discountBips` and `targetedDiscountApplied`
-     *   when targeted participation is available
-     * - `null` when subscription state hasn't hydrated yet
+     * Returns a numeric discount in basis points (e.g., 6500 = 65%), or `null`
+     * when rewards state has not hydrated yet.
      *
      * Pass the perps MetaMask builder base fee in bips so the rewards
      * controller can convert an absolute VIP fee into a discount fraction.
-     *
-     * The client combines VIP, season, and targeted grants into this discount.
-     * It may change when a grant is added or removed, independently of VIP tier
-     * or season. The client owns freshness; core does not cache this response.
-     * Skip caching null results and retry on the next fee calculation.
-     *
-     * The client may return either the legacy numeric format or the structured
-     * format. The controller normalizes both and carries participation only when
-     * rewards wins the fee resolution.
      */
     getPerpsDiscountForAccount(
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
-    ): Promise<number | RewardsDiscountResponse | null>;
+    ): Promise<number | null>;
+
+    /**
+     * Get the independent production Hyperliquid trading fee grant.
+     *
+     * The client owns grant retrieval, authentication, payload validation, and
+     * venue scoping. Core validates the numeric fee and expiry, calls this on
+     * every resolution, and compares it with the other fee sources.
+     *
+     * Optional so clients predating grant support retain their existing
+     * behavior.
+     */
+    getPerpsTradingFeeGrant?(): Promise<PerpsTradingFeeGrant | null>;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
