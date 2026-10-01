@@ -160,7 +160,8 @@ after preflight: exact recorded protection IDs can still be cancelled when an
 authoritative positions array shows no position, zero size or a size below the
 tick. Account-read failures or malformed position envelopes still refuse the
 operation. Unrecorded legacy protection still requires a valid live quantity and
-side for classification; replacement retains its size and side checks.
+side for classification; replacement retains its size and side checks. A supplied
+`expectedPosition` must still match for managed removal, including after signing.
 
 `getOrderCapabilities` reports these types only for active, known markets.
 Capabilities and trigger preflight refresh public metadata and fail closed on

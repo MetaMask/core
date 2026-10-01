@@ -6710,7 +6710,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['absent', 'zero', 'subtick'] as const)(
+    it.each(['absent', 'zero', 'subtick', 'invalid-sign'] as const)(
       'retains explicit removal preconditions when live position becomes %s',
       async (state) => {
         const { provider, clientInstance, bridge, calls } = buildProvider();
@@ -6724,25 +6724,41 @@ describe('LighterProvider', () => {
           ).success,
         ).toBe(true);
         const before = venue.rawTriggers.map((row) => ({ ...row }));
-        clientInstance.getAccountByIndex
-          .mockResolvedValueOnce({ code: 200, accounts: [ACCOUNT] })
-          .mockResolvedValue({
+        const positions = {
+          zero: '0',
+          subtick: '0.000000001',
+          'invalid-sign': ACCOUNT.positions[0].position,
+        };
+        let driftInjected = false;
+        clientInstance.getActiveOrders.mockImplementation(async () => {
+          if (!driftInjected) {
+            driftInjected = true;
+            // Only the post-prune read sees drift. Later final readers see
+            // valid evidence, so this specifically protects that boundary.
+            clientInstance.getAccountByIndex.mockResolvedValueOnce({
+              code: 200,
+              accounts: [
+                {
+                  ...ACCOUNT,
+                  positions:
+                    state === 'absent'
+                      ? []
+                      : [
+                          {
+                            ...ACCOUNT.positions[0],
+                            position: positions[state],
+                            sign: state === 'invalid-sign' ? 0 : 1,
+                          },
+                        ],
+                },
+              ],
+            });
+          }
+          return {
             code: 200,
-            accounts: [
-              {
-                ...ACCOUNT,
-                positions:
-                  state === 'absent'
-                    ? []
-                    : [
-                        {
-                          ...ACCOUNT.positions[0],
-                          position: state === 'zero' ? '0' : '0.000000001',
-                        },
-                      ],
-              },
-            ],
-          });
+            orders: venue.rawTriggers.map((row) => ({ ...row })),
+          };
+        });
         calls.length = 0;
         const result = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -6751,6 +6767,7 @@ describe('LighterProvider', () => {
             entryPrice: ACCOUNT.positions[0].avgEntryPrice,
           },
         });
+        expect(driftInjected).toBe(true);
         expect(result.success).toBe(false);
         expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         expect(
@@ -6759,6 +6776,125 @@ describe('LighterProvider', () => {
         expect(venue.rawTriggers).toStrictEqual(before);
       },
     );
+
+    describe('final expected-position authority after signing', () => {
+      for (const operation of ['create', 'remove'] as const) {
+        it.each([
+          'wrong-account',
+          'duplicate-account',
+          'missing-positions',
+          'malformed-positions',
+          'sign-zero',
+          'sign-two',
+        ] as const)(
+          `refuses ${operation} with %s evidence and permits a refreshed retry`,
+          async (evidence) => {
+            const infra = createMockInfrastructure();
+            const { provider, clientInstance, bridge } = buildProvider({
+              platformDependencies: infra,
+            });
+            const venue = setupTriggerVenue(clientInstance, bridge);
+            expect(
+              (
+                await provider.updatePositionTPSL({
+                  symbol: 'BTC',
+                  stopLossPrice: '80000',
+                })
+              ).success,
+            ).toBe(true);
+            const oldOrders = venue.rawTriggers.map((row) => ({ ...row }));
+            const managedKey = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+            const journalKey = `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+            const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+            const ownership = await infra.diskCache.getItem(managedKey);
+            const ledgerBefore = await infra.diskCache.getItem(ledgerKey);
+            expect(ownership).not.toBeNull();
+            expect(ledgerBefore).not.toBeNull();
+            const expectedPosition = {
+              size: ACCOUNT.positions[0].position,
+              entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+            };
+            const started = createDeferred<void>();
+            const release = createDeferred<void>();
+            const execute = jest.spyOn(bridge, 'execute');
+            const original = execute.getMockImplementation();
+            if (!original) {
+              throw new Error('Expected configured Lighter bridge');
+            }
+            execute.mockImplementation(async (call: LighterWasmCall) => {
+              const signed = await original(call);
+              if (
+                call.function ===
+                (operation === 'create'
+                  ? '_signCreateOrder'
+                  : '_signCancelOrder')
+              ) {
+                started.resolve();
+                await release.promise;
+              }
+              return signed;
+            });
+            const pending = provider.updatePositionTPSL({
+              symbol: 'BTC',
+              ...(operation === 'create' ? { stopLossPrice: '85000' } : {}),
+              expectedPosition,
+            });
+            await started.promise;
+            clientInstance.sendTx.mockClear();
+            const invalidAccount = {
+              ...ACCOUNT,
+              ...(evidence === 'wrong-account' ? { index: 29 } : {}),
+              ...(evidence === 'missing-positions'
+                ? { positions: undefined }
+                : {}),
+              ...(evidence === 'malformed-positions' ? { positions: {} } : {}),
+              ...(evidence === 'sign-zero' || evidence === 'sign-two'
+                ? {
+                    positions: [
+                      {
+                        ...ACCOUNT.positions[0],
+                        sign: evidence === 'sign-zero' ? 0 : 2,
+                      },
+                    ],
+                  }
+                : {}),
+            };
+            clientInstance.getAccountByIndex.mockResolvedValue({
+              code: 200,
+              accounts:
+                evidence === 'duplicate-account'
+                  ? [invalidAccount, invalidAccount]
+                  : [invalidAccount],
+            });
+            release.resolve();
+            const result = await pending;
+            expect(result.success).toBe(false);
+            expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+            expect(clientInstance.sendTx).not.toHaveBeenCalled();
+            expect(venue.rawTriggers).toStrictEqual(oldOrders);
+            expect(await infra.diskCache.getItem(managedKey)).toBe(ownership);
+            expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+            expect(await infra.diskCache.getItem(ledgerKey)).toBe(ledgerBefore);
+            clientInstance.getAccountByIndex.mockResolvedValue({
+              code: 200,
+              accounts: [ACCOUNT],
+            });
+            execute.mockImplementation(original);
+            const retry = await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              ...(operation === 'create' ? { stopLossPrice: '85000' } : {}),
+              expectedPosition,
+            });
+            expect(retry.success).toBe(true);
+            expect(venue.rawTriggers).toHaveLength(
+              operation === 'create' ? 1 : 0,
+            );
+            expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+            await provider.disconnect();
+          },
+        );
+      }
+    });
 
     it.each(['resize', 'entry-drift'])(
       'releases an unsent removal after position %s during cancel signing',

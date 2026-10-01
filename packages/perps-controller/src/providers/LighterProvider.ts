@@ -7265,12 +7265,19 @@ export class LighterProvider implements PerpsProvider {
             const account =
               await this.#clientService.getAccountByIndex(accountIndex);
             this.#assertSession(generationAtIntent);
-            const current = account.accounts[0]?.positions?.find(
+            const currentPositions =
+              Array.isArray(account.accounts) &&
+              account.accounts.length === 1 &&
+              account.accounts[0]?.index === accountIndex &&
+              Array.isArray(account.accounts[0].positions)
+                ? account.accounts[0].positions
+                : undefined;
+            const current = currentPositions?.find(
               (entry) => entry.symbol === params.symbol,
             );
             assertExpectedPosition(
               expectedPosition,
-              current
+              current && (current.sign === 1 || current.sign === -1)
                 ? {
                     size: `${current.sign === -1 ? '-' : ''}${current.position}`,
                     entryPrice: current.avgEntryPrice,
@@ -7409,7 +7416,8 @@ export class LighterProvider implements PerpsProvider {
           }
           assertExpectedPosition(
             expectedPosition,
-            livePosition
+            livePosition &&
+              (livePosition.sign === 1 || livePosition.sign === -1)
               ? {
                   size: `${livePosition.sign === -1 ? '-' : ''}${livePosition.position}`,
                   entryPrice: livePosition.avgEntryPrice,
