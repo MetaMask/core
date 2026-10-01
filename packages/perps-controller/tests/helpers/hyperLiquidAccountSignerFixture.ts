@@ -134,6 +134,45 @@ export function cancelStatusesResponse(
 }
 
 /**
+ * The message of the ApiRequestError the SDK (0.33.1) throws for a venue
+ * answer, or undefined when the answer is not an error.
+ *
+ * @param answer - The venue's answer.
+ * @returns The message, or undefined.
+ */
+function getVenueErrorMessage(
+  answer: Record<string, unknown>,
+): string | undefined {
+  if (answer.status === 'err') {
+    return String(answer.response);
+  }
+  const response = answer.response as
+    | { type?: string; data?: { statuses?: unknown[] } }
+    | undefined;
+  const failures = (response?.data?.statuses ?? []).flatMap((status, index) =>
+    typeof status === 'object' && status !== null && 'error' in status
+      ? [`${response?.type} ${index}: ${String(status.error)}`]
+      : [],
+  );
+  return failures.length > 0 ? failures.join(', ') : undefined;
+}
+
+/**
+ * The ApiRequestError the SDK (0.33.1) throws for a venue answer that is an
+ * error, carrying the answer.
+ *
+ * @param answer - The venue's answer.
+ * @returns The SDK error.
+ */
+export function apiRequestError(answer: Record<string, unknown>): Error {
+  const error = new HyperliquidError(
+    getVenueErrorMessage(answer) ?? 'Unknown error',
+  );
+  error.name = 'ApiRequestError';
+  return Object.assign(error, { response: answer });
+}
+
+/**
  * The order ID a placement returned.
  *
  * @param result - The placement result.
@@ -311,6 +350,18 @@ export type AccountSignerFixture = {
   initialize: jest.Mock<Promise<void>, [HyperLiquidWalletParams]>;
   // The wallet the provider last initialized the SDK clients with.
   sdkWallet: () => HyperLiquidWalletParams;
+  // Report the venue's answer to a request carrying `signature` to the
+  // provider, as the client service does before the SDK reads the answer.
+  reportAnswer: (signature: Hex, answer: Record<string, unknown>) => void;
+  // Sign an exchange request through the SDK wallet and send it the way the
+  // SDK does: the venue's answer is reported to the provider with the
+  // request's signature, then thrown as the SDK's ApiRequestError when it is
+  // an error, unless it is `returned`.
+  signAndSend: (
+    payload: PerpsTypedDataPayload,
+    answer: Record<string, unknown>,
+    delivery?: 'thrown' | 'returned',
+  ) => Promise<Record<string, unknown>>;
   selectAccount: (address: Hex) => void;
   deselectAccount: () => void;
 };
@@ -351,15 +402,34 @@ export function createAccountSignerProvider(
     }
     return wallet;
   };
+  // The provider's listener for exchange requests, which the client service
+  // calls with each request and the venue's answer.
+  let onExchangeRequest:
+    | ((payload: unknown, answer: unknown) => void)
+    | undefined;
+  const reportAnswer = (
+    signature: Hex,
+    answer: Record<string, unknown>,
+  ): void =>
+    onExchangeRequest?.({ signature: { r: signature.slice(0, 66) } }, answer);
+  const signAndSend = async (
+    payload: PerpsTypedDataPayload,
+    answer: Record<string, unknown>,
+    delivery: 'thrown' | 'returned' = 'thrown',
+  ): Promise<Record<string, unknown>> => {
+    reportAnswer(await signThroughWallet(sdkWallet(), payload), answer);
+    if (delivery === 'returned' || getVenueErrorMessage(answer) === undefined) {
+      return answer;
+    }
+    throw apiRequestError(answer);
+  };
   const signThroughSdkWallet =
     (
       payload: PerpsTypedDataPayload,
       response: Record<string, unknown> = { status: 'ok' },
     ): (() => Promise<Record<string, unknown>>) =>
-    async () => {
-      await signThroughWallet(sdkWallet(), payload);
-      return response;
-    };
+    async () =>
+      await signAndSend(payload, response);
   const exchangeClient = createMockExchangeClient({
     agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
     setReferrer: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
@@ -390,7 +460,12 @@ export function createAccountSignerProvider(
     getExchangeClient: jest.fn().mockReturnValue(exchangeClient),
     getInfoClient: jest.fn().mockReturnValue(infoClient),
   } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
-  MockedHyperLiquidClientService.mockImplementationOnce(() => clientService);
+  MockedHyperLiquidClientService.mockImplementationOnce(
+    (_deps, serviceOptions) => {
+      onExchangeRequest = serviceOptions?.onExchangeRequest;
+      return clientService;
+    },
+  );
   const accountSignerProvider = new HyperLiquidProvider({
     platformDependencies: options.keyring
       ? mockPlatformDependencies
@@ -413,6 +488,8 @@ export function createAccountSignerProvider(
     infoClient,
     initialize,
     sdkWallet,
+    reportAnswer,
+    signAndSend,
     selectAccount,
     deselectAccount,
   };

@@ -1,24 +1,30 @@
 import { getChecksumAddress } from '@metamask/utils';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import type { PerpsAgentAccount } from '../../../src/types/index.js';
 import {
   AGENT_ADDRESS,
+  APPROVE_BUILDER_FEE_PAYLOAD,
   L1_PAYLOAD,
   MAINNET_ACCOUNT,
   MAIN_ADDRESS,
+  OTHER_AGENT_ADDRESS,
+  OTHER_AGENT_SIGNATURE,
   OTHER_MAIN_ADDRESS,
+  TESTNET_ACCOUNT,
   mustDepositError,
 } from '../../helpers/agentFixtures.js';
 import {
   BTC_MARKET_ORDER,
   CANCEL_DELIVERIES,
   REFERRAL_WRITE,
-  cancelStatusesResponse,
+  apiRequestError,
   createAccountSignerProvider,
   referralAttempted,
   setUpAccountSignerSuite,
 } from '../../helpers/hyperLiquidAccountSignerFixture.js';
 import type { AccountSignerFixture } from '../../helpers/hyperLiquidAccountSignerFixture.js';
+import { createDeferred } from '../../helpers/serviceMocks.js';
 
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
@@ -34,6 +40,26 @@ jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * The venue's answer to a write for an account that must deposit.
+ *
+ * @param user - The main account the venue names.
+ * @returns The answer.
+ */
+function mustDepositAnswer(user: string): Record<string, unknown> {
+  return { status: 'err', response: mustDepositError(user).message };
+}
+
+/**
+ * The venue's answer to a cancel, one status per entry.
+ *
+ * @param statuses - The entries' statuses.
+ * @returns The answer.
+ */
+function cancelAnswer(statuses: unknown[]): Record<string, unknown> {
+  return { status: 'ok', response: { type: 'cancel', data: { statuses } } };
+}
 
 type ListedAgent = {
   address: string;
@@ -58,9 +84,12 @@ function listedAgent(
 
 describe('HyperLiquidProvider with accountSigner: an agent the venue answers with "Must deposit"', () => {
   let loggerError: jest.SpyInstance;
+  let mockClientService: ReturnType<
+    typeof setUpAccountSignerSuite
+  >['mockClientService'];
 
   beforeEach(() => {
-    ({ loggerError } = setUpAccountSignerSuite());
+    ({ loggerError, mockClientService } = setUpAccountSignerSuite());
   });
 
   /**
@@ -91,10 +120,9 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
       info: { extraAgents },
     });
     getAgentSigner.mockResolvedValue(built.agentSigner);
-    built.exchangeClient[write].mockImplementation(async () => {
-      await built.sdkWallet().signTypedData(L1_PAYLOAD);
-      throw mustDepositError(user);
-    });
+    built.exchangeClient[write].mockImplementation(
+      async () => await built.signAndSend(L1_PAYLOAD, mustDepositAnswer(user)),
+    );
     return { ...built, getAgentSigner, onAgentRejected, extraAgents };
   }
 
@@ -146,25 +174,26 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
           getAgentSigner,
           onAgentRejected,
           sdkWallet,
+          signAndSend,
         } = createMustDepositProvider('cancel', agents);
         await accountSignerProvider.getMarketDataWithPrices();
-        const wallet = sdkWallet();
-        exchangeClient.cancel.mockImplementation(async () => {
-          await wallet.signTypedData(L1_PAYLOAD);
-          return cancelStatusesResponse(
-            [
-              { error: mustDepositError(MAIN_ADDRESS).message },
-              { error: mustDepositError(MAIN_ADDRESS).message },
-            ],
-            delivery,
-          );
-        });
+        exchangeClient.cancel.mockImplementation(
+          async () =>
+            await signAndSend(
+              L1_PAYLOAD,
+              cancelAnswer([
+                { error: mustDepositError(MAIN_ADDRESS).message },
+                { error: mustDepositError(MAIN_ADDRESS).message },
+              ]),
+              delivery,
+            ),
+        );
 
         const result = await accountSignerProvider.cancelOrders([
           { orderId: '123', symbol: 'BTC' },
           { orderId: '124', symbol: 'BTC' },
         ]);
-        await wallet.signTypedData(L1_PAYLOAD);
+        await sdkWallet().signTypedData(L1_PAYLOAD);
 
         expect(result).toStrictEqual({
           success: false,
@@ -205,21 +234,17 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
         accountSignerProvider,
         exchangeClient,
         onAgentRejected,
-        sdkWallet,
+        signAndSend,
       } = createMustDepositProvider('cancel', agents);
       await accountSignerProvider.getMarketDataWithPrices();
-      const wallet = sdkWallet();
-      exchangeClient.cancel.mockImplementation(async () => {
-        await wallet.signTypedData(L1_PAYLOAD);
-        return {
-          status: 'ok',
-          response: {
-            data: {
-              statuses: [{ error: mustDepositError(MAIN_ADDRESS).message }],
-            },
-          },
-        };
-      });
+      exchangeClient.cancel.mockImplementation(
+        async () =>
+          await signAndSend(
+            L1_PAYLOAD,
+            cancelAnswer([{ error: mustDepositError(MAIN_ADDRESS).message }]),
+            'returned',
+          ),
+      );
 
       const result = await accountSignerProvider.cancelOrder({
         orderId: '123',
@@ -361,22 +386,165 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     ]);
   });
 
+  it('does not check the agent when the main account signed the answered request', async () => {
+    const getAgentSigner = jest.fn();
+    const onAgentRejected = jest.fn();
+    const extraAgents = jest.fn().mockResolvedValue([]);
+    const built = createAccountSignerProvider({
+      abstraction: 'unifiedAccount',
+      getAgentSigner,
+      onAgentRejected,
+      info: { extraAgents },
+    });
+    getAgentSigner.mockResolvedValue(built.agentSigner);
+    built.infoClient.maxBuilderFee.mockResolvedValue(0);
+    // The builder fee approval is user-signed: the main account signs it.
+    built.exchangeClient.approveBuilderFee.mockImplementation(
+      async () =>
+        await built.signAndSend(
+          APPROVE_BUILDER_FEE_PAYLOAD,
+          mustDepositAnswer(MAIN_ADDRESS),
+        ),
+    );
+
+    // The referral, an L1 action the agent signs, comes first.
+    const prepared = await built.accountSignerProvider.prepareTradingWallet();
+
+    expect(built.agentSigner.signTypedData).toHaveBeenCalledWith(L1_PAYLOAD);
+    expect(prepared).toStrictEqual({ ready: false });
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+  });
+
+  it('checks the agent that signed the answered request after the host switched agents', async () => {
+    const getAgentSigner = jest.fn();
+    const onAgentRejected = jest.fn();
+    const replacement = {
+      address: OTHER_AGENT_ADDRESS,
+      signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+    };
+    // The venue lists the replacement only.
+    const extraAgents = jest
+      .fn()
+      .mockResolvedValue([listedAgent(null, OTHER_AGENT_ADDRESS)]);
+    const built = createAccountSignerProvider({
+      abstraction: 'unifiedAccount',
+      getAgentSigner,
+      onAgentRejected,
+      info: { extraAgents },
+    });
+    getAgentSigner.mockResolvedValue(built.agentSigner);
+    await built.accountSignerProvider.getMarketDataWithPrices();
+    const signed = createDeferred<void>();
+    const venue = createDeferred<void>();
+    const answer = mustDepositAnswer(MAIN_ADDRESS);
+    built.exchangeClient.order.mockImplementationOnce(async () => {
+      const signature = await built.sdkWallet().signTypedData(L1_PAYLOAD);
+      signed.resolve();
+      await venue.promise;
+      built.reportAnswer(signature, answer);
+      throw apiRequestError(answer);
+    });
+
+    const ordering = built.accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await signed.promise;
+    built.accountSignerProvider.clearAgentSigners();
+    getAgentSigner.mockResolvedValue(replacement);
+    // The replacement signs a request the venue accepts, then the first
+    // request's answer arrives.
+    await built.signAndSend(L1_PAYLOAD, { status: 'ok' });
+    venue.resolve();
+    const order = await ordering;
+    await built.sdkWallet().signTypedData(L1_PAYLOAD);
+
+    expect(order).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(extraAgents.mock.calls).toStrictEqual([[{ user: MAIN_ADDRESS }]]);
+    expect(onAgentRejected.mock.calls).toStrictEqual([
+      [MAINNET_ACCOUNT, AGENT_ADDRESS],
+    ]);
+    // The replacement stays in use.
+    expect(replacement.signTypedData).toHaveBeenCalledTimes(2);
+    expect(getAgentSigner.mock.calls).toStrictEqual([
+      [MAINNET_ACCOUNT],
+      [MAINNET_ACCOUNT],
+    ]);
+  });
+
+  it('does not check a request signed before the provider switched networks', async () => {
+    let isTestnet = false;
+    mockClientService.isTestnetMode.mockImplementation(() => isTestnet);
+    mockClientService.setTestnetMode.mockImplementation((value: boolean) => {
+      isTestnet = value;
+    });
+    const getAgentSigner = jest.fn();
+    const onAgentRejected = jest.fn();
+    const extraAgents = jest.fn().mockResolvedValue([]);
+    const built = createAccountSignerProvider({
+      abstraction: 'unifiedAccount',
+      getAgentSigner,
+      onAgentRejected,
+      info: { extraAgents },
+    });
+    const testnetAgent = {
+      address: OTHER_AGENT_ADDRESS,
+      signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+    };
+    getAgentSigner.mockImplementation(async (account: PerpsAgentAccount) =>
+      account.isTestnet ? testnetAgent : built.agentSigner,
+    );
+    await built.accountSignerProvider.getMarketDataWithPrices();
+    const signed = createDeferred<void>();
+    const venue = createDeferred<void>();
+    const answer = mustDepositAnswer(MAIN_ADDRESS);
+    built.exchangeClient.order.mockImplementationOnce(async () => {
+      const signature = await built.sdkWallet().signTypedData(L1_PAYLOAD);
+      signed.resolve();
+      await venue.promise;
+      built.reportAnswer(signature, answer);
+      throw apiRequestError(answer);
+    });
+
+    const ordering = built.accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await signed.promise;
+    const toggled = await built.accountSignerProvider.toggleTestnet();
+    const testnetOrder =
+      await built.accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    venue.resolve();
+    await ordering;
+    await built.sdkWallet().signTypedData(L1_PAYLOAD);
+
+    expect(toggled).toStrictEqual({ success: true, isTestnet: true });
+    expect(testnetOrder.success).toBe(true);
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    // The testnet agent stays in use.
+    expect(
+      (getAgentSigner.mock.calls as [PerpsAgentAccount][]).filter(
+        ([account]) => account.isTestnet,
+      ),
+    ).toStrictEqual([[TESTNET_ACCOUNT]]);
+  });
+
   describe('without an agent', () => {
     it('fails the order with the venue error without checking the agents', async () => {
       const getAgentSigner = jest.fn().mockResolvedValue(null);
       const onAgentRejected = jest.fn();
       const extraAgents = jest.fn().mockResolvedValue([]);
-      const { accountSignerProvider, exchangeClient, sdkWallet } =
+      const { accountSignerProvider, exchangeClient, signAndSend } =
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           getAgentSigner,
           onAgentRejected,
           info: { extraAgents },
         });
-      exchangeClient.order.mockImplementation(async () => {
-        await sdkWallet().signTypedData(L1_PAYLOAD);
-        throw mustDepositError(MAIN_ADDRESS);
-      });
+      exchangeClient.order.mockImplementation(
+        async () =>
+          await signAndSend(L1_PAYLOAD, mustDepositAnswer(MAIN_ADDRESS)),
+      );
       await accountSignerProvider.getMarketDataWithPrices();
 
       const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);

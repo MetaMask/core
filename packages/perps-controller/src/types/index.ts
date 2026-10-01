@@ -1131,8 +1131,13 @@ export type HyperLiquidCredentials = {
     account: PerpsAgentAccount,
   ) => Promise<PerpsAgentSigner | null>;
   /**
-   * Called when the venue rejects an agent as unknown (revoked or expired,
-   * for example after the user approved another unnamed agent). The provider
+   * Called when the venue rejects an agent (revoked or expired, for example
+   * after the user approved another agent under its name). The venue either
+   * names the agent as an unknown wallet or answers the request it signed
+   * with "Must deposit before performing actions"; the latter counts only
+   * when `extraAgents` no longer lists the agent, or lists it past its
+   * `validUntil` by this device's clock. That list holds named agents, so
+   * approve the agent with a name. The provider
    * has dropped it, with a `setAgentSigner` binding to it, and the next L1
    * action asks `getAgentSigner` again, so re-check the approval before
    * answering. The rejected action failed with `KEYRING_LOCKED`. It gets the

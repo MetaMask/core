@@ -228,6 +228,71 @@ describe('HyperLiquidClientService', () => {
       });
     });
 
+    describe('with onExchangeRequest', () => {
+      const answer = { status: 'ok', response: { type: 'default' } };
+      let transport: { isTestnet: boolean; request: jest.Mock };
+      let onExchangeRequest: jest.Mock;
+
+      beforeEach(async () => {
+        const { HttpTransport } = require('@nktkas/hyperliquid');
+        transport = { isTestnet: true, request: jest.fn() };
+        HttpTransport.mockImplementation(() => transport);
+        onExchangeRequest = jest.fn();
+        await new HyperLiquidClientService(mockDeps, {
+          isTestnet: true,
+          onExchangeRequest,
+        }).initialize(mockWallet);
+      });
+
+      /**
+       * The transport the exchange client was built with.
+       *
+       * @returns The transport.
+       */
+      function exchangeTransport(): {
+        isTestnet: boolean;
+        request: (endpoint: string, payload: unknown) => Promise<unknown>;
+      } {
+        const { ExchangeClient } = require('@nktkas/hyperliquid');
+        return ExchangeClient.mock.calls.at(-1)[0].transport;
+      }
+
+      it('reports each exchange request with the answer before returning it', async () => {
+        transport.request.mockResolvedValue(answer);
+        const payload = { action: { type: 'order' } };
+
+        const returned = await exchangeTransport().request('exchange', payload);
+
+        expect(returned).toBe(answer);
+        expect(exchangeTransport().isTestnet).toBe(true);
+        expect(transport.request.mock.calls).toStrictEqual([
+          ['exchange', payload, undefined],
+        ]);
+        expect(onExchangeRequest.mock.calls).toStrictEqual([[payload, answer]]);
+      });
+
+      it('reports an exchange request that failed without an answer', async () => {
+        const failure = new Error('fetch failed');
+        transport.request.mockRejectedValue(failure);
+        const payload = { action: { type: 'order' } };
+
+        await expect(
+          exchangeTransport().request('exchange', payload),
+        ).rejects.toBe(failure);
+        expect(onExchangeRequest.mock.calls).toStrictEqual([
+          [payload, undefined],
+        ]);
+      });
+
+      it('does not report info requests', async () => {
+        transport.request.mockResolvedValue([]);
+
+        await exchangeTransport().request('info', { type: 'meta' });
+
+        expect(onExchangeRequest).not.toHaveBeenCalled();
+      });
+    });
+
     it('signs user-signed actions for the chain the wallet names', async () => {
       const signatureChainId = jest.fn().mockResolvedValue('0xaa36a7');
       const wallet = { ...mockWallet, signatureChainId };

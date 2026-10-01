@@ -83,7 +83,10 @@ account and network with `PerpsController:setAgentSigner`. User-signed actions
 (builder fee, withdrawals) stay on the main account, and approving the agent
 is the client's job. When the venue rejects an agent (revoked or expired), the
 write fails with `KEYRING_LOCKED`, the agent is dropped and
-`providerCredentials.hyperliquid.onAgentRejected` is called. Call
+`providerCredentials.hyperliquid.onAgentRejected` is called. A "Must deposit
+before performing actions" answer to a request the agent signed counts as a
+rejection only when `extraAgents` no longer lists the agent, which needs a
+named agent. Call
 `PerpsController:clearAgentSigners` when the agent key locks.
 
 `PerpsController:prepareTradingWallet` runs the setup that needs signatures

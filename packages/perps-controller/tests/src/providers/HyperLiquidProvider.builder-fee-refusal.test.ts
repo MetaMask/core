@@ -10,6 +10,7 @@ import {
   setUpAccountSignerSuite,
 } from '../../helpers/hyperLiquidAccountSignerFixture.js';
 import type { AccountSignerFixture } from '../../helpers/hyperLiquidAccountSignerFixture.js';
+import { createDeferred } from '../../helpers/serviceMocks.js';
 
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
@@ -135,7 +136,36 @@ describe('HyperLiquidProvider with accountSigner: a builder fee approval the ven
     ]);
   });
 
-  it('asks for the approval again at the next preparation after a failure the venue may not repeat', async () => {
+  it('asks for the approval again after a reconnect during which the venue refused it', async () => {
+    const { accountSignerProvider, exchangeClient, sdkWallet } =
+      createRefusingProvider();
+    const requested = createDeferred<void>();
+    const refused = createDeferred<void>();
+    exchangeClient.approveBuilderFee.mockImplementationOnce(async () => {
+      await signThroughWallet(sdkWallet(), APPROVE_BUILDER_FEE_PAYLOAD);
+      requested.resolve();
+      await refused.promise;
+      throw new Error(BUILDER_REFUSAL);
+    });
+    await accountSignerProvider.getMarketDataWithPrices();
+
+    const preparing = accountSignerProvider.prepareTradingWallet();
+    await requested.promise;
+    // The refusal settles once the reconnect has started.
+    const reconnecting = accountSignerProvider.toggleTestnet();
+    refused.resolve();
+    await preparing;
+    await reconnecting;
+    const prepared = await accountSignerProvider.prepareTradingWallet();
+
+    expect(prepared).toStrictEqual({ ready: false, error: BUILDER_REFUSAL });
+    expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
+      BUILDER_FEE_WRITE,
+      BUILDER_FEE_WRITE,
+    ]);
+  });
+
+  it('asks for the approval again at the next order after a failure the venue may not repeat', async () => {
     const { accountSignerProvider, exchangeClient } =
       createRefusingProvider('fetch failed');
     await accountSignerProvider.getMarketDataWithPrices();

@@ -224,9 +224,11 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     resolveAgent: jest.Mock;
     agentSign: jest.Mock;
     mainSign: jest.Mock;
+    onAgentSignature: jest.Mock;
     call: jest.SpyInstance;
     selectAccount: (address: `0x${string}`) => void;
   } {
+    const onAgentSignature = jest.fn();
     const signer = {
       signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
       signPersonalMessage: jest.fn(),
@@ -243,13 +245,14 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     const service = new HyperLiquidWalletService(
       { ...createMockInfrastructure(), accountSigner: signer },
       messenger,
-      { isTestnet: true, resolveAgent },
+      { isTestnet: true, resolveAgent, onAgentSignature },
     );
     return {
       adapter: service.createWalletAdapter(),
       resolveAgent,
       agentSign,
       mainSign: signer.signTypedData,
+      onAgentSignature,
       call,
       selectAccount,
     };
@@ -259,6 +262,33 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     const { adapter } = buildAdapter();
 
     expect(adapter.address).toBe(mainAddress);
+  });
+
+  it('reports each agent signature with the main account it signed for', async () => {
+    const { adapter, onAgentSignature } = buildAdapter();
+
+    await adapter.signTypedData(L1_PAYLOAD);
+
+    expect(onAgentSignature).toHaveBeenCalledTimes(1);
+    const [signature, account, agent] = onAgentSignature.mock.calls[0] as [
+      Hex,
+      Hex,
+      PerpsAgentSigner,
+    ];
+    expect([signature, account, agent.address]).toStrictEqual([
+      AGENT_SIGNATURE,
+      mainAddress,
+      AGENT_ADDRESS,
+    ]);
+  });
+
+  it('does not report signatures of the main account', async () => {
+    const { adapter, onAgentSignature } = buildAdapter(false);
+
+    await adapter.signTypedData(L1_PAYLOAD);
+    await adapter.signTypedData(USER_SIGNED_PAYLOAD);
+
+    expect(onAgentSignature).not.toHaveBeenCalled();
   });
 
   it('signs L1 actions with the agent resolved for the selected account', async () => {
@@ -581,6 +611,48 @@ describeWithSdk(
       expect(await agentSignatures()).toHaveLength(0);
       expect(signatures).toHaveLength(1);
       expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
+    });
+
+    it('reports the agent signature an SDK L1 request carries', async () => {
+      const { messenger, selectAccount } = createKeyringlessMessenger();
+      selectAccount(mainAccount.address);
+      const onAgentSignature = jest.fn();
+      const adapter = new HyperLiquidWalletService(
+        {
+          ...createMockInfrastructure(),
+          accountSigner: {
+            signTypedData: async (): Promise<Hex> => MAIN_SIGNATURE,
+            signPersonalMessage: async (): Promise<Hex> => MAIN_SIGNATURE,
+          },
+        },
+        messenger,
+        {
+          isTestnet: true,
+          resolveAgent: async (): Promise<PerpsAgentSigner> => agentAccount,
+          onAgentSignature,
+        },
+      ).createWalletAdapter();
+      // The exchange endpoint, answering the way the venue does.
+      const request = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { type: 'cancel', data: { statuses: ['success'] } },
+      });
+
+      await exchange.cancel(
+        { wallet: adapter, transport: { isTestnet: true, request } },
+        { cancels: [{ a: 0, o: 1 }] },
+      );
+
+      expect(onAgentSignature).toHaveBeenCalledTimes(1);
+      const [[signature]] = onAgentSignature.mock.calls as [[Hex]];
+      const [, sent] = request.mock.calls[0] as [
+        string,
+        { signature: { r: string } },
+      ];
+      // The provider recognizes the request by this r value.
+      expect(sent.signature.r.toLowerCase()).toBe(
+        signature.slice(0, 66).toLowerCase(),
+      );
     });
 
     it('signs an SDK builder fee approval for the chain the signer reports', async () => {

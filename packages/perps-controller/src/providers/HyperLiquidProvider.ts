@@ -502,10 +502,47 @@ type AgentSignature = {
   key: string;
   account: PerpsAgentAccount;
   agentAddress: Hex;
+  // The provider lifecycle generation it was signed in.
+  generation?: number;
   // Whether the venue still lists the agent, asked at most once per
   // signature (see #findRevokedAgent).
   approvalCheck?: Promise<boolean>;
 };
+
+/**
+ * The venue answer an SDK error carries.
+ *
+ * @param error - The caught error.
+ * @returns The answer, or undefined.
+ */
+function getVenueAnswer(error: unknown): unknown {
+  return isStatusObject(error) && hasProperty(error, 'response')
+    ? error.response
+    : undefined;
+}
+
+/**
+ * A rejection the venue reported in a status entry, carrying the answer it
+ * came in, like the error the SDK throws.
+ *
+ * @param message - The status entry's error.
+ * @param answer - The venue answer with the entry.
+ * @returns The error.
+ */
+function createStatusError(message: string, answer: unknown): Error {
+  return Object.assign(new Error(message), { response: answer });
+}
+
+/**
+ * The key a signature is recognized by in an exchange request: its r value,
+ * which the SDK sends as is.
+ *
+ * @param signature - The signature, or its r value.
+ * @returns The key.
+ */
+function getSignatureKey(signature: string): string {
+  return signature.slice(0, 66).toLowerCase();
+}
 
 /**
  * The venue's refusal of a builder fee approval that signing again cannot
@@ -1653,9 +1690,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   // its action was in flight is still recognized.
   readonly #agentSignedFor = new Map<string, AgentSignature>();
 
-  // The agent that signed the latest L1 action per network and main account
-  // (see getAgentAccountKey); none when the main account signed it.
-  readonly #latestAgentSignatures = new Map<string, AgentSignature>();
+  // Agent signatures whose exchange request has not been answered yet, keyed
+  // by getSignatureKey.
+  readonly #unansweredAgentSignatures = new Map<string, AgentSignature>();
+
+  // The agent signature of each answered exchange request, keyed by the
+  // venue answer. A "Must deposit" answer is attributed from it, so only to
+  // the agent that signed that request.
+  readonly #agentSignatureByAnswer = new WeakMap<object, AgentSignature>();
 
   readonly #onAgentRejected: HyperLiquidProviderOptions['onAgentRejected'];
 
@@ -1713,6 +1755,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Initialize services with injected platform dependencies
     this.#clientService = new HyperLiquidClientService(this.#deps, {
       isTestnet,
+      onExchangeRequest: (payload: unknown, answer: unknown): void =>
+        this.#matchAgentSignature(payload, answer),
     });
     this.#dexDiscoveryCache = new DexDiscoveryCacheManager({
       isTestnetMode: (): boolean => this.#clientService.isTestnetMode(),
@@ -1728,6 +1772,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           mainAddress: Hex,
         ): Promise<PerpsAgentSigner | null> =>
           await this.#resolveAgentSigner(mainAddress),
+        onAgentSignature: (
+          signature: Hex,
+          mainAddress: Hex,
+          agent: PerpsAgentSigner,
+        ): void => this.#recordAgentSignature(signature, mainAddress, agent),
       },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
@@ -2284,12 +2333,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       pendingEntry.agent = agentSigner;
       // The wallet adapter resolves at every L1 signature, so this records
       // the account the agent is about to sign for.
-      const signature = { key, account, agentAddress: agentSigner.address };
-      this.#agentSignedFor.set(agentSigner.address.toLowerCase(), signature);
-      this.#latestAgentSignatures.set(key, signature);
+      this.#agentSignedFor.set(agentSigner.address.toLowerCase(), {
+        key,
+        account,
+        agentAddress: agentSigner.address,
+      });
     } else {
       this.#agentSigners.delete(key);
-      this.#latestAgentSignatures.delete(key);
     }
     return agentSigner;
   }
@@ -2326,8 +2376,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * signed for. HyperLiquid answers "User or API Wallet 0x... does not
    * exist." with the signer's address, so for a revoked or expired agent it
    * reads like a wallet with no account. It sometimes answers "Must deposit
-   * before performing actions. User: 0x..." with the main account instead
-   * (see #findRevokedAgent).
+   * before performing actions. User: 0x..." with the main account instead;
+   * that is attributed to the agent that signed the answered request (see
+   * #findRevokedAgent).
    *
    * @param error - The caught error.
    * @returns The rejected agent, with its address as the host supplied it
@@ -2350,39 +2401,94 @@ export class HyperLiquidProvider implements PerpsProvider {
         : this.#agentSignedFor.get(reportedAddress.toLowerCase());
     }
     const mainAddress = MUST_DEPOSIT_USER_PATTERN.exec(message)?.[1];
-    return mainAddress === undefined
-      ? undefined
-      : await this.#findRevokedAgent(mainAddress as Hex);
+    const answer = getVenueAnswer(error);
+    const signature = isStatusObject(answer)
+      ? this.#agentSignatureByAnswer.get(answer)
+      : undefined;
+    return mainAddress !== undefined &&
+      signature?.account.mainAddress.toLowerCase() === mainAddress.toLowerCase()
+      ? await this.#findRevokedAgent(signature)
+      : undefined;
   }
 
   /**
-   * The agent that signed the latest L1 action for a main account the venue
-   * answered with "Must deposit before performing actions", if the venue no
-   * longer lists it (revoked, or past its `validUntil`). The venue answers an
-   * account with no funds the same way, so the agent list decides; it is
-   * asked once per signature.
+   * The agent that signed a request the venue answered with "Must deposit
+   * before performing actions", if the venue no longer lists it (revoked, or
+   * past its `validUntil`). The venue answers an account with no funds the
+   * same way, so the agent list decides; it is asked once per signature. A
+   * request signed on another network or before a disconnect is not checked.
    *
-   * @param mainAddress - The main account the venue names.
+   * @param signature - The agent signature of the request.
    * @returns The revoked agent, or undefined.
    */
   async #findRevokedAgent(
-    mainAddress: Hex,
+    signature: AgentSignature,
   ): Promise<AgentSignature | undefined> {
-    const latest = this.#latestAgentSignatures.get(
-      getAgentAccountKey({
-        mainAddress,
-        isTestnet: this.#clientService.isTestnetMode(),
-      }),
-    );
-    if (!latest) {
+    const isCurrent = (): boolean =>
+      signature.generation === this.#lifecycleGeneration &&
+      signature.account.isTestnet === this.#clientService.isTestnetMode();
+    if (!isCurrent()) {
       return undefined;
     }
-    latest.approvalCheck ??= this.#isAgentListed(latest);
-    return (await latest.approvalCheck) ? undefined : latest;
+    signature.approvalCheck ??= this.#isAgentListed(signature);
+    const listed = await signature.approvalCheck;
+    return listed || !isCurrent() ? undefined : signature;
+  }
+
+  /**
+   * Note an agent's L1 signature, so the venue's answer to the request it
+   * signs can be attributed to it.
+   *
+   * @param signature - The signature.
+   * @param mainAddress - The main account the agent signed for.
+   * @param agent - The agent.
+   */
+  #recordAgentSignature(
+    signature: Hex,
+    mainAddress: Hex,
+    agent: PerpsAgentSigner,
+  ): void {
+    const account: PerpsAgentAccount = {
+      mainAddress,
+      isTestnet: this.#clientService.isTestnetMode(),
+    };
+    this.#unansweredAgentSignatures.set(getSignatureKey(signature), {
+      key: getAgentAccountKey(account),
+      account,
+      agentAddress: agent.address,
+      generation: this.#lifecycleGeneration,
+    });
+  }
+
+  /**
+   * Link the venue's answer to an exchange request with the agent signature
+   * the request carries, if an agent signed it.
+   *
+   * @param payload - The exchange request.
+   * @param answer - The venue's answer, or undefined when there is none.
+   */
+  #matchAgentSignature(payload: unknown, answer: unknown): void {
+    const signature =
+      isStatusObject(payload) && isStatusObject(payload.signature)
+        ? payload.signature.r
+        : undefined;
+    if (typeof signature !== 'string') {
+      return;
+    }
+    const key = getSignatureKey(signature);
+    const agentSignature = this.#unansweredAgentSignatures.get(key);
+    if (!agentSignature) {
+      return;
+    }
+    this.#unansweredAgentSignatures.delete(key);
+    if (isStatusObject(answer)) {
+      this.#agentSignatureByAnswer.set(answer, agentSignature);
+    }
   }
 
   /**
    * Whether the venue lists an agent as approved for its main account.
+   * `validUntil` is compared with this device's clock.
    *
    * @param agent - The agent and the account it signed for.
    * @param agent.account - The account the agent signed for.
@@ -4570,10 +4676,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    * handling a rejected agent the way a thrown rejection is.
    *
    * @param message - The status entry's error.
+   * @param answer - The venue answer with the entry.
    * @returns The mapped error.
    */
-  async #mapStatusError(message: string): Promise<Error> {
-    const error = new Error(message);
+  async #mapStatusError(message: string, answer: unknown): Promise<Error> {
+    const error = createStatusError(message, answer);
     return (await this.#classifySignerFailure(error)) ?? this.#mapError(error);
   }
 
@@ -4583,15 +4690,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    * reported to the host) once for all its entries.
    *
    * @param statuses - The status entries.
+   * @param answer - The venue answer with the entries.
    * @returns `KEYRING_LOCKED` for a signer failure, else undefined.
    */
   async #classifyStatusSignerFailure(
     statuses: unknown[],
+    answer: unknown,
   ): Promise<Error | undefined> {
     for (const status of statuses) {
       if (isStatusObject(status) && typeof status.error === 'string') {
         const signerFailure = await this.#classifySignerFailure(
-          new Error(status.error),
+          createStatusError(status.error, answer),
         );
         if (signerFailure) {
           return signerFailure;
@@ -6870,7 +6979,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           isStatusObject(cancelStatus) &&
           typeof cancelStatus.error === 'string'
         ) {
-          await this.#evictRejectedAgent(new Error(cancelStatus.error));
+          await this.#evictRejectedAgent(
+            createStatusError(cancelStatus.error, cancelResult),
+          );
         }
         remainsLive =
           classifyCancelStatus(cancelStatus) === CancelChildOutcome.Refused;
@@ -8200,7 +8311,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const status: unknown = result.response?.data?.statuses?.[0];
-    const signerFailure = await this.#classifyStatusSignerFailure([status]);
+    const signerFailure = await this.#classifyStatusSignerFailure(
+      [status],
+      result,
+    );
     if (signerFailure) {
       throw signerFailure;
     }
@@ -8796,7 +8910,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       isStatusObject(status) && typeof status.error === 'string'
         ? status.error
         : 'TWAP cancellation failed';
-    return createErrorResult(await this.#mapStatusError(rawError), {
+    return createErrorResult(await this.#mapStatusError(rawError, result), {
       success: false,
       orderId: params.orderId,
     });
@@ -9033,10 +9147,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const classifyStatuses = async (
       statuses: unknown[],
+      answer: unknown,
     ): Promise<{ remainingClientOrderIds: Hex[]; signerFailure?: Error }> => {
       // A signer failure is classified (and reported) once for the request;
       // entries the venue cancelled are not resting either way.
-      const signerFailure = await this.#classifyStatusSignerFailure(statuses);
+      const signerFailure = await this.#classifyStatusSignerFailure(
+        statuses,
+        answer,
+      );
       return {
         remainingClientOrderIds: requests.flatMap((request, index) =>
           classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
@@ -9058,12 +9176,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      return await classifyStatuses(statuses);
+      return await classifyStatuses(statuses, result);
     } catch (error) {
       // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
-        return await classifyStatuses(statuses);
+        return await classifyStatuses(statuses, getVenueAnswer(error));
       }
       // The signer could not sign, so nothing was cancelled.
       const signerFailure = await this.#classifySignerFailure(error);
@@ -9108,10 +9226,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const classifyStatuses = async (
       statuses: unknown[],
+      answer: unknown,
     ): Promise<CancelOrderBatchOutcome> => {
       // A signer failure is classified (and reported) once for the request;
       // entries the venue cancelled still count as cancelled.
-      const signerFailure = await this.#classifyStatusSignerFailure(statuses);
+      const signerFailure = await this.#classifyStatusSignerFailure(
+        statuses,
+        answer,
+      );
       const remainingOrderIds: number[] = [];
       const cancelledOrderIds: number[] = [];
       requests.forEach((request, index) => {
@@ -9141,12 +9263,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      return await classifyStatuses(statuses);
+      return await classifyStatuses(statuses, result);
     } catch (error) {
       // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
-        return await classifyStatuses(statuses);
+        return await classifyStatuses(statuses, getVenueAnswer(error));
       }
       // The signer could not sign, so nothing was cancelled.
       const signerFailure = await this.#classifySignerFailure(error);
@@ -9873,7 +9995,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? status.error
           : 'Order cancellation failed';
 
-      return createErrorResult(await this.#mapStatusError(rawError), {
+      return createErrorResult(await this.#mapStatusError(rawError, result), {
         success: false,
         orderId: params.orderId,
       });
@@ -9974,10 +10096,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           }),
         );
         let statuses: unknown[] | undefined;
+        let answer: unknown;
         try {
           const result = await exchangeClient.cancel({
             cancels: cancelRequests,
           });
+          answer = result;
           const returnedStatuses = result.response?.data?.statuses ?? [];
           statuses =
             result.status === 'ok' &&
@@ -9986,6 +10110,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               : undefined;
         } catch (error) {
           // The SDK throws when any entry failed, with every entry's status.
+          answer = getVenueAnswer(error);
           statuses = getCancelStatusesFromError(error, ordinaryOrders.length);
           if (!statuses) {
             throw error;
@@ -9995,8 +10120,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (statuses) {
           // One signature covers the batch, so a signer failure is classified
           // (and reported to the host) once. Each entry keeps its own result.
-          const signerFailure =
-            await this.#classifyStatusSignerFailure(statuses);
+          const signerFailure = await this.#classifyStatusSignerFailure(
+            statuses,
+            answer,
+          );
           for (const [
             statusIndex,
             { index, order },
@@ -10005,7 +10132,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             const success = status === 'success';
             const statusError =
               isStatusObject(status) && typeof status.error === 'string'
-                ? new Error(status.error)
+                ? createStatusError(status.error, answer)
                 : undefined;
             let error: string = PERPS_ERROR_CODES.BATCH_CANCEL_FAILED;
             if (statusError) {
