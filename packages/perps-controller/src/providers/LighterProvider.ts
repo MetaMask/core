@@ -1941,14 +1941,7 @@ export class LighterProvider implements PerpsProvider {
       }
       const configuredAccount = configured.accounts[0];
       this.#assertStandardAccount(configuredAccount?.accountType);
-      const ownerAddress = configuredAccount?.l1Address?.toLowerCase();
-      if (!ownerAddress || ownerAddress !== this.#boundAddress) {
-        // Capability-prefixed so read catches SURFACE it instead of
-        // degrading a cross-owner misconfiguration into empty state.
-        throw new Error(
-          `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} configured account ${this.#configuredAccountIndex} is not owned by the selected wallet address`,
-        );
-      }
+      this.#assertAccountOwnership(configuredAccount);
       this.#accountIndex = this.#configuredAccountIndex;
       return this.#accountIndex;
     }
@@ -1977,8 +1970,41 @@ export class LighterProvider implements PerpsProvider {
       account.index < min.index ? account : min,
     );
     this.#assertStandardAccount(master.accountType);
+    this.#assertAccountOwnership(master);
     this.#accountIndex = master.index;
     return this.#accountIndex;
+  };
+
+  /**
+   * Verify venue identity before caching it or recording recovery authority.
+   *
+   * @param account - Venue account returned for the bound wallet.
+   */
+  readonly #assertAccountOwnership = (
+    account: LighterAccountSummary | undefined,
+  ): void => {
+    if (
+      account === undefined ||
+      !Number.isSafeInteger(account.index) ||
+      account.index < 0
+    ) {
+      throw new Error(
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} account index is invalid`,
+      );
+    }
+    if (
+      this.#configuredAccountIndex !== undefined &&
+      account.index !== this.#configuredAccountIndex
+    ) {
+      throw new Error(
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} account index does not match the configured account`,
+      );
+    }
+    if (account.l1Address.toLowerCase() !== this.#boundAddress) {
+      throw new Error(
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} account is not owned by the selected wallet address`,
+      );
+    }
   };
 
   /**
@@ -2138,17 +2164,7 @@ export class LighterProvider implements PerpsProvider {
     if (account === undefined) {
       return absent();
     }
-    if (
-      !Number.isSafeInteger(account.index) ||
-      account.index < 0 ||
-      account.l1Address.toLowerCase() !== this.#boundAddress ||
-      (this.#configuredAccountIndex !== undefined &&
-        account.index !== this.#configuredAccountIndex)
-    ) {
-      throw new Error(
-        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} recovery account is not owned by the selected wallet address`,
-      );
-    }
+    this.#assertAccountOwnership(account);
     if (account.accountType !== 0 && account.accountType !== 1) {
       throw new Error(
         `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} recovery account type could not be verified`,
@@ -2972,6 +2988,7 @@ export class LighterProvider implements PerpsProvider {
    * nonce reconciliation, quarantine clearing or financial retry occurs.
    * Unresolved raw entries are reported separately as unknown with
    * acknowledgeable:false, including current-session in-flight submissions.
+   * Local-only absent or Premium inventories also refuse acknowledgment.
    * Listing is read-only and starts no background reconciliation. A later
    * fenced financial action re-checks authoritative state before any dispatch.
    *
@@ -2987,7 +3004,11 @@ export class LighterProvider implements PerpsProvider {
     const inventory = await this.#resolveRecoveryInventory(generation);
     const rows = await Promise.all(
       inventory.accounts.map(async (accountIndex) =>
-        this.#listRecoveredDispatches(accountIndex, generation),
+        this.#listRecoveredDispatches(
+          accountIndex,
+          generation,
+          inventory.canReconcile,
+        ),
       ),
     );
     this.#assertSession(generation);
@@ -2999,11 +3020,13 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param accountIndex - Captured venue account.
    * @param generation - Captured wallet session.
+   * @param canAcknowledge - Whether a supported current account was verified.
    * @returns Scoped pending and recovered dispatches.
    */
   readonly #listRecoveredDispatches = async (
     accountIndex: number,
     generation: number,
+    canAcknowledge: boolean,
   ): Promise<(PerpsRecoveredDispatch & { apiKeyIndex: number })[]> => {
     const ledgers = await this.#readAccountRecoveryLedgers(
       accountIndex,
@@ -3013,6 +3036,7 @@ export class LighterProvider implements PerpsProvider {
     return ledgers.flatMap(({ apiKeyIndex, doc }) => [
       ...doc.recovered.map((outcome) => ({
         ...outcome,
+        ...(canAcknowledge ? {} : { acknowledgeable: false }),
         providerId: 'lighter' as const,
         walletAddress: this.#boundAddress ?? undefined,
         network: this.#isTestnet ? 'testnet' : 'mainnet',
@@ -3054,7 +3078,7 @@ export class LighterProvider implements PerpsProvider {
     if (!inventory.canReconcile) {
       const rows = await Promise.all(
         inventory.accounts.map(async (index) =>
-          this.#listRecoveredDispatches(index, generation),
+          this.#listRecoveredDispatches(index, generation, false),
         ),
       );
       this.#assertSession(generation);
@@ -3090,6 +3114,7 @@ export class LighterProvider implements PerpsProvider {
         const rows = await this.#listRecoveredDispatches(
           accountIndex,
           generation,
+          true,
         );
         this.#assertSession(generation);
         return rows;
