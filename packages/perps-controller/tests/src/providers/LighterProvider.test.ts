@@ -6713,6 +6713,20 @@ describe('LighterProvider', () => {
         expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual([
           oldId,
         ]);
+        const retry = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          expectedPosition: {
+            size: change === 'resize' ? '0.002' : ACCOUNT.positions[0].position,
+            entryPrice:
+              change === 'entry-drift'
+                ? '100001'
+                : ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(retry.success).toBe(true);
+        const close = await provider.closePosition({ symbol: 'BTC' });
+        expect(close.success).toBe(true);
       },
     );
 

@@ -5544,6 +5544,7 @@ export class LighterProvider implements PerpsProvider {
           intent?: string;
           owner?: string | null;
           beforeDispatch?: () => Promise<void>;
+          onNotDispatched?: () => Promise<void>;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -5639,6 +5640,7 @@ export class LighterProvider implements PerpsProvider {
           intent?: string;
           owner?: string | null;
           beforeDispatch?: () => Promise<void>;
+          onNotDispatched?: () => Promise<void>;
         },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
@@ -5707,8 +5709,54 @@ export class LighterProvider implements PerpsProvider {
         // A switch after append leaves the unsent entry for conservative
         // reconciliation. It may block until signed expiry plus clock slack;
         // retaining uncertainty avoids treating a durable append as absent.
-        await identity?.beforeDispatch?.();
-        this.#assertSession(generationAtIntent);
+        try {
+          await identity?.beforeDispatch?.();
+          this.#assertSession(generationAtIntent);
+        } catch (error) {
+          // No transport call has occurred. Keep the final after-persistence
+          // guard, but release only this exact proven-unsent attempt. A stale
+          // session retains quarantine rather than touching another scope.
+          this.#assertSession(generationAtIntent);
+          await identity?.onNotDispatched?.();
+          this.#assertSession(generationAtIntent);
+          const unsentEntry = ledgerEntry;
+          if (unsentEntry) {
+            await this.#withLedgerLock(
+              accountIndex,
+              async () => {
+                this.#assertSession(generationAtIntent);
+                const doc = await this.#readNonceLedger(
+                  accountIndex,
+                  apiKeyIndex,
+                );
+                this.#assertSession(generationAtIntent);
+                await this.#writeNonceLedger(
+                  accountIndex,
+                  {
+                    ...doc,
+                    entries: doc.entries.filter(
+                      (entry) =>
+                        entry.nonce !== unsentEntry.nonce ||
+                        entry.txHash !== unsentEntry.txHash ||
+                        entry.owner !== unsentEntry.owner,
+                    ),
+                  },
+                  apiKeyIndex,
+                );
+                this.#assertSession(generationAtIntent);
+                if (unsentEntry.nonce >= doc.consumedFloor) {
+                  this.#releaseNonceReservation(
+                    accountIndex,
+                    unsentEntry.nonce,
+                    apiKeyIndex,
+                  );
+                }
+              },
+              apiKeyIndex,
+            );
+          }
+          throw error;
+        }
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
         // Acceptance bookkeeping runs SYNCHRONOUSLY before anything can
@@ -5782,6 +5830,7 @@ export class LighterProvider implements PerpsProvider {
           intent?: string;
           owner?: string | null;
           beforeDispatch?: () => Promise<void>;
+          onNotDispatched?: () => Promise<void>;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -7532,6 +7581,30 @@ export class LighterProvider implements PerpsProvider {
             journal.recordedAt = Date.now();
             await this.#persistTpslJournal(settlementKey, journal);
           };
+          const discardUnsentAttempt = async (
+            attempt: TpslJournalState['attempts'][number],
+          ): Promise<void> => {
+            this.#assertSession(generationAtIntent);
+            const remaining = journal.attempts.filter(
+              (entry) => entry.attemptId !== attempt.attemptId,
+            );
+            if (attempt.kind === 'create') {
+              await this.#discardManagedTpslIds(
+                settlementKey,
+                attempt.clientIds.map(String),
+              );
+            }
+            this.#assertSession(generationAtIntent);
+            if (remaining.length === 0) {
+              await this.#clearTpslJournal(settlementKey, journal.operationId);
+            } else {
+              await this.#persistTpslJournal(settlementKey, {
+                ...journal,
+                attempts: remaining,
+              });
+            }
+            journal.attempts = remaining;
+          };
           // Sign+journal+submit one tracked cancel (stale protection or a
           // rollback of a surviving replacement leg).
           const submitTrackedCancel = async (
@@ -7579,7 +7652,11 @@ export class LighterProvider implements PerpsProvider {
                 expiresAt: cancelIdentity.expiresAt,
                 owner: journal.operationId,
                 ...(journal.intent === 'remove'
-                  ? { beforeDispatch: assertLiveExpected }
+                  ? {
+                      beforeDispatch: assertLiveExpected,
+                      onNotDispatched: async (): Promise<void> =>
+                        discardUnsentAttempt(cancelAttempt),
+                    }
                   : {}),
               },
             );
@@ -7661,6 +7738,8 @@ export class LighterProvider implements PerpsProvider {
                 expiresAt: createIdentity.expiresAt,
                 owner: journal.operationId,
                 beforeDispatch: assertLiveExpected,
+                onNotDispatched: async (): Promise<void> =>
+                  discardUnsentAttempt(createAttempt),
               },
             );
 
