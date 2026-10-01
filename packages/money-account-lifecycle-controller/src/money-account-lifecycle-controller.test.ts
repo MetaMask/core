@@ -19,11 +19,9 @@ import type {
   DerivedIdentitiesResponse,
   DerivedIdentity,
 } from './chomp-api-service-derived-identities.js';
+import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
-import type {
-  MoneyAccountLifecycle,
-  MoneyAccountLifecycleControllerMessenger,
-} from './money-account-lifecycle-controller.js';
+import type { MoneyAccountLifecycleControllerMessenger } from './money-account-lifecycle-controller.js';
 import type { RegistrationStatus } from './money-account-upgrade-controller-registration-status.js';
 
 const MONEY_ACCOUNT_ADDRESS = '0x00000000000000000000000000000000000000Aa';
@@ -32,24 +30,17 @@ const MONEY_ACCOUNT_KEY = MONEY_ACCOUNT_ADDRESS.toLowerCase();
 
 const SUCCESSOR_ADDRESS = '0x00000000000000000000000000000000000000Bb';
 
-const SFA_IDENTITY = buildDerivedIdentity({
+const SFA_IDENTITY: DerivedIdentity = {
   currentAddress: MONEY_ACCOUNT_ADDRESS,
+  previousAddresses: [],
   status: 'DONE',
-});
+};
 
-const MFA_IDENTITY = buildDerivedIdentity({
+const MFA_IDENTITY: DerivedIdentity = {
   currentAddress: SUCCESSOR_ADDRESS,
   previousAddresses: [MONEY_ACCOUNT_ADDRESS],
   status: 'DONE',
-});
-
-const UNRELATED_IDENTITY = buildDerivedIdentity();
-
-const OTHER_UNRELATED_IDENTITY = buildDerivedIdentity({
-  currentAddress: '0x0000000000000000000000000000000000000002',
-  previousAddresses: ['0x0000000000000000000000000000000000000003'],
-  status: 'MIGRATING',
-});
+};
 
 describe('MoneyAccountLifecycleController', () => {
   describe('constructor', () => {
@@ -91,9 +82,8 @@ describe('MoneyAccountLifecycleController', () => {
 
   describe('init', () => {
     it('fetches derived identities when the feature is enabled and the wallet is ready', async () => {
-      await withController(async ({ controller, mocks }) => {
-        controller.init();
-        await flushPromises();
+      await withController(async ({ controller, mocks, init }) => {
+        await init();
 
         expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
         expect(getLifecycle(controller)).toStrictEqual({
@@ -106,199 +96,106 @@ describe('MoneyAccountLifecycleController', () => {
     it('passes the remote feature flags to the isEnabled hook', async () => {
       const remoteFeatureFlags = { someFlag: true };
 
-      await withController(
-        { remoteFeatureFlags },
-        async ({ controller, mocks }) => {
-          controller.init();
-          await flushPromises();
+      await withController({ remoteFeatureFlags }, async ({ mocks, init }) => {
+        await init();
 
-          expect(mocks.isEnabled).toHaveBeenCalledWith(remoteFeatureFlags);
-        },
-      );
+        expect(mocks.isEnabled).toHaveBeenCalledWith(remoteFeatureFlags);
+      });
     });
 
     it('does not subscribe or fetch again when called more than once', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          controller.init();
-          controller.init();
-          await flushPromises();
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        controller.init();
+        await init();
+        await refetch();
 
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
-        },
-      );
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+      });
     });
 
-    it('does not fetch while the wallet is locked, and fetches once it unlocks', async () => {
-      await withController(
-        { isUnlocked: false },
-        async ({ controller, gates, mocks, triggerKeyringChange }) => {
-          controller.init();
-          await flushPromises();
+    it.each([
+      { gate: 'isUnlocked', trigger: 'triggerKeyringChange' },
+      { gate: 'hasHdKeyring', trigger: 'triggerKeyringChange' },
+      { gate: 'isEnabled', trigger: 'triggerFlagChange' },
+    ] as const)(
+      'does not fetch while $gate is false, and fetches once it becomes true',
+      async ({ gate, trigger }) => {
+        await withController({ [gate]: false }, async (payload) => {
+          const { controller, gates, mocks, init } = payload;
+          await init();
 
           expect(mocks.getDerivedIdentities).not.toHaveBeenCalled();
 
-          gates.isUnlocked = true;
-          await triggerKeyringChange();
+          gates[gate] = true;
+          await payload[trigger]();
 
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
           expect(getLifecycle(controller)).toStrictEqual({
             type: 'sfa',
             identity: SFA_IDENTITY,
           });
-        },
-      );
-    });
+        });
+      },
+    );
 
-    it('does not fetch without an HD keyring, and fetches once one is added while unlocked', async () => {
-      await withController(
-        { hasHdKeyring: false },
-        async ({ controller, gates, mocks, triggerKeyringChange }) => {
-          controller.init();
-          await flushPromises();
+    it.each([
+      { gate: 'isUnlocked', trigger: 'triggerKeyringChange' },
+      { gate: 'isEnabled', trigger: 'triggerFlagChange' },
+    ] as const)(
+      'clears derived identities but keeps the recorded lifecycle while $gate is false, and refetches once it is true again',
+      async ({ gate, trigger }) => {
+        await withController(async (payload) => {
+          const { controller, gates, mocks, init, triggerMoneyAccountChange } =
+            payload;
+          await init();
 
-          expect(mocks.getDerivedIdentities).not.toHaveBeenCalled();
-
-          gates.hasHdKeyring = true;
-          await triggerKeyringChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('does not fetch while the feature is disabled, and fetches once it is enabled', async () => {
-      await withController(
-        { isEnabled: false },
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          controller.init();
-          await flushPromises();
-
-          expect(mocks.getDerivedIdentities).not.toHaveBeenCalled();
-
-          gates.isEnabled = true;
-          await triggerFlagChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('ignores keyring changes that do not affect whether the wallet is ready', async () => {
-      await withController(
-        async ({ controller, mocks, triggerKeyringChange }) => {
-          controller.init();
-          await flushPromises();
-
-          await triggerKeyringChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('does not refetch when the remote feature flags refresh without changing', async () => {
-      await withController(
-        { remoteFeatureFlags: { someFlag: true } },
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          controller.init();
-          await flushPromises();
-
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('refetches when the remote feature flags change', async () => {
-      await withController(
-        { remoteFeatureFlags: { someFlag: true } },
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          controller.init();
-          await flushPromises();
-
-          mocks.getDerivedIdentities.mockResolvedValue({
-            identities: [MFA_IDENTITY],
-          });
-          gates.remoteFeatureFlags = { someFlag: false };
-          await triggerFlagChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
-          expect(getLifecycle(controller)).toStrictEqual({
-            type: 'mfa',
-            identity: MFA_IDENTITY,
-          });
-        },
-      );
-    });
-
-    it('clears derived identities when the wallet locks, and refetches when it unlocks', async () => {
-      await withController(
-        async ({
-          controller,
-          gates,
-          mocks,
-          triggerKeyringChange,
-          triggerMoneyAccountChange,
-        }) => {
-          controller.init();
-          await flushPromises();
-
-          gates.isUnlocked = false;
-          await triggerKeyringChange();
+          gates[gate] = false;
+          await payload[trigger]();
           await triggerMoneyAccountChange();
 
           expect(mocks.getMoneyAccount).toHaveBeenCalledTimes(1);
+          expect(getLifecycle(controller)).toStrictEqual({
+            type: 'sfa',
+            identity: SFA_IDENTITY,
+          });
 
-          gates.isUnlocked = true;
-          await triggerKeyringChange();
+          gates[gate] = true;
+          await payload[trigger]();
 
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
           expect(mocks.getMoneyAccount).toHaveBeenCalledTimes(2);
-        },
-      );
+        });
+      },
+    );
+
+    it('refetches when the remote feature flags change', async () => {
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        await init();
+
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MFA_IDENTITY],
+        });
+        await refetch();
+
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'mfa',
+          identity: MFA_IDENTITY,
+        });
+      });
     });
 
-    it('clears derived identities when the feature is disabled', async () => {
-      await withController(
-        async ({
-          controller,
-          gates,
-          mocks,
-          triggerFlagChange,
-          triggerMoneyAccountChange,
-        }) => {
-          controller.init();
-          await flushPromises();
+    it('does not refetch when the remote feature flags refresh without changing, even while a fetch is in flight', async () => {
+      await withController(async ({ controller, mocks, triggerFlagChange }) => {
+        mocks.getDerivedIdentities.mockReturnValue(
+          createDeferredPromise<DerivedIdentitiesResponse>().promise,
+        );
 
-          gates.isEnabled = false;
-          await triggerFlagChange();
-          await triggerMoneyAccountChange();
+        controller.init();
+        await triggerFlagChange();
 
-          expect(mocks.getMoneyAccount).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('does not start a second fetch while one with the same flags is in flight', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          const { promise } =
-            createDeferredPromise<DerivedIdentitiesResponse>();
-          mocks.getDerivedIdentities.mockReturnValue(promise);
-
-          controller.init();
-          gates.remoteFeatureFlags = {};
-          await triggerFlagChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-        },
-      );
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('discards a response that arrives after the wallet has locked', async () => {
@@ -320,42 +217,37 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('discards a response that was superseded by a fetch for newer flags', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          const first = createDeferredPromise<DerivedIdentitiesResponse>();
-          mocks.getDerivedIdentities
-            .mockReturnValueOnce(first.promise)
-            .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
+      await withController(async ({ controller, mocks, refetch }) => {
+        const first = createDeferredPromise<DerivedIdentitiesResponse>();
+        mocks.getDerivedIdentities
+          .mockReturnValueOnce(first.promise)
+          .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
 
-          controller.init();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-          first.resolve({ identities: [SFA_IDENTITY] });
-          await flushPromises();
+        controller.init();
+        await refetch();
+        first.resolve({ identities: [SFA_IDENTITY] });
+        await flushPromises();
 
-          expect(getLifecycle(controller)).toStrictEqual({
-            type: 'mfa',
-            identity: MFA_IDENTITY,
-          });
-        },
-      );
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'mfa',
+          identity: MFA_IDENTITY,
+        });
+      });
     });
 
     it('reports a failed fetch and retries on the next trigger', async () => {
       await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
+        async ({ controller, mocks, init, triggerFlagChange }) => {
           const error = new Error('Chomp is down');
           mocks.getDerivedIdentities
             .mockRejectedValueOnce(error)
             .mockResolvedValueOnce({ identities: [SFA_IDENTITY] });
 
-          controller.init();
-          await flushPromises();
+          await init();
 
           expect(mocks.captureException).toHaveBeenCalledWith(error);
           expect(controller.state.moneyAccounts).toStrictEqual({});
 
-          gates.remoteFeatureFlags = {};
           await triggerFlagChange();
 
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
@@ -369,7 +261,7 @@ describe('MoneyAccountLifecycleController', () => {
 
     it('does not let a superseded failed fetch force a refetch', async () => {
       await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
+        async ({ controller, mocks, refetch, triggerFlagChange }) => {
           const first = createDeferredPromise<DerivedIdentitiesResponse>();
           const error = new Error('Chomp is down');
           mocks.getDerivedIdentities
@@ -377,12 +269,9 @@ describe('MoneyAccountLifecycleController', () => {
             .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
 
           controller.init();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
+          await refetch();
           first.reject(error);
           await flushPromises();
-
-          gates.remoteFeatureFlags = { someFlag: true };
           await triggerFlagChange();
 
           expect(mocks.captureException).toHaveBeenCalledWith(error);
@@ -410,11 +299,10 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('wraps a non-Error rejection in an Error when reporting it', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ mocks, init }) => {
         mocks.getDerivedIdentities.mockRejectedValue('Chomp is down');
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(mocks.captureException).toHaveBeenCalledWith(
           new Error('Chomp is down'),
@@ -424,94 +312,40 @@ describe('MoneyAccountLifecycleController', () => {
   });
 
   describe('money account lifecycle', () => {
-    it('records the money account as not in an identity when it is not among any derived identity addresses', async () => {
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [UNRELATED_IDENTITY, OTHER_UNRELATED_IDENTITY],
-        });
-
-        controller.init();
-        await flushPromises();
-
-        expect(controller.state.moneyAccounts).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { type: 'notInIdentity' },
-        });
-        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
-      });
-    });
-
-    it('records the money account as not in an identity when there are no derived identities', async () => {
-      await withController(async ({ controller, mocks }) => {
+    it('records the money account as not in an identity', async () => {
+      await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(controller.state.moneyAccounts).toStrictEqual({
           [MONEY_ACCOUNT_KEY]: { type: 'notInIdentity' },
-        });
-      });
-    });
-
-    it('records a valid SFA with its identity when the money account is the current address, ignoring case', async () => {
-      const identity = buildDerivedIdentity({
-        currentAddress: MONEY_ACCOUNT_KEY,
-        status: 'DONE',
-      });
-
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [UNRELATED_IDENTITY, identity],
-        });
-
-        controller.init();
-        await flushPromises();
-
-        expect(controller.state.moneyAccounts).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity },
         });
         expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
       });
     });
 
-    it('records a valid SFA when the money account is the current address of a migrating identity', async () => {
-      const identity = buildDerivedIdentity({
-        currentAddress: MONEY_ACCOUNT_ADDRESS,
-        status: 'MIGRATING',
-      });
+    it('records a valid SFA without switching to the MPC keyring', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        await init();
 
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [identity],
+        expect(controller.state.moneyAccounts).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
         });
-
-        controller.init();
-        await flushPromises();
-
-        expect(getLifecycle(controller)).toStrictEqual({
-          type: 'sfa',
-          identity,
-        });
+        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
       });
     });
 
-    it('records a valid MFA with its identity and switches to the MPC keyring when the money account is a previous address, ignoring case', async () => {
-      const identity = buildDerivedIdentity({
-        currentAddress: SUCCESSOR_ADDRESS,
-        previousAddresses: [MONEY_ACCOUNT_KEY],
-        status: 'DONE',
-      });
-
-      await withController(async ({ controller, mocks }) => {
+    it('records a valid MFA and switches to the MPC keyring', async () => {
+      await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [identity],
+          identities: [MFA_IDENTITY],
         });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(controller.state.moneyAccounts).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { type: 'mfa', identity },
+          [MONEY_ACCOUNT_KEY]: { type: 'mfa', identity: MFA_IDENTITY },
         });
         expect(mocks.useMpcKeyring).toHaveBeenCalledTimes(1);
         expect(mocks.useMpcKeyring).toHaveBeenCalledWith({
@@ -521,31 +355,13 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('records a valid SFA when the money account is the current address of one identity and a previous address of another', async () => {
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [MFA_IDENTITY, SFA_IDENTITY],
-        });
-
-        controller.init();
-        await flushPromises();
-
-        expect(getLifecycle(controller)).toStrictEqual({
-          type: 'sfa',
-          identity: SFA_IDENTITY,
-        });
-        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
-      });
-    });
-
-    it('reports an error and does not record anything when the money account is a previous address of an identity that is not done', async () => {
-      await withController(async ({ controller, mocks }) => {
+    it('reports an error and does not record anything when the lifecycle cannot be determined', async () => {
+      await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
           identities: [{ ...MFA_IDENTITY, status: 'MIGRATING' }],
         });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(controller.state.moneyAccounts).toStrictEqual({});
         expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
@@ -569,46 +385,26 @@ describe('MoneyAccountLifecycleController', () => {
             },
           },
         },
-        async ({ controller, mocks }) => {
+        async ({ mocks, init }) => {
           mocks.getDerivedIdentities.mockResolvedValue({
             identities: [MFA_IDENTITY],
           });
 
-          controller.init();
-          await flushPromises();
+          await init();
 
           expect(mocks.useMpcKeyring).toHaveBeenCalledTimes(1);
         },
       );
     });
 
-    it('switches to the MPC keyring again when a refetch finds the same MFA', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          mocks.getDerivedIdentities.mockResolvedValue({
-            identities: [MFA_IDENTITY],
-          });
-
-          controller.init();
-          await flushPromises();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-
-          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
-          expect(mocks.useMpcKeyring).toHaveBeenCalledTimes(2);
-        },
-      );
-    });
-
     it('does not switch to the MPC keyring again when a money account change leaves the MFA unchanged', async () => {
       await withController(
-        async ({ controller, mocks, triggerMoneyAccountChange }) => {
+        async ({ mocks, init, triggerMoneyAccountChange }) => {
           mocks.getDerivedIdentities.mockResolvedValue({
             identities: [MFA_IDENTITY],
           });
 
-          controller.init();
-          await flushPromises();
+          await init();
           await triggerMoneyAccountChange();
 
           expect(mocks.getMoneyAccount).toHaveBeenCalledTimes(2);
@@ -619,45 +415,40 @@ describe('MoneyAccountLifecycleController', () => {
 
     it('switches to the new MPC address when the successor address changes', async () => {
       const newSuccessorAddress = '0x00000000000000000000000000000000000000cc';
-      const newIdentity = buildDerivedIdentity({
+      const newIdentity: DerivedIdentity = {
         currentAddress: newSuccessorAddress,
         previousAddresses: [MONEY_ACCOUNT_ADDRESS, SUCCESSOR_ADDRESS],
         status: 'DONE',
+      };
+
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [MFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [newIdentity] });
+
+        await init();
+        await refetch();
+
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'mfa',
+          identity: newIdentity,
+        });
+        expect(mocks.useMpcKeyring).toHaveBeenLastCalledWith({
+          moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
+          mpcAddress: newSuccessorAddress,
+        });
       });
-
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          mocks.getDerivedIdentities
-            .mockResolvedValueOnce({ identities: [MFA_IDENTITY] })
-            .mockResolvedValueOnce({ identities: [newIdentity] });
-
-          controller.init();
-          await flushPromises();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-
-          expect(getLifecycle(controller)).toStrictEqual({
-            type: 'mfa',
-            identity: newIdentity,
-          });
-          expect(mocks.useMpcKeyring).toHaveBeenLastCalledWith({
-            moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
-            mpcAddress: newSuccessorAddress,
-          });
-        },
-      );
     });
 
     it('reports a failure to switch to the MPC keyring', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ controller, mocks, init }) => {
         const error = new Error('Switch failed');
         mocks.getDerivedIdentities.mockResolvedValue({
           identities: [MFA_IDENTITY],
         });
         mocks.useMpcKeyring.mockRejectedValue(error);
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(mocks.captureException).toHaveBeenCalledWith(error);
         expect(getLifecycle(controller)).toStrictEqual({
@@ -667,42 +458,34 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('updates the recorded lifecycle when a refetch changes it', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          mocks.getDerivedIdentities
-            .mockResolvedValueOnce({ identities: [] })
-            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] });
-
-          controller.init();
-          await flushPromises();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-
-          expect(getLifecycle(controller)).toStrictEqual({
-            type: 'sfa',
-            identity: SFA_IDENTITY,
-          });
-        },
-      );
-    });
-
-    it('waits for the money account to exist before recording its lifecycle', async () => {
+    it('waits for the money account to exist before recording its lifecycle and registration status', async () => {
       await withController(
         { moneyAccountAddress: undefined },
-        async ({ controller, gates, mocks, triggerMoneyAccountChange }) => {
-          controller.init();
-          await flushPromises();
+        async ({
+          controller,
+          gates,
+          mocks,
+          init,
+          triggerMoneyAccountChange,
+        }) => {
+          await init();
 
-          expect(controller.state.moneyAccounts).toStrictEqual({});
+          expect(controller.state).toStrictEqual({
+            moneyAccounts: {},
+            addressRegistrations: {},
+          });
 
           gates.moneyAccountAddress = MONEY_ACCOUNT_ADDRESS;
           await triggerMoneyAccountChange();
 
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-          expect(getLifecycle(controller)).toStrictEqual({
-            type: 'sfa',
-            identity: SFA_IDENTITY,
+          expect(controller.state).toStrictEqual({
+            moneyAccounts: {
+              [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
+            },
+            addressRegistrations: {
+              [MONEY_ACCOUNT_KEY]: { isRegistered: true },
+            },
           });
         },
       );
@@ -711,8 +494,8 @@ describe('MoneyAccountLifecycleController', () => {
     it('ignores money account changes before derived identities have been fetched', async () => {
       await withController(
         { isUnlocked: false },
-        async ({ controller, mocks, triggerMoneyAccountChange }) => {
-          controller.init();
+        async ({ controller, mocks, init, triggerMoneyAccountChange }) => {
+          await init();
           await triggerMoneyAccountChange();
 
           expect(mocks.getMoneyAccount).not.toHaveBeenCalled();
@@ -720,38 +503,12 @@ describe('MoneyAccountLifecycleController', () => {
         },
       );
     });
-
-    it('keeps the recorded lifecycle when the wallet locks', async () => {
-      await withController(
-        async ({ controller, gates, triggerKeyringChange }) => {
-          controller.init();
-          await flushPromises();
-          gates.isUnlocked = false;
-          await triggerKeyringChange();
-
-          expect(getLifecycle(controller)).toStrictEqual({
-            type: 'sfa',
-            identity: SFA_IDENTITY,
-          });
-        },
-      );
-    });
   });
 
   describe('address registration', () => {
-    it('records the registration status of the money account once when it is the current address of an SFA, keyed by lowercased address', async () => {
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [
-            buildDerivedIdentity({
-              currentAddress: MONEY_ACCOUNT_KEY,
-              status: 'DONE',
-            }),
-          ],
-        });
-
-        controller.init();
-        await flushPromises();
+    it('records the registration status of the money account once for an SFA, keyed by lowercased address', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        await init();
 
         expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
         expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
@@ -764,7 +521,7 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('records the registration status of both the money account and the current address of an MFA', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
           identities: [MFA_IDENTITY],
         });
@@ -772,8 +529,7 @@ describe('MoneyAccountLifecycleController', () => {
           isRegistered: address === SUCCESSOR_ADDRESS,
         }));
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
         expect(controller.state.addressRegistrations).toStrictEqual({
@@ -783,73 +539,32 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('records the registration status of the money account when it is not in an identity', async () => {
-      await withController(async ({ controller, mocks }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
-        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
-
-        controller.init();
-        await flushPromises();
-
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
-          MONEY_ACCOUNT_ADDRESS,
+    it('refreshes the registration status on every identity fetch', async () => {
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        mocks.upgradeAccount.mockReturnValue(
+          createDeferredPromise<void>().promise,
         );
+        mocks.getRegistrationStatus
+          .mockResolvedValueOnce({ isRegistered: true })
+          .mockResolvedValueOnce({ isRegistered: false });
+
+        await init();
+        await refetch();
+
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
         expect(controller.state.addressRegistrations).toStrictEqual({
           [MONEY_ACCOUNT_KEY]: { isRegistered: false },
         });
       });
     });
 
-    it('refreshes the registration status on every identity fetch', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          mocks.upgradeAccount.mockReturnValue(
-            createDeferredPromise<void>().promise,
-          );
-          mocks.getRegistrationStatus
-            .mockResolvedValueOnce({ isRegistered: true })
-            .mockResolvedValueOnce({ isRegistered: false });
-
-          controller.init();
-          await flushPromises();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-
-          expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
-          expect(controller.state.addressRegistrations).toStrictEqual({
-            [MONEY_ACCOUNT_KEY]: { isRegistered: false },
-          });
-        },
-      );
-    });
-
     it('does not refresh the registration status when a money account change leaves the lifecycle unchanged', async () => {
       await withController(
-        async ({ controller, mocks, triggerMoneyAccountChange }) => {
-          controller.init();
-          await flushPromises();
+        async ({ mocks, init, triggerMoneyAccountChange }) => {
+          await init();
           await triggerMoneyAccountChange();
 
           expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('looks up the registration status when a money account change records a new lifecycle', async () => {
-      await withController(
-        { moneyAccountAddress: undefined },
-        async ({ controller, gates, mocks, triggerMoneyAccountChange }) => {
-          controller.init();
-          await flushPromises();
-
-          expect(mocks.getRegistrationStatus).not.toHaveBeenCalled();
-
-          gates.moneyAccountAddress = MONEY_ACCOUNT_ADDRESS;
-          await triggerMoneyAccountChange();
-
-          expect(controller.state.addressRegistrations).toStrictEqual({
-            [MONEY_ACCOUNT_KEY]: { isRegistered: true },
-          });
         },
       );
     });
@@ -865,12 +580,11 @@ describe('MoneyAccountLifecycleController', () => {
             },
           },
         },
-        async ({ controller, mocks }) => {
+        async ({ controller, mocks, init }) => {
           const error = new Error('Lookup failed');
           mocks.getRegistrationStatus.mockRejectedValue(error);
 
-          controller.init();
-          await flushPromises();
+          await init();
 
           expect(mocks.captureException).toHaveBeenCalledWith(error);
           expect(controller.state.addressRegistrations).toStrictEqual({
@@ -883,13 +597,12 @@ describe('MoneyAccountLifecycleController', () => {
 
   describe('reconciliation', () => {
     it('registers an unregistered SFA money account and records the refreshed registration status', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ controller, mocks, init }) => {
         mocks.getRegistrationStatus
           .mockResolvedValueOnce({ isRegistered: false })
           .mockResolvedValueOnce({ isRegistered: true });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
         expect(mocks.upgradeAccount).toHaveBeenCalledWith(
@@ -903,15 +616,17 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('registers an unregistered money account that is not in an identity', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
         mocks.getRegistrationStatus.mockResolvedValueOnce({
           isRegistered: false,
         });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
+        );
         expect(mocks.upgradeAccount).toHaveBeenCalledWith(
           MONEY_ACCOUNT_ADDRESS,
         );
@@ -919,23 +634,21 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('does not register a money account that is already registered', async () => {
-      await withController(async ({ controller, mocks }) => {
-        controller.init();
-        await flushPromises();
+      await withController(async ({ mocks, init }) => {
+        await init();
 
         expect(mocks.upgradeAccount).not.toHaveBeenCalled();
       });
     });
 
     it('does not register any address for an MFA', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
           identities: [MFA_IDENTITY],
         });
         mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
         expect(mocks.upgradeAccount).not.toHaveBeenCalled();
@@ -943,35 +656,30 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('does not register the money account when it has become an MFA by the time its registration status arrives', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          const { promise, resolve } =
-            createDeferredPromise<RegistrationStatus>();
-          mocks.getDerivedIdentities
-            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
-            .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
-          mocks.getRegistrationStatus
-            .mockReturnValueOnce(promise)
-            .mockResolvedValue({ isRegistered: false });
+      await withController(async ({ mocks, init, refetch }) => {
+        const { promise, resolve } =
+          createDeferredPromise<RegistrationStatus>();
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
+        mocks.getRegistrationStatus
+          .mockReturnValueOnce(promise)
+          .mockResolvedValue({ isRegistered: false });
 
-          controller.init();
-          await flushPromises();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
-          resolve({ isRegistered: false });
-          await flushPromises();
+        await init();
+        await refetch();
+        resolve({ isRegistered: false });
+        await flushPromises();
 
-          expect(mocks.upgradeAccount).not.toHaveBeenCalled();
-        },
-      );
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
     });
 
     it('does not register again when the refreshed registration status is still unregistered', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ controller, mocks, init }) => {
         mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
 
-        controller.init();
-        await flushPromises();
+        await init();
 
         expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
         expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
@@ -982,52 +690,43 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it('does not start a second registration while one for the same address is in flight', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          const { promise } = createDeferredPromise<void>();
-          mocks.upgradeAccount.mockReturnValue(promise);
-          mocks.getRegistrationStatus.mockResolvedValue({
-            isRegistered: false,
-          });
+      await withController(async ({ mocks, init, refetch }) => {
+        mocks.upgradeAccount.mockReturnValue(
+          createDeferredPromise<void>().promise,
+        );
+        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
 
-          controller.init();
-          await flushPromises();
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
+        await init();
+        await refetch();
 
-          expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
-          expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
-        },
-      );
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('reports a failed registration and retries on the next identity fetch', async () => {
-      await withController(
-        async ({ controller, gates, mocks, triggerFlagChange }) => {
-          const error = new Error('Upgrade failed');
-          mocks.upgradeAccount.mockRejectedValueOnce(error);
-          mocks.getRegistrationStatus
-            .mockResolvedValueOnce({ isRegistered: false })
-            .mockResolvedValueOnce({ isRegistered: false })
-            .mockResolvedValueOnce({ isRegistered: true });
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        const error = new Error('Upgrade failed');
+        mocks.upgradeAccount.mockRejectedValueOnce(error);
+        mocks.getRegistrationStatus
+          .mockResolvedValueOnce({ isRegistered: false })
+          .mockResolvedValueOnce({ isRegistered: false })
+          .mockResolvedValueOnce({ isRegistered: true });
 
-          controller.init();
-          await flushPromises();
+        await init();
 
-          expect(mocks.captureException).toHaveBeenCalledWith(error);
-          expect(controller.state.addressRegistrations).toStrictEqual({
-            [MONEY_ACCOUNT_KEY]: { isRegistered: false },
-          });
+        expect(mocks.captureException).toHaveBeenCalledWith(error);
+        expect(controller.state.addressRegistrations).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
+        });
 
-          gates.remoteFeatureFlags = { someFlag: true };
-          await triggerFlagChange();
+        await refetch();
 
-          expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
-          expect(controller.state.addressRegistrations).toStrictEqual({
-            [MONEY_ACCOUNT_KEY]: { isRegistered: true },
-          });
-        },
-      );
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
+        expect(controller.state.addressRegistrations).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { isRegistered: true },
+        });
+      });
     });
   });
 
@@ -1143,6 +842,8 @@ type WithControllerCallback<ReturnValue> = (payload: {
   triggerKeyringChange: () => Promise<void>;
   triggerFlagChange: () => Promise<void>;
   triggerMoneyAccountChange: () => Promise<void>;
+  init: () => Promise<void>;
+  refetch: () => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1150,17 +851,6 @@ type WithControllerOptions = {
     ConstructorParameters<typeof MoneyAccountLifecycleController>[0]
   >;
 } & Partial<Gates>;
-
-function buildDerivedIdentity(
-  overrides: Partial<DerivedIdentity> = {},
-): DerivedIdentity {
-  return {
-    currentAddress: '0x0000000000000000000000000000000000000001',
-    previousAddresses: [],
-    status: 'NONE',
-    ...overrides,
-  };
-}
 
 function getLifecycle(
   controller: MoneyAccountLifecycleController,
@@ -1346,6 +1036,18 @@ async function withController<ReturnValue>(
     ...options,
   });
 
+  const init = async (): Promise<void> => {
+    controller.init();
+    await flushPromises();
+  };
+
+  let refetchCount = 0;
+  const refetch = async (): Promise<void> => {
+    refetchCount += 1;
+    gates.remoteFeatureFlags = { refetchCount };
+    await triggerFlagChange();
+  };
+
   return await testFunction({
     controller,
     rootMessenger,
@@ -1355,5 +1057,7 @@ async function withController<ReturnValue>(
     triggerKeyringChange,
     triggerFlagChange,
     triggerMoneyAccountChange,
+    init,
+    refetch,
   });
 }
