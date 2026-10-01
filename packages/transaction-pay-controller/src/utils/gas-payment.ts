@@ -270,11 +270,11 @@ function canUseGasStation(
  * estimating it. At submit time, call it with everything to get the
  * `TransactionController` options.
  *
- * Only the submit-time resolution is logged. At quote time the gas station has
- * not been consulted yet, so an absent `isSourceGasFeeToken` collapses to
- * {@link GasPaymentMode.Native} by default rather than by decision — logging
- * that would announce the user is paying gas in native token before anything
- * has ruled out the source token.
+ * Only the submit-time resolution is logged. Quote-time callers omit
+ * `isSourceGasFeeToken`, while submit-time callers include it even when the
+ * value is `undefined`. At quote time the gas station has not been consulted
+ * yet, so logging would announce the user is paying gas in native token before
+ * anything has ruled out the source token.
  *
  * @param request - Payment request.
  * @returns The resolved mode and its `TransactionController` options.
@@ -282,7 +282,7 @@ function canUseGasStation(
 export function resolveGasPayment(request: GasPaymentRequest): GasPayment {
   const gasPayment = getGasPayment(request);
 
-  if (request.isSourceGasFeeToken !== undefined) {
+  if ('isSourceGasFeeToken' in request) {
     log(GAS_PAYMENT_MODE_LOG[gasPayment.mode], gasPayment);
   }
 

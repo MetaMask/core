@@ -263,6 +263,18 @@ describe('gas-payment', () => {
         { mode: GasPaymentMode.Native },
       );
     });
+
+    it('logs the resolved mode when submit has no gas fee token result', () => {
+      resolveGasPayment({
+        ...PAYMENT_REQUEST_MOCK,
+        isSourceGasFeeToken: undefined,
+      });
+
+      expect(logMock).toHaveBeenCalledWith(
+        'Gas will be paid with native token',
+        { mode: GasPaymentMode.Native },
+      );
+    });
   });
 
   describe('logGasPaymentOutcome', () => {
