@@ -617,6 +617,26 @@ describe('AuthenticationController', () => {
       expect(controller.state.needsProfilePairing).toBe(false);
     });
 
+    it('shares one in-flight performSignIn across overlapping callers', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({ mockPairProfilesDelayMs: 50 });
+      const { messenger } = createMockAuthenticationMessenger();
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      const first = controller.performSignIn();
+      const second = controller.performSignIn();
+      const [firstTokens, secondTokens] = await Promise.all([first, second]);
+
+      expect(secondTokens).toBe(firstTokens);
+
+      const thirdTokens = await controller.performSignIn();
+      expect(thirdTokens).not.toBe(firstTokens);
+    });
+
     it('does NOT throw out of performSignIn when pairProfiles fails, leaves needsProfilePairing=true', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs({

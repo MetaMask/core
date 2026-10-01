@@ -326,6 +326,11 @@ export class AuthenticationController extends BaseController<
    */
   #profilePairingRequestEpoch = 0;
 
+  /**
+   * Sign-in currently running. Overlapping callers share it.
+   */
+  #ongoingSignIn?: Promise<string[]>;
+
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messenger.call('KeyringController:getState');
@@ -589,7 +594,21 @@ export class AuthenticationController extends BaseController<
 
   public async performSignIn(): Promise<string[]> {
     this.#assertIsUnlocked('performSignIn');
+    if (this.#ongoingSignIn) {
+      return await this.#ongoingSignIn;
+    }
 
+    const signIn = this.#runPerformSignIn().finally(() => {
+      if (this.#ongoingSignIn === signIn) {
+        this.#ongoingSignIn = undefined;
+      }
+    });
+
+    this.#ongoingSignIn = signIn;
+    return await signIn;
+  }
+
+  async #runPerformSignIn(): Promise<string[]> {
     const epochAtStart = this.#profilePairingRequestEpoch;
     const entropySourceIds = this.#getHdKeyringEntropySourceIds();
     const accessTokens: string[] = [];
