@@ -13,10 +13,12 @@ import {
 } from '../constants/perpsConfig.js';
 import type {
   PerpsFeeResolution,
+  PerpsFeeResolverScope,
   PerpsFeeSource,
   PerpsPlatformDependencies,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionFeeWaiverStatus,
+  PerpsTradingFeeGrant,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
@@ -53,14 +55,15 @@ type BenefitsSnapshot = {
  *
  * Sources, all in fee basis points (lowest wins):
  * - `default` — {@link BUILDER_FEE_CONFIG}, the fee with no reductions.
- * - `rewards` — VIP and season, collapsed into one discount by
- *   `RewardsController` (`rewards.getPerpsDiscountForAccount`), so this service
- *   does not re-derive the VIP/season split.
+ * - `rewards` — the account-scoped VIP and season discount returned by
+ *   `rewards.getPerpsDiscountForAccount`.
+ * - `grant` — an independent, expiring, route-scoped fee returned by
+ *   `rewards.getPerpsTradingFeeGrant`.
  * - `subscription` — `0` bips, but only when the eligibility gate passes on a
  *   cached read of the profile's benefits.
  *
- * On a tie the cheaper-to-explain source wins, in the order
- * `subscription` > `rewards` > `default`.
+ * Rewards wins ties with default. Grant and subscription must be strictly
+ * cheaper after venue quantization to win.
  *
  * The benefits cache is stale-while-revalidate: fee resolution is a pure read
  * of the cached snapshot, while preview and lifecycle callers refresh it
@@ -153,12 +156,15 @@ export class RewardsIntegrationService {
    * Returns discount in basis points (e.g., 6500 = 65% discount)
    *
    * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
+   * @param scope - Provider route used to request route-scoped fee sources.
+   * Omission intentionally excludes grants for compatibility callers.
    * @returns The fee discount in basis points, or undefined if no source resolved.
    */
   async calculateUserFeeDiscount(
     orderNotionalUsd?: number,
+    scope?: PerpsFeeResolverScope,
   ): Promise<number | undefined> {
-    const resolution = await this.resolveFee(orderNotionalUsd);
+    const resolution = await this.resolveFee(orderNotionalUsd, scope);
     return resolution.discountBips;
   }
 
@@ -182,10 +188,27 @@ export class RewardsIntegrationService {
    * source instead.
    *
    * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
+   * @param scope - Provider route used to request route-scoped fee sources.
+   * Omission intentionally excludes grants.
    * @returns The winning fee, its source, and the subscription gate outcome.
    */
-  async resolveFee(orderNotionalUsd?: number): Promise<PerpsFeeResolution> {
-    const rewardsDiscountBips = await this.#calculateRewardsDiscount();
+  async resolveFee(
+    orderNotionalUsd?: number,
+    scope?: PerpsFeeResolverScope,
+  ): Promise<PerpsFeeResolution> {
+    const [rewardsDiscount, grantCandidate] = await Promise.all([
+      this.#calculateRewardsDiscount(),
+      scope
+        ? this.#getPerpsTradingFeeGrant(scope)
+        : Promise.resolve<PerpsTradingFeeGrant | null>(null),
+    ]);
+    // Expiry is deliberately checked only after every concurrent candidate has
+    // settled. A grant that expires while the account-scoped rewards request is
+    // in flight must not be selected.
+    const grant =
+      scope && isValidTradingFeeGrant(grantCandidate, scope, Date.now())
+        ? grantCandidate
+        : undefined;
     // Pure cache read: subscription benefits must never start a network request
     // while an order is being prepared for signing.
     const subscription = this.getSubscriptionFeeWaiverStatus();
@@ -193,15 +216,28 @@ export class RewardsIntegrationService {
     let feeBips = DEFAULT_FEE_BIPS;
     let source: PerpsFeeSource = 'default';
 
-    if (rewardsDiscountBips !== undefined) {
+    const toTenthsBps = (bips: number): number =>
+      quantizeBuilderFeeTenthsBps(
+        Math.round((1 - bips / DEFAULT_FEE_BIPS) * BASIS_POINTS_DIVISOR),
+      );
+
+    if (rewardsDiscount !== undefined) {
       const rewardsFeeBips =
-        DEFAULT_FEE_BIPS * (1 - rewardsDiscountBips / BASIS_POINTS_DIVISOR);
+        DEFAULT_FEE_BIPS * (1 - rewardsDiscount / BASIS_POINTS_DIVISOR);
       // `<=` so an equal rewards fee still reports the rewards source, keeping
       // a resolved 0% discount distinguishable from an unresolved one.
       if (rewardsFeeBips <= feeBips) {
         feeBips = rewardsFeeBips;
         source = 'rewards';
       }
+    }
+
+    // A grant only wins when it lowers the fee the venue will actually charge.
+    // Rewards therefore keeps a quantized tie, and default keeps a grant that
+    // does not reduce the on-wire rate.
+    if (grant && toTenthsBps(grant.feeBips) < toTenthsBps(feeBips)) {
+      feeBips = grant.feeBips;
+      source = 'grant';
     }
 
     const waiver = resolveSubscriptionWaiverRate({
@@ -213,11 +249,8 @@ export class RewardsIntegrationService {
     let subscriptionWaiverKind: PerpsFeeResolution['subscriptionWaiverKind'];
     let subscriptionCoveredNotionalUsd: number | undefined;
 
-    // The waiver competes like any other source. A full waiver still wins on
-    // `<=`, but a partial blend only wins when it is genuinely cheaper than the
-    // rewards discount — the ADR's requirement that subscription be able to
-    // lose.
-    //
+    // Full and partial waivers compete with the rewards fee. Subscription
+    // only wins when it produces a genuinely cheaper fee on the wire.
     // Compared *after* venue quantization, because that is the fee the order
     // pays. The builder fee is submitted in integer tenths of a basis point, so
     // a blend like 9.9999 bips is cheaper than the 10-bip default in arithmetic
@@ -225,11 +258,6 @@ export class RewardsIntegrationService {
     // would label such an order `source: 'subscription'` with a 0-bip discount
     // while it pays full price, and would disagree with the cloid marker, which
     // already gates on the quantized fee.
-    const toTenthsBps = (bips: number): number =>
-      quantizeBuilderFeeTenthsBps(
-        Math.round((1 - bips / DEFAULT_FEE_BIPS) * BASIS_POINTS_DIVISOR),
-      );
-
     // Subscription must be strictly cheaper on the wire to claim the order. A
     // tie buys the user nothing — the same rate is already available from the
     // source that won — while claiming it marks the cloid and spends the
@@ -259,7 +287,9 @@ export class RewardsIntegrationService {
       feeBips,
       discountBips,
       defaultFeeBips: DEFAULT_FEE_BIPS,
-      rewardsDiscountBips,
+      rewardsDiscountBips: rewardsDiscount,
+      grantFeeBips: grant?.feeBips,
+      grantExpiresAt: grant?.expiresAt,
       orderNotionalUsd,
       subscriptionEligible: subscription.eligible,
       subscriptionReason: subscription.reason,
@@ -714,9 +744,9 @@ export class RewardsIntegrationService {
   }
 
   /**
-   * Resolve the rewards (VIP + season) discount for the selected account.
+   * Resolve the VIP and season discount for the selected account.
    *
-   * @returns The discount in basis points, or undefined when unavailable.
+   * @returns The numeric discount, or undefined when unavailable.
    */
   async #calculateRewardsDiscount(): Promise<number | undefined> {
     try {
@@ -821,6 +851,60 @@ export class RewardsIntegrationService {
       return undefined;
     }
   }
+
+  /**
+   * Read the independent trading-fee grant for a provider route.
+   *
+   * @param scope - Exact route requested by the resolver.
+   * @returns The candidate, or null when unsupported or unavailable.
+   */
+  async #getPerpsTradingFeeGrant(
+    scope: PerpsFeeResolverScope,
+  ): Promise<PerpsTradingFeeGrant | null> {
+    if (!this.#deps.rewards.getPerpsTradingFeeGrant) {
+      return null;
+    }
+
+    try {
+      return await this.#deps.rewards.getPerpsTradingFeeGrant(scope);
+    } catch (error) {
+      this.#deps.logger.error(
+        ensureError(error, 'RewardsIntegrationService.getPerpsTradingFeeGrant'),
+        {
+          tags: { feature: PERPS_CONSTANTS.FeatureName },
+          context: {
+            name: 'RewardsIntegrationService.getPerpsTradingFeeGrant',
+            data: {},
+          },
+        },
+      );
+      return null;
+    }
+  }
+}
+
+/**
+ * Validate a trading-fee grant at the time fee selection occurs.
+ *
+ * @param grant - Candidate returned by the client-owned RewardsController.
+ * @param scope - Exact provider route requested by the resolver.
+ * @param now - Selection time as Unix milliseconds.
+ * @returns Whether the candidate is valid, unexpired, and matches the route.
+ */
+function isValidTradingFeeGrant(
+  grant: PerpsTradingFeeGrant | null,
+  scope: PerpsFeeResolverScope,
+  now: number,
+): grant is PerpsTradingFeeGrant {
+  return Boolean(
+    grant &&
+    grant.providerId === scope.providerId &&
+    grant.isTestnet === scope.isTestnet &&
+    Number.isFinite(grant.feeBips) &&
+    grant.feeBips >= 0 &&
+    Number.isFinite(grant.expiresAt) &&
+    now < grant.expiresAt,
+  );
 }
 
 /**

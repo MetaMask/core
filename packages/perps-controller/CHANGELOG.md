@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the optional route-aware `PerpsPlatformDependencies.rewards.getPerpsTradingFeeGrant(scope)` integration and exported `PerpsTradingFeeGrant` type for independent, expiring fee candidates. Candidates carry `providerId` and `isTestnet`; Core accepts only an exact match for the routed resolver scope. The corresponding Mobile integration supplies Hyperliquid mainnet candidates, while Core remains provider-agnostic for future routes such as Lighter. ([#10664](https://github.com/MetaMask/core/pull/10664))
+- Add optional `FeeCalculationResult.feeSource`, reporting the winning source (`default`, `rewards`, `grant`, or `subscription`) from the same operation that repriced a fee preview. It is absent when no resolution applies or the placement carries no MetaMask builder fee; submission resolves again against its actual provider route. ([#10664](https://github.com/MetaMask/core/pull/10664))
+
 ### Changed
 
+- **BREAKING:** Add `'grant'` to `PerpsFeeSource`; exhaustive consumers must handle the new winner. Keep `getPerpsDiscountForAccount` as `Promise<number | null>` for VIP/season and retrieve grants independently through optional `getPerpsTradingFeeGrant`. ([#10664](https://github.com/MetaMask/core/pull/10664))
+  - Clients that expose grants return the requested `providerId` and `isTestnet` with an absolute `feeBips` and Unix-millisecond `expiresAt`. Core retrieves both rewards candidates concurrently, validates fee, expiry, and exact route scope after they settle, selects the lowest valid fee after venue quantization, and does not cache grants.
+- Restrict grant retrieval to explicitly scoped previews and submissions. Calls without provider scope retain VIP/season, subscription, and default resolution without invoking the optional grant dependency; scoped calls are provider-agnostic and reject mismatched candidates. ([#10664](https://github.com/MetaMask/core/pull/10664))
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
 
 ### Fixed
