@@ -1,4 +1,4 @@
-import { decrypt, encrypt } from '@metamask/cryptography/aes-gcm';
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import {
   getErrorMessage,
   stringToBytes,
@@ -17,7 +17,6 @@ import {
 } from './cache.js';
 import {
   ALGORITHM_KEY_SIZE,
-  ALGORITHM_NONCE_SIZE,
   MAX_KDF_PROMISE_CACHE_SIZE,
   SCRYPT_N,
   SCRYPT_p,
@@ -235,9 +234,9 @@ class EncryptorDecryptor {
     key: Uint8Array<ArrayBuffer>,
   ): Promise<Uint8Array<ArrayBuffer>> {
     // Create buffers of nonce and ciphertext.
-    const nonce = ciphertextAndNonce.slice(0, ALGORITHM_NONCE_SIZE);
+    const nonce = ciphertextAndNonce.slice(0, IV_LENGTH);
     const ciphertext = ciphertextAndNonce.slice(
-      ALGORITHM_NONCE_SIZE,
+      IV_LENGTH,
       ciphertextAndNonce.length,
     );
 
