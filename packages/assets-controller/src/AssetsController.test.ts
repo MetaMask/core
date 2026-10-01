@@ -5519,7 +5519,7 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockClear();
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           'entropy:mock-keyring-id-1/0',
@@ -5540,19 +5540,18 @@ describe('AssetsController', () => {
      * hence the one cast here instead of in every test.
      *
      * @param messenger - The root messenger to publish on.
-     * @param accountEntropies - Entropies of the previously selected accounts.
+     * @param fromEntropy - Entropy of the previously selected account.
+     * @param toEntropy - Entropy of the newly selected account.
      */
     const switchSelectedAccountGroup = (
       messenger: RootMessenger,
-      ...accountEntropies: string[]
+      fromEntropy: `entropy:${string}/${string}`,
+      toEntropy: `entropy:${string}/${string}`,
     ): void => {
-      (
-        messenger as unknown as {
-          publish: (topic: string, ...payload: unknown[]) => void;
-        }
-      ).publish(
+      messenger.publish(
         'AccountTreeController:selectedAccountGroupChange',
-        ...accountEntropies,
+        fromEntropy,
+        toEntropy,
       );
     };
 
@@ -5601,13 +5600,11 @@ describe('AssetsController', () => {
           // fetch is in flight, then loaded once it settles; the account the
           // startup fetch already settled is never re-marked.
           await waitForAccountLoadingStatus(controller, accountB.id, 'loading');
-
           expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
           );
 
           release();
-
           await waitFor(() =>
             expect(controller.state.assetsLoadingStatus?.[accountB.id]).toBe(
               'loaded',
