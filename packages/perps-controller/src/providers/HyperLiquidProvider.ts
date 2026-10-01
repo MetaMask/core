@@ -3020,8 +3020,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       // the unified balance. Hardware wallets remain deferred to action time to
       // avoid repeated signing prompts while browsing.
       // After a WebSocket transport failure, skip it until the cooldown is
-      // over. #unifiedAccountSetupNeedsRetry stays set meanwhile, so a later
-      // entry retries. Action-time callers are not gated.
+      // over. The memoized promise is dropped while the cooldown is active
+      // (see below), so a later entry retries. Action-time callers are not
+      // gated.
       if (Date.now() >= this.#unifiedAccountTransportRetryAt) {
         await this.#ensureUnifiedAccountEnabled({
           allowUserSigning:
@@ -15741,7 +15742,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#cachedSpotMeta = null;
       this.#dexDiscoveryCache.reset();
       this.#dexDiscoveryComplete = false;
-      this.#unifiedAccountTransportRetryAt = 0;
 
       // Await pending initialization before clearing to prevent the IIFE from
       // setting clientsInitialized = true after disconnect completes
@@ -15796,6 +15796,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Reset client initialization flag so wallet adapter will be recreated with new account
       // This fixes account synchronization issue where old account's address persists in wallet adapter
       this.#clientsInitialized = false;
+
+      // Only after the pending setups above settled: a lookup that failed on
+      // the transport while they were awaited must not carry its cooldown
+      // into the next session.
+      this.#unifiedAccountTransportRetryAt = 0;
 
       // Disconnect client service
       await this.#clientService.disconnect();

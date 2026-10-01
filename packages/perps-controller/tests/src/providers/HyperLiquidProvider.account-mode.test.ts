@@ -2174,6 +2174,43 @@ describe('HyperLiquidProvider', () => {
         expect(userAbstraction).toHaveBeenCalledTimes(2);
       });
 
+      it('does not carry a cooldown started during disconnect into the next session', async () => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        let rejectLookup: (error: Error) => void = () => undefined;
+        const userAbstraction = jest
+          .fn()
+          .mockImplementationOnce(
+            async () =>
+              new Promise((_resolve, reject) => {
+                rejectLookup = reject;
+              }),
+          )
+          .mockResolvedValue('unifiedAccount');
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+
+        const loading = provider
+          .getMarketDataWithPrices()
+          .catch(() => undefined);
+        for (let i = 0; i < 50 && userAbstraction.mock.calls.length < 1; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        // disconnect() waits for the in-flight lookup, which then fails on
+        // the transport and starts a cooldown.
+        const disconnecting = provider.disconnect();
+        for (let i = 0; i < 10; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        rejectLookup(createTerminatedSocketError());
+        await disconnecting;
+        await loading;
+
+        await provider.getMarketDataWithPrices();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+      });
+
       it('still reports a server error frame returned for the lookup', async () => {
         // The SDK raises the venue's own rejection as a WebSocketRequestError
         // with no cause; that is an answer, not a transport failure.
