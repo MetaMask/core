@@ -51,7 +51,7 @@ is the hash of that pending payload. At apply, each escrow gets
 ephemeral `pkE` into the `getSecret` request hash.
 
 Public surface: `register`, `updateRecoverySecret`, `updateIdentifiers`,
-`getRecoverySecret`, `resume`, `abort`, `getPhase`.
+`authenticateIdentifier`, `getRecoverySecret`, `resume`, `abort`, `getPhase`.
 
 ## State machine
 
@@ -139,11 +139,17 @@ stored version.
 sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
+  participant I as IdentifierAuthProvider
   participant E as Available escrows
 
-  C->>M: getRecoverySecret(identifier)
+  C->>M: authenticateIdentifier(identifier)
+  M->>M: generate requestId, proof key, and ephemeral pkE
+  M->>I: getKeyBoundIdentifierToken
+  M-->>C: IdentifierSession
+  C->>M: getRecoverySecret(session)
+  M->>M: recompute and validate requestHash
   M->>E: isAvailable (failures skipped)
-  M->>E: authorize identifier (partial OK)
+  M->>E: authorize token (partial OK)
   par read
     M->>E: getSecret
   end
@@ -156,6 +162,10 @@ sequenceDiagram
     M-->>C: secret bytes + epoch
   end
 ```
+
+`IdentifierSession` contains the key-bound token, request identifiers, and
+ephemeral private keys needed for the read. The controller does not persist or
+store the session; callers must keep it in memory and must not log it.
 
 `getRecoverySecret` does not block on a pending mutation. During `writing`,
 replicas may hold different versions; the read takes the highest one. The

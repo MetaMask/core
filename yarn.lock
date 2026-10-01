@@ -2538,6 +2538,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cubist-labs/cubesigner-sdk-fs-storage@npm:^0.4.284":
+  version: 0.4.284
+  resolution: "@cubist-labs/cubesigner-sdk-fs-storage@npm:0.4.284"
+  peerDependencies:
+    "@cubist-labs/cubesigner-sdk": ^0.4.284
+  checksum: 10/4eb342a8d27ed6a4a26f55ea7bd41f6a7930d3ea853b905c912d84bcee9d0d637f4d63cf53c73a367833992d93b18a54c65d997736027dbc554954b72216e19f
+  languageName: node
+  linkType: hard
+
+"@cubist-labs/cubesigner-sdk@npm:^0.4.284":
+  version: 0.4.284
+  resolution: "@cubist-labs/cubesigner-sdk@npm:0.4.284"
+  dependencies:
+    "@hpke/core": "npm:^1.2.7"
+    openapi-fetch: "npm:0.8.2"
+    zod: "npm:^4.3.6"
+  dependenciesMeta:
+    "@hpke/core":
+      optional: true
+  checksum: 10/cb98a4b0062dedc7bb4754ca96b49c5f8057ad91a8f7719f33090ccb6df32005d22efcf62ee848aaa690bba41b0ddb2d7f5fb980c6f612a76747ce63f373fd64
+  languageName: node
+  linkType: hard
+
 "@discoveryjs/json-ext@npm:0.5.7":
   version: 0.5.7
   resolution: "@discoveryjs/json-ext@npm:0.5.7"
@@ -4610,6 +4633,22 @@ __metadata:
   dependencies:
     "@hapi/hoek": "npm:^9.0.0"
   checksum: 10/084bfa647015f4fd3fdd51fadb2747d09ef2f5e1443d6cbada2988b0c88494f85edf257ec606c790db146ac4e34ff57f3fcb22e3299b8e06ed5c87ba7583495c
+  languageName: node
+  linkType: hard
+
+"@hpke/common@npm:^1.10.0":
+  version: 1.10.1
+  resolution: "@hpke/common@npm:1.10.1"
+  checksum: 10/5279be394dbab880bbb5635de493e2bcd688bb16789026257a8a101c309432af03b202f9748c568467be9e0d5f2342cd7f8c80511374bab4ef098fd5dfd20922
+  languageName: node
+  linkType: hard
+
+"@hpke/core@npm:^1.2.7":
+  version: 1.9.0
+  resolution: "@hpke/core@npm:1.9.0"
+  dependencies:
+    "@hpke/common": "npm:^1.10.0"
+  checksum: 10/e859c8a41ee2b92968415184dd42be305fdbba315b2b60c930e3c1f764bee6fbb819a1ef5a3e6541173233afe44beb59806f0c3ccccb89aa6dc0c2e2cd84ac02
   languageName: node
   linkType: hard
 
@@ -7827,6 +7866,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/mfa-recovery-controller@workspace:packages/mfa-recovery-controller"
   dependencies:
+    "@cubist-labs/cubesigner-sdk": "npm:^0.4.284"
+    "@cubist-labs/cubesigner-sdk-fs-storage": "npm:^0.4.284"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -22947,6 +22988,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"openapi-fetch@npm:0.8.2":
+  version: 0.8.2
+  resolution: "openapi-fetch@npm:0.8.2"
+  dependencies:
+    openapi-typescript-helpers: "npm:^0.0.5"
+  checksum: 10/28da01ec9c748e1fa085e9d79d991c852c1291f33e103d8b1f1b17e5c2b51c41d94b56a7ed676e4485e83cd557df8e187374092bdf0b310d4504404aa49e5bc5
+  languageName: node
+  linkType: hard
+
+"openapi-typescript-helpers@npm:^0.0.5":
+  version: 0.0.5
+  resolution: "openapi-typescript-helpers@npm:0.0.5"
+  checksum: 10/1c1024e552af9f3bdf3ab7a76bd7208f783f9af53b9cfebc86984e700e85df071a73cf5f560cb295a547a0dc88ccd87a689a7fd286781e3b04716af8aa583898
+  languageName: node
+  linkType: hard
+
 "opener@npm:^1.5.2":
   version: 1.5.2
   resolution: "opener@npm:1.5.2"
@@ -29061,6 +29118,13 @@ __metadata:
   version: 4.4.3
   resolution: "zod@npm:4.4.3"
   checksum: 10/804b9a42aa8f35f2b3c5a8dff906291cb749115f83ee2afe3576d70b5b5c53c965365c7f4967690647a9c54af9838ff232a85ff9577a0a36c44b68bc6cdefe36
+  languageName: node
+  linkType: hard
+
+"zod@npm:^4.3.6":
+  version: 4.6.5
+  resolution: "zod@npm:4.6.5"
+  checksum: 10/db004952e4dc6eab38b70f0cdef9251a65da84f5d08c5a0ef85e2590cfa9c477544ce734161ff5c05f89a15f0967137607a7feb16716195e04965f030db47213
   languageName: node
   linkType: hard
 
