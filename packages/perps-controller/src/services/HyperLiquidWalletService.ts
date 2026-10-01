@@ -1,6 +1,7 @@
 import {
   hasProperty,
   isValidHexAddress,
+  numberToHex,
   parseCaipAccountId,
 } from '@metamask/utils';
 import type { CaipAccountId, Hex } from '@metamask/utils';
@@ -12,6 +13,7 @@ import {
 } from '../constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
+  PerpsAccountSigner,
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsTypedDataPayload,
@@ -183,18 +185,10 @@ export class HyperLiquidWalletService {
 
     const { accountSigner } = this.#deps;
     if (accountSigner) {
-      if (!isAccountSignerReady(accountSigner)) {
-        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
-      }
-      try {
-        return await accountSigner.signTypedData(mainAddress, params);
-      } catch (error) {
-        // A signer that locked while signing throws its own error.
-        if (!isAccountSignerReady(accountSigner)) {
-          throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED, { cause: error });
-        }
-        throw error;
-      }
+      return await this.#callAccountSigner(
+        accountSigner,
+        async () => await accountSigner.signTypedData(mainAddress, params),
+      );
     }
 
     const signature = await this.#signTypedMessage({
@@ -206,17 +200,47 @@ export class HyperLiquidWalletService {
   }
 
   /**
+   * Call the account signer, failing with `KEYRING_LOCKED` when it cannot
+   * sign, before the call or while it runs.
+   *
+   * @param accountSigner - The injected account signer.
+   * @param call - The call to make.
+   * @returns The call's result.
+   */
+  async #callAccountSigner<Result>(
+    accountSigner: PerpsAccountSigner,
+    call: () => Promise<Result>,
+  ): Promise<Result> {
+    if (!isAccountSignerReady(accountSigner)) {
+      throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    }
+    try {
+      return await call();
+    } catch (error) {
+      // A signer that locked during the call throws its own error.
+      if (!isAccountSignerReady(accountSigner)) {
+        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED, { cause: error });
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Create the wallet adapter the HyperLiquid SDK signs with.
    *
    * Every signature is for the currently selected main account. When the
    * agent resolver returns an agent for that account, L1 actions (orders,
    * cancels, leverage, ...) are signed by the agent. User-signed actions
    * (builder fee, withdraw, ...) authorize the main account itself, so the
-   * main account always signs them.
+   * main account always signs them, for the chain the account signer reports
+   * when it reports one.
    *
-   * @returns The wallet adapter with address, signTypedData, and getChainId methods.
+   * @returns The wallet adapter with address, signTypedData, and getChainId
+   * methods, and signatureChainId when the account signer has getChainId.
    */
   public createWalletAdapter(): HyperLiquidWalletParams {
+    const { accountSigner } = this.#deps;
+    const getSignerChainId = accountSigner?.getChainId?.bind(accountSigner);
     return {
       address: this.#getSelectedMainAddress(),
       signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
@@ -242,6 +266,15 @@ export class HyperLiquidWalletService {
       },
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),
+      ...(accountSigner &&
+        getSignerChainId && {
+          // Asked just before the main account signs, so it fails the same
+          // way when the signer cannot sign.
+          signatureChainId: async (): Promise<Hex> =>
+            numberToHex(
+              await this.#callAccountSigner(accountSigner, getSignerChainId),
+            ),
+        }),
     };
   }
 

@@ -50,6 +50,8 @@ export type HyperLiquidWalletParams = {
   address: Hex;
   signTypedData: (params: PerpsTypedDataPayload) => Promise<Hex>;
   getChainId?: () => Promise<number>;
+  /** The chain user-signed actions are signed for. When omitted, the SDK uses 1. */
+  signatureChainId?: () => Promise<Hex>;
 };
 
 // WebSocketConnectionState is now imported from controllers/types
@@ -355,6 +357,9 @@ export class HyperLiquidClientService {
       this.#exchangeClient = new ExchangeClient({
         wallet: effectiveWallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
         transport: this.#httpTransport,
+        ...(effectiveWallet.signatureChainId && {
+          signatureChainId: effectiveWallet.signatureChainId,
+        }),
       });
     } else {
       this.#exchangeClient = undefined;

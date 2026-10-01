@@ -70,9 +70,11 @@ increase or reduce the existing position.
 
 By default the controller signs through the `KeyringController:*` messenger
 actions. A client without a keyring passes `accountSigner` in its platform
-dependencies (`signTypedData`, `signPersonalMessage`, optional `isReady` and
-`requiresSignatureConfirmation`); the signing address still comes from the
-selected account, and a signer that is not ready fails with `KEYRING_LOCKED`.
+dependencies (`signTypedData`, `signPersonalMessage`, optional `isReady`,
+`requiresSignatureConfirmation` and `getChainId`); the signing address still
+comes from the selected account, and a signer that is not ready fails with
+`KEYRING_LOCKED`. HyperLiquid user-signed actions are signed for the chain
+`getChainId` returns, or for chain 1 without it.
 
 HyperLiquid L1 actions (orders, cancels, leverage, ...) can be signed by a
 client-owned agent key: return it from

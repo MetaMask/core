@@ -228,6 +228,18 @@ describe('HyperLiquidClientService', () => {
       });
     });
 
+    it('signs user-signed actions for the chain the wallet names', async () => {
+      const signatureChainId = jest.fn().mockResolvedValue('0xaa36a7');
+      const wallet = { ...mockWallet, signatureChainId };
+
+      await service.initialize(wallet);
+
+      const { ExchangeClient } = require('@nktkas/hyperliquid');
+      expect(ExchangeClient.mock.calls).toStrictEqual([
+        [{ wallet, transport: mockHttpTransport, signatureChainId }],
+      ]);
+    });
+
     it('handles initialization errors', async () => {
       const { ExchangeClient } = require('@nktkas/hyperliquid');
       ExchangeClient.mockImplementationOnce(() => {

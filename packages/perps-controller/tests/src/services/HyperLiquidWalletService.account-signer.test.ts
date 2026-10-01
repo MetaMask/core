@@ -39,6 +39,7 @@ type SignerOverrides = {
   signTypedData?: jest.Mock;
   isReady?: () => boolean;
   requiresSignatureConfirmation?: () => boolean;
+  getChainId?: () => Promise<number>;
 };
 
 type Built = {
@@ -57,6 +58,7 @@ function buildService(
     signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady: overrides.isReady,
     requiresSignatureConfirmation: overrides.requiresSignatureConfirmation,
+    getChainId: overrides.getChainId,
   };
   const { messenger, call } = createKeyringlessMessenger(keyringType);
   const service = new HyperLiquidWalletService(
@@ -163,6 +165,56 @@ describe('HyperLiquidWalletService with accountSigner', () => {
       expect(service.requiresSignatureConfirmation()).toBe(expected);
     },
   );
+
+  it('signs user-signed actions for the chain the signer reports at signing time', async () => {
+    const getChainId = jest
+      .fn()
+      .mockResolvedValueOnce(11155111)
+      .mockResolvedValueOnce(42161);
+    const { service } = buildService({ getChainId });
+    const adapter = service.createWalletAdapter();
+
+    expect(await adapter.signatureChainId?.()).toBe('0xaa36a7');
+    expect(await adapter.signatureChainId?.()).toBe('0xa4b1');
+  });
+
+  it('fails with KEYRING_LOCKED without asking for the chain when isReady returns false', async () => {
+    const getChainId = jest.fn().mockResolvedValue(11155111);
+    const { service } = buildService({ getChainId, isReady: () => false });
+
+    await expect(
+      service.createWalletAdapter().signatureChainId?.(),
+    ).rejects.toThrow(PERPS_ERROR_CODES.KEYRING_LOCKED);
+    expect(getChainId).not.toHaveBeenCalled();
+  });
+
+  it('fails with KEYRING_LOCKED, keeping the host error as its cause, when the signer locks while reporting its chain', async () => {
+    let ready = true;
+    const hostError = new Error('Wallet disconnected');
+    const { service } = buildService({
+      isReady: () => ready,
+      getChainId: jest.fn(async () => {
+        ready = false;
+        throw hostError;
+      }),
+    });
+
+    const error: unknown = await service
+      .createWalletAdapter()
+      .signatureChainId?.()
+      .catch((caught: unknown) => caught);
+
+    expect(error).toStrictEqual(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED));
+    expect((error as Error).cause).toBe(hostError);
+  });
+
+  it('leaves the chain of user-signed actions to the SDK when the signer reports none', () => {
+    const { service } = buildService();
+
+    expect(service.createWalletAdapter()).not.toHaveProperty(
+      'signatureChainId',
+    );
+  });
 });
 
 describe('HyperLiquidWalletService wallet adapter with an agent', () => {
@@ -360,6 +412,12 @@ describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', 
     return { adapter: service.createWalletAdapter(), agentSign, call };
   }
 
+  it('leaves the chain of user-signed actions to the SDK', () => {
+    const { adapter } = buildKeyringAdapter();
+
+    expect(adapter).not.toHaveProperty('signatureChainId');
+  });
+
   it('signs L1 actions with the agent without calling KeyringController', async () => {
     const { adapter, agentSign, call } = buildKeyringAdapter();
 
@@ -426,6 +484,7 @@ describeWithSdk(
       resolveAgent: () => Promise<PerpsAgentSigner> = async () =>
         // A viem local account is a PerpsAgentSigner as it is.
         agentAccount,
+      getChainId?: () => Promise<number>,
     ): {
       adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
       signatures: RecordedSignature[];
@@ -450,6 +509,7 @@ describeWithSdk(
               await recordSignature(mainAccount)(payload),
             signPersonalMessage: async (_address, message): Promise<Hex> =>
               await mainAccount.signMessage({ message }),
+            ...(getChainId && { getChainId }),
           },
         },
         messenger,
@@ -520,6 +580,40 @@ describeWithSdk(
 
       expect(await agentSignatures()).toHaveLength(0);
       expect(signatures).toHaveLength(1);
+      expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
+    });
+
+    it('signs an SDK builder fee approval for the chain the signer reports', async () => {
+      const { adapter, signatures } = buildSdkAdapter(
+        undefined,
+        async () => 11155111,
+      );
+      // The exchange endpoint, answering the way the venue does.
+      const request = jest
+        .fn()
+        .mockResolvedValue({ status: 'ok', response: { type: 'default' } });
+
+      // The SDK's exchange client is configured this way by the client
+      // service; the bare function takes the same config.
+      await exchange.approveBuilderFee(
+        {
+          transport: { isTestnet: true, request },
+          wallet: adapter,
+          signatureChainId: adapter.signatureChainId,
+        },
+        {
+          builder: agentAccount.address,
+          maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
+        },
+      );
+
+      expect(signatures).toHaveLength(1);
+      expect(signatures[0].payload.domain.chainId).toBe(11155111);
+      const [, sent] = request.mock.calls[0] as [
+        string,
+        { action: { signatureChainId: string } },
+      ];
+      expect(sent.action.signatureChainId).toBe('0xaa36a7');
       expect(await recoverSigner(signatures[0])).toBe(mainAccount.address);
     });
 
