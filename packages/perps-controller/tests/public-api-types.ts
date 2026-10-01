@@ -1,5 +1,6 @@
 import type {
   DirectProviderOrderCapabilities,
+  LighterWasmCall,
   TriggerOrderType,
   PerpsRecoveredDispatch,
   PerpsRecoveryVenueReview,
@@ -154,3 +155,54 @@ export type PartialProtectionCapabilityConsumerContract = AssertTrue<
     'equal-quantity-oco' | 'independent'
   >
 >;
+
+// Native grouped signing preserves a fixed tuple for every supported shape.
+type GroupedCall = LighterWasmCall<'_signCreateGroupedOrders'>;
+type WireOrder = [
+  number,
+  number,
+  string,
+  string,
+  number,
+  number,
+  number,
+  number,
+  string,
+  number,
+];
+type TwoOrderParams<Group extends number, Count extends number = 2> = [
+  number,
+  Group,
+  Count,
+  ...WireOrder,
+  ...WireOrder,
+  number,
+];
+type ThreeOrderParams<Group extends number, Count extends number = 3> = [
+  number,
+  Group,
+  Count,
+  ...WireOrder,
+  ...WireOrder,
+  ...WireOrder,
+  number,
+];
+type RejectsParams<Params> = Params extends GroupedCall['params']
+  ? false
+  : true;
+export type GroupedSigningConsumerContracts = [
+  AssertCompatible<GroupedCall['params'], TwoOrderParams<1>>,
+  AssertCompatible<GroupedCall['params'], TwoOrderParams<2>>,
+  AssertCompatible<GroupedCall['params'], ThreeOrderParams<3>>,
+  AssertTrue<RejectsParams<TwoOrderParams<3>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<1>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<2>>>,
+  AssertTrue<RejectsParams<TwoOrderParams<0>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<4>>>,
+  AssertTrue<RejectsParams<TwoOrderParams<1, 3>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<3, 2>>>,
+  AssertTrue<RejectsParams<[string, 1, 2, ...WireOrder, ...WireOrder, number]>>,
+  AssertTrue<RejectsParams<[number, 1, 2, ...WireOrder, ...WireOrder, string]>>,
+  AssertTrue<RejectsParams<[number, 1, 2, ...WireOrder, number]>>,
+  AssertTrue<RejectsParams<(number | string)[]>>,
+];
