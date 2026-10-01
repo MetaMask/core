@@ -11334,19 +11334,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       // an uncancelled replacement may still protect it. Restoring the old
       // whole-position triggers in either case risks stale or duplicate
       // protection, so return those IDs for caller reconciliation instead.
-      if (recoverableOrderIds.length > 0) {
-        if (!isPartialTpsl) {
-          return createProtectionLostResult(recoverableOrderIds);
-        }
-        return createErrorResult(
-          new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-          {
-            success: false,
-            childOrderIds: recoverableOrderIds,
-          },
-        );
+      if (!isPartialTpsl) {
+        return createProtectionLostResult(recoverableOrderIds);
       }
-      throw placementFailure ?? new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+        {
+          success: false,
+          childOrderIds: recoverableOrderIds,
+        },
+      );
     } catch (error) {
       const signerFailure = this.#handleSignerFailure(
         error,
