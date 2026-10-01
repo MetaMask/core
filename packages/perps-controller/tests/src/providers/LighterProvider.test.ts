@@ -6389,7 +6389,11 @@ describe('LighterProvider', () => {
               call.function === '_signCancelOrder',
           ),
         ).toHaveLength(changed ? 0 : 2);
-        expect(changed ? venue.rawTriggers : before).toStrictEqual(before);
+        expect(venue.rawTriggers).toStrictEqual(
+          changed
+            ? before
+            : [{ ...venue.rawTriggers[0], triggerPrice: '85000' }],
+        );
         expect(venue.rawTriggers).toHaveLength(1);
         expect(venue.rawTriggers[0].triggerPrice).toBe(
           changed ? '90000' : '85000',
