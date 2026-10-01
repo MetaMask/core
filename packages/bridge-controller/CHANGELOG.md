@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [82.0.0]
+
 ### Changed
 
 - **BREAKING:** Rename `recurring_buy` FeatureId to `recurring_order` ([#10631](https://github.com/MetaMask/core/pull/10631))
@@ -2108,7 +2110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.0...HEAD
+[82.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.4.0...@metamask/bridge-controller@82.0.0
 [81.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.3...@metamask/bridge-controller@81.4.0
 [81.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.2...@metamask/bridge-controller@81.3.3
 [81.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.1...@metamask/bridge-controller@81.3.2
