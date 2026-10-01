@@ -2,6 +2,7 @@ import type {
   DirectProviderOrderCapabilities,
   TriggerOrderType,
   PerpsRecoveredDispatch,
+  PerpsPendingManualRecovery,
   PerpsRecoveryVenueReview,
   PerpsRecoveryProtectionResult,
   ResolveRecoveryProtectionParams,
@@ -152,5 +153,22 @@ export type PartialProtectionCapabilityConsumerContract = AssertTrue<
       >['partialCoverage']
     >['pair'],
     'equal-quantity-oco' | 'independent'
+  >
+>;
+
+export type PartialRecoveryConsumerContract = AssertTrue<
+  IsExact<
+    PerpsPendingManualRecovery['partialIntent'],
+    | {
+        version: 1;
+        positionSide: 'long' | 'short';
+        linkage: 'single' | 'oco';
+        legs: {
+          type: 'take-profit' | 'stop-loss';
+          size: string;
+          clientOrderId: string;
+        }[];
+      }
+    | undefined
   >
 >;

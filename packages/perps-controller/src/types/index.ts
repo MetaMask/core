@@ -432,7 +432,11 @@ export type PerpsPendingManualRecovery = {
   priorIntent: 'replace' | 'remove';
   /** Venue order ids still on the books when the state was parked. */
   survivingOrderIds: string[];
-  /** Original fixed coverage, for review only; never permission to replay. */
+  /**
+   * Original fixed coverage, for review only; never permission to replay.
+   * A current-key journal may still belong to a running operation. Await its
+   * result before selecting explicit recovery; listing does not reconcile it.
+   */
   partialIntent?: {
     version: 1;
     positionSide: 'long' | 'short';
@@ -1830,9 +1834,13 @@ type ReadyPerpsOrderCapabilities = Readonly<{
     defaultCoverage?: 'position-snapshot' | 'dynamic-position';
     /** Fixed positive quantities; omitted means support is unreported. */
     partialCoverage?: Readonly<{
+      /** When reported, a single explicitly sized leg is supported. */
       single: true;
+      /** Equal native OCO quantities, or independently sized sibling triggers. */
       pair: 'equal-quantity-oco' | 'independent';
+      /** Prior selected protection is canceled before replacement creation. */
       replacement: 'cancel-before-create';
+      /** Explicit recovery ID/current intent, or the provider's existing recovery policy. */
       recovery: 'explicit-current-position-intent' | 'provider-default';
     }>;
   }>;

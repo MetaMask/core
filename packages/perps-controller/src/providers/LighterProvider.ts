@@ -15,6 +15,7 @@
  */
 
 import type { CaipAccountId } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import type { CandlePeriod } from '../constants/chartConfig.js';
 import {
@@ -2777,6 +2778,7 @@ export class LighterProvider implements PerpsProvider {
       }
       if (
         journal &&
+        !(journal.partialIntent && journal.attempts.length === 0) &&
         (journal.partialIntent !== undefined ||
           journal.phase === 'manual' ||
           currentSlotPrefix === null ||
@@ -2789,6 +2791,12 @@ export class LighterProvider implements PerpsProvider {
             'TP/SL protection could not be safely re-established automatically (parked by an earlier session)';
         } else if (currentSlotPrefix === null) {
           reason = 'An unfinished TP/SL update requires startup reconciliation';
+        } else if (
+          journal.partialIntent &&
+          settlementKey.startsWith(currentSlotPrefix)
+        ) {
+          reason =
+            'A partial TP/SL update on the current trading key is pending; it may still be running';
         }
         pending.push({
           providerId: 'lighter',
@@ -5198,6 +5206,20 @@ export class LighterProvider implements PerpsProvider {
         await this.#finalizeRecoverySuccessor(linked, context.generation);
         return true;
       }
+    }
+    // Check before compaction: an empty original attempt list proves no
+    // transaction was sent; a compacted list alone would not prove this.
+    if (journalEntry.partialIntent && journalEntry.attempts.length === 0) {
+      await this.#finishRecoverySuccessor(
+        journalEntry,
+        'failed',
+        await readActiveRaw(),
+        context.generation,
+      );
+      return await this.#clearTpslJournal(
+        settlementKey,
+        journalEntry.operationId,
+      );
     }
     await this.#assertRecoverySource(journalEntry, context.generation);
     const reconciled = await this.#reconcilePriorTpsl(
@@ -8219,25 +8241,30 @@ export class LighterProvider implements PerpsProvider {
           if (!partialRequested || raw === undefined) {
             return sizeInt;
           }
-          const value = parseFinitePositive(raw);
-          if (value === null || value > coverSize) {
+          // Preserve decimal intent through the bounds check and downward grid
+          // normalization; binary conversion can widen a requested quantity.
+          const value = new BigNumber(raw);
+          const positionAmount = new BigNumber(position.size).abs();
+          if (
+            !/^(?:\d+(?:\.\d*)?|\.\d+)$/u.test(raw) ||
+            !value.isFinite() ||
+            !value.gt(0) ||
+            !positionAmount.isFinite() ||
+            value.gt(positionAmount)
+          ) {
             throw new Error(
               'Partial protection quantity must be positive and no greater than the position',
             );
           }
-          const normalized = toSignerWireInteger(
-            value,
-            market.supportedSizeDecimals,
-          );
-          if (
-            !Number.isSafeInteger(normalized) ||
-            normalized < 1 ||
-            normalized > sizeInt
-          ) {
+          const wire = value
+            .shiftedBy(market.supportedSizeDecimals)
+            .integerValue(BigNumber.ROUND_DOWN);
+          if (wire.lt(1) || wire.gt(Number.MAX_SAFE_INTEGER)) {
             throw new Error(
               'Partial protection quantity is outside the size grid',
             );
           }
+          const normalized = wire.toNumber();
           return normalized;
         });
         if (
@@ -8866,6 +8893,9 @@ export class LighterProvider implements PerpsProvider {
             this.#tpslUnsettled.delete(settlementKey);
           }
           if (unsettled) {
+            const hadPartialAttempts = Boolean(
+              unsettled.partialIntent && unsettled.attempts.length > 0,
+            );
             const resolved = await this.#settleTpslObligation({
               settlementKey,
               symbol: params.symbol,
@@ -8886,9 +8916,12 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter TP/SL settlement for ${params.symbol} is unresolved; refusing further protection changes until the venue reflects the previous update`,
               );
             }
-            if (unsettled.partialIntent) {
+            if (hadPartialAttempts) {
+              const parked = await this.#loadTpslManualRecovery(settlementKey);
               throw new Error(
-                'Prior partial protection reconciled; review its exact recovery outcome before a new intent',
+                parked
+                  ? 'Prior partial protection requires resolveRecoveryProtection with its exact pending recovery ID and fresh current-position intent'
+                  : 'Prior partial protection settled; re-read orders before submitting a new intent',
               );
             }
             // The machine may have PARKED the obligation into the
@@ -9169,7 +9202,7 @@ export class LighterProvider implements PerpsProvider {
               );
             }
             this.#assertSession(generationAtIntent);
-            if (remaining.length === 0 && !journal.partialIntent) {
+            if (remaining.length === 0) {
               await this.#finishRecoverySuccessor(
                 journal,
                 'failed',
@@ -9251,177 +9284,328 @@ export class LighterProvider implements PerpsProvider {
             );
           };
 
-          if (partialIntent) {
-            await persistJournal();
-            for (const order of staleTriggers) {
-              await submitTrackedCancel(order.orderId, 'stale');
-            }
-            // No replacement dispatch until exact cancellation transactions and books settle.
-            const reconciled = await this.#reconcilePriorTpsl(
-              readActiveRaw,
-              readInactiveFor,
-              accountIndex,
-              journal,
-            );
-            const cancellation = await this.#awaitTpslVisibility(
-              readActiveRaw,
-              readInactiveFor,
-              {
-                createdClientIds: [],
-                cancelledOrderIds: staleTriggers.map((order) => order.orderId),
-              },
-            );
-            if (
-              reconciled !== 'resolved' ||
-              cancellation.outcome !== 'settled'
-            ) {
-              throw new Error(
-                'Partial protection cancellation is unresolved; replacement was not sent',
-              );
-            }
-            await assertLiveExpected();
-          }
-
-          // Snapshot-sized protection retains create-before-cancel behavior.
-          // Fixed partial protection has already proven its old set cancelled.
-          if (
-            wantsReplacement &&
-            (singleOrderPayload !== null || groupedOrderPayload !== null)
-          ) {
-            const createNonce = await nextNonce();
-            // A lone trigger is an ordinary CreateOrder (same wire
-            // layout); only a TP+SL pair uses the grouped OCO transaction.
-            let signed: LighterTxResult;
-            let isSingleTrigger = false;
-            if (singleOrderPayload === null) {
-              if (groupedOrderPayload === null) {
-                throw new Error('Lighter TP/SL preflight payload is missing');
+          try {
+            if (partialIntent) {
+              await persistJournal();
+              for (const order of staleTriggers) {
+                await submitTrackedCancel(order.orderId, 'stale');
               }
-              signed = await this.#getSignerBridge().execute({
-                function: '_signCreateGroupedOrders',
-                params: [
-                  accountIndex,
-                  LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
-                  2,
-                  ...groupedOrderPayload,
-                  createNonce,
-                ],
-              });
-            } else {
-              isSingleTrigger = true;
-              signed = await this.#getSignerBridge().execute({
-                function: '_signCreateOrder',
-                params: [accountIndex, ...singleOrderPayload, createNonce],
-              });
-            }
-            if (signed.error) {
-              throw new Error(signed.error);
-            }
-            // UNKNOWN recorded BEFORE the wire — in memory AND durably
-            // (awaited): a transport failure after venue commit, or
-            // provider/process death, must still leave a reconciliation
-            // obligation resolvable by EXACT tx hash. A failed durable
-            // write, or a signing result without hash/expiry, aborts the
-            // mutation before submission.
-            const createIdentity = requireSignedTxIdentity(signed);
-            const createAttempt: TpslCreateAttempt = {
-              kind: 'create',
-              attemptId: nextAttemptIdFor(journal),
-              nonce: createNonce,
-              outcome: 'unknown',
-              clientIds: [...createdClientIds],
-              orderExpiries: requireSignedOrderExpiries(
-                signed,
-                createdClientIds,
-              ),
-              txHash: createIdentity.txHash,
-              expiresAt: createIdentity.expiresAt,
-              role: 'replacement',
-            };
-            journal.attempts.push(createAttempt);
-            this.#tpslUnsettled.set(settlementKey, journal);
-            await persistJournal();
-            await submit(
-              isSingleTrigger
-                ? LIGHTER_TX_TYPE_CREATE_ORDER
-                : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
-              signed.txInfo,
-              () => {
-                // Acceptance OBSERVED (pre-fence): absence from the books
-                // can now only mean visibility lag, never never-landed.
-                createAttempt.outcome = 'accepted';
-              },
-              {
-                txHash: createIdentity.txHash,
-                expiresAt: createIdentity.expiresAt,
-                owner: journal.operationId,
-                beforeDispatch: assertLiveExpected,
-                onNotDispatched: async (): Promise<void> =>
-                  discardUnsentAttempt(createAttempt),
-              },
-            );
-
-            // PHASE BARRIER: prove the replacement is on the venue's books
-            // BEFORE touching the old protection. An accepted create can
-            // be asynchronously rejected/venue-cancelled; cancelling stale
-            // triggers first would strip valid protection and discover it
-            // afterwards.
-            const createVisibility = await this.#awaitTpslVisibility(
-              readActiveRaw,
-              readInactiveFor,
-              {
-                createdClientIds,
-                cancelledOrderIds: [],
-              },
-              {
-                receiptIdentity: { accountIndex, marketIndex: market.marketId },
-              },
-            );
-            if (createVisibility.outcome === 'timeout') {
-              throw new Error(
-                `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+              // No replacement dispatch until exact cancellation transactions and books settle.
+              const reconciled = await this.#reconcilePriorTpsl(
+                readActiveRaw,
+                readInactiveFor,
+                accountIndex,
+                journal,
               );
-            }
-            if (createVisibility.outcome === 'created-terminal-failed') {
-              if (partialIntent) {
+              const cancellation = await this.#awaitTpslVisibility(
+                readActiveRaw,
+                readInactiveFor,
+                {
+                  createdClientIds: [],
+                  cancelledOrderIds: staleTriggers.map(
+                    (order) => order.orderId,
+                  ),
+                },
+              );
+              if (
+                reconciled !== 'resolved' ||
+                cancellation.outcome !== 'settled'
+              ) {
                 throw new Error(
-                  'Partial replacement failed after cancellation; explicit recovery is required',
+                  'Partial protection cancellation is unresolved; replacement was not sent',
                 );
               }
-              // The replacement (or one OCO leg) failed before the old
-              // protection was touched. ROLL BACK any leg still resting
-              // active so the venue returns to exactly the prior
-              // protection, then resolve the obligation for a retry.
-              if (createVisibility.survivingActiveClientIds.length > 0) {
-                const activeNow = await readActiveRaw();
-                const survivorOrderIds: string[] = [];
-                for (const clientId of createVisibility.survivingActiveClientIds) {
-                  const survivor = activeNow.find(
-                    (order) =>
-                      String(order.clientOrderIndex) === String(clientId),
+              await assertLiveExpected();
+            }
+
+            // Snapshot-sized protection retains create-before-cancel behavior.
+            // Fixed partial protection has already proven its old set cancelled.
+            if (
+              wantsReplacement &&
+              (singleOrderPayload !== null || groupedOrderPayload !== null)
+            ) {
+              const createNonce = await nextNonce();
+              // A lone trigger is an ordinary CreateOrder (same wire
+              // layout); only a TP+SL pair uses the grouped OCO transaction.
+              let signed: LighterTxResult;
+              let isSingleTrigger = false;
+              if (singleOrderPayload === null) {
+                if (groupedOrderPayload === null) {
+                  throw new Error('Lighter TP/SL preflight payload is missing');
+                }
+                signed = await this.#getSignerBridge().execute({
+                  function: '_signCreateGroupedOrders',
+                  params: [
+                    accountIndex,
+                    LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
+                    2,
+                    ...groupedOrderPayload,
+                    createNonce,
+                  ],
+                });
+              } else {
+                isSingleTrigger = true;
+                signed = await this.#getSignerBridge().execute({
+                  function: '_signCreateOrder',
+                  params: [accountIndex, ...singleOrderPayload, createNonce],
+                });
+              }
+              if (signed.error) {
+                throw new Error(signed.error);
+              }
+              // UNKNOWN recorded BEFORE the wire — in memory AND durably
+              // (awaited): a transport failure after venue commit, or
+              // provider/process death, must still leave a reconciliation
+              // obligation resolvable by EXACT tx hash. A failed durable
+              // write, or a signing result without hash/expiry, aborts the
+              // mutation before submission.
+              const createIdentity = requireSignedTxIdentity(signed);
+              const createAttempt: TpslCreateAttempt = {
+                kind: 'create',
+                attemptId: nextAttemptIdFor(journal),
+                nonce: createNonce,
+                outcome: 'unknown',
+                clientIds: [...createdClientIds],
+                orderExpiries: requireSignedOrderExpiries(
+                  signed,
+                  createdClientIds,
+                ),
+                txHash: createIdentity.txHash,
+                expiresAt: createIdentity.expiresAt,
+                role: 'replacement',
+              };
+              journal.attempts.push(createAttempt);
+              this.#tpslUnsettled.set(settlementKey, journal);
+              await persistJournal();
+              await submit(
+                isSingleTrigger
+                  ? LIGHTER_TX_TYPE_CREATE_ORDER
+                  : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+                signed.txInfo,
+                () => {
+                  // Acceptance OBSERVED (pre-fence): absence from the books
+                  // can now only mean visibility lag, never never-landed.
+                  createAttempt.outcome = 'accepted';
+                },
+                {
+                  txHash: createIdentity.txHash,
+                  expiresAt: createIdentity.expiresAt,
+                  owner: journal.operationId,
+                  beforeDispatch: assertLiveExpected,
+                  onNotDispatched: async (): Promise<void> =>
+                    discardUnsentAttempt(createAttempt),
+                },
+              );
+
+              // PHASE BARRIER: prove the replacement is on the venue's books
+              // BEFORE touching the old protection. An accepted create can
+              // be asynchronously rejected/venue-cancelled; cancelling stale
+              // triggers first would strip valid protection and discover it
+              // afterwards.
+              const createVisibility = await this.#awaitTpslVisibility(
+                readActiveRaw,
+                readInactiveFor,
+                {
+                  createdClientIds,
+                  cancelledOrderIds: [],
+                },
+                {
+                  receiptIdentity: {
+                    accountIndex,
+                    marketIndex: market.marketId,
+                  },
+                },
+              );
+              if (createVisibility.outcome === 'timeout') {
+                throw new Error(
+                  `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+                );
+              }
+              if (createVisibility.outcome === 'created-terminal-failed') {
+                if (partialIntent) {
+                  throw new Error(
+                    'Partial replacement failed after cancellation; explicit recovery is required',
                   );
-                  if (survivor) {
-                    survivorOrderIds.push(String(survivor.orderIndex));
-                    await submitTrackedCancel(
-                      String(survivor.orderIndex),
-                      'rollback',
+                }
+                // The replacement (or one OCO leg) failed before the old
+                // protection was touched. ROLL BACK any leg still resting
+                // active so the venue returns to exactly the prior
+                // protection, then resolve the obligation for a retry.
+                if (createVisibility.survivingActiveClientIds.length > 0) {
+                  const activeNow = await readActiveRaw();
+                  const survivorOrderIds: string[] = [];
+                  for (const clientId of createVisibility.survivingActiveClientIds) {
+                    const survivor = activeNow.find(
+                      (order) =>
+                        String(order.clientOrderIndex) === String(clientId),
+                    );
+                    if (survivor) {
+                      survivorOrderIds.push(String(survivor.orderIndex));
+                      await submitTrackedCancel(
+                        String(survivor.orderIndex),
+                        'rollback',
+                      );
+                    }
+                  }
+                  const rollback = await this.#awaitTpslVisibility(
+                    readActiveRaw,
+                    readInactiveFor,
+                    {
+                      createdClientIds: [],
+                      cancelledOrderIds: survivorOrderIds,
+                    },
+                  );
+                  if (rollback.outcome === 'timeout') {
+                    throw new Error(
+                      `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
                     );
                   }
                 }
-                const rollback = await this.#awaitTpslVisibility(
-                  readActiveRaw,
-                  readInactiveFor,
-                  { createdClientIds: [], cancelledOrderIds: survivorOrderIds },
+                await this.#finishRecoverySuccessor(
+                  journal,
+                  'failed',
+                  await readActiveRaw(),
+                  generationAtIntent,
                 );
-                if (rollback.outcome === 'timeout') {
-                  throw new Error(
-                    `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
-                  );
-                }
+                await this.#clearTpslJournal(
+                  settlementKey,
+                  journal.operationId,
+                  await readActiveRaw(),
+                );
+                throw new Error(
+                  `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
+                );
               }
+              // Barrier-proved TERMINAL success is immutable: skip those ids
+              // in the final settlement check (no duplicate high-weight
+              // inactive read); active-at-barrier ids are still re-verified
+              // there (they can terminal-fail before the cancels settle).
+              childOrderIds = createVisibility.childOrderIds;
+              createdIdsNeedingFinalCheck = createVisibility.executedCreated
+                ? []
+                : createdClientIds;
+              if (createVisibility.executedCreated) {
+                // The trigger EXECUTED before activation was observed (an
+                // immediate/crossed TP/SL): not a failure — the position may
+                // already be closed. Stale triggers below are still cleaned
+                // up as reduce-only leftovers.
+                this.#deps.debugLogger.log(
+                  '[LighterProvider] replacement trigger executed immediately',
+                  { symbol: params.symbol },
+                );
+              }
+            }
+
+            if (!partialIntent) {
+              for (const order of staleTriggers) {
+                await submitTrackedCancel(order.orderId, 'stale');
+              }
+            }
+
+            // Await authoritative visibility of the CANCELS before releasing
+            // the lock (created ids were proven at the phase barrier): the
+            // next queued transition must never snapshot a stale book.
+            if (journal.attempts.length > 0) {
+              const settled = await this.#awaitTpslVisibility(
+                readActiveRaw,
+                readInactiveFor,
+                {
+                  // Barrier-proved terminal successes are immutable and
+                  // excluded; active-at-barrier ids are re-verified.
+                  createdClientIds: createdIdsNeedingFinalCheck,
+                  cancelledOrderIds: journal.attempts
+                    .filter(
+                      (attempt): attempt is TpslCancelAttempt =>
+                        attempt.kind === 'cancel',
+                    )
+                    .map((attempt) => attempt.orderId),
+                },
+                {
+                  receiptIdentity: {
+                    accountIndex,
+                    marketIndex: market.marketId,
+                  },
+                },
+              );
+              if (settled.outcome === 'timeout') {
+                throw new Error(
+                  `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+                );
+              }
+              if (settled.outcome === 'created-terminal-failed') {
+                // Active at the phase barrier but venue-cancelled/rejected
+                // AFTER the old protection was already cancelled. The
+                // venue exposes no atomic primitive that could prove a
+                // re-created trigger attaches to the same position
+                // lifecycle, so nothing is auto-restored: the warning
+                // parks DURABLY in the manual-recovery doc (surfaced via
+                // getPendingManualRecoveries) and any surviving leg is
+                // deliberately left as the only remaining protection.
+                const rawNow = await readActiveRaw();
+                const survivingOrderIds = rawNow
+                  .filter((order) =>
+                    journal.attempts.some(
+                      (attempt) =>
+                        attempt.kind === 'create' &&
+                        attempt.clientIds.some(
+                          (clientId) =>
+                            String(order.clientOrderIndex) === String(clientId),
+                        ),
+                    ),
+                  )
+                  .map((order) => String(order.orderIndex));
+                if (sourceRecovery) {
+                  await this.#finishRecoverySuccessor(
+                    journal,
+                    'failed',
+                    rawNow,
+                    generationAtIntent,
+                  );
+                } else {
+                  await this.#writeTpslManualRecovery({
+                    settlementKey,
+                    symbol: params.symbol,
+                    reason:
+                      'Replacement TP/SL order was cancelled or rejected by the venue after the previous protection was already removed',
+                    partialIntent: journal.partialIntent,
+                    priorIntent: journal.intent,
+                    priorTriggers: journal.priorTriggers,
+                    survivingOrderIds,
+                    operationId: journal.operationId,
+                    recordedAt: Date.now(),
+                  });
+                }
+                await this.#clearTpslJournal(
+                  settlementKey,
+                  journal.operationId,
+                  await readActiveRaw(),
+                );
+                this.#assertSession(generationAtIntent);
+                throw new Error(
+                  partialIntent
+                    ? `Lighter partial replacement for ${params.symbol} failed after prior protection was removed; list the pending obligation and call resolveRecoveryProtection with its exact recovery ID and fresh current-position intent`
+                    : `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after the previous protection was already removed; the position's protection could NOT be safely re-established automatically — MANUAL re-establishment is required (a new explicit TP/SL update resolves this state)`,
+                );
+              }
+              if (
+                createdIdsNeedingFinalCheck.length > 0 &&
+                (settled.childOrderIds.length !== childOrderIds.length ||
+                  settled.childOrderIds.some(
+                    (id, index) => id !== childOrderIds[index],
+                  ))
+              ) {
+                throw new Error(
+                  'Lighter TP/SL receipt identity changed during settlement',
+                );
+              }
+              await this.#verifyRetainedRecoveryCoverage(
+                journal,
+                readActiveRaw,
+                readInactiveFor,
+              );
               await this.#finishRecoverySuccessor(
                 journal,
-                'failed',
+                'settled',
                 await readActiveRaw(),
                 generationAtIntent,
               );
@@ -9430,167 +9614,43 @@ export class LighterProvider implements PerpsProvider {
                 journal.operationId,
                 await readActiveRaw(),
               );
-              throw new Error(
-                `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
-              );
-            }
-            // Barrier-proved TERMINAL success is immutable: skip those ids
-            // in the final settlement check (no duplicate high-weight
-            // inactive read); active-at-barrier ids are still re-verified
-            // there (they can terminal-fail before the cancels settle).
-            childOrderIds = createVisibility.childOrderIds;
-            createdIdsNeedingFinalCheck = createVisibility.executedCreated
-              ? []
-              : createdClientIds;
-            if (createVisibility.executedCreated) {
-              // The trigger EXECUTED before activation was observed (an
-              // immediate/crossed TP/SL): not a failure — the position may
-              // already be closed. Stale triggers below are still cleaned
-              // up as reduce-only leftovers.
-              this.#deps.debugLogger.log(
-                '[LighterProvider] replacement trigger executed immediately',
-                { symbol: params.symbol },
-              );
-            }
-          }
-
-          if (!partialIntent) {
-            for (const order of staleTriggers) {
-              await submitTrackedCancel(order.orderId, 'stale');
-            }
-          }
-
-          // Await authoritative visibility of the CANCELS before releasing
-          // the lock (created ids were proven at the phase barrier): the
-          // next queued transition must never snapshot a stale book.
-          if (journal.attempts.length > 0) {
-            const settled = await this.#awaitTpslVisibility(
-              readActiveRaw,
-              readInactiveFor,
-              {
-                // Barrier-proved terminal successes are immutable and
-                // excluded; active-at-barrier ids are re-verified.
-                createdClientIds: createdIdsNeedingFinalCheck,
-                cancelledOrderIds: journal.attempts
-                  .filter(
-                    (attempt): attempt is TpslCancelAttempt =>
-                      attempt.kind === 'cancel',
-                  )
-                  .map((attempt) => attempt.orderId),
-              },
-              {
-                receiptIdentity: { accountIndex, marketIndex: market.marketId },
-              },
-            );
-            if (settled.outcome === 'timeout') {
-              throw new Error(
-                `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
-              );
-            }
-            if (settled.outcome === 'created-terminal-failed') {
-              // Active at the phase barrier but venue-cancelled/rejected
-              // AFTER the old protection was already cancelled. The
-              // venue exposes no atomic primitive that could prove a
-              // re-created trigger attaches to the same position
-              // lifecycle, so nothing is auto-restored: the warning
-              // parks DURABLY in the manual-recovery doc (surfaced via
-              // getPendingManualRecoveries) and any surviving leg is
-              // deliberately left as the only remaining protection.
-              const rawNow = await readActiveRaw();
-              const survivingOrderIds = rawNow
-                .filter((order) =>
-                  journal.attempts.some(
-                    (attempt) =>
-                      attempt.kind === 'create' &&
-                      attempt.clientIds.some(
-                        (clientId) =>
-                          String(order.clientOrderIndex) === String(clientId),
-                      ),
-                  ),
-                )
-                .map((order) => String(order.orderIndex));
-              if (sourceRecovery) {
-                await this.#finishRecoverySuccessor(
-                  journal,
-                  'failed',
-                  rawNow,
-                  generationAtIntent,
-                );
-              } else {
-                await this.#writeTpslManualRecovery({
-                  settlementKey,
-                  symbol: params.symbol,
-                  reason:
-                    'Replacement TP/SL order was cancelled or rejected by the venue after the previous protection was already removed',
-                  partialIntent: journal.partialIntent,
-                  priorIntent: journal.intent,
-                  priorTriggers: journal.priorTriggers,
-                  survivingOrderIds,
-                  operationId: journal.operationId,
-                  recordedAt: Date.now(),
-                });
-              }
-              await this.#clearTpslJournal(
-                settlementKey,
-                journal.operationId,
-                await readActiveRaw(),
-              );
+              // A switch DURING the final journal-clear await must not let
+              // stale A protection report success under B.
               this.#assertSession(generationAtIntent);
-              throw new Error(
-                `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after the previous protection was already removed; the position's protection could NOT be safely re-established automatically — MANUAL re-establishment is required (a new explicit TP/SL update resolves this state)`,
-              );
             }
-            if (
-              createdIdsNeedingFinalCheck.length > 0 &&
-              (settled.childOrderIds.length !== childOrderIds.length ||
-                settled.childOrderIds.some(
-                  (id, index) => id !== childOrderIds[index],
-                ))
-            ) {
-              throw new Error(
-                'Lighter TP/SL receipt identity changed during settlement',
+            // ONLY here — the successor protection intent authoritatively
+            // in force (created and settled, or removal completed) — may a
+            // parked manual-recovery warning for this symbol be cleared. A
+            // failed successor leaves the warning untouched.
+            if (sourceRecovery) {
+              await this.#verifyRetainedRecoveryCoverage(
+                journal,
+                readActiveRaw,
+                readInactiveFor,
               );
+              await this.#finishRecoverySuccessor(
+                journal,
+                'settled',
+                await readActiveRaw(),
+                generationAtIntent,
+              );
+            } else {
+              await this.#clearTpslManualRecovery(settlementKey);
             }
-            await this.#verifyRetainedRecoveryCoverage(
-              journal,
-              readActiveRaw,
-              readInactiveFor,
-            );
-            await this.#finishRecoverySuccessor(
-              journal,
-              'settled',
-              await readActiveRaw(),
-              generationAtIntent,
-            );
-            await this.#clearTpslJournal(
-              settlementKey,
-              journal.operationId,
-              await readActiveRaw(),
-            );
-            // A switch DURING the final journal-clear await must not let
-            // stale A protection report success under B.
             this.#assertSession(generationAtIntent);
+          } catch (error) {
+            if (partialIntent && journal.attempts.length === 0) {
+              this.#assertSession(generationAtIntent);
+              await this.#finishRecoverySuccessor(
+                journal,
+                'failed',
+                await readActiveRaw(),
+                generationAtIntent,
+              );
+              await this.#clearTpslJournal(settlementKey, journal.operationId);
+            }
+            throw error;
           }
-          // ONLY here — the successor protection intent authoritatively
-          // in force (created and settled, or removal completed) — may a
-          // parked manual-recovery warning for this symbol be cleared. A
-          // failed successor leaves the warning untouched.
-          if (sourceRecovery) {
-            await this.#verifyRetainedRecoveryCoverage(
-              journal,
-              readActiveRaw,
-              readInactiveFor,
-            );
-            await this.#finishRecoverySuccessor(
-              journal,
-              'settled',
-              await readActiveRaw(),
-              generationAtIntent,
-            );
-          } else {
-            await this.#clearTpslManualRecovery(settlementKey);
-          }
-          this.#assertSession(generationAtIntent);
         },
         generationAtIntent,
         successorSlot,
