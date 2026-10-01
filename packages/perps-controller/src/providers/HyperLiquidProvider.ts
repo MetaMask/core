@@ -2501,12 +2501,15 @@ export class HyperLiquidProvider implements PerpsProvider {
    * block remains the safety net.
    *
    * @param userAddress - The wallet address to check.
+   * @param infoClient - Optional captured reader for an operation-scoped probe.
    * @returns True only when Hyperliquid reports a multi-sig signer set.
    * @private
    */
-  async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
+  async #isHyperliquidMultiSigAccount(
+    userAddress: string,
+    infoClient = this.#clientService.getInfoClient(),
+  ): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient();
       const signers = await infoClient.userToMultiSigSigners({
         user: userAddress,
       });
@@ -8858,14 +8861,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel requests.
+   * @param onError - Optional operation-specific failure classifier.
    * @returns Order IDs that may still be resting.
    */
   async #cancelOrderRequests(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelRequest[],
+    onError?: (error: unknown) => void,
   ): Promise<number[]> {
-    return (await this.#cancelOrderRequestBatch(exchangeClient, requests))
-      .remainingOrderIds;
+    return (
+      await this.#cancelOrderRequestBatch(exchangeClient, requests, onError)
+    ).remainingOrderIds;
   }
 
   /**
@@ -8962,11 +8968,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel requests.
+   * @param onError - Optional operation-specific failure classifier.
    * @returns IDs that may still rest and IDs this call confirmed it cancelled.
    */
   async #cancelOrderRequestBatch(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelRequest[],
+    onError?: (error: unknown) => void,
   ): Promise<CancelOrderBatchOutcome> {
     if (requests.length === 0) {
       return {
@@ -9011,6 +9019,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return classifyStatuses(statuses);
     } catch (error) {
+      onError?.(error);
       // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
@@ -9094,6 +9103,59 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Preserve the raw statuses carried by the SDK's bulk rejection.
+   *
+   * @param error - SDK exchange error.
+   * @returns Exact reported statuses, or undefined for no authoritative batch.
+   */
+  #readProtectionErrorStatuses(error: unknown): unknown[] | undefined {
+    const response =
+      error instanceof Error && hasProperty(error, 'response')
+        ? error.response
+        : undefined;
+    return isStatusObject(response) &&
+      isStatusObject(response.response) &&
+      response.response.type === 'order' &&
+      isStatusObject(response.response.data) &&
+      Array.isArray(response.response.data.statuses)
+      ? response.response.data.statuses
+      : undefined;
+  }
+
+  /**
+   * Distinguish a venue rejection from ambiguous transport failure.
+   *
+   * @param error - SDK exchange error.
+   * @returns Whether the venue authoritatively rejected the entire action.
+   */
+  #isDefinitiveProtectionRejection(error: unknown): boolean {
+    const response =
+      error instanceof Error && hasProperty(error, 'response')
+        ? error.response
+        : undefined;
+    return (
+      isStatusObject(response) &&
+      response.status === 'err' &&
+      typeof response.response === 'string'
+    );
+  }
+
+  /**
+   * Apply both signer invalidation and account-shape classification to writes.
+   *
+   * @param error - Failed protection write.
+   * @returns Actionable error retaining the venue message when unmapped.
+   */
+  #classifyProtectionWriteError(error: unknown): Error {
+    return (
+      this.#classifySignerFailure(error) ??
+      (isHyperLiquidMultiSigRequiredError(error)
+        ? new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+        : ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'))
+    );
+  }
+
+  /**
    * Correlate protection outcomes only by final signed cloid and market.
    * Unknown/truncated acknowledgements never acquire ownership from book shape.
    *
@@ -9138,11 +9200,22 @@ export class HyperLiquidProvider implements PerpsProvider {
               Number.isSafeInteger(row.oid) &&
               row.oid > 0
             ) {
-              let state: TpslOrderPlacementOutcome['state'] = 'rejected';
+              let state: TpslOrderPlacementOutcome['state'] = 'unknown';
               if (status.order.status === 'filled') {
                 state = 'filled';
               } else if (status.order.status === 'open') {
                 state = 'resting';
+              } else if (
+                hasProperty(
+                  HISTORICAL_ORDER_STATUS_BY_SDK_STATUS,
+                  status.order.status,
+                )
+              ) {
+                const terminal =
+                  HISTORICAL_ORDER_STATUS_BY_SDK_STATUS[status.order.status];
+                if (terminal === 'canceled' || terminal === 'rejected') {
+                  state = 'rejected';
+                }
               }
               resolved = { orderId: String(row.oid), state };
             }
@@ -10763,14 +10836,36 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       };
       await assertCurrentPosition();
-      const exchangeClient = this.#clientService.getExchangeClient(
-        assertCurrentPosition,
-      );
+      // These operation-local reads run inside the SDK signing semaphore.
+      // The extra round trips deliberately serialize with the signed write,
+      // preventing stale account-shape/position dispatch after wallet prompts.
+      const assertWritableScope = async (): Promise<void> => {
+        await assertScope();
+        const isMultiSig = await this.#isHyperliquidMultiSigAccount(
+          userAddress,
+          infoClient,
+        );
+        await assertScope();
+        if (isMultiSig) {
+          throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
+        }
+      };
+      let cancelGuardFailure: unknown;
+      const exchangeClient = this.#clientService.getExchangeClient(async () => {
+        try {
+          await assertWritableScope();
+          await assertCurrentPosition();
+        } catch (error) {
+          cancelGuardFailure = error;
+          throw error;
+        }
+      });
       const recoveryExchangeClient =
-        this.#clientService.getExchangeClient(assertScope);
+        this.#clientService.getExchangeClient(assertWritableScope);
       let replacementMayHaveDispatched = false;
       const replacementExchangeClient = this.#clientService.getExchangeClient(
         async () => {
+          await assertWritableScope();
           await assertCurrentPosition();
           replacementMayHaveDispatched = true;
         },
@@ -10828,82 +10923,63 @@ export class HyperLiquidProvider implements PerpsProvider {
             continue;
           }
 
+          const restorationOrders = entries.map((entry) => ({
+            ...entry.order,
+            c: `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}00${uuidv4().replace(/-/gu, '').slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength)}` as Hex,
+          }));
+          const sentRestorationOrders = this.#applySubscriptionCloid(
+            restorationOrders,
+            new Set(restorationOrders.map((order) => order.c)),
+          );
+          let statuses: unknown[];
           try {
-            // Restore the exact pre-call reduce-only intent even if the
-            // replacement precondition no longer holds. This cannot open a
-            // position; scope must still match before and after signing.
+            // Restore the exact pre-call reduce-only intent. Scope and account
+            // shape are still probed after signing, but the requested new
+            // protection's position precondition does not apply to rollback.
             await assertScope();
-            const restorationOrders = entries.map((entry) => ({
-              ...entry.order,
-              c: `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}00${uuidv4().replace(/-/gu, '').slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength)}` as Hex,
-            }));
-            const sentRestorationOrders = this.#applySubscriptionCloid(
-              restorationOrders,
-              new Set(restorationOrders.map((order) => order.c)),
-            );
             const result = await recoveryExchangeClient.order({
               orders: sentRestorationOrders,
               grouping: protection.grouping,
               ...(entries.some((entry) => entry.chargesMetamaskBuilderFee) &&
                 builderOrderContext && { builder: builderOrderContext }),
             });
-            await assertScope();
-            const statuses = result.response?.data?.statuses ?? [];
-            const rawOutcomes = statuses
-              .slice(0, entries.length)
-              .map((status) => this.#readTpslOrderPlacementOutcome(status));
-            const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
-              outcomes: rawOutcomes,
-              orders: sentRestorationOrders,
-              userAddress,
-              infoClient,
-              assertScope,
-              symbol,
-            });
-            await assertScope();
-            restoredOrderIds.push(
-              ...outcomes.flatMap((outcome) =>
-                outcome.orderId ? [outcome.orderId] : [],
-              ),
-            );
-            if (
-              result.status !== 'ok' ||
-              statuses.length !== entries.length ||
-              outcomes.some(
-                (outcome) =>
-                  outcome.state === 'rejected' || outcome.state === 'unknown',
-              )
-            ) {
-              success = false;
-              this.#deps.logger.error(
-                new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-                this.#getErrorContext(
-                  'updatePositionTPSL > restoreCancelledProtection',
-                  { symbol, grouping: protection.grouping, statuses },
-                ),
-              );
-            }
+            statuses = result.response?.data?.statuses ?? [];
           } catch (error) {
+            const failure = this.#classifyProtectionWriteError(error);
+            statuses =
+              this.#readProtectionErrorStatuses(error) ??
+              (this.#isDefinitiveProtectionRejection(error)
+                ? entries.map(() => ({ error: failure.message }))
+                : []);
+            this.#deps.debugLogger.log(
+              'Protection restoration requires reconciliation',
+              { symbol, error: failure.message },
+            );
+          }
+          await assertScope();
+          const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
+            outcomes: statuses
+              .slice(0, entries.length)
+              .map((status) => this.#readTpslOrderPlacementOutcome(status)),
+            orders: sentRestorationOrders,
+            userAddress,
+            infoClient,
+            assertScope,
+            symbol,
+          });
+          await assertScope();
+          restoredOrderIds.push(
+            ...outcomes.flatMap((outcome) =>
+              outcome.orderId ? [outcome.orderId] : [],
+            ),
+          );
+          if (
+            outcomes.some(
+              (outcome) =>
+                outcome.state === 'rejected' || outcome.state === 'unknown',
+            )
+          ) {
             success = false;
-            // A signer that could not sign is retryable, not a defect; the
-            // caller still learns the protection was lost.
-            if (
-              !this.#handleSignerFailure(error, 'updatePositionTPSL', {
-                symbol,
-                grouping: protection.grouping,
-              })
-            ) {
-              this.#deps.logger.error(
-                ensureError(
-                  error,
-                  'HyperLiquidProvider.updatePositionTPSL.restoreCancelledProtection',
-                ),
-                this.#getErrorContext(
-                  'updatePositionTPSL > restoreCancelledProtection',
-                  { symbol, grouping: protection.grouping },
-                ),
-              );
-            }
           }
         }
         await assertScope();
@@ -10925,6 +11001,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       const oldCancellation = await this.#cancelOrderRequestBatch(
         exchangeClient,
         cancelRequests,
+        (error) => {
+          if (cancelGuardFailure !== undefined) {
+            throw this.#classifyProtectionWriteError(cancelGuardFailure);
+          }
+          if (isHyperLiquidMultiSigRequiredError(error)) {
+            throw this.#classifyProtectionWriteError(error);
+          }
+        },
       );
       // The signer could not sign the cancel. With nothing cancelled the old
       // protection is still in place, and a clear keeps only what it could
@@ -11026,6 +11110,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       let placementStatuses: unknown[];
+      let placementFailure: Error | undefined;
       let responseAccepted = false;
       try {
         // Old protection may already be cancelled. A failed position read
@@ -11041,44 +11126,29 @@ export class HyperLiquidProvider implements PerpsProvider {
         placementStatuses = result.response?.data?.statuses ?? [];
         responseAccepted = result.status === 'ok';
       } catch (error) {
-        const response =
-          error instanceof Error && hasProperty(error, 'response')
-            ? error.response
-            : undefined;
-        if (
-          isStatusObject(response) &&
-          isStatusObject(response.response) &&
-          response.response.type === 'order' &&
-          isStatusObject(response.response.data) &&
-          Array.isArray(response.response.data.statuses)
+        placementFailure = this.#classifyProtectionWriteError(error);
+        const statuses = this.#readProtectionErrorStatuses(error);
+        if (statuses !== undefined) {
+          placementStatuses = statuses;
+        } else if (
+          replacementMayHaveDispatched &&
+          !this.#isDefinitiveProtectionRejection(error)
         ) {
-          // The real SDK throws for a mixed result even when another child
-          // was accepted. Reconcile that signed batch before restoring.
-          placementStatuses = response.response.data.statuses;
-        } else if (replacementMayHaveDispatched) {
-          // A lost response is not evidence of rejection. Resolve every
-          // signed child before cleanup or restoring the old intent.
+          // Arbitrary transport/HTTP failures do not prove non-processing.
           placementStatuses = [];
         } else {
-          // Classify first, so a rejected agent is dropped (and reported) before
-          // the restoration signs.
-          const signerFailure = this.#classifySignerFailure(error);
           const restoration = await restoreCancelledProtection(
             confirmedCancelledOldOrderIds,
           );
           if (!restoration.success) {
             return createProtectionLostResult(restoration.restoredOrderIds);
           }
-          if (signerFailure) {
-            this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
-            return createErrorResult(signerFailure, {
-              success: false,
-              ...(restoration.restoredOrderIds.length > 0 && {
-                childOrderIds: restoration.restoredOrderIds,
-              }),
-            });
-          }
-          throw error;
+          return createErrorResult(placementFailure, {
+            success: false,
+            ...(restoration.restoredOrderIds.length > 0
+              ? { childOrderIds: restoration.restoredOrderIds }
+              : {}),
+          });
         }
       }
 
@@ -11176,6 +11246,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
         outcome.state === 'filled' && outcome.orderId ? [outcome.orderId] : [],
       );
+      const inFlightOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome.state === 'unknown' && outcome.orderId ? [outcome.orderId] : [],
+      );
       const hasUnresolvedWaitingTrigger = placementOutcomes.some(
         (outcome) =>
           (outcome.state === 'waitingForTrigger' ||
@@ -11189,10 +11262,16 @@ export class HyperLiquidProvider implements PerpsProvider {
           a: assetId,
           o: Number(orderId),
         })),
+        (error) => {
+          if (isHyperLiquidMultiSigRequiredError(error)) {
+            throw this.#classifyProtectionWriteError(error);
+          }
+        },
       );
       await assertScope();
       const recoverableOrderIds = [
         ...filledReplacementOrderIds,
+        ...inFlightOrderIds,
         ...remainingReplacementIds.map(String),
       ];
       if (hasUnresolvedWaitingTrigger) {
@@ -11222,7 +11301,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         );
       }
-      throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+      throw placementFailure ?? new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
     } catch (error) {
       const signerFailure = this.#handleSignerFailure(
         error,

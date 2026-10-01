@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose `utils/positionProtection.assertExpectedPosition` and `utils/guardedHyperLiquidClient.createGuardedHyperLiquidClient` through the existing public wildcard exports for position snapshot validation and operation-local signed-dispatch guards.
+
 - Add optional `UpdatePositionTPSLParams.expectedPosition` signed-size and entry-price preconditions. Lighter and HyperLiquid reject stale position protection mutations before setup and recheck before writes. Ready order capabilities report `positionTpsl` precondition support, receipt identity guarantees and native TP/SL execution types.
 - Return exact `OrderResult.childOrderIds` receipts for settled Lighter full-position TP/SL updates and HyperLiquid updates with complete response- or signed-client-ID-correlated IDs. Removals return an empty receipt; IDs may already be terminal and do not imply resting protection. HyperLiquid position-protection client IDs reserve the subscription program layout; only the fee-reduction flag, not the marker alone, attributes a discount.
 - Support native Lighter standalone `stop_market`, `stop_limit`, `take_profit_market` and `take_profit_limit` placement and validation for active markets, preserving trigger levels, execution protection and reduce-only quantities. Report the supported types through `getOrderCapabilities` and expose the fixed venue grid as optional `MarketInfo.priceDecimals` ([#10638](https://github.com/MetaMask/core/pull/10638))
@@ -30,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Allow removal of proven managed Lighter TP/SL IDs when the position disappears, becomes zero or falls below the size tick after preflight. Require an authoritative account/positions response, preserve unrecorded protection without valid live quantity and side, and retain replacement size/side guards ([#10638](https://github.com/MetaMask/core/pull/10638))
+
+- Restore canceled HyperLiquid protection after definitive top-level exchange rejection, invalidate rejected agents, preserve venue error details and reconcile partial or lost restoration responses by signed child IDs. Triggered and unknown in-flight children retain their exact IDs and block duplicate restoration. Probe multisig eligibility at each signed protection dispatch without caching readiness.
+
 - Recheck HyperLiquid position-protection preconditions after SDK signing, immediately before dispatch. Recover partial SDK acknowledgements by exact signed child IDs, and preserve uncertainty rather than canceling unrelated matching orders. When a requested replacement becomes stale after cancellation, restore only the exact pre-call reduce-only protection under the original account/network scope; report protection loss if restoration fails.
 - Release only the proven-unsent Lighter TP/SL attempt, ownership and nonce reservation when the final position precondition rejects dispatch, allowing an immediate refreshed update or close while retaining older uncertain attempts.
 - Fence Lighter financial writes across every local account key slot so migration cannot bypass a pending or quarantined dispatch. Reconcile exact transaction identities under an account-wide write mutex; discovery and key registration share this mutex but bypass other-slot financial obligations. Nonterminal or mismatched transactions stay unresolved and cannot be acknowledged ([#10618](https://github.com/MetaMask/core/pull/10618))
@@ -37,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deliver Lighter signer setup failures to the current wallet's subscribers. Replay confirmed empty orders and validated newest-first fill history to late subscribers in the same authenticated session; malformed order/trade containers, null order/trade rows and rejected order rows never authorize empty replay; omitted orders or trades containers leave the last snapshot unchanged; throwing error listeners cannot suppress sibling delivery or prevent setup retries ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Accept Lighter trades that omit position-sign flags and preserve omitted account PnL, including closing and flipping fill PnL, as unknown for Activity and late-subscriber replay. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605), [#10618](https://github.com/MetaMask/core/pull/10618))
 - Refuse stale signer readiness after a wallet switch or bridge reset while setup finishes, preserving unfinished TP/SL recovery visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
+
 
 ## [19.0.0]
 

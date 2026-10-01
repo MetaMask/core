@@ -15,7 +15,9 @@ import {
   PerpsController,
 } from '../src/index.js';
 import type {
+  DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
+  UpdatePositionTPSLParams,
   MarketInfo,
   PerpsAccountSigner,
   PerpsAgentAccount,
@@ -25,6 +27,8 @@ import type {
   PerpsControllerSetAgentSignerAction,
   PerpsTypedDataPayload,
 } from '../src/index.js';
+import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
+import { assertExpectedPosition } from '../src/utils/positionProtection.js';
 
 // The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
 // entrypoint only needs its error class to be defined.
@@ -43,6 +47,34 @@ describe('@metamask/perps-controller public API', () => {
       LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
       LIGHTER_FILL_REPLAY_LIMIT,
     ]).toStrictEqual([2, 254, 253, 10000, 250, 40, 100]);
+  });
+
+  it('exposes optional protection preconditions, capabilities and utility subpath helpers', () => {
+    const legacy: UpdatePositionTPSLParams = { symbol: 'BTC' };
+    const guarded: UpdatePositionTPSLParams = {
+      symbol: 'BTC',
+      expectedPosition: { size: '-1', entryPrice: '100000' },
+    };
+    const capability: DirectProviderOrderCapabilities = {
+      status: 'ready',
+      providerId: 'lighter',
+      supportedStrategies: [],
+      positionTpsl: {
+        supportsExpectedPosition: true,
+        childOrderIds: 'request-correlated',
+        takeProfitOrderType: 'take_profit_market',
+        stopLossOrderType: 'stop_market',
+      },
+    };
+    expect(legacy.expectedPosition).toBeUndefined();
+    expect(() =>
+      assertExpectedPosition(guarded.expectedPosition, {
+        size: '-1.0',
+        entryPrice: '100000.0',
+      }),
+    ).not.toThrow();
+    expect(capability.positionTpsl?.supportsExpectedPosition).toBe(true);
+    expect(typeof createGuardedHyperLiquidClient).toBe('function');
   });
 
   it('exports optional native price precision and unsupported-market capability reasons', () => {

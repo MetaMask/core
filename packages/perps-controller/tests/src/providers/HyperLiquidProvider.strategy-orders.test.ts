@@ -1556,11 +1556,355 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(orderRequests).toBe(mode === 'partial-error' ? 2 : 1);
         expect(result.error).toBe(
           mode === 'partial-error'
-            ? PERPS_ERROR_CODES.TPSL_UPDATE_FAILED
+            ? 'order 1: SL rejected'
             : PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
         );
       },
     );
+
+    describe('real SDK protection recovery boundaries', () => {
+      type SignedAction = {
+        type: string;
+        orders?: { c?: string }[];
+        cancels?: { o: number }[];
+      };
+      const setup = (
+        oldCount = 1,
+      ): {
+        infoClient: ReturnType<typeof useStrategyClients>['infoClient'];
+        actions: SignedAction[];
+        hooks: {
+          sign: () => Promise<void>;
+          response: (action: SignedAction) => Promise<unknown>;
+        };
+        defaultResponse: (action: SignedAction) => unknown;
+        request: jest.Mock;
+      } => {
+        const old = {
+          coin: 'ETH',
+          side: 'A',
+          limitPx: '3400',
+          sz: '0',
+          origSz: '0',
+          oid: 456,
+          timestamp: 1700000000000,
+          reduceOnly: true,
+          isTrigger: true,
+          isPositionTpsl: true,
+          triggerCondition: 'Price above 3400',
+          triggerPx: '3400',
+          orderType: 'Take Profit Limit',
+          children: [],
+        };
+        const { infoClient } = useStrategyClients({
+          info: {
+            referral: jest.fn().mockResolvedValue({
+              referredBy: {
+                referrer: '0x1111111111111111111111111111111111111111',
+                code: 'EXISTING',
+              },
+            }),
+            maxBuilderFee: jest.fn().mockResolvedValue(100000),
+            userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+            frontendOpenOrders: jest.fn().mockResolvedValue(
+              oldCount === 1
+                ? [old]
+                : [
+                    old,
+                    {
+                      ...old,
+                      oid: 457,
+                      orderType: 'Stop Market',
+                      triggerCondition: 'Price below 2500',
+                      triggerPx: '2500',
+                      limitPx: '2500',
+                    },
+                  ],
+            ),
+            orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+          },
+        });
+        const actions: SignedAction[] = [];
+        const defaultResponse = (action: SignedAction): unknown => ({
+          status: 'ok',
+          response: {
+            type: action.type,
+            data: {
+              statuses:
+                action.type === 'cancel'
+                  ? action.cancels?.map(() => 'success')
+                  : action.orders?.map((_order, index) => ({
+                      resting: { oid: 901 + index },
+                    })),
+            },
+          },
+        });
+        const hooks: {
+          sign: () => Promise<void>;
+          response: (action: SignedAction) => Promise<unknown>;
+        } = {
+          sign: async () => undefined,
+          response: async (action) => defaultResponse(action),
+        };
+        const request = jest
+          .fn()
+          .mockImplementation(
+            async (_endpoint: string, payload: { action: SignedAction }) => {
+              actions.push(payload.action);
+              return hooks.response(payload.action);
+            },
+          );
+        const sdk = new ExchangeClient({
+          transport: { isTestnet: false, request },
+          wallet: {
+            address: '0x1111111111111111111111111111111111111111',
+            signTypedData: async (_args: unknown): Promise<`0x${string}`> => {
+              await hooks.sign();
+              return `0x${'11'.repeat(64)}1b`;
+            },
+          },
+        });
+        mockClientService.getExchangeClient.mockImplementation(
+          (guard?: () => Promise<void>) =>
+            guard ? createGuardedHyperLiquidClient(sdk, guard) : sdk,
+        );
+        return { infoClient, actions, hooks, defaultResponse, request };
+      };
+
+      it.each(['top-level', 'bulk'])(
+        'restores exact old protection after definitive %s rejection and retains venue text',
+        async (kind) => {
+          const { actions, hooks, defaultResponse } = setup();
+          let attempts = 0;
+          hooks.response = async (action): Promise<unknown> => {
+            if (action.type === 'order') {
+              attempts += 1;
+            }
+            if (action.type === 'order' && attempts === 1) {
+              return kind === 'top-level'
+                ? {
+                    status: 'err',
+                    response: 'Too many cumulative requests sent',
+                  }
+                : {
+                    status: 'ok',
+                    response: {
+                      type: 'order',
+                      data: {
+                        statuses: [
+                          { error: 'Too many cumulative requests sent' },
+                        ],
+                      },
+                    },
+                  };
+            }
+            return defaultResponse(action);
+          };
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual([
+            'cancel',
+            'order',
+            'order',
+          ]);
+          expect(result.success).toBe(false);
+          expect(result.error).toContain('Too many cumulative requests sent');
+        },
+      );
+
+      it.each([
+        'size',
+        'entry',
+        'account',
+        'network',
+        'disconnect',
+        'read-failure',
+      ])(
+        'preserves old protection when %s changes during real cancellation signing',
+        async (change) => {
+          const { actions, hooks, infoClient } = setup();
+          const started = createDeferred<void>();
+          const release = createDeferred<void>();
+          hooks.sign = async (): Promise<void> => {
+            started.resolve();
+            await release.promise;
+          };
+          const pending = provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+            expectedPosition: { size: '1.5', entryPrice: '3000' },
+          });
+          await started.promise;
+          if (change === 'account') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0x2222222222222222222222222222222222222222',
+            );
+          } else if (change === 'network') {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          } else if (change === 'disconnect') {
+            await provider.disconnect();
+          } else if (change === 'read-failure') {
+            infoClient.clearinghouseState.mockRejectedValue(new Error('429'));
+          } else {
+            infoClient.clearinghouseState.mockResolvedValue({
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'ETH',
+                    szi: change === 'size' ? '2' : '1.5',
+                    entryPx: change === 'entry' ? '3001' : '3000',
+                  },
+                },
+              ],
+            });
+          }
+          release.resolve();
+          const result = await pending;
+          expect(actions).toStrictEqual([]);
+          expect(result.success).toBe(false);
+          expect(result.error).not.toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
+          expect(result.childOrderIds).toBeUndefined();
+        },
+      );
+
+      it.each(['triggered', 'futureScheduledState'])(
+        'retains exact child identity while status %s is in flight',
+        async (status) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup();
+          hooks.response = async (action): Promise<unknown> =>
+            action.type === 'order'
+              ? {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: {
+                      statuses: ['waitingForTrigger', { error: 'SL rejected' }],
+                    },
+                  },
+                }
+              : defaultResponse(action);
+          infoClient.orderStatus.mockImplementation(
+            async ({ oid }: { oid: string }) => ({
+              status: 'order',
+              order: { status, order: { coin: 'ETH', cloid: oid, oid: 777 } },
+            }),
+          );
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+            stopLossPrice: '2500',
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual([
+            'cancel',
+            'order',
+          ]);
+          expect(result).toMatchObject({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: ['777'],
+          });
+        },
+      );
+
+      it.each(['partial', 'response-loss'])(
+        'preserves accepted restoration identities after %s',
+        async (mode) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup(2);
+          let attempts = 0;
+          let restorationCloid: string | undefined;
+          hooks.response = async (action): Promise<unknown> => {
+            if (action.type === 'order') {
+              attempts += 1;
+              if (attempts === 1) {
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: { statuses: [{ error: 'Replacement rejected' }] },
+                  },
+                };
+              }
+              restorationCloid = action.orders?.[0].c;
+              if (mode === 'response-loss') {
+                throw new Error('response lost');
+              }
+              return {
+                status: 'ok',
+                response: {
+                  type: 'order',
+                  data: {
+                    statuses: [
+                      { resting: { oid: 901 } },
+                      { error: 'SL restoration rejected' },
+                    ],
+                  },
+                },
+              };
+            }
+            return defaultResponse(action);
+          };
+          infoClient.orderStatus.mockImplementation(
+            async ({ oid }: { oid: string }) =>
+              oid === restorationCloid
+                ? {
+                    status: 'order',
+                    order: {
+                      status: 'open',
+                      order: { coin: 'ETH', cloid: oid, oid: 901 },
+                    },
+                  }
+                : { status: 'unknownOid' },
+          );
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual([
+            'cancel',
+            'order',
+            'order',
+          ]);
+          expect(result).toMatchObject({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: ['901'],
+          });
+        },
+      );
+
+      it.each(['proactive', 'venue-race'])(
+        'rejects multisig protection writes at the %s boundary',
+        async (mode) => {
+          const { actions, hooks, infoClient } = setup();
+          infoClient.userToMultiSigSigners.mockResolvedValue(
+            mode === 'proactive'
+              ? {
+                  authorizedUsers: [
+                    '0x1111111111111111111111111111111111111111',
+                  ],
+                  threshold: 1,
+                }
+              : null,
+          );
+          hooks.response = async (): Promise<unknown> => ({
+            status: 'err',
+            response: 'Multi-sig required',
+          });
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+          expect(actions).toHaveLength(mode === 'proactive' ? 0 : 1);
+          expect(infoClient.userToMultiSigSigners).toHaveBeenCalled();
+        },
+      );
+    });
 
     it('restores whole-position protection when replacement fails after pre-cancel', async () => {
       const order = jest
