@@ -2778,7 +2778,6 @@ export class LighterProvider implements PerpsProvider {
       }
       if (
         journal &&
-        !(journal.partialIntent && journal.attempts.length === 0) &&
         (journal.partialIntent !== undefined ||
           journal.phase === 'manual' ||
           currentSlotPrefix === null ||
@@ -5213,7 +5212,7 @@ export class LighterProvider implements PerpsProvider {
       await this.#finishRecoverySuccessor(
         journalEntry,
         'failed',
-        await readActiveRaw(),
+        journalEntry.sourceRecoveryOperationId ? await readActiveRaw() : [],
         context.generation,
       );
       return await this.#clearTpslJournal(
@@ -7016,6 +7015,18 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
+    return this.#getPositions(false);
+  }
+
+  /**
+   * Keep raw signed decimals only for exact partial protection intent.
+   *
+   * @param preserveRawSize - Preserve venue size before adapter number conversion.
+   * @returns Validated positions.
+   */
+  readonly #getPositions = async (
+    preserveRawSize: boolean,
+  ): Promise<Position[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     // Risk metadata is required for every returned position. A transport
@@ -7035,12 +7046,19 @@ export class LighterProvider implements PerpsProvider {
       // sizes, and a prefix-parsing filter would silently drop (or keep)
       // malformed entries like '0oops' before validation could fire.
       return account.positions
-        .map((position) =>
-          adaptPositionFromLighter(
+        .map((position) => {
+          const adapted = adaptPositionFromLighter(
             position,
             this.#maxLeverageForPosition(position),
-          ),
-        )
+          );
+          return preserveRawSize
+            ? {
+                ...adapted,
+                size: `${position.sign === -1 ? '-' : ''}${position.position}`,
+                entryPrice: position.avgEntryPrice,
+              }
+            : adapted;
+        })
         .filter((position) => parseFloat(position.size) !== 0);
     } catch (caughtError) {
       if (
@@ -7061,7 +7079,7 @@ export class LighterProvider implements PerpsProvider {
       });
       return [];
     }
-  }
+  };
 
   /**
    * Report the margin mode Lighter currently binds to a market. Only an
@@ -8106,7 +8124,7 @@ export class LighterProvider implements PerpsProvider {
       // fill landing DURING the read belongs to the operation's window
       // and must count as lifecycle evidence.
       const lifecycleBoundary = Date.now();
-      const positions = await this.getPositions();
+      const positions = await this.#getPositions(partialRequested);
       const position = positions.find(
         (entry) => entry.symbol === params.symbol,
       );
@@ -8863,6 +8881,26 @@ export class LighterProvider implements PerpsProvider {
               const sourceJournal = await this.#loadTpslJournal(sourceKey);
               this.#assertSession(generationAtIntent);
               if (sourceJournal?.partialIntent && sourceKey !== settlementKey) {
+                const transfer = await this.#loadRecoverySuccessor(
+                  sourceKey,
+                  sourceJournal.operationId,
+                );
+                this.#assertSession(generationAtIntent);
+                if (
+                  sourceJournal.attempts.length === 0 &&
+                  sourceJournal.sourceRecoveryOperationId === undefined &&
+                  sourceJournal.sourceRecoverySettlementKey === undefined &&
+                  (!transfer || transfer.state === 'failed')
+                ) {
+                  const cleared = await this.#clearTpslJournal(
+                    sourceKey,
+                    sourceJournal.operationId,
+                  );
+                  this.#assertSession(generationAtIntent);
+                  if (cleared) {
+                    continue;
+                  }
+                }
                 throw new Error(
                   'Partial protection requires explicit recovery resolution by recovery ID',
                 );
@@ -9206,7 +9244,7 @@ export class LighterProvider implements PerpsProvider {
               await this.#finishRecoverySuccessor(
                 journal,
                 'failed',
-                await readActiveRaw(),
+                journal.sourceRecoveryOperationId ? await readActiveRaw() : [],
                 generationAtIntent,
               );
               await this.#clearTpslJournal(settlementKey, journal.operationId);
@@ -9639,15 +9677,27 @@ export class LighterProvider implements PerpsProvider {
             }
             this.#assertSession(generationAtIntent);
           } catch (error) {
-            if (partialIntent && journal.attempts.length === 0) {
-              this.#assertSession(generationAtIntent);
-              await this.#finishRecoverySuccessor(
-                journal,
-                'failed',
-                await readActiveRaw(),
-                generationAtIntent,
+            try {
+              if (partialIntent && journal.attempts.length === 0) {
+                this.#assertSession(generationAtIntent);
+                await this.#finishRecoverySuccessor(
+                  journal,
+                  'failed',
+                  journal.sourceRecoveryOperationId
+                    ? await readActiveRaw()
+                    : [],
+                  generationAtIntent,
+                );
+                await this.#clearTpslJournal(
+                  settlementKey,
+                  journal.operationId,
+                );
+              }
+            } catch (cleanupError) {
+              this.#deps.debugLogger.log(
+                '[LighterProvider] Proven-unsent protection cleanup remains pending',
+                { error: String(cleanupError) },
               );
-              await this.#clearTpslJournal(settlementKey, journal.operationId);
             }
             throw error;
           }

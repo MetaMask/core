@@ -7551,7 +7551,9 @@ describe('LighterProvider', () => {
           [field]: '0.03',
         });
         expect(result.success).toBe(false);
-        expect(result.error).toContain('requires');
+        expect(result.error).toBe(
+          'A partial protection size requires its trigger price',
+        );
         expect(built.calls).toHaveLength(0);
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
       },
@@ -7749,6 +7751,191 @@ describe('LighterProvider', () => {
         );
       },
     );
+
+    it.each(['0.1', '0.03'] as const)(
+      'uses the raw venue decimal for explicit partial request %s before setup',
+      async (quantity) => {
+        const built = buildProvider();
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const prior = venue.seedTrigger('stop-loss', '90000');
+        const before = venue.rawTriggers.map((row) => ({ ...row }));
+        built.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                { ...ACCOUNT.positions[0], position: '0.09999999999999999999' },
+              ],
+            },
+          ],
+        });
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          stopLossSize: quantity,
+        });
+        expect(result.success).toBe(quantity === '0.03');
+        expect(result.error).toBe(
+          quantity === '0.1'
+            ? 'Partial protection quantity must be positive and no greater than the position'
+            : undefined,
+        );
+        expect(built.calls.length === 0).toBe(quantity === '0.1');
+        expect(
+          venue.rawTriggers.filter((row) => row.orderIndex === prior),
+        ).toStrictEqual(before);
+        expect(
+          venue.rawTriggers
+            .filter((row) => row.orderIndex !== prior)
+            .map((row) => row.initialBaseAmount),
+        ).toStrictEqual(quantity === '0.03' ? ['0.03'] : []);
+      },
+    );
+
+    it('releases ordinary unsent partial intent without a cleanup venue read masking signing failure', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const execute = (
+        built.bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (built.bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_signCreateOrder') {
+            built.clientInstance.getActiveOrders.mockRejectedValue(
+              new Error('venue read unavailable during cleanup'),
+            );
+            throw new Error('original partial signing failure');
+          }
+          return execute(call);
+        },
+      );
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+        stopLossSize: '0.03',
+      });
+      expect(result.error).toBe('original partial signing failure');
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(await built.provider.getPendingManualRecoveries()).toStrictEqual(
+        [],
+      );
+      const index = JSON.parse(
+        (await infra.diskCache.getItem('lighterTpslJournalIndex:testnet')) ??
+          '[]',
+      ) as string[];
+      expect(index).toStrictEqual([]);
+    });
+
+    it.each(['single', 'pair'] as const)(
+      'retains dispatched cancellation when held partial %s creation observes drift',
+      async (kind) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        expect(
+          (
+            await built.provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        const execute = (
+          built.bridge.execute as jest.Mock
+        ).getMockImplementation() as (
+          call: LighterWasmCall,
+        ) => Promise<unknown>;
+        (built.bridge.execute as jest.Mock).mockImplementation(
+          async (call: LighterWasmCall) => {
+            const signed = await execute(call);
+            if (
+              call.function === '_signCreateOrder' ||
+              call.function === '_signCreateGroupedOrders'
+            ) {
+              entered.resolve();
+              await release.promise;
+            }
+            return signed;
+          },
+        );
+        built.clientInstance.sendTx.mockClear();
+        const pending = built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          stopLossSize: '0.03',
+          ...(kind === 'pair'
+            ? { takeProfitPrice: '110000', takeProfitSize: '0.03' }
+            : {}),
+        });
+        await entered.promise;
+        expect(venue.rawTriggers).toStrictEqual([]);
+        built.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], avgEntryPrice: '100001' }],
+            },
+          ],
+        });
+        release.resolve();
+        expect((await pending).error).toBe(
+          PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        const rows = await built.provider.getPendingManualRecoveries();
+        expect(rows).toHaveLength(1);
+        expect(
+          rows[0].partialIntent?.legs.map((leg) => leg.size),
+        ).toStrictEqual(
+          Array.from({ length: kind === 'pair' ? 2 : 1 }, () => '0.03'),
+        );
+        expect(venue.rawTriggers).toStrictEqual([]);
+      },
+    );
+
+    it('keeps an unretirable unsent partial operation selectable and preserves its original failure', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const execute = (
+        built.bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (built.bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_signCreateOrder') {
+            throw new Error('original signing failure');
+          }
+          return execute(call);
+        },
+      );
+      const remove = infra.diskCache.removeItem.bind(infra.diskCache);
+      infra.diskCache.removeItem = async (key: string): Promise<void> => {
+        if (key.startsWith('lighterTpslJournal')) {
+          throw new Error('cleanup storage unavailable');
+        }
+        return remove(key);
+      };
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+        stopLossSize: '0.03',
+      });
+      expect(result.error).toBe('original signing failure');
+      const rows = await built.provider.getPendingManualRecoveries();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].recoveryId).toBeDefined();
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
 
     it.each(['take-profit', 'stop-loss', 'pair'] as const)(
       'places fixed partial %s protection without expanding to the full position',
@@ -7974,9 +8161,16 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['valid', 'zero', 'wrong-side'] as const)(
-      'loads a pre-dispatch partial journal with %s intent safely',
-      async (condition) => {
+    it.each(
+      ([7, 19] as const).flatMap((apiKeyIndex) =>
+        (['valid', 'zero', 'wrong-side'] as const).map((condition) => ({
+          apiKeyIndex,
+          condition,
+        })),
+      ),
+    )(
+      'loads a pre-dispatch partial journal with $condition intent safely on slot $apiKeyIndex',
+      async ({ condition, apiKeyIndex }) => {
         const infra = createMockInfrastructure();
         const built = buildProvider({
           platformDependencies: infra,
@@ -8041,6 +8235,7 @@ describe('LighterProvider', () => {
           await infra.diskCache.setItem(payloadKey, JSON.stringify(payload));
         }
         const restarted = buildProvider({
+          apiKeyIndex,
           platformDependencies: infra,
           registeredKey: '9c'.repeat(40),
         });
@@ -8049,7 +8244,7 @@ describe('LighterProvider', () => {
           (rows) => ({ count: rows.length, error: undefined }),
           (error: unknown) => ({ count: undefined, error: String(error) }),
         );
-        expect(outcome.count).toBe(condition === 'valid' ? 0 : undefined);
+        expect(outcome.count).toBe(condition === 'valid' ? 1 : undefined);
         expect(outcome.error?.includes('journal') ?? false).toBe(
           condition !== 'valid',
         );
@@ -8064,6 +8259,11 @@ describe('LighterProvider', () => {
           stopLossSize: '0.04',
         });
         expect(renewed.success).toBe(condition === 'valid');
+        const index = JSON.parse(
+          (await infra.diskCache.getItem('lighterTpslJournalIndex:testnet')) ??
+            '[]',
+        ) as string[];
+        expect(index.includes(key)).toBe(condition !== 'valid');
         expect(
           venue.rawTriggers.map((row) => row.initialBaseAmount),
         ).toStrictEqual(condition === 'valid' ? ['0.04'] : []);
@@ -8192,15 +8392,14 @@ describe('LighterProvider', () => {
       expect(recoveries[0].reason).toContain('current trading key');
       expect(recoveries[0].partialIntent?.legs[0].size).toBe('0.03');
       const before = built.calls.length;
-      expect(
-        (
-          await built.provider.updatePositionTPSL({
-            symbol: 'BTC',
-            stopLossPrice: '84000',
-            stopLossSize: '0.04',
-          })
-        ).success,
-      ).toBe(false);
+      const retry = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '84000',
+        stopLossSize: '0.04',
+      });
+      expect(retry.error).toBe(
+        'Prior partial protection requires resolveRecoveryProtection with its exact pending recovery ID and fresh current-position intent',
+      );
       expect(
         built.calls
           .slice(before)
