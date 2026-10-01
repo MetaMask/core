@@ -17867,9 +17867,19 @@ describe('LighterProvider', () => {
       'unknown',
       'already-complete',
       'cancel-restart',
+      'retained-canceled',
+      'retained-clear-crash',
+      'retained-next-key',
+      'failed',
+      'expired-absent',
+      'mismatch',
     ] as const)(
       'reconciles a %s successor after key loss without a second create',
       async (evidence) => {
+        const retainedFailure =
+          evidence === 'retained-canceled' ||
+          evidence === 'retained-clear-crash' ||
+          evidence === 'retained-next-key';
         const infra = createMockInfrastructure();
         const built = buildProvider({
           platformDependencies: infra,
@@ -17904,6 +17914,31 @@ describe('LighterProvider', () => {
           stopLossPrice: '85000',
         });
         expect(first.success).toBe(false);
+        const sourceBytes = await infra.diskCache.getItem(
+          `lighterTpslManual:testnet:${settlementKey}`,
+        );
+        const lostKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        if (evidence === 'failed' || evidence === 'expired-absent') {
+          venue.rawTriggers.splice(1);
+          const pointer = JSON.parse(
+            (await infra.diskCache.getItem(
+              `lighterTpslJournal:testnet:${lostKey}`,
+            )) ?? '{}',
+          ) as { operationId: string };
+          const payloadKey = `lighterTpslJournalOp:testnet:${lostKey}:${pointer.operationId}`;
+          const payload = JSON.parse(
+            (await infra.diskCache.getItem(payloadKey)) ?? '{}',
+          ) as { attempts: { expiresAt: number; outcome: string }[] };
+          for (const attempt of payload.attempts) {
+            attempt.expiresAt = 1;
+            attempt.outcome = 'unknown';
+          }
+          await infra.diskCache.setItem(payloadKey, JSON.stringify(payload));
+        }
+        const unrelatedId = venue.seedTrigger('take-profit', '120000');
+        const unrelatedBytes = JSON.stringify(
+          venue.rawTriggers.find((row) => row.orderIndex === unrelatedId),
+        );
         const restarted = buildProvider({
           platformDependencies: infra,
           registeredKey: '9c'.repeat(40),
@@ -17944,14 +17979,15 @@ describe('LighterProvider', () => {
             if (!venue.landedTxs.has(hash)) {
               return readTx?.(hash);
             }
-            if (evidence === 'unknown') {
+            if (evidence === 'unknown' || evidence === 'expired-absent') {
               return null;
             }
             return {
               hash,
               accountIndex: 28,
-              apiKeyIndex: 7,
+              apiKeyIndex: evidence === 'mismatch' ? 3 : 7,
               ...venue.landedTxs.get(hash),
+              ...(evidence === 'failed' ? { status: 0 } : {}),
             };
           },
         );
@@ -17969,7 +18005,7 @@ describe('LighterProvider', () => {
             1,
           );
         }
-        if (evidence === 'cancel-restart') {
+        if (evidence === 'cancel-restart' || retainedFailure) {
           restartedVenue.failResponseOnce(15);
         }
         let second = await restarted.provider.resolveRecoveryProtection({
@@ -17978,20 +18014,25 @@ describe('LighterProvider', () => {
           stopLossPrice: '85000',
         });
         let resumedCreates = 0;
+        let failedObservation: unknown;
+        let renewedSuccess: boolean | undefined;
+        let renewedCreates: number | undefined;
+        let ordinarySuccess: boolean | undefined;
         let intermediateSuccess: boolean | undefined;
-        if (evidence === 'cancel-restart') {
+        if (evidence === 'cancel-restart' || retainedFailure) {
           intermediateSuccess = second.success;
+          const resumedSlot = evidence === 'retained-next-key' ? 23 : 19;
           const resumed = buildProvider({
             platformDependencies: infra,
             registeredKey: '9c'.repeat(40),
-            apiKeyIndex: 19,
+            apiKeyIndex: resumedSlot,
           });
           resumed.clientInstance.getApiKeys.mockResolvedValue({
             code: 200,
             apiKeys: [
               {
                 accountIndex: 28,
-                apiKeyIndex: 19,
+                apiKeyIndex: resumedSlot,
                 nonce: 1,
                 publicKey: '9c'.repeat(40),
               },
@@ -18000,31 +18041,153 @@ describe('LighterProvider', () => {
           const resumedVenue = setupTriggerVenue(
             resumed.clientInstance,
             resumed.bridge,
-            { apiKeyIndex: 19 },
+            { apiKeyIndex: resumedSlot },
           );
           resumedVenue.rawTriggers.push(...restartedVenue.rawTriggers);
+          if (retainedFailure) {
+            const retainedIndex = resumedVenue.rawTriggers.findIndex(
+              (row) => row.orderIndex !== unrelatedId,
+            );
+            const [retained] = resumedVenue.rawTriggers.splice(
+              retainedIndex,
+              1,
+            );
+            resumedVenue.rawInactive.push({ ...retained, status: 'canceled' });
+          }
+
           resumedVenue.rawInactive.push(...restartedVenue.rawInactive);
           for (const [hash, state] of restartedVenue.landedTxs) {
             resumedVenue.landedTxs.set(hash, state);
           }
+          const resumedReadTx =
+            resumed.clientInstance.getTx.getMockImplementation() as
+              | ((
+                  hash: string,
+                ) => Promise<
+                  | import('../../../src/types/lighter-types.js').LighterTxLookupResponse
+                  | null
+                >)
+              | undefined;
+          resumed.clientInstance.getTx.mockImplementation(
+            async (hash: string) => {
+              if (restartedVenue.landedTxs.has(hash)) {
+                return {
+                  hash,
+                  accountIndex: 28,
+                  apiKeyIndex: 19,
+                  ...restartedVenue.landedTxs.get(hash),
+                };
+              }
+              return resumedReadTx?.(hash);
+            },
+          );
           resumedVenue.setVenueNonce(restartedVenue.getVenueNonce());
           resumedVenue.setNextIndex(restartedVenue.getNextIndex());
+          if (evidence === 'retained-clear-crash') {
+            const remove = jest.spyOn(infra.diskCache, 'removeItem');
+            const realRemove = remove.getMockImplementation();
+            if (!realRemove) {
+              throw new Error('Missing storage removal');
+            }
+            let interrupted = false;
+            remove.mockImplementation(async (key) => {
+              if (
+                !interrupted &&
+                key.startsWith(`lighterTpslJournalOp:testnet:${settlementKey}:`)
+              ) {
+                interrupted = true;
+                throw new Error('Interrupted failed retirement');
+              }
+              await realRemove(key);
+            });
+          }
           second = await resumed.provider.resolveRecoveryProtection({
             recoveryId,
             symbol: 'BTC',
             stopLossPrice: '85000',
           });
+          if (retainedFailure) {
+            const failed = JSON.parse(
+              (await infra.diskCache.getItem(
+                `lighterTpslSuccessor:testnet:${settlementKey}:original`,
+              )) ?? '{}',
+            ) as { state: string; retainedReplacementGroups?: number[][] };
+            failedObservation = {
+              success: second.success,
+              sends: resumed.clientInstance.sendTx.mock.calls.length,
+              source: await infra.diskCache.getItem(
+                `lighterTpslManual:testnet:${settlementKey}`,
+              ),
+              journalPresent:
+                (await infra.diskCache.getItem(
+                  `lighterTpslJournal:testnet:${settlementKey}`,
+                )) !== null,
+              state: failed.state,
+              groups: failed.retainedReplacementGroups,
+            };
+            second = await resumed.provider.resolveRecoveryProtection({
+              recoveryId,
+              symbol: 'BTC',
+              stopLossPrice: '86000',
+            });
+            renewedSuccess = second.success;
+            renewedCreates = resumed.calls.filter(
+              (call) => call.function === '_signCreateOrder',
+            ).length;
+            ordinarySuccess = (
+              await resumed.provider.updatePositionTPSL({
+                symbol: 'BTC',
+                stopLossPrice: '87000',
+              })
+            ).success;
+          }
           resumedCreates = resumed.calls.filter(
             (call) => call.function === '_signCreateOrder',
           ).length;
         }
-        expect(intermediateSuccess).toBe(
-          evidence === 'cancel-restart' ? false : undefined,
+        expect(failedObservation).toStrictEqual(
+          retainedFailure
+            ? {
+                success: false,
+                sends: 0,
+                source: sourceBytes,
+                journalPresent: evidence === 'retained-clear-crash',
+                state: 'failed',
+                groups: undefined,
+              }
+            : undefined,
         );
-        expect(resumedCreates).toBe(0);
-        expect(second.success).toBe(evidence !== 'unknown');
+        expect(renewedSuccess).toBe(retainedFailure ? true : undefined);
+        expect(renewedCreates).toBe(retainedFailure ? 1 : undefined);
+        expect(ordinarySuccess).toBe(retainedFailure ? true : undefined);
+        expect(
+          JSON.stringify(
+            restartedVenue.rawTriggers.find(
+              (row) => row.orderIndex === unrelatedId,
+            ),
+          ),
+        ).toBe(unrelatedBytes);
+        expect(intermediateSuccess).toBe(
+          evidence === 'cancel-restart' || retainedFailure ? false : undefined,
+        );
+        expect(resumedCreates).toBe(retainedFailure ? 2 : 0);
+        expect(second.success).toBe(
+          evidence !== 'unknown' && evidence !== 'mismatch',
+        );
+        const expectedSends = {
+          executed: 1,
+          unknown: 0,
+          'already-complete': 0,
+          'cancel-restart': 1,
+          'retained-canceled': 1,
+          'retained-clear-crash': 1,
+          'retained-next-key': 1,
+          failed: 2,
+          'expired-absent': 2,
+          mismatch: 0,
+        };
         expect(restarted.clientInstance.sendTx).toHaveBeenCalledTimes(
-          evidence === 'executed' || evidence === 'cancel-restart' ? 1 : 0,
+          expectedSends[evidence],
         );
         expect(
           built.calls.filter((call) => call.function === '_signCreateOrder'),
@@ -18033,10 +18196,12 @@ describe('LighterProvider', () => {
           restarted.calls.filter(
             (call) => call.function === '_signCreateOrder',
           ),
-        ).toHaveLength(0);
+        ).toHaveLength(
+          evidence === 'failed' || evidence === 'expired-absent' ? 1 : 0,
+        );
         expect(
           restartedVenue.rawTriggers.some((row) => row.orderIndex === orderId),
-        ).toBe(evidence === 'unknown');
+        ).toBe(evidence === 'unknown' || evidence === 'mismatch');
       },
     );
 

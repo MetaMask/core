@@ -4025,6 +4025,13 @@ export class PerpsController extends BaseController<
         error: 'Selected protection recovery is unavailable for this provider',
       };
     }
+    const traceId = uuidv4();
+    this.#options.infrastructure.tracer.trace({
+      name: PerpsTraceNames.UpdateTpsl,
+      op: PerpsTraceOperations.PositionManagement,
+      id: traceId,
+      tags: { provider: providerId },
+    });
     try {
       const result = await provider.resolveRecoveryProtection(params);
       if (issuedContext !== this.#getActionContext()) {
@@ -4048,6 +4055,11 @@ export class PerpsController extends BaseController<
         this.#getErrorContext('resolveRecoveryProtection'),
       );
       throw error;
+    } finally {
+      this.#options.infrastructure.tracer.endTrace({
+        name: PerpsTraceNames.UpdateTpsl,
+        id: traceId,
+      });
     }
   }
 

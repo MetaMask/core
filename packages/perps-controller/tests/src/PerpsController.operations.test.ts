@@ -36,7 +36,11 @@ import type {
   PerpsPlatformDependencies,
   PerpsProviderType,
 } from '../../src/types/index.js';
-import { PerpsAnalyticsEvent } from '../../src/types/index.js';
+import {
+  PerpsAnalyticsEvent,
+  PerpsTraceNames,
+  PerpsTraceOperations,
+} from '../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
@@ -2088,6 +2092,75 @@ describe('PerpsController', () => {
         await initialization;
         expect(await observed).toBeInstanceOf(Error);
         expect(invoked).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['settled', 'unresolved', 'throw', 'stale'] as const)(
+      'balances the explicit recovery trace for %s',
+      async (outcome) => {
+        markControllerAsInitialized();
+        controller.testUpdate((state) => {
+          state.lastUpdateTimestamp = 1;
+        });
+        const failure = new Error('Provider recovery failed');
+        const invoked = jest.fn(async () => {
+          if (outcome === 'throw') {
+            throw failure;
+          }
+          if (outcome === 'stale') {
+            controller.testUpdate((state) => {
+              state.isTestnet = !state.isTestnet;
+            });
+          }
+          return {
+            status:
+              outcome === 'unresolved'
+                ? ('unresolved' as const)
+                : ('settled' as const),
+            providerId: 'hyperliquid' as const,
+            success: outcome !== 'unresolved',
+          };
+        });
+        controller.testSetProviders(
+          new Map([
+            [
+              'hyperliquid',
+              { ...mockProvider, resolveRecoveryProtection: invoked },
+            ],
+          ]),
+        );
+        const errors: unknown[] = [];
+        for (let invocation = 0; invocation < 2; invocation += 1) {
+          await controller
+            .resolveRecoveryProtection({ symbol: 'BTC', recoveryId: 'opaque' })
+            .catch((error: unknown) => {
+              errors.push(error);
+            });
+        }
+        const traces = jest
+          .mocked(mockInfrastructure.tracer.trace)
+          .mock.calls.filter(
+            ([entry]) => entry.name === PerpsTraceNames.UpdateTpsl,
+          );
+        const ends = jest
+          .mocked(mockInfrastructure.tracer.endTrace)
+          .mock.calls.filter(
+            ([entry]) => entry.name === PerpsTraceNames.UpdateTpsl,
+          );
+        expect(traces).toHaveLength(2);
+        expect(traces[0]?.[0].op).toBe(PerpsTraceOperations.PositionManagement);
+        expect(ends).toHaveLength(2);
+        expect(traces[0]?.[0].id).not.toBe(traces[1]?.[0].id);
+        expect(ends.map(([entry]) => entry.id)).toStrictEqual(
+          traces.map(([entry]) => entry.id),
+        );
+        expect(controller.state.lastUpdateTimestamp === 1).toBe(
+          outcome !== 'settled',
+        );
+        expect(errors).toHaveLength(
+          outcome === 'throw' || outcome === 'stale' ? 2 : 0,
+        );
+        expect(errors[0]).toBe(outcome === 'throw' ? failure : errors[0]);
       },
     );
 

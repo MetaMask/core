@@ -3017,6 +3017,7 @@ export class LighterProvider implements PerpsProvider {
     readActive: () => Promise<LighterApiOrder[]>,
     readInactive: (ids: number[]) => Promise<LighterApiOrder[]>,
   ): Promise<void> => {
+    const generation = this.#sessionGeneration;
     const groups = journal.retainedReplacementGroups;
     if (!groups || groups.length === 0) {
       return;
@@ -3027,6 +3028,42 @@ export class LighterProvider implements PerpsProvider {
       { createdClientIds: groups.flat(), cancelledOrderIds: [] },
       { createdGroups: groups },
     );
+    if (visible.outcome === 'created-terminal-failed') {
+      const active = await readActive();
+      this.#assertSession(generation);
+      await this.#finishRecoverySuccessor(
+        journal,
+        'failed',
+        active,
+        generation,
+      );
+      const sourceKey = journal.sourceRecoverySettlementKey;
+      const sourceOperation = journal.sourceRecoveryOperationId;
+      if (!sourceKey || !sourceOperation) {
+        throw new Error('Lighter retained successor source link is missing');
+      }
+      const failed = await this.#loadRecoverySuccessor(
+        sourceKey,
+        sourceOperation,
+      );
+      this.#assertSession(generation);
+      if (
+        !failed ||
+        failed.successorOperationId !== journal.operationId ||
+        failed.state !== 'failed'
+      ) {
+        throw new Error('Lighter retained successor operation changed');
+      }
+      await this.#clearTpslJournal(
+        failed.successorSettlementKey,
+        journal.operationId,
+        active,
+      );
+      this.#assertSession(generation);
+      throw new Error(
+        'Lighter retained successor coverage failed; select a new protection intent',
+      );
+    }
     if (visible.outcome !== 'settled') {
       throw new Error('Lighter retained successor coverage is not settled');
     }
@@ -3058,6 +3095,9 @@ export class LighterProvider implements PerpsProvider {
         journal.priorTriggers.some(
           (prior) => prior.orderId === String(row.orderIndex),
         ) ||
+        (journal.retainedReplacementGroups ?? []).some((group) =>
+          group.includes(row.clientOrderIndex),
+        ) ||
         journal.attempts.some(
           (attempt) =>
             attempt.kind === 'create' &&
@@ -3076,6 +3116,8 @@ export class LighterProvider implements PerpsProvider {
       {
         ...doc,
         state,
+        retainedReplacementGroups:
+          state === 'failed' ? undefined : doc.retainedReplacementGroups,
         ownedOrderIds: [
           ...new Set([
             ...doc.ownedOrderIds,
@@ -5033,6 +5075,17 @@ export class LighterProvider implements PerpsProvider {
       );
       this.#assertSession(context.generation);
       if (
+        linked?.state === 'failed' &&
+        linked.successorOperationId === journalEntry.operationId &&
+        linked.successorSettlementKey === settlementKey
+      ) {
+        // Failure retirement may have stopped after its durable marker.
+        // Replay only exact cleanup; never retry the failed financial intent.
+        await this.#clearTpslJournal(settlementKey, journalEntry.operationId);
+        this.#assertSession(context.generation);
+        return false;
+      }
+      if (
         linked?.state === 'settled' &&
         linked.successorOperationId === journalEntry.operationId &&
         linked.successorSettlementKey === settlementKey
@@ -5051,6 +5104,12 @@ export class LighterProvider implements PerpsProvider {
     if (reconciled === 'unresolved') {
       return false;
     }
+    // Diagnose retained coverage before issuing any remaining cancellations.
+    await this.#verifyRetainedRecoveryCoverage(
+      journalEntry,
+      readActiveRaw,
+      readInactiveFor,
+    );
     await this.#discardManagedTpslIds(
       settlementKey,
       journalEntry.attempts.flatMap((attempt) =>
@@ -5510,7 +5569,7 @@ export class LighterProvider implements PerpsProvider {
         //  - terminal FAILED status (0) resolves the attempt
         //    deterministically — the nonce was consumed but the books
         //    were never mutated (the machine re-acts on book state);
-        //  - executed status (2) with the books already reflecting the
+        //  - executed (2) or pending-final (3) with books reflecting the
         //    attempt resolves it;
         //  - otherwise it reached the sequencer but is not yet visible —
         //    keep blocking. A NON-matching payload under this hash fails
@@ -8263,6 +8322,29 @@ export class LighterProvider implements PerpsProvider {
             if (selectedSuccessor?.state === 'settled') {
               return;
             }
+            if (selectedSuccessor?.state === 'failed') {
+              // A crash may leave the exact retired journal after its failure
+              // marker. Complete cleanup before preparing the next intent.
+              const failedJournal = await this.#loadTpslJournal(
+                selectedSuccessor.successorSettlementKey,
+              );
+              this.#assertSession(generationAtIntent);
+              if (
+                failedJournal?.operationId ===
+                selectedSuccessor.successorOperationId
+              ) {
+                if (
+                  !(await this.#clearTpslJournal(
+                    selectedSuccessor.successorSettlementKey,
+                    failedJournal.operationId,
+                    await readActiveRaw(),
+                  ))
+                ) {
+                  throw new Error('Lighter failed successor operation changed');
+                }
+                this.#assertSession(generationAtIntent);
+              }
+            }
             if (selectedSuccessor && selectedSuccessor.state !== 'failed') {
               const pendingSuccessor = await this.#loadTpslJournal(
                 selectedSuccessor.successorSettlementKey,
@@ -8320,21 +8402,48 @@ export class LighterProvider implements PerpsProvider {
                     );
                   }
                   this.#assertSession(generationAtIntent);
+                  await this.#verifyRetainedRecoveryCoverage(
+                    pendingSuccessor,
+                    readActiveRaw,
+                    readInactiveFor,
+                  );
+                  await this.#discardManagedTpslIds(
+                    selectedSuccessor.successorSettlementKey,
+                    pendingSuccessor.attempts.flatMap((attempt) =>
+                      attempt.kind === 'create' &&
+                      (attempt.neverLanded === true ||
+                        getLighterTransactionOutcome(attempt.terminalStatus) ===
+                          'failed')
+                        ? attempt.clientIds.map(String)
+                        : [],
+                    ),
+                  );
+                  this.#assertSession(generationAtIntent);
                   const groups =
                     pendingSuccessor.retainedReplacementGroups ??
                     pendingSuccessor.attempts
                       .filter(
                         (attempt): attempt is TpslCreateAttempt =>
                           attempt.kind === 'create' &&
-                          attempt.role === 'replacement',
+                          attempt.role === 'replacement' &&
+                          attempt.neverLanded !== true &&
+                          getLighterTransactionOutcome(
+                            attempt.terminalStatus,
+                          ) !== 'failed',
                       )
                       .map((attempt) => attempt.clientIds);
-                  const coverage = await this.#awaitTpslVisibility(
-                    readActiveRaw,
-                    readInactiveFor,
-                    { createdClientIds: groups.flat(), cancelledOrderIds: [] },
-                    { createdGroups: groups },
-                  );
+                  const coverage =
+                    groups.length === 0
+                      ? { outcome: 'created-terminal-failed' as const }
+                      : await this.#awaitTpslVisibility(
+                          readActiveRaw,
+                          readInactiveFor,
+                          {
+                            createdClientIds: groups.flat(),
+                            cancelledOrderIds: [],
+                          },
+                          { createdGroups: groups },
+                        );
                   if (coverage.outcome === 'timeout') {
                     throw new Error(
                       'Lighter previous successor coverage remains unresolved',
