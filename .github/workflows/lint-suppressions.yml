@@ -2,9 +2,6 @@ name: Lint Suppressions
 
 on:
   pull_request:
-    # `labeled` and `unlabeled` are here so that applying the waiver label
-    # starts a fresh run, whose payload then carries the label. A run already
-    # finished keeps the labels it started with, even when it is re-run.
     types: [opened, synchronize, labeled, unlabeled]
   merge_group:
 
