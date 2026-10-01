@@ -316,6 +316,7 @@ export type {
   PerpsSubscriptionUsage,
   PerpsSubscriptionFeeWaiverStatus,
   PerpsFeeSource,
+  PerpsFeeResolverScope,
   PerpsFeeResolution,
   PerpsTradingFeeGrant,
   UpdatePositionTPSLParams,

@@ -13,6 +13,7 @@ import {
 } from '../constants/perpsConfig.js';
 import type {
   PerpsFeeResolution,
+  PerpsFeeResolverScope,
   PerpsFeeSource,
   PerpsPlatformDependencies,
   PerpsSubscriptionBenefits,
@@ -56,7 +57,7 @@ type BenefitsSnapshot = {
  * - `default` — {@link BUILDER_FEE_CONFIG}, the fee with no reductions.
  * - `rewards` — the account-scoped VIP and season discount returned by
  *   `rewards.getPerpsDiscountForAccount`.
- * - `grant` — an independent, expiring production-Hyperliquid fee returned by
+ * - `grant` — an independent, expiring, route-scoped fee returned by
  *   `rewards.getPerpsTradingFeeGrant`.
  * - `subscription` — `0` bips, but only when the eligibility gate passes on a
  *   cached read of the profile's benefits.
@@ -155,12 +156,15 @@ export class RewardsIntegrationService {
    * Returns discount in basis points (e.g., 6500 = 65% discount)
    *
    * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
+   * @param scope - Provider route used to request route-scoped fee sources.
+   * Omission intentionally excludes grants for compatibility callers.
    * @returns The fee discount in basis points, or undefined if no source resolved.
    */
   async calculateUserFeeDiscount(
     orderNotionalUsd?: number,
+    scope?: PerpsFeeResolverScope,
   ): Promise<number | undefined> {
-    const resolution = await this.resolveFee(orderNotionalUsd);
+    const resolution = await this.resolveFee(orderNotionalUsd, scope);
     return resolution.discountBips;
   }
 
@@ -184,19 +188,27 @@ export class RewardsIntegrationService {
    * source instead.
    *
    * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
+   * @param scope - Provider route used to request route-scoped fee sources.
+   * Omission intentionally excludes grants.
    * @returns The winning fee, its source, and the subscription gate outcome.
    */
-  async resolveFee(orderNotionalUsd?: number): Promise<PerpsFeeResolution> {
+  async resolveFee(
+    orderNotionalUsd?: number,
+    scope?: PerpsFeeResolverScope,
+  ): Promise<PerpsFeeResolution> {
     const [rewardsDiscount, grantCandidate] = await Promise.all([
       this.#calculateRewardsDiscount(),
-      this.#getPerpsTradingFeeGrant(),
+      scope
+        ? this.#getPerpsTradingFeeGrant(scope)
+        : Promise.resolve<PerpsTradingFeeGrant | null>(null),
     ]);
     // Expiry is deliberately checked only after every concurrent candidate has
     // settled. A grant that expires while the account-scoped rewards request is
     // in flight must not be selected.
-    const grant = isValidTradingFeeGrant(grantCandidate, Date.now())
-      ? grantCandidate
-      : undefined;
+    const grant =
+      scope && isValidTradingFeeGrant(grantCandidate, scope, Date.now())
+        ? grantCandidate
+        : undefined;
     // Pure cache read: subscription benefits must never start a network request
     // while an order is being prepared for signing.
     const subscription = this.getSubscriptionFeeWaiverStatus();
@@ -841,17 +853,20 @@ export class RewardsIntegrationService {
   }
 
   /**
-   * Read the independent trading-fee grant without account or network lookup.
+   * Read the independent trading-fee grant for a provider route.
    *
+   * @param scope - Exact route requested by the resolver.
    * @returns The candidate, or null when unsupported or unavailable.
    */
-  async #getPerpsTradingFeeGrant(): Promise<PerpsTradingFeeGrant | null> {
+  async #getPerpsTradingFeeGrant(
+    scope: PerpsFeeResolverScope,
+  ): Promise<PerpsTradingFeeGrant | null> {
     if (!this.#deps.rewards.getPerpsTradingFeeGrant) {
       return null;
     }
 
     try {
-      return await this.#deps.rewards.getPerpsTradingFeeGrant();
+      return await this.#deps.rewards.getPerpsTradingFeeGrant(scope);
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'RewardsIntegrationService.getPerpsTradingFeeGrant'),
@@ -872,15 +887,19 @@ export class RewardsIntegrationService {
  * Validate a trading-fee grant at the time fee selection occurs.
  *
  * @param grant - Candidate returned by the client-owned RewardsController.
+ * @param scope - Exact provider route requested by the resolver.
  * @param now - Selection time as Unix milliseconds.
- * @returns Whether the candidate is finite, non-negative, and unexpired.
+ * @returns Whether the candidate is valid, unexpired, and matches the route.
  */
 function isValidTradingFeeGrant(
   grant: PerpsTradingFeeGrant | null,
+  scope: PerpsFeeResolverScope,
   now: number,
 ): grant is PerpsTradingFeeGrant {
   return Boolean(
     grant &&
+    grant.providerId === scope.providerId &&
+    grant.isTestnet === scope.isTestnet &&
     Number.isFinite(grant.feeBips) &&
     grant.feeBips >= 0 &&
     Number.isFinite(grant.expiresAt) &&

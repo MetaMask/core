@@ -404,6 +404,39 @@ describe('applyFeeResolution', () => {
     expect(priced.feeRate).toBeCloseTo(0.0012, 10);
     expect(priced.metamaskFeeAmount).toBeCloseTo(0.75, 10);
     expect(priced.feeAmount).toBeCloseTo(1.2, 10);
+    expect(priced.feeSource).toBe('subscription');
+  });
+
+  it('reports the rewards source from the resolution that repriced the quote', () => {
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.metamaskFeeRate).toBeCloseTo(0.00035, 10);
+    expect(priced.feeSource).toBe('rewards');
+  });
+
+  it('reports the grant source from the resolution that repriced the quote', () => {
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.metamaskFeeRate).toBeCloseTo(0.0002, 10);
+    expect(priced.feeSource).toBe('grant');
   });
 
   it('zeroes the MetaMask component on a full waiver', () => {
@@ -422,6 +455,7 @@ describe('applyFeeResolution', () => {
     expect(priced.metamaskFeeRate).toBe(0);
     expect(priced.feeRate).toBeCloseTo(0.00045, 10);
     expect(priced.metamaskFeeAmount).toBe(0);
+    expect(priced.feeSource).toBe('subscription');
   });
 
   it('quotes the venue-quantized rate the submit path charges', () => {
@@ -467,6 +501,7 @@ describe('applyFeeResolution', () => {
     // The full 10-bip builder fee, not the 5-bip rate the provider carried.
     expect(priced.metamaskFeeRate).toBeCloseTo(0.001, 10);
     expect(priced.feeRate).toBeCloseTo(0.00145, 10);
+    expect(priced.feeSource).toBe('default');
   });
 
   it.each(['-1000', '0'])(
@@ -499,7 +534,11 @@ describe('applyFeeResolution', () => {
   });
 
   it('leaves a placement that carries no builder fee untouched', () => {
-    const twapFees = { ...fees, metamaskFeeRate: 0, metamaskFeeAmount: 0 };
+    const twapFees = {
+      ...fees,
+      metamaskFeeRate: 0.001,
+      metamaskFeeAmount: 1,
+    };
 
     expect(
       applyFeeResolution({
@@ -559,6 +598,7 @@ describe('applyFeeResolution', () => {
 
     expect(priced.metamaskFeeRate).toBe(0.001);
     expect(priced.metamaskFeeAmount).toBe(1);
+    expect(priced.feeSource).toBe('default');
   });
 
   it('re-prices rates without amounts when no notional was supplied', () => {
@@ -574,6 +614,7 @@ describe('applyFeeResolution', () => {
     });
 
     expect(priced.metamaskFeeRate).toBe(0);
+    expect(priced.feeSource).toBe('subscription');
     // The previously quoted amounts are left as the provider reported them.
     expect(priced.metamaskFeeAmount).toBe(fees.metamaskFeeAmount);
   });

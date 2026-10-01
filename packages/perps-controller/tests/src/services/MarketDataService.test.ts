@@ -20,6 +20,7 @@ import type {
 } from '../../../src/types/index.js';
 import type { CandleData } from '../../../src/types/perps-types.js';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
+import { quantizeBuilderFeeTenthsBps } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import {
   createMockHyperLiquidProvider,
@@ -867,7 +868,7 @@ describe('MarketDataService', () => {
       expect(result).toEqual(mockFees);
     });
 
-    it('returns the pricing resolution through rewards and other source previews', async () => {
+    it('returns only the winning source from the operation that reprices each preview', async () => {
       const resolutions: PerpsFeeResolution[] = [
         {
           source: 'rewards',
@@ -876,9 +877,9 @@ describe('MarketDataService', () => {
           subscription: { eligible: false, reason: 'no-source' },
         },
         {
-          source: 'rewards',
-          feeBips: 3.5,
-          discountBips: 6500,
+          source: 'grant',
+          feeBips: 2,
+          discountBips: 8000,
           subscription: { eligible: false, reason: 'no-source' },
         },
         {
@@ -909,13 +910,14 @@ describe('MarketDataService', () => {
           },
           context: { ...mockContext, feeResolution: resolution },
         });
-        expect(result.feeResolution).toBe(resolution);
-        expect(result.metamaskFeeRate).toBeCloseTo(resolution.feeBips / 10000);
-        expect(result.feeRate).toBeCloseTo(
-          resolution.feeBips / 10000 + 0.00045,
-        );
+        expect(result.feeSource).toBe(resolution.source);
+        expect(result).not.toHaveProperty('feeResolution');
+        const expectedMetamaskFeeRate =
+          quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0) / 100000;
+        expect(result.metamaskFeeRate).toBe(expectedMetamaskFeeRate);
+        expect(result.feeRate).toBeCloseTo(expectedMetamaskFeeRate + 0.00045);
         expect(result.feeAmount).toBeCloseTo(
-          (resolution.feeBips / 10000 + 0.00045) * 1000,
+          (expectedMetamaskFeeRate + 0.00045) * 1000,
         );
       }
       expect(mockProvider.calculateFees).toHaveBeenCalledTimes(
@@ -924,13 +926,14 @@ describe('MarketDataService', () => {
     });
 
     it.each([
+      { rate: undefined, policy: undefined, applies: false },
       { rate: undefined, policy: true, applies: false },
       { rate: 0, policy: undefined, applies: false },
       { rate: 0, policy: false, applies: false },
       { rate: 0, policy: true, applies: true },
       { rate: 0.001, policy: false, applies: false },
     ])(
-      'only attributes applicable builder fee previews ($rate, $policy)',
+      'only reprices and attributes applicable builder fee previews ($rate, $policy)',
       async ({ rate, policy, applies }) => {
         const resolution: PerpsFeeResolution = {
           source: 'rewards',
@@ -953,11 +956,13 @@ describe('MarketDataService', () => {
           context: { ...mockContext, feeResolution: resolution },
         });
         if (applies) {
-          expect(result.feeResolution).toBe(resolution);
+          expect(result.feeSource).toBe('rewards');
           expect(result.metamaskFeeRate).toBeCloseTo(0.00035);
         } else {
-          expect(result).not.toHaveProperty('feeResolution');
+          expect(result).not.toHaveProperty('feeSource');
+          expect(result.metamaskFeeRate).toBe(rate);
         }
+        expect(result).not.toHaveProperty('feeResolution');
       },
     );
 
