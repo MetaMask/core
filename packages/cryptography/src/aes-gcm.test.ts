@@ -195,6 +195,20 @@ describe('decrypt', () => {
     expect(bytesToHex(result)).toBe(bytesToHex(nistPlaintext4));
   });
 
+  it('accepts an ArrayBuffer of associated data', async () => {
+    const result = await decrypt(nistKey4, nistIv4, nistCiphertext4, {
+      additionalData: nistAdditionalData4.buffer,
+    });
+    expect(bytesToHex(result)).toBe(bytesToHex(nistPlaintext4));
+  });
+
+  it('accepts a DataView of associated data', async () => {
+    const result = await decrypt(nistKey4, nistIv4, nistCiphertext4, {
+      additionalData: new DataView(nistAdditionalData4.buffer),
+    });
+    expect(bytesToHex(result)).toBe(bytesToHex(nistPlaintext4));
+  });
+
   it('rejects ciphertext authenticated with different associated data', async () => {
     await expect(
       decrypt(nistKey4, nistIv4, nistCiphertext4, {
