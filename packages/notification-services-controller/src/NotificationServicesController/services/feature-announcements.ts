@@ -86,6 +86,7 @@ const fetchFeatureAnnouncementNotifications = async (
     | TypePortfolioLinkFields['fields']
     | TypeMobileLinkFields['fields']
     | TypeExternalLinkFields['fields']
+    | Asset['fields']
     | null => {
     const typedData: EntryCollection<
       | ImageFields
