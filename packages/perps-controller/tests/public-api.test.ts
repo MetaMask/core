@@ -32,12 +32,6 @@ import type {
 import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
 import { assertExpectedPosition } from '../src/utils/positionProtection.js';
 
-// The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
-// entrypoint only needs its error class to be defined.
-jest.mock('@nktkas/hyperliquid', () => ({
-  HyperliquidError: class MockHyperliquidError extends Error {},
-}));
-
 describe('@metamask/perps-controller public API', () => {
   it('exports the trading configuration constants', () => {
     expect([

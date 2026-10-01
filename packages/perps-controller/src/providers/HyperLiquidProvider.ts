@@ -317,6 +317,26 @@ const HISTORICAL_ORDER_STATUS_BY_SDK_STATUS = {
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
 
+/**
+ * Allocate an unmarked protection identity without reusing this operation's IDs.
+ *
+ * @param allocated - IDs already allocated for replacement or restoration.
+ * @returns A unique client ID with the subscription layout and no fee flag.
+ */
+const createUnmarkedProtectionCloid = (allocated: Set<string>): Hex => {
+  const unmarkedFlags = 0;
+  const flags = unmarkedFlags.toString(16).padStart(2, '0');
+  const entropy = uuidv4()
+    .replace(/-/gu, '')
+    .slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength);
+  const cloid: Hex = `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}${flags}${entropy}`;
+  if (allocated.has(cloid)) {
+    throw new Error('Duplicate TP/SL client order identity');
+  }
+  allocated.add(cloid);
+  return cloid;
+};
+
 type ScaleBulkOrderResponse = {
   status: 'ok';
   response: {
@@ -10803,15 +10823,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const generatedCloids = new Set<string>();
       for (const order of orders) {
-        const entropy = uuidv4()
-          .replace(/-/gu, '')
-          .slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength);
-        const cloid: Hex = `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}00${entropy}`;
-        if (generatedCloids.has(cloid)) {
-          throw new Error('Duplicate TP/SL client order identity');
-        }
-        generatedCloids.add(cloid);
-        order.c = cloid;
+        order.c = createUnmarkedProtectionCloid(generatedCloids);
       }
       const assertCurrentPosition = async (): Promise<void> => {
         await assertScope();
@@ -10925,7 +10937,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
           const restorationOrders = entries.map((entry) => ({
             ...entry.order,
-            c: `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}00${uuidv4().replace(/-/gu, '').slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength)}` as Hex,
+            c: createUnmarkedProtectionCloid(generatedCloids),
           }));
           const sentRestorationOrders = this.#applySubscriptionCloid(
             restorationOrders,
@@ -11195,17 +11207,16 @@ export class HyperLiquidProvider implements PerpsProvider {
             identitiesValid = false;
             continue;
           }
-          for (let attempt = 0; attempt < 3; attempt += 1) {
+          // One exact-ID lookup verifies immediate correlation. An unknown
+          // index is uncertainty, not a reason to repeat the same read in a tight loop.
+          await assertScope();
+          try {
+            const status = await infoClient.orderStatus({
+              user: userAddress,
+              oid: cloid,
+            });
             await assertScope();
-            try {
-              const status = await infoClient.orderStatus({
-                user: userAddress,
-                oid: cloid,
-              });
-              await assertScope();
-              if (status.status !== 'order') {
-                continue;
-              }
+            if (status.status === 'order') {
               const row = status.order.order;
               if (
                 row.coin !== symbol ||
@@ -11218,13 +11229,10 @@ export class HyperLiquidProvider implements PerpsProvider {
               } else {
                 orderId = String(row.oid);
               }
-              break;
-            } catch {
-              // A query failure cannot invent an ID. Recheck lifecycle outside
-              // the catch so stale accounts never produce a success receipt.
-              await assertScope();
-              break;
             }
+          } catch {
+            // Read failure cannot invent an ID; stale scopes cannot return receipts.
+            await assertScope();
           }
           if (orderId !== undefined) {
             childOrderIds.push(orderId);
