@@ -6710,6 +6710,56 @@ describe('LighterProvider', () => {
       },
     );
 
+    it.each(['absent', 'zero', 'subtick'] as const)(
+      'retains explicit removal preconditions when live position becomes %s',
+      async (state) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const before = venue.rawTriggers.map((row) => ({ ...row }));
+        clientInstance.getAccountByIndex
+          .mockResolvedValueOnce({ code: 200, accounts: [ACCOUNT] })
+          .mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions:
+                  state === 'absent'
+                    ? []
+                    : [
+                        {
+                          ...ACCOUNT.positions[0],
+                          position: state === 'zero' ? '0' : '0.000000001',
+                        },
+                      ],
+              },
+            ],
+          });
+        calls.length = 0;
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        expect(
+          calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(venue.rawTriggers).toStrictEqual(before);
+      },
+    );
+
     it.each(['resize', 'entry-drift'])(
       'releases an unsent removal after position %s during cancel signing',
       async (change) => {
