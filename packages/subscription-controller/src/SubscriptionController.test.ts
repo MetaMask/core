@@ -346,6 +346,7 @@ function createCustomSubscriptionMessenger(): {
     actions: [
       ...SUBSCRIPTION_SERVICE_ACTIONS,
       'AuthenticationController:performSignOut',
+      'SeedlessOnboardingController:getIsUserAuthenticated',
     ],
   });
 
@@ -370,6 +371,7 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
   rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
   mockPerformSignOut: jest.Mock;
+  mockGetIsUserAuthenticated: jest.Mock;
 } {
   const { rootMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
@@ -380,10 +382,17 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
     mockPerformSignOut,
   );
 
+  const mockGetIsUserAuthenticated = jest.fn().mockResolvedValue(true);
+  rootMessenger.registerActionHandler(
+    'SeedlessOnboardingController:getIsUserAuthenticated',
+    mockGetIsUserAuthenticated,
+  );
+
   return {
     rootMessenger,
     messenger,
     mockPerformSignOut,
+    mockGetIsUserAuthenticated,
   };
 }
 
@@ -540,6 +549,7 @@ type WithControllerCallback<ReturnValue> = (params: {
     typeof registerMockSubscriptionService
   >['mockService'];
   mockPerformSignOut: jest.Mock;
+  mockGetIsUserAuthenticated: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -558,8 +568,12 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger, mockPerformSignOut, rootMessenger } =
-    createMockSubscriptionMessenger();
+  const {
+    messenger,
+    mockGetIsUserAuthenticated,
+    mockPerformSignOut,
+    rootMessenger,
+  } = createMockSubscriptionMessenger();
   const { mockService } = registerMockSubscriptionService(rootMessenger);
 
   const controller = new SubscriptionController({
@@ -574,6 +588,7 @@ async function withController<ReturnValue>(
     rootMessenger,
     mockService,
     mockPerformSignOut,
+    mockGetIsUserAuthenticated,
   });
 }
 
@@ -1640,6 +1655,98 @@ describe('SubscriptionController', () => {
           ),
         ).toBeUndefined();
       });
+    });
+  });
+
+  describe('isUserEligibleForTrial', () => {
+    it('returns true for Shield when the user has not trialed it', async () => {
+      await withController(
+        async ({ controller, mockGetIsUserAuthenticated, rootMessenger }) => {
+          expect(
+            await controller.isUserEligibleForTrial(PRODUCT_TYPES.SHIELD),
+          ).toBe(true);
+          expect(
+            await rootMessenger.call(
+              'SubscriptionController:isUserEligibleForTrial',
+              PRODUCT_TYPES.SHIELD,
+            ),
+          ).toBe(true);
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false for Shield when the user has already trialed it', async () => {
+      await withController(
+        {
+          state: {
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          },
+        },
+        async ({ controller, mockGetIsUserAuthenticated }) => {
+          expect(
+            await controller.isUserEligibleForTrial(PRODUCT_TYPES.SHIELD),
+          ).toBe(false);
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns true for Money Account Plus when the user has not trialed it and is authenticated with social login', async () => {
+      await withController(
+        async ({ controller, mockGetIsUserAuthenticated }) => {
+          expect(
+            await controller.isUserEligibleForTrial(
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            ),
+          ).toBe(true);
+          expect(mockGetIsUserAuthenticated).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('returns false for Money Account Plus when the user is not authenticated with social login', async () => {
+      await withController(
+        async ({ controller, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+
+          expect(
+            await controller.isUserEligibleForTrial(
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            ),
+          ).toBe(false);
+          expect(mockGetIsUserAuthenticated).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('throws for an unexpected product type', async () => {
+      await withController(
+        async ({ controller, mockGetIsUserAuthenticated }) => {
+          await expect(
+            controller.isUserEligibleForTrial('unknown' as ProductType),
+          ).rejects.toThrow('Unexpected product type: unknown');
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false for Money Account Plus when the user has already trialed it', async () => {
+      await withController(
+        {
+          state: {
+            trialedProducts: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          },
+        },
+        async ({ controller, mockGetIsUserAuthenticated }) => {
+          expect(
+            await controller.isUserEligibleForTrial(
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            ),
+          ).toBe(false);
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 

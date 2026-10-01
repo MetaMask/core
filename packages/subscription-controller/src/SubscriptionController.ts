@@ -6,6 +6,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { SeedlessOnboardingControllerGetIsUserAuthenticatedAction } from '@metamask/seedless-onboarding-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -127,7 +128,8 @@ type AllowedActions =
   | SubscriptionServiceSubmitUserEventAction
   | SubscriptionServiceAssignUserToCohortAction
   | SubscriptionServiceLinkRewardsAction
-  | AuthenticationController.AuthenticationControllerPerformSignOutAction;
+  | AuthenticationController.AuthenticationControllerPerformSignOutAction
+  | SeedlessOnboardingControllerGetIsUserAuthenticatedAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -247,6 +249,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptions',
   'getBenefits',
   'getSubscriptionByProduct',
+  'isUserEligibleForTrial',
   'getSubscriptionsEligibilities',
   'cancelSubscription',
   'unCancelSubscription',
@@ -475,6 +478,41 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return this.state.subscriptions.find((subscription) =>
       subscription.products.some((product) => product.name === productType),
     );
+  }
+
+  /**
+   * Whether the user is eligible to start a trial for the given product.
+   *
+   * Shield is eligible when the user has not trialed Shield before.
+   * Money Account Plus is eligible when the user has not trialed it before
+   * and is authenticated with social login. Only an unlocked wallet can
+   * subscribe, so `SeedlessOnboardingController:getIsUserAuthenticated` is a
+   * sufficient social-login check.
+   *
+   * @param productType - The product to check.
+   * @returns Whether the user is eligible for a trial.
+   */
+  async isUserEligibleForTrial(productType: ProductType): Promise<boolean> {
+    if (this.state.trialedProducts.includes(productType)) {
+      return false;
+    }
+
+    switch (productType) {
+      case PRODUCT_TYPES.SHIELD:
+        return true;
+      case PRODUCT_TYPES.MONEY_ACCOUNT_PLUS:
+        return await this.messenger.call(
+          'SeedlessOnboardingController:getIsUserAuthenticated',
+        );
+      default: {
+        // `productType` is `never` here. A new `PRODUCT_TYPES` member fails
+        // compilation until this switch handles it.
+        const unexpectedProduct: never = productType;
+        throw new Error(
+          `Unexpected product type: ${String(unexpectedProduct)}`,
+        );
+      }
+    }
   }
 
   /**

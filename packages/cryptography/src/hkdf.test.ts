@@ -4,32 +4,24 @@ import { hkdfSha256, hkdfSha384, hkdfSha512 } from './hkdf.js';
 
 const ikm = hexToBytes(
   '0x0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b',
-) as Uint8Array<ArrayBuffer>;
+);
 const salt = hexToBytes(
   '0xf38a650903309967f2073b437852f77c87af7529cd5c85f4d2bdcf470083553c',
-) as Uint8Array<ArrayBuffer>;
-const info = stringToBytes('bar') as Uint8Array<ArrayBuffer>;
+);
+const info = stringToBytes('bar');
 
 // RFC 5869 Test Case 1: IKM = 22 bytes of 0x0b, salt, info as specified
 // https://datatracker.ietf.org/doc/html/rfc5869#appendix-A.1
 const rfcIkm = new Uint8Array(22).fill(0x0b);
-const rfcSalt = hexToBytes(
-  '0x000102030405060708090a0b0c',
-) as Uint8Array<ArrayBuffer>;
-const rfcInfo = hexToBytes('0xf0f1f2f3f4f5f6f7f8f9') as Uint8Array<ArrayBuffer>;
+const rfcSalt = hexToBytes('0x000102030405060708090a0b0c');
+const rfcInfo = hexToBytes('0xf0f1f2f3f4f5f6f7f8f9');
 
 // Wycheproof test vectors for SHA-384 and SHA-512
 // https://github.com/google/wycheproof/blob/master/testvectors_v1/hkdf_sha384_test.json
 // https://github.com/google/wycheproof/blob/master/testvectors_v1/hkdf_sha512_test.json
-const wpIkm1 = hexToBytes(
-  '0x24aeff2645e3e0f5494a9a102778c43a',
-) as Uint8Array<ArrayBuffer>;
-const wpIkm7 = hexToBytes(
-  '0xc27718560fae2515acb17a874991d357',
-) as Uint8Array<ArrayBuffer>;
-const wpSalt7 = hexToBytes(
-  '0x4487f538b65c9058625057b4bbdd93e7',
-) as Uint8Array<ArrayBuffer>;
+const wpIkm1 = hexToBytes('0x24aeff2645e3e0f5494a9a102778c43a');
+const wpIkm7 = hexToBytes('0xc27718560fae2515acb17a874991d357');
+const wpSalt7 = hexToBytes('0x4487f538b65c9058625057b4bbdd93e7');
 
 describe('hkdfSha256', () => {
   it('derives key material from the provided inputs', async () => {
@@ -77,7 +69,22 @@ describe('hkdfSha256', () => {
 
   it('throws if the IKM is empty', async () => {
     await expect(hkdfSha256(new Uint8Array(0), salt, info, 32)).rejects.toThrow(
-      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-256.',
+      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-256. To bypass this check, set the `unsafeInputKeyingMaterial` option to `true`.',
+    );
+  });
+
+  it('derives key material from an empty IKM when the length check is skipped', async () => {
+    // HKDF-SHA-256, 32-byte salt of 0x01, empty IKM and info, 64-byte output.
+    // Matches Node crypto.hkdfSync and the Noise Split input shape.
+    const key = await hkdfSha256(
+      new Uint8Array(0),
+      new Uint8Array(32).fill(1),
+      new Uint8Array(0),
+      64,
+      { unsafeInputKeyingMaterial: true },
+    );
+    expect(bytesToHex(key)).toBe(
+      '0xb5a5789af1d00c74773ef327dc63f0f11c7041252d4916c43a252b92e3358ad272d7e204fba7b0ac19964ebcba5e88e3609cb8c3cafa4b940945df49da83680f',
     );
   });
 });
@@ -137,7 +144,7 @@ describe('hkdfSha384', () => {
 
   it('throws if the IKM is empty', async () => {
     await expect(hkdfSha384(new Uint8Array(0), salt, info, 48)).rejects.toThrow(
-      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-384.',
+      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-384. To bypass this check, set the `unsafeInputKeyingMaterial` option to `true`.',
     );
   });
 });
@@ -197,7 +204,7 @@ describe('hkdfSha512', () => {
 
   it('throws if the IKM is empty', async () => {
     await expect(hkdfSha512(new Uint8Array(0), salt, info, 64)).rejects.toThrow(
-      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-512.',
+      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-512. To bypass this check, set the `unsafeInputKeyingMaterial` option to `true`.',
     );
   });
 });

@@ -9,8 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/assets-controllers` from `^112.1.1` to `^112.1.2` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/config-registry-controller` from `^4.0.0` to `^5.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-enablement-controller` from `^7.0.1` to `^7.0.2` ([#10658](https://github.com/MetaMask/core/pull/10658))
+
+## [18.0.0]
+
+### Added
+
+- **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
+  - `AssetsController` subscribes to `MultichainTransactionsController:transactionConfirmed` so non-EVM (Snap keyring) transactions trigger the same post-transaction balance refresh as EVM `TransactionController:transactionConfirmed`.
+  - Consumers must delegate `MultichainTransactionsController:transactionConfirmed` onto the Assets controller messenger. Without that delegation the subscription is registered and never fires.
+
+### Changed
+
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/assets-controllers` from `^112.0.4` to `^112.1.1` ([#10633](https://github.com/MetaMask/core/pull/10633), [#10648](https://github.com/MetaMask/core/pull/10648))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
 
 ### Fixed
 
@@ -1115,7 +1141,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.0...@metamask/assets-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@17.0.0...@metamask/assets-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.2...@metamask/assets-controller@17.0.0
 [16.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.1...@metamask/assets-controller@16.1.2
 [16.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...@metamask/assets-controller@16.1.1

@@ -53,7 +53,7 @@
     "@metamask/base-controller": "^10.0.0",
     "@metamask/base-data-service": "^2.1.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-controller": "^37.0.1",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.103.2"

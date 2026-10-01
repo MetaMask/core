@@ -5,23 +5,23 @@ import * as random from './random.js';
 
 const privateKey = hexToBytes(
   '0xf05665c0091fc75a5a558eddb88acd3ce2a789e15c0e10ceb334849357394ac1',
-) as Uint8Array<ArrayBuffer>;
+);
 const publicKey = hexToBytes(
   '0x2d0eba7e02a698405c3e3ce6b35acd00def24ffb7c10c2127f58393e2c44f935',
-) as Uint8Array<ArrayBuffer>;
+);
 
 // RFC 8032 Section 6 Ed25519 test vector 3 (2-byte message)
 // https://www.rfc-editor.org/rfc/rfc8032#section-6
 const rfcPrivateKey = hexToBytes(
   '0xc5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7',
-) as Uint8Array<ArrayBuffer>;
+);
 const rfcPublicKey = hexToBytes(
   '0xfc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025',
-) as Uint8Array<ArrayBuffer>;
-const rfcMessage = hexToBytes('0xaf82') as Uint8Array<ArrayBuffer>;
+);
+const rfcMessage = hexToBytes('0xaf82');
 const rfcSignature = hexToBytes(
   '0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a',
-) as Uint8Array<ArrayBuffer>;
+);
 
 describe('generateKeyPair', () => {
   it('uses 32 random bytes as the private key and derives the public key from it', async () => {
@@ -65,7 +65,7 @@ describe('generateKeyPair', () => {
   it('generates a key pair that can sign and verify data', async () => {
     const { privateKey: generatedPrivateKey, publicKey: generatedPublicKey } =
       await generateKeyPair();
-    const data = stringToBytes('foo') as Uint8Array<ArrayBuffer>;
+    const data = stringToBytes('foo');
 
     const signature = await sign(generatedPrivateKey, data);
 
@@ -111,10 +111,7 @@ describe('getPublicKey', () => {
 
 describe('sign', () => {
   it('signs the provided data with the private key', async () => {
-    const signature = await sign(
-      privateKey,
-      stringToBytes('foo') as Uint8Array<ArrayBuffer>,
-    );
+    const signature = await sign(privateKey, stringToBytes('foo'));
     expect(bytesToHex(signature)).toBe(
       '0x0062c22e7ff3c86a9af932d2641b5c532e6b8d7c05c489467cc875c3b27bebd2463010fc816e65b520e60f40ef192ee79e85a9cea918bd2a41d566ee6aeba50b',
     );
@@ -155,12 +152,8 @@ describe('verify', () => {
   it('verifies the provided data, public key and signature', async () => {
     const signature = hexToBytes(
       '0x0062c22e7ff3c86a9af932d2641b5c532e6b8d7c05c489467cc875c3b27bebd2463010fc816e65b520e60f40ef192ee79e85a9cea918bd2a41d566ee6aeba50b',
-    ) as Uint8Array<ArrayBuffer>;
-    const verified = await verify(
-      publicKey,
-      signature,
-      stringToBytes('foo') as Uint8Array<ArrayBuffer>,
     );
+    const verified = await verify(publicKey, signature, stringToBytes('foo'));
     expect(verified).toBe(true);
   });
 
