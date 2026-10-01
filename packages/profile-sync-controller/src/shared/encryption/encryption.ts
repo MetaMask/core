@@ -4,6 +4,7 @@ import {
   stringToBytes,
   bytesToHex,
   concatBytes,
+  remove0x,
 } from '@metamask/utils';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
@@ -367,5 +368,5 @@ export default encryption;
  */
 export function createSHA256Hash(data: string): string {
   const hashedData = sha256(data);
-  return bytesToHex(hashedData);
+  return remove0x(bytesToHex(hashedData));
 }
