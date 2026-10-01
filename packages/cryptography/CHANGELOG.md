@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(utils): narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
-
 ### Fixed
 
 - Narrow return type for AES `encrypt` function to `Uint8Array<ArrayBuffer>` ([#10623](https://github.com/MetaMask/core/pull/10623))
