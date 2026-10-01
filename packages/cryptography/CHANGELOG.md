@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Added
 
 - Add an `additionalData` option to AES-GCM `encrypt` and `decrypt` ([#10628](https://github.com/MetaMask/core/pull/10628))
@@ -30,5 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `encrypt` and `decrypt` functions for AES-GCM symmetric encryption exported via `@metamask/cryptography/aes-gcm`
   - Add `getRandomBytes` function for generating cryptographically secure random bytes
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.0.0...@metamask/cryptography@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/cryptography@1.0.0
