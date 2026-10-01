@@ -6733,8 +6733,11 @@ describe('LighterProvider', () => {
         const release = createDeferred<void>();
         const execute = jest.spyOn(bridge, 'execute');
         const original = execute.getMockImplementation();
+        if (!original) {
+          throw new Error('Expected configured Lighter bridge implementation');
+        }
         execute.mockImplementation(async (call: LighterWasmCall) => {
-          const signed = await original?.(call);
+          const signed = await original(call);
           if (call.function === '_signCancelOrder') {
             started.resolve();
             await release.promise;
