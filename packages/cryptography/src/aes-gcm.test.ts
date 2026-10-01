@@ -26,12 +26,8 @@ const nistCiphertext15 = hexToBytes(
 );
 
 // Test Case 4: 128-bit key with associated data
-const nistKey4 = hexToBytes(
-  '0xfeffe9928665731c6d6a8f9467308308',
-);
-const nistIv4 = hexToBytes(
-  '0xcafebabefacedbaddecaf888',
-);
+const nistKey4 = hexToBytes('0xfeffe9928665731c6d6a8f9467308308');
+const nistIv4 = hexToBytes('0xcafebabefacedbaddecaf888');
 const nistPlaintext4 = hexToBytes(
   '0xd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39',
 );
