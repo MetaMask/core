@@ -6100,7 +6100,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['absent', 'zero', 'subtick'] as const)(
+    it.each(['absent', 'zero', 'subtick', 'invalid-sign'] as const)(
       'removes only durable managed protection after live position becomes %s',
       async (state) => {
         const infra = createMockInfrastructure();
@@ -6124,6 +6124,14 @@ describe('LighterProvider', () => {
         for (const type of ['stop-loss', 'stop-loss-limit', 'limit']) {
           venue.seedTrigger(type, '85000');
         }
+        const buySide = venue.seedTrigger('stop-loss', '85000');
+        const buySideRow = venue.rawTriggers.find(
+          (row) => row.orderIndex === buySide,
+        );
+        if (!buySideRow) {
+          throw new Error('Missing unrecorded buy-side trigger');
+        }
+        buySideRow.isAsk = false;
         const partial = venue.seedTrigger('take-profit', '110000');
         const partialRow = venue.rawTriggers.find(
           (row) => row.orderIndex === partial,
@@ -6157,7 +6165,13 @@ describe('LighterProvider', () => {
                     : [
                         {
                           ...ACCOUNT.positions[0],
-                          position: state === 'zero' ? '0' : '0.000000001',
+                          position:
+                            state === 'zero'
+                              ? '0'
+                              : state === 'invalid-sign'
+                                ? '0.1'
+                                : '0.000000001',
+                          sign: state === 'invalid-sign' ? 0 : 1,
                         },
                       ],
               },

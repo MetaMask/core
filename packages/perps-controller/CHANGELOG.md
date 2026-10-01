@@ -28,13 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Allow removal of proven managed Lighter TP/SL IDs when the position disappears, becomes zero or falls below the size tick after preflight. Require an authoritative account/positions response, preserve unrecorded protection without valid live quantity and side, and retain replacement size/side guards ([#10638](https://github.com/MetaMask/core/pull/10638))
-
 - Fence Lighter financial writes across every local account key slot so migration cannot bypass a pending or quarantined dispatch. Reconcile exact transaction identities under an account-wide write mutex; discovery and key registration share this mutex but bypass other-slot financial obligations. Nonterminal or mismatched transactions stay unresolved and cannot be acknowledged ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reuse matching Lighter trading keys before allocating a free slot, preserve occupied device keys and wait for new registration visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Deliver Lighter signer setup failures to the current wallet's subscribers. Replay confirmed empty orders and validated newest-first fill history to late subscribers in the same authenticated session; malformed order/trade containers, null order/trade rows and rejected order rows never authorize empty replay; omitted orders or trades containers leave the last snapshot unchanged; throwing error listeners cannot suppress sibling delivery or prevent setup retries ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Accept Lighter trades that omit position-sign flags and preserve omitted account PnL, including closing and flipping fill PnL, as unknown for Activity and late-subscriber replay. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605), [#10618](https://github.com/MetaMask/core/pull/10618))
 - Refuse stale signer readiness after a wallet switch or bridge reset while setup finishes, preserving unfinished TP/SL recovery visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
-
 
 ## [19.0.0]
 

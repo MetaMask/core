@@ -155,6 +155,13 @@ replaced or removed; an unknown time-in-force refuses the change. Independent
 partial triggers and trigger limits are preserved. Use explicit cancellation to
 remove those orders. Quantity does not determine ownership of Core-created TP/SL.
 
+Managed Lighter TP/SL removal does not require an integerizable position quantity
+after preflight: exact recorded protection IDs can still be cancelled when an
+authoritative positions array shows no position, zero size or a size below the
+tick. Account-read failures or malformed position envelopes still refuse the
+operation. Unrecorded legacy protection still requires a valid live quantity and
+side for classification; replacement retains its size and side checks.
+
 `getOrderCapabilities` reports these types only for active, known markets.
 Capabilities and trigger preflight refresh public metadata and fail closed on
 read errors instead of relying on a session's old active-market snapshot.
@@ -164,5 +171,3 @@ deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
-
-Managed Lighter TP/SL removal does not require an integerizable position quantity after preflight: exact recorded protection IDs can still be cancelled when an authoritative positions array shows no position, zero size or a size below the tick. Account-read failures or malformed position envelopes still refuse the operation. Unrecorded legacy protection still requires a valid live quantity and side for classification; replacement retains its size and side checks.
