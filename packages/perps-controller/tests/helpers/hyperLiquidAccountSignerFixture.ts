@@ -352,12 +352,18 @@ export type AccountSignerFixture = {
   sdkWallet: () => HyperLiquidWalletParams;
   // Report an exchange request and the venue's answer (undefined when the
   // request failed without one) to the provider, as the client service does
-  // before the SDK reads the answer.
-  reportExchangeRequest: (payload: unknown, answer: unknown) => void;
+  // before the SDK reads the answer. `wallet` is the wallet the request was
+  // signed with, by default the current one.
+  reportExchangeRequest: (
+    payload: unknown,
+    answer: unknown,
+    wallet?: HyperLiquidWalletParams,
+  ) => void;
   // reportExchangeRequest for a request carrying `signature`.
   reportAnswer: (
     signature: Hex,
     answer: Record<string, unknown> | undefined,
+    wallet?: HyperLiquidWalletParams,
   ) => void;
   // Sign an exchange request through the SDK wallet and send it the way the
   // SDK does: the venue's answer is reported to the provider with the
@@ -367,6 +373,7 @@ export type AccountSignerFixture = {
     payload: PerpsTypedDataPayload,
     answer: Record<string, unknown>,
     delivery?: 'thrown' | 'returned',
+    wallet?: HyperLiquidWalletParams,
   ) => Promise<Record<string, unknown>>;
   selectAccount: (address: Hex) => void;
   deselectAccount: () => void;
@@ -409,23 +416,40 @@ export function createAccountSignerProvider(
     return wallet;
   };
   // The provider's listener for exchange requests, which the client service
-  // calls with each request and the venue's answer.
+  // calls with each request, the venue's answer and the wallet it signed with.
   let onExchangeRequest:
-    | ((payload: unknown, answer: unknown) => void)
+    | ((
+        payload: unknown,
+        answer: unknown,
+        wallet: HyperLiquidWalletParams,
+      ) => void)
     | undefined;
-  const reportExchangeRequest = (payload: unknown, answer: unknown): void =>
-    onExchangeRequest?.(payload, answer);
+  const reportExchangeRequest = (
+    payload: unknown,
+    answer: unknown,
+    signingWallet: HyperLiquidWalletParams = sdkWallet(),
+  ): void => onExchangeRequest?.(payload, answer, signingWallet);
   const reportAnswer = (
     signature: Hex,
     answer: Record<string, unknown> | undefined,
+    signingWallet: HyperLiquidWalletParams = sdkWallet(),
   ): void =>
-    reportExchangeRequest({ signature: { r: signature.slice(0, 66) } }, answer);
+    reportExchangeRequest(
+      { signature: { r: signature.slice(0, 66) } },
+      answer,
+      signingWallet,
+    );
   const signAndSend = async (
     payload: PerpsTypedDataPayload,
     answer: Record<string, unknown>,
     delivery: 'thrown' | 'returned' = 'thrown',
+    signingWallet: HyperLiquidWalletParams = sdkWallet(),
   ): Promise<Record<string, unknown>> => {
-    reportAnswer(await signThroughWallet(sdkWallet(), payload), answer);
+    reportAnswer(
+      await signThroughWallet(signingWallet, payload),
+      answer,
+      signingWallet,
+    );
     if (delivery === 'returned' || getVenueErrorMessage(answer) === undefined) {
       return answer;
     }

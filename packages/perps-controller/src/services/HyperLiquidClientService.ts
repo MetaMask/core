@@ -57,6 +57,16 @@ export type HyperLiquidWalletParams = {
   signatureChainId?: () => Promise<Hex>;
 };
 
+/**
+ * Told of an exchange request, the venue's answer (undefined when the request
+ * failed before one) and the wallet the request was signed with.
+ */
+type ExchangeRequestListener = (
+  payload: unknown,
+  answer: unknown,
+  wallet: HyperLiquidWalletParams,
+) => void;
+
 // WebSocketConnectionState is now imported from controllers/types
 // Re-export for backward compatibility with existing consumers
 export { WebSocketConnectionState } from '../types/index.js';
@@ -80,7 +90,7 @@ export class HyperLiquidClientService {
 
   #httpTransport?: HttpTransport;
 
-  readonly #onExchangeRequest?: (payload: unknown, response: unknown) => void;
+  readonly #onExchangeRequest?: ExchangeRequestListener;
 
   #walletParams?: HyperLiquidWalletParams;
 
@@ -127,14 +137,15 @@ export class HyperLiquidClientService {
    * @param options - Options.
    * @param options.isTestnet - Start on testnet.
    * @param options.onExchangeRequest - Called with every exchange request's
-   * payload and the venue's answer (undefined when the request failed before
-   * one), before the SDK checks the answer.
+   * payload, the venue's answer (undefined when the request failed before
+   * one) and the wallet the exchange client signs with, before the SDK
+   * checks the answer.
    */
   constructor(
     deps: PerpsPlatformDependencies,
     options: {
       isTestnet?: boolean;
-      onExchangeRequest?: (payload: unknown, response: unknown) => void;
+      onExchangeRequest?: ExchangeRequestListener;
     } = {},
   ) {
     this.#deps = deps;
@@ -373,7 +384,10 @@ export class HyperLiquidClientService {
     if (effectiveWallet) {
       this.#exchangeClient = new ExchangeClient({
         wallet: effectiveWallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
-        transport: this.#reportingExchangeRequests(this.#httpTransport),
+        transport: this.#reportingExchangeRequests(
+          this.#httpTransport,
+          effectiveWallet,
+        ),
         ...(effectiveWallet.signatureChainId && {
           signatureChainId: effectiveWallet.signatureChainId,
         }),
@@ -388,9 +402,13 @@ export class HyperLiquidClientService {
    * request and its answer to `onExchangeRequest` when it is set.
    *
    * @param transport - The HTTP transport.
+   * @param wallet - The wallet the exchange client signs with.
    * @returns The transport to send exchange requests through.
    */
-  #reportingExchangeRequests(transport: HttpTransport): IRequestTransport {
+  #reportingExchangeRequests(
+    transport: HttpTransport,
+    wallet: HyperLiquidWalletParams,
+  ): IRequestTransport {
     const onExchangeRequest = this.#onExchangeRequest;
     if (!onExchangeRequest) {
       return transport;
@@ -412,7 +430,7 @@ export class HyperLiquidClientService {
           return response;
         } finally {
           if (endpoint === 'exchange') {
-            onExchangeRequest(payload, response);
+            onExchangeRequest(payload, response, wallet);
           }
         }
       },

@@ -257,7 +257,7 @@ describe('HyperLiquidClientService', () => {
         return ExchangeClient.mock.calls.at(-1)[0].transport;
       }
 
-      it('reports each exchange request with the answer before returning it', async () => {
+      it('reports each exchange request with the answer and the wallet before returning it', async () => {
         transport.request.mockResolvedValue(answer);
         const payload = { action: { type: 'order' } };
 
@@ -268,7 +268,9 @@ describe('HyperLiquidClientService', () => {
         expect(transport.request.mock.calls).toStrictEqual([
           ['exchange', payload, undefined],
         ]);
-        expect(onExchangeRequest.mock.calls).toStrictEqual([[payload, answer]]);
+        expect(onExchangeRequest.mock.calls).toStrictEqual([
+          [payload, answer, mockWallet],
+        ]);
       });
 
       it('reports an exchange request that failed without an answer', async () => {
@@ -280,7 +282,7 @@ describe('HyperLiquidClientService', () => {
           exchangeTransport().request('exchange', payload),
         ).rejects.toBe(failure);
         expect(onExchangeRequest.mock.calls).toStrictEqual([
-          [payload, undefined],
+          [payload, undefined, mockWallet],
         ]);
       });
 

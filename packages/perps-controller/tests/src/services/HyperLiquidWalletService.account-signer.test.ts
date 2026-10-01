@@ -261,6 +261,34 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
     expect(adapter.address).toBe(mainAddress);
   });
 
+  it('resolves agents through the resolver given to the adapter instead of the service one', async () => {
+    const { resolveAgent } = buildAdapter();
+    const { messenger } = createKeyringlessMessenger();
+    const adapterAgentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const adapterResolveAgent = jest.fn().mockResolvedValue({
+      address: AGENT_ADDRESS,
+      signTypedData: adapterAgentSign,
+    });
+    const adapter = new HyperLiquidWalletService(
+      {
+        ...createMockInfrastructure(),
+        accountSigner: {
+          signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
+          signPersonalMessage: jest.fn(),
+        },
+      },
+      messenger,
+      { isTestnet: true, resolveAgent },
+    ).createWalletAdapter(adapterResolveAgent);
+
+    const signature = await adapter.signTypedData(L1_PAYLOAD);
+
+    expect(signature).toBe(AGENT_SIGNATURE);
+    expect(adapterResolveAgent.mock.calls).toStrictEqual([[mainAddress]]);
+    expect(adapterAgentSign.mock.calls).toStrictEqual([[L1_PAYLOAD]]);
+    expect(resolveAgent).not.toHaveBeenCalled();
+  });
+
   it('signs L1 actions with the agent resolved for the selected account', async () => {
     const { adapter, resolveAgent, agentSign, mainSign, call } = buildAdapter();
 

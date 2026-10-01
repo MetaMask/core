@@ -542,10 +542,12 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     const venue = createDeferred<void>();
     const answer = mustDepositAnswer(MAIN_ADDRESS);
     built.exchangeClient.order.mockImplementationOnce(async () => {
-      const signature = await built.sdkWallet().signTypedData(L1_PAYLOAD);
+      // The mainnet client's wallet, which the request is signed with.
+      const wallet = built.sdkWallet();
+      const signature = await wallet.signTypedData(L1_PAYLOAD);
       signed.resolve();
       await venue.promise;
-      built.reportAnswer(signature, answer);
+      built.reportAnswer(signature, answer, wallet);
       throw apiRequestError(answer);
     });
 
@@ -612,6 +614,100 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
         ([account]) => account.isTestnet,
       ),
     ).toStrictEqual([[TESTNET_ACCOUNT]]);
+  });
+
+  it('does not check a write queued on mainnet that signs after the provider switched to testnet', async () => {
+    useSwitchableNetwork();
+    // The host reuses its agent on both networks.
+    const {
+      accountSignerProvider,
+      exchangeClient,
+      extraAgents,
+      getAgentSigner,
+      onAgentRejected,
+      sdkWallet,
+      signAndSend,
+    } = await createPreparedAgentProvider();
+    const queued = createDeferred<void>();
+    const ahead = createDeferred<void>();
+    exchangeClient.order.mockImplementationOnce(async () => {
+      // The mainnet client's wallet. The SDK queues the write behind another
+      // one, so it signs later.
+      const wallet = sdkWallet();
+      queued.resolve();
+      await ahead.promise;
+      return await signAndSend(
+        L1_PAYLOAD,
+        mustDepositAnswer(MAIN_ADDRESS),
+        'thrown',
+        wallet,
+      );
+    });
+
+    const ordering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await queued.promise;
+    await accountSignerProvider.toggleTestnet();
+    // The agent signs on testnet, then the queued mainnet write signs and
+    // the venue answers it.
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+    ahead.resolve();
+    await ordering;
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    // The queued write resolved the mainnet agent, and the agent stays bound
+    // on testnet.
+    expect(getAgentSigner.mock.calls).toStrictEqual([
+      [MAINNET_ACCOUNT],
+      [TESTNET_ACCOUNT],
+    ]);
+  });
+
+  it('signs a write queued on mainnet with the mainnet agent after the provider switched to testnet', async () => {
+    useSwitchableNetwork();
+    const getAgentSigner = jest.fn();
+    const built = createAccountSignerProvider({
+      abstraction: 'unifiedAccount',
+      getAgentSigner,
+    });
+    const testnetAgent = {
+      address: OTHER_AGENT_ADDRESS,
+      signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+    };
+    getAgentSigner.mockImplementation(async (account: PerpsAgentAccount) =>
+      account.isTestnet ? testnetAgent : built.agentSigner,
+    );
+    await built.accountSignerProvider.prepareTradingWallet();
+    const queued = createDeferred<void>();
+    const ahead = createDeferred<void>();
+    built.exchangeClient.order.mockImplementationOnce(async () => {
+      // The mainnet client's wallet. The SDK queues the write behind another
+      // one, so it signs later.
+      const wallet = built.sdkWallet();
+      queued.resolve();
+      await ahead.promise;
+      return await built.signAndSend(
+        L1_PAYLOAD,
+        { status: 'ok', response: { data: { statuses: ['success'] } } },
+        'thrown',
+        wallet,
+      );
+    });
+
+    const ordering = built.accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await queued.promise;
+    await built.accountSignerProvider.toggleTestnet();
+    await built.sdkWallet().signTypedData(L1_PAYLOAD);
+    built.agentSigner.signTypedData.mockClear();
+    testnetAgent.signTypedData.mockClear();
+    ahead.resolve();
+    await ordering;
+
+    expect(built.agentSigner.signTypedData.mock.calls).toStrictEqual([
+      [L1_PAYLOAD],
+    ]);
+    expect(testnetAgent.signTypedData).not.toHaveBeenCalled();
   });
 
   it('does not check a request whose agent signature finished after the provider reconnected on the same network', async () => {

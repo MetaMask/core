@@ -235,10 +235,14 @@ export class HyperLiquidWalletService {
    * main account always signs them, for the chain the account signer reports
    * when it reports one.
    *
+   * @param resolveAgent - Resolves the agent for this adapter's L1
+   * signatures, in place of the service's `resolveAgent`.
    * @returns The wallet adapter with address, signTypedData, and getChainId
    * methods, and signatureChainId when the account signer has getChainId.
    */
-  public createWalletAdapter(): HyperLiquidWalletParams {
+  public createWalletAdapter(
+    resolveAgent: AgentResolver | undefined = this.#resolveAgent,
+  ): HyperLiquidWalletParams {
     const { accountSigner } = this.#deps;
     const getSignerChainId = accountSigner?.getChainId?.bind(accountSigner);
     return {
@@ -246,8 +250,8 @@ export class HyperLiquidWalletService {
       signTypedData: async (params: PerpsTypedDataPayload): Promise<Hex> => {
         const mainAddress = this.#getSelectedMainAddress();
         const agentSigner =
-          this.#resolveAgent && isL1Action(params)
-            ? await this.#resolveAgent(mainAddress)
+          resolveAgent && isL1Action(params)
+            ? await resolveAgent(mainAddress)
             : null;
         if (!agentSigner) {
           return await this.#signWithMainAccount(mainAddress, params);

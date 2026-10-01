@@ -58,6 +58,7 @@ import {
   HyperLiquidClientService,
   WebSocketConnectionState,
 } from '../services/HyperLiquidClientService.js';
+import type { HyperLiquidWalletParams } from '../services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService.js';
 import {
@@ -502,11 +503,21 @@ type AgentSignature = {
   key: string;
   account: PerpsAgentAccount;
   agentAddress: Hex;
-  // The provider lifecycle generation the signature was asked for in.
+  // The provider lifecycle generation of the wallet that made it.
   generation?: number;
   // Whether the venue still lists the agent, asked at most once per
   // signature (see #findRevokedAgent).
   approvalCheck?: Promise<boolean>;
+};
+
+// What a wallet adapter, and so the exchange client signing through it, was
+// created for: its network and provider lifecycle generation. It holds the
+// agent signatures it made that the venue has not answered yet, keyed by
+// getSignatureKey.
+type WalletBinding = {
+  isTestnet: boolean;
+  generation: number;
+  unansweredSignatures: Map<string, AgentSignature>;
 };
 
 /**
@@ -1690,9 +1701,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   // its action was in flight is still recognized.
   readonly #agentSignedFor = new Map<string, AgentSignature>();
 
-  // Agent signatures whose exchange request has not been answered yet, keyed
-  // by getSignatureKey. Cleared on disconnect.
-  readonly #unansweredAgentSignatures = new Map<string, AgentSignature>();
+  // The binding of each wallet adapter this provider created.
+  readonly #walletBindings = new WeakMap<
+    HyperLiquidWalletParams,
+    WalletBinding
+  >();
 
   // The agent signature of each answered exchange request, keyed by the
   // venue answer. A "Must deposit" answer is attributed from it, so only to
@@ -1755,8 +1768,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Initialize services with injected platform dependencies
     this.#clientService = new HyperLiquidClientService(this.#deps, {
       isTestnet,
-      onExchangeRequest: (payload: unknown, answer: unknown): void =>
-        this.#matchAgentSignature(payload, answer),
+      onExchangeRequest: (
+        payload: unknown,
+        answer: unknown,
+        wallet: HyperLiquidWalletParams,
+      ): void => this.#matchAgentSignature(payload, answer, wallet),
     });
     this.#dexDiscoveryCache = new DexDiscoveryCacheManager({
       isTestnetMode: (): boolean => this.#clientService.isTestnetMode(),
@@ -1766,13 +1782,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#walletService = new HyperLiquidWalletService(
       this.#deps,
       this.#messenger,
-      {
-        isTestnet,
-        resolveAgent: async (
-          mainAddress: Hex,
-        ): Promise<PerpsAgentSigner | null> =>
-          await this.#resolveTrackedAgentSigner(mainAddress),
-      },
+      { isTestnet },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
       this.#clientService,
@@ -2215,7 +2225,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      const wallet = this.#walletService.createWalletAdapter();
+      // The adapter keeps the network and session it is created for: its
+      // agents are resolved, and its signatures attributed, for them, even
+      // when a queued write signs after a network switch or a disconnect.
+      const binding: WalletBinding = {
+        isTestnet: this.#clientService.isTestnetMode(),
+        generation: this.#lifecycleGeneration,
+        unansweredSignatures: new Map(),
+      };
+      const wallet = this.#walletService.createWalletAdapter(
+        async (mainAddress: Hex): Promise<PerpsAgentSigner | null> =>
+          await this.#resolveTrackedAgentSigner(mainAddress, binding),
+      );
+      this.#walletBindings.set(wallet, binding);
       await this.#clientService.initialize(wallet);
       if (this.#disconnectOperationsInFlight > 0) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -2267,21 +2289,20 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Resolve the agent that signs L1 actions for a main account on the
-   * current network through `getAgentSigner`. A non-null answer is kept;
+   * Resolve the agent that signs L1 actions for a main account on a network
+   * through `getAgentSigner`. A non-null answer is kept;
    * null and failures are not, so the next L1 action asks again. An answer
    * pending across clearAgentSigners is discarded and asked again.
    *
    * @param mainAddress - The selected main account.
+   * @param isTestnet - The network of the wallet adapter that signs.
    * @returns The agent, or null to sign with the main account.
    */
   async #resolveAgentSigner(
     mainAddress: Hex,
+    isTestnet: boolean,
   ): Promise<PerpsAgentSigner | null> {
-    const account: PerpsAgentAccount = {
-      mainAddress,
-      isTestnet: this.#clientService.isTestnetMode(),
-    };
+    const account: PerpsAgentAccount = { mainAddress, isTestnet };
     const key = getAgentAccountKey(account);
     const generation = this.#agentSignersGeneration;
     let entry = this.#agentSigners.get(key);
@@ -2311,7 +2332,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       agentSigner = await pendingEntry.answer;
     } catch (error) {
       if (isSuperseded()) {
-        return await this.#resolveAgentSigner(mainAddress);
+        return await this.#resolveAgentSigner(mainAddress, isTestnet);
       }
       this.#agentSigners.delete(key);
       this.#deps.debugLogger.log('HyperLiquidProvider: getAgentSigner failed', {
@@ -2322,7 +2343,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (isSuperseded()) {
-      return await this.#resolveAgentSigner(mainAddress);
+      return await this.#resolveAgentSigner(mainAddress, isTestnet);
     }
     if (agentSigner) {
       pendingEntry.agent = agentSigner;
@@ -2411,8 +2432,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * before performing actions", if the venue no longer lists it (revoked, or
    * past its `validUntil`). The venue answers an account with no funds the
    * same way, so the agent list decides; it is asked once per signature. A
-   * signature asked for on another network or before a disconnect is not
-   * checked.
+   * signature made through the wallet of an earlier network or session is
+   * not checked.
    *
    * @param signature - The agent signature of the request.
    * @returns The revoked agent, or undefined.
@@ -2432,24 +2453,26 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Resolve the agent for an L1 signature, as #resolveAgentSigner does, and
-   * note each signature it makes with the network and session it was asked
-   * in, so the venue's answer to that request is attributed to it. Both are
-   * read before resolving and signing, which can outlast a network switch or
-   * a disconnect.
+   * Resolve the agent for an L1 signature of a wallet adapter, on the
+   * adapter's network, and note each signature it makes in the adapter's
+   * binding, so the venue's answer to that request is attributed to it.
    *
    * @param mainAddress - The selected main account.
+   * @param binding - The binding of the wallet adapter that signs.
    * @returns The agent, or null to sign with the main account.
    */
   async #resolveTrackedAgentSigner(
     mainAddress: Hex,
+    binding: WalletBinding,
   ): Promise<PerpsAgentSigner | null> {
     const account: PerpsAgentAccount = {
       mainAddress,
-      isTestnet: this.#clientService.isTestnetMode(),
+      isTestnet: binding.isTestnet,
     };
-    const generation = this.#lifecycleGeneration;
-    const agent = await this.#resolveAgentSigner(mainAddress);
+    const agent = await this.#resolveAgentSigner(
+      mainAddress,
+      binding.isTestnet,
+    );
     if (!agent) {
       return null;
     }
@@ -2460,11 +2483,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         // The SDK refuses any other signature before sending the request,
         // so no answer would come for it.
         if (isHexString(signature) && signature.length === 132) {
-          this.#unansweredAgentSignatures.set(getSignatureKey(signature), {
+          binding.unansweredSignatures.set(getSignatureKey(signature), {
             key: getAgentAccountKey(account),
             account,
             agentAddress: agent.address,
-            generation,
+            generation: binding.generation,
           });
         }
         return signature;
@@ -2478,8 +2501,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param payload - The exchange request.
    * @param answer - The venue's answer, or undefined when there is none.
+   * @param wallet - The wallet adapter the request was signed through.
    */
-  #matchAgentSignature(payload: unknown, answer: unknown): void {
+  #matchAgentSignature(
+    payload: unknown,
+    answer: unknown,
+    wallet: HyperLiquidWalletParams,
+  ): void {
     const signature =
       isStatusObject(payload) && isStatusObject(payload.signature)
         ? payload.signature.r
@@ -2487,12 +2515,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (typeof signature !== 'string') {
       return;
     }
+    const unansweredSignatures =
+      this.#walletBindings.get(wallet)?.unansweredSignatures;
     const key = getSignatureKey(signature);
-    const agentSignature = this.#unansweredAgentSignatures.get(key);
+    const agentSignature = unansweredSignatures?.get(key);
     if (!agentSignature) {
       return;
     }
-    this.#unansweredAgentSignatures.delete(key);
+    unansweredSignatures?.delete(key);
     if (isStatusObject(answer)) {
       this.#agentSignatureByAnswer.set(answer, agentSignature);
     }
@@ -15933,7 +15963,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#referralCheckCache.clear();
       this.#builderFeeCheckCache.clear();
       this.#builderFeeRefusals.clear();
-      this.#unansweredAgentSignatures.clear();
       this.#subscriptionBuilderApprovalEpoch += 1;
       this.#approvedBuilderAddresses.clear();
       this.#userFeeResolution = undefined;

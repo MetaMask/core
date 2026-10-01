@@ -407,12 +407,17 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
       getAgentSigner.mockImplementation(async (account: PerpsAgentAccount) =>
         account.isTestnet ? null : agentSigner,
       );
+      let isTestnet = false;
+      mockClientService.isTestnetMode.mockImplementation(() => isTestnet);
+      mockClientService.setTestnetMode.mockImplementation((value: boolean) => {
+        isTestnet = value;
+      });
       await accountSignerProvider.getMarketDataWithPrices();
-      const wallet = sdkWallet();
-      await wallet.signTypedData(L1_PAYLOAD);
+      await sdkWallet().signTypedData(L1_PAYLOAD);
 
-      mockClientService.isTestnetMode.mockReturnValue(true);
-      await wallet.signTypedData(L1_PAYLOAD);
+      // Switching networks replaces the wallet the SDK signs with.
+      await accountSignerProvider.toggleTestnet();
+      await sdkWallet().signTypedData(L1_PAYLOAD);
 
       expect(getAgentSigner.mock.calls).toStrictEqual([
         [MAINNET_ACCOUNT],
