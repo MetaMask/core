@@ -6,6 +6,8 @@ import {
   LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
   LIGHTER_FILL_REPLAY_LIMIT,
+  LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
 } from '../src/constants/index.js';
 // Checks the account-signer and agent surface through the package entrypoint,
 // the way a client imports it, so a dropped or renamed export fails here.
@@ -75,6 +77,13 @@ describe('@metamask/perps-controller public API', () => {
     ).not.toThrow();
     expect(capability.positionTpsl?.supportsExpectedPosition).toBe(true);
     expect(typeof createGuardedHyperLiquidClient).toBe('function');
+  });
+
+  it('exports the native trigger-limit wire types', () => {
+    expect([
+      LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+      LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
+    ]).toStrictEqual([3, 5]);
   });
 
   it('exports optional native price precision and unsupported-market capability reasons', () => {

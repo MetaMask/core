@@ -6318,6 +6318,85 @@ describe('LighterProvider', () => {
       },
     );
 
+    it.each([
+      { name: 'growth', position: '0.2', sign: 1, changed: true },
+      { name: 'shrink', position: '0.05', sign: 1, changed: true },
+      { name: 'side flip', position: '0.1', sign: -1, changed: true },
+      { name: 'unchanged', position: '0.1', sign: 1, changed: false },
+    ])(
+      'rechecks the position after held ownership storage: $name',
+      async ({ position, sign, changed }) => {
+        const infra = createMockInfrastructure();
+        const { provider, clientInstance, bridge, calls } = buildProvider({
+          platformDependencies: infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const before = venue.rawTriggers.map((row) => ({ ...row }));
+        const managedKey = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        const originalRead = infra.diskCache.getItem.bind(infra.diskCache);
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        let managedReads = 0;
+        infra.diskCache.getItem = async (
+          key: string,
+        ): Promise<string | null> => {
+          // Pruning reads ownership first. Hold the second read, after the
+          // original implementation's authoritative position check.
+          if (key === managedKey) {
+            managedReads += 1;
+          }
+          if (key === managedKey && managedReads === 2) {
+            entered.resolve();
+            await release.promise;
+          }
+          return originalRead(key);
+        };
+        calls.length = 0;
+        const pending = provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        await entered.promise;
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], position, sign }],
+            },
+          ],
+        });
+        release.resolve();
+        const result = await pending;
+        expect(result.success).toBe(!changed);
+        expect(
+          result.error?.includes('position changed before TP/SL signing') ??
+            false,
+        ).toBe(changed);
+        expect(
+          calls.filter(
+            (call) =>
+              call.function === '_signCreateOrder' ||
+              call.function === '_signCreateGroupedOrders' ||
+              call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(changed ? 0 : 2);
+        expect(changed ? venue.rawTriggers : before).toStrictEqual(before);
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(venue.rawTriggers[0].triggerPrice).toBe(
+          changed ? '90000' : '85000',
+        );
+      },
+    );
+
     it('accepts legacy GTT trigger-market protection with a restorable wire intent', async () => {
       const { provider, clientInstance, bridge } = buildProvider();
       const venue = setupTriggerVenue(clientInstance, bridge);
