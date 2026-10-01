@@ -34,7 +34,7 @@ jobs:
             echo "::warning::Suppressions were added, which the '$WAIVER_LABEL' label allows."
             exit 0
           fi
-          echo "Apply the '$WAIVER_LABEL' label if these suppressions have to be added."
+          echo "These files are owned by @MetaMask/core-platform, who can apply the '$WAIVER_LABEL' label if the suppressions have to be added."
           exit 1
         env:
           WAIVER_LABEL: allow-new-suppressions

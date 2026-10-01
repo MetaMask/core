@@ -760,5 +760,7 @@
 # ---------
 
 /.github/                                         @MetaMask/core-platform
+/oxlint-suppressions.json                         @MetaMask/core-platform
+/tsc-suppressions.json                            @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/methods     @MetaMask/confirmations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/wallet.*    @MetaMask/confirmations @MetaMask/core-platform
