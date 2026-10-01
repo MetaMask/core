@@ -6650,6 +6650,72 @@ describe('LighterProvider', () => {
       },
     );
 
+    it.each(['resize', 'entry-drift'])(
+      'rejects position %s while create signing is pending before dispatch',
+      async (change) => {
+        const { provider, clientInstance, bridge } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const oldId = venue.seedTrigger('stop-loss', '80000');
+        let releaseSigning: () => void = () => undefined;
+        let markSigningStarted: () => void = () => undefined;
+        const signingStarted = new Promise<void>((resolve) => {
+          markSigningStarted = resolve;
+        });
+        const signingPending = new Promise<void>((resolve) => {
+          releaseSigning = resolve;
+        });
+        const originalExecute = (
+          bridge.execute as jest.Mock
+        ).getMockImplementation() as (
+          call: LighterWasmCall,
+        ) => Promise<unknown>;
+        (bridge.execute as jest.Mock).mockImplementation(
+          async (call: LighterWasmCall) => {
+            const signed = await originalExecute(call);
+            if (call.function === '_signCreateOrder') {
+              markSigningStarted();
+              await signingPending;
+            }
+            return signed;
+          },
+        );
+        const pending = provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        await signingStarted;
+        clientInstance.sendTx.mockClear();
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  ...(change === 'resize'
+                    ? { position: '0.002' }
+                    : { avgEntryPrice: '100001' }),
+                },
+              ],
+            },
+          ],
+        });
+        releaseSigning();
+        const result = await pending;
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('expected position');
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual([
+          oldId,
+        ]);
+      },
+    );
+
     it.each(['unchanged', 'entry-drift'])(
       'checks expected position through signer setup: %s',
       async (mode) => {

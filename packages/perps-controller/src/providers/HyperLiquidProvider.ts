@@ -9293,6 +9293,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     const marks = marksSubscriptionCloid ?? this.#isSubscriptionFeeSource();
     if (!marks) {
       // Any other source leaves the id exactly as the caller built it.
+      // Position TP/SL already reserves the subscription layout with flag00;
+      // the program marker alone never implies a fee reduction.
       return orders;
     }
 
@@ -10862,6 +10864,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               ...(entries.some((entry) => entry.chargesMetamaskBuilderFee) &&
                 builderOrderContext && { builder: builderOrderContext }),
             });
+            await assertScope();
             const statuses = result.response?.data?.statuses ?? [];
             const rawOutcomes = statuses
               .slice(0, entries.length)
@@ -10876,6 +10879,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               dexName,
               symbol,
             });
+            await assertScope();
             restoredOrderIds.push(
               ...outcomes.flatMap((outcome) =>
                 outcome.orderId ? [outcome.orderId] : [],
@@ -10921,6 +10925,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             }
           }
         }
+        await assertScope();
         return { restoredOrderIds, success };
       };
 
@@ -10995,6 +11000,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
           );
         }
+        await assertScope();
         return createProtectionLostResult(possiblyLiveOrderIds);
       }
       oldCancellation.cancelledOrderIds.forEach((orderId) =>
@@ -11038,9 +11044,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       }
 
-      await assertCurrentPosition();
       let result: Awaited<ReturnType<ExchangeClient['order']>>;
       try {
+        // Old protection may already be cancelled. A failed position read
+        // belongs to recovery, which reports loss if safe restoration is
+        // impossible instead of returning a pre-mutation refresh error.
+        await assertCurrentPosition();
         result = await exchangeClient.order({
           orders: sentOrders,
           grouping: isPartialTpsl ? 'na' : 'positionTpsl',
@@ -11110,6 +11119,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               }
               const row = status.order.order;
               if (
+                row.coin !== symbol ||
                 row.cloid?.toLowerCase() !== cloid.toLowerCase() ||
                 !Number.isSafeInteger(row.oid) ||
                 row.oid <= 0 ||
@@ -11155,6 +11165,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           symbol,
         },
       );
+      await assertScope();
       const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
         (outcome.state === 'resting' ||
           outcome.state === 'waitingForTrigger') &&
@@ -11178,6 +11189,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           o: Number(orderId),
         })),
       );
+      await assertScope();
       const recoverableOrderIds = [
         ...filledReplacementOrderIds,
         ...remainingReplacementIds.map(String),

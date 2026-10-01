@@ -5543,6 +5543,7 @@ export class LighterProvider implements PerpsProvider {
           expiresAt: number | null;
           intent?: string;
           owner?: string | null;
+          beforeDispatch?: () => Promise<void>;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -5637,6 +5638,7 @@ export class LighterProvider implements PerpsProvider {
           expiresAt: number | null;
           intent?: string;
           owner?: string | null;
+          beforeDispatch?: () => Promise<void>;
         },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
@@ -5705,6 +5707,7 @@ export class LighterProvider implements PerpsProvider {
         // A switch after append leaves the unsent entry for conservative
         // reconciliation. It may block until signed expiry plus clock slack;
         // retaining uncertainty avoids treating a durable append as absent.
+        await identity?.beforeDispatch?.();
         this.#assertSession(generationAtIntent);
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
@@ -5778,6 +5781,7 @@ export class LighterProvider implements PerpsProvider {
           expiresAt: number | null;
           intent?: string;
           owner?: string | null;
+          beforeDispatch?: () => Promise<void>;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -7574,6 +7578,9 @@ export class LighterProvider implements PerpsProvider {
                 txHash: cancelIdentity.txHash,
                 expiresAt: cancelIdentity.expiresAt,
                 owner: journal.operationId,
+                ...(journal.intent === 'remove'
+                  ? { beforeDispatch: assertLiveExpected }
+                  : {}),
               },
             );
           };
@@ -7653,6 +7660,7 @@ export class LighterProvider implements PerpsProvider {
                 txHash: createIdentity.txHash,
                 expiresAt: createIdentity.expiresAt,
                 owner: journal.operationId,
+                beforeDispatch: assertLiveExpected,
               },
             );
 
