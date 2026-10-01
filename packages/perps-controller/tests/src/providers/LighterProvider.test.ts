@@ -10487,15 +10487,12 @@ describe('LighterProvider', () => {
     it('an index read failure during clear is AMBIGUITY: the settlement stays unresolved and the index is retained', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      // Allow the persist-time index read; fail from the SECOND index
-      // read on (the clear-time RMW).
+      // Fail only after the index has been persisted, at the clear-time RMW.
       let failIndexReads = false;
-      let indexReads = 0;
       (infra.diskCache.getItem as jest.Mock).mockImplementation(
         async (key: string) => {
           if (key.startsWith('lighterTpslJournalIndex:')) {
-            indexReads += 1;
-            if (failIndexReads && indexReads > 1) {
+            if (failIndexReads && disk.has(key)) {
               throw new Error('index storage read failed');
             }
           }
@@ -16963,6 +16960,52 @@ describe('LighterProvider', () => {
     });
   });
   describe('strict recovery venue review', () => {
+    it('does not kick a pending current-slot journal after detached timers run', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const key = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+      const bytes = JSON.stringify({
+        version: 4,
+        operationId: 'pending',
+        recordedAt: 1,
+        createdAt: 1,
+        nextAttemptId: 2,
+        apiKeyIndex: 7,
+        intent: 'replace',
+        phase: 'creating',
+        priorGrouping: 'independent',
+        priorTriggers: [],
+        attempts: [
+          {
+            kind: 'create',
+            attemptId: 1,
+            nonce: 42,
+            outcome: 'unknown',
+            clientIds: [12345],
+            txHash: 'abcd1234',
+            expiresAt: 9_999_999_999_999,
+            role: 'replacement',
+          },
+        ],
+      });
+      await infra.diskCache.setItem(
+        'lighterTpslJournalIndex:testnet',
+        JSON.stringify([key]),
+      );
+      await infra.diskCache.setItem(`lighterTpslJournal:testnet:${key}`, bytes);
+      await built.provider.reviewRecoveryVenue();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(
+        await infra.diskCache.getItem(`lighterTpslJournal:testnet:${key}`),
+      ).toBe(bytes);
+      expect(built.clientInstance.getTx).not.toHaveBeenCalled();
+      expect(built.clientInstance.getActiveOrders).toHaveBeenCalledTimes(1);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
     it.each(['auth', 'orders', 'metadata'] as const)(
       'rejects an account switch during the %s review boundary',
       async (boundary) => {
@@ -17121,6 +17164,467 @@ describe('LighterProvider', () => {
   });
 
   describe('selected durable protection resolution', () => {
+    it.each(['payload', 'pointer', 'source'] as const)(
+      'recovers an interrupted terminal %s removal with exact cleanup',
+      async (boundary) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const sourceKey = `lighterTpslManual:testnet:${key}`;
+        const target = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([key]),
+        );
+        await infra.diskCache.setItem(
+          sourceKey,
+          JSON.stringify({
+            version: 1,
+            settlementKey: key,
+            symbol: 'BTC',
+            reason: 'manual',
+            priorIntent: 'replace',
+            priorTriggers: [],
+            survivingOrderIds: [],
+            operationId: 'source',
+            recordedAt: 1,
+          }),
+        );
+        const remove = jest.spyOn(infra.diskCache, 'removeItem');
+        const realRemove = remove.getMockImplementation();
+        if (!realRemove) {
+          throw new Error('Missing storage implementation');
+        }
+        let failed = false;
+        remove.mockImplementation(async (storageKey) => {
+          const matches = {
+            source: storageKey === sourceKey,
+            pointer: storageKey === `lighterTpslJournal:testnet:${target}`,
+            payload: storageKey.startsWith(
+              `lighterTpslJournalOp:testnet:${target}:`,
+            ),
+          }[boundary];
+          if (!failed && matches) {
+            failed = true;
+            throw new Error('terminal storage interrupted');
+          }
+          return realRemove(storageKey);
+        });
+        const recoveryId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'source'])}`;
+        const first = await built.provider.resolveRecoveryProtection({
+          recoveryId,
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(failed).toBe(true);
+        expect(first.success).toBe(false);
+        const restarted = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        expect(
+          (
+            await restarted.provider.resolveRecoveryProtection({
+              recoveryId,
+              symbol: 'BTC',
+              stopLossPrice: '85000',
+            })
+          ).success,
+        ).toBe(true);
+        expect(
+          await infra.diskCache.getItem(`lighterTpslJournal:testnet:${target}`),
+        ).toBeNull();
+        expect(await infra.diskCache.getItem(sourceKey)).toBeNull();
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(venue.rawTriggers).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      'sourceRecoveryOperationId',
+      'sourceRecoverySettlementKey',
+    ] as const)('rejects a half-linked journal missing %s', async (missing) => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+      const source = {
+        version: 4,
+        operationId: 'original',
+        sourceRecoveryOperationId: 'source',
+        sourceRecoverySettlementKey: key,
+        recordedAt: 1,
+        createdAt: 1,
+        nextAttemptId: 2,
+        apiKeyIndex: 19,
+        intent: 'replace',
+        phase: 'manual',
+        priorGrouping: 'independent',
+        priorTriggers: [],
+        attempts: [
+          {
+            kind: 'create',
+            attemptId: 1,
+            nonce: 42,
+            outcome: 'unknown',
+            clientIds: [12345],
+            txHash: 'abcd1234',
+            expiresAt: 9_999_999_999_999,
+            role: 'replacement',
+          },
+        ],
+      };
+      const bytes = JSON.stringify({ ...source, [missing]: undefined });
+      await infra.diskCache.setItem(
+        'lighterTpslJournalIndex:testnet',
+        JSON.stringify([key]),
+      );
+      await infra.diskCache.setItem(`lighterTpslJournal:testnet:${key}`, bytes);
+      await expect(built.provider.getPendingManualRecoveries()).rejects.toThrow(
+        /malformed/u,
+      );
+      expect(
+        await infra.diskCache.getItem(`lighterTpslJournal:testnet:${key}`),
+      ).toBe(bytes);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('keeps the ready slot when registered discovery lists another matching key first', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      await built.provider.getOpenOrders();
+      built.clientInstance.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [3, 7].map((apiKeyIndex) => ({
+          accountIndex: 28,
+          apiKeyIndex,
+          publicKey: '9c'.repeat(40),
+          nonce: 1,
+        })),
+      });
+      Object.assign(built.bridge, {
+        getRecoverableKeyIndices: async (): Promise<number[]> => [3, 7],
+      });
+      const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+      await infra.diskCache.setItem(
+        'lighterTpslManualIndex:testnet',
+        JSON.stringify([key]),
+      );
+      await infra.diskCache.setItem(
+        `lighterTpslManual:testnet:${key}`,
+        JSON.stringify({
+          version: 1,
+          settlementKey: key,
+          symbol: 'BTC',
+          reason: 'manual',
+          priorIntent: 'replace',
+          priorTriggers: [],
+          survivingOrderIds: [],
+          operationId: 'source',
+          recordedAt: 1,
+        }),
+      );
+      const recoveryId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'source'])}`;
+      expect(
+        (
+          await built.provider.resolveRecoveryProtection({
+            recoveryId,
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          })
+        ).success,
+      ).toBe(true);
+      expect(
+        built.calls.filter((call) => call.function === '_createClient').at(-1)
+          ?.params[3],
+      ).toBe(7);
+      expect(
+        (
+          await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '86000',
+          })
+        ).success,
+      ).toBe(true);
+      expect(
+        built.calls.filter((call) => call.function === '_createClient').at(-1)
+          ?.params[3],
+      ).toBe(7);
+    });
+
+    it.each([1, 2])(
+      'requires executed original evidence when books match status %s',
+      async (status) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const id = venue.seedTrigger('stop-loss', '80000');
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const bytes = JSON.stringify({
+          version: 4,
+          operationId: 'original',
+          recordedAt: 1,
+          createdAt: 1,
+          nextAttemptId: 2,
+          apiKeyIndex: 19,
+          intent: 'replace',
+          phase: 'creating',
+          priorGrouping: 'independent',
+          priorTriggers: [],
+          attempts: [
+            {
+              kind: 'create',
+              attemptId: 1,
+              nonce: 42,
+              outcome: 'unknown',
+              clientIds: [id],
+              txHash: 'abcd1234',
+              expiresAt: 9_999_999_999_999,
+              role: 'replacement',
+            },
+          ],
+        });
+        await infra.diskCache.setItem(
+          'lighterTpslJournalIndex:testnet',
+          JSON.stringify([key]),
+        );
+        await infra.diskCache.setItem(
+          `lighterTpslJournal:testnet:${key}`,
+          bytes,
+        );
+        built.clientInstance.getTx.mockResolvedValue({
+          hash: 'abcd1234',
+          accountIndex: 28,
+          apiKeyIndex: 19,
+          nonce: 42,
+          status,
+        });
+        const recoveryId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'original'])}`;
+        expect(
+          (
+            await built.provider.resolveRecoveryProtection({
+              recoveryId,
+              symbol: 'BTC',
+              stopLossPrice: '85000',
+            })
+          ).success,
+        ).toBe(status === 2);
+        expect(built.clientInstance.sendTx.mock.calls.length > 0).toBe(
+          status === 2,
+        );
+      },
+    );
+
+    it.each([false, true])(
+      'finishes interrupted settled cleanup while preserving newer=%s records',
+      async (newer) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const source = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const target = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        const recoveryId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'source'])}`;
+        await infra.diskCache.setItem(
+          `lighterTpslSuccessor:testnet:${source}:source`,
+          JSON.stringify({
+            version: 1,
+            sourceSettlementKey: source,
+            sourceOperationId: 'source',
+            successorSettlementKey: target,
+            successorOperationId: 'successor',
+            state: 'settled',
+            ownedOrderIds: [],
+          }),
+        );
+        await infra.diskCache.setItem(
+          'lighterTpslJournalIndex:testnet',
+          JSON.stringify([target]),
+        );
+        await infra.diskCache.setItem(
+          `lighterTpslJournal:testnet:${target}`,
+          JSON.stringify({
+            version: 4,
+            operationId: newer ? 'newer' : 'successor',
+            sourceRecoveryOperationId: 'source',
+            sourceRecoverySettlementKey: source,
+            recordedAt: 1,
+            createdAt: 1,
+            nextAttemptId: 2,
+            apiKeyIndex: 7,
+            intent: 'remove',
+            phase: 'cancelling',
+            priorGrouping: 'independent',
+            priorTriggers: [],
+            attempts: [
+              {
+                kind: 'cancel',
+                attemptId: 1,
+                nonce: 42,
+                outcome: 'accepted',
+                orderId: '9000',
+                txHash: 'abcd1234',
+                expiresAt: 1,
+                role: 'stale',
+              },
+            ],
+          }),
+        );
+        const sourceBytes = JSON.stringify({
+          version: 1,
+          settlementKey: source,
+          symbol: 'BTC',
+          reason: 'manual',
+          priorIntent: 'replace',
+          priorTriggers: [],
+          survivingOrderIds: [],
+          operationId: 'newer-source',
+          recordedAt: 1,
+        });
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([source]),
+        );
+        await infra.diskCache.setItem(
+          `lighterTpslManual:testnet:${source}`,
+          sourceBytes,
+        );
+        const journalBefore = await infra.diskCache.getItem(
+          `lighterTpslJournal:testnet:${target}`,
+        );
+        expect(
+          await built.provider.resolveRecoveryProtection({
+            recoveryId,
+            symbol: 'BTC',
+          }),
+        ).toStrictEqual({
+          status: 'settled',
+          providerId: 'lighter',
+          success: true,
+        });
+        expect(
+          await infra.diskCache.getItem(`lighterTpslJournal:testnet:${target}`),
+        ).toBe(newer ? journalBefore : null);
+        expect(
+          await infra.diskCache.getItem(`lighterTpslManual:testnet:${source}`),
+        ).toBe(sourceBytes);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['manual', 'journal'] as const)(
+      'blocks ordinary current-slot writes behind an old-slot prepared %s source',
+      async (sourceKind) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const source = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const target = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        await infra.diskCache.setItem(
+          sourceKind === 'manual'
+            ? 'lighterTpslManualIndex:testnet'
+            : 'lighterTpslJournalIndex:testnet',
+          JSON.stringify([source]),
+        );
+        const bytes = JSON.stringify(
+          sourceKind === 'journal'
+            ? {
+                version: 4,
+                recordedAt: 1,
+                operationId: 'source',
+                createdAt: 1,
+                nextAttemptId: 2,
+                apiKeyIndex: 19,
+                intent: 'remove',
+                phase: 'cancelling',
+                priorGrouping: 'independent',
+                priorTriggers: [],
+                attempts: [
+                  {
+                    kind: 'cancel',
+                    attemptId: 1,
+                    nonce: 42,
+                    outcome: 'accepted',
+                    orderId: '9000',
+                    txHash: 'abcd1234',
+                    expiresAt: 1,
+                    role: 'stale',
+                  },
+                ],
+              }
+            : {
+                version: 1,
+                settlementKey: source,
+                symbol: 'BTC',
+                reason: 'manual',
+                priorIntent: 'replace',
+                priorTriggers: [],
+                survivingOrderIds: [],
+                operationId: 'source',
+                recordedAt: 1,
+              },
+        );
+        await infra.diskCache.setItem(
+          `lighterTpsl${sourceKind === 'manual' ? 'Manual' : 'Journal'}:testnet:${source}`,
+          bytes,
+        );
+        await infra.diskCache.setItem(
+          `lighterTpslSuccessor:testnet:${source}:source`,
+          JSON.stringify({
+            version: 1,
+            sourceSettlementKey: source,
+            sourceOperationId: 'source',
+            successorSettlementKey: target,
+            successorOperationId: 'successor',
+            state: 'prepared',
+            ownedOrderIds: [],
+          }),
+        );
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain(
+          'Selected protection recovery is pending',
+        );
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          await infra.diskCache.getItem(
+            `lighterTpsl${sourceKind === 'manual' ? 'Manual' : 'Journal'}:testnet:${source}`,
+          ),
+        ).toBe(bytes);
+        const resumed = await built.provider.resolveRecoveryProtection({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          recoveryId: `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'source'])}`,
+        });
+        expect(resumed.error).toBeUndefined();
+        expect(resumed).toMatchObject({ status: 'settled', success: true });
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      },
+    );
+
     it.each([true, false])(
       'handles replacement=%s truthfully when no current position exists',
       async (replacement) => {
@@ -17358,6 +17862,183 @@ describe('LighterProvider', () => {
         restartedVenue.rawTriggers.some((row) => row.orderIndex === orderId),
       ).toBe(false);
     });
+    it.each([
+      'executed',
+      'unknown',
+      'already-complete',
+      'cancel-restart',
+    ] as const)(
+      'reconciles a %s successor after key loss without a second create',
+      async (evidence) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const orderId = venue.seedTrigger('stop-loss', '80000');
+        venue.failResponseOnce(14);
+        const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const recoveryId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'original'])}`;
+        await infra.diskCache.setItem(
+          `lighterTpslManual:testnet:${settlementKey}`,
+          JSON.stringify({
+            version: 1,
+            settlementKey,
+            symbol: 'BTC',
+            reason: 'manual',
+            priorIntent: 'replace',
+            priorTriggers: [],
+            survivingOrderIds: [String(orderId)],
+            operationId: 'original',
+            recordedAt: 1,
+          }),
+        );
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([settlementKey]),
+        );
+        const first = await built.provider.resolveRecoveryProtection({
+          recoveryId,
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(first.success).toBe(false);
+        const restarted = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+          apiKeyIndex: 19,
+        });
+        restarted.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            {
+              accountIndex: 28,
+              apiKeyIndex: 19,
+              nonce: 1,
+              publicKey: '9c'.repeat(40),
+            },
+          ],
+        });
+        const restartedVenue = setupTriggerVenue(
+          restarted.clientInstance,
+          restarted.bridge,
+          { apiKeyIndex: 19 },
+        );
+        restartedVenue.rawTriggers.push(...venue.rawTriggers);
+        restartedVenue.rawInactive.push(...venue.rawInactive);
+        for (const [hash, state] of venue.landedTxs) {
+          restartedVenue.landedTxs.set(hash, state);
+        }
+        const readTx =
+          restarted.clientInstance.getTx.getMockImplementation() as
+            | ((
+                hash: string,
+              ) => Promise<
+                | import('../../../src/types/lighter-types.js').LighterTxLookupResponse
+                | null
+              >)
+            | undefined;
+        restarted.clientInstance.getTx.mockImplementation(
+          async (hash: string) => {
+            if (!venue.landedTxs.has(hash)) {
+              return readTx?.(hash);
+            }
+            if (evidence === 'unknown') {
+              return null;
+            }
+            return {
+              hash,
+              accountIndex: 28,
+              apiKeyIndex: 7,
+              ...venue.landedTxs.get(hash),
+            };
+          },
+        );
+        restartedVenue.setVenueNonce(venue.getVenueNonce());
+        restartedVenue.setNextIndex(venue.getNextIndex());
+        if (evidence === 'already-complete') {
+          restarted.clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [{ ...ACCOUNT, positions: [] }],
+          });
+          restartedVenue.rawTriggers.splice(
+            restartedVenue.rawTriggers.findIndex(
+              (row) => row.orderIndex === orderId,
+            ),
+            1,
+          );
+        }
+        if (evidence === 'cancel-restart') {
+          restartedVenue.failResponseOnce(15);
+        }
+        let second = await restarted.provider.resolveRecoveryProtection({
+          recoveryId,
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        let resumedCreates = 0;
+        let intermediateSuccess: boolean | undefined;
+        if (evidence === 'cancel-restart') {
+          intermediateSuccess = second.success;
+          const resumed = buildProvider({
+            platformDependencies: infra,
+            registeredKey: '9c'.repeat(40),
+            apiKeyIndex: 19,
+          });
+          resumed.clientInstance.getApiKeys.mockResolvedValue({
+            code: 200,
+            apiKeys: [
+              {
+                accountIndex: 28,
+                apiKeyIndex: 19,
+                nonce: 1,
+                publicKey: '9c'.repeat(40),
+              },
+            ],
+          });
+          const resumedVenue = setupTriggerVenue(
+            resumed.clientInstance,
+            resumed.bridge,
+            { apiKeyIndex: 19 },
+          );
+          resumedVenue.rawTriggers.push(...restartedVenue.rawTriggers);
+          resumedVenue.rawInactive.push(...restartedVenue.rawInactive);
+          for (const [hash, state] of restartedVenue.landedTxs) {
+            resumedVenue.landedTxs.set(hash, state);
+          }
+          resumedVenue.setVenueNonce(restartedVenue.getVenueNonce());
+          resumedVenue.setNextIndex(restartedVenue.getNextIndex());
+          second = await resumed.provider.resolveRecoveryProtection({
+            recoveryId,
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          });
+          resumedCreates = resumed.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          ).length;
+        }
+        expect(intermediateSuccess).toBe(
+          evidence === 'cancel-restart' ? false : undefined,
+        );
+        expect(resumedCreates).toBe(0);
+        expect(second.success).toBe(evidence !== 'unknown');
+        expect(restarted.clientInstance.sendTx).toHaveBeenCalledTimes(
+          evidence === 'executed' || evidence === 'cancel-restart' ? 1 : 0,
+        );
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          ),
+        ).toHaveLength(0);
+        expect(
+          restartedVenue.rawTriggers.some((row) => row.orderIndex === orderId),
+        ).toBe(evidence === 'unknown');
+      },
+    );
 
     it.each(['unavailable', 'wrong-slot', 'terminal-failed'] as const)(
       'reconciles original slot attempts with %s evidence before a current-key successor',

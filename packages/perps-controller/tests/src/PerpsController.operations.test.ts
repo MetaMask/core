@@ -2017,9 +2017,14 @@ describe('PerpsController', () => {
   });
 
   describe('durable-settlement surfacing (manual recoveries / recovered dispatches)', () => {
-    it.each(['review', 'resolve'] as const)(
-      'captures the issuing account before %s readiness',
-      async (operation) => {
+    it.each([
+      ['review', 'account'],
+      ['resolve', 'account'],
+      ['acknowledge', 'account'],
+      ['acknowledge', 'network'],
+    ] as const)(
+      'captures the issuing context before %s readiness across %s change',
+      async (operation, drift) => {
         let selectedAccount = createMockEvmAccount();
         const call = jest.fn().mockImplementation((action: string) => {
           if (
@@ -2048,6 +2053,7 @@ describe('PerpsController', () => {
         const provider = Object.assign(mockProvider, {
           reviewRecoveryVenue: invoked,
           resolveRecoveryProtection: invoked,
+          acknowledgeRecoveredDispatch: invoked,
         });
         jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
         const entered = createDeferred<void>();
@@ -2059,21 +2065,56 @@ describe('PerpsController', () => {
         const initialization = controller.init();
         await entered.promise;
         const pending =
-          operation === 'review'
-            ? controller.reviewRecoveryVenue()
-            : controller.resolveRecoveryProtection({
-                symbol: 'BTC',
-                recoveryId: 'opaque',
-              });
+          operation === 'acknowledge'
+            ? controller.acknowledgeRecoveredDispatch('42:nohash')
+            : operation === 'review'
+              ? controller.reviewRecoveryVenue()
+              : controller.resolveRecoveryProtection({
+                  symbol: 'BTC',
+                  recoveryId: 'opaque',
+                });
         const observed = pending.catch((error: unknown) => error);
-        selectedAccount = {
-          ...selectedAccount,
-          address: '0x9999999999999999999999999999999999999999',
-        };
+        if (drift === 'account') {
+          selectedAccount = {
+            ...selectedAccount,
+            address: '0x9999999999999999999999999999999999999999',
+          };
+        } else {
+          controller.testUpdate((state) => {
+            state.isTestnet = !state.isTestnet;
+          });
+        }
         release.resolve();
         await initialization;
         expect(await observed).toBeInstanceOf(Error);
         expect(invoked).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['settled', 'unresolved', 'unsupported'] as const)(
+      'refreshes state only for a successful settled recovery (%s)',
+      async (status) => {
+        markControllerAsInitialized();
+        controller.testUpdate((state) => {
+          state.lastUpdateTimestamp = 1;
+        });
+        const resolveRecoveryProtection = jest.fn().mockResolvedValue({
+          status,
+          providerId: 'hyperliquid',
+          success: status === 'settled',
+        });
+        controller.testSetProviders(
+          new Map([
+            ['hyperliquid', { ...mockProvider, resolveRecoveryProtection }],
+          ]),
+        );
+        await controller.resolveRecoveryProtection({
+          symbol: 'BTC',
+          recoveryId: 'opaque',
+        });
+        expect(controller.state.lastUpdateTimestamp === 1).toBe(
+          status !== 'settled',
+        );
       },
     );
 
@@ -2098,7 +2139,7 @@ describe('PerpsController', () => {
       expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
     });
 
-    it.each(['review', 'resolve'] as const)(
+    it.each(['review', 'resolve', 'acknowledge'] as const)(
       'rejects %s results after the issuing network context changes',
       async (operation) => {
         markControllerAsInitialized();
@@ -2123,17 +2164,22 @@ describe('PerpsController', () => {
                 ...mockProvider,
                 reviewRecoveryVenue: call,
                 resolveRecoveryProtection: call,
+                acknowledgeRecoveredDispatch: async () => {
+                  await call();
+                },
               },
             ],
           ]),
         );
         const pending =
-          operation === 'review'
-            ? controller.reviewRecoveryVenue()
-            : controller.resolveRecoveryProtection({
-                symbol: 'BTC',
-                recoveryId: 'opaque',
-              });
+          operation === 'acknowledge'
+            ? controller.acknowledgeRecoveredDispatch('42:nohash')
+            : operation === 'review'
+              ? controller.reviewRecoveryVenue()
+              : controller.resolveRecoveryProtection({
+                  symbol: 'BTC',
+                  recoveryId: 'opaque',
+                });
         const rejected = expect(pending).rejects.toThrow(
           PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
         );

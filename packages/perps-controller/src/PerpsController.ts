@@ -4025,11 +4025,30 @@ export class PerpsController extends BaseController<
         error: 'Selected protection recovery is unavailable for this provider',
       };
     }
-    const result = await provider.resolveRecoveryProtection(params);
-    if (issuedContext !== this.#getActionContext()) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    try {
+      const result = await provider.resolveRecoveryProtection(params);
+      if (issuedContext !== this.#getActionContext()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      if (result.status === 'settled' && result.success) {
+        this.update((state) => {
+          state.lastUpdateTimestamp = Date.now();
+        });
+      }
+      this.#options.infrastructure.tracer.addBreadcrumb({
+        category: 'perps.recovery',
+        message: 'Explicit protection recovery completed',
+        level: result.status === 'settled' ? 'info' : 'warning',
+        data: { providerId, status: result.status },
+      });
+      return result;
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.resolveRecoveryProtection'),
+        this.#getErrorContext('resolveRecoveryProtection'),
+      );
+      throw error;
     }
-    return result;
   }
 
   /**
@@ -4111,13 +4130,20 @@ export class PerpsController extends BaseController<
    * @returns Resolves when the outcome is acknowledged.
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const issuedContext = this.#getActionContext();
     const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     if (!provider.acknowledgeRecoveredDispatch) {
       throw new Error(
         'The active perps provider has no recovered dispatches to acknowledge',
       );
     }
-    return provider.acknowledgeRecoveredDispatch(recoveryId);
+    await provider.acknowledgeRecoveredDispatch(recoveryId);
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
   }
 
   /**
