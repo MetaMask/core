@@ -1201,9 +1201,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 
-    it.each(['entry-drift', 'read-failure'])(
+    it.each([
+      ['entry-drift', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+      ['read-failure', expect.any(String) as unknown],
+    ])(
       'restores exact old protection for %s after confirmed cancellation',
-      async (change) => {
+      async (change, expectedError) => {
         const { exchangeClient, infoClient } = useStrategyClients({
           info: {
             frontendOpenOrders: jest.fn().mockResolvedValue([
@@ -1248,6 +1251,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
         expect(result).toMatchObject({
           success: false,
+          error: expectedError,
         });
         expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
         expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -1716,15 +1720,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
 
       it.each([
-        'size',
-        'entry',
-        'account',
-        'network',
-        'disconnect',
-        'read-failure',
+        ['size', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+        ['entry', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+        ['account', expect.any(String) as unknown],
+        ['network', expect.any(String) as unknown],
+        ['disconnect', expect.any(String) as unknown],
+        ['read-failure', expect.any(String) as unknown],
       ])(
         'preserves old protection when %s changes during real cancellation signing',
-        async (change) => {
+        async (change, expectedError) => {
           const { actions, hooks, infoClient } = setup();
           const started = createDeferred<void>();
           const release = createDeferred<void>();
@@ -1765,6 +1769,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           const result = await pending;
           expect(actions).toStrictEqual([]);
           expect(result.success).toBe(false);
+          expect(result.error).toStrictEqual(expectedError);
           expect(result.error).not.toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
           expect(result.childOrderIds).toBeUndefined();
         },
@@ -2653,6 +2658,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expectedPosition: { size: '1.5', entryPrice: '3000' },
       });
       expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });

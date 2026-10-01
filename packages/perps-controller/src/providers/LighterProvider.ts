@@ -7407,6 +7407,15 @@ export class LighterProvider implements PerpsProvider {
               liveWireSize = null;
             }
           }
+          assertExpectedPosition(
+            expectedPosition,
+            livePosition
+              ? {
+                  size: `${livePosition.sign === -1 ? '-' : ''}${livePosition.position}`,
+                  entryPrice: livePosition.avgEntryPrice,
+                }
+              : undefined,
+          );
           if (
             wantsReplacement &&
             (liveWireSize === null ||
@@ -7417,15 +7426,7 @@ export class LighterProvider implements PerpsProvider {
               `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
             );
           }
-          assertExpectedPosition(
-            expectedPosition,
-            livePosition
-              ? {
-                  size: `${livePosition.sign === -1 ? '-' : ''}${livePosition.position}`,
-                  entryPrice: livePosition.avgEntryPrice,
-                }
-              : undefined,
-          );
+
           const managed = await this.#readManagedTpsl(settlementKey);
           this.#assertSession(generationAtIntent);
           const openOrders = rawOrders.map((order) =>

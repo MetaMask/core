@@ -6651,6 +6651,144 @@ describe('LighterProvider', () => {
       },
     );
 
+    it.each(['resize', 'flip', 'vanished'])(
+      'returns the structured error for intermediate position %s before signing',
+      async (change) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const oldId = venue.seedTrigger('stop-loss', '80000');
+        clientInstance.getActiveOrders.mockImplementation(async () => {
+          clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions:
+                  change === 'vanished'
+                    ? []
+                    : [
+                        {
+                          ...ACCOUNT.positions[0],
+                          position:
+                            change === 'resize'
+                              ? '0.002'
+                              : ACCOUNT.positions[0].position,
+                          sign: change === 'flip' ? -1 : 1,
+                        },
+                      ],
+              },
+            ],
+          });
+          return {
+            code: 200,
+            orders: venue.rawTriggers.map((row) => ({ ...row })),
+          };
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        expect(result.success).toBe(false);
+        expect(
+          calls.filter((call) =>
+            ['_signCreateOrder', '_signCancelOrder'].includes(call.function),
+          ),
+        ).toHaveLength(0);
+        expect(
+          clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === 14 || kind === 15,
+          ),
+        ).toHaveLength(0);
+        expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual([
+          oldId,
+        ]);
+      },
+    );
+
+    it.each(['resize', 'entry-drift'])(
+      'releases an unsent removal after position %s during cancel signing',
+      async (change) => {
+        const infra = createMockInfrastructure();
+        const { provider, clientInstance, bridge } = buildProvider({
+          platformDependencies: infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '80000',
+            })
+          ).success,
+        ).toBe(true);
+        const oldIds = venue.rawTriggers.map((row) => row.orderIndex);
+        const managedKey = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        const ownership = await infra.diskCache.getItem(managedKey);
+        const started = createDeferred<void>();
+        const release = createDeferred<void>();
+        const execute = jest.spyOn(bridge, 'execute');
+        const original = execute.getMockImplementation();
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          const signed = await original?.(call);
+          if (call.function === '_signCancelOrder') {
+            started.resolve();
+            await release.promise;
+          }
+          return signed;
+        });
+        const pending = provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        await started.promise;
+        clientInstance.sendTx.mockClear();
+        const live = {
+          ...ACCOUNT.positions[0],
+          ...(change === 'resize'
+            ? { position: '0.002' }
+            : { avgEntryPrice: '100001' }),
+        };
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [{ ...ACCOUNT, positions: [live] }],
+        });
+        release.resolve();
+        const result = await pending;
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        expect(result.success).toBe(false);
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual(
+          oldIds,
+        );
+        expect(await infra.diskCache.getItem(managedKey)).toBe(ownership);
+        expect(
+          await infra.diskCache.getItem(
+            `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`,
+          ),
+        ).toBeNull();
+        const retry = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: live.position,
+            entryPrice: live.avgEntryPrice,
+          },
+        });
+        expect(retry.success).toBe(true);
+        expect(venue.rawTriggers).toHaveLength(0);
+        expect((await provider.closePosition({ symbol: 'BTC' })).success).toBe(
+          true,
+        );
+      },
+    );
+
     it.each(['resize', 'entry-drift'])(
       'rejects position %s while create signing is pending before dispatch',
       async (change) => {
