@@ -1821,7 +1821,9 @@ describe('MoneyAccountBalanceService', () => {
         usedFallback: true,
       });
       expect(captureException).toHaveBeenCalledWith(
-        expect.any(MoneyAccountBalanceValidationError),
+        new MoneyAccountBalanceValidationError(
+          'Invalid balance invariant: totalBalance must equal musdBalance + vmusdValueInMusd',
+        ),
       );
     });
 
@@ -1856,7 +1858,9 @@ describe('MoneyAccountBalanceService', () => {
         usedFallback: true,
       });
       expect(captureException).toHaveBeenCalledWith(
-        expect.any(MoneyAccountBalanceValidationError),
+        new MoneyAccountBalanceValidationError(
+          'Invalid musdBalance: expected a non-negative integer string',
+        ),
       );
     });
 

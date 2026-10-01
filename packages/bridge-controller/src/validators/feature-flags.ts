@@ -23,7 +23,7 @@ export enum FeatureId {
   BATCH_SELL = 'batch_sell',
   UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
   LIMIT_ORDER = 'limit_order',
-  RECURRING_BUY = 'recurring_buy',
+  RECURRING_ORDER = 'recurring_order',
 }
 
 export const VersionStringSchema = define<string>(

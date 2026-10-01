@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+
+### Fixed
+
+- Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
+
+## [19.0.0]
+
 ### Added
 
 - Add optional `feeSource` to `FeeCalculationResult`, reporting which fee source (`default`, `rewards` or `subscription`) won the fee resolution the quoted MetaMask fee was priced from, so clients can attribute the discount shown in a fee preview without re-deriving it from the rates ([#10650](https://github.com/MetaMask/core/pull/10650))
@@ -49,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The exported `FrontendOrder.orderType` union adds `Twap Slice`, `Vault Close` and `Spot Dust Conversion`, so exhaustive handling of it must cover these values; historical orders of these types report `orderType: 'market'` ([#10591](https://github.com/MetaMask/core/pull/10591))
 - Bump `@nktkas/hyperliquid` from `^0.33.1` to `^0.33.3` ([#10591](https://github.com/MetaMask/core/pull/10591))
   - Drop the yarn patch on the SDK, which `0.33.3` no longer needs
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
 
 ### Removed
 
@@ -1080,7 +1091,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.4.0...@metamask/perps-controller@18.0.0
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.3.0...@metamask/perps-controller@17.4.0

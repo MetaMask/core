@@ -1,6 +1,6 @@
 {
   "name": "@metamask/cryptography",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Provides optimized versions of commonly used cryptography functions for MetaMask clients",
   "keywords": [
     "Ethereum",
@@ -25,9 +25,29 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./aes-gcm": {
+      "types": "./dist/aes-gcm.d.ts",
+      "default": "./dist/aes-gcm.js"
+    },
     "./ed25519": {
       "types": "./dist/ed25519.d.ts",
       "default": "./dist/ed25519.js"
+    },
+    "./hkdf": {
+      "types": "./dist/hkdf.d.ts",
+      "default": "./dist/hkdf.js"
+    },
+    "./hmac": {
+      "types": "./dist/hmac.d.ts",
+      "default": "./dist/hmac.js"
+    },
+    "./pbkdf2": {
+      "types": "./dist/pbkdf2.d.ts",
+      "default": "./dist/pbkdf2.js"
+    },
+    "./sha": {
+      "types": "./dist/sha.d.ts",
+      "default": "./dist/sha.js"
     },
     "./x25519": {
       "types": "./dist/x25519.d.ts",

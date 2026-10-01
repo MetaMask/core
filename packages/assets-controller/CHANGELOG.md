@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
+  - `AssetsController` subscribes to `MultichainTransactionsController:transactionConfirmed` so non-EVM (Snap keyring) transactions trigger the same post-transaction balance refresh as EVM `TransactionController:transactionConfirmed`.
+  - Consumers must delegate `MultichainTransactionsController:transactionConfirmed` onto the Assets controller messenger. Without that delegation the subscription is registered and never fires.
+
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/assets-controllers` from `^112.0.4` to `^112.1.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+
+### Fixed
+
+- Fix `PriceDataSource` supported-network filtering so it reads the object-shaped `partialSupport` returned by the Price API `/v2/supportedNetworks` endpoint ([#10582](https://github.com/MetaMask/core/pull/10582))
+- On the v5 balance path, stop seeding every enabled chain's native onto an account when the update arrives after that account is no longer selected ([#10567](https://github.com/MetaMask/core/pull/10567))
+- On unlock, drop stored balances whose chain namespace is outside the selected account's scopes ([#10567](https://github.com/MetaMask/core/pull/10567))
 
 ## [17.0.0]
 

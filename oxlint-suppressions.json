@@ -702,6 +702,16 @@
       "count": 1
     }
   },
+  "packages/assets-controller/jest.config.integration.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/jest.config.unit.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/AssetsController.spam-cleanup.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -2438,16 +2448,6 @@
     }
   },
   "packages/config-registry-controller/src/ConfigRegistryController.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
-  "packages/config-registry-controller/src/config-registry-api-service/config-registry-api-service.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 6
-    }
-  },
-  "packages/config-registry-controller/src/config-registry-api-service/config-registry-api-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
     }
@@ -4490,16 +4490,13 @@
   },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 4
     },
     "typescript/no-unsafe-call": {
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 4
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 3
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/notification-api.ts": {
@@ -6332,11 +6329,6 @@
       "count": 3
     }
   },
-  "packages/transaction-controller/src/utils/gas-fee-tokens.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 2
-    }
-  },
   "packages/transaction-controller/src/utils/gas-fees.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -7231,9 +7223,6 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -7655,6 +7644,16 @@
       "count": 2
     }
   },
+  "scripts/lib/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lib/tsc-suppressions.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
   "scripts/lib/workspaces.ts": {
     "jsdoc/require-param": {
       "count": 1
@@ -7678,6 +7677,11 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    }
+  },
+  "scripts/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
     }
   },
   "scripts/lint-tsconfigs/utils.ts": {

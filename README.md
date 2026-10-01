@@ -271,6 +271,7 @@ linkStyle default opacity:0.5
   ai_controllers --> base_controller;
   ai_controllers --> messenger;
   analytics_controller --> base_controller;
+  analytics_controller --> config_registry_controller;
   analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
   analytics_controller --> utils;
@@ -295,6 +296,7 @@ linkStyle default opacity:0.5
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> multichain_transactions_controller;
   assets_controller --> network_controller;
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
@@ -726,6 +728,7 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> remote_feature_flag_controller;
+  subscription_controller --> seedless_onboarding_controller;
   subscription_controller --> transaction_controller;
   subscription_controller --> utils;
   transaction_controller --> accounts_controller;

@@ -1234,7 +1234,8 @@ export type OrderFill = {
   side: string; // Normalized order side ('buy' or 'sell')
   size: string; // Fill size
   price: string; // Fill price
-  pnl: string; // PNL
+  /** Realized PnL reported by the venue; absent means unknown, never zero. */
+  pnl?: string;
   direction: string; // Direction of the fill
   fee: string; // Fee paid
   feeToken: string; // Fee token symbol

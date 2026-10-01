@@ -1,6 +1,7 @@
 import { bytesToHex, hexToBytes } from '@metamask/utils';
 
-import { getPublicKey, getSharedSecret } from './x25519.js';
+import * as random from './random.js';
+import { generateKeyPair, getPublicKey, getSharedSecret } from './x25519.js';
 
 const privateKey = hexToBytes(
   '0x4a78ac42b72f1232d99257d03675b6268906361f902e85ef9f407270b376b271',
@@ -29,8 +30,58 @@ const rfcBobPrivateKey = hexToBytes(
 const rfcBobPublicKey = hexToBytes(
   '0xde9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f',
 );
-const rfcSharedSecret =
-  '0x4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742';
+const rfcSharedSecret = hexToBytes(
+  '0x4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742',
+);
+
+describe('generateKeyPair', () => {
+  it('uses 32 random bytes as the private key and derives the public key from it', async () => {
+    const getRandomBytesSpy = jest
+      .spyOn(random, 'getRandomBytes')
+      .mockReturnValueOnce(rfcAlicePrivateKey);
+
+    const keyPair = await generateKeyPair();
+
+    expect(getRandomBytesSpy).toHaveBeenCalledTimes(1);
+    expect(getRandomBytesSpy).toHaveBeenCalledWith(32);
+    expect(bytesToHex(keyPair.privateKey)).toBe(bytesToHex(rfcAlicePrivateKey));
+    expect(bytesToHex(keyPair.publicKey)).toBe(bytesToHex(rfcAlicePublicKey));
+  });
+
+  it('generates a 32-byte private key and a 32-byte public key', async () => {
+    const keyPair = await generateKeyPair();
+
+    expect(keyPair.privateKey).toHaveLength(32);
+    expect(keyPair.publicKey).toHaveLength(32);
+  });
+
+  it('generates a different key pair each time', async () => {
+    const first = await generateKeyPair();
+    const second = await generateKeyPair();
+
+    expect(bytesToHex(first.privateKey)).not.toBe(
+      bytesToHex(second.privateKey),
+    );
+    expect(bytesToHex(first.publicKey)).not.toBe(bytesToHex(second.publicKey));
+  });
+
+  it('generates a public key that matches the private key', async () => {
+    const { privateKey: generatedPrivateKey, publicKey: generatedPublicKey } =
+      await generateKeyPair();
+
+    const derivedPublicKey = await getPublicKey(generatedPrivateKey);
+    expect(bytesToHex(derivedPublicKey)).toBe(bytesToHex(generatedPublicKey));
+  });
+
+  it('generates key pairs that derive the same shared secret', async () => {
+    const alice = await generateKeyPair();
+    const bob = await generateKeyPair();
+
+    const aliceSecret = await getSharedSecret(alice.privateKey, bob.publicKey);
+    const bobSecret = await getSharedSecret(bob.privateKey, alice.publicKey);
+    expect(bytesToHex(aliceSecret)).toBe(bytesToHex(bobSecret));
+  });
+});
 
 describe('getPublicKey', () => {
   it('derives a public key', async () => {
@@ -79,12 +130,12 @@ describe('getSharedSecret', () => {
 
   it('computes the shared secret from Alice private key and Bob public key', async () => {
     const shared = await getSharedSecret(rfcAlicePrivateKey, rfcBobPublicKey);
-    expect(bytesToHex(shared)).toBe(rfcSharedSecret);
+    expect(bytesToHex(shared)).toBe(bytesToHex(rfcSharedSecret));
   });
 
   it('computes the shared secret from Bob private key and Alice public key', async () => {
     const shared = await getSharedSecret(rfcBobPrivateKey, rfcAlicePublicKey);
-    expect(bytesToHex(shared)).toBe(rfcSharedSecret);
+    expect(bytesToHex(shared)).toBe(bytesToHex(rfcSharedSecret));
   });
 
   it('accepts an ArrayBuffer private and public key', async () => {
@@ -92,7 +143,7 @@ describe('getSharedSecret', () => {
       rfcAlicePrivateKey.buffer,
       rfcBobPublicKey.buffer,
     );
-    expect(bytesToHex(shared)).toBe(rfcSharedSecret);
+    expect(bytesToHex(shared)).toBe(bytesToHex(rfcSharedSecret));
   });
 
   it('accepts a DataView private and public key', async () => {
@@ -100,7 +151,7 @@ describe('getSharedSecret', () => {
       new DataView(rfcAlicePrivateKey.buffer),
       new DataView(rfcBobPublicKey.buffer),
     );
-    expect(bytesToHex(shared)).toBe(rfcSharedSecret);
+    expect(bytesToHex(shared)).toBe(bytesToHex(rfcSharedSecret));
   });
 
   it('throws if the private key is too short', async () => {
