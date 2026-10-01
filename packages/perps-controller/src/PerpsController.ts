@@ -3988,8 +3988,8 @@ export class PerpsController extends BaseController<
    * wallet/network/account/key and accepts legacy IDs only when unambiguous
    * across local account ledgers. Acknowledgment removes one stored outcome,
    * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
-   * Rejects account, network or provider changes while readiness or
-   * acknowledgment completes. A stale-context rejection after provider success
+   * Rejects account, network, provider or lifecycle generation changes while
+   * readiness or acknowledgment completes. A stale-context rejection after provider success
    * does not undo removal in the issuing account; callers must re-list outcomes
    * before acting again. Provider rejections propagate unchanged.
    *
@@ -3998,8 +3998,12 @@ export class PerpsController extends BaseController<
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
     const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
     const provider = await this.#getActiveProviderWhenReady();
-    if (issuedContext !== this.#getActionContext()) {
+    if (
+      issuedGeneration !== this.#lifecycleGeneration ||
+      issuedContext !== this.#getActionContext()
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
     if (!provider.acknowledgeRecoveredDispatch) {
@@ -4008,7 +4012,10 @@ export class PerpsController extends BaseController<
       );
     }
     await provider.acknowledgeRecoveredDispatch(recoveryId);
-    if (issuedContext !== this.#getActionContext()) {
+    if (
+      issuedGeneration !== this.#lifecycleGeneration ||
+      issuedContext !== this.#getActionContext()
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
   }
