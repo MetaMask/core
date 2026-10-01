@@ -2096,6 +2096,49 @@ describe('HyperLiquidProvider', () => {
         expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       });
 
+      it('runs the setup again after the cooldown when an action-time lookup overlapped it', async () => {
+        // Completed DEX discovery keeps init memoized, so a kept memo would
+        // stop #ensureReady from ever running the setup again.
+        const readyProvider = createTestProvider({
+          hip3Enabled: true,
+          initialAssetMapping: [
+            ['BTC', 0],
+            ['ETH', 1],
+          ],
+        });
+        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        let rejectActionLookup: (error: Error) => void = () => undefined;
+        const userAbstraction = jest
+          .fn()
+          .mockRejectedValueOnce(createTerminatedSocketError())
+          .mockImplementationOnce(
+            async () =>
+              new Promise((_resolve, reject) => {
+                rejectActionLookup = reject;
+              }),
+          )
+          .mockRejectedValue(createTerminatedSocketError());
+        mockClientService.getInfoClient = jest
+          .fn()
+          .mockReturnValue(createMockInfoClient({ userAbstraction }));
+
+        await readyProvider.getMarketDataWithPrices();
+        // The action-time lookup is in flight while #ensureReady skips.
+        const preparing = readyProvider.prepareTradingWallet();
+        for (let i = 0; i < 50 && userAbstraction.mock.calls.length < 2; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        await readyProvider.getMarketDataWithPrices();
+        rejectActionLookup(createTerminatedSocketError());
+        await preparing;
+
+        nowSpy.mockReturnValue(1_000_000 + AFTER_COOLDOWN_MS);
+        await readyProvider.getMarketDataWithPrices();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(3);
+      });
+
       it('ends the cooldown when the provider reconnects', async () => {
         jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
         const userAbstraction = jest

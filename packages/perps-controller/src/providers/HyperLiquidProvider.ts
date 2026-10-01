@@ -3044,11 +3044,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Trading still works (main DEX mapping is populated), but HIP-3 markets
       // will be re-discovered on the next #ensureReady() call.
       this.#ensureReadyPromise = null;
-    } else if (this.#unifiedAccountSetupNeedsRetry) {
+    } else if (
+      this.#unifiedAccountSetupNeedsRetry ||
+      Date.now() < this.#unifiedAccountTransportRetryAt
+    ) {
       // Silent migration / lookup / keyring-locked failure left the cache
       // empty. Without resetting the memoized promise, subsequent
       // #ensureReady calls would skip retry and the user would be stuck
       // in the deprecated mode for the provider's lifetime.
+      // A run skipped by the transport cooldown must not be memoized
+      // either: the shared flag can read false while an action-time
+      // attempt is in flight, and the setup has to run once the cooldown
+      // is over.
       this.#ensureReadyPromise = null;
     }
     this.#deps.debugLogger.log('[ensureReady] Initialization complete');
