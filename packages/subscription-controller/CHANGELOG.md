@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.0.0]
 
-### Uncategorized
-
-- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
-
 ### Added
 
 - **BREAKING:** Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
