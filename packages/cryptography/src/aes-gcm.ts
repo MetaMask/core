@@ -77,7 +77,12 @@ export async function encrypt(
 
   const ciphertext = await globalThis.crypto.subtle.encrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    getAesGcmAlgorithm(iv, options),
+    {
+      name: 'AES-GCM',
+      iv,
+      additionalData:
+        options?.additionalData && toUint8Array(options.additionalData),
+    },
     subtleKey,
     toUint8Array(plaintext),
   );
@@ -128,32 +133,15 @@ export async function decrypt(
 
   const plaintext = await globalThis.crypto.subtle.decrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    getAesGcmAlgorithm(toUint8Array(iv), options),
+    {
+      name: 'AES-GCM',
+      iv: toUint8Array(iv),
+      additionalData:
+        options?.additionalData && toUint8Array(options.additionalData),
+    },
     subtleKey,
     toUint8Array(ciphertext),
   );
 
   return new Uint8Array(plaintext);
-}
-
-/**
- * Build the WebCrypto AES-GCM parameters.
- *
- * @param iv - The initialization vector.
- * @param options - Options that may include associated data.
- * @returns The algorithm parameters for `subtle.encrypt` or `subtle.decrypt`.
- */
-function getAesGcmAlgorithm(
-  iv: Uint8Array<ArrayBuffer>,
-  options?: AesGcmDecryptOptions,
-): AesGcmParams {
-  if (options?.additionalData === undefined) {
-    return { name: 'AES-GCM', iv };
-  }
-
-  return {
-    name: 'AES-GCM',
-    iv,
-    additionalData: toUint8Array(options.additionalData),
-  };
 }
