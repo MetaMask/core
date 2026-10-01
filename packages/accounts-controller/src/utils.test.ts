@@ -29,6 +29,7 @@ describe('utils', () => {
       [KeyringTypes.snap, 'Snap Account'],
       [KeyringType.Snap, 'Snap Account'],
       [KeyringTypes.money, 'Money'],
+      [KeyringTypes.mpc, 'MPC'],
     ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
       expect(keyringTypeToName(keyringType)).toBe(expectedName);
     });
