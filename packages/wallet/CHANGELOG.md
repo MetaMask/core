@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.1]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^4.0.0` to `^5.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+
+## [16.0.0]
+
 ### Changed
 
 - **BREAKING:** Grant `SubscriptionController` access to `SeedlessOnboardingController:getIsUserAuthenticated` ([#10622](https://github.com/MetaMask/core/pull/10622))
   - Clients must delegate this action to the Wallet messenger.
 - **BREAKING:** Wire up `ConfigRegistryApiService:fetchEventsConfig` action handler in `configRegistryController` initialization ([#10448](https://github.com/MetaMask/core/pull/10448))
   - The messenger passed to Wallet must support this action.
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/subscription-controller` from `^11.0.0` to `^12.0.0` ([#10655](https://github.com/MetaMask/core/pull/10655))
 
 ## [15.1.0]
 
@@ -316,7 +327,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...HEAD
+[16.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.0...@metamask/wallet@16.0.1
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...@metamask/wallet@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...@metamask/wallet@15.1.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...@metamask/wallet@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@15.0.0

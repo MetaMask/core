@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+
+## [72.1.0]
+
+### Changed
+
 - Include a `RedeemerEnforcer` caveat in EIP-7702 gas fee token simulations via `suggestFees.withRedeemerEnforcer` ([#10615](https://github.com/MetaMask/core/pull/10615))
 
 - Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
@@ -2805,7 +2811,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...HEAD
+[72.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...@metamask/transaction-controller@72.1.0
 [72.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...@metamask/transaction-controller@72.0.1
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...@metamask/transaction-controller@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...@metamask/transaction-controller@71.0.0

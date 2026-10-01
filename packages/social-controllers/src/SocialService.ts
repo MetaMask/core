@@ -24,9 +24,13 @@ import {
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
+  BlockedContentResponse,
+  BlockedProfilesResponse,
+  BlockOptions,
   CommentEngagement,
   CreateSwapCommentOptions,
   FeedResponse,
+  FetchBlockedListOptions,
   FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
@@ -279,6 +283,32 @@ const UnfollowResponseStruct = structType({
   unfollowed: array(ProfileSummaryStruct),
 });
 
+const BlockedProfileStruct = structType({
+  blockedAt: number(),
+  reason: nullable(string()),
+  profile: ProfileSummaryStruct,
+});
+
+const BlockedProfilesResponseStruct = structType({
+  items: array(BlockedProfileStruct),
+  cursor: nullable(string()),
+});
+
+const BlockedContentStruct = structType({
+  blockedAt: number(),
+  reason: nullable(string()),
+  type: enums(['comment', 'reply']),
+  id: string(),
+  text: string(),
+  createdAt: number(),
+  author: nullable(ProfileSummaryStruct),
+});
+
+const BlockedContentResponseStruct = structType({
+  items: array(BlockedContentStruct),
+  cursor: nullable(string()),
+});
+
 // ---------------------------------------------------------------------------
 // Messenger types
 // ---------------------------------------------------------------------------
@@ -302,6 +332,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'optOutOfLeaderboard',
   'optInToLeaderboard',
   'refreshNotificationPreferencesCache',
+  'block',
+  'fetchBlockedProfiles',
+  'fetchBlockedContent',
 ] as const;
 
 export type SocialServiceActions =
@@ -1124,6 +1157,129 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED,
         );
         return null;
+      },
+    });
+  }
+
+  /**
+   * Blocks a trader, swap comment, or reply for the current user.
+   *
+   * Calls `PUT ${baseUrl}/moderation/block`. Provide exactly one of
+   * `profileId`, `commentId`, or `replyId`. Blocking the same target again
+   * replaces `reason` when one is given. The caller is identified server-side
+   * from the JWT sub claim carried in the Authorization header.
+   *
+   * @param options - Options bag. Exactly one target, plus an optional reason.
+   * @param options.profileId - Profile id (UUID) of the trader to block.
+   * @param options.commentId - Swap comment to block.
+   * @param options.replyId - Comment reply to block.
+   * @param options.reason - Free-form reason stored on the block.
+   */
+  async block(options: BlockOptions): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:block`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/moderation/block`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify(options),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.BLOCK_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Fetches traders the current user has blocked.
+   *
+   * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
+   * recently blocked first, 250 per page. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.cursor - Cursor from the previous page. Omit for the first page.
+   * @returns The blocked profiles page.
+   */
+  async fetchBlockedProfiles(
+    options?: FetchBlockedListOptions,
+  ): Promise<BlockedProfilesResponse> {
+    const cursor = options?.cursor;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchBlockedProfiles`, cursor ?? null],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = new URL(`${this.#v1Url}/moderation/blocks/profiles`);
+        if (cursor) {
+          url.searchParams.append('cursor', cursor);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_FAILED,
+        );
+        const blockedProfiles = (await response.json()) as unknown;
+        if (!is(blockedProfiles, BlockedProfilesResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_INVALID_RESPONSE,
+          );
+        }
+        return blockedProfiles;
+      },
+    });
+  }
+
+  /**
+   * Fetches comments and replies the current user has blocked.
+   *
+   * Calls `GET ${baseUrl}/moderation/blocks/content`. Results are most
+   * recently blocked first, 250 per page. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.cursor - Cursor from the previous page. Omit for the first page.
+   * @returns The blocked content page.
+   */
+  async fetchBlockedContent(
+    options?: FetchBlockedListOptions,
+  ): Promise<BlockedContentResponse> {
+    const cursor = options?.cursor;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchBlockedContent`, cursor ?? null],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = new URL(`${this.#v1Url}/moderation/blocks/content`);
+        if (cursor) {
+          url.searchParams.append('cursor', cursor);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_FAILED,
+        );
+        const blockedContent = (await response.json()) as unknown;
+        if (!is(blockedContent, BlockedContentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_INVALID_RESPONSE,
+          );
+        }
+        return blockedContent;
       },
     });
   }

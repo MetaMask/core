@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "15.1.0",
+  "version": "16.0.1",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
@@ -56,21 +56,21 @@
     "@metamask/base-controller": "^10.0.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/claims-controller": "^1.0.2",
-    "@metamask/config-registry-controller": "^4.0.0",
+    "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/gas-fee-controller": "^27.0.0",
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-controller": "^37.0.1",
     "@metamask/passkey-controller": "^4.1.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/seedless-onboarding-controller": "^11.0.1",
     "@metamask/shield-controller": "^7.0.3",
     "@metamask/storage-service": "^2.0.0",
-    "@metamask/subscription-controller": "^11.0.0",
-    "@metamask/transaction-controller": "^72.0.1",
+    "@metamask/subscription-controller": "^12.0.0",
+    "@metamask/transaction-controller": "^72.1.0",
     "@metamask/utils": "^12.0.0"
   },
   "devDependencies": {

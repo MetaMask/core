@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Added
 
 - **BREAKING:** Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/money-account-balance-service` from `^3.1.1` to `^3.1.2` ([#10624](https://github.com/MetaMask/core/pull/10624))
 - Bump `@metamask/chomp-api-service` from `^6.0.0` to `^6.0.1` ([#10626](https://github.com/MetaMask/core/pull/10626))
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
 
 ## [11.0.0]
 
@@ -595,7 +598,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...@metamask/subscription-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.1...@metamask/subscription-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.0...@metamask/subscription-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...@metamask/subscription-controller@10.0.0

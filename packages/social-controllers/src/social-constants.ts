@@ -53,4 +53,12 @@ export const SocialServiceErrorMessage = {
     'SocialService: Swap comment returned invalid response',
   NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
     'SocialService: Notification preferences cache refresh request failed',
+  BLOCK_FAILED: 'SocialService: Block request failed',
+  FETCH_BLOCKED_PROFILES_FAILED:
+    'SocialService: Blocked profiles request failed',
+  FETCH_BLOCKED_PROFILES_INVALID_RESPONSE:
+    'SocialService: Blocked profiles returned invalid response',
+  FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
+  FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
+    'SocialService: Blocked content returned invalid response',
 } as const;
