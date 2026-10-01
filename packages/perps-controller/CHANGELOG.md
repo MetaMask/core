@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `PerpsAccountSigner.getChainId`. When set, HyperLiquid user-signed actions (builder fee approval, withdrawals, transfers) are signed for the chain it returns instead of chain 1, so a wallet that only signs for its connected chain does not switch chains ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add optional `PerpsAccountSigner.getChainId`. When set, HyperLiquid user-signed actions (builder fee approval, withdrawals, transfers) are signed for the chain it returns instead of chain 1, so a wallet that only signs for its connected chain does not switch chains ([#10643](https://github.com/MetaMask/core/pull/10643))
 
 ### Changed
 
@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
-- Detect a revoked or expired HyperLiquid agent that the venue answers with "Must deposit before performing actions" ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Detect a revoked or expired HyperLiquid agent that the venue answers with "Must deposit before performing actions" ([#10643](https://github.com/MetaMask/core/pull/10643))
   - The provider then checks `extraAgents` for the main account. When the agent is missing or past its `validUntil`, the write fails with `KEYRING_LOCKED`, the agent is dropped and `onAgentRejected` is called
   - When the agent is still listed (an account with no funds), or the list cannot be read, the venue error is returned as before
-- Stop asking again for a HyperLiquid builder fee approval the venue refused for a reason signing again cannot fix, such as "Builder has insufficient balance to be approved" ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Stop asking again for a HyperLiquid builder fee approval the venue refused for a reason signing again cannot fix, such as "Builder has insufficient balance to be approved" ([#10643](https://github.com/MetaMask/core/pull/10643))
   - Until the provider disconnects, the approval is not requested again: orders are sent as after any failed approval, TP/SL updates fail with `TPSL_UPDATE_FAILED`, and `prepareTradingWallet` returns the venue error
 
 ## [19.0.0]
