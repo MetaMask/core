@@ -34,7 +34,6 @@ const nistCiphertext15 = hexToBytes(
 ) as Uint8Array<ArrayBuffer>;
 
 // Test Case 4: 128-bit key with associated data
-// https://csrc.nist.rip/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-spec.pdf
 const nistKey4 = hexToBytes(
   '0xfeffe9928665731c6d6a8f9467308308',
 ) as Uint8Array<ArrayBuffer>;
