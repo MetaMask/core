@@ -28,19 +28,19 @@ const nistCiphertext15 = hexToBytes(
 // Test Case 4: 128-bit key with associated data
 const nistKey4 = hexToBytes(
   '0xfeffe9928665731c6d6a8f9467308308',
-) as Uint8Array<ArrayBuffer>;
+);
 const nistIv4 = hexToBytes(
   '0xcafebabefacedbaddecaf888',
-) as Uint8Array<ArrayBuffer>;
+);
 const nistPlaintext4 = hexToBytes(
   '0xd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39',
-) as Uint8Array<ArrayBuffer>;
+);
 const nistAdditionalData4 = hexToBytes(
   '0xfeedfacedeadbeeffeedfacedeadbeefabaddad2',
-) as Uint8Array<ArrayBuffer>;
+);
 const nistCiphertext4 = hexToBytes(
   '0x42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e0915bc94fbc3221a5db94fae95ae7121a47',
-) as Uint8Array<ArrayBuffer>;
+);
 
 describe('encrypt', () => {
   it('matches test case 2', async () => {
