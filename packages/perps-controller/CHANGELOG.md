@@ -29,8 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Keep newly created Lighter TP/SL ownership across resizing and restart. Bound history reads to one page, reclaim only proven terminal or expired IDs, and retain uncertain IDs when history is unavailable ([#10638](https://github.com/MetaMask/core/pull/10638))
-- Recompute Lighter recovery transaction expiry proofs so stale markers cannot erase live protection ([#10638](https://github.com/MetaMask/core/pull/10638))
-- Read managed Lighter TP/SL ownership before the final position check so delayed storage cannot authorize stale replacement quantities or sides ([#10638](https://github.com/MetaMask/core/pull/10638))
+- Keep Lighter TP/SL recovery obligations for venue-accepted submissions when a later lookup cannot find them, so recovery cannot discard live protection ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Allow removal of proven managed Lighter TP/SL IDs when the position disappears, becomes zero or falls below the size tick after preflight. Require an authoritative account/positions response, preserve unrecorded protection without valid live quantity and side, and retain replacement size/side guards ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Reject recovered-dispatch acknowledgment when the selected wallet, network, provider or provider lifetime changes during readiness or acknowledgment, including failed provider/network switch rollbacks and legacy recovery IDs. A stale-context rejection after provider success does not undo acknowledgment in the issuing account; callers must re-list outcomes before acting again ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Refuse stale signer readiness after a wallet switch or bridge reset while setup finishes, preserving unfinished TP/SL recovery visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
