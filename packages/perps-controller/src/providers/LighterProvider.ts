@@ -8329,8 +8329,18 @@ export class LighterProvider implements PerpsProvider {
                 selectedSuccessor.successorSettlementKey,
               );
               this.#assertSession(generationAtIntent);
-              if (
-                failedJournal?.operationId ===
+              if (failedJournal === null) {
+                if (
+                  !(await this.#clearTpslJournal(
+                    selectedSuccessor.successorSettlementKey,
+                    null,
+                  ))
+                ) {
+                  throw new Error('Lighter failed successor operation changed');
+                }
+                this.#assertSession(generationAtIntent);
+              } else if (
+                failedJournal.operationId ===
                 selectedSuccessor.successorOperationId
               ) {
                 if (

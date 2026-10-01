@@ -17870,6 +17870,8 @@ describe('LighterProvider', () => {
       'retained-canceled',
       'retained-clear-crash',
       'retained-next-key',
+      'retained-pointer-crash',
+      'retained-index-crash',
       'failed',
       'expired-absent',
       'mismatch',
@@ -17879,7 +17881,9 @@ describe('LighterProvider', () => {
         const retainedFailure =
           evidence === 'retained-canceled' ||
           evidence === 'retained-clear-crash' ||
-          evidence === 'retained-next-key';
+          evidence === 'retained-next-key' ||
+          evidence === 'retained-pointer-crash' ||
+          evidence === 'retained-index-crash';
         const infra = createMockInfrastructure();
         const built = buildProvider({
           platformDependencies: infra,
@@ -18019,9 +18023,18 @@ describe('LighterProvider', () => {
         let renewedCreates: number | undefined;
         let ordinarySuccess: boolean | undefined;
         let intermediateSuccess: boolean | undefined;
+        let failedUnrelated: string | undefined;
+        let renewedUnrelated: string | undefined;
+        let renewedJournal: string | null | undefined;
+        let renewedIndex: string[] | undefined;
         if (evidence === 'cancel-restart' || retainedFailure) {
           intermediateSuccess = second.success;
-          const resumedSlot = evidence === 'retained-next-key' ? 23 : 19;
+          const resumedSlot =
+            evidence === 'retained-next-key' ||
+            evidence === 'retained-pointer-crash' ||
+            evidence === 'retained-index-crash'
+              ? 23
+              : 19;
           const resumed = buildProvider({
             platformDependencies: infra,
             registeredKey: '9c'.repeat(40),
@@ -18083,7 +18096,10 @@ describe('LighterProvider', () => {
           );
           resumedVenue.setVenueNonce(restartedVenue.getVenueNonce());
           resumedVenue.setNextIndex(restartedVenue.getNextIndex());
-          if (evidence === 'retained-clear-crash') {
+          if (
+            evidence === 'retained-clear-crash' ||
+            evidence === 'retained-pointer-crash'
+          ) {
             const remove = jest.spyOn(infra.diskCache, 'removeItem');
             const realRemove = remove.getMockImplementation();
             if (!realRemove) {
@@ -18093,12 +18109,31 @@ describe('LighterProvider', () => {
             remove.mockImplementation(async (key) => {
               if (
                 !interrupted &&
-                key.startsWith(`lighterTpslJournalOp:testnet:${settlementKey}:`)
+                (evidence === 'retained-clear-crash'
+                  ? key.startsWith(
+                      `lighterTpslJournalOp:testnet:${settlementKey}:`,
+                    )
+                  : key === `lighterTpslJournal:testnet:${settlementKey}`)
               ) {
                 interrupted = true;
                 throw new Error('Interrupted failed retirement');
               }
               await realRemove(key);
+            });
+          }
+          if (evidence === 'retained-index-crash') {
+            const write = jest.spyOn(infra.diskCache, 'setItem');
+            const realWrite = write.getMockImplementation();
+            if (!realWrite) {
+              throw new Error('Missing storage write');
+            }
+            let interrupted = false;
+            write.mockImplementation(async (key, value) => {
+              if (!interrupted && key === 'lighterTpslJournalIndex:testnet') {
+                interrupted = true;
+                throw new Error('Interrupted failed index retirement');
+              }
+              await realWrite(key, value);
             });
           }
           second = await resumed.provider.resolveRecoveryProtection({
@@ -18107,6 +18142,11 @@ describe('LighterProvider', () => {
             stopLossPrice: '85000',
           });
           if (retainedFailure) {
+            failedUnrelated = JSON.stringify(
+              resumedVenue.rawTriggers.find(
+                (row) => row.orderIndex === unrelatedId,
+              ),
+            );
             const failed = JSON.parse(
               (await infra.diskCache.getItem(
                 `lighterTpslSuccessor:testnet:${settlementKey}:original`,
@@ -18130,6 +18170,19 @@ describe('LighterProvider', () => {
               symbol: 'BTC',
               stopLossPrice: '86000',
             });
+            renewedUnrelated = JSON.stringify(
+              resumedVenue.rawTriggers.find(
+                (row) => row.orderIndex === unrelatedId,
+              ),
+            );
+            renewedJournal = await infra.diskCache.getItem(
+              `lighterTpslJournal:testnet:${settlementKey}`,
+            );
+            renewedIndex = JSON.parse(
+              (await infra.diskCache.getItem(
+                'lighterTpslJournalIndex:testnet',
+              )) ?? '[]',
+            ) as string[];
             renewedSuccess = second.success;
             renewedCreates = resumed.calls.filter(
               (call) => call.function === '_signCreateOrder',
@@ -18151,12 +18204,22 @@ describe('LighterProvider', () => {
                 success: false,
                 sends: 0,
                 source: sourceBytes,
-                journalPresent: evidence === 'retained-clear-crash',
+                journalPresent:
+                  evidence === 'retained-clear-crash' ||
+                  evidence === 'retained-pointer-crash',
                 state: 'failed',
                 groups: undefined,
               }
             : undefined,
         );
+        expect(failedUnrelated).toBe(
+          retainedFailure ? unrelatedBytes : undefined,
+        );
+        expect(renewedUnrelated).toBe(
+          retainedFailure ? unrelatedBytes : undefined,
+        );
+        expect(renewedJournal).toBe(retainedFailure ? null : undefined);
+        expect(renewedIndex).toStrictEqual(retainedFailure ? [] : undefined);
         expect(renewedSuccess).toBe(retainedFailure ? true : undefined);
         expect(renewedCreates).toBe(retainedFailure ? 1 : undefined);
         expect(ordinarySuccess).toBe(retainedFailure ? true : undefined);
@@ -18182,6 +18245,8 @@ describe('LighterProvider', () => {
           'retained-canceled': 1,
           'retained-clear-crash': 1,
           'retained-next-key': 1,
+          'retained-pointer-crash': 1,
+          'retained-index-crash': 1,
           failed: 2,
           'expired-absent': 2,
           mismatch: 0,
