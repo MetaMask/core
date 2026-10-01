@@ -329,6 +329,15 @@ describe('RewardsIntegrationService', () => {
       return getPerpsBenefits;
     };
 
+    const wireGrant = (getPerpsTradingFeeGrant: jest.Mock) => {
+      (
+        mockDeps.rewards as unknown as {
+          getPerpsTradingFeeGrant?: jest.Mock;
+        }
+      ).getPerpsTradingFeeGrant = getPerpsTradingFeeGrant;
+      return getPerpsTradingFeeGrant;
+    };
+
     beforeEach(() => {
       jest.useFakeTimers();
       jest.setSystemTime(NOW);
@@ -395,153 +404,301 @@ describe('RewardsIntegrationService', () => {
       });
     });
 
-    it.each([true, false])(
-      'preserves structured rewards participation (%s) and the numeric discount API',
-      async (targetedDiscountApplied) => {
-        const getDiscount = mockDeps.rewards
-          .getPerpsDiscountForAccount as jest.Mock;
-        getDiscount.mockResolvedValue({
-          discountBips: 6500,
-          targetedDiscountApplied,
-        });
+    it('uses a valid grant when VIP and season are unavailable', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue({
+          feeBips: 3,
+          expiresAt: NOW + 60_000,
+        }),
+      );
 
-        const resolution = await service.resolveFee();
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 3,
+        discountBips: 7000,
+      });
+      expect(getGrant).toHaveBeenCalledWith();
+    });
 
-        expect(resolution).toMatchObject({
-          source: 'rewards',
-          feeBips: 3.5,
-          discountBips: 6500,
-          targetedDiscountApplied,
-        });
-        expect(getDiscount).toHaveBeenCalledTimes(1);
-        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-          'RewardsIntegrationService: Fee resolved',
-          expect.objectContaining({
-            source: 'rewards',
-            targetedDiscountApplied,
+    it('preserves VIP-only behavior when the optional grant method is absent', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      delete (
+        mockDeps.rewards as {
+          getPerpsTradingFeeGrant?: unknown;
+        }
+      ).getPerpsTradingFeeGrant;
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'rewards',
+        feeBips: 3.5,
+        discountBips: 6500,
+      });
+    });
+
+    it.each([
+      { vipDiscountBips: 6500, grantFeeBips: 2, source: 'grant', feeBips: 2 },
+      {
+        vipDiscountBips: 6500,
+        grantFeeBips: 4,
+        source: 'rewards',
+        feeBips: 3.5,
+      },
+    ])(
+      'selects $source when VIP and grant are both available',
+      async ({ vipDiscountBips, grantFeeBips, source, feeBips }) => {
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(vipDiscountBips);
+        wireGrant(
+          jest.fn().mockResolvedValue({
+            feeBips: grantFeeBips,
+            expiresAt: NOW + 60_000,
           }),
         );
-        expect(await service.calculateUserFeeDiscount()).toBe(6500);
+
+        await expect(service.resolveFee()).resolves.toMatchObject({
+          source,
+          feeBips,
+        });
       },
     );
 
+    it('leaves a quantized VIP/grant tie with rewards', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6460);
+      wireGrant(
+        jest.fn().mockResolvedValue({
+          feeBips: 3.51,
+          expiresAt: NOW + 60_000,
+        }),
+      );
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.source).toBe('rewards');
+      expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(
+        35,
+      );
+    });
+
+    it('uses the default when neither independent rewards source is available', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue(null));
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'default',
+        feeBips: DEFAULT_FEE_BIPS,
+        discountBips: undefined,
+      });
+    });
+
+    it('accepts a zero-fee grant', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      wireGrant(
+        jest.fn().mockResolvedValue({ feeBips: 0, expiresAt: NOW + 60_000 }),
+      );
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 0,
+        discountBips: 10000,
+      });
+    });
+
+    it('ignores an above-default grant', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(
+        jest.fn().mockResolvedValue({ feeBips: 11, expiresAt: NOW + 60_000 }),
+      );
+
+      expect((await service.resolveFee()).source).toBe('default');
+    });
+
+    it('ignores expired grants', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue({ feeBips: 0, expiresAt: NOW }));
+
+      expect((await service.resolveFee()).source).toBe('default');
+    });
+
+    it.each([
+      { feeBips: Number.NaN, expiresAt: NOW + 60_000 },
+      { feeBips: Number.POSITIVE_INFINITY, expiresAt: NOW + 60_000 },
+      { feeBips: -1, expiresAt: NOW + 60_000 },
+      { feeBips: 0, expiresAt: Number.NaN },
+      { feeBips: 0, expiresAt: Number.POSITIVE_INFINITY },
+    ])('ignores a malformed grant %#', async (grant) => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue(grant));
+
+      expect((await service.resolveFee()).source).toBe('default');
+    });
+
+    it('keeps VIP when grant retrieval fails', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      wireGrant(jest.fn().mockRejectedValue(new Error('Grant unavailable')));
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'rewards',
+        feeBips: 3.5,
+      });
+    });
+
+    it('keeps grant when VIP retrieval fails', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockRejectedValue(new Error('VIP unavailable'));
+      wireGrant(
+        jest.fn().mockResolvedValue({ feeBips: 2, expiresAt: NOW + 60_000 }),
+      );
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 2,
+      });
+    });
+
+    it('retrieves the grant on every resolution without caching', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const getGrant = wireGrant(
+        jest
+          .fn()
+          .mockResolvedValueOnce({ feeBips: 2, expiresAt: NOW + 60_000 })
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ feeBips: 1, expiresAt: NOW + 60_000 }),
+      );
+
+      expect((await service.resolveFee()).feeBips).toBe(2);
+      expect((await service.resolveFee()).source).toBe('default');
+      expect((await service.resolveFee()).feeBips).toBe(1);
+      expect(getGrant).toHaveBeenCalledTimes(3);
+    });
+
+    it('checks grant expiry after the concurrent VIP request settles', async () => {
+      let releaseVip: (value: number | null) => void = () => undefined;
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockImplementation(
+        async () =>
+          await new Promise<number | null>((resolve) => {
+            releaseVip = resolve;
+          }),
+      );
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue({
+          feeBips: 0,
+          expiresAt: NOW + 1_000,
+        }),
+      );
+
+      const resolution = service.resolveFee();
+      await Promise.resolve();
+      expect(getGrant).toHaveBeenCalledTimes(1);
+      jest.setSystemTime(NOW + 1_000);
+      releaseVip(6500);
+
+      await expect(resolution).resolves.toMatchObject({
+        source: 'rewards',
+        feeBips: 3.5,
+      });
+    });
+
+    it('retrieves the grant without a selected account or network', async () => {
+      setupMessengerDefaults({
+        'AccountTreeController:getAccountsFromSelectedAccountGroup': [],
+        'NetworkController:getState': () => {
+          throw new Error('Network unavailable');
+        },
+      });
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue({
+          feeBips: 2,
+          expiresAt: NOW + 60_000,
+        }),
+      );
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 2,
+      });
+      expect(getGrant).toHaveBeenCalledWith();
+    });
+
     it.each([
       {
-        discountBips: 6500,
-        remaining: 1000,
+        grantFeeBips: 4,
+        remainingNotionalUsd: 1000,
         source: 'subscription',
-        tenths: 0,
+        feeBips: 0,
       },
-      { discountBips: 6500, remaining: 500, source: 'rewards', tenths: 35 },
       {
-        discountBips: 6500,
-        remaining: 750,
-        source: 'subscription',
-        tenths: 25,
+        grantFeeBips: 4,
+        remainingNotionalUsd: 500,
+        source: 'grant',
+        feeBips: 4,
       },
-      { discountBips: 10000, remaining: 1000, source: 'rewards', tenths: 0 },
-      { discountBips: 5000, remaining: 500, source: 'rewards', tenths: 50 },
-      // The raw blend is cheaper, but rounding the discount still yields 5000.
-      { discountBips: 5000, remaining: 500.01, source: 'rewards', tenths: 50 },
       {
-        discountBips: 5000,
-        remaining: 510,
+        grantFeeBips: 5,
+        remainingNotionalUsd: 500,
+        source: 'grant',
+        feeBips: 5,
+      },
+      {
+        grantFeeBips: 5,
+        remainingNotionalUsd: 510,
         source: 'subscription',
-        tenths: 49,
+        feeBips: 4.9,
       },
     ])(
-      'resolves targeted $discountBips against $remaining USD allowance to $source',
-      async ({ discountBips, remaining, source, tenths }) => {
+      'resolves a $grantFeeBips-bip grant against a subscription covering $remainingNotionalUsd USD to $source',
+      async ({
+        grantFeeBips,
+        remainingNotionalUsd,
+        source,
+        feeBips,
+      }) => {
         (
           mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-        ).mockResolvedValue({
-          discountBips,
-          targetedDiscountApplied: true,
-        });
+        ).mockResolvedValue(null);
+        wireGrant(
+          jest.fn().mockResolvedValue({
+            feeBips: grantFeeBips,
+            expiresAt: NOW + 60_000,
+          }),
+        );
         wireSubscription(
           jest
             .fn()
-            .mockResolvedValue(
-              createBenefits({ remainingNotionalUsd: remaining }),
-            ),
+            .mockResolvedValue(createBenefits({ remainingNotionalUsd })),
         );
         await service.refreshSubscriptionBenefits();
 
         const resolution = await service.resolveFee(1000);
 
         expect(resolution.source).toBe(source);
+        expect(resolution.feeBips).toBeCloseTo(feeBips);
         expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(
-          tenths,
-        );
-        if (source === 'rewards') {
-          expect(resolution.targetedDiscountApplied).toBe(true);
-        } else {
-          expect(resolution).not.toHaveProperty('targetedDiscountApplied');
-        }
-        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-          'RewardsIntegrationService: Fee resolved',
-          expect.objectContaining({
-            source,
-            targetedDiscountApplied: source === 'rewards' ? true : undefined,
-            rewardsTargetedDiscountApplied: true,
-          }),
-        );
-      },
-    );
-
-    it('observes grant addition, removal and attribution changes without caching the result', async () => {
-      const getDiscount = mockDeps.rewards
-        .getPerpsDiscountForAccount as jest.Mock;
-      for (const response of [
-        { discountBips: 2500, targetedDiscountApplied: false },
-        { discountBips: 6500, targetedDiscountApplied: true },
-        { discountBips: 6500, targetedDiscountApplied: false },
-        { discountBips: 2500, targetedDiscountApplied: false },
-      ]) {
-        getDiscount.mockResolvedValueOnce(response);
-        const resolution = await service.resolveFee();
-        expect(resolution).toMatchObject({ source: 'rewards', ...response });
-        expect(resolution.feeBips).toBeCloseTo(
-          10 * (1 - response.discountBips / 10000),
-        );
-        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-          'RewardsIntegrationService: Fee resolved',
-          expect.objectContaining(response),
-        );
-      }
-      expect(getDiscount).toHaveBeenCalledTimes(4);
-    });
-
-    it.each(['legacy', 'unavailable', 'error'])(
-      'does not retain targeted attribution when the next response is %s',
-      async (nextResponse) => {
-        const getDiscount = mockDeps.rewards
-          .getPerpsDiscountForAccount as jest.Mock;
-        getDiscount.mockResolvedValueOnce({
-          discountBips: 6500,
-          targetedDiscountApplied: true,
-        });
-        expect((await service.resolveFee()).targetedDiscountApplied).toBe(true);
-        if (nextResponse === 'error') {
-          getDiscount.mockRejectedValueOnce(new Error('Rewards unavailable'));
-        } else {
-          getDiscount.mockResolvedValueOnce(
-            nextResponse === 'legacy' ? 0 : null,
-          );
-        }
-
-        const resolution = await service.resolveFee();
-
-        expect(resolution).not.toHaveProperty('targetedDiscountApplied');
-        expect(resolution.source).toBe(
-          nextResponse === 'legacy' ? 'rewards' : 'default',
-        );
-        expect(resolution.discountBips).toBe(
-          nextResponse === 'legacy' ? 0 : undefined,
-        );
-        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-          'RewardsIntegrationService: Fee resolved',
-          expect.objectContaining({ targetedDiscountApplied: undefined }),
+          feeBips * 10,
         );
       },
     );

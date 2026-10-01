@@ -9,12 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source and targeted rewards participation when known. ([#10587](https://github.com/MetaMask/core/pull/10587))
+- Add the optional `PerpsPlatformDependencies.rewards.getPerpsTradingFeeGrant()` integration and exported `PerpsTradingFeeGrant` type for independent, expiring production-Hyperliquid fee candidates. ([#10587](https://github.com/MetaMask/core/pull/10587))
+- Expose the applied builder fee resolution through `FeeCalculationResult.feeResolution`, including its winning source. ([#10587](https://github.com/MetaMask/core/pull/10587))
 
 ### Changed
 
-- **BREAKING:** Widen `PerpsPlatformDependencies.rewards.getPerpsDiscountForAccount` to return `number | RewardsDiscountResponse | null`, allowing clients to supply a combined discount and targeted participation together.
-  - Existing numeric implementations remain supported. Code consuming the DI result directly must narrow the structured response before doing numeric operations. The client remains responsible for combining VIP, season, and targeted discounts.
+- **BREAKING:** Add `'grant'` to `PerpsFeeSource`; exhaustive consumers must handle the new winner. Keep `getPerpsDiscountForAccount` as `Promise<number | null>` for VIP/season and retrieve grants independently through optional `getPerpsTradingFeeGrant`. ([#10587](https://github.com/MetaMask/core/pull/10587))
+  - Clients that expose grants return an absolute `feeBips` and Unix-millisecond `expiresAt`. Core retrieves both rewards candidates concurrently, selects the lowest valid fee after venue quantization, and does not cache grants.
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
 - Perps error logs include bounded `feature`, `operation`, `action`, and `component` tags for connection, order, position, deposit, and withdrawal failures, while retaining diagnostic values in the log context ([#10681](https://github.com/MetaMask/core/pull/10681))
