@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.2.0]
+
 ### Changed
 
 - `RampsController.setSelectedToken` matches `eip155` ERC-20 asset ids case-insensitively and keeps the catalog token's own `assetId`. Non-EVM asset ids still require an exact match ([#10545](https://github.com/MetaMask/core/pull/10545))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
 
 ## [26.1.0]
 
@@ -677,7 +680,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...HEAD
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...@metamask/ramps-controller@26.2.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...@metamask/ramps-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...@metamask/ramps-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...@metamask/ramps-controller@26.0.0
