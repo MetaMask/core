@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-enablement-controller` from `^7.0.1` to `^7.0.2` ([#10658](https://github.com/MetaMask/core/pull/10658))
+
+## [112.1.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [112.1.0]
+
+### Added
+
+- Add optional `securityData` property to `RwaToken`, populated when `includeTokenSecurityData` is requested ([#10542](https://github.com/MetaMask/core/pull/10542))
+- Add optional `includeTokenSecurityData` property to `FetchRwasParams` ([#10542](https://github.com/MetaMask/core/pull/10542))
+
+### Changed
+
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@ethersproject/bignumber` from `^5.7.0` to `^5.8.0` ([#10479](https://github.com/MetaMask/core/pull/10479))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+- `NftController` now attributes its `PhishingController:bulkScanUrls` calls to the `nft-detection` request source, so NFT metadata URL scans are distinguishable from other callers in phishing-detection service metrics ([#10357](https://github.com/MetaMask/core/pull/10357))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+
 ## [112.0.4]
 
 ### Changed
@@ -3539,7 +3571,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...HEAD
+[112.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.0...@metamask/assets-controllers@112.1.1
+[112.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...@metamask/assets-controllers@112.1.0
 [112.0.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...@metamask/assets-controllers@112.0.4
 [112.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.2...@metamask/assets-controllers@112.0.3
 [112.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.1...@metamask/assets-controllers@112.0.2

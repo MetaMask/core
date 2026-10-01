@@ -521,8 +521,7 @@ export class SignatureController extends BaseController<
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.rawSig = signature;
-      draftMetadata.status =
-        SignatureRequestStatus.Signed as SignatureRequestStatus;
+      draftMetadata.status = SignatureRequestStatus.Signed;
     });
   }
 
@@ -950,6 +949,7 @@ export class SignatureController extends BaseController<
 
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       callback(state as unknown as SignatureControllerState);
 
       const unapprovedRequests = Object.values(state.signatureRequests).filter(
@@ -966,10 +966,10 @@ export class SignatureController extends BaseController<
         SignatureRequestType.TypedSign,
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion, typescript/no-explicit-any, typescript/no-unsafe-assignment
       state.unapprovedPersonalMsgs = personalSignMessages as any;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion, typescript/no-explicit-any, typescript/no-unsafe-assignment
       state.unapprovedTypedMessages = typedSignMessages as any;
 
       state.unapprovedPersonalMsgCount =

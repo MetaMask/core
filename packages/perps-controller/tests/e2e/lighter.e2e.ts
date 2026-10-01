@@ -21,6 +21,12 @@
  * process.exitCode = 1 on failure (advanced-orders e2e conventions).
  */
 
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -30,12 +36,16 @@ import {
   computeLighterMinOrderSize,
   LIGHTER_TESTNET_CHAIN_ID,
 } from '../../src/constants/lighterConfig.js';
+import type { PerpsControllerMessenger } from '../../src/PerpsController.js';
 import { LighterProvider } from '../../src/providers/LighterProvider.js';
 import {
   convertKeysToCamelCase,
   LighterClientService,
 } from '../../src/services/LighterClientService.js';
-import type { PerpsPlatformDependencies } from '../../src/types/index.js';
+import type {
+  PerpsAccountSigner,
+  PerpsPlatformDependencies,
+} from '../../src/types/index.js';
 import type { LighterSignerBridge } from '../../src/types/lighter-types.js';
 import { createNodeWasmBridge } from './lighter/nodeWasmBridge.js';
 
@@ -111,6 +121,33 @@ async function createE2eSignerBridge(): Promise<LighterSignerBridge> {
 }
 
 /**
+ * Refuse to sign as any account other than the e2e viem account.
+ *
+ * @param address - The address the controller asked to sign as.
+ */
+function assertSignerAddress(address: string): void {
+  if (address.toLowerCase() !== viemAccount.address.toLowerCase()) {
+    throw new Error(
+      `accountSigner asked to sign as ${address}, expected ${viemAccount.address}`,
+    );
+  }
+}
+
+/**
+ * Signs as the e2e viem account, in place of a wallet's KeyringController.
+ */
+const accountSigner: PerpsAccountSigner = {
+  signTypedData: async (address, payload) => {
+    assertSignerAddress(address);
+    return await viemAccount.signTypedData(payload);
+  },
+  signPersonalMessage: async (address, message) => {
+    assertSignerAddress(address);
+    return await viemAccount.signMessage({ message });
+  },
+};
+
+/**
  * Minimal faithful PerpsPlatformDependencies (mirrors the mm-harness core
  * adapter's buildInfrastructure — read/write paths only touch loggers and
  * formatters).
@@ -164,17 +201,44 @@ function buildInfrastructure(): PerpsPlatformDependencies {
       removeItem: async () => undefined,
     },
     rewards: { getPerpsDiscountForAccount: async () => null },
+    accountSigner,
   } as unknown as PerpsPlatformDependencies;
 }
 
 /**
- * Sign an EIP-191 personal message with the headless viem account.
+ * Build a PerpsController messenger whose selected account is the e2e viem
+ * account, the way a client without a KeyringController wires it.
  *
- * @param message - Plaintext to sign.
- * @returns 0x signature hex.
+ * @returns The PerpsController-namespaced messenger.
  */
-async function personalSigner(message: string): Promise<string> {
-  return await viemAccount.signMessage({ message });
+function buildSelectedAccountMessenger(): PerpsControllerMessenger {
+  const root = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<PerpsControllerMessenger>,
+    MessengerEvents<PerpsControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: PerpsControllerMessenger = new Messenger({
+    namespace: 'PerpsController',
+    parent: root,
+  });
+  root.registerActionHandler('AccountsController:getSelectedAccount', () => ({
+    id: 'lighter-e2e-account',
+    address: viemAccount.address,
+    type: 'eip155:eoa',
+    metadata: {
+      name: 'Lighter e2e',
+      importTime: 0,
+      keyring: { type: 'HD Key Tree' },
+    },
+    options: {},
+    methods: [],
+    scopes: ['eip155:0'],
+  }));
+  root.delegate({
+    actions: ['AccountsController:getSelectedAccount'],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
@@ -336,12 +400,11 @@ async function phaseRegister(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
 
@@ -402,12 +465,11 @@ async function phaseOrderLifecycle(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
 
@@ -518,43 +580,10 @@ async function phaseOrderLifecycle(result: PhaseResult): Promise<void> {
  */
 async function phaseController(result: PhaseResult): Promise<void> {
   const { PerpsController } = await import('../../src/PerpsController.js');
-  const { Messenger, MOCK_ANY_NAMESPACE } = await import('@metamask/messenger');
-
-  const rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
-  const messenger = new Messenger({
-    namespace: 'PerpsController',
-    parent: rootMessenger,
-  });
-  rootMessenger.registerActionHandler(
-    'AccountsController:getSelectedAccount',
-    () => ({
-      id: 'lighter-e2e-account',
-      address: viemAccount.address,
-      type: 'eip155:eoa',
-      metadata: { keyring: { type: 'HD Key Tree' } },
-    }),
-  );
-  rootMessenger.registerActionHandler('KeyringController:getState', () => ({
-    isUnlocked: true,
-  }));
-  rootMessenger.registerActionHandler(
-    'KeyringController:signPersonalMessage',
-    async (msgParams: { from: string; data: string }) => {
-      const bytes = Buffer.from(msgParams.data.replace(/^0x/u, ''), 'hex');
-      return await viemAccount.signMessage({ message: bytes.toString('utf8') });
-    },
-  );
-  rootMessenger.delegate({
-    actions: [
-      'AccountsController:getSelectedAccount',
-      'KeyringController:getState',
-      'KeyringController:signPersonalMessage',
-    ],
-    messenger,
-  });
+  const messenger = buildSelectedAccountMessenger();
 
   const controller = new PerpsController({
-    messenger: messenger as never,
+    messenger,
     state: { isTestnet: true, activeProvider: 'aggregated' },
     clientConfig: {
       providerCredentials: {
@@ -673,11 +702,10 @@ async function phaseAccountStream(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
 
@@ -733,11 +761,10 @@ async function phasePositionsStream(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
 
@@ -788,12 +815,11 @@ async function phaseOrdersStream(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
@@ -959,12 +985,11 @@ async function phaseClosePosition(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
@@ -1174,12 +1199,11 @@ async function phaseEditOrder(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
@@ -1393,17 +1417,16 @@ async function phaseHistoryReads(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
 
-  const fills = await provider.getOrderFills({ limit: 20 } as never);
+  const fills = await provider.getOrderFills({ limit: 20 });
   check(
     result,
     'trade history returns fills with sane fields',
@@ -1444,12 +1467,11 @@ async function phaseParityHistory(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
@@ -1530,11 +1552,10 @@ async function phaseConnectionState(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
@@ -1621,12 +1642,11 @@ async function phaseTpsl(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();
@@ -1877,12 +1897,11 @@ async function phaseMarginLeverage(result: PhaseResult): Promise<void> {
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
+    messenger: buildSelectedAccountMessenger(),
     signerBridge: bridge,
     lighterAuthConfig: {
       accountIndex: ACCOUNT_INDEX,
       apiKeyIndex: API_KEY_INDEX,
-      l1Address: viemAccount.address,
-      personalSigner,
     },
   });
   await provider.initialize();

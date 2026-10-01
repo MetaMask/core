@@ -286,14 +286,15 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * @param flowId - Identifier returned by the begin call.
    * @param proof - Platform attestation or email code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @returns Assertion proving the enrolled credential.
    */
   async completeMfaEnrollment(
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
-  ): Promise<void> {
+  ): Promise<MfaVerificationAssertion> {
     const accessToken = await this.getAccessToken(entropySourceId);
-    await mfaEnrollComplete(this.#config.env, accessToken, {
+    return await mfaEnrollComplete(this.#config.env, accessToken, {
       credential_type: proof.type,
       flow_id: flowId,
       ...(proof.type === 'passkey'

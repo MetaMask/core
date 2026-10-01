@@ -3,6 +3,9 @@
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
   "dependencyDashboardApproval": true,
+  "lockFileMaintenance": {
+    "enabled": true
+  },
   "minimumReleaseAge": "3 days",
   "postUpdateOptions": ["yarnDedupeHighest"],
   "rangeStrategy": "bump",
@@ -27,6 +30,14 @@
         "@lavamoat/**"
       ],
       "minimumReleaseAge": null
+    },
+    {
+      "matchPackageNames": [
+        "!@metamask/**",
+        "!@metamask-previews/**",
+        "!@types/**"
+      ],
+      "groupName": "{{#if sourceRepoSlug}}{{{sourceRepoSlug}}}{{else}}{{{depName}}}{{/if}}"
     }
   ]
 }

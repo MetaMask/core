@@ -383,9 +383,6 @@ const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -502,8 +499,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -1034,7 +1031,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'updateLeverage',
             'approveBuilderFee',
             'setReferrer',
-            'userSetAbstraction',
             'agentSetAbstraction',
             'sendAsset',
             'order',
@@ -4191,7 +4187,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(2);
@@ -4227,7 +4223,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(2);
@@ -4245,7 +4241,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(false);
       expect(exchangeClient.order).toHaveBeenCalledTimes(3);
@@ -4260,7 +4256,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(result.success).toBe(false);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -4306,7 +4302,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseMaxDistanceBps: 100,
-      } as OrderParams);
+      });
 
       expect(await provider.getChaseOrders()).toStrictEqual([
         expect.objectContaining({
@@ -4333,7 +4329,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       infoClient.orderStatus.mockResolvedValueOnce({
         status: 'order',
         order: {
@@ -4383,7 +4379,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       infoClient.orderStatus.mockResolvedValueOnce({ status: 'unknownOid' });
 
       const snapshots = await provider.getChaseOrders();
@@ -4550,7 +4546,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       const backgrounded = await provider.suspendChaseOrders();
 
@@ -4737,7 +4733,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       const first = provider.cancelOrder({
         orderId: placed.orderId,
@@ -4767,7 +4763,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       expect(
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
@@ -4783,7 +4779,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       mockWalletService.getUserAddressWithDefault.mockRejectedValueOnce(
         new Error('Trading setup failed'),
       );
@@ -4817,13 +4813,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const admitted = provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       await orderStarted;
       const suspension = provider.suspendChaseOrders();
       const blocked = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       settleOrder?.(chaseRested);
 
       const admittedResult = await admitted;
@@ -4901,7 +4897,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
         chaseMaxDurationMs: 1000,
-      } as OrderParams);
+      });
       await jest.advanceTimersByTimeAsync(1000);
 
       const result = await provider.cancelOrder({
@@ -5011,6 +5007,243 @@ describe('HyperLiquidProvider - strategy order types', () => {
               request.orders.map((order) => order.a),
             );
         expect(assetIds).toContain(110000);
+      },
+    );
+  });
+
+  describe('HIP-3 collateral transfers after an order', () => {
+    /**
+     * A HIP-3 market order placed outside unified accounts, so collateral
+     * moves to the xyz DEX before the order and back after it.
+     *
+     * @param orderResponse - The venue's answer to the order.
+     * @returns The provider's DEX transfers, which the test answers, and the
+     * mocked exchange client.
+     */
+    const useHip3MarketOrder = (
+      orderResponse: Record<string, unknown>,
+    ): {
+      transfer: jest.SpyInstance;
+      order: jest.Mock;
+      exchangeClient: MockClient;
+    } => {
+      let ordered = false;
+      const order = jest.fn(async () => {
+        ordered = true;
+        return orderResponse;
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          clearinghouseState: jest
+            .fn()
+            .mockImplementation(({ dex }: { dex?: string }) => {
+              let withdrawable = '10000';
+              if (dex === 'xyz') {
+                // Empty before the order, with excess left after it.
+                withdrawable = ordered ? '20' : '0';
+              }
+              return Promise.resolve(createClearinghouseBalance(withdrawable));
+            }),
+          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+      return {
+        transfer: jest.spyOn(provider, 'transferBetweenDexs'),
+        order,
+        exchangeClient,
+      };
+    };
+
+    const HIP3_MARKET_ORDER = {
+      ...baseOrder,
+      orderType: 'market',
+      symbol: 'xyz:TSLA',
+    } satisfies OrderParams;
+    // The order's margin, with its buffer, moved to the xyz DEX and back.
+    const PRE_ORDER_TRANSFER = {
+      sourceDex: '',
+      destinationDex: 'xyz',
+      amount: '154.963500',
+    };
+    const ROLLBACK_TRANSFER = {
+      sourceDex: 'xyz',
+      destinationDex: '',
+      amount: '154.963500',
+    };
+    // The 20 USDC left on xyz after the order, less the 0.1 USDC buffer.
+    const REBALANCE_TRANSFER = {
+      sourceDex: 'xyz',
+      destinationDex: '',
+      amount: '19.900000',
+    };
+    const REFUSED_ORDER = { status: 'err', response: 'venue busy' };
+    const ORDER_FAILURE = `Order failed: ${JSON.stringify(REFUSED_ORDER)}`;
+    const ROLLBACK_NOT_SIGNED =
+      'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX';
+    const REBALANCE_NOT_SIGNED =
+      'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX';
+
+    /**
+     * The transfers noted as not signed, with their details.
+     *
+     * @returns Each note's message and details.
+     */
+    const unsignedTransferNotes = (): [unknown, unknown][] =>
+      (mockPlatformDependencies.debugLogger.log as jest.Mock).mock.calls
+        .filter(
+          ([message]: [unknown]) =>
+            message === ROLLBACK_NOT_SIGNED || message === REBALANCE_NOT_SIGNED,
+        )
+        .map(([message, details]: [unknown, unknown]) => [message, details]);
+
+    /**
+     * The errors reported, with the provider method named in each.
+     *
+     * @returns Each reported error's message and method.
+     */
+    const reportedErrors = (): [string, unknown][] =>
+      (mockPlatformDependencies.logger.error as jest.Mock).mock.calls.map(
+        ([error, options]: [
+          Error,
+          { context: { data: { method: unknown } } },
+        ]) => [error.message, options.context.data.method],
+      );
+
+    it('reads an omitted margin mode from the HIP-3 DEX position slice', async () => {
+      const { transfer, exchangeClient } = useHip3MarketOrder(REFUSED_ORDER);
+      transfer.mockResolvedValueOnce({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      // Only the xyz slice holds the position, so its mode proves the lookup
+      // routes a HIP-3 symbol to its own DEX cache.
+      mockSubscriptionService.getCachedPositionsForDex.mockImplementation(
+        (dexName: string) =>
+          dexName === 'xyz'
+            ? [
+                createMockPosition({
+                  symbol: 'xyz:TSLA',
+                  leverage: { type: 'cross', value: 5 },
+                }),
+              ]
+            : null,
+      );
+
+      await provider.placeOrder({ ...HIP3_MARKET_ORDER, leverage: 5 });
+
+      expect(exchangeClient.updateLeverage).toHaveBeenCalledWith({
+        asset: 110000,
+        isCross: true,
+        leverage: 5,
+      });
+    });
+
+    it('fails a HIP-3 order with KEYRING_LOCKED, sending nothing, when its collateral transfer cannot be signed', async () => {
+      const { transfer, order } = useHip3MarketOrder(REFUSED_ORDER);
+      transfer.mockResolvedValueOnce({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+
+      const result = await provider.placeOrder(HIP3_MARKET_ORDER);
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      expect(transfer.mock.calls).toStrictEqual([[PRE_ORDER_TRANSFER]]);
+      expect(order).not.toHaveBeenCalled();
+      expect(reportedErrors()).toStrictEqual([]);
+    });
+
+    it.each([
+      {
+        transferError: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        reported: [[ORDER_FAILURE, 'placeOrder']],
+        notes: [[ROLLBACK_NOT_SIGNED, { dex: 'xyz', amount: 154.9635 }]],
+      },
+      {
+        transferError: 'transfer failed',
+        reported: [
+          ['transfer failed', 'placeOrder:rollback'],
+          [ORDER_FAILURE, 'placeOrder'],
+        ],
+        notes: [],
+      },
+    ])(
+      'reports the rollback of a failed HIP-3 order only when it fails for a reason other than the signer ($transferError)',
+      async ({ transferError, reported, notes }) => {
+        const { transfer } = useHip3MarketOrder(REFUSED_ORDER);
+        transfer
+          .mockResolvedValueOnce({ success: true })
+          .mockResolvedValueOnce({ success: false, error: transferError });
+
+        const result = await provider.placeOrder(HIP3_MARKET_ORDER);
+
+        expect(result).toStrictEqual({ success: false, error: ORDER_FAILURE });
+        expect(transfer.mock.calls).toStrictEqual([
+          [PRE_ORDER_TRANSFER],
+          [ROLLBACK_TRANSFER],
+        ]);
+        expect(reportedErrors()).toStrictEqual(reported);
+        expect(unsignedTransferNotes()).toStrictEqual(notes);
+      },
+    );
+
+    it.each([
+      {
+        transferError: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        reported: [],
+        notes: [[REBALANCE_NOT_SIGNED, { dex: 'xyz', excessAmount: 19.9 }]],
+      },
+      {
+        transferError: 'transfer failed',
+        reported: [['transfer failed', 'placeOrder:autoRebalance']],
+        notes: [],
+      },
+    ])(
+      'reports the rebalance after a HIP-3 order only when it fails for a reason other than the signer ($transferError)',
+      async ({ transferError, reported, notes }) => {
+        const { transfer } = useHip3MarketOrder({
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [{ filled: { oid: 7, totalSz: '1', avgPx: '3000' } }],
+            },
+          },
+        });
+        transfer
+          .mockResolvedValueOnce({ success: true })
+          .mockResolvedValueOnce({ success: false, error: transferError });
+
+        const result = await provider.placeOrder(HIP3_MARKET_ORDER);
+
+        // The order succeeded either way.
+        expect(result).toStrictEqual({
+          success: true,
+          orderId: '7',
+          filledSize: '1',
+          submittedSize: '1',
+          averagePrice: '3000',
+        });
+        expect(transfer.mock.calls).toStrictEqual([
+          [PRE_ORDER_TRANSFER],
+          [REBALANCE_TRANSFER],
+        ]);
+        expect(reportedErrors()).toStrictEqual(reported);
+        expect(unsignedTransferNotes()).toStrictEqual(notes);
       },
     );
   });
@@ -5135,7 +5368,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       const ticking = jest.advanceTimersByTimeAsync(1000);
       await cancelStarted;
       const directCancellation = provider.cancelOrder({
@@ -5179,7 +5412,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       const ticking = jest.advanceTimersByTimeAsync(1000);
       await cancelStarted;
       const batchCancellation = provider.cancelOrders([
@@ -5227,7 +5460,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       const ticking = jest.advanceTimersByTimeAsync(1000);
       await cancelStarted;
 
@@ -5281,7 +5514,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       await jest.advanceTimersByTimeAsync(
         CHASE_ORDER_CONFIG.DefaultIntervalMs - 1,
@@ -5307,7 +5540,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
 
       let finishBookRead: (() => void) | undefined;
       infoClient.l2Book.mockImplementationOnce(
@@ -5327,7 +5560,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       await jest.advanceTimersByTimeAsync(0);
       for (let turn = 0; turn < 20; turn += 1) {
         if (finishBookRead !== undefined) {
@@ -5362,7 +5595,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
 
       let finishTickBookRead: (() => void) | undefined;
       infoClient.l2Book.mockImplementationOnce(
@@ -5385,7 +5618,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      });
       await jest.advanceTimersByTimeAsync(0);
 
       expect(order).toHaveBeenCalledTimes(1);
@@ -5552,7 +5785,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
         chaseMaxDistanceBps: 100,
-      } as OrderParams);
+      });
 
       await jest.advanceTimersByTimeAsync(1000);
 
@@ -6776,6 +7009,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
       expect(Object.isFrozen(capabilities.supportedStrategies)).toBe(true);
@@ -6791,6 +7025,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
     });
 
@@ -6803,9 +7038,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
     });
+
+    it.each([
+      ['isolated-only', { onlyIsolated: true }],
+      ['strictIsolated', { marginMode: 'strictIsolated' }],
+      ['noCross', { marginMode: 'noCross' }],
+    ])(
+      'reports only isolated margin for a %s market',
+      async (_, restriction) => {
+        useStrategyClients({
+          info: {
+            meta: jest.fn().mockResolvedValue({
+              universe: [
+                { name: 'ETH', szDecimals: 4, maxLeverage: 50, ...restriction },
+              ],
+            }),
+          },
+        });
+
+        expect(
+          await provider.getOrderCapabilities({ symbol: 'ETH' }),
+        ).toStrictEqual({
+          status: 'ready',
+          providerId: 'hyperliquid',
+          supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedMarginModes: ['isolated'],
+        });
+      },
+    );
 
     it.each([
       ['the HIP-3 kill switch is off', { hip3Enabled: false }],
@@ -6887,6 +7151,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
     });
 
@@ -6996,6 +7261,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7011,6 +7277,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7082,6 +7349,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
 
       pendingSharedMeta.resolve({
@@ -7095,6 +7363,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7131,11 +7400,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedMarginModes: ['isolated', 'cross'],
         },
         {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          supportedMarginModes: ['isolated', 'cross'],
         },
       ]);
     });
@@ -7225,6 +7496,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -7333,6 +7605,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -7382,6 +7655,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7411,6 +7685,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7447,6 +7722,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -7662,6 +7938,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -8290,7 +8567,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -10104,7 +10381,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       releaseDisconnect?.();
       await disconnecting;
 
@@ -10120,7 +10397,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      });
       await disconnecting;
 
       expect(placed.success).toBe(false);

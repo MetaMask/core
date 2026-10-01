@@ -15,7 +15,11 @@ import {
   UnsupportedAuthTypeError,
   ValidationError,
 } from './errors.js';
-import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth.js';
+import {
+  MOCK_ACCESS_JWT,
+  MOCK_MFA_ASSERTION_JWT,
+  MOCK_SRP_LOGIN_RESPONSE,
+} from './mocks/auth.js';
 import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider.js';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
@@ -766,7 +770,7 @@ describe('MFA authentication facade', () => {
         type: 'passkey',
         attestation: registration,
       }),
-    ).toBeUndefined();
+    ).toStrictEqual({ token: MOCK_MFA_ASSERTION_JWT, expiresIn: 900 });
     expect(await auth.beginMfaVerification('passkey')).toMatchObject({
       type: 'passkey',
       flowId: 'verify-passkey-flow-id',

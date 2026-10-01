@@ -38,6 +38,9 @@ export const SocialServiceErrorMessage = {
   FETCH_TRADER_FEED_FAILED: 'SocialService: Trader feed request failed',
   FETCH_TRADER_FEED_INVALID_RESPONSE:
     'SocialService: Trader feed returned invalid response',
+  FETCH_TOKEN_FEED_FAILED: 'SocialService: Token feed request failed',
+  FETCH_TOKEN_FEED_INVALID_RESPONSE:
+    'SocialService: Token feed returned invalid response',
   REACT_TO_COMMENT_FAILED: 'SocialService: Comment reaction request failed',
   REACT_TO_COMMENT_INVALID_RESPONSE:
     'SocialService: Comment reaction returned invalid response',
@@ -45,6 +48,17 @@ export const SocialServiceErrorMessage = {
     'SocialService: Comment reaction removal request failed',
   REMOVE_COMMENT_REACTION_INVALID_RESPONSE:
     'SocialService: Comment reaction removal returned invalid response',
+  CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
+  CREATE_SWAP_COMMENT_INVALID_RESPONSE:
+    'SocialService: Swap comment returned invalid response',
   NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
     'SocialService: Notification preferences cache refresh request failed',
+  BLOCK_FAILED: 'SocialService: Block request failed',
+  FETCH_BLOCKED_PROFILES_FAILED:
+    'SocialService: Blocked profiles request failed',
+  FETCH_BLOCKED_PROFILES_INVALID_RESPONSE:
+    'SocialService: Blocked profiles returned invalid response',
+  FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
+  FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
+    'SocialService: Blocked content returned invalid response',
 } as const;

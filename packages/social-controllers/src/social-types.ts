@@ -362,6 +362,68 @@ export type RemoveCommentReactionOptions = {
 };
 
 /**
+ * Identifies a swap that may not be indexed yet. Prefer {@link CreateSwapCommentOptions.positionUid}
+ * when the client already has a feed or positions `positionId`.
+ */
+export type TradeInFlight = {
+  transactionHash: string;
+  chain: string;
+  tokenAddress: string;
+};
+
+/**
+ * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
+ * or `tradeInFlight`; the social-api rejects a body that names both or neither.
+ */
+export type CreateSwapCommentOptions = {
+  /**
+   * Message body of the post. May include a `https://static.klipy.com/...gif`
+   * file URL (the social-api allowlists that host); other links are rejected.
+   */
+  commentText: string;
+  /** Free-form origin label stored on the comment. */
+  source?: string;
+  /**
+   * Position UUID (`positionId` / feed `itemId`). The comment attaches to that
+   * position's most recent trade, which must be the caller's own.
+   */
+  positionUid?: string;
+  /** Swap made seconds ago that may not have a position yet. */
+  tradeInFlight?: TradeInFlight;
+};
+
+/**
+ * Author profile on a swap-comment write response. Matches social-api
+ * `ProfileResponseV1`; extra fields from newer builds are allowed.
+ */
+export type SwapCommentAuthor = {
+  id: string;
+  name: string;
+  images?: {
+    raw: string | null;
+    xs: string | null;
+    sm: string | null;
+  };
+  addresses?: string[];
+  externalId?: string;
+};
+
+/**
+ * Response from `POST /v1/swap-comments`.
+ */
+export type SwapCommentResponse = {
+  uid: string;
+  transactionHash: string;
+  chain: string;
+  tokenAddress: string;
+  commentText: string;
+  author: SwapCommentAuthor;
+  timestamp: number;
+  isAppUserComment: boolean;
+  metrics: CommentEngagement;
+};
+
+/**
  * Cursor pagination for the feed. Pass `olderCursor` back as `olderThan` to
  * load older items (infinite scroll), and `newerCursor` as `newerThan` to
  * fetch newer items. `null` when there are no items in that direction.
@@ -466,6 +528,44 @@ export type FetchTraderFeedOptions = {
   newerThan?: string;
 };
 
+/**
+ * Position status filter for a token feed.
+ * Omit to return both open and recently closed positions.
+ */
+export type TokenFeedStatus = 'open' | 'closed';
+
+/**
+ * Chain name accepted by `GET /v1/tokens/:chain/:contractAddress/feed`.
+ */
+export type TokenFeedChain =
+  | 'base'
+  | 'bsc'
+  | 'ethereum'
+  | 'hyperliquid'
+  | 'robinhood'
+  | 'solana';
+
+/**
+ * Options for `GET /v1/tokens/:chain/:contractAddress/feed`.
+ */
+export type FetchTokenFeedOptions = {
+  /** Chain name where the token is deployed. */
+  chain: TokenFeedChain;
+  /** Token contract address. */
+  contractAddress: string;
+  /**
+   * Only open or only closed positions. Omit for both. Closed positions are
+   * limited to the API's recent lookback.
+   */
+  status?: TokenFeedStatus;
+  /** Number of results to return (1–100). Server default is 25. */
+  limit?: number;
+  /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
+  olderThan?: string;
+  /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
+  newerThan?: string;
+};
+
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,
@@ -499,6 +599,100 @@ export type FollowOptions = {
 export type UnfollowOptions = {
   /** Array of wallet addresses or profile IDs to unfollow. */
   targets: string[];
+};
+
+// ---------------------------------------------------------------------------
+// Moderation blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for `PUT /v1/moderation/block`. Provide exactly one target. Blocking
+ * the same target again replaces `reason` when one is given.
+ */
+export type BlockOptions =
+  | {
+      /** Profile id (UUID) of the trader to block. */
+      profileId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    }
+  | {
+      /** Swap comment (post) to block. */
+      commentId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    }
+  | {
+      /** Comment reply to block. */
+      replyId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    };
+
+/**
+ * Options for the cursor-paginated moderation list endpoints. Omit `cursor`
+ * for the first page.
+ */
+export type FetchBlockedListOptions = {
+  /** The `cursor` from the previous page. */
+  cursor?: string;
+};
+
+/**
+ * A trader the current user has blocked.
+ */
+export type BlockedProfile = {
+  /** When the block was placed, in Unix epoch seconds. */
+  blockedAt: number;
+  /** Reason given when the block was placed, if any. */
+  reason: string | null;
+  /** The blocked trader. */
+  profile: ProfileSummary;
+};
+
+/**
+ * Response from `GET /v1/moderation/blocks/profiles`.
+ */
+export type BlockedProfilesResponse = {
+  /** Blocked traders, most recently blocked first. */
+  items: BlockedProfile[];
+  /** Pass as `cursor` for the next page. `null` on the last page. */
+  cursor: string | null;
+};
+
+/**
+ * Whether a blocked content row is a swap comment or a reply.
+ */
+export type BlockedContentType = 'comment' | 'reply';
+
+/**
+ * A comment or reply the current user has blocked.
+ */
+export type BlockedContent = {
+  /** When the block was placed, in Unix epoch seconds. */
+  blockedAt: number;
+  /** Reason given when the block was placed, if any. */
+  reason: string | null;
+  /** Whether `id` refers to a swap comment or a reply. */
+  type: BlockedContentType;
+  /** Comment or reply id (UUID). */
+  id: string;
+  /** Text of the blocked comment or reply. */
+  text: string;
+  /** When the content was posted, in Unix epoch seconds. */
+  createdAt: number;
+  /** Author of the content. `null` when the profile cannot be resolved. */
+  author: ProfileSummary | null;
+};
+
+/**
+ * Response from `GET /v1/moderation/blocks/content`.
+ */
+export type BlockedContentResponse = {
+  /** Blocked comments and replies, most recently blocked first. */
+  items: BlockedContent[];
+  /** Pass as `cursor` for the next page. `null` on the last page. */
+  cursor: string | null;
 };
 
 // ---------------------------------------------------------------------------

@@ -503,6 +503,7 @@ describe('validators', () => {
       ['vip', DiscountType.VIP],
       ['promo', DiscountType.PROMO],
       ['dao', DiscountType.DAO],
+      ['subscription', DiscountType.SUBSCRIPTION],
       ['future value', 'seasonal'],
     ])('accepts %s discountType', (_label, discountType) => {
       expect(
@@ -513,6 +514,10 @@ describe('validators', () => {
           FeeDataSchema,
         ),
       ).toBe(true);
+    });
+
+    it('defines the subscription discount type value', () => {
+      expect(DiscountType.SUBSCRIPTION).toBe('subscription');
     });
 
     it('rejects non-string discountType values', () => {

@@ -150,6 +150,36 @@ export type SocialServiceFetchTraderFeedAction = {
 };
 
 /**
+ * Fetches a page of positions in one token, most recently traded first.
+ *
+ * Calls `GET ${baseUrl}/tokens/${chain}/${contractAddress}/feed`. Unlike
+ * {@link fetchFeed}, this is scoped to a single token and does not accept
+ * `scope` or `chains`. Omit `status` to include both open and recently
+ * closed positions.
+ *
+ * The route is public, but the Authorization header is still sent so the
+ * social-api can hydrate `authorComment.engagement.userReaction` for the
+ * signed-in viewer.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
+ * @param options.contractAddress - Token contract address.
+ * @param options.status - `open`, `closed`, or omit for both.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchTokenFeedAction = {
+  type: `SocialService:fetchTokenFeed`;
+  handler: SocialService['fetchTokenFeed'];
+};
+
+/**
  * Adds or replaces the current user's reaction on a swap comment (Call).
  *
  * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
@@ -178,6 +208,27 @@ export type SocialServiceReactToCommentAction = {
 export type SocialServiceRemoveCommentReactionAction = {
   type: `SocialService:removeCommentReaction`;
   handler: SocialService['removeCommentReaction'];
+};
+
+/**
+ * Creates an author Call (user post) on one of the current user's swaps.
+ *
+ * Calls `POST ${baseUrl}/swap-comments`. Identify the swap with
+ * `positionUid` (the `positionId` of a feed item or position) or, for a
+ * trade too recent to be indexed, `tradeInFlight`. Provide exactly one of
+ * those two fields.
+ *
+ * @param options - Options bag.
+ * @param options.commentText - Message body of the post. May include a
+ * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
+ * @param options.source - Free-form origin label stored on the comment.
+ * @param options.positionUid - Position UUID (`positionId` / feed item id).
+ * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+ * @returns The created swap comment.
+ */
+export type SocialServiceCreateSwapCommentAction = {
+  type: `SocialService:createSwapComment`;
+  handler: SocialService['createSwapComment'];
 };
 
 /**
@@ -263,6 +314,57 @@ export type SocialServiceRefreshNotificationPreferencesCacheAction = {
 };
 
 /**
+ * Blocks a trader, swap comment, or reply for the current user.
+ *
+ * Calls `PUT ${baseUrl}/moderation/block`. Provide exactly one of
+ * `profileId`, `commentId`, or `replyId`. Blocking the same target again
+ * replaces `reason` when one is given. The caller is identified server-side
+ * from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag. Exactly one target, plus an optional reason.
+ * @param options.profileId - Profile id (UUID) of the trader to block.
+ * @param options.commentId - Swap comment to block.
+ * @param options.replyId - Comment reply to block.
+ * @param options.reason - Free-form reason stored on the block.
+ */
+export type SocialServiceBlockAction = {
+  type: `SocialService:block`;
+  handler: SocialService['block'];
+};
+
+/**
+ * Fetches traders the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked profiles page.
+ */
+export type SocialServiceFetchBlockedProfilesAction = {
+  type: `SocialService:fetchBlockedProfiles`;
+  handler: SocialService['fetchBlockedProfiles'];
+};
+
+/**
+ * Fetches comments and replies the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/content`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked content page.
+ */
+export type SocialServiceFetchBlockedContentAction = {
+  type: `SocialService:fetchBlockedContent`;
+  handler: SocialService['fetchBlockedContent'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -274,11 +376,16 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
   | SocialServiceFetchTraderFeedAction
+  | SocialServiceFetchTokenFeedAction
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
+  | SocialServiceCreateSwapCommentAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
   | SocialServiceOptOutOfLeaderboardAction
   | SocialServiceOptInToLeaderboardAction
-  | SocialServiceRefreshNotificationPreferencesCacheAction;
+  | SocialServiceRefreshNotificationPreferencesCacheAction
+  | SocialServiceBlockAction
+  | SocialServiceFetchBlockedProfilesAction
+  | SocialServiceFetchBlockedContentAction;

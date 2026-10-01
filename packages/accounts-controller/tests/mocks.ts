@@ -135,7 +135,7 @@ export const createMockInternalAccountOptions = (
         id: entropySource,
         derivationPath,
         groupIndex,
-      } as KeyringAccountEntropyMnemonicOptions,
+      },
     };
   }
 

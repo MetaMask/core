@@ -179,7 +179,7 @@ describe('lighterAdapter', () => {
         adaptPositionFromLighter({
           ...position,
           position: '0',
-          sign: 0 as number,
+          sign: 0,
         }),
       ).toThrow('Invalid Lighter venue data');
       expect(
@@ -341,6 +341,70 @@ describe('lighterAdapter', () => {
       makerPositionSizeBefore: '0.000',
       makerPositionSignChanged: true,
     };
+
+    describe('omitted venue fill context', () => {
+      it.each([true, false])(
+        'normalizes omitted fields for maker=%s',
+        (isMaker) => {
+          for (const isAsk of [true, false]) {
+            for (const [before, size, pnl, expected] of [
+              ['0', '1', undefined, isAsk ? 'Open Short' : 'Open Long'],
+              ['2', '1', undefined, isAsk ? 'Sell' : 'Buy'],
+              ['2', '1', '0', isAsk ? 'Sell' : 'Buy'],
+              ['2', '1', '-1', isAsk ? 'Close Long' : 'Close Short'],
+              ['2', '2', '1', isAsk ? 'Close Long' : 'Close Short'],
+              ['2', '3', '-1', isAsk ? 'Long > Short' : 'Short > Long'],
+            ] as const) {
+              const trade = {
+                ...REAL_TRADE,
+                isMakerAsk: isAsk === isMaker,
+                size,
+                makerPositionSizeBefore: isMaker ? before : '9',
+                takerPositionSizeBefore: isMaker ? '9' : before,
+                makerPositionSignChanged: undefined,
+                takerPositionSignChanged: undefined,
+                askAccountPnl: isAsk ? pnl : '123',
+                bidAccountPnl: isAsk ? '123' : pnl,
+              };
+
+              const fill = adaptFillFromLighterTrade(
+                trade,
+                'SOL',
+                isAsk ? 28 : 7,
+              );
+
+              expect(fill.direction).toBe(expected);
+              expect(fill.pnl).toBe(pnl);
+              expect(Object.hasOwn(fill, 'pnl')).toBe(pnl !== undefined);
+            }
+          }
+        },
+      );
+
+      it.each([null, 'false', 0])(
+        'rejects malformed supplied sign flag %s',
+        (flag) => {
+          for (const isMaker of [true, false]) {
+            const trade = {
+              ...REAL_TRADE,
+              isMakerAsk: isMaker,
+              makerPositionSignChanged: flag,
+              takerPositionSignChanged: flag,
+            };
+
+            expect(() =>
+              adaptFillFromLighterTrade(
+                trade as unknown as Parameters<
+                  typeof adaptFillFromLighterTrade
+                >[0],
+                'SOL',
+                28,
+              ),
+            ).toThrow('Invalid Lighter venue data');
+          }
+        },
+      );
+    });
 
     it('adapts the real venue payload: a taker sell of the full position is Close Long', () => {
       const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
@@ -549,14 +613,44 @@ describe('lighterAdapter', () => {
       );
     });
 
-    it('rejects missing account pnl for an existing position', () => {
-      expect(() =>
-        adaptFillFromLighterTrade(
-          { ...REAL_TRADE, askAccountPnl: undefined },
-          'SOL',
-          28,
-        ),
-      ).toThrow('Invalid Lighter venue data');
+    it.each([true, false])(
+      'rejects missing reduction pnl for maker=%s',
+      (isMaker) => {
+        for (const isAsk of [true, false]) {
+          for (const size of ['0.133', '0.2']) {
+            const trade = {
+              ...REAL_TRADE,
+              size,
+              isMakerAsk: isAsk === isMaker,
+              makerPositionSizeBefore: isMaker ? '0.133' : '0',
+              takerPositionSizeBefore: isMaker ? '0' : '0.133',
+              makerPositionSignChanged: isMaker,
+              takerPositionSignChanged: !isMaker,
+              askAccountPnl: isAsk ? undefined : '123',
+              bidAccountPnl: isAsk ? '123' : undefined,
+            };
+
+            expect(() =>
+              adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7),
+            ).toThrow('is missing valid account pnl');
+          }
+        }
+      },
+    );
+
+    it('preserves unknown pnl with a supplied unchanged-sign flag', () => {
+      const fill = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          askAccountPnl: undefined,
+          takerPositionSignChanged: false,
+        },
+        'SOL',
+        28,
+      );
+
+      expect(fill.direction).toBe('Sell');
+      expect(fill).not.toHaveProperty('pnl');
     });
 
     it.each([
@@ -579,7 +673,8 @@ describe('lighterAdapter', () => {
 
         const fill = adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7);
 
-        expect(fill).toMatchObject({ pnl: '0', direction, startPosition: '0' });
+        expect(fill).toMatchObject({ direction, startPosition: '0' });
+        expect(fill).not.toHaveProperty('pnl');
       },
     );
 
@@ -602,7 +697,7 @@ describe('lighterAdapter', () => {
       },
     );
 
-    it('accepts omitted counterparty pnl while requiring the selected account pnl', () => {
+    it('uses the selected participant pnl independently of the counterparty', () => {
       expect(
         adaptFillFromLighterTrade(
           { ...REAL_TRADE, bidAccountPnl: undefined },

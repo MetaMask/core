@@ -28,7 +28,7 @@ export const insertToTrie = (url: string, pathTrie: PathTrie) => {
 
   const lowerHostname = hostname.toLowerCase();
   if (!pathTrie[lowerHostname]) {
-    pathTrie[lowerHostname] = {} as PathNode;
+    pathTrie[lowerHostname] = {};
   }
 
   let curr: PathNode = pathTrie[lowerHostname];
@@ -186,5 +186,5 @@ export const deepCopyPathTrie = (
   if (!original) {
     return {};
   }
-  return deepCopyPathNode(original) as PathTrie;
+  return deepCopyPathNode(original);
 };

@@ -39,7 +39,6 @@ import type {
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
-  PROVIDER_CONFIG,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
@@ -52,11 +51,14 @@ import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
 import { AccountService } from './services/AccountService.js';
+import { isMainAccountSignerReady } from './services/accountSigner.js';
+import { AgentBindings } from './services/agentSigner.js';
 import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
 import { MarketDataService } from './services/MarketDataService.js';
+import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
 import { TerminalMarketService } from './services/TerminalMarketService.js';
@@ -95,6 +97,7 @@ import type {
   GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -105,10 +108,12 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  MarginMode,
   MarginResult,
   MarketInfo,
   Order,
   OrderCapabilitiesUnavailableReason,
+  MarginModeLockUnavailableReason,
   OrderDirection,
   OrderFill,
   OrderParams,
@@ -116,6 +121,7 @@ import type {
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsMarginModeLock,
   PerpsScalePriceLadder,
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
@@ -130,6 +136,7 @@ import type {
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  ReadyToTradeResult,
   SwitchProviderResult,
   ToggleTestnetResult,
   TwapOrder,
@@ -140,6 +147,8 @@ import type {
   GetHistoricalPortfolioParams,
   HistoricalPortfolioResult,
   OrderType,
+  PerpsAgentAccount,
+  PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsLogger,
   PerpsActiveProviderMode,
@@ -420,6 +429,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number; // Last used leverage for this market
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -438,6 +448,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number;
         orderBookGrouping?: number; // Persisted price grouping for order book
+        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
         // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
@@ -893,6 +904,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'calculateMaintenanceMargin',
   'cancelOrder',
   'cancelOrders',
+  'clearAgentSigners',
   'clearAttributionContext',
   'clearDepositResult',
   'clearPendingTradeConfiguration',
@@ -925,11 +937,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMarketDataWithPrices',
   'getMarketFilterPreferences',
   'getMarkets',
+  'getMarginMode',
   'getMaxLeverage',
   'getOpenOrders',
   'getOrderBookGrouping',
   'getOrderBookPreferences',
   'getOrderCapabilities',
+  'getMarginModeLock',
   'getScalePriceLadder',
   'getOrderFills',
   'getOrders',
@@ -954,6 +968,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markFirstOrderCompleted',
   'markTutorialCompleted',
   'placeOrder',
+  'prepareTradingWallet',
   'previewPositionModify',
   'reconnect',
   'recordMarketViewed',
@@ -967,10 +982,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'setProLayoutPreferences',
   'setPerpsMode',
   'setSelectedOrderType',
+  'saveMarginMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
   'saveTradeConfiguration',
+  'setAgentSigner',
   'setAttributionContext',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
@@ -1021,6 +1038,9 @@ export class PerpsController extends BaseController<
   protected isInitialized = false;
 
   #initializationPromise: Promise<void> | null = null;
+
+  // Actions that saw a disconnect wait here for the client's follow-up init().
+  readonly #initializationStartWaiters = new Set<() => void>();
 
   #isReinitializing = false;
 
@@ -1122,6 +1142,10 @@ export class PerpsController extends BaseController<
 
   #handlersRegistered = false;
 
+  // HyperLiquid agent bindings made through setAgentSigner, kept across
+  // provider instances; they answer before the host's getAgentSigner.
+  readonly #agentBindings: AgentBindings;
+
   #standaloneProviderIsTestnet: boolean | null = null;
 
   #standaloneProviderHip3Version: number | null = null;
@@ -1202,6 +1226,9 @@ export class PerpsController extends BaseController<
       clientConfig,
       infrastructure,
     };
+    this.#agentBindings = new AgentBindings(
+      clientConfig?.providerCredentials?.hyperliquid?.getAgentSigner,
+    );
 
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
@@ -1941,7 +1968,7 @@ export class PerpsController extends BaseController<
     return this.messenger.call(
       'TransactionController:addTransaction',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      txParams as any,
+      txParams,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { ...(options as any), isInternal: true },
     );
@@ -2168,7 +2195,31 @@ export class PerpsController extends BaseController<
     }
 
     this.#initializationPromise = this.#performInitialization();
+    this.#initializationStartWaiters.forEach((notifyStarted) =>
+      notifyStarted(),
+    );
     return this.#initializationPromise;
+  }
+
+  /**
+   * Resolve once a new initialization starts, or after the timeout.
+   *
+   * @param timeoutMs - Longest time to wait for init() to be called.
+   * @returns A promise that resolves when init starts or the timeout elapses.
+   */
+  async #waitForInitializationStart(timeoutMs: number): Promise<void> {
+    let notifyStarted = (): void => undefined;
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    this.#initializationStartWaiters.add(notifyStarted);
+    const timeout = setTimeout(notifyStarted, timeoutMs);
+    try {
+      await started;
+    } finally {
+      clearTimeout(timeout);
+      this.#initializationStartWaiters.delete(notifyStarted);
+    }
   }
 
   /**
@@ -2356,6 +2407,14 @@ export class PerpsController extends BaseController<
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
       onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
+      getAgentSigner: this.#agentBindings.resolve,
+      onAgentRejected: (account, agentAddress): void => {
+        this.#agentBindings.release(account, agentAddress);
+        this.#options.clientConfig?.providerCredentials?.hyperliquid?.onAgentRejected?.(
+          account,
+          agentAddress,
+        );
+      },
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -2376,7 +2435,7 @@ export class PerpsController extends BaseController<
       )
         .then(({ LighterProvider }) => {
           this.registerLighterProvider(LighterProvider);
-          return undefined;
+          return;
         })
         .catch((error: unknown) => this.handleLighterImportError(error));
     }
@@ -2399,8 +2458,10 @@ export class PerpsController extends BaseController<
       signerBridge?: LighterSignerBridge;
     }) => PerpsProvider,
   ): void {
-    const lighterIsTestnet =
-      PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || this.state.isTestnet;
+    const lighterIsTestnet = isProviderOnTestnet(
+      'lighter',
+      this.state.isTestnet,
+    );
     const lighter =
       this.#options.clientConfig?.providerCredentials?.lighter ?? {};
     const lighterProvider = new LighterProviderClass({
@@ -2464,6 +2525,7 @@ export class PerpsController extends BaseController<
         providers: this.providers,
         defaultProvider: 'hyperliquid',
         infrastructure: this.#options.infrastructure,
+        isTestnet: this.state.isTestnet,
       });
       this.#debugLog(
         'PerpsController: Using aggregated provider (multi-provider)',
@@ -2479,9 +2541,7 @@ export class PerpsController extends BaseController<
       // version whose venue has since been removed. `activeProvider` is
       // persisted, so throwing here would fail initialization on every
       // launch — the stale value must self-heal.
-      const directProvider = this.providers.get(
-        activeProvider as PerpsProviderType,
-      );
+      const directProvider = this.providers.get(activeProvider);
       if (directProvider) {
         this.activeProviderInstance = directProvider;
       } else {
@@ -2539,7 +2599,7 @@ export class PerpsController extends BaseController<
    * @returns The current controller state cast to PerpsControllerState.
    */
   #getControllerState(): PerpsControllerState {
-    return this.state as unknown as PerpsControllerState;
+    return this.state;
   }
 
   /**
@@ -2617,7 +2677,7 @@ export class PerpsController extends BaseController<
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
       ...additionalContext,
-    } as ServiceContext;
+    };
   }
 
   /**
@@ -2684,9 +2744,16 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
+    // The context the action was issued under. A client reconnect
+    // (disconnect then init) that switches account, network or provider must
+    // not carry the action into the new context.
+    const issuedContext = this.#getActionContext();
+    let awaitedDisconnect = false;
+    let awaitedInitializationStart = false;
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
+        awaitedDisconnect = true;
         await pendingDisconnect;
         continue;
       }
@@ -2706,8 +2773,43 @@ export class PerpsController extends BaseController<
         continue;
       }
 
+      // Clients reconnect with disconnect() followed by init(), and the
+      // disconnect settles before init() is called. Give that init a bounded
+      // window to start rather than failing an action the reconnect will
+      // serve. Nothing here starts a connection the client did not ask for.
+      if (
+        awaitedDisconnect &&
+        !awaitedInitializationStart &&
+        !this.isInitialized &&
+        !pendingInitialization
+      ) {
+        awaitedInitializationStart = true;
+        await this.#waitForInitializationStart(
+          PERPS_CONSTANTS.ConnectionTimeoutMs,
+        );
+        continue;
+      }
+
+      if (awaitedDisconnect && this.#getActionContext() !== issuedContext) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+
       return this.getActiveProvider();
     }
+  }
+
+  /**
+   * Identify the account, network and provider an action runs under.
+   *
+   * @returns A key that changes when any of them changes.
+   */
+  #getActionContext(): string {
+    const address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
+    return [
+      address?.toLowerCase() ?? '',
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      this.state.activeProvider,
+    ].join('|');
   }
 
   /**
@@ -2798,6 +2900,75 @@ export class PerpsController extends BaseController<
         resolvedProviderId,
       );
     }
+  }
+
+  /**
+   * Get the margin mode the market is currently locked to by an open
+   * position or resting order, through the active provider route used by
+   * order placement. Never throws; failures report an unavailable status.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The provider-reported margin-mode lock.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    let activeProvider: PerpsProvider;
+    try {
+      activeProvider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin mode lock unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginModeLock').message,
+      });
+      return this.#getUnavailableMarginModeLock(
+        'provider_unavailable',
+        params.providerId,
+      );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableMarginModeLock(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getMarginModeLock) {
+      return this.#getUnavailableMarginModeLock(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    try {
+      const lock = await activeProvider.getMarginModeLock(params);
+      if (
+        lock.status === 'unavailable' &&
+        lock.providerId === undefined &&
+        resolvedProviderId !== undefined
+      ) {
+        return { ...lock, providerId: resolvedProviderId };
+      }
+      return lock;
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin mode lock unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginModeLock').message,
+      });
+      return this.#getUnavailableMarginModeLock(
+        'provider_unavailable',
+        resolvedProviderId,
+      );
+    }
+  }
+
+  #getUnavailableMarginModeLock(
+    reason: MarginModeLockUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsMarginModeLock {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
   }
 
   /**
@@ -3316,7 +3487,7 @@ export class PerpsController extends BaseController<
                 if (requestToUpdate) {
                   // For deposits, we have a txHash immediately, so mark as completed
                   // (the transaction hash means the deposit was successful)
-                  requestToUpdate.status = 'completed' as TransactionStatus;
+                  requestToUpdate.status = 'completed';
                   requestToUpdate.success = true;
                   requestToUpdate.txHash = actualTxHash;
                 }
@@ -3331,7 +3502,7 @@ export class PerpsController extends BaseController<
               });
             }, 100);
 
-            return undefined;
+            return;
           })
           .catch((error) => {
             // Check if user denied/cancelled the transaction
@@ -3381,7 +3552,7 @@ export class PerpsController extends BaseController<
                     (req) => req.id === currentDepositId,
                   );
                   if (requestToUpdate) {
-                    requestToUpdate.status = 'failed' as TransactionStatus;
+                    requestToUpdate.status = 'failed';
                     requestToUpdate.success = false;
                   }
                 }
@@ -3397,12 +3568,12 @@ export class PerpsController extends BaseController<
                 (req) => req.id === currentDepositId,
               );
               if (requestToUpdate) {
-                requestToUpdate.status = 'completed' as TransactionStatus;
+                requestToUpdate.status = 'completed';
                 requestToUpdate.success = true;
                 requestToUpdate.txHash = actualTxHash;
               }
             });
-            return undefined;
+            return;
           })
           .catch((error) => {
             const errorMessage = ensureError(
@@ -3455,7 +3626,7 @@ export class PerpsController extends BaseController<
               (req) => req.id === currentDepositId,
             );
             if (request) {
-              request.status = 'failed' as TransactionStatus;
+              request.status = 'failed';
               request.success = false;
             }
           }
@@ -5850,6 +6021,124 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for a main
+   * account on a network with an approved agent, or pin them to the main
+   * account with null (`getAgentSigner` is then not asked for that account and
+   * network until `clearAgentSigners`). User-signed actions stay on the main
+   * account, and the agent is never used for another account or network. The
+   * controller keeps the binding across provider re-creation (a provider or
+   * network switch, or re-initialization), so it can also be set before
+   * `init`. Like every controller action, it is available through the
+   * messenger once `init` has run.
+   *
+   * @param account - The main account and network the agent is approved for.
+   * @param agentSigner - The host-owned agent signer, or null to pin the main
+   * account.
+   */
+  setAgentSigner(
+    account: PerpsAgentAccount,
+    agentSigner: PerpsAgentSigner | null,
+  ): void {
+    this.#agentBindings.set(account, agentSigner);
+    // Drop agents the providers already resolved so the binding applies to
+    // the next L1 action.
+    this.#clearProviderAgentSigners();
+  }
+
+  /**
+   * Forget every HyperLiquid agent, set or resolved, so the next L1 action
+   * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
+   * still pending is discarded too. Call it when the wallet locks (with
+   * `getAgentSigner` returning null while locked) and nothing signs with an
+   * agent until it returns one again. Like every controller action, it is
+   * available through the messenger once `init` has run.
+   */
+  clearAgentSigners(): void {
+    this.#agentBindings.clear();
+    this.#clearProviderAgentSigners();
+  }
+
+  /**
+   * Drop the agents every provider resolved.
+   */
+  #clearProviderAgentSigners(): void {
+    for (const provider of this.providers.values()) {
+      provider.clearAgentSigners?.();
+    }
+  }
+
+  /**
+   * Run the active provider's deferred trading setup ahead of the first order
+   * (HyperLiquid account migration, builder fee and referral; Lighter
+   * venue-key registration), so its signatures happen in one guided session,
+   * such as agent setup, instead of at order time. The builder fee and
+   * Lighter's registration are signed by the main account; with an agent,
+   * the referral and the account migration are L1 actions the agent signs.
+   *
+   * @returns `ready: true` when none of these steps will need a signature
+   * again before the first order, and only while an account is selected and
+   * the main account can sign, whichever provider answered (including
+   * providers without deferred setup, for example in aggregated mode). A
+   * HyperLiquid referral whose MetaMask referral code is not ready yet is
+   * checked again at the next call, not before orders, so it does not hold
+   * it back. Otherwise `ready: false`, without an error while a step will
+   * be asked again (a declined HyperLiquid migration, builder fee or Lighter
+   * registration, or a step the agent could not sign), or with:
+   * - `KEYRING_LOCKED` when the main account cannot sign, before or during
+   * setup;
+   * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
+   * yet;
+   * - `NO_ACCOUNT_SELECTED` when no account is selected;
+   * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
+   * changed during setup;
+   * - otherwise the message of the error that stopped setup, which is logged.
+   * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
+   * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
+   * when no active provider is available.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    const provider = await this.#getActiveProviderWhenReady();
+    // With nothing selected, the AccountsController answers an empty account.
+    const readSelectedAddress = (): string | undefined => {
+      const address = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      )?.address;
+      return address ? address.toLowerCase() : undefined;
+    };
+    const addressAtStart = readSelectedAddress();
+    const result = (await provider.prepareTradingWallet?.()) ?? {
+      ready: true,
+    };
+    const address = readSelectedAddress();
+    // The steps ran for the account selected when they started (in aggregated
+    // mode, one provider after another), so their result is not the current
+    // account's.
+    if (address !== addressAtStart) {
+      return {
+        ready: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      };
+    }
+    if (!result.ready) {
+      return result;
+    }
+    // A provider with nothing to prepare, alone or aggregated, checks neither
+    // the signer nor the selected account.
+    if (
+      !isMainAccountSignerReady(
+        this.#options.infrastructure.accountSigner,
+        () => this.messenger.call('KeyringController:getState').isUnlocked,
+      )
+    ) {
+      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    }
+    if (!address) {
+      return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
+    }
+    return result;
+  }
+
+  /**
    * Approve the dedicated subscription builder outside order submission.
    *
    * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
@@ -6422,7 +6711,7 @@ export class PerpsController extends BaseController<
 
       // Handle other simple legacy strings (e.g., 'volume', 'openInterest', etc.)
       return {
-        optionId: pref as SortOptionId,
+        optionId: pref,
         direction: MARKET_SORTING_CONFIG.DefaultDirection,
       };
     }
@@ -6723,6 +7012,51 @@ export class PerpsController extends BaseController<
       state.tradeConfigurations[network][symbol] = {
         ...existingConfig,
         orderBookGrouping: grouping,
+      };
+    });
+  }
+
+  /**
+   * Get the saved margin mode (Isolated/Cross) for a market on the current
+   * network. Clients should still let a venue-enforced mode take priority.
+   *
+   * @param symbol - Market symbol
+   * @returns The saved margin mode or undefined if not set
+   */
+  getMarginMode(symbol: string): MarginMode | undefined {
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    return this.state.tradeConfigurations[network]?.[symbol]?.marginMode;
+  }
+
+  /**
+   * Save the margin mode (Isolated/Cross) picked for a market on the current
+   * network. Values other than `isolated` or `cross` are ignored.
+   *
+   * @param symbol - Market symbol
+   * @param marginMode - Margin mode to persist
+   */
+  saveMarginMode(symbol: string, marginMode: MarginMode): void {
+    if (marginMode !== 'isolated' && marginMode !== 'cross') {
+      return;
+    }
+
+    const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+
+    this.#debugLog('PerpsController: Saving margin mode', {
+      symbol,
+      network,
+      marginMode,
+    });
+
+    this.update((state) => {
+      if (!state.tradeConfigurations[network]) {
+        state.tradeConfigurations[network] = {};
+      }
+
+      const existingConfig = state.tradeConfigurations[network][symbol] || {};
+      state.tradeConfigurations[network][symbol] = {
+        ...existingConfig,
+        marginMode,
       };
     });
   }

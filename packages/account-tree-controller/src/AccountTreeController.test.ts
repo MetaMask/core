@@ -610,9 +610,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       await expect(
-        controller.removeAccountWallet(
-          'entropy:missing-wallet' as AccountWalletId,
-        ),
+        controller.removeAccountWallet('entropy:missing-wallet'),
       ).rejects.toThrow('Account wallet not found in tree');
     });
 
@@ -817,7 +815,7 @@ describe('AccountTreeController', () => {
       await expect(
         accountTreeControllerMessenger.call(
           'AccountTreeController:removeAccountWallet',
-          'entropy:missing-wallet' as AccountWalletId,
+          'entropy:missing-wallet',
         ),
       ).rejects.toThrow('Account wallet not found in tree');
     });
@@ -1862,7 +1860,7 @@ describe('AccountTreeController', () => {
           },
         },
         accountWalletsMetadata: {},
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes an empty group if it holds no accounts', () => {
@@ -1953,7 +1951,7 @@ describe('AccountTreeController', () => {
           },
         },
         accountWalletsMetadata: {},
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes an empty wallet if it holds no groups', () => {
@@ -1980,7 +1978,7 @@ describe('AccountTreeController', () => {
           wallets: {},
         },
         selectedAccountGroup: expect.any(String), // Will be set after init
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes custom wallet metadata when wallet is removed', () => {
@@ -2188,7 +2186,7 @@ describe('AccountTreeController', () => {
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-      } as AccountTreeControllerState);
+      });
     });
 
     it('adds a new wallet to the tree', () => {
@@ -2339,7 +2337,7 @@ describe('AccountTreeController', () => {
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-      } as AccountTreeControllerState);
+      });
     });
 
     it('does not add any account if init has not been called', () => {
@@ -3198,7 +3196,7 @@ describe('AccountTreeController', () => {
 
       expect(() => {
         controller.setSelectedAccountGroupByAccountId(
-          'non-existent-account-id' as AccountId,
+          'non-existent-account-id',
         );
       }).toThrow('Account not found in the account tree');
     });
@@ -4922,9 +4920,9 @@ describe('AccountTreeController', () => {
 
       messenger.call(
         'AccountTreeController:getAccountFromSelectedAccountGroup',
-        EthScope.Mainnet as CaipChainId,
+        EthScope.Mainnet,
       );
-      expect(spy).toHaveBeenCalledWith(EthScope.Mainnet as CaipChainId);
+      expect(spy).toHaveBeenCalledWith(EthScope.Mainnet);
     });
 
     it('gets account context with AccountTreeController:getAccountContext', () => {
@@ -6329,7 +6327,7 @@ describe('AccountTreeController', () => {
       // Try to set name for a non-existent group ID
       expect(() => {
         controller.setAccountGroupName(
-          'entropy:non-existent/group-id' as AccountGroupId,
+          'entropy:non-existent/group-id',
           'Test Name',
         );
       }).toThrow('Account group not found in tree');

@@ -379,7 +379,9 @@ export class TransactionPayController extends BaseController<
       ) {
         updateSourceAmounts(
           transactionId,
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
           current as never,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
           this.messenger,
           this.#getBalance,
         );
@@ -397,7 +399,9 @@ export class TransactionPayController extends BaseController<
         // itself, which reads the re-derived amounts before building requests.
         updateSourceAmounts(
           transactionId,
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
           current as never,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
           this.messenger,
           this.#getBalance,
         );

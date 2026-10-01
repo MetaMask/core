@@ -78,7 +78,7 @@ describe('provider utils', () => {
             networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const result = getNetworkClientId(messenger, CHAIN_ID_MOCK, {
         preferInfura: true,
@@ -96,7 +96,7 @@ describe('provider utils', () => {
             networkClientId: 'custom-rpc-id',
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const result = getNetworkClientId(messenger, CHAIN_ID_MOCK, {
         preferInfura: true,
@@ -152,7 +152,7 @@ describe('provider utils', () => {
           ],
         },
         provider: { request: requestMock },
-      } as never);
+      });
 
       const result = await rpcRequest({
         messenger,
@@ -182,7 +182,7 @@ describe('provider utils', () => {
           ],
         },
         provider: { request: requestMock },
-      } as never);
+      });
 
       await rpcRequest({
         messenger,
@@ -211,7 +211,7 @@ describe('provider utils', () => {
           ],
         },
         provider: { request: requestMock },
-      } as never);
+      });
 
       await expect(
         rpcRequest({
@@ -231,7 +231,7 @@ describe('provider utils', () => {
             networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const error = new Error('Unauthorized.');
       const requestMock = jest.fn().mockRejectedValue(error);
@@ -247,7 +247,7 @@ describe('provider utils', () => {
           ],
         },
         provider: { request: requestMock },
-      } as never);
+      });
 
       await expect(
         rpcRequest({
@@ -279,7 +279,7 @@ describe('provider utils', () => {
           ],
         },
         provider: { request: requestMock },
-      } as never);
+      });
 
       await expect(
         rpcRequest({
@@ -301,7 +301,7 @@ describe('provider utils', () => {
             networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
           },
         ],
-      } as NetworkConfiguration);
+      });
 
       const requestMock = jest.fn().mockResolvedValue('0x1');
       getNetworkClientByIdMock.mockReturnValue({
@@ -316,7 +316,7 @@ describe('provider utils', () => {
           ],
         },
         provider: { request: requestMock },
-      } as never);
+      });
 
       await rpcRequest({
         messenger,

@@ -56,24 +56,24 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
       approvalTxns: [
         {
           chainId: 1,
-          to: '0xapprove' as Hex,
-          data: '0xdeadbeef' as Hex,
+          to: '0xapprove',
+          data: '0xdeadbeef',
         },
       ],
       inputToken: {
-        address: '0xabc' as Hex,
+        address: '0xabc',
         chainId: 1,
         decimals: 18,
       },
       outputToken: {
-        address: '0xdef' as Hex,
+        address: '0xdef',
         chainId: 2,
         decimals: 6,
       },
       swapTx: {
         chainId: 1,
-        to: '0xswap' as Hex,
-        data: '0xfeed' as Hex,
+        to: '0xswap',
+        data: '0xfeed',
         maxFeePerGas: '0x100',
         maxPriorityFeePerGas: '0x10',
       },
@@ -88,11 +88,11 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
     from: FROM_MOCK,
     sourceBalanceRaw: '100',
     sourceChainId: '0x1',
-    sourceTokenAddress: '0xabc' as Hex,
+    sourceTokenAddress: '0xabc',
     sourceTokenAmount: '100',
     targetAmountMinimum: '100',
     targetChainId: '0x2',
-    targetTokenAddress: '0xdef' as Hex,
+    targetTokenAddress: '0xdef',
   },
   sourceAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
   targetAmount: { usd: '0', fiat: '0' },
@@ -147,7 +147,7 @@ describe('Across Submit', () => {
     findNetworkClientIdByChainIdMock.mockReturnValue('networkClientId');
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
-    } as TransactionControllerState);
+    });
     addTransactionMock.mockResolvedValue({
       result: Promise.resolve('0xhash'),
       transactionMeta: TRANSACTION_META_MOCK,
@@ -173,14 +173,14 @@ describe('Across Submit', () => {
 
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK, confirmedTransaction],
-      } as TransactionControllerState);
+      });
 
       addTransactionMock.mockImplementation(async () => {
         publish('TransactionController:unapprovedTransactionAdded', {
           id: confirmedTransaction.id,
           chainId: confirmedTransaction.chainId,
           txParams: confirmedTransaction.txParams,
-        } as TransactionMeta);
+        });
 
         return {
           result: Promise.resolve('0xhash'),
@@ -189,18 +189,17 @@ describe('Across Submit', () => {
       });
     };
 
-    const buildDepositQuote = (): TransactionPayQuote<AcrossQuote> =>
-      ({
-        ...QUOTE_MOCK,
-        original: {
-          ...QUOTE_MOCK.original,
-          quote: {
-            ...QUOTE_MOCK.original.quote,
-            approvalTxns: [],
-            id: 'deposit-id',
-          },
+    const buildDepositQuote = (): TransactionPayQuote<AcrossQuote> => ({
+      ...QUOTE_MOCK,
+      original: {
+        ...QUOTE_MOCK.original,
+        quote: {
+          ...QUOTE_MOCK.original.quote,
+          approvalTxns: [],
+          id: 'deposit-id',
         },
-      }) as TransactionPayQuote<AcrossQuote>;
+      },
+    });
 
     it('submits a batch when approvals exist', async () => {
       await submitAcrossQuotes({
@@ -339,10 +338,10 @@ describe('Across Submit', () => {
           nestedTransactions: [{ type: TransactionType.predictWithdraw }],
           txParams: {
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -432,11 +431,11 @@ describe('Across Submit', () => {
           type: TransactionType.swap,
           txParams: {
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
             gas: '0x5208',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -487,9 +486,9 @@ describe('Across Submit', () => {
           ...TRANSACTION_META_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            authorizationList: [{ address: '0xabc' as Hex }],
+            authorizationList: [{ address: '0xabc' }],
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -515,9 +514,9 @@ describe('Across Submit', () => {
           ...TRANSACTION_META_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            authorizationList: [{ address: '0xabc' as Hex }],
+            authorizationList: [{ address: '0xabc' }],
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -679,11 +678,11 @@ describe('Across Submit', () => {
           nestedTransactions: [{ type: TransactionType.predictWithdraw }],
           txParams: {
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
-            value: '0x1' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
+            value: '0x1',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -742,11 +741,11 @@ describe('Across Submit', () => {
           nestedTransactions: [{ type: TransactionType.predictWithdraw }],
           txParams: {
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
-            value: '0x1' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
+            value: '0x1',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -810,10 +809,10 @@ describe('Across Submit', () => {
           type: TransactionType.predictWithdraw,
           txParams: {
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -853,12 +852,12 @@ describe('Across Submit', () => {
           type: TransactionType.batch,
           nestedTransactions: [{ type: TransactionType.predictWithdraw }],
           txParams: {
-            authorizationList: [{ address: '0xabc' as Hex }],
+            authorizationList: [{ address: '0xabc' }],
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -917,10 +916,10 @@ describe('Across Submit', () => {
           type: TransactionType.swap,
           txParams: {
             from: FROM_MOCK,
-            to: '0x000000000000000000000000000000000000dEaD' as Hex,
-            data: '0x12345678' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD',
+            data: '0x12345678',
           },
-        } as TransactionMeta,
+        },
         isSmartTransaction: jest.fn(),
       });
 
@@ -1083,14 +1082,14 @@ describe('Across Submit', () => {
 
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK, confirmedTransaction],
-      } as TransactionControllerState);
+      });
 
       addTransactionMock.mockImplementation(async () => {
         publish('TransactionController:unapprovedTransactionAdded', {
           id: confirmedTransaction.id,
           chainId: confirmedTransaction.chainId,
           txParams: confirmedTransaction.txParams,
-        } as TransactionMeta);
+        });
 
         return {
           result: Promise.resolve('0xhash'),
@@ -1139,14 +1138,14 @@ describe('Across Submit', () => {
 
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK, confirmedTransaction],
-      } as TransactionControllerState);
+      });
 
       addTransactionMock.mockImplementation(async () => {
         publish('TransactionController:unapprovedTransactionAdded', {
           id: confirmedTransaction.id,
           chainId: confirmedTransaction.chainId,
           txParams: confirmedTransaction.txParams,
-        } as TransactionMeta);
+        });
 
         return {
           result: Promise.resolve('0xhash'),
@@ -1194,14 +1193,14 @@ describe('Across Submit', () => {
 
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK, confirmedTransaction],
-      } as TransactionControllerState);
+      });
 
       addTransactionMock.mockImplementation(async () => {
         publish('TransactionController:unapprovedTransactionAdded', {
           id: confirmedTransaction.id,
           chainId: confirmedTransaction.chainId,
           txParams: confirmedTransaction.txParams,
-        } as TransactionMeta);
+        });
 
         return {
           result: Promise.resolve('0xhash'),
@@ -1304,14 +1303,14 @@ describe('Across Submit', () => {
 
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK, confirmedTransaction],
-      } as TransactionControllerState);
+      });
 
       addTransactionMock.mockImplementation(async () => {
         publish('TransactionController:unapprovedTransactionAdded', {
           id: confirmedTransaction.id,
           chainId: confirmedTransaction.chainId,
           txParams: confirmedTransaction.txParams,
-        } as TransactionMeta);
+        });
 
         return {
           result: Promise.resolve('0xhash'),
@@ -1688,8 +1687,8 @@ describe('Across Submit', () => {
             approvalTxns: [
               {
                 chainId: 1,
-                to: '0xapprove' as Hex,
-                data: '0xdeadbeef' as Hex,
+                to: '0xapprove',
+                data: '0xdeadbeef',
               },
             ],
           },
@@ -1762,7 +1761,7 @@ describe('Across Submit', () => {
             approvalTxns: [],
             swapTx: {
               ...QUOTE_MOCK.original.quote.swapTx,
-              to: '0xswap2' as Hex,
+              to: '0xswap2',
             },
           },
         },
@@ -1782,14 +1781,14 @@ describe('Across Submit', () => {
 
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK, confirmedTransaction],
-      } as TransactionControllerState);
+      });
 
       addTransactionMock.mockImplementation(async () => {
         publish('TransactionController:unapprovedTransactionAdded', {
           id: confirmedTransaction.id,
           chainId: confirmedTransaction.chainId,
           txParams: confirmedTransaction.txParams,
-        } as TransactionMeta);
+        });
 
         return {
           result: Promise.resolve('0xhash'),

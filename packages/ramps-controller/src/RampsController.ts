@@ -246,6 +246,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
   'KycController:getSessionStatusForVendor',
+  'KycController:getProviderFlowStatus',
   'KycController:refreshSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
@@ -298,6 +299,11 @@ export type KycControllerGetSessionStatusForVendorAction = {
 export type KycControllerRefreshSessionStatusAction = {
   type: 'KycController:refreshSessionStatus';
   handler: () => KycControllerSessionStatus;
+};
+
+export type KycControllerGetProviderFlowStatusAction = {
+  type: 'KycController:getProviderFlowStatus';
+  handler: () => VbaProviderFlowStatus;
 };
 
 export type KycControllerHasCompletedVendorDisclaimersAction = {
@@ -356,6 +362,15 @@ export const VBA_KYC_STATUSES = [
 
 export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
 
+export const VBA_PROVIDER_FLOW_STATUSES = [
+  'not_started',
+  'submitted',
+  'abandoned',
+  'failed',
+] as const;
+
+export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
+
 /**
  * Autoramp setup progress after KYC has been approved.
  * `'in_progress'` is reserved for hosts that observe an in-flight hydrate;
@@ -379,6 +394,7 @@ export type VbaOnboardingSnapshot = {
   sessionExists: boolean;
   vendorDisclaimersComplete: boolean;
   sessionDisclaimersComplete: boolean;
+  providerFlowStatus: VbaProviderFlowStatus;
   /** Overall KYC session outcome used to decide whether autoramp setup can run. */
   kycStatus: VbaKycStatus;
   autorampStatus: VbaAutorampStatus;
@@ -388,6 +404,7 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
   sessionExists: false,
   vendorDisclaimersComplete: false,
   sessionDisclaimersComplete: false,
+  providerFlowStatus: 'not_started',
   kycStatus: 'none',
   autorampStatus: 'not_ready',
 };
@@ -936,6 +953,7 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
@@ -1260,6 +1278,13 @@ function getSafeRampsFee(value: number | string | undefined): BigNumber {
   return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
     ? fee
     : new BigNumber(0);
+}
+
+/** EVM ERC-20 CAIP-19. Hex case is not part of the address. */
+const EIP155_ERC20_ASSET_ID = /^eip155:\d+\/erc20:0x[0-9a-fA-F]{40}$/u;
+
+function isEip155Erc20AssetId(assetId: string | undefined): assetId is string {
+  return typeof assetId === 'string' && EIP155_ERC20_ASSET_ID.test(assetId);
 }
 
 export class RampsController extends BaseController<
@@ -1926,7 +1951,7 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Switches to the first provider in state that serves the given asset,
+   * Switches to the preferred provider in state that serves the given asset,
    * when the currently selected provider does not.
    *
    * This is the controller-level equivalent of UB2's BuildQuote tier-1
@@ -1938,6 +1963,12 @@ export class RampsController extends BaseController<
    * The compatibility check prefers the current provider's entry in
    * `providers.data` over the `providers.selected` copy, which can be stale
    * once a fresh providers list arrives.
+   *
+   * Among the providers that serve the asset, the new selection is:
+   * 1. The first provider the user has completed an order with before (most
+   *    recent first). This keeps an existing KYC relationship instead of
+   *    moving the user to a new provider.
+   * 2. Otherwise the first provider in `providers.data` (API ranking order).
    *
    * No-op when:
    * - `providers.data` is empty (providers not yet loaded)
@@ -1967,15 +1998,27 @@ export class RampsController extends BaseController<
       return false;
     }
 
-    const compatible = providers.find(
+    const compatible = providers.filter(
       (provider) =>
         provider.id !== selectedId && providerServesAsset(provider, assetId),
     );
-    if (!compatible) {
+    if (compatible.length === 0) {
       return false;
     }
 
-    this.setSelectedProvider(compatible, {
+    const preferredIds = this.#getPreferredProviderIdsFromOrders().map(
+      normalizeHeadlessProviderId,
+    );
+    const preferred = preferredIds
+      .map((preferredId) =>
+        compatible.find(
+          (provider) =>
+            normalizeHeadlessProviderId(provider.id) === preferredId,
+        ),
+      )
+      .find((provider) => provider !== undefined);
+
+    this.setSelectedProvider(preferred ?? compatible[0], {
       autoSelected: true,
       ...options,
     });
@@ -2161,6 +2204,33 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Exact CAIP-19 match, then a case-insensitive match for `eip155` ERC-20
+   * only. Solana, Tron, and Bitcoin references stay exact: their case is
+   * part of the id. The returned token keeps the catalog's own `assetId`.
+   *
+   * @param tokens - Region catalog from the top-tokens response.
+   * @param assetId - Caller CAIP-19 id.
+   * @returns The catalog token, or `undefined` when nothing matches.
+   */
+  #findTokenForAssetId(
+    tokens: TokensResponse,
+    assetId: string,
+  ): RampsToken | undefined {
+    const exact =
+      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
+      tokens.topTokens.find((tok) => tok.assetId === assetId);
+    if (exact || !isEip155Erc20AssetId(assetId)) {
+      return exact;
+    }
+    const target = assetId.toLowerCase();
+    const matchesEvm = (tok: RampsToken): boolean =>
+      isEip155Erc20AssetId(tok.assetId) && tok.assetId.toLowerCase() === target;
+    return (
+      tokens.allTokens.find(matchesEvm) ?? tokens.topTokens.find(matchesEvm)
+    );
+  }
+
+  /**
    * Sets the user's selected token by asset ID.
    * Looks up the token from the current tokens in state and automatically
    * fetches payment methods for that token.
@@ -2184,9 +2254,7 @@ export class RampsController extends BaseController<
       );
     }
 
-    const token =
-      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
-      tokens.topTokens.find((tok) => tok.assetId === assetId);
+    const token = this.#findTokenForAssetId(tokens, assetId);
 
     if (!token) {
       throw new Error(
@@ -3587,12 +3655,12 @@ export class RampsController extends BaseController<
         (existing) => existing.id === account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(account as Draft<AutorampAccount>);
+        state.autoramps.push(account);
       } else {
         state.autoramps[idx] = {
           ...state.autoramps[idx],
           ...account,
-        } as Draft<AutorampAccount>;
+        };
       }
     });
 
@@ -3950,12 +4018,25 @@ export class RampsController extends BaseController<
     const sessionDisclaimersComplete = await this.messenger.call(
       'KycController:hasCompletedSessionDisclaimers',
     );
+    const providerFlowStatus = this.messenger.call(
+      'KycController:getProviderFlowStatus',
+    );
 
     const snapshot: VbaOnboardingSnapshot = {
       sessionExists: true,
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
-      kycStatus: toVbaKycStatus(session.finalStatus),
+      providerFlowStatus,
+      // The relay approves (`kycStatus: 'approved'`) as soon as the KYC decision
+      // is made, while the vendor-side `finalStatus` can lag at `'pending'` until
+      // the vendor record is finalized (and in sandbox may never advance). Treat
+      // either signal as approval so a relay-approved user is not stranded on the
+      // pending screen. This mirrors the UKYC backend, whose own "already
+      // approved" check is `finalStatus === 'approved' || kycStatus === 'approved'`.
+      kycStatus:
+        session.finalStatus === 'approved' || session.kycStatus === 'approved'
+          ? 'approved'
+          : toVbaKycStatus(session.finalStatus),
       autorampStatus: 'not_ready',
     };
 
@@ -4070,7 +4151,7 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === autorampId,
       );
       if (idx !== -1) {
-        state.autoramps[idx] = notified as Draft<AutorampAccount>;
+        state.autoramps[idx] = notified;
       }
     });
   }
@@ -4155,9 +4236,9 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === result.account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(result.account as Draft<AutorampAccount>);
+        state.autoramps.push(result.account);
       } else {
-        state.autoramps[idx] = result.account as Draft<AutorampAccount>;
+        state.autoramps[idx] = result.account;
       }
     });
 
