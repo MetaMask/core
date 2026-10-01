@@ -12720,6 +12720,125 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('signer readiness lock return gap', () => {
+    it.each(['reset', 'wallet-rebind'] as const)(
+      'refuses stale readiness and keeps unfinished journals visible after %s',
+      async (retirement) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+          configuredAccountIndex: null,
+        });
+        const nextAddress =
+          retirement === 'reset'
+            ? ACCOUNT.l1Address.toLowerCase()
+            : '0x1111111111111111111111111111111111111111';
+        const nextIndex = retirement === 'reset' ? 28 : 29;
+        const keys = ['BTC', 'ETH'].map(
+          (symbol) => `${nextAddress}:${nextIndex}:7:${symbol}`,
+        );
+        await infra.diskCache.setItem(
+          'lighterTpslJournalIndex:testnet',
+          JSON.stringify(keys),
+        );
+        for (const [index, settlementKey] of keys.entries()) {
+          await infra.diskCache.setItem(
+            `lighterTpslJournal:testnet:${settlementKey}`,
+            JSON.stringify({
+              version: 4,
+              recordedAt: 5,
+              operationId: `return-gap-${index}`,
+              createdAt: 5,
+              nextAttemptId: 2,
+              apiKeyIndex: 7,
+              intent: 'replace',
+              phase: index === 0 ? 'creating' : 'cancelling',
+              priorGrouping: 'independent',
+              priorTriggers: [],
+              attempts: [
+                {
+                  kind: 'create',
+                  attemptId: 1,
+                  nonce: 42,
+                  outcome: 'unknown',
+                  clientIds: [12345],
+                  txHash: 'ffff00000001',
+                  expiresAt: 9_999_999_999_999,
+                  role: 'replacement',
+                },
+              ],
+            }),
+          );
+        }
+        const getItem = jest.spyOn(infra.diskCache, 'getItem');
+        const eviction = jest.spyOn(Map.prototype, 'delete');
+        const originalDelete = eviction.getMockImplementation();
+        if (!originalDelete) {
+          throw new Error('Missing real mutex eviction implementation');
+        }
+        let retired = false;
+        let rebound: Promise<unknown> | undefined;
+        // The real venue mutex evicts its tail after its critical section
+        // settles, before the awaiting setupSigner continuation resumes.
+        // Retire here rather than changing private fields or mocking setup.
+        eviction.mockImplementation(function (
+          this: Map<unknown, unknown>,
+          key: unknown,
+        ) {
+          const deleted = originalDelete.call(this, key);
+          if (key === 'lighterVenueWrite:testnet:28' && !retired) {
+            retired = true;
+            if (retirement === 'reset') {
+              built.fireReset();
+            } else {
+              built.getUserAddressMock.mockReturnValue(nextAddress);
+              built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+                code: 200,
+                l1Address: nextAddress,
+                subAccounts: [
+                  { ...ACCOUNT, index: nextIndex, l1Address: nextAddress },
+                ],
+              });
+              rebound = built.provider.getPendingManualRecoveries();
+            }
+          }
+          return deleted;
+        });
+        try {
+          const ready = await built.provider.isReadyToTrade();
+          await rebound;
+          expect(retired).toBe(true);
+          expect(ready.ready).toBe(false);
+          expect(ready.error).toContain('while this operation was in flight');
+          // Only the explicit read used to rebind may read the journal index.
+          expect(
+            getItem.mock.calls.filter(
+              ([key]) => key === 'lighterTpslJournalIndex:testnet',
+            ),
+          ).toHaveLength(retirement === 'reset' ? 0 : 1);
+          const pending = await built.provider.getPendingManualRecoveries();
+          expect(pending.map((entry) => entry.settlementKey)).toStrictEqual(
+            keys,
+          );
+          for (const entry of pending) {
+            expect(entry.reason).toContain('unfinished');
+            expect(entry.actionNeeded).toContain(
+              'Initialize the wallet trading key',
+            );
+          }
+          expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+          expect(built.calls.map((call) => call.function)).toStrictEqual([
+            '_createClient',
+          ]);
+        } finally {
+          eviction.mockRestore();
+          await built.provider.disconnect();
+        }
+      },
+    );
+  });
+
   describe('startup journal slot classification', () => {
     it('reports an unverified restored slot as unfinished, without claiming another trading key', async () => {
       const infra = createMockInfrastructure();

@@ -4700,6 +4700,7 @@ export class LighterProvider implements PerpsProvider {
         },
       );
       if (ready) {
+        this.#assertSession(generation);
         this.#readyApiKeyIndex = apiKeyIndex;
         this.#kickTpslRecovery();
         return;
@@ -8882,26 +8883,23 @@ export class LighterProvider implements PerpsProvider {
     const isSnapshot = (message.type ?? '').startsWith('subscribed');
     if (
       message.trades === null ||
-      (message.trades !== undefined &&
-        (typeof message.trades !== 'object' ||
-          Array.isArray(message.trades) ||
-          !Object.values(message.trades).every(
-            (rows) =>
-              Array.isArray(rows) &&
-              rows.every(
-                (row) =>
-                  row !== null &&
-                  typeof row === 'object' &&
-                  !Array.isArray(row),
-              ),
-          )))
+      typeof message.trades !== 'object' ||
+      Array.isArray(message.trades) ||
+      !Object.values(message.trades).every(
+        (rows) =>
+          Array.isArray(rows) &&
+          rows.every(
+            (row) =>
+              row !== null && typeof row === 'object' && !Array.isArray(row),
+          ),
+      )
     ) {
       this.#wsFills = null;
       throw new Error('Invalid Lighter venue data: malformed trades container');
     }
     const fills: OrderFill[] = [];
     let droppedUnsupportedFill = false;
-    for (const marketTrades of Object.values(message.trades ?? {})) {
+    for (const marketTrades of Object.values(message.trades)) {
       for (const trade of marketTrades) {
         const symbol =
           this.#marketsById.get(trade.marketId)?.symbol ??
