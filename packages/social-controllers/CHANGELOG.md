@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.4.1]
+## [3.5.0]
 
 ### Added
 
@@ -236,8 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.1...HEAD
-[3.4.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.4.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...HEAD
+[3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.3.0...@metamask/social-controllers@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...@metamask/social-controllers@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...@metamask/social-controllers@3.2.0
