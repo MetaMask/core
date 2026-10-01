@@ -3988,18 +3988,27 @@ export class PerpsController extends BaseController<
    * wallet/network/account/key and accepts legacy IDs only when unambiguous
    * across local account ledgers. Acknowledgment removes one stored outcome,
    * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
+   * Rejects account, network or provider changes while readiness or
+   * acknowledgment completes.
    *
    * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
    * @returns Resolves when the outcome is acknowledged.
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const issuedContext = this.#getActionContext();
     const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     if (!provider.acknowledgeRecoveredDispatch) {
       throw new Error(
         'The active perps provider has no recovered dispatches to acknowledge',
       );
     }
-    return provider.acknowledgeRecoveredDispatch(recoveryId);
+    await provider.acknowledgeRecoveredDispatch(recoveryId);
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
   }
 
   /**
