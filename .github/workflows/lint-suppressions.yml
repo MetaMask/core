@@ -11,8 +11,6 @@ permissions:
 jobs:
   lint-suppressions:
     name: Lint suppressions
-    # The branch is only checked out as the merge into its base, which is where
-    # the check reads its baseline from, on a pull request.
     if: ${{ github.event_name != 'merge_group' }}
     runs-on: ubuntu-latest
     strategy:
