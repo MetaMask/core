@@ -36,6 +36,7 @@ export type {
   SocialServiceFetchFollowersAction,
   SocialServiceFetchTokenFeedAction,
   SocialServiceFetchFollowingAction,
+  SocialServiceFetchMyFollowersAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFetchOpenPositionsAction,
   SocialServiceFetchPositionByIdAction,

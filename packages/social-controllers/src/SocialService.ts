@@ -320,6 +320,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchClosedPositions',
   'fetchFollowers',
   'fetchFollowing',
+  'fetchMyFollowers',
   'fetchPositionById',
   'fetchFeed',
   'fetchTraderFeed',
@@ -995,6 +996,39 @@ export class SocialService extends BaseDataService<
     });
 
     return followingResponse;
+  }
+
+  /**
+   * Fetches the list of traders following the current user.
+   *
+   * Calls `GET ${baseUrl}/users/me/followers`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @returns The followers response.
+   */
+  async fetchMyFollowers(): Promise<FollowersResponse> {
+    const followersResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchMyFollowers`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/users/me/followers`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_FAILED,
+        );
+        const followersData = await response.json();
+        if (!is(followersData, FollowersResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
+          );
+        }
+        return followersData;
+      },
+    });
+
+    return followersResponse;
   }
 
   /**

@@ -446,7 +446,8 @@ export type FeedResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/traders/:addressOrId/followers`.
+ * Response from `GET /v1/users/me/followers` and
+ * `GET /v1/traders/:addressOrId/followers`.
  */
 export type FollowersResponse = {
   followers: ProfileSummary[];
