@@ -832,6 +832,95 @@ describe('MoneyAccountLifecycleController', () => {
     });
   });
 
+  describe('getMoneyAccountIdentity', () => {
+    it.each([
+      { lifecycle: { type: 'sfa', identity: SFA_IDENTITY } },
+      { lifecycle: { type: 'migrating', identity: MIGRATING_IDENTITY } },
+      { lifecycle: { type: 'mfa', identity: MFA_IDENTITY } },
+    ] as const)(
+      'projects the identity of a recorded $lifecycle.type money account',
+      async ({ lifecycle }) => {
+        await withController(
+          {
+            options: {
+              state: { moneyAccounts: { [MONEY_ACCOUNT_KEY]: lifecycle } },
+            },
+          },
+          ({ rootMessenger }) => {
+            expect(
+              rootMessenger.call(
+                'MoneyAccountLifecycleController:getMoneyAccountIdentity',
+              ),
+            ).toStrictEqual({
+              currentAddress: lifecycle.identity.currentAddress,
+              previousAddresses: lifecycle.identity.previousAddresses,
+              status: lifecycle.identity.status,
+            });
+          },
+        );
+      },
+    );
+
+    it('projects the identity recorded from the latest fetch', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MFA_IDENTITY],
+        });
+
+        await init();
+
+        expect(controller.getMoneyAccountIdentity()).toStrictEqual({
+          currentAddress: SUCCESSOR_ADDRESS,
+          previousAddresses: [MONEY_ACCOUNT_ADDRESS],
+          status: 'DONE',
+        });
+      });
+    });
+
+    it('projects the money account as its own unregistered identity when it is not in an identity', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccounts: { [MONEY_ACCOUNT_KEY]: { type: 'notInIdentity' } },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.getMoneyAccountIdentity()).toStrictEqual({
+            currentAddress: MONEY_ACCOUNT_KEY,
+            previousAddresses: [],
+            status: 'NONE',
+          });
+        },
+      );
+    });
+
+    it('returns undefined when no lifecycle has been recorded for the money account', async () => {
+      await withController(({ controller }) => {
+        expect(controller.getMoneyAccountIdentity()).toBeUndefined();
+      });
+    });
+
+    it('returns undefined when there is no money account', async () => {
+      await withController(
+        {
+          moneyAccountAddress: undefined,
+          options: {
+            state: {
+              moneyAccounts: {
+                [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.getMoneyAccountIdentity()).toBeUndefined();
+        },
+      );
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {

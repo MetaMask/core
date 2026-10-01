@@ -4,6 +4,7 @@ export {
 } from './money-account-lifecycle-controller.js';
 export type {
   AddressRegistration,
+  MoneyAccountIdentity,
   MoneyAccountLifecycleControllerActions,
   MoneyAccountLifecycleControllerEvents,
   MoneyAccountLifecycleControllerGetStateAction,
@@ -13,4 +14,7 @@ export type {
   MoneyAccountLifecycleControllerStateChangedEvent,
 } from './money-account-lifecycle-controller.js';
 export type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
-export type { MoneyAccountLifecycleControllerInitAction } from './money-account-lifecycle-controller-method-action-types.js';
+export type {
+  MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction,
+  MoneyAccountLifecycleControllerInitAction,
+} from './money-account-lifecycle-controller-method-action-types.js';
