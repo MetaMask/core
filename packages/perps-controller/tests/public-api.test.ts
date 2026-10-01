@@ -15,6 +15,8 @@ import {
   PerpsController,
 } from '../src/index.js';
 import type {
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  MarketInfo,
   PerpsAccountSigner,
   PerpsAgentAccount,
   PerpsAgentSigner,
@@ -41,6 +43,17 @@ describe('@metamask/perps-controller public API', () => {
       LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
       LIGHTER_FILL_REPLAY_LIMIT,
     ]).toStrictEqual([2, 254, 253, 10000, 250, 40, 100]);
+  });
+
+  it('exports optional native price precision and unsupported-market capability reasons', () => {
+    const unspecifiedGrid: Pick<MarketInfo, 'priceDecimals'> = {};
+    const venueGrid: Pick<MarketInfo, 'priceDecimals'> = { priceDecimals: 2 };
+    const reason: DirectProviderOrderCapabilitiesUnavailableReason =
+      'order_market_unsupported';
+
+    expect(unspecifiedGrid.priceDecimals).toBeUndefined();
+    expect(venueGrid.priceDecimals).toBe(2);
+    expect(reason).toBe('order_market_unsupported');
   });
 
   it('exports the EIP-712 shape of a HyperLiquid L1 action', () => {

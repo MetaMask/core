@@ -399,3 +399,12 @@ export const LIGHTER_MARGIN_MODE_ISOLATED = 1;
  */
 export const LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX =
   'Unsupported Lighter capability:';
+
+/** Default Lighter execution protection, in basis points (5%). */
+export const LIGHTER_DEFAULT_SLIPPAGE_BPS = 500;
+
+/** Maximum durable position-protection ownership entries per account market. */
+export const LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS = 256;
+
+/** Single-page history bound used when reclaiming expired protection ownership. */
+export const LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE = 100;

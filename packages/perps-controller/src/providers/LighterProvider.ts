@@ -59,6 +59,9 @@ import {
   LIGHTER_USDC_ASSET_INDEX,
   LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_MARGIN_METADATA_TTL_MS,
+  LIGHTER_DEFAULT_SLIPPAGE_BPS,
+  LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS,
+  LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
@@ -1169,7 +1172,7 @@ const resolveLighterTriggerPrices = (
   }
   const slippageFraction =
     params.maxSlippageBps === undefined
-      ? (params.slippage ?? 0.05)
+      ? (params.slippage ?? LIGHTER_DEFAULT_SLIPPAGE_BPS / 10_000)
       : params.maxSlippageBps / 10_000;
   if (
     !Number.isFinite(slippageFraction) ||
@@ -2876,7 +2879,7 @@ export class LighterProvider implements PerpsProvider {
       parsed === null ||
       parsed.version !== 1 ||
       !Array.isArray(parsed.orders) ||
-      parsed.orders.length > 256 ||
+      parsed.orders.length > LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS ||
       !parsed.orders.every((entry: unknown) => {
         if (typeof entry !== 'object' || entry === null) {
           return false;
@@ -2981,7 +2984,7 @@ export class LighterProvider implements PerpsProvider {
           }
         }
       }
-      if (orders.size > 256) {
+      if (orders.size > LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS) {
         throw new Error(
           'Lighter managed TP/SL ownership is full; refusing further protection changes',
         );
@@ -7199,12 +7202,14 @@ export class LighterProvider implements PerpsProvider {
             const response = await this.#clientService.getInactiveOrders(
               accountIndex,
               authToken,
-              100,
+              LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
               undefined,
               market.marketId,
             );
             this.#assertSession(generationAtIntent);
-            if (response.orders.length > 100) {
+            if (
+              response.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE
+            ) {
               throw new Error('Lighter ownership history exceeded one page');
             }
             return response.orders.filter(
