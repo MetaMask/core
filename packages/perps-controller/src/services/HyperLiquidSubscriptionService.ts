@@ -79,6 +79,15 @@ import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
 
 /**
+ * What the service needs from the wallet: the account, and the wallet
+ * adapters it (re)initializes the SDK clients with.
+ */
+type SubscriptionWallet = Pick<
+  HyperLiquidWalletService,
+  'createWalletAdapter' | 'getUserAddressWithDefault'
+>;
+
+/**
  * Cap on *terminal* TWAP schedules retained per account from the venue's
  * history stream. Without it a long-lived session accumulates every schedule
  * the account has ever run. Active schedules are never evicted: they are what
@@ -110,7 +119,7 @@ export class HyperLiquidSubscriptionService {
   // Service dependencies
   readonly #clientService: HyperLiquidClientService;
 
-  readonly #walletService: HyperLiquidWalletService;
+  readonly #walletService: SubscriptionWallet;
 
   // HIP-3 feature flag support
   #hip3Enabled: boolean;
@@ -458,7 +467,7 @@ export class HyperLiquidSubscriptionService {
 
   constructor(
     clientService: HyperLiquidClientService,
-    walletService: HyperLiquidWalletService,
+    walletService: SubscriptionWallet,
     platformDependencies: PerpsPlatformDependencies,
     hip3Enabled?: boolean,
     enabledDexs?: string[],

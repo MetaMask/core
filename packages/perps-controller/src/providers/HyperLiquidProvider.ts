@@ -1786,7 +1786,16 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
       this.#clientService,
-      this.#walletService,
+      {
+        // The subscription service may initialize the SDK clients too, so
+        // its wallets are bound like the provider's.
+        createWalletAdapter: (): HyperLiquidWalletParams =>
+          this.#createWalletAdapter(),
+        getUserAddressWithDefault: async (
+          accountId?: CaipAccountId,
+        ): Promise<Hex> =>
+          await this.#walletService.getUserAddressWithDefault(accountId),
+      },
       this.#deps,
       this.#hip3Enabled,
       [], // enabledDexs - will be populated after DEX discovery in buildAssetMapping
@@ -2225,19 +2234,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      // The adapter keeps the network and session it is created for: its
-      // agents are resolved, and its signatures attributed, for them, even
-      // when a queued write signs after a network switch or a disconnect.
-      const binding: WalletBinding = {
-        isTestnet: this.#clientService.isTestnetMode(),
-        generation: this.#lifecycleGeneration,
-        unansweredSignatures: new Map(),
-      };
-      const wallet = this.#walletService.createWalletAdapter(
-        async (mainAddress: Hex): Promise<PerpsAgentSigner | null> =>
-          await this.#resolveTrackedAgentSigner(mainAddress, binding),
-      );
-      this.#walletBindings.set(wallet, binding);
+      const wallet = this.#createWalletAdapter();
       await this.#clientService.initialize(wallet);
       if (this.#disconnectOperationsInFlight > 0) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -2286,6 +2283,28 @@ export class HyperLiquidProvider implements PerpsProvider {
       // so future calls can retry if needed
       this.#initializationPromise = null;
     }
+  }
+
+  /**
+   * Create a wallet adapter for the SDK clients, bound to the network and
+   * session it is created in: its agents are resolved, and its signatures
+   * attributed, for them, even when a queued write signs after a network
+   * switch or a disconnect.
+   *
+   * @returns The wallet adapter.
+   */
+  #createWalletAdapter(): HyperLiquidWalletParams {
+    const binding: WalletBinding = {
+      isTestnet: this.#clientService.isTestnetMode(),
+      generation: this.#lifecycleGeneration,
+      unansweredSignatures: new Map(),
+    };
+    const wallet = this.#walletService.createWalletAdapter(
+      async (mainAddress: Hex): Promise<PerpsAgentSigner | null> =>
+        await this.#resolveTrackedAgentSigner(mainAddress, binding),
+    );
+    this.#walletBindings.set(wallet, binding);
+    return wallet;
   }
 
   /**
@@ -2410,17 +2429,28 @@ export class HyperLiquidProvider implements PerpsProvider {
       error,
       'HyperLiquidProvider.findRejectedAgent',
     );
-    if (isHyperLiquidUserNotFoundError(error)) {
-      const reportedAddress = UNKNOWN_WALLET_ADDRESS_PATTERN.exec(message)?.[1];
-      return reportedAddress === undefined
-        ? undefined
-        : this.#agentSignedFor.get(reportedAddress.toLowerCase());
-    }
-    const mainAddress = MUST_DEPOSIT_USER_PATTERN.exec(message)?.[1];
     const answer = getVenueAnswer(error);
     const signature = isStatusObject(answer)
       ? this.#agentSignatureByAnswer.get(answer)
       : undefined;
+    if (isHyperLiquidUserNotFoundError(error)) {
+      const reportedAddress =
+        UNKNOWN_WALLET_ADDRESS_PATTERN.exec(message)?.[1]?.toLowerCase();
+      if (reportedAddress === undefined) {
+        return undefined;
+      }
+      // The agent that signed the answered request, on its wallet's network.
+      // When no signature is linked to the answer (it did not come through
+      // an exchange client of this provider), the account the agent last
+      // signed an L1 action for.
+      if (signature) {
+        return signature.agentAddress.toLowerCase() === reportedAddress
+          ? signature
+          : undefined;
+      }
+      return this.#agentSignedFor.get(reportedAddress);
+    }
+    const mainAddress = MUST_DEPOSIT_USER_PATTERN.exec(message)?.[1];
     return mainAddress !== undefined &&
       signature?.account.mainAddress.toLowerCase() === mainAddress.toLowerCase()
       ? await this.#findRevokedAgent(signature)
@@ -15888,6 +15918,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * (hl-provision-fixture) that chain `.then` on the result.
    */
   public async getExchangeClient(): Promise<ExchangeClient> {
+    // Initialized here so the client signs through this provider's wallet.
+    await this.#ensureClientsInitialized();
     return this.#clientService.getExchangeClient();
   }
 

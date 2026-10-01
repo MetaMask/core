@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+- `HyperLiquidProvider.getExchangeClient` initializes the provider's SDK clients before returning the exchange client, so it signs L1 actions with the provider's agent ([#10643](https://github.com/MetaMask/core/pull/10643))
 
 ### Fixed
 
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The provider then checks `extraAgents` for the agent that signed the answered request. When it is missing or past its `validUntil`, the write fails with `KEYRING_LOCKED`, the agent is dropped and `onAgentRejected` is called. Requests signed by the main account, or by a wallet of an earlier network or session, are not checked
   - When the agent is still listed (an account with no funds), or the list cannot be read, the venue error is returned as before
 - Sign a HyperLiquid L1 action the SDK queued before a network switch with the agent of the network it was queued on, not the new network's ([#10643](https://github.com/MetaMask/core/pull/10643))
+- Attribute a HyperLiquid "User or API Wallet ... does not exist" rejection to the network of the request it answers, so an agent used on both networks is dropped, and `onAgentRejected` called, only for that network ([#10643](https://github.com/MetaMask/core/pull/10643))
 - Stop asking again for a HyperLiquid builder fee approval the venue refused for a reason signing again cannot fix, such as "Builder has insufficient balance to be approved" ([#10643](https://github.com/MetaMask/core/pull/10643))
   - Until the provider disconnects, the approval is not requested again: orders are sent as after any failed approval, TP/SL updates fail with `TPSL_UPDATE_FAILED`, and `prepareTradingWallet` returns the venue error
 

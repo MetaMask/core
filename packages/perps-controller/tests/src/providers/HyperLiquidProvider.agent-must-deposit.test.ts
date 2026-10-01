@@ -14,6 +14,7 @@ import {
   OTHER_MAIN_ADDRESS,
   TESTNET_ACCOUNT,
   mustDepositError,
+  unknownWalletError,
 } from '../../helpers/agentFixtures.js';
 import {
   BTC_MARKET_ORDER,
@@ -853,6 +854,77 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     });
     expect(extraAgents).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
+  });
+
+  it('drops the agent of the network whose request the venue rejected as an unknown wallet, when a queued write of the other network signed after it', async () => {
+    useSwitchableNetwork();
+    // The host reuses its agent on both networks.
+    const {
+      accountSignerProvider,
+      exchangeClient,
+      getAgentSigner,
+      onAgentRejected,
+      reportAnswer,
+      sdkWallet,
+      signAndSend,
+    } = await createPreparedAgentProvider();
+    const mainnetQueued = createDeferred<void>();
+    const mainnetAhead = createDeferred<void>();
+    exchangeClient.order.mockImplementationOnce(async () => {
+      // The mainnet client's wallet; the SDK queues the write.
+      const wallet = sdkWallet();
+      mainnetQueued.resolve();
+      await mainnetAhead.promise;
+      return await signAndSend(
+        L1_PAYLOAD,
+        { status: 'ok', response: { data: { statuses: ['success'] } } },
+        'thrown',
+        wallet,
+      );
+    });
+    const mainnetOrdering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await mainnetQueued.promise;
+    await accountSignerProvider.toggleTestnet();
+    const testnetSigned = createDeferred<void>();
+    const testnetVenue = createDeferred<void>();
+    const answer = {
+      status: 'err',
+      response: unknownWalletError(AGENT_ADDRESS).message,
+    };
+    exchangeClient.order.mockImplementationOnce(async () => {
+      const wallet = sdkWallet();
+      const signature = await wallet.signTypedData(L1_PAYLOAD);
+      testnetSigned.resolve();
+      await testnetVenue.promise;
+      reportAnswer(signature, answer, wallet);
+      throw apiRequestError(answer);
+    });
+
+    // The testnet request signs, the queued mainnet write signs, then the
+    // venue rejects the testnet request.
+    const testnetOrdering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await testnetSigned.promise;
+    mainnetAhead.resolve();
+    await mainnetOrdering;
+    testnetVenue.resolve();
+    const testnetOrder = await testnetOrdering;
+    // Testnet asks for an agent again; mainnet keeps its agent.
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+    await accountSignerProvider.toggleTestnet();
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+
+    expect(testnetOrder).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(onAgentRejected.mock.calls).toStrictEqual([
+      [TESTNET_ACCOUNT, AGENT_ADDRESS],
+    ]);
+    expect(getAgentSigner.mock.calls).toStrictEqual([
+      [MAINNET_ACCOUNT],
+      [TESTNET_ACCOUNT],
+      [TESTNET_ACCOUNT],
+    ]);
   });
 
   describe('without an agent', () => {

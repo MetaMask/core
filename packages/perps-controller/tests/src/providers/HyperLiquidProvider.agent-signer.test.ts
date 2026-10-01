@@ -8,9 +8,11 @@ import {
   AgentSignerUnavailableError,
 } from '../../../src/services/agentSigner.js';
 import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type { PerpsAgentAccount } from '../../../src/types/index.js';
 import {
+  AGENT_SIGNATURE,
   APPROVE_BUILDER_FEE_PAYLOAD,
   L1_PAYLOAD,
   MAIN_ADDRESS,
@@ -54,6 +56,51 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
   });
 
   describe('with an agent', () => {
+    it('signs the L1 actions of a wallet the subscription service creates with the agent', async () => {
+      const getAgentSigner = jest.fn();
+      const { accountSigner, agentSigner } = createAccountSignerProvider({
+        abstraction: 'unifiedAccount',
+        getAgentSigner,
+      });
+      getAgentSigner.mockResolvedValue(agentSigner);
+      // The wallet source the provider gave the subscription service, which
+      // can initialize the SDK clients before the provider does.
+      const [, subscriptionWallet] = jest
+        .mocked(HyperLiquidSubscriptionService)
+        .mock.calls.at(-1) as ConstructorParameters<
+        typeof HyperLiquidSubscriptionService
+      >;
+
+      const signature = await subscriptionWallet
+        .createWalletAdapter()
+        .signTypedData(L1_PAYLOAD);
+
+      expect(signature).toBe(AGENT_SIGNATURE);
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+      ]);
+      expect(accountSigner.signTypedData).not.toHaveBeenCalled();
+      expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+    });
+
+    it('initializes the clients with the provider wallet before handing out the exchange client', async () => {
+      const getAgentSigner = jest.fn();
+      const { accountSignerProvider, agentSigner, sdkWallet } =
+        createAccountSignerProvider({
+          abstraction: 'unifiedAccount',
+          getAgentSigner,
+        });
+      getAgentSigner.mockResolvedValue(agentSigner);
+
+      await accountSignerProvider.getExchangeClient();
+      const signature = await sdkWallet().signTypedData(L1_PAYLOAD);
+
+      expect(signature).toBe(AGENT_SIGNATURE);
+      expect(agentSigner.signTypedData.mock.calls).toStrictEqual([
+        [L1_PAYLOAD],
+      ]);
+    });
+
     it('resolves the agent at the first L1 signature and signs with it', async () => {
       const getAgentSigner = jest.fn();
       const { accountSignerProvider, accountSigner, agentSigner, sdkWallet } =
