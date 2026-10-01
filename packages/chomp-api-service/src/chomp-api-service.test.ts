@@ -634,6 +634,38 @@ describe('ChompApiService', () => {
       });
     }
 
+    it('omits intents with an unknown intent type', async () => {
+      const unknownIntent = {
+        ...intentsResponse[0],
+        delegationHash: '0x456',
+        metadata: { ...intentsResponse[0].metadata, type: 'some-future-type' },
+      };
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .reply(200, [unknownIntent, ...intentsResponse]);
+      const { service } = createService();
+
+      expect(await service.getIntentsByAddress('0xabc')).toStrictEqual(
+        intentsResponse,
+      );
+    });
+
+    it('throws when an intent type is not a string', async () => {
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .reply(200, [
+          {
+            ...intentsResponse[0],
+            metadata: { ...intentsResponse[0].metadata, type: 123 },
+          },
+        ]);
+      const { service } = createService();
+
+      await expect(service.getIntentsByAddress('0xabc')).rejects.toThrow(
+        'At path: 0.metadata.type -- Expected a string, but received: 123',
+      );
+    });
+
     it('throws on malformed response', async () => {
       nock(BASE_URL)
         .get('/v1/intent/account/0xabc')
@@ -766,6 +798,37 @@ describe('ChompApiService', () => {
 
       expect(await service.getServiceDetails(['0xa4b1'])).toStrictEqual(
         response,
+      );
+    });
+
+    it('omits unknown intent types from a protocol', async () => {
+      const response = {
+        ...serviceDetailsResponse,
+        chains: {
+          '0xa4b1': {
+            ...serviceDetailsResponse.chains['0xa4b1'],
+            protocol: {
+              vedaProtocol: {
+                ...serviceDetailsResponse.chains['0xa4b1'].protocol
+                  .vedaProtocol,
+                intentTypes: [
+                  'cash-deposit',
+                  'some-future-type',
+                  'cash-withdrawal',
+                ],
+              },
+            },
+          },
+        },
+      };
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .reply(200, response);
+      const { service } = createService();
+
+      expect(await service.getServiceDetails(['0xa4b1'])).toStrictEqual(
+        serviceDetailsResponse,
       );
     });
 

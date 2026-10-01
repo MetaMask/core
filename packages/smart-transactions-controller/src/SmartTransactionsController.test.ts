@@ -104,6 +104,13 @@ const createUnsignedTransaction = (chainId: number) => {
   };
 };
 
+const createGetFeesApiErrorResponse = (): { error: string; detail: string } => {
+  return {
+    error: 'insufficient funds',
+    detail: 'insufficient funds details',
+  };
+};
+
 const createGetFeesApiResponse = () => {
   return {
     txs: [
@@ -1183,6 +1190,22 @@ describe('SmartTransactionsController', () => {
           [ChainId.sepolia]: {
             approvalTxFees: getFeesApiResponse.txs[0],
             tradeTxFees: getFeesApiResponse.txs[1],
+          },
+        });
+      });
+    });
+
+    it('rethrows getFees error message when fetch fails', async () => {
+      await withController(async ({ controller }) => {
+        const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
+          .reply(400, createGetFeesApiErrorResponse());
+
+        await expect(controller.getFees(tradeTx)).rejects.toMatchObject({
+          message: 'Fetch error: 400',
+          data: {
+            error: 'insufficient funds',
           },
         });
       });

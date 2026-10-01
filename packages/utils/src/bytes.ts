@@ -62,6 +62,16 @@ export function isBytes(value: unknown): value is Uint8Array {
 }
 
 /**
+ * Check if a value is a `Uint8Array` backed by an `ArrayBuffer`.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a `Uint8Array` backed by an `ArrayBuffer`.
+ */
+function isArrayBufferBytes(value: unknown): value is Uint8Array<ArrayBuffer> {
+  return isBytes(value) && value.buffer instanceof ArrayBuffer;
+}
+
+/**
  * Assert that a value is a `Uint8Array`.
  *
  * @param value - The value to check.
@@ -190,7 +200,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
  * @param value - The hexadecimal string to convert to bytes.
  * @returns The bytes as `Uint8Array`.
  */
-export function hexToBytes(value: string): Uint8Array {
+export function hexToBytes(value: string): Uint8Array<ArrayBuffer> {
   // "0x" is often used as empty byte array.
   if (value?.toLowerCase?.() === '0x') {
     return new Uint8Array();
@@ -237,7 +247,7 @@ export function hexToBytes(value: string): Uint8Array {
  * @param value - The bigint to convert to bytes.
  * @returns The bytes as `Uint8Array`.
  */
-export function bigIntToBytes(value: bigint): Uint8Array {
+export function bigIntToBytes(value: bigint): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'bigint', 'Value must be a bigint.');
   assert(value >= BigInt(0), 'Value must be a non-negative bigint.');
 
@@ -278,7 +288,7 @@ function bigIntFits(value: bigint, bytes: number): boolean {
 export function signedBigIntToBytes(
   value: bigint,
   byteLength: number,
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'bigint', 'Value must be a bigint.');
   assert(typeof byteLength === 'number', 'Byte length must be a number.');
   assert(byteLength > 0, 'Byte length must be greater than 0.');
@@ -308,7 +318,7 @@ export function signedBigIntToBytes(
  * @returns The bytes as `Uint8Array`.
  * @throws If the number is not a safe integer.
  */
-export function numberToBytes(value: number): Uint8Array {
+export function numberToBytes(value: number): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'number', 'Value must be a number.');
   assert(value >= 0, 'Value must be a non-negative number.');
   assert(
@@ -326,7 +336,7 @@ export function numberToBytes(value: number): Uint8Array {
  * @param value - The string to convert to bytes.
  * @returns The bytes as `Uint8Array`.
  */
-export function stringToBytes(value: string): Uint8Array {
+export function stringToBytes(value: string): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'string', 'Value must be a string.');
 
   return new TextEncoder().encode(value);
@@ -338,10 +348,10 @@ export function stringToBytes(value: string): Uint8Array {
  * @param value - The base64 encoded string to convert to bytes.
  * @returns The bytes as `Uint8Array`.
  */
-export function base64ToBytes(value: string): Uint8Array {
+export function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'string', 'Value must be a string.');
 
-  return base64.decode(value);
+  return base64.decode(value) as Uint8Array<ArrayBuffer>;
 }
 
 /**
@@ -365,7 +375,7 @@ export function base64ToBytes(value: string): Uint8Array {
  * @param value - The value to convert to bytes.
  * @returns The bytes as `Uint8Array`.
  */
-export function valueToBytes(value: Bytes): Uint8Array {
+export function valueToBytes(value: Bytes): Uint8Array<ArrayBuffer> {
   if (typeof value === 'bigint') {
     return bigIntToBytes(value);
   }
@@ -382,8 +392,12 @@ export function valueToBytes(value: Bytes): Uint8Array {
     return stringToBytes(value);
   }
 
-  if (isBytes(value)) {
+  if (isArrayBufferBytes(value)) {
     return value;
+  }
+
+  if (isBytes(value)) {
+    return new Uint8Array(value);
   }
 
   throw new TypeError(`Unsupported value type: "${typeof value}".`);
@@ -398,8 +412,8 @@ export function valueToBytes(value: Bytes): Uint8Array {
  * @param values - The values to concatenate.
  * @returns The concatenated bytes as `Uint8Array`.
  */
-export function concatBytes(values: Bytes[]): Uint8Array {
-  const normalizedValues = new Array(values.length);
+export function concatBytes(values: Bytes[]): Uint8Array<ArrayBuffer> {
+  const normalizedValues = new Array<Uint8Array<ArrayBuffer>>(values.length);
   let byteLength = 0;
 
   for (let i = 0; i < values.length; i++) {
@@ -411,11 +425,12 @@ export function concatBytes(values: Bytes[]): Uint8Array {
   }
 
   const bytes = new Uint8Array(byteLength);
-  for (let i = 0, offset = 0; i < normalizedValues.length; i++) {
+  let offset = 0;
+  for (const normalizedValue of normalizedValues) {
     // While we could simply spread the values into an array and use
     // `Uint8Array.from`, that is a lot slower than using `Uint8Array.set`.
-    bytes.set(normalizedValues[i], offset);
-    offset += normalizedValues[i].length;
+    bytes.set(normalizedValue, offset);
+    offset += normalizedValue.length;
   }
 
   return bytes;
@@ -443,7 +458,11 @@ export function concatBytes(values: Bytes[]): Uint8Array {
  * @param bytes - The bytes to create the {@link DataView} from.
  * @returns The {@link DataView}.
  */
-export function createDataView(bytes: Uint8Array): DataView {
+export function createDataView<
+  ArrayBufferImplementation extends ArrayBufferLike,
+>(
+  bytes: Uint8Array<ArrayBufferImplementation>,
+): DataView<ArrayBufferImplementation> {
   // To maintain compatibility with Node.js, we need to check if the bytes are
   // a Buffer. If so, we need to slice the buffer to get the underlying
   // ArrayBuffer.
@@ -454,10 +473,14 @@ export function createDataView(bytes: Uint8Array): DataView {
       bytes.byteOffset + bytes.byteLength,
     );
 
-    return new DataView(buffer);
+    return new DataView<ArrayBufferImplementation>(buffer);
   }
 
-  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return new DataView<ArrayBufferImplementation>(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength,
+  );
 }
 
 /**

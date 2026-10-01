@@ -12,6 +12,7 @@ export type {
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerGetBenefitsAction,
   SubscriptionControllerGetSubscriptionByProductAction,
+  SubscriptionControllerIsUserEligibleForTrialAction,
   SubscriptionControllerGetSubscriptionsEligibilitiesAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerUnCancelSubscriptionAction,

@@ -296,6 +296,7 @@ linkStyle default opacity:0.5
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> multichain_transactions_controller;
   assets_controller --> network_controller;
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
@@ -727,6 +728,7 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> remote_feature_flag_controller;
+  subscription_controller --> seedless_onboarding_controller;
   subscription_controller --> transaction_controller;
   subscription_controller --> utils;
   transaction_controller --> accounts_controller;

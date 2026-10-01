@@ -702,6 +702,16 @@
       "count": 1
     }
   },
+  "packages/assets-controller/jest.config.integration.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/jest.config.unit.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/AssetsController.spam-cleanup.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -7221,9 +7231,6 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -7645,6 +7652,16 @@
       "count": 2
     }
   },
+  "scripts/lib/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lib/tsc-suppressions.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
   "scripts/lib/workspaces.ts": {
     "jsdoc/require-param": {
       "count": 1
@@ -7668,6 +7685,11 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    }
+  },
+  "scripts/lint-tsc.test.ts": {
+    "no-shadow": {
+      "count": 1
     }
   },
   "scripts/lint-tsconfigs/utils.ts": {
