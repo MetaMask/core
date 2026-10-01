@@ -1711,6 +1711,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           ]);
           expect(result.success).toBe(false);
           expect(result.error).toContain('Too many cumulative requests sent');
+          expect(result.childOrderIds).toStrictEqual(['901']);
         },
       );
 
@@ -1871,6 +1872,147 @@ describe('HyperLiquidProvider - strategy order types', () => {
             error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
             childOrderIds: ['901'],
           });
+        },
+      );
+
+      it.each(['proactive', 'venue-race'])(
+        'retains live replacement IDs and loss when cleanup hits %s multisig conversion',
+        async (mode) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup();
+          const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+          hooks.response = async (action): Promise<unknown> => {
+            if (action.type === 'order') {
+              return {
+                status: 'ok',
+                response: {
+                  type: 'order',
+                  data: {
+                    statuses: [
+                      { resting: { oid: 777 } },
+                      { error: 'SL rejected' },
+                    ],
+                  },
+                },
+              };
+            }
+            return actions.length === 3
+              ? { status: 'err', response: 'Multi-sig required' }
+              : defaultResponse(action);
+          };
+          hooks.sign = async (): Promise<void> => {
+            if (mode === 'proactive' && actions.length === 2) {
+              infoClient.userToMultiSigSigners.mockResolvedValue({
+                authorizedUsers: ['0x1111111111111111111111111111111111111111'],
+                threshold: 1,
+              });
+            }
+          };
+
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+            stopLossPrice: '2500',
+          });
+
+          expect(result).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: ['777'],
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual(
+            mode === 'proactive'
+              ? ['cancel', 'order']
+              : ['cancel', 'order', 'cancel'],
+          );
+          expect(errorLog.mock.calls).toMatchObject([
+            [
+              { message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+              {
+                context: {
+                  data: {
+                    method: 'updatePositionTPSL',
+                    stage: 'cleanup',
+                    protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                    childOrderIds: ['777'],
+                  },
+                },
+              },
+            ],
+          ]);
+        },
+      );
+
+      it('reports a definitive restoration failure with protection context', async () => {
+        const { hooks, defaultResponse } = setup();
+        const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+        hooks.response = async (action): Promise<unknown> =>
+          action.type === 'order'
+            ? { status: 'err', response: 'Order price too far' }
+            : defaultResponse(action);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          childOrderIds: [],
+        });
+        expect(errorLog.mock.calls).toMatchObject([
+          [
+            { message: 'Order price too far' },
+            {
+              context: {
+                data: {
+                  method: 'updatePositionTPSL',
+                  stage: 'restoration',
+                  protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                },
+              },
+            },
+          ],
+        ]);
+      });
+
+      it.each(['replacement', 'restoration'])(
+        'blocks transport when account becomes multisig during %s signing',
+        async (stage) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup();
+          const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+          hooks.response = async (action): Promise<unknown> =>
+            action.type === 'order'
+              ? { status: 'err', response: 'Replacement rejected' }
+              : defaultResponse(action);
+          hooks.sign = async (): Promise<void> => {
+            if (actions.length === (stage === 'replacement' ? 1 : 2)) {
+              infoClient.userToMultiSigSigners.mockResolvedValue({
+                authorizedUsers: ['0x1111111111111111111111111111111111111111'],
+                threshold: 1,
+              });
+            }
+          };
+
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+
+          expect(result).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: [],
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual(
+            stage === 'replacement' ? ['cancel'] : ['cancel', 'order'],
+          );
+          expect(errorLog.mock.calls).toMatchObject([
+            [
+              { message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+              { context: { data: { stage: 'restoration' } } },
+            ],
+          ]);
         },
       );
 

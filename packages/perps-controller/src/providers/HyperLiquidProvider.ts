@@ -10932,6 +10932,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             new Set(restorationOrders.map((order) => order.c)),
           );
           let statuses: unknown[];
+          let restorationFailure: Error | undefined;
           try {
             // Restore the exact pre-call reduce-only intent. Scope and account
             // shape are still probed after signing, but the requested new
@@ -10946,6 +10947,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             statuses = result.response?.data?.statuses ?? [];
           } catch (error) {
             const failure = this.#classifyProtectionWriteError(error);
+            restorationFailure = failure;
             statuses =
               this.#readProtectionErrorStatuses(error) ??
               (this.#isDefinitiveProtectionRejection(error)
@@ -10980,6 +10982,21 @@ export class HyperLiquidProvider implements PerpsProvider {
             )
           ) {
             success = false;
+            if (
+              !restorationFailure ||
+              !this.#isSignerFailure(restorationFailure)
+            ) {
+              this.#deps.logger.error(
+                restorationFailure ??
+                  new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST),
+                this.#getErrorContext('updatePositionTPSL', {
+                  symbol,
+                  stage: 'restoration',
+                  protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                  childOrderIds: restoredOrderIds,
+                }),
+              );
+            }
           }
         }
         await assertScope();
@@ -11256,6 +11273,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           outcome.orderId === undefined,
       );
       await assertScope();
+      let cleanupFailure: Error | undefined;
       const remainingReplacementIds = await this.#cancelOrderRequests(
         recoveryExchangeClient,
         restingReplacementOrderIds.map((orderId) => ({
@@ -11263,8 +11281,14 @@ export class HyperLiquidProvider implements PerpsProvider {
           o: Number(orderId),
         })),
         (error) => {
-          if (isHyperLiquidMultiSigRequiredError(error)) {
-            throw this.#classifyProtectionWriteError(error);
+          if (
+            isHyperLiquidMultiSigRequiredError(error) ||
+            (error instanceof Error &&
+              error.message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+          ) {
+            // Old protection has already changed. Classification must not
+            // throw away this batch's still-live replacement identities.
+            cleanupFailure = this.#classifyProtectionWriteError(error);
           }
         },
       );
@@ -11274,6 +11298,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         ...inFlightOrderIds,
         ...remainingReplacementIds.map(String),
       ];
+      if (cleanupFailure && recoverableOrderIds.length > 0) {
+        this.#deps.logger.error(
+          cleanupFailure,
+          this.#getErrorContext('updatePositionTPSL', {
+            symbol,
+            stage: 'cleanup',
+            protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: recoverableOrderIds,
+          }),
+        );
+        return createProtectionLostResult(recoverableOrderIds);
+      }
       if (hasUnresolvedWaitingTrigger) {
         return createProtectionLostResult(recoverableOrderIds);
       }
@@ -11284,6 +11320,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (!restoration.success) {
           return createProtectionLostResult(restoration.restoredOrderIds);
         }
+        return createErrorResult(
+          placementFailure ?? new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+          {
+            success: false,
+            ...(restoration.restoredOrderIds.length > 0
+              ? { childOrderIds: restoration.restoredOrderIds }
+              : {}),
+          },
+        );
       }
       // A filled replacement may have changed or closed the position, while
       // an uncancelled replacement may still protect it. Restoring the old
