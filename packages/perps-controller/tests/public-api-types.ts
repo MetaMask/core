@@ -6,7 +6,44 @@ import type {
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
+type IsExact<Actual, Expected> =
+  (<Value>() => Value extends Actual ? 1 : 2) extends <
+    Value,
+  >() => Value extends Expected ? 1 : 2
+    ? true
+    : false;
+type AssertTrue<Value extends true> = Value;
 export type RecoveryConsumerContracts = [
+  AssertTrue<
+    IsExact<PerpsRecoveredDispatch['apiKeyIndex'], number | undefined>
+  >,
+  AssertTrue<
+    IsExact<PerpsRecoveredDispatch['acknowledgeable'], boolean | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetRecoveredDispatchesAction['handler']>,
+      []
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetRecoveredDispatchesAction['handler']>,
+      Promise<PerpsRecoveredDispatch[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerAcknowledgeRecoveredDispatchAction['handler']>,
+      [recoveryId: string]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerAcknowledgeRecoveredDispatchAction['handler']>,
+      Promise<void>
+    >
+  >,
   AssertCompatible<
     PerpsRecoveredDispatch,
     {

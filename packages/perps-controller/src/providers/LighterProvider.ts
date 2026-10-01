@@ -8263,7 +8263,7 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param error - Account channel setup failure.
    */
-  #notifySubscriptionError(error: Error): void {
+  readonly #notifySubscriptionError = (error: Error): void => {
     for (const [label, subscribers] of [
       ['orders', this.#orderSubscribers],
       ['fills', this.#fillSubscribers],
@@ -8276,7 +8276,7 @@ export class LighterProvider implements PerpsProvider {
         }
       }
     }
-  }
+  };
 
   /**
    * Resolve the Lighter account index and request the account-scoped
