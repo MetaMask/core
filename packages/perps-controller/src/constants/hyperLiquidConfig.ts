@@ -214,7 +214,7 @@ export const BUILDER_FEE_CONFIG = {
 };
 
 /**
- * Strategies that HyperLiquid can execute for its routed perp markets.
+ * Strategies and standalone trigger orders HyperLiquid executes for its markets.
  * Providers own this declaration so clients never infer support from a
  * provider name.
  */
