@@ -6152,6 +6152,11 @@ describe('LighterProvider', () => {
         const preserved = venue.rawTriggers
           .filter((row) => row.orderIndex !== managed.orderIndex)
           .map((row) => ({ ...row }));
+        const sizes = {
+          zero: '0',
+          subtick: '0.000000001',
+          'invalid-sign': '0.1',
+        };
         clientInstance.getAccountByIndex
           .mockResolvedValueOnce({ code: 200, accounts: [ACCOUNT] })
           .mockResolvedValue({
@@ -6165,12 +6170,7 @@ describe('LighterProvider', () => {
                     : [
                         {
                           ...ACCOUNT.positions[0],
-                          position:
-                            state === 'zero'
-                              ? '0'
-                              : state === 'invalid-sign'
-                                ? '0.1'
-                                : '0.000000001',
+                          position: sizes[state],
                           sign: state === 'invalid-sign' ? 0 : 1,
                         },
                       ],
