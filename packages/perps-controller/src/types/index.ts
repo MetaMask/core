@@ -337,7 +337,40 @@ export type ScaleOrderChild =
       orderId?: never;
     };
 
+/** Durable identities for one native parent plus attached protection group. */
+export type AttachedOrderGroup = {
+  groupId: string;
+  providerId: PerpsProviderType;
+  symbol: string;
+  /** Acceptance never proves activation or the quantity protected after a partial fill. */
+  submission: 'prepared' | 'unknown' | 'accepted' | 'canceled';
+  parentClientOrderId: string;
+  childClientOrderIds: string[];
+  /** Exact venue IDs, when observed. Unknown identities remain absent. */
+  parentOrderId?: string;
+  childOrderIds?: string[];
+  /** Automatic parent/child cancellation is not assumed. */
+  cancellation: 'explicit-exact-owned-orders';
+  /** Returned only by an explicit venue review; absence is not an empty book. */
+  orders?: {
+    clientOrderId: string;
+    orderId?: string;
+    status:
+      | 'unknown'
+      | 'waiting'
+      | 'resting'
+      | 'partially-filled'
+      | 'filled'
+      | 'canceled'
+      | 'rejected';
+    filledSize?: string;
+  }[];
+  /** Parent/child references only; this does not prove automatic OCO cancellation. */
+  linkage?: 'confirmed' | 'unknown';
+};
+
 export type OrderResult = {
+  attachedOrderGroup?: AttachedOrderGroup;
   success?: boolean;
   /**
    * What names the placement afterwards.
@@ -1851,6 +1884,13 @@ type ReadyPerpsOrderCapabilities = Readonly<{
    * explicit margin mode.
    */
   supportedMarginModes?: readonly MarginMode[];
+  attachedTpsl?: Readonly<{
+    submission: 'native-oto-otoco';
+    childCoverage: 'venue-native-zero-size';
+    partialSizes: false;
+    lifecycleVerification: 'pending';
+    cancellation: 'explicit-exact-owned-orders';
+  }>;
 }>;
 
 export type DirectProviderOrderCapabilities =
@@ -2206,6 +2246,10 @@ export type PerpsProvider = {
     params: ResolveRecoveryProtectionParams,
   ): Promise<PerpsRecoveryProtectionResult>;
   getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
+  /** Read local native attached identities; never creates, reattaches or replays orders. */
+  getAttachedOrderGroups?(): Promise<AttachedOrderGroup[]>;
+  /** Explicit venue review with existing registered local read authority only. */
+  reviewAttachedOrderGroups?(): Promise<AttachedOrderGroup[]>;
   /** Non-financial venue checks with local persistence; no signing, retry or acknowledgment. */
   reconcileRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
   acknowledgeRecoveredDispatch?(recoveryId: string): Promise<void>;

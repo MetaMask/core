@@ -417,6 +417,26 @@ export type PerpsControllerGetPendingManualRecoveriesAction = {
 };
 
 /**
+ * Review native attached lifecycle through provider-owned read authority.
+ *
+ * @returns Exact venue identities without financial replay or key registration.
+ */
+export type PerpsControllerReviewAttachedOrderGroupsAction = {
+  type: `PerpsController:reviewAttachedOrderGroups`;
+  handler: PerpsController['reviewAttachedOrderGroups'];
+};
+
+/**
+ * List durable attached identities for the selected provider and account.
+ *
+ * @returns Stored intent without venue writes, signer setup or automatic replay.
+ */
+export type PerpsControllerGetAttachedOrderGroupsAction = {
+  type: `PerpsController:getAttachedOrderGroups`;
+  handler: PerpsController['getAttachedOrderGroups'];
+};
+
+/**
  * READ-ONLY list of the active provider's recovered-dispatch outcomes
  * (previously ambiguous submissions later resolved). Providers without
  * durable dispatch state return an empty list. Lighter scans the bounded
@@ -1549,6 +1569,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
   | PerpsControllerGetPendingManualRecoveriesAction
+  | PerpsControllerReviewAttachedOrderGroupsAction
+  | PerpsControllerGetAttachedOrderGroupsAction
   | PerpsControllerGetRecoveredDispatchesAction
   | PerpsControllerResolveRecoveryProtectionAction
   | PerpsControllerReviewRecoveryVenueAction

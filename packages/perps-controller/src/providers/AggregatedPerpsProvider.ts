@@ -75,6 +75,7 @@ import type {
   PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
+  AttachedOrderGroup,
   PerpsRecoveryVenueReview,
   ResolveRecoveryProtectionParams,
   PerpsRecoveryProtectionResult,
@@ -828,6 +829,40 @@ export class AggregatedPerpsProvider implements PerpsProvider {
               providerId,
             }))
           : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Review native attached groups on providers implementing that capability.
+   *
+   * @returns Provider-labelled venue observations without financial actions.
+   */
+  async reviewAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.reviewAttachedOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * List stored attached identities across active providers.
+   *
+   * @returns Provider-labelled groups without financial actions.
+   */
+  async getAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.getAttachedOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
       ),
     );
     return results.flat();

@@ -217,6 +217,34 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('durable-settlement surfacing', () => {
+    it.each(['getAttachedOrderGroups', 'reviewAttachedOrderGroups'] as const)(
+      'routes attached %s to the implementing provider and retains its identity',
+      async (method) => {
+        const group = {
+          groupId: 'group',
+          providerId: 'hyperliquid',
+          symbol: 'BTC',
+          submission: 'unknown',
+          parentClientOrderId: '101',
+          childClientOrderIds: ['102'],
+          cancellation: 'explicit-exact-owned-orders',
+        };
+        const read = jest.fn().mockResolvedValue([group]);
+        const provider = new AggregatedPerpsProvider({
+          providers: new Map([
+            ['hyperliquid', mockHLProvider],
+            ['lighter', { ...mockLighterProvider, [method]: read }],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+        expect(await provider[method]()).toStrictEqual([
+          { ...group, providerId: 'lighter' },
+        ]);
+        expect(read).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it('routes strict review and selected protection to only the explicit owner', async () => {
       const review = {
         status: 'ready' as const,

@@ -37,6 +37,14 @@ describe('@metamask/perps-controller public API', () => {
   it('exports the durable recovery account capacity', () => {
     expect(LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT).toBe(64);
   });
+  it('exports durable attached-order inventory and explicit venue review', () => {
+    expect(typeof PerpsController.prototype.getAttachedOrderGroups).toBe(
+      'function',
+    );
+    expect(typeof PerpsController.prototype.reviewAttachedOrderGroups).toBe(
+      'function',
+    );
+  });
   it('exports strict recovery review and explicit protection resolution', () => {
     expect(typeof PerpsController.prototype.reviewRecoveryVenue).toBe(
       'function',

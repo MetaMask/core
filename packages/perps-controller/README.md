@@ -256,6 +256,46 @@ reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
 Hyperliquid continues to report independent fixed partial triggers and dynamic
 whole-position coverage through its existing implementation.
 
+## Native Lighter attached orders
+
+`placeOrder` accepts a market or limit parent with `takeProfitPrice`,
+`stopLossPrice`, or both. Omit attached child sizes and use `tpslLinkage: 'order'`.
+The native OTO or OTOCO transaction contains the opening parent and zero-size,
+opposite-side, reduce-only trigger-market children. An explicit child quantity,
+position linkage, reduce-only parent, caller-supplied client ID, or invalid price
+or size grid is refused before signer setup. IOC and resting GTC limit parents
+are supported. The caller's slippage also bounds child market execution prices.
+
+`OrderResult.attachedOrderGroup` separates signed client IDs from observed venue
+IDs and returns an opaque group handle. `getAttachedOrderGroups` lists durable
+local identities across restarts and trading-key changes without signer setup.
+Confirmed absent or known Premium accounts retain local groups through the
+wallet-scoped recovery account index; listing never acknowledges or replays them.
+`reviewAttachedOrderGroups` uses an existing registered local key for read-only
+venue authentication, then matches exact signed IDs against bounded active and
+recent inactive history. Missing orders or linkage stay unknown. A successful
+submission reports acceptance, not activation, a fill, or protected quantity.
+
+Pass the exact `groupId` as `cancelOrder.orderId`, with its symbol and provider,
+to cancel the owned parent and children. Cancellation rereads exact IDs after
+each leg, preserves unrelated triggers and reports success only when all legs
+are terminal. Missing identities retain the group for later explicit review.
+The group handle never cancels a position or creates replacement protection.
+Attached children are excluded from ordinary position TP/SL replacement/removal.
+
+Unsigned intent is persisted before signing and transaction identity before
+dispatch. Ambiguous acceptance remains quarantined across restart and key
+migration. There is no automatic financial replay or attachment to a later
+position. Explicitly cancel a prepared group before submitting fresh intent;
+uncertain dispatches also require the existing exact-transaction reconciliation
+and acknowledgment flow. Up to 64 groups are retained per account; only explicitly
+closed groups can be evicted when making room.
+
+`attachedTpsl.lifecycleVerification` remains `pending`. Native activation,
+partial-parent-fill coverage, and automatic parent/child cancellation guarantees
+require venue execution evidence. The current capability only describes the
+implemented grouped submission, read review and explicit exact-ID cancellation.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

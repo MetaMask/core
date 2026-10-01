@@ -2191,6 +2191,34 @@ describe('PerpsController', () => {
       },
     );
 
+    it.each(['getAttachedOrderGroups', 'reviewAttachedOrderGroups'] as const)(
+      'fences attached %s results after the issuing network changes',
+      async (method) => {
+        markControllerAsInitialized();
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        const read = jest.fn(async () => {
+          entered.resolve();
+          await release.promise;
+          return [];
+        });
+        controller.testSetProviders(
+          new Map([['hyperliquid', { ...mockProvider, [method]: read }]]),
+        );
+        const pending = controller[method]();
+        const rejected = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        await entered.promise;
+        controller.testUpdate((state) => {
+          state.isTestnet = !state.isTestnet;
+        });
+        release.resolve();
+        await rejected;
+        expect(read).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it('reports unsupported strict review and selected recovery without calling ordinary trading reads', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
