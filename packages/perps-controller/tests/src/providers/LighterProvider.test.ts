@@ -8,6 +8,7 @@ import {
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import type {
   CandleData,
+  Order,
   OrderBookData,
   OrderFill,
 } from '../../../src/types/index.js';
@@ -2375,6 +2376,101 @@ describe('LighterProvider', () => {
         const stop = provider.subscribeToOrderFills({ callback: late });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         expect(late).not.toHaveBeenCalled();
+        stop();
+        unsubscribe();
+        await provider.disconnect();
+      },
+    );
+
+    it.each([
+      ['subscribed', 'venue-added-state'],
+      ['update', 'venue-added-state'],
+      ['subscribed', undefined],
+      ['update', undefined],
+    ])(
+      'revokes empty order replay after %s adapter rejection with status=%s and restores it on a valid snapshot',
+      async (frame, status) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        const callback = jest.fn();
+        const unsubscribe = provider.subscribeToOrders({ callback });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        socket.receive({ type: 'subscribed/account_all_orders', orders: {} });
+        callback.mockClear();
+        socket.receive({
+          type: `${frame}/account_all_orders`,
+          orders: { '1': [{ status }] },
+        });
+        expect(callback).not.toHaveBeenCalled();
+        const late = jest.fn();
+        const stop = provider.subscribeToOrders({ callback: late });
+        expect(late).not.toHaveBeenCalled();
+        socket.receive({ type: 'subscribed/account_all_orders', orders: {} });
+        expect(late).toHaveBeenCalledWith([]);
+        const restored = jest.fn();
+        const stopRestored = provider.subscribeToOrders({ callback: restored });
+        expect(restored).toHaveBeenCalledWith([]);
+        stopRestored();
+        stop();
+        unsubscribe();
+        await provider.disconnect();
+      },
+    );
+
+    it.each(['none', 'empty', 'populated'])(
+      'ignores omitted orders after %s state without extra delivery',
+      async (state) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        const callback = jest.fn<void, [Order[]]>();
+        const unsubscribe = provider.subscribeToOrders({ callback });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        if (state !== 'none') {
+          socket.receive({
+            type: 'subscribed/account_all_orders',
+            orders:
+              state === 'empty'
+                ? {}
+                : {
+                    '1': [
+                      {
+                        order_index: 555,
+                        client_order_index: 1,
+                        market_index: 1,
+                        owner_account_index: 28,
+                        initial_base_amount: '0.001',
+                        remaining_base_amount: '0.001',
+                        price: '90000',
+                        is_ask: false,
+                        type: 'limit',
+                        time_in_force: 'good-till-time',
+                        reduce_only: 0,
+                        status: 'open',
+                        order_expiry: 0,
+                        timestamp: 1700000000000,
+                      },
+                    ],
+                  },
+          });
+        }
+        const previousCalls = [...callback.mock.calls];
+        callback.mockClear();
+        socket.receive({ type: 'subscribed/account_all_orders' });
+        socket.receive({ type: 'update/account_all_orders' });
+        expect(callback).not.toHaveBeenCalled();
+        const late = jest.fn();
+        const stop = provider.subscribeToOrders({ callback: late });
+        expect(late.mock.calls).toStrictEqual(previousCalls);
         stop();
         unsubscribe();
         await provider.disconnect();
@@ -12873,7 +12969,94 @@ describe('LighterProvider', () => {
         const after = await infra.diskCache.getItem(
           'lighterNonceLedger:testnet:28:19',
         );
-        expect(permitted || after === original).toBe(true);
+        expect(JSON.parse(after ?? 'null')).toStrictEqual(
+          state === 'never-landed'
+            ? { version: 4, consumedFloor: 0, entries: [], recovered: [] }
+            : JSON.parse(original),
+        );
+      },
+    );
+
+    it.each(['succeeded', 'unknown'] as const)(
+      'releases the financial fence after scoped acknowledgment of a previous-slot %s outcome',
+      async (outcome) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const recovery = {
+          recoveryId: '42:beef',
+          kind: 13,
+          intent: 'withdraw:1',
+          txHash: 'beef',
+          outcome,
+          evidence: 'tx-status:2',
+        };
+        const failed = {
+          ...recovery,
+          recoveryId: '41:dead',
+          txHash: 'dead',
+          outcome: 'failed',
+        };
+        const key = 'lighterNonceLedger:testnet:28:19';
+        await infra.diskCache.setItem(
+          key,
+          JSON.stringify({
+            version: 4,
+            consumedFloor: 43,
+            entries: [],
+            recovered: [recovery, failed],
+          }),
+        );
+        const unrelatedKey = 'lighterNonceLedger:testnet:29:19';
+        const unrelated = JSON.stringify({
+          version: 4,
+          consumedFloor: 43,
+          entries: [
+            {
+              nonce: 43,
+              txHash: 'pending',
+              expiresAt: 9999999999999,
+              kind: 13,
+              intent: 'withdraw:1',
+              owner: null,
+            },
+          ],
+          recovered: [recovery],
+        });
+        await infra.diskCache.setItem(unrelatedKey, unrelated);
+        expect((await built.provider.withdraw({ amount: '1' })).success).toBe(
+          false,
+        );
+        const listed = await built.provider.getRecoveredDispatches();
+        const resolved = listed.find(
+          (row) => row.apiKeyIndex === 19 && row.outcome === outcome,
+        );
+        expect(resolved).toBeDefined();
+        if (!resolved) {
+          throw new Error('Expected previous-slot recovered outcome');
+        }
+        await built.provider.acknowledgeRecoveredDispatch(resolved.recoveryId);
+        built.clientInstance.sendTx.mockClear();
+        (built.bridge.execute as jest.Mock).mockClear();
+        expect((await built.provider.withdraw({ amount: '1' })).success).toBe(
+          true,
+        );
+        expect((built.bridge.execute as jest.Mock).mock.calls).toContainEqual([
+          expect.objectContaining({ function: '_signWithdraw' }),
+        ]);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(
+          JSON.parse((await infra.diskCache.getItem(key)) ?? 'null'),
+        ).toStrictEqual({
+          version: 4,
+          consumedFloor: 43,
+          entries: [],
+          recovered: [failed],
+        });
+        expect(await infra.diskCache.getItem(unrelatedKey)).toBe(unrelated);
       },
     );
 

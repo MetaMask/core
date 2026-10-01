@@ -3965,7 +3965,10 @@ export class PerpsController extends BaseController<
    * Lighter signer initialization and after signer setup failure; an in-flight
    * selection settles first. Preserve opaque recovery IDs exactly. Raw pending
    * dispatches report unknown with acknowledgeable:false and cannot be cleared
-   * by acknowledgment. Financial writes reconcile and fence all account slots.
+   * by acknowledgment, including current-session in-flight submissions. Listing
+   * starts no background reconciliation. A later financial action re-checks
+   * authoritative state for all account slots before dispatch and remains
+   * blocked while an obligation is unresolved.
    *
    * @returns Pending recovered-dispatch outcomes, with their original key slot
    * when supplied by the provider.

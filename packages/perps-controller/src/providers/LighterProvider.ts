@@ -2479,7 +2479,9 @@ export class LighterProvider implements PerpsProvider {
    * wallet, network, account, key slot and original ledger identity. No signing,
    * nonce reconciliation, quarantine clearing or financial retry occurs.
    * Unresolved raw entries are reported separately as unknown with
-   * acknowledgeable:false; listing cannot make them safe to acknowledge.
+   * acknowledgeable:false, including current-session in-flight submissions.
+   * Listing is read-only and starts no background reconciliation. A later
+   * fenced financial action re-checks authoritative state before any dispatch.
    *
    * @returns Pending outcomes labelled with their original trading-key slot.
    */
@@ -2539,7 +2541,7 @@ export class LighterProvider implements PerpsProvider {
       );
     if (recoveryId.startsWith('lighter-pending:')) {
       throw new Error(
-        'Unresolved Lighter dispatches cannot be acknowledged; wait for authoritative reconciliation',
+        'Unresolved Lighter dispatches cannot be acknowledged. Listing or waiting does not reconcile them; a later financial action checks authoritative state before dispatch and remains blocked if unresolved',
       );
     }
     let apiKeyIndex: number;
@@ -8257,6 +8259,26 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   /**
+   * Notify each order/fill subscriber without allowing one listener to stop others.
+   *
+   * @param error - Account channel setup failure.
+   */
+  #notifySubscriptionError(error: Error): void {
+    for (const [label, subscribers] of [
+      ['orders', this.#orderSubscribers],
+      ['fills', this.#fillSubscribers],
+    ] as const) {
+      for (const subscriber of subscribers) {
+        try {
+          subscriber.onError?.(error);
+        } catch (subscriberError) {
+          this.#logSubscriberError(label, subscriberError);
+        }
+      }
+    }
+  }
+
+  /**
    * Resolve the Lighter account index and request the account-scoped
    * channels. When the venue definitively reports no Lighter account,
    * account-scoped subscribers receive an empty emission.
@@ -8308,20 +8330,7 @@ export class LighterProvider implements PerpsProvider {
             channelAddress === this.#boundAddress &&
             this.#accountChannelsPromise === setupPromise
           ) {
-            for (const subscriber of this.#orderSubscribers) {
-              try {
-                subscriber.onError?.(ensureError(error));
-              } catch (subscriberError) {
-                this.#logSubscriberError('subscription error', subscriberError);
-              }
-            }
-            for (const subscriber of this.#fillSubscribers) {
-              try {
-                subscriber.onError?.(ensureError(error));
-              } catch (subscriberError) {
-                this.#logSubscriberError('subscription error', subscriberError);
-              }
-            }
+            this.#notifySubscriptionError(ensureError(error));
           }
           // Setup failures are not authoritative empty order state. Account
           // switches and deselection already emit their synchronous reset.
@@ -8349,20 +8358,7 @@ export class LighterProvider implements PerpsProvider {
           generation === this.#sessionGeneration &&
           this.#accountChannelsPromise === setupPromise
         ) {
-          for (const subscriber of this.#orderSubscribers) {
-            try {
-              subscriber.onError?.(ensureError(error));
-            } catch (subscriberError) {
-              this.#logSubscriberError('subscription error', subscriberError);
-            }
-          }
-          for (const subscriber of this.#fillSubscribers) {
-            try {
-              subscriber.onError?.(ensureError(error));
-            } catch (subscriberError) {
-              this.#logSubscriberError('subscription error', subscriberError);
-            }
-          }
+          this.#notifySubscriptionError(ensureError(error));
         }
         // An aborted previous-account setup has no authority over the new
         // session. Current-session failures also preserve the last known data.
@@ -8646,55 +8642,61 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     if (type.includes('account_all_orders')) {
-      if (
-        message.orders === null ||
-        (message.orders !== undefined &&
-          (typeof message.orders !== 'object' ||
-            Array.isArray(message.orders) ||
-            !Object.values(message.orders).every(
-              (rows) =>
-                Array.isArray(rows) &&
-                rows.every(
-                  (row) =>
-                    row !== null &&
-                    typeof row === 'object' &&
-                    !Array.isArray(row),
-                ),
-            )))
-      ) {
-        this.#hasOrdersSnapshot = false;
-        throw new Error(
-          'Invalid Lighter venue data: malformed orders container',
-        );
+      if (message.orders === undefined) {
+        return;
       }
-      const isSnapshot = type.startsWith('subscribed');
-      const nextOrders = isSnapshot
-        ? new Map<string, Order>()
-        : new Map(this.#wsOrders);
-      for (const marketOrders of Object.values(message.orders ?? {})) {
-        for (const order of marketOrders) {
-          const adapted = adaptOrderFromLighter(
-            order,
-            this.#marketsById.get(order.marketIndex)?.symbol ??
-              String(order.marketIndex),
+      try {
+        if (
+          message.orders === null ||
+          typeof message.orders !== 'object' ||
+          Array.isArray(message.orders) ||
+          !Object.values(message.orders).every(
+            (rows) =>
+              Array.isArray(rows) &&
+              rows.every(
+                (row) =>
+                  row !== null &&
+                  typeof row === 'object' &&
+                  !Array.isArray(row),
+              ),
+          )
+        ) {
+          throw new Error(
+            'Invalid Lighter venue data: malformed orders container',
           );
-          const isOpen =
-            adapted.status === 'queued' || adapted.status === 'open';
-          if (isOpen) {
-            nextOrders.set(adapted.orderId, adapted);
-          } else {
-            nextOrders.delete(adapted.orderId);
+        }
+        const isSnapshot = type.startsWith('subscribed');
+        const nextOrders = isSnapshot
+          ? new Map<string, Order>()
+          : new Map(this.#wsOrders);
+        for (const marketOrders of Object.values(message.orders)) {
+          for (const order of marketOrders) {
+            const adapted = adaptOrderFromLighter(
+              order,
+              this.#marketsById.get(order.marketIndex)?.symbol ??
+                String(order.marketIndex),
+            );
+            const isOpen =
+              adapted.status === 'queued' || adapted.status === 'open';
+            if (isOpen) {
+              nextOrders.set(adapted.orderId, adapted);
+            } else {
+              nextOrders.delete(adapted.orderId);
+            }
           }
         }
+        if (isSnapshot) {
+          this.#hasOrdersSnapshot = true;
+        }
+        this.#wsOrders.clear();
+        for (const [orderId, order] of nextOrders) {
+          this.#wsOrders.set(orderId, order);
+        }
+        this.#emitToOrderSubscribers([...this.#wsOrders.values()]);
+      } catch (error) {
+        this.#hasOrdersSnapshot = false;
+        throw error;
       }
-      if (isSnapshot) {
-        this.#hasOrdersSnapshot = true;
-      }
-      this.#wsOrders.clear();
-      for (const [orderId, order] of nextOrders) {
-        this.#wsOrders.set(orderId, order);
-      }
-      this.#emitToOrderSubscribers([...this.#wsOrders.values()]);
     }
   };
 

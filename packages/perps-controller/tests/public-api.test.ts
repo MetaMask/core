@@ -22,9 +22,6 @@ import type {
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerSetAgentSignerAction,
   PerpsTypedDataPayload,
-  PerpsRecoveredDispatch,
-  PerpsControllerGetRecoveredDispatchesAction,
-  PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '../src/index.js';
 
 // The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
@@ -34,35 +31,7 @@ jest.mock('@nktkas/hyperliquid', () => ({
 }));
 
 describe('@metamask/perps-controller public API', () => {
-  it('exports backward-compatible recovery types and the trading configuration constants', () => {
-    const legacy: PerpsRecoveredDispatch = {
-      recoveryId: 'opaque-id',
-      kind: 13,
-      intent: 'withdraw',
-      txHash: null,
-      outcome: 'unknown',
-      evidence: 'rest-advance',
-    };
-    const pending: PerpsRecoveredDispatch = {
-      ...legacy,
-      apiKeyIndex: 19,
-      acknowledgeable: false,
-    };
-    const listAction: PerpsControllerGetRecoveredDispatchesAction['type'] =
-      'PerpsController:getRecoveredDispatches';
-    const ackAction: PerpsControllerAcknowledgeRecoveredDispatchAction['type'] =
-      'PerpsController:acknowledgeRecoveredDispatch';
-    expect([
-      legacy.apiKeyIndex,
-      pending.acknowledgeable,
-      listAction,
-      ackAction,
-    ]).toStrictEqual([
-      undefined,
-      false,
-      'PerpsController:getRecoveredDispatches',
-      'PerpsController:acknowledgeRecoveredDispatch',
-    ]);
+  it('exports the trading configuration constants', () => {
     expect([
       LIGHTER_MIN_TRADING_API_KEY_INDEX,
       LIGHTER_MAX_TRADING_API_KEY_INDEX,

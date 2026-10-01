@@ -425,7 +425,10 @@ export type PerpsPendingManualRecovery = {
 
 /**
  * A local dispatch requiring reconciliation or acknowledgment. Raw unresolved
- * dispatches have acknowledgeable:false and cannot be acknowledged. For
+ * dispatches include current-session in-flight submissions, have
+ * acknowledgeable:false and cannot be acknowledged. Listing starts no
+ * background reconciliation; a later fenced financial action checks
+ * authoritative state before dispatch and remains blocked if unresolved. For
  * resolved outcomes, writes stay blocked until explicitly acknowledged via
  * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
  * state) — except `failed`, which is retry-safe and non-blocking.
