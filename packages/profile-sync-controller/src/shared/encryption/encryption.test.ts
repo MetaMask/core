@@ -203,12 +203,12 @@ describe('encryption tests', () => {
       await expect(
         encryption.decryptString(results[0], password2),
       ).rejects.toThrow(
-        'Unable to decrypt string - aes/gcm: invalid ghash tag',
+        'Unable to decrypt string - The operation failed for an operation-specific reason',
       );
       await expect(
         encryption.decryptString(results[1], password1),
       ).rejects.toThrow(
-        'Unable to decrypt string - aes/gcm: invalid ghash tag',
+        'Unable to decrypt string - The operation failed for an operation-specific reason',
       );
     });
 
