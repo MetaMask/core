@@ -79,6 +79,13 @@ describe('@metamask/perps-controller public API', () => {
         childOrderIds: 'request-correlated',
         takeProfitOrderType: 'take_profit_market',
         stopLossOrderType: 'stop_market',
+        defaultCoverage: 'position-snapshot',
+        partialCoverage: {
+          single: true,
+          pair: 'equal-quantity-oco',
+          replacement: 'cancel-before-create',
+          recovery: 'explicit-current-position-intent',
+        },
       },
     };
     expect(legacy.expectedPosition).toBeUndefined();
@@ -89,6 +96,9 @@ describe('@metamask/perps-controller public API', () => {
       }),
     ).not.toThrow();
     expect(capability.positionTpsl?.supportsExpectedPosition).toBe(true);
+    expect(capability.positionTpsl?.partialCoverage?.pair).toBe(
+      'equal-quantity-oco',
+    );
     expect(typeof createGuardedHyperLiquidClient).toBe('function');
   });
 

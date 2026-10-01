@@ -432,6 +432,17 @@ export type PerpsPendingManualRecovery = {
   priorIntent: 'replace' | 'remove';
   /** Venue order ids still on the books when the state was parked. */
   survivingOrderIds: string[];
+  /** Original fixed coverage, for review only; never permission to replay. */
+  partialIntent?: {
+    version: 1;
+    positionSide: 'long' | 'short';
+    linkage: 'single' | 'oco';
+    legs: {
+      type: 'take-profit' | 'stop-loss';
+      size: string;
+      clientOrderId: string;
+    }[];
+  };
   /** What the user should do to resolve the state. */
   actionNeeded: string;
 };
@@ -1815,6 +1826,15 @@ type ReadyPerpsOrderCapabilities = Readonly<{
     childOrderIds: 'request-correlated';
     takeProfitOrderType: 'take_profit_market' | 'take_profit_limit';
     stopLossOrderType: 'stop_market' | 'stop_limit';
+    /** Coverage when the caller omits explicit TP/SL sizes. */
+    defaultCoverage?: 'position-snapshot' | 'dynamic-position';
+    /** Fixed positive quantities; omitted means support is unreported. */
+    partialCoverage?: Readonly<{
+      single: true;
+      pair: 'equal-quantity-oco' | 'independent';
+      replacement: 'cancel-before-create';
+      recovery: 'explicit-current-position-intent' | 'provider-default';
+    }>;
   }>;
 
   /**

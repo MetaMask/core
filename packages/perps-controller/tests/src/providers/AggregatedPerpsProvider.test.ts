@@ -1882,6 +1882,19 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_market',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'position-snapshot',
+          partialCoverage: {
+            single: true,
+            pair: 'equal-quantity-oco',
+            replacement: 'cancel-before-create',
+            recovery: 'explicit-current-position-intent',
+          },
+        },
       });
 
       await expect(
@@ -1893,6 +1906,19 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_market',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'position-snapshot',
+          partialCoverage: {
+            single: true,
+            pair: 'equal-quantity-oco',
+            replacement: 'cancel-before-create',
+            recovery: 'explicit-current-position-intent',
+          },
+        },
       });
       expect(mockLighterProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'BTC',

@@ -140,3 +140,17 @@ export type TriggerCapabilityConsumerContract = AssertTrue<
     readonly TriggerOrderType[] | undefined
   >
 >;
+
+export type PartialProtectionCapabilityConsumerContract = AssertTrue<
+  IsExact<
+    NonNullable<
+      NonNullable<
+        Extract<
+          DirectProviderOrderCapabilities,
+          { status: 'ready' }
+        >['positionTpsl']
+      >['partialCoverage']
+    >['pair'],
+    'equal-quantity-oco' | 'independent'
+  >
+>;

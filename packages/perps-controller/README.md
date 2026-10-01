@@ -213,3 +213,28 @@ last known rows alongside that error.
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+
+## Lighter fixed partial position protection
+
+`updatePositionTPSL` accepts a positive `takeProfitSize` or `stopLossSize` for
+one trigger, or both sizes for an equal-quantity OCO pair. Quantities use the
+market size grid and cannot exceed the current position. A pair with unequal
+normalized quantities or only one supplied size is rejected before mutation.
+Omitting both sizes retains the existing full-position snapshot behavior.
+Explicit sizes never become the venue's dynamic zero-quantity sentinel.
+
+Partial replacement cancels only managed or explicitly selected protection,
+then proves exact cancellations before creating the replacement. Independent
+orders remain untouched. This leaves a protection gap if creation fails.
+The durable operation records the original fixed quantities and client IDs
+before cancellation; ambiguous creation is reconciled without replay.
+
+After restart or interruption before creation, recovery never attaches the
+saved quantity automatically. Lighter does not expose an immutable position
+lifecycle ID, so even an identical-looking position could have been closed and
+reopened. Ordinary retries cannot change or dispatch the stored intent. Inspect
+the exact recovery and call `resolveRecoveryProtection` with its recovery ID
+and a fresh explicit intent for the current position. The capability metadata
+reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
+Hyperliquid continues to report independent fixed partial triggers and dynamic
+whole-position coverage through its existing implementation.

@@ -117,6 +117,7 @@ import type {
   PerpsPlatformDependencies,
   PerpsProvider,
   PerpsRecoveredDispatch,
+  PerpsPendingManualRecovery,
   PerpsRecoveryVenueReview,
   ResolveRecoveryProtectionParams,
   PerpsRecoveryProtectionResult,
@@ -571,7 +572,76 @@ type TpslRecoverySuccessor = {
   retainedReplacementGroups?: number[][];
 };
 
+type PartialTpslIntent = {
+  version: 1;
+  positionSign: 1 | -1;
+  positionWireSize: number;
+  sizeDecimals: number;
+  linkage: 'single' | 'oco';
+  orders: LighterCreateOrderWireParams[];
+};
+
+/**
+ * Validate persisted fixed coverage before it can authorize recovery.
+ *
+ * @param value - Untrusted persisted intent.
+ * @returns Whether the intent contains valid fixed wire orders.
+ */
+const isPartialTpslIntent = (value: unknown): value is PartialTpslIntent => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const intent = value as Record<string, unknown>;
+  const { orders: rawOrders } = intent;
+  const orders: unknown[] = Array.isArray(rawOrders) ? rawOrders : [];
+  return (
+    intent.version === 1 &&
+    (intent.positionSign === 1 || intent.positionSign === -1) &&
+    typeof intent.positionWireSize === 'number' &&
+    Number.isSafeInteger(intent.positionWireSize) &&
+    intent.positionWireSize > 0 &&
+    typeof intent.sizeDecimals === 'number' &&
+    Number.isInteger(intent.sizeDecimals) &&
+    intent.sizeDecimals >= 0 &&
+    intent.sizeDecimals <= 18 &&
+    Array.isArray(rawOrders) &&
+    ((intent.linkage === 'single' && orders.length === 1) ||
+      (intent.linkage === 'oco' && orders.length === 2)) &&
+    orders.every(
+      (order: unknown) =>
+        Array.isArray(order) &&
+        order.length === 10 &&
+        Number.isSafeInteger(order[0]) &&
+        order[0] >= 0 &&
+        Number.isSafeInteger(order[1]) &&
+        order[1] > 0 &&
+        order[1] < 2 ** 48 &&
+        [2, 3, 8].every(
+          (index) =>
+            typeof order[index] === 'string' &&
+            /^[1-9]\d*$/u.test(order[index]) &&
+            Number.isSafeInteger(Number(order[index])),
+        ) &&
+        Number(order[2]) <= Number(intent.positionWireSize) &&
+        order[4] === (intent.positionSign === 1 ? 1 : 0) &&
+        (order[5] === LIGHTER_ORDER_TYPE_STOP_LOSS ||
+          order[5] === LIGHTER_ORDER_TYPE_TAKE_PROFIT) &&
+        order[6] === LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL &&
+        order[7] === 1 &&
+        order[9] === LIGHTER_ORDER_EXPIRY_NONE,
+    ) &&
+    (orders.length === 1 ||
+      (Array.isArray(orders[0]) &&
+        Array.isArray(orders[1]) &&
+        orders[0][0] === orders[1][0] &&
+        orders[0][1] !== orders[1][1] &&
+        orders[0][2] === orders[1][2] &&
+        orders[0][5] !== orders[1][5]))
+  );
+};
+
 type TpslJournalState = {
+  partialIntent?: PartialTpslIntent;
   attempts: TpslAttempt[];
   recordedAt: number;
   /**
@@ -632,6 +702,7 @@ type ManagedTpslOrder = {
  * SUCCEEDS — a failed successor must never erase the warning.
  */
 type TpslManualRecovery = {
+  partialIntent?: PartialTpslIntent;
   settlementKey: string;
   symbol: string;
   /** Human-readable cause of the parked state. */
@@ -2597,19 +2668,7 @@ export class LighterProvider implements PerpsProvider {
    * @returns Parked manual-recovery entries.
    */
   async getPendingManualRecoveries(): Promise<
-    {
-      symbol: string;
-      recoveryId?: string;
-      providerId?: 'lighter';
-      walletAddress?: string;
-      network?: string;
-      settlementKey: string;
-      recordedAt: number;
-      reason: string;
-      priorIntent: 'replace' | 'remove';
-      survivingOrderIds: string[];
-      actionNeeded: string;
-    }[]
+    (PerpsPendingManualRecovery & { providerId?: 'lighter' })[]
   > {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
@@ -2626,19 +2685,30 @@ export class LighterProvider implements PerpsProvider {
       this.#readyApiKeyIndex === null
         ? null
         : `${identityPrefix}${this.#readyApiKeyIndex}:`;
-    const pending: {
-      symbol: string;
-      recoveryId?: string;
-      providerId?: 'lighter';
-      walletAddress?: string;
-      network?: string;
-      settlementKey: string;
-      recordedAt: number;
-      reason: string;
-      priorIntent: 'replace' | 'remove';
-      survivingOrderIds: string[];
-      actionNeeded: string;
-    }[] = [];
+    const pending: (PerpsPendingManualRecovery & { providerId?: 'lighter' })[] =
+      [];
+    const describePartial = (
+      intent: PartialTpslIntent | undefined,
+    ): PerpsPendingManualRecovery['partialIntent'] =>
+      intent
+        ? {
+            version: 1,
+            positionSide: intent.positionSign === 1 ? 'long' : 'short',
+            linkage: intent.linkage,
+            legs: intent.orders.map((order) => ({
+              type:
+                order[5] === LIGHTER_ORDER_TYPE_TAKE_PROFIT
+                  ? 'take-profit'
+                  : 'stop-loss',
+              size: String(
+                fromLighterInteger(Number(order[2]), intent.sizeDecimals),
+              ),
+              clientOrderId: String(order[1]),
+            })),
+          }
+        : undefined;
+    const partialAction =
+      'Review the current position and resolve this exact recovery ID with a fresh explicit protection intent; saved partial quantities will not be replayed';
     const actionNeeded = (settlementKey: string): string => {
       if (currentSlotPrefix === null) {
         return 'Initialize the wallet trading key and review the position and recorded TP/SL orders. Select the obligation to reconcile its original submissions before requesting new protection';
@@ -2671,7 +2741,12 @@ export class LighterProvider implements PerpsProvider {
           reason: doc.reason,
           priorIntent: doc.priorIntent,
           survivingOrderIds: doc.survivingOrderIds,
-          actionNeeded: actionNeeded(settlementKey),
+          ...(doc.partialIntent
+            ? { partialIntent: describePartial(doc.partialIntent) }
+            : {}),
+          actionNeeded: doc.partialIntent
+            ? partialAction
+            : actionNeeded(settlementKey),
         });
       }
     }
@@ -2702,7 +2777,8 @@ export class LighterProvider implements PerpsProvider {
       }
       if (
         journal &&
-        (journal.phase === 'manual' ||
+        (journal.partialIntent !== undefined ||
+          journal.phase === 'manual' ||
           currentSlotPrefix === null ||
           !settlementKey.startsWith(currentSlotPrefix))
       ) {
@@ -2728,7 +2804,12 @@ export class LighterProvider implements PerpsProvider {
           reason,
           priorIntent: journal.intent,
           survivingOrderIds: [],
-          actionNeeded: actionNeeded(settlementKey),
+          ...(journal.partialIntent
+            ? { partialIntent: describePartial(journal.partialIntent) }
+            : {}),
+          actionNeeded: journal.partialIntent
+            ? partialAction
+            : actionNeeded(settlementKey),
         });
       }
     }
@@ -3849,6 +3930,7 @@ export class LighterProvider implements PerpsProvider {
       sourceRecoveryOperationId?: unknown;
       sourceRecoverySettlementKey?: unknown;
       retainedReplacementGroups?: unknown;
+      partialIntent?: unknown;
       createdAt?: unknown;
       nextAttemptId?: unknown;
       apiKeyIndex?: unknown;
@@ -3986,7 +4068,12 @@ export class LighterProvider implements PerpsProvider {
       };
     }
     if (
-      (parsed.version === 3 || parsed.version === 4) &&
+      (parsed.version === 3 || parsed.version === 4 || parsed.version === 5) &&
+      (parsed.version === 5
+        ? isPartialTpslIntent(parsed.partialIntent) &&
+          parsed.intent === 'replace' &&
+          parsed.phase !== 'creating'
+        : parsed.partialIntent === undefined) &&
       typeof parsed.recordedAt === 'number' &&
       Number.isSafeInteger(parsed.recordedAt) &&
       parsed.recordedAt >= 0 &&
@@ -4034,9 +4121,9 @@ export class LighterProvider implements PerpsProvider {
       new Set(parsed.priorTriggers.map((trigger) => trigger.orderId)).size ===
         parsed.priorTriggers.length &&
       Array.isArray(parsed.attempts) &&
-      // An EMPTY journal is malformed — empty-but-shape-valid would be
-      // accepted and silently cleared.
-      parsed.attempts.length >= 1 &&
+      // Only schema 5 records a validated intent before any cancellation.
+      // Older schemas require at least one signed attempt.
+      (parsed.attempts.length >= 1 || parsed.version === 5) &&
       parsed.attempts.length <= 40 &&
       parsed.attempts.every(isAttempt) &&
       // Attempt IDENTITY is the attemptId — nonces may legitimately
@@ -4068,6 +4155,9 @@ export class LighterProvider implements PerpsProvider {
               ? { ...attempt, neverLanded: undefined }
               : attempt,
           ),
+          partialIntent: isPartialTpslIntent(parsed.partialIntent)
+            ? parsed.partialIntent
+            : undefined,
           recordedAt: parsed.recordedAt,
           operationId: parsed.operationId,
           retainedReplacementGroups: isRecoveryGroups(
@@ -4228,6 +4318,8 @@ export class LighterProvider implements PerpsProvider {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       if (
         parsed.version === 1 &&
+        (parsed.partialIntent === undefined ||
+          isPartialTpslIntent(parsed.partialIntent)) &&
         typeof parsed.settlementKey === 'string' &&
         typeof parsed.symbol === 'string' &&
         typeof parsed.reason === 'string' &&
@@ -4242,6 +4334,9 @@ export class LighterProvider implements PerpsProvider {
         typeof parsed.recordedAt === 'number'
       ) {
         return {
+          partialIntent: isPartialTpslIntent(parsed.partialIntent)
+            ? parsed.partialIntent
+            : undefined,
           settlementKey: parsed.settlementKey,
           symbol: parsed.symbol,
           reason: parsed.reason,
@@ -4399,6 +4494,15 @@ export class LighterProvider implements PerpsProvider {
       const previous = danglingPointer
         ? null
         : await this.#loadTpslJournal(settlementKey);
+      if (
+        previous &&
+        JSON.stringify(previous.partialIntent) !==
+          JSON.stringify(journal.partialIntent)
+      ) {
+        throw new Error(
+          'Cannot change the persisted partial protection intent',
+        );
+      }
       const priorCreateIds = new Set(
         previous?.attempts.flatMap((attempt) =>
           attempt.kind === 'create' ? attempt.clientIds.map(String) : [],
@@ -4414,7 +4518,8 @@ export class LighterProvider implements PerpsProvider {
         await this.#deps.diskCache.setItem(
           this.#tpslJournalOpKey(settlementKey, journal.operationId),
           JSON.stringify({
-            version: 4,
+            version: journal.partialIntent ? 5 : 4,
+            partialIntent: journal.partialIntent,
             recordedAt: journal.recordedAt,
             operationId: journal.operationId,
             sourceRecoveryOperationId: journal.sourceRecoveryOperationId,
@@ -5341,6 +5446,7 @@ export class LighterProvider implements PerpsProvider {
           settlementKey,
           symbol,
           reason,
+          partialIntent: journalEntry.partialIntent,
           priorIntent: journalEntry.intent,
           priorTriggers: journalEntry.priorTriggers,
           survivingOrderIds,
@@ -6787,6 +6893,13 @@ export class LighterProvider implements PerpsProvider {
         childOrderIds: 'request-correlated',
         takeProfitOrderType: 'take_profit_market',
         stopLossOrderType: 'stop_market',
+        defaultCoverage: 'position-snapshot',
+        partialCoverage: Object.freeze({
+          single: true,
+          pair: 'equal-quantity-oco',
+          replacement: 'cancel-before-create',
+          recovery: 'explicit-current-position-intent',
+        }),
       }),
     });
   }
@@ -7940,7 +8053,7 @@ export class LighterProvider implements PerpsProvider {
       generation: number;
     },
   ): Promise<OrderResult> => {
-    const expectedPosition =
+    let expectedPosition =
       params.expectedPosition === undefined
         ? undefined
         : { ...params.expectedPosition };
@@ -7948,19 +8061,14 @@ export class LighterProvider implements PerpsProvider {
       if (sourceRecovery) {
         this.#assertSession(sourceRecovery.generation);
       }
-      // Partial TP/SL sizes are NOT wired to this venue path: it always
-      // covers the full position. Silently ignoring a requested partial
-      // size would close the entire position when the trigger fires, so
-      // the request is refused before any read, signer setup or mutation.
-      if (
+      const partialRequested =
         params.takeProfitSize !== undefined ||
-        params.stopLossSize !== undefined
+        params.stopLossSize !== undefined;
+      if (
+        (params.takeProfitSize !== undefined && !params.takeProfitPrice) ||
+        (params.stopLossSize !== undefined && !params.stopLossPrice)
       ) {
-        return {
-          success: false,
-          error:
-            'Lighter TP/SL covers the full position: partial takeProfitSize/stopLossSize are not supported',
-        };
+        throw new Error('A partial protection size requires its trigger price');
       }
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
@@ -7982,6 +8090,12 @@ export class LighterProvider implements PerpsProvider {
       );
       this.#assertSession(generationAtIntent);
       assertExpectedPosition(expectedPosition, position);
+      if (partialRequested && position && expectedPosition === undefined) {
+        expectedPosition = {
+          size: position.size,
+          entryPrice: position.entryPrice,
+        };
+      }
       let wantsReplacement =
         Boolean(params.takeProfitPrice) || Boolean(params.stopLossPrice);
       if (!position && (!sourceRecovery || wantsReplacement)) {
@@ -8012,6 +8126,7 @@ export class LighterProvider implements PerpsProvider {
       // position-size parsing/integerization, trigger/execution price
       // parsing/integerization, bounded client-id allocation — must fail
       // while the existing protection is still in place.
+      let partialIntent: PartialTpslIntent | undefined;
       let singleOrderPayload: LighterCreateOrderWireParams | null = null;
       let groupedOrderPayload: LighterGroupedOrderWireParams | null = null;
       let createdClientIds: number[] = [];
@@ -8096,6 +8211,46 @@ export class LighterProvider implements PerpsProvider {
         // CreateGroupedOrders only accepts grouping types 1/2/3 and OCO
         // requires two siblings, so a SINGLE TP or SL must be an ordinary
         // CreateOrder trigger; grouped OCO is reserved for both together.
+        const partialSizes = validatedOrders.map((entry) => {
+          const raw =
+            entry.orderType === LIGHTER_ORDER_TYPE_TAKE_PROFIT
+              ? params.takeProfitSize
+              : params.stopLossSize;
+          if (!partialRequested || raw === undefined) {
+            return sizeInt;
+          }
+          const value = parseFinitePositive(raw);
+          if (value === null || value > coverSize) {
+            throw new Error(
+              'Partial protection quantity must be positive and no greater than the position',
+            );
+          }
+          const normalized = toSignerWireInteger(
+            value,
+            market.supportedSizeDecimals,
+          );
+          if (
+            !Number.isSafeInteger(normalized) ||
+            normalized < 1 ||
+            normalized > sizeInt
+          ) {
+            throw new Error(
+              'Partial protection quantity is outside the size grid',
+            );
+          }
+          return normalized;
+        });
+        if (
+          partialRequested &&
+          partialSizes.length === 2 &&
+          (params.takeProfitSize === undefined ||
+            params.stopLossSize === undefined ||
+            partialSizes[0] !== partialSizes[1])
+        ) {
+          throw new Error(
+            'Partial OCO protection requires equal normalized quantities',
+          );
+        }
         const wireOrders = validatedOrders.map(
           (entry, index): LighterCreateOrderWireParams => {
             const clientOrderIndex = clientOrderIds[index];
@@ -8107,7 +8262,7 @@ export class LighterProvider implements PerpsProvider {
             return [
               market.marketId,
               clientOrderIndex,
-              String(sizeInt),
+              String(partialSizes[index]),
               String(entry.execInt),
               isAsk,
               entry.orderType,
@@ -8120,6 +8275,19 @@ export class LighterProvider implements PerpsProvider {
             ];
           },
         );
+        if (partialRequested) {
+          partialIntent = {
+            version: 1,
+            positionSign: isLong ? 1 : -1,
+            positionWireSize: sizeInt,
+            sizeDecimals: market.supportedSizeDecimals,
+            linkage: wireOrders.length === 2 ? 'oco' : 'single',
+            orders: wireOrders,
+          };
+          if (!isPartialTpslIntent(partialIntent)) {
+            throw new Error('Invalid fixed partial protection intent');
+          }
+        }
         const [first, second] = wireOrders;
         if (first === undefined) {
           throw new Error('Lighter TP/SL preflight produced no trigger order');
@@ -8606,6 +8774,7 @@ export class LighterProvider implements PerpsProvider {
                 symbol: params.symbol,
                 reason:
                   'Explicit protection successor awaiting authoritative settlement',
+                partialIntent: sourceJournal.partialIntent,
                 priorIntent: sourceJournal.intent,
                 priorTriggers: sourceJournal.priorTriggers,
                 survivingOrderIds: ownedOrderIds,
@@ -8659,8 +8828,18 @@ export class LighterProvider implements PerpsProvider {
               }
               const manual = await this.#loadTpslManualRecovery(sourceKey);
               this.#assertSession(generationAtIntent);
+              if (manual?.partialIntent) {
+                throw new Error(
+                  'Partial protection requires explicit recovery resolution by recovery ID',
+                );
+              }
               const sourceJournal = await this.#loadTpslJournal(sourceKey);
               this.#assertSession(generationAtIntent);
+              if (sourceJournal?.partialIntent && sourceKey !== settlementKey) {
+                throw new Error(
+                  'Partial protection requires explicit recovery resolution by recovery ID',
+                );
+              }
               const sourceOperationId =
                 manual?.operationId ?? sourceJournal?.operationId;
               if (!sourceOperationId) {
@@ -8705,6 +8884,11 @@ export class LighterProvider implements PerpsProvider {
               this.#tpslUnsettled.set(settlementKey, unsettled);
               throw new Error(
                 `Lighter TP/SL settlement for ${params.symbol} is unresolved; refusing further protection changes until the venue reflects the previous update`,
+              );
+            }
+            if (unsettled.partialIntent) {
+              throw new Error(
+                'Prior partial protection reconciled; review its exact recovery outcome before a new intent',
               );
             }
             // The machine may have PARKED the obligation into the
@@ -8827,6 +9011,7 @@ export class LighterProvider implements PerpsProvider {
               selectedSuccessor?.ownedOrderIds.includes(order.orderId) ?? false;
             const isLegacyProtection =
               sourceRecovery === undefined &&
+              !partialRequested &&
               liveWireSize !== null &&
               order.side === (livePosition?.sign === 1 ? 'sell' : 'buy') &&
               parseFinitePositive(order.size) === liveMagnitude;
@@ -8941,6 +9126,7 @@ export class LighterProvider implements PerpsProvider {
           // attempt individually via books + nonce.
           await assertLiveExpected();
           const journal: TpslJournalState = {
+            partialIntent,
             attempts: [],
             recordedAt: Date.now(),
             // Collision-resistant across processes: time + counter + two
@@ -8955,7 +9141,7 @@ export class LighterProvider implements PerpsProvider {
             createdAt: lifecycleBoundary,
             nextAttemptId: 1,
             intent: wantsReplacement ? 'replace' : 'remove',
-            phase: 'creating',
+            phase: partialIntent ? 'cancelling' : 'creating',
             priorGrouping,
             priorTriggers,
           };
@@ -8985,7 +9171,7 @@ export class LighterProvider implements PerpsProvider {
               );
             }
             this.#assertSession(generationAtIntent);
-            if (remaining.length === 0) {
+            if (remaining.length === 0 && !journal.partialIntent) {
               await this.#finishRecoverySuccessor(
                 journal,
                 'failed',
@@ -9008,9 +9194,8 @@ export class LighterProvider implements PerpsProvider {
             role: 'stale' | 'rollback',
           ): Promise<void> => {
             if (role === 'stale' && journal.intent === 'replace') {
-              // Durable phase transition BEFORE the old protection is
-              // touched: a crash from here on may require a RESTORE.
-              // (A 'remove' journal never restores — phase is moot.)
+              // Persist the phase before touching old protection; interruption
+              // from this point may require explicit manual recovery.
               journal.phase = 'cancelling';
             }
             await this.#assertRecoverySource(journal, generationAtIntent);
@@ -9048,15 +9233,18 @@ export class LighterProvider implements PerpsProvider {
                 txHash: cancelIdentity.txHash,
                 expiresAt: cancelIdentity.expiresAt,
                 owner: journal.operationId,
-                ...(journal.intent === 'remove' || sourceRecovery
+                ...(journal.intent === 'remove' ||
+                sourceRecovery ||
+                partialIntent
                   ? {
-                      beforeDispatch: sourceRecovery
-                        ? async (): Promise<void> =>
-                            this.#assertRecoverySource(
-                              journal,
-                              generationAtIntent,
-                            )
-                        : assertLiveExpected,
+                      beforeDispatch:
+                        sourceRecovery && !partialIntent
+                          ? async (): Promise<void> =>
+                              this.#assertRecoverySource(
+                                journal,
+                                generationAtIntent,
+                              )
+                          : assertLiveExpected,
                       onNotDispatched: async (): Promise<void> =>
                         discardUnsentAttempt(cancelAttempt),
                     }
@@ -9065,10 +9253,39 @@ export class LighterProvider implements PerpsProvider {
             );
           };
 
-          // CREATE FIRST, cancel after: if signing or submission of the
-          // new protection fails, the old triggers were never touched and
-          // the position is never left naked. The temporary overlap is
-          // safe — both sets are reduce-only and clamp to the position.
+          if (partialIntent) {
+            await persistJournal();
+            for (const order of staleTriggers) {
+              await submitTrackedCancel(order.orderId, 'stale');
+            }
+            // No replacement dispatch until exact cancellation transactions and books settle.
+            const reconciled = await this.#reconcilePriorTpsl(
+              readActiveRaw,
+              readInactiveFor,
+              accountIndex,
+              journal,
+            );
+            const cancellation = await this.#awaitTpslVisibility(
+              readActiveRaw,
+              readInactiveFor,
+              {
+                createdClientIds: [],
+                cancelledOrderIds: staleTriggers.map((order) => order.orderId),
+              },
+            );
+            if (
+              reconciled !== 'resolved' ||
+              cancellation.outcome !== 'settled'
+            ) {
+              throw new Error(
+                'Partial protection cancellation is unresolved; replacement was not sent',
+              );
+            }
+            await assertLiveExpected();
+          }
+
+          // Snapshot-sized protection retains create-before-cancel behavior.
+          // Fixed partial protection has already proven its old set cancelled.
           if (
             wantsReplacement &&
             (singleOrderPayload !== null || groupedOrderPayload !== null)
@@ -9168,6 +9385,11 @@ export class LighterProvider implements PerpsProvider {
               );
             }
             if (createVisibility.outcome === 'created-terminal-failed') {
+              if (partialIntent) {
+                throw new Error(
+                  'Partial replacement failed after cancellation; explicit recovery is required',
+                );
+              }
               // The replacement (or one OCO leg) failed before the old
               // protection was touched. ROLL BACK any leg still resting
               // active so the venue returns to exactly the prior
@@ -9234,8 +9456,10 @@ export class LighterProvider implements PerpsProvider {
             }
           }
 
-          for (const order of staleTriggers) {
-            await submitTrackedCancel(order.orderId, 'stale');
+          if (!partialIntent) {
+            for (const order of staleTriggers) {
+              await submitTrackedCancel(order.orderId, 'stale');
+            }
           }
 
           // Await authoritative visibility of the CANCELS before releasing
@@ -9300,6 +9524,7 @@ export class LighterProvider implements PerpsProvider {
                   symbol: params.symbol,
                   reason:
                     'Replacement TP/SL order was cancelled or rejected by the venue after the previous protection was already removed',
+                  partialIntent: journal.partialIntent,
                   priorIntent: journal.intent,
                   priorTriggers: journal.priorTriggers,
                   survivingOrderIds,

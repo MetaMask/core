@@ -228,6 +228,13 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
     childOrderIds: 'request-correlated',
     takeProfitOrderType: 'take_profit_limit',
     stopLossOrderType: 'stop_market',
+    defaultCoverage: 'dynamic-position',
+    partialCoverage: Object.freeze({
+      single: true,
+      pair: 'independent',
+      replacement: 'cancel-before-create',
+      recovery: 'provider-default',
+    }),
   }),
 }) satisfies DirectProviderOrderCapabilities;
 
