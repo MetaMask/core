@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getDerivedIdentities` method, also expose it through the messenger as `ChompApiService:getDerivedIdentities` ([#10627](https://github.com/MetaMask/core/pull/10627))
+- Add `getDerivedIdentityByAddress` method, and expose it through the messenger as `ChompApiService:getDerivedIdentityByAddress` ([#10627](https://github.com/MetaMask/core/pull/10627))
+- Add `disassociateAddress` method, and expose it through the messenger as `ChompApiService:disassociateAddress` ([#10627](https://github.com/MetaMask/core/pull/10627))
+- Add optional `predecessorAddress` to `AssociateAddressParams`. This allows linking the associated address as the successor of an existing Money Account ([#10627](https://github.com/MetaMask/core/pull/10627))
+- Add `ChompApiError`, thrown for non-2xx responses ([#10627](https://github.com/MetaMask/core/pull/10627))
+- Add `AddressIdentityResponse`, `DerivedIdentitiesResponse`, `DerivedIdentity`, `DerivedIdentityAddressRole`, `DerivedIdentityMigration`, `DerivedIdentityStatus`, `MigrationStep`, `ChompApiServiceDisassociateAddressAction`, `ChompApiServiceGetDerivedIdentitiesAction`, and `ChompApiServiceGetDerivedIdentityByAddressAction` types ([#10627](https://github.com/MetaMask/core/pull/10627))
+
 ### Changed
+
+- **BREAKING:** Widen `ChompIntentType` (used by `SendIntentParams`, intent responses, and service-details `intentTypes`) to include `cash-migration-root` and `cash-migration-transfer` ([#10627](https://github.com/MetaMask/core/pull/10627))
 
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 

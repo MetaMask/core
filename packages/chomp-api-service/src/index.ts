@@ -1,4 +1,4 @@
-export { ChompApiService } from './chomp-api-service.js';
+export { ChompApiError, ChompApiService } from './chomp-api-service.js';
 export type {
   ChompApiServiceMessenger,
   ChompApiServiceActions,
@@ -9,6 +9,7 @@ export type {
 } from './chomp-api-service.js';
 export type {
   ChompApiServiceAssociateAddressAction,
+  ChompApiServiceDisassociateAddressAction,
   ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetUpgradesAction,
@@ -17,9 +18,12 @@ export type {
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceCreateWithdrawalAction,
   ChompApiServiceGetServiceDetailsAction,
+  ChompApiServiceGetDerivedIdentitiesAction,
+  ChompApiServiceGetDerivedIdentityByAddressAction,
 } from './chomp-api-service-method-action-types.js';
 export type {
   AccountUpgradeStatus,
+  AddressIdentityResponse,
   AssociateAddressParams,
   AssociateAddressResponse,
   AuthorizationData,
@@ -29,10 +33,16 @@ export type {
   CreateWithdrawalParams,
   CreateWithdrawalResponse,
   DelegationCaveat,
+  DerivedIdentitiesResponse,
+  DerivedIdentity,
+  DerivedIdentityAddressRole,
+  DerivedIdentityMigration,
+  DerivedIdentityStatus,
   UpgradeEntry,
   IntentEntry,
   IntentMetadataParams,
   IntentMetadataResponse,
+  MigrationStep,
   ProfileAddressEntry,
   SendIntentParams,
   SendIntentResponse,
