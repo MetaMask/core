@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.2]
+
 ### Uncategorized
 
 - chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
@@ -451,7 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.2...HEAD
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.1...@metamask/network-enablement-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.0...@metamask/network-enablement-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.5...@metamask/network-enablement-controller@7.0.0
 [6.0.5]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.4...@metamask/network-enablement-controller@6.0.5

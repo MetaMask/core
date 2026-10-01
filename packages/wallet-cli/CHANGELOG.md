@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1]
+
 ### Added
 
 - Add the `mm wallet send` command and a dedicated daemon `sendTransaction` RPC handler for sending a transaction through the daemon-hosted `TransactionController` ([#9636](https://github.com/MetaMask/core/pull/9636))
@@ -47,4 +49,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@inquirer/password` from `^5.1.1` to `^5.2.2` ([#10517](https://github.com/MetaMask/core/pull/10517))
 - Bump `better-sqlite3` from `^12.9.0` to `^12.11.1` ([#10528](https://github.com/MetaMask/core/pull/10528))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet-cli@0.0.1...HEAD
+[0.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/wallet-cli@0.0.1
