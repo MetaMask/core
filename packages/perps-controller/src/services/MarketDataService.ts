@@ -1351,21 +1351,8 @@ export class MarketDataService {
         chargesBuilderFee: fees.chargesMetamaskBuilderFee,
       });
 
-      // Read-only preview of the same cached benefits snapshot the fee resolver
-      // reads. Surfacing eligibility and the remaining notional must not mutate
-      // the cap or the cache.
-      // Match the repricing guards and exclude placements explicitly reported
-      // as carrying no builder fee. Attribute only the snapshot used above;
-      // another rewards read could describe a different grant or fee.
-      const resolutionApplies =
-        context.feeResolution !== undefined &&
-        fees.metamaskFeeRate !== undefined &&
-        fees.chargesMetamaskBuilderFee !== false &&
-        (fees.metamaskFeeRate !== 0 || fees.chargesMetamaskBuilderFee === true);
-
       return {
         ...priced,
-        ...(resolutionApplies && { feeResolution: context.feeResolution }),
         ...(context.subscriptionFeeWaiver && {
           subscription: context.subscriptionFeeWaiver,
         }),

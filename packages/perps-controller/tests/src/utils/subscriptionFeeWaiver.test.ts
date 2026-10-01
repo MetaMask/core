@@ -407,7 +407,7 @@ describe('applyFeeResolution', () => {
     expect(priced.feeSource).toBe('subscription');
   });
 
-  it('reports the rewards source when a rewards discount won', () => {
+  it('reports the rewards source from the resolution that repriced the quote', () => {
     const priced = applyFeeResolution({
       fees,
       resolution: {
@@ -422,6 +422,22 @@ describe('applyFeeResolution', () => {
 
     expect(priced.metamaskFeeRate).toBeCloseTo(0.00035, 10);
     expect(priced.feeSource).toBe('rewards');
+  });
+
+  it('reports the grant source from the resolution that repriced the quote', () => {
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.metamaskFeeRate).toBeCloseTo(0.0002, 10);
+    expect(priced.feeSource).toBe('grant');
   });
 
   it('zeroes the MetaMask component on a full waiver', () => {
@@ -440,6 +456,7 @@ describe('applyFeeResolution', () => {
     expect(priced.metamaskFeeRate).toBe(0);
     expect(priced.feeRate).toBeCloseTo(0.00045, 10);
     expect(priced.metamaskFeeAmount).toBe(0);
+    expect(priced.feeSource).toBe('subscription');
   });
 
   it('quotes the venue-quantized rate the submit path charges', () => {
@@ -518,7 +535,11 @@ describe('applyFeeResolution', () => {
   });
 
   it('leaves a placement that carries no builder fee untouched', () => {
-    const twapFees = { ...fees, metamaskFeeRate: 0, metamaskFeeAmount: 0 };
+    const twapFees = {
+      ...fees,
+      metamaskFeeRate: 0.001,
+      metamaskFeeAmount: 1,
+    };
 
     expect(
       applyFeeResolution({
@@ -581,6 +602,7 @@ describe('applyFeeResolution', () => {
     // Nor does it inherit the waiver's discount.
     expect(priced.metamaskFeeDiscountBips).toBe(0);
     expect(priced.undiscountedMetamaskFeeRate).toBe(0.001);
+    expect(priced.feeSource).toBe('default');
   });
 
   it('re-prices rates without amounts when no notional was supplied', () => {

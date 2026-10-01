@@ -51,6 +51,10 @@ describe('TradingService', () => {
     source: 'default',
     subscription: { eligible: false, reason: 'no-source' },
   };
+  const hyperliquidMainnetScope = {
+    providerId: 'hyperliquid',
+    isTestnet: false,
+  } as const;
 
   const createContextWithRewards = (): ServiceContext =>
     createMockServiceContext({
@@ -145,11 +149,11 @@ describe('TradingService', () => {
       );
     });
 
-    it('passes the rewards resolution to the provider, then clears it', async () => {
+    it('resolves a grant for its own provider scope, passes it, then clears it', async () => {
       const resolution: PerpsFeeResolution = {
-        feeBips: 3.5,
-        discountBips: 6500,
-        source: 'rewards',
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant',
         subscription: { eligible: false, reason: 'no-source' },
       };
       const params: OrderParams = {
@@ -176,6 +180,10 @@ describe('TradingService', () => {
       });
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(1);
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        undefined,
+        { providerId: 'hyperliquid', isTestnet: false },
+      );
       expect(mockProvider.placeOrder).toHaveBeenCalledWith(params);
       expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
         undefined,
@@ -242,6 +250,7 @@ describe('TradingService', () => {
       // "no notional to blend against" branch and charge a full waiver.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -266,6 +275,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         900,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -348,6 +358,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -374,6 +385,7 @@ describe('TradingService', () => {
       // 0.02 BTC at the 50000 midpoint of the ladder.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -424,6 +436,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -446,6 +459,7 @@ describe('TradingService', () => {
       // the resolver's pre-existing "no notional" behavior.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2131,6 +2145,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2149,6 +2164,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         5000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2174,6 +2190,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2190,6 +2207,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4800,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2483,6 +2501,7 @@ describe('TradingService', () => {
       // 25000 only — the lighter position is not reachable by this write.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2523,6 +2542,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         10000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2560,6 +2580,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2927,6 +2948,7 @@ describe('TradingService', () => {
       // 0.05 BTC at the 55000 trigger, not the position's 25000.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2750,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2952,6 +2974,7 @@ describe('TradingService', () => {
       // 0.1 BTC at the 45000 stop-loss trigger.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2976,6 +2999,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         22500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2996,6 +3020,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         27500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -3018,6 +3043,7 @@ describe('TradingService', () => {
 
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           30000,
+          hyperliquidMainnetScope,
         );
         expect(mockGetPositions).toHaveBeenCalledTimes(1);
       },
@@ -3040,6 +3066,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
+        hyperliquidMainnetScope,
       );
     });
 

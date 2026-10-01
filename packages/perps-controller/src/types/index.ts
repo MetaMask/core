@@ -2174,7 +2174,6 @@ export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
   feeRate?: number; // Total fee rate as decimal (e.g., 0.00145 for 0.145%), undefined when unavailable
   feeAmount?: number; // Total fee amount in USD (when amount is provided)
-  feeResolution?: PerpsFeeResolution;
   // Protocol-specific base fees
   protocolFeeRate?: number; // Protocol fee rate (e.g., 0.00045 for HyperLiquid taker), undefined when unavailable
   protocolFeeAmount?: number; // Protocol fee amount in USD
@@ -2331,15 +2330,23 @@ export type PerpsSubscriptionFeeWaiverStatus = {
 /**
  * Fee source that won the unified resolver.
  *
- * `rewards` covers the account-scoped VIP and season discount. `grant` is the
- * independent Hyperliquid trading-fee grant supplied by RewardsController.
+ * `rewards` covers the account-scoped VIP and season discount. `grant` is an
+ * independent route-scoped trading-fee grant supplied by RewardsController.
  */
 export type PerpsFeeSource = 'default' | 'rewards' | 'grant' | 'subscription';
 
 /**
- * Independent RewardsController fee candidate for production Hyperliquid.
+ * Provider route for resolving route-specific fee candidates.
  */
-export type PerpsTradingFeeGrant = {
+export type PerpsFeeResolverScope = {
+  providerId: string;
+  isTestnet: boolean;
+};
+
+/**
+ * Independent RewardsController fee candidate for one exact provider route.
+ */
+export type PerpsTradingFeeGrant = PerpsFeeResolverScope & {
   /** Absolute MetaMask builder fee, in basis points. */
   feeBips: number;
 
@@ -3422,16 +3429,20 @@ export type PerpsPlatformDependencies = {
     ): Promise<number | null>;
 
     /**
-     * Get the independent production Hyperliquid trading fee grant.
+     * Get the independent trading fee grant for an explicit provider route.
      *
      * The client owns grant retrieval, authentication, payload validation, and
-     * venue scoping. Core validates the numeric fee and expiry, calls this on
-     * every resolution, and compares it with the other fee sources.
+     * deciding which routes it supports. Core calls this only when the resolver
+     * has an explicit scope, validates the returned fee, expiry, and exact scope
+     * match after concurrent candidate work settles, and compares valid
+     * candidates with the other fee sources.
      *
      * Optional so clients predating grant support retain their existing
      * behavior.
      */
-    getPerpsTradingFeeGrant?(): Promise<PerpsTradingFeeGrant | null>;
+    getPerpsTradingFeeGrant?(
+      scope: PerpsFeeResolverScope,
+    ): Promise<PerpsTradingFeeGrant | null>;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
