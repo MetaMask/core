@@ -20,7 +20,6 @@ function stubBalanceSource(name: string): BalanceSource {
 function buildSources(): FastFetchSources {
   return {
     accountsApiDataSource: stubBalanceSource('AccountsApiDataSource'),
-    stakedBalanceDataSource: stubBalanceSource('StakedBalanceDataSource'),
     customAssetGraduationMiddleware: stubSource(
       'CustomAssetGraduationMiddleware',
     ),
@@ -36,7 +35,6 @@ describe('buildFastFetchSources', () => {
     {
       title:
         'orders the lane balances → graduation → rpc fallback → detection → enrichment',
-      isBasicFunctionality: true,
       includeCustomAssetGraduation: true,
       expected: [
         'ParallelBalanceMiddleware',
@@ -48,7 +46,6 @@ describe('buildFastFetchSources', () => {
     },
     {
       title: 'drops graduation from the lane',
-      isBasicFunctionality: true,
       // The Accounts API v6 lane resolves pins through `includeAssetIds`.
       includeCustomAssetGraduation: false,
       expected: [
@@ -58,18 +55,10 @@ describe('buildFastFetchSources', () => {
         'ParallelMiddleware',
       ],
     },
-    {
-      title: 'runs only the staking balance and detection',
-      isBasicFunctionality: false,
-      includeCustomAssetGraduation: true,
-      // No network-backed source may run when the user has opted out.
-      expected: ['StakedBalanceDataSource', 'DetectionMiddleware'],
-    },
   ])(
     '$title',
-    ({ isBasicFunctionality, includeCustomAssetGraduation, expected }) => {
+    ({ includeCustomAssetGraduation, expected }) => {
       const sources = buildFastFetchSources(buildSources(), {
-        isBasicFunctionality,
         includeCustomAssetGraduation,
       });
 

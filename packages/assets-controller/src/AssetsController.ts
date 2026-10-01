@@ -1653,6 +1653,20 @@ export class AssetsController extends BaseController<
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       };
 
+      // Staked balances are not part of the fetch pipeline: the staked source
+      // owns its poll and post-transaction refresh. On a force update refresh
+      // it directly, in parallel with the pipeline, so a pull-to-refresh does
+      // not wait for the next poll.
+      const stakedRefresh = dataTypes.includes('balance')
+        ? this.#stakedBalanceDataSource
+            .refreshStakedBalance({ accounts, chainIds })
+            .catch((error) => {
+              log('Failed to refresh staked balance on force update', {
+                error,
+              });
+            })
+        : Promise.resolve();
+
       if (this.#isBalanceV6Enabled()) {
         await this.#forceUpdateAssetsV6({
           accounts,
@@ -1672,6 +1686,7 @@ export class AssetsController extends BaseController<
           pipelineTrace,
         });
       }
+      await stakedRefresh;
     }
 
     const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
@@ -1726,17 +1741,26 @@ export class AssetsController extends BaseController<
     pipelineTrace?: TraceCallback;
   }): Promise<void> {
     const isBasicFunctionality = this.#isBasicFunctionality();
+    if (!isBasicFunctionality) {
+      this.#runBasicFunctionalityOffFetch({
+        accounts,
+        chainIds,
+        request,
+        pipelineTrace,
+      });
+      return;
+    }
+
     const fastSources = buildFastFetchSources(
       {
         accountsApiDataSource: this.#accountsApiDataSource,
-        stakedBalanceDataSource: this.#stakedBalanceDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
         detectionMiddleware: this.#detectionMiddleware,
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
-      { isBasicFunctionality, includeCustomAssetGraduation: true },
+      { includeCustomAssetGraduation: true },
     );
 
     const fastResponse = await this.#runFastFetchV5({
@@ -1770,20 +1794,26 @@ export class AssetsController extends BaseController<
     pipelineTrace?: TraceCallback;
   }): Promise<void> {
     const isBasicFunctionality = this.#isBasicFunctionality();
+    if (!isBasicFunctionality) {
+      this.#runBasicFunctionalityOffFetch({
+        accounts,
+        chainIds,
+        request,
+        pipelineTrace,
+      });
+      return;
+    }
+
     const fastSources = buildFastFetchSources(
       {
         accountsApiDataSource: this.#accountsApiDataSource,
-        stakedBalanceDataSource: this.#stakedBalanceDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
         detectionMiddleware: this.#detectionMiddleware,
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
-      {
-        isBasicFunctionality,
-        includeCustomAssetGraduation: false,
-      },
+      { includeCustomAssetGraduation: false },
     );
 
     const fastResponse = await this.#runFastFetchV6({
@@ -1802,6 +1832,40 @@ export class AssetsController extends BaseController<
       pipelineTrace,
       chainIds: this.#getSlowPipelineChainIds(chainIds, fastResponse),
       isBasicFunctionality,
+    });
+  }
+
+  /**
+   * Force-update path when basic functionality is off. The fast lane is
+   * entirely API-backed, so it is skipped and every requested chain goes to
+   * the background RPC lane. Chain assignment must not consult the Accounts
+   * API's active chains here: they stay populated regardless of the toggle,
+   * and would otherwise exclude those chains from the RPC refresh.
+   *
+   * @param args - Force-update arguments.
+   * @param args.accounts - Accounts in this fetch.
+   * @param args.chainIds - Chains in this fetch.
+   * @param args.request - The data request.
+   * @param args.pipelineTrace - Trace callback for the first init fetch.
+   */
+  #runBasicFunctionalityOffFetch({
+    accounts,
+    chainIds,
+    request,
+    pipelineTrace,
+  }: {
+    accounts: InternalAccount[];
+    chainIds: ChainId[];
+    request: DataRequest;
+    pipelineTrace?: TraceCallback;
+  }): void {
+    this.#firstInitFetchReported = true;
+    this.#runBackgroundFetch({
+      accounts,
+      chainIds,
+      request,
+      pipelineTrace,
+      isBasicFunctionality: false,
     });
   }
 

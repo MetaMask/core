@@ -9,12 +9,10 @@ import type { AssetsDataSource } from '../types.js';
  * The sources the fast fetch lane composes, in the roles the lane assigns them.
  *
  * `AssetsController` constructs all of these unconditionally, so the lane can
- * assume every role is filled. `isBasicFunctionality` decides which of them
- * actually run, not which are supplied.
+ * assume every role is filled.
  */
 export type FastFetchSources = {
   accountsApiDataSource: BalanceSource;
-  stakedBalanceDataSource: BalanceSource;
   customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
   detectionMiddleware: AssetsDataSource;
@@ -23,11 +21,17 @@ export type FastFetchSources = {
 };
 
 /**
- * Compose the fast fetch lane: balances in parallel → custom-asset graduation →
+ * Compose the fast fetch lane: Accounts API balances → custom-asset graduation →
  * RPC fallback → detection → token metadata and prices in parallel.
  *
+ * Every source in this lane is backed by a MetaMask API, so the controller only
+ * runs it when basic functionality is on.
+ *
  * Snap and RPC balance sources are deliberately absent — the controller runs
- * those in a background lane because of their latency.
+ * those in a background lane because of their latency. The staked balance
+ * source is absent too: it owns its own poll and post-transaction refresh, and
+ * `AssetsController.getAssets` asks it to refresh directly on a force update
+ * instead of routing it through this lane.
  *
  * Ordering carries two invariants:
  * - Graduation runs BEFORE the RPC fallback so it only ever sees Accounts
@@ -38,8 +42,6 @@ export type FastFetchSources = {
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
- * @param options.isBasicFunctionality - When false, only the staking balance and
- * detection run; no network-backed source is used.
  * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
  * lane. The v6 lane never graduates custom assets: it sends the pins to the
  * endpoint as `includeAssetIds`, and a chain that comes back without all of
@@ -49,13 +51,11 @@ export type FastFetchSources = {
 export function buildFastFetchSources(
   sources: FastFetchSources,
   options: {
-    isBasicFunctionality: boolean;
     includeCustomAssetGraduation: boolean;
   },
 ): AssetsDataSource[] {
   const {
     accountsApiDataSource,
-    stakedBalanceDataSource,
     customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
     detectionMiddleware,
@@ -63,15 +63,8 @@ export function buildFastFetchSources(
     priceDataSource,
   } = sources;
 
-  if (!options.isBasicFunctionality) {
-    return [stakedBalanceDataSource, detectionMiddleware];
-  }
-
   return [
-    createParallelBalanceMiddleware([
-      accountsApiDataSource,
-      stakedBalanceDataSource,
-    ]),
+    createParallelBalanceMiddleware([accountsApiDataSource]),
     ...(options.includeCustomAssetGraduation
       ? [customAssetGraduationMiddleware]
       : []),

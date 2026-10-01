@@ -28,6 +28,7 @@ import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
 import {
   buildDefaultAssetsInfo,
@@ -656,6 +657,48 @@ describe('AssetsController', () => {
           controller.handleBasicFunctionalityChange(true),
         ).not.toThrow();
       });
+    });
+
+    it('sends chains the Accounts API supports to RPC on forceUpdate when basic functionality is off', async () => {
+      jest
+        .spyOn(AccountsApiDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue(['eip155:1']);
+      const accountsApiMiddleware = jest.fn(
+        async (ctx: unknown, next: (ctx: unknown) => Promise<unknown>) =>
+          next(ctx),
+      );
+      jest
+        .spyOn(AccountsApiDataSource.prototype, 'assetsMiddleware', 'get')
+        .mockReturnValue(accountsApiMiddleware as never);
+      const rpcChainIds: ChainId[][] = [];
+      jest
+        .spyOn(RpcDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue(['eip155:1']);
+      jest
+        .spyOn(RpcDataSource.prototype, 'assetsMiddleware', 'get')
+        .mockReturnValue((async (
+          ctx: { request: DataRequest },
+          next: (ctx: unknown) => Promise<unknown>,
+        ) => {
+          rpcChainIds.push(ctx.request.chainIds);
+          return next(ctx);
+        }) as never);
+
+      await withController(
+        { state: {}, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          rpcChainIds.length = 0;
+
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+          await flushPromises();
+
+          expect(accountsApiMiddleware).not.toHaveBeenCalled();
+          expect(rpcChainIds).toContainEqual(['eip155:1']);
+        },
+      );
     });
 
     it('works with isBasicFunctionality false (RPC-only mode)', async () => {
@@ -1520,6 +1563,77 @@ describe('AssetsController', () => {
 
         expect(assets).toBeDefined();
         // When queryApiClient is not provided, no data sources run; result is from state
+      });
+    });
+
+    it('refreshes the staked balance for the requested accounts and chains on forceUpdate', async () => {
+      const refreshSpy = jest
+        .spyOn(StakedBalanceDataSource.prototype, 'refreshStakedBalance')
+        .mockResolvedValue(undefined);
+
+      await withController(async ({ controller }) => {
+        const accounts = [createMockInternalAccount()];
+        refreshSpy.mockClear();
+
+        await controller.getAssets(accounts, {
+          chainIds: ['eip155:1'],
+          forceUpdate: true,
+        });
+
+        expect(refreshSpy).toHaveBeenCalledTimes(1);
+        expect(refreshSpy).toHaveBeenCalledWith({
+          accounts,
+          chainIds: ['eip155:1'],
+        });
+      });
+    });
+
+    it('does not refresh the staked balance when forceUpdate excludes balances', async () => {
+      const refreshSpy = jest
+        .spyOn(StakedBalanceDataSource.prototype, 'refreshStakedBalance')
+        .mockResolvedValue(undefined);
+
+      await withController(async ({ controller }) => {
+        refreshSpy.mockClear();
+
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: ['eip155:1'],
+          forceUpdate: true,
+          dataTypes: ['price'],
+        });
+
+        expect(refreshSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not refresh the staked balance without forceUpdate', async () => {
+      const refreshSpy = jest
+        .spyOn(StakedBalanceDataSource.prototype, 'refreshStakedBalance')
+        .mockResolvedValue(undefined);
+
+      await withController(async ({ controller }) => {
+        refreshSpy.mockClear();
+
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: ['eip155:1'],
+        });
+
+        expect(refreshSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('still resolves forceUpdate when the staked balance refresh fails', async () => {
+      jest
+        .spyOn(StakedBalanceDataSource.prototype, 'refreshStakedBalance')
+        .mockRejectedValue(new Error('rpc down'));
+
+      await withController(async ({ controller }) => {
+        expect(
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          }),
+        ).toBeDefined();
       });
     });
 
