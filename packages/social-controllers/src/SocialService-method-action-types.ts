@@ -314,6 +314,57 @@ export type SocialServiceRefreshNotificationPreferencesCacheAction = {
 };
 
 /**
+ * Blocks a trader, swap comment, or reply for the current user.
+ *
+ * Calls `PUT ${baseUrl}/moderation/block`. Provide exactly one of
+ * `profileId`, `commentId`, or `replyId`. Blocking the same target again
+ * replaces `reason` when one is given. The caller is identified server-side
+ * from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag. Exactly one target, plus an optional reason.
+ * @param options.profileId - Profile id (UUID) of the trader to block.
+ * @param options.commentId - Swap comment to block.
+ * @param options.replyId - Comment reply to block.
+ * @param options.reason - Free-form reason stored on the block.
+ */
+export type SocialServiceBlockAction = {
+  type: `SocialService:block`;
+  handler: SocialService['block'];
+};
+
+/**
+ * Fetches traders the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked profiles page.
+ */
+export type SocialServiceFetchBlockedProfilesAction = {
+  type: `SocialService:fetchBlockedProfiles`;
+  handler: SocialService['fetchBlockedProfiles'];
+};
+
+/**
+ * Fetches comments and replies the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/content`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked content page.
+ */
+export type SocialServiceFetchBlockedContentAction = {
+  type: `SocialService:fetchBlockedContent`;
+  handler: SocialService['fetchBlockedContent'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -334,4 +385,7 @@ export type SocialServiceMethodActions =
   | SocialServiceUnfollowAction
   | SocialServiceOptOutOfLeaderboardAction
   | SocialServiceOptInToLeaderboardAction
-  | SocialServiceRefreshNotificationPreferencesCacheAction;
+  | SocialServiceRefreshNotificationPreferencesCacheAction
+  | SocialServiceBlockAction
+  | SocialServiceFetchBlockedProfilesAction
+  | SocialServiceFetchBlockedContentAction;

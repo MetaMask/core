@@ -602,6 +602,100 @@ export type UnfollowOptions = {
 };
 
 // ---------------------------------------------------------------------------
+// Moderation blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for `PUT /v1/moderation/block`. Provide exactly one target. Blocking
+ * the same target again replaces `reason` when one is given.
+ */
+export type BlockOptions =
+  | {
+      /** Profile id (UUID) of the trader to block. */
+      profileId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    }
+  | {
+      /** Swap comment (post) to block. */
+      commentId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    }
+  | {
+      /** Comment reply to block. */
+      replyId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    };
+
+/**
+ * Options for the cursor-paginated moderation list endpoints. Omit `cursor`
+ * for the first page.
+ */
+export type FetchBlockedListOptions = {
+  /** The `cursor` from the previous page. */
+  cursor?: string;
+};
+
+/**
+ * A trader the current user has blocked.
+ */
+export type BlockedProfile = {
+  /** When the block was placed, in Unix epoch seconds. */
+  blockedAt: number;
+  /** Reason given when the block was placed, if any. */
+  reason: string | null;
+  /** The blocked trader. */
+  profile: ProfileSummary;
+};
+
+/**
+ * Response from `GET /v1/moderation/blocks/profiles`.
+ */
+export type BlockedProfilesResponse = {
+  /** Blocked traders, most recently blocked first. */
+  items: BlockedProfile[];
+  /** Pass as `cursor` for the next page. `null` on the last page. */
+  cursor: string | null;
+};
+
+/**
+ * Whether a blocked content row is a swap comment or a reply.
+ */
+export type BlockedContentType = 'comment' | 'reply';
+
+/**
+ * A comment or reply the current user has blocked.
+ */
+export type BlockedContent = {
+  /** When the block was placed, in Unix epoch seconds. */
+  blockedAt: number;
+  /** Reason given when the block was placed, if any. */
+  reason: string | null;
+  /** Whether `id` refers to a swap comment or a reply. */
+  type: BlockedContentType;
+  /** Comment or reply id (UUID). */
+  id: string;
+  /** Text of the blocked comment or reply. */
+  text: string;
+  /** When the content was posted, in Unix epoch seconds. */
+  createdAt: number;
+  /** Author of the content. `null` when the profile cannot be resolved. */
+  author: ProfileSummary | null;
+};
+
+/**
+ * Response from `GET /v1/moderation/blocks/content`.
+ */
+export type BlockedContentResponse = {
+  /** Blocked comments and replies, most recently blocked first. */
+  items: BlockedContent[];
+  /** Pass as `cursor` for the next page. `null` on the last page. */
+  cursor: string | null;
+};
+
+// ---------------------------------------------------------------------------
 // Controller state
 // ---------------------------------------------------------------------------
 
