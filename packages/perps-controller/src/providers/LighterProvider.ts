@@ -59,9 +59,6 @@ import {
   LIGHTER_USDC_ASSET_INDEX,
   LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_MARGIN_METADATA_TTL_MS,
-  LIGHTER_DEFAULT_SLIPPAGE_BPS,
-  LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS,
-  LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
@@ -208,6 +205,15 @@ type LighterOrderBookState = {
 const NOOP_UNSUBSCRIBE = (): void => undefined;
 
 const LIGHTER_INACTIVE_HISTORY_ROW_LIMIT = 10_000;
+
+/** Default Lighter execution protection, in basis points (5%). */
+const LIGHTER_DEFAULT_SLIPPAGE_BPS = 500;
+
+/** Maximum durable position-protection ownership entries per account market. */
+const LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS = 256;
+
+/** Single-page history bound used when reclaiming expired protection ownership. */
+const LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE = 100;
 
 const deriveLighterMaxLeverage = (
   minInitialMarginFraction: number | undefined,
