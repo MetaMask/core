@@ -1,0 +1,259 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "handleAssetsUpdate \u2014 One Stack Composed Per Source",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "who-gets-what",
+        "label": "Which stages a source gets",
+        "focus": ["update", "graduate", "occurrence", "fallback", "detect"],
+        "note": "The stack is rebuilt for every update; only detection is in it unconditionally."
+      },
+      {
+        "id": "spam",
+        "label": "Spam is dropped before detection",
+        "focus": ["occurrence", "detect"],
+        "note": "A websocket airdrop is checked against Token API occurrences before anything persists it."
+      },
+      {
+        "id": "why-fallback",
+        "label": "Why only AccountsApi gets fallback",
+        "focus": ["graduate", "fallback", "detect"],
+        "note": "Other sources either already read RPC or cover chains the fallback cannot serve."
+      },
+      {
+        "id": "basic-off",
+        "label": "Basic functionality off",
+        "focus": ["detect", "enrich", "commit"],
+        "note": "Metadata and price are stripped from the request, so the parallel stage is never added."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "messagebus": {
+          "label": "Update handoff"
+        },
+        "backend": {
+          "label": "Middleware stage"
+        },
+        "database": {
+          "label": "State"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "push",
+      "label": "Websocket only",
+      "variant": "exception"
+    },
+    {
+      "id": "prefix",
+      "label": "AccountsApi and Activity"
+    },
+    {
+      "id": "common",
+      "label": "Every source"
+    }
+  ],
+  "phases": [
+    {
+      "id": "prefix",
+      "label": "Source-specific stages",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "tail",
+      "label": "Shared tail",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "write",
+      "label": "Commit",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": ["update", "graduate", "fallback", "detect", "enrich", "commit"],
+  "semanticChecks": {
+    "allowedRoots": ["update", "others"],
+    "allowedTerminals": ["commit"]
+  },
+  "nodes": [
+    {
+      "id": "update",
+      "lane": "prefix",
+      "col": 0,
+      "type": "messagebus",
+      "label": "Graduating sources",
+      "sublabel": "AccountsApi \u00b7 Activity",
+      "tag": "full prefix",
+      "width": 148
+    },
+    {
+      "id": "others",
+      "lane": "common",
+      "col": 0,
+      "type": "messagebus",
+      "label": "Other sources",
+      "sublabel": "Snap \u00b7 Rpc \u00b7 Price \u00b7 Staked",
+      "tag": "no prefix",
+      "width": 148
+    },
+    {
+      "id": "graduate",
+      "lane": "prefix",
+      "col": 1,
+      "type": "backend",
+      "label": "Graduation",
+      "sublabel": "retire custom assets",
+      "width": 150
+    },
+    {
+      "id": "occurrence",
+      "lane": "push",
+      "col": 2,
+      "type": "backend",
+      "label": "Occurrence Floor",
+      "sublabel": "drop below-floor tokens",
+      "width": 160
+    },
+    {
+      "id": "fallback",
+      "lane": "prefix",
+      "col": 2,
+      "type": "backend",
+      "label": "RPC Fallback",
+      "sublabel": "errored + stale-zero",
+      "width": 150
+    },
+    {
+      "id": "detect",
+      "lane": "common",
+      "col": 3,
+      "type": "backend",
+      "label": "Detection",
+      "sublabel": "assets with no metadata",
+      "tag": "always",
+      "width": 158
+    },
+    {
+      "id": "enrich",
+      "lane": "common",
+      "col": 4,
+      "type": "backend",
+      "label": "Token \u2225 Price",
+      "sublabel": "basic functionality on",
+      "width": 150
+    },
+    {
+      "id": "commit",
+      "lane": "common",
+      "col": 5,
+      "type": "database",
+      "label": "#updateState",
+      "sublabel": "merge \u00b7 normalize \u00b7 publish",
+      "width": 166
+    }
+  ],
+  "edges": [
+    {
+      "id": "prefix-in",
+      "from": "update",
+      "to": "graduate",
+      "label": "graduate first",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-occurrence",
+      "from": "graduate",
+      "to": "occurrence",
+      "label": "websocket push",
+      "role": "branch",
+      "variant": "dashed"
+    },
+    {
+      "id": "to-fallback",
+      "from": "graduate",
+      "to": "fallback",
+      "label": "http poll",
+      "variant": "emphasis"
+    },
+    {
+      "id": "occurrence-detect",
+      "from": "occurrence",
+      "to": "detect",
+      "variant": "dashed"
+    },
+    {
+      "id": "fallback-detect",
+      "from": "fallback",
+      "to": "detect",
+      "variant": "emphasis"
+    },
+    {
+      "id": "detect-enrich",
+      "from": "detect",
+      "to": "enrich",
+      "variant": "emphasis"
+    },
+    {
+      "id": "enrich-commit",
+      "from": "enrich",
+      "to": "commit",
+      "variant": "emphasis"
+    },
+    {
+      "id": "skip-enrich",
+      "from": "detect",
+      "to": "commit",
+      "label": "RPC-only mode",
+      "role": "branch",
+      "variant": "dashed",
+      "route": "bottom-channel"
+    },
+    {
+      "id": "others-detect",
+      "from": "others",
+      "to": "detect",
+      "label": "detection only",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Order is a correctness constraint",
+      "items": [
+        "Graduation must see only API and websocket balances, never RPC ones",
+        "The occurrence floor runs before detection so spam is never persisted",
+        "Detection is the only stage present for every source"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Basic functionality gates two stages",
+      "items": [
+        "With it off, metadata and price are removed from the request data types",
+        "The parallel Token and Price stage is then never appended to the stack",
+        "The occurrence filter also needs it, so websocket spam filtering stops too"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Only AccountsApi triggers fallback here",
+      "items": [
+        "Rpc already reads chains directly, so a fallback would be circular",
+        "Snap covers non-EVM chains the RPC fallback cannot serve",
+        "src/AssetsController.ts \u00b7 handleAssetsUpdate"
+      ]
+    }
+  ]
+}

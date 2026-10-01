@@ -1,0 +1,656 @@
+<svg viewBox="0 0 1330 716" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase" style="" width="1330" height="716" xmlns="http://www.w3.org/2000/svg"><style>@font-face { font-family: 'JetBrains Mono'; font-weight: 400; src: local('JetBrains Mono'), local('JetBrainsMono-Regular'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 500; src: local('JetBrains Mono'), local('JetBrainsMono-Regular'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 600; src: local('JetBrains Mono'), local('JetBrainsMono-Regular'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 700; src: local('JetBrains Mono'), local('JetBrainsMono-Regular'); }
+svg { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }
+:root, [data-theme="dark"] { --bg: #020617; --grid: #1e293b; --text: #ffffff; --text-muted: #94a3b8; --text-dim: #475569; --text-faint: #7d8da1; --panel: rgba(15, 23, 42, 0.5); --panel-border: #1e293b; --lane-fill: rgba(15, 23, 42, 0.22); --lane-stroke: #334155; --arrow: #64748b; --arrow-emphasis: #34d399; --mask: #0f172a; --frontend-fill: rgba(8, 51, 68, 0.4); --frontend-stroke: #22d3ee; --backend-fill: rgba(6, 78, 59, 0.4); --backend-stroke: #34d399; --database-fill: rgba(76, 29, 149, 0.4); --database-stroke: #a78bfa; --cloud-fill: rgba(120, 53, 15, 0.3); --cloud-stroke: #fbbf24; --security-fill: rgba(136, 19, 55, 0.4); --security-stroke: #fb7185; --messagebus-fill: rgba(251, 146, 60, 0.3); --messagebus-stroke: #fb923c; --external-fill: rgba(30, 41, 59, 0.5); --external-stroke: #94a3b8; --toolbar-bg: rgba(15, 23, 42, 0.8); --toolbar-border: #334155; --toolbar-text: #e2e8f0; --toolbar-hover: rgba(15, 23, 42, 0.95); --toolbar-menu-bg: #0f172a; }
+[data-theme="light"] { --bg: #f8fafc; --grid: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --text-dim: #94a3b8; --text-faint: #64748b; --panel: #ffffff; --panel-border: #e2e8f0; --lane-fill: rgba(248, 250, 252, 0.65); --lane-stroke: #cbd5e1; --arrow: #94a3b8; --arrow-emphasis: #059669; --mask: #ffffff; --frontend-fill: rgba(34, 211, 238, 0.15); --frontend-stroke: #0891b2; --backend-fill: rgba(52, 211, 153, 0.18); --backend-stroke: #059669; --database-fill: rgba(167, 139, 250, 0.2); --database-stroke: #7c3aed; --cloud-fill: rgba(251, 191, 36, 0.18); --cloud-stroke: #d97706; --security-fill: rgba(251, 113, 133, 0.15); --security-stroke: #e11d48; --messagebus-fill: rgba(251, 146, 60, 0.15); --messagebus-stroke: #ea580c; --external-fill: rgba(148, 163, 184, 0.18); --external-stroke: #64748b; --toolbar-bg: rgba(255, 255, 255, 0.92); --toolbar-border: #cbd5e1; --toolbar-text: #334155; --toolbar-hover: #ffffff; --toolbar-menu-bg: #ffffff; }
+[data-preset="signal-flow"][data-theme="dark"] { --bg: #030711; --grid: #15233a; --panel: rgba(6, 14, 28, 0.78); --panel-border: #1d3350; --lane-fill: rgba(9, 22, 40, 0.5); --lane-stroke: #2c4564; --text: #f5fbff; --text-muted: #9eb0c7; --text-dim: #52667f; --text-faint: #7890ad; --mask: #07101e; --frontend-fill: rgba(6, 182, 212, 0.14); --frontend-stroke: #67e8f9; --backend-fill: rgba(16, 185, 129, 0.14); --backend-stroke: #5eead4; --database-fill: rgba(139, 92, 246, 0.16); --database-stroke: #c4b5fd; --cloud-fill: rgba(245, 158, 11, 0.13); --cloud-stroke: #fcd34d; --security-fill: rgba(244, 63, 94, 0.13); --security-stroke: #fda4af; --messagebus-fill: rgba(249, 115, 22, 0.13); --messagebus-stroke: #fdba74; --external-fill: rgba(71, 85, 105, 0.24); --external-stroke: #a5b4c7; --arrow: #7890ad; --arrow-emphasis: #2dd4bf; --toolbar-bg: rgba(7, 16, 30, 0.86); --toolbar-border: #29415f; --toolbar-menu-bg: #07101e; }
+[data-preset="signal-flow"][data-theme="light"] { --bg: #f4f9fc; --grid: #d4e5ee; --panel: rgba(255, 255, 255, 0.82); --panel-border: #bfd5e2; --lane-fill: rgba(232, 243, 248, 0.62); --lane-stroke: #a9c5d5; --text: #102638; --text-muted: #587287; --text-dim: #8aa2b4; --text-faint: #668397; --mask: #ffffff; --frontend-fill: rgba(6, 182, 212, 0.09); --frontend-stroke: #0789a1; --backend-fill: rgba(5, 150, 105, 0.09); --backend-stroke: #087f69; --database-fill: rgba(124, 58, 237, 0.09); --database-stroke: #7254c7; --cloud-fill: rgba(217, 119, 6, 0.08); --cloud-stroke: #b9670b; --security-fill: rgba(225, 29, 72, 0.08); --security-stroke: #c53a59; --messagebus-fill: rgba(234, 88, 12, 0.08); --messagebus-stroke: #c65f27; --external-fill: rgba(100, 116, 139, 0.1); --external-stroke: #607a8c; --arrow: #7b97aa; --arrow-emphasis: #0d9488; }
+[data-preset="blueprint"][data-theme="dark"] { --bg: #06131f; --grid: #17425a; --panel: rgba(7, 27, 43, 0.9); --panel-border: #27627f; --lane-fill: rgba(10, 43, 66, 0.36); --lane-stroke: #34799a; --text: #e3f6ff; --text-muted: #91b8ca; --text-dim: #557e92; --text-faint: #739caf; --mask: #0a2031; --frontend-fill: rgba(26, 157, 193, 0.14); --frontend-stroke: #66d9ef; --backend-fill: rgba(31, 155, 124, 0.13); --backend-stroke: #69dfbd; --database-fill: rgba(120, 105, 196, 0.14); --database-stroke: #b4a8ff; --cloud-fill: rgba(197, 145, 43, 0.13); --cloud-stroke: #ffd166; --security-fill: rgba(199, 76, 104, 0.13); --security-stroke: #ff8da1; --messagebus-fill: rgba(207, 112, 49, 0.13); --messagebus-stroke: #ffad66; --external-fill: rgba(84, 119, 139, 0.18); --external-stroke: #a7cad9; --arrow: #78a3b7; --arrow-emphasis: #64dfc1; --toolbar-bg: rgba(7, 28, 45, 0.92); --toolbar-border: #34799a; --toolbar-text: #d8f3ff; --toolbar-hover: rgba(18, 58, 83, 0.95); --toolbar-menu-bg: #0a2031; }
+[data-preset="blueprint"][data-theme="light"] { --bg: #edf7fa; --grid: #b5d5e1; --panel: rgba(249, 253, 255, 0.94); --panel-border: #78aabd; --lane-fill: rgba(210, 232, 240, 0.42); --lane-stroke: #83b2c4; --text: #123344; --text-muted: #4e7486; --text-dim: #86a6b4; --text-faint: #668c9d; --mask: #f9fdff; --frontend-fill: rgba(8, 145, 178, 0.08); --frontend-stroke: #087f9c; --backend-fill: rgba(5, 128, 101, 0.08); --backend-stroke: #08755f; --database-fill: rgba(100, 75, 180, 0.08); --database-stroke: #6757a8; --cloud-fill: rgba(181, 120, 15, 0.08); --cloud-stroke: #a86609; --security-fill: rgba(190, 48, 80, 0.07); --security-stroke: #b32f50; --messagebus-fill: rgba(196, 81, 22, 0.07); --messagebus-stroke: #b65120; --external-fill: rgba(79, 112, 128, 0.08); --external-stroke: #506f7e; --arrow: #6d93a5; --arrow-emphasis: #087f69; --toolbar-bg: rgba(247, 252, 254, 0.94); --toolbar-border: #8ab5c5; --toolbar-text: #294f61; --toolbar-hover: #ffffff; --toolbar-menu-bg: #f9fdff; }
+[data-preset="editorial"][data-theme="dark"] { --bg: #181611; --grid: #39342a; --panel: rgba(35, 31, 24, 0.96); --panel-border: #625a4a; --lane-fill: rgba(52, 46, 35, 0.46); --lane-stroke: #726957; --text: #f4eddf; --text-muted: #b9ae9b; --text-dim: #776e60; --text-faint: #9d917e; --mask: #231f18; --frontend-fill: rgba(43, 133, 142, 0.16); --frontend-stroke: #7fc6c7; --backend-fill: rgba(63, 132, 92, 0.16); --backend-stroke: #8fc29e; --database-fill: rgba(117, 91, 141, 0.17); --database-stroke: #c0a4d0; --cloud-fill: rgba(170, 119, 49, 0.16); --cloud-stroke: #d8ad68; --security-fill: rgba(157, 69, 65, 0.17); --security-stroke: #df9085; --messagebus-fill: rgba(174, 79, 42, 0.16); --messagebus-stroke: #df946f; --external-fill: rgba(126, 115, 96, 0.18); --external-stroke: #b8ad99; --arrow: #948978; --arrow-emphasis: #dd6b3d; --toolbar-bg: rgba(35, 31, 24, 0.92); --toolbar-border: #625a4a; --toolbar-text: #eee5d5; --toolbar-hover: #302a20; --toolbar-menu-bg: #231f18; }
+[data-preset="editorial"][data-theme="light"] { --bg: #f2eee5; --grid: #d8d0c2; --panel: rgba(251, 248, 241, 0.97); --panel-border: #c4b9a6; --lane-fill: rgba(229, 221, 207, 0.42); --lane-stroke: #b8aa94; --text: #242018; --text-muted: #6f6658; --text-dim: #a09788; --text-faint: #817767; --mask: #fbf8f1; --frontend-fill: rgba(31, 117, 126, 0.09); --frontend-stroke: #287e84; --backend-fill: rgba(42, 119, 75, 0.09); --backend-stroke: #397b53; --database-fill: rgba(105, 75, 130, 0.09); --database-stroke: #765d86; --cloud-fill: rgba(157, 103, 31, 0.1); --cloud-stroke: #9a671f; --security-fill: rgba(153, 58, 52, 0.09); --security-stroke: #9e463f; --messagebus-fill: rgba(182, 70, 27, 0.09); --messagebus-stroke: #ad4b25; --external-fill: rgba(101, 91, 75, 0.09); --external-stroke: #746b5e; --arrow: #8a806f; --arrow-emphasis: #bb4c23; --toolbar-bg: rgba(251, 248, 241, 0.94); --toolbar-border: #c4b9a6; --toolbar-text: #40392f; --toolbar-hover: #fffdf8; --toolbar-menu-bg: #fbf8f1; }
+svg { width: 100%; min-width: min(900px, 100%); display: block; transform-origin: 0px 0px; transition: transform 0.18s; }
+@keyframes archify-lens-in { 
+  0% { opacity: 0; transform: translateY(5px) scale(0.985); }
+  100% { opacity: 1; transform: translateY(0px) scale(1); }
+}
+@keyframes archify-guide-in { 
+  0% { opacity: 0; transform: translateY(-5px) scale(0.985); }
+  100% { opacity: 1; transform: translateY(0px) scale(1); }
+}
+svg[data-chapter-handoff] [data-node-id][data-chapter-role="stay"] { opacity: 1; }
+svg[data-chapter-handoff] [data-node-id][data-chapter-role="enter"] { opacity: 0.78; }
+svg[data-chapter-handoff] [data-node-id][data-chapter-role="leave"] { opacity: 0.26; }
+@keyframes archify-chapter-anchor { 
+  0% { opacity: 0.35; stroke-dashoffset: 8; }
+  45% { opacity: 1; }
+  100% { opacity: 0.72; stroke-dashoffset: 0; }
+}
+@keyframes archify-story-caption-in { 
+  0% { opacity: 0; transform: translateY(3px); }
+  100% { opacity: 1; transform: translateY(0px); }
+}
+[data-theme="light"] #theme-icon { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Ccircle cx='10' cy='10' r='3.1'/%3E%3Cpath d='M10 2.2v1.4M10 16.4v1.4M2.2 10h1.4M16.4 10h1.4M4.5 4.5l1 1M14.5 14.5l1 1M15.5 4.5l-1 1M5.5 14.5l-1 1'/%3E%3C/g%3E%3C/svg%3E"); }
+[data-theme="dark"] #theme-icon { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M15.2 12.7A6.3 6.3 0 017.3 4.8a6.3 6.3 0 107.9 7.9Z' fill='none' stroke='black' stroke-width='1.7' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+.c-grid { stroke: var(--grid); fill: none; }
+.c-mask { fill: var(--mask); stroke: none; }
+.c-frontend { fill: var(--frontend-fill); stroke: var(--frontend-stroke); }
+.c-backend { fill: var(--backend-fill); stroke: var(--backend-stroke); }
+.c-database { fill: var(--database-fill); stroke: var(--database-stroke); }
+.c-cloud { fill: var(--cloud-fill); stroke: var(--cloud-stroke); }
+.c-security { fill: var(--security-fill); stroke: var(--security-stroke); }
+.c-messagebus { fill: var(--messagebus-fill); stroke: var(--messagebus-stroke); }
+.c-external { fill: var(--external-fill); stroke: var(--external-stroke); }
+.t-primary { fill: var(--text); }
+.t-muted { fill: var(--text-muted); }
+.t-dim { fill: var(--text-dim); }
+.t-frontend { fill: var(--frontend-stroke); }
+.t-backend { fill: var(--backend-stroke); }
+.t-database { fill: var(--database-stroke); }
+.t-cloud { fill: var(--cloud-stroke); }
+.t-security { fill: var(--security-stroke); }
+.t-messagebus { fill: var(--messagebus-stroke); }
+.t-external { fill: var(--external-stroke); }
+svg .semantic-sigil { fill: none; stroke: currentcolor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; opacity: 0.76; pointer-events: none; }
+svg .semantic-sigil &gt; * { vector-effect: non-scaling-stroke; }
+svg .semantic-sigil .sigil-fill { fill: currentcolor; stroke: none; }
+svg .s-frontend { color: var(--frontend-stroke); }
+svg .s-backend { color: var(--backend-stroke); }
+svg .s-database { color: var(--database-stroke); }
+svg .s-cloud { color: var(--cloud-stroke); }
+svg .s-security { color: var(--security-stroke); }
+svg .s-messagebus { color: var(--messagebus-stroke); }
+svg .s-external { color: var(--external-stroke); }
+svg .brand-mark { pointer-events: none; }
+svg .brand-mark-badge { fill: rgb(255, 255, 255); stroke: none; }
+svg .brand-mark-frame { fill: none; stroke: rgb(203, 213, 225); stroke-width: 0.8; vector-effect: non-scaling-stroke; }
+svg .brand-mark-fallback { fill: none; stroke: rgb(71, 85, 105); stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
+svg[data-preset="blueprint"] .brand-mark-badge, svg[data-preset="blueprint"] .brand-mark-frame { rx: 1px; }
+svg [data-detail] { transition: opacity 160ms; }
+svg [data-detail-anchor] { transform-box: fill-box; transform-origin: center center; transition: transform 160ms; }
+svg[data-focus-active] [data-focus-match][data-detail], svg[data-focus-active] [data-focus-match] [data-detail], svg[data-reach-active] [data-reach-match][data-detail], svg[data-reach-active] [data-reach-match] [data-detail], svg[data-lens-active] [data-lens-match][data-detail], svg[data-lens-active] [data-lens-match] [data-detail], svg[data-legend-preview-active] [data-legend-preview-match][data-detail], svg[data-legend-preview-active] [data-legend-preview-match] [data-detail], svg[data-intent-trace-active] [data-intent-trace-match][data-detail], svg[data-intent-trace-active] [data-intent-trace-match] [data-detail], svg[data-route-active] [data-route-match][data-detail], svg[data-route-active] [data-route-match] [data-detail], svg[data-story-active] [data-story-step][data-detail], svg[data-story-active] [data-story-step] [data-detail], svg[data-relationship-preview-active] [data-relationship-preview][data-detail], svg[data-relationship-preview-active] [data-relationship-preview] [data-detail], svg [data-node-id]:hover [data-detail], svg [data-node-id]:focus-visible [data-detail] { opacity: 1; pointer-events: auto; }
+svg[data-focus-active] [data-focus-match] [data-detail-anchor], svg[data-reach-active] [data-reach-match] [data-detail-anchor], svg[data-lens-active] [data-lens-match] [data-detail-anchor], svg[data-legend-preview-active] [data-legend-preview-match] [data-detail-anchor], svg[data-intent-trace-active] [data-intent-trace-match] [data-detail-anchor], svg[data-route-active] [data-route-match] [data-detail-anchor], svg[data-story-active] [data-story-step] [data-detail-anchor], svg [data-node-id]:hover [data-detail-anchor], svg [data-node-id]:focus-visible [data-detail-anchor] { transform: none; }
+.a-default { stroke: var(--arrow); fill: none; }
+.a-emphasis { stroke: var(--arrow-emphasis); fill: none; }
+.a-security { stroke: var(--security-stroke); fill: none; stroke-dasharray: 5, 5; }
+.a-dashed { stroke: var(--database-stroke); fill: none; stroke-dasharray: 4, 4; }
+.m-default { fill: var(--arrow); }
+.m-emphasis { fill: var(--arrow-emphasis); }
+.m-security { fill: var(--security-stroke); }
+.m-dashed { fill: var(--database-stroke); }
+svg [data-node-id] { cursor: pointer; transition: opacity 0.18s, filter 0.18s; }
+svg [data-edge-from] { transition: opacity 0.18s, filter 0.18s; }
+svg [data-node-id]:hover, svg [data-node-id]:focus-visible { filter: drop-shadow(0 0 7px var(--frontend-stroke)); outline: none; }
+svg [data-node-id]:hover .source-evidence-beacon, svg [data-node-id]:focus-visible .source-evidence-beacon, svg [data-node-id][data-focus-selected] .source-evidence-beacon { opacity: 1; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--backend-stroke) 72%, transparent)); }
+svg[data-preset="signal-flow"] .source-evidence-beacon { opacity: 0.9; }
+svg[data-preset="blueprint"] .source-evidence-beacon rect { rx: 0.8px; filter: none; }
+svg [data-legend-kind][role="button"] { cursor: pointer; }
+svg [data-legend-kind]:focus { outline: none; }
+svg [data-legend-hit] { fill: transparent; stroke: transparent; stroke-width: 1.4; pointer-events: all; vector-effect: non-scaling-stroke; transition: stroke 150ms, stroke-width 150ms, filter 150ms; }
+svg [data-legend-count-badge] { pointer-events: none; }
+svg [data-legend-count-badge] rect { fill: var(--mask); stroke: var(--panel-border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+svg [data-legend-count-badge] text { fill: var(--text-muted); font-size: 8px; font-weight: 700; text-anchor: middle; }
+svg [data-legend-kind][role="button"]:hover [data-legend-hit] { stroke: color-mix(in srgb, var(--database-stroke) 58%, transparent); }
+svg [data-legend-kind][role="button"]:focus-visible [data-legend-hit] { stroke: var(--frontend-stroke); stroke-width: 1.8; filter: drop-shadow(0 0 3px var(--frontend-stroke)); }
+svg [data-legend-kind][data-legend-selected] [data-legend-hit] { stroke: var(--database-stroke); stroke-width: 2.2; stroke-dasharray: 3, 2; }
+svg [data-legend-kind][data-legend-selected] [data-legend-count-badge] rect { stroke: var(--database-stroke); stroke-width: 1.8; }
+svg [data-legend-kind][data-legend-zero] { opacity: 0.44; }
+svg[data-preset="signal-flow"] [data-legend-kind][data-legend-selected] [data-legend-hit] { filter: drop-shadow(0 0 4px var(--database-stroke)); }
+svg[data-preset="blueprint"] [data-legend-hit], svg[data-preset="blueprint"] [data-legend-count-badge] rect { rx: 0; filter: none; }
+svg[data-legend-preview-active] [data-node-id], svg[data-legend-preview-active] [data-edge-from] { opacity: 0.11; }
+svg[data-legend-preview-active] [data-legend-preview-match] { opacity: 1; }
+svg[data-legend-preview-active] [data-legend-preview-peer] { opacity: 0.62; }
+svg[data-legend-preview-active] [data-legend-preview-selected] { filter: drop-shadow(0 0 8px var(--database-stroke)); }
+svg[data-lens-active] [data-node-id], svg[data-lens-active] [data-edge-from] { opacity: 0.11; }
+svg[data-lens-active] [data-lens-match] { opacity: 1; }
+svg[data-lens-active] [data-lens-peer] { opacity: 0.62; }
+svg[data-lens-active] [data-lens-selected] { filter: drop-shadow(0 0 10px var(--database-stroke)); }
+svg[data-preset="signal-flow"] .semantic-lens-flow { stroke-width: 3.7; opacity: 1; }
+svg[data-preset="signal-flow"] .semantic-lens-flow[data-direction="out"], svg[data-preset="signal-flow"] .semantic-lens-flow[data-direction="forward"] { filter: drop-shadow(0 0 6px var(--frontend-stroke)); }
+svg[data-preset="signal-flow"] .semantic-lens-flow[data-direction="in"], svg[data-preset="signal-flow"] .semantic-lens-flow[data-direction="reverse"] { filter: drop-shadow(0 0 6px var(--database-stroke)); }
+svg[data-preset="signal-flow"] .semantic-lens-flow[data-direction="within"] { filter: drop-shadow(0 0 6px var(--messagebus-stroke)); }
+svg[data-preset="blueprint"] .semantic-lens-flow { stroke-width: 2.45; stroke-linecap: square; filter: none; opacity: 0.78; }
+svg[data-focus-active] [data-node-id], svg[data-focus-active] [data-edge-from] { opacity: 0.13; }
+svg[data-focus-active] [data-focus-match] { opacity: 1; }
+svg[data-focus-active] [data-focus-selected] { filter: drop-shadow(0 0 10px var(--frontend-stroke)); }
+svg[data-reach-active] [data-node-id], svg[data-reach-active] [data-edge-from] { opacity: 0.09; }
+svg[data-reach-active] [data-reach-match] { opacity: 1; }
+svg[data-reach-active="upstream"] [data-reach-origin] { filter: drop-shadow(0 0 11px var(--database-stroke)); }
+svg[data-reach-active="downstream"] [data-reach-origin] { filter: drop-shadow(0 0 11px var(--backend-stroke)); }
+svg[data-reach-active="upstream"] [data-edge-from][data-reach-match] { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--database-stroke) 72%, transparent)); }
+svg[data-reach-active="downstream"] [data-edge-from][data-reach-match] { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--backend-stroke) 72%, transparent)); }
+svg[data-preset="blueprint"][data-reach-active] [data-reach-origin], svg[data-preset="blueprint"][data-reach-active] [data-edge-from][data-reach-match] { filter: none; }
+svg[data-preset="blueprint"] .relationship-hit-target:focus-visible .relationship-focus-rail { stroke-linecap: square; filter: none; }
+svg[data-relationship-direct-active] [data-node-id], svg[data-relationship-direct-active] [data-edge-from] { opacity: 0.16; }
+svg[data-relationship-direct-active] [data-relationship-preview], svg[data-relationship-direct-active] [data-relationship-preview-node] { opacity: 1; }
+svg[data-focus-active]:not([data-relationship-pin-active]) .relationship-hit-rail, svg[data-story-active] .relationship-hit-rail, svg[data-route-picking] .relationship-hit-rail, svg[data-route-active] .relationship-hit-rail, svg[data-lens-active] .relationship-hit-rail, svg[data-chapter-preview] .relationship-hit-rail { pointer-events: none; }
+svg[data-relationship-preview-active] [data-focus-match] { opacity: 0.18; }
+svg[data-relationship-preview-active] [data-relationship-preview], svg[data-relationship-preview-active] [data-relationship-preview-node] { opacity: 1; }
+svg[data-relationship-preview-active] [data-relationship-preview] { filter: drop-shadow(0 0 5px var(--arrow-emphasis)); }
+svg[data-relationship-preview-active] [data-relationship-preview] path, svg[data-relationship-preview-active] path[data-relationship-preview], svg[data-relationship-preview-active] [data-relationship-preview] line, svg[data-relationship-preview-active] line[data-relationship-preview], svg[data-relationship-preview-active] [data-relationship-preview] polyline, svg[data-relationship-preview-active] polyline[data-relationship-preview] { stroke-width: 2.75; }
+svg[data-relationship-preview-active] [data-relationship-preview-source] { filter: drop-shadow(0 0 7px var(--frontend-stroke)); }
+svg[data-relationship-preview-active] [data-relationship-preview-target] { filter: drop-shadow(0 0 7px var(--database-stroke)); }
+svg[data-preset="signal-flow"] .relationship-flow-pulse { stroke: var(--frontend-stroke); stroke-width: 3.85; filter: drop-shadow(0 0 7px var(--frontend-stroke)); }
+svg[data-preset="blueprint"] .relationship-flow-pulse { stroke-width: 2.5; stroke-linecap: square; filter: none; }
+svg[data-preset="editorial"] .relationship-flow-pulse { stroke: var(--arrow-emphasis); stroke-width: 2.75; filter: none; }
+svg[data-preset="signal-flow"] .semantic-flow-token { filter: drop-shadow(currentcolor 0px 0px 5px); }
+svg[data-preset="blueprint"] .semantic-flow-token { filter: none; }
+svg[data-preset="editorial"] .semantic-flow-token { filter: none; }
+svg[data-intent-trace-active] [data-node-id], svg[data-intent-trace-active] [data-edge-from] { opacity: 0.2; }
+svg[data-intent-trace-active] [data-intent-trace-match] { opacity: 1; }
+svg[data-intent-trace-active] [data-intent-trace-selected] { filter: drop-shadow(0 0 10px var(--frontend-stroke)); }
+svg[data-preset="blueprint"] [data-intent-trace-selected], svg[data-preset="blueprint"] .intent-trace-flow { filter: none; stroke-linecap: square; }
+svg[data-preset="editorial"] [data-intent-trace-selected], svg[data-preset="editorial"] .intent-trace-flow { filter: none; }
+svg[data-route-picking="target"] [data-node-id] { opacity: 0.24; }
+svg[data-route-picking="target"] [data-route-candidate], svg[data-route-picking="target"] [data-route-start] { opacity: 1; }
+svg[data-route-picking] [data-node-id] { cursor: crosshair; }
+svg[data-route-picking] [data-route-start] { filter: drop-shadow(0 0 10px var(--frontend-stroke)); }
+svg[data-route-active] [data-node-id], svg[data-route-active] [data-edge-from] { opacity: 0.11; }
+svg[data-route-active] [data-route-match] { opacity: 1; }
+svg[data-route-active] [data-route-start] { filter: drop-shadow(0 0 11px var(--frontend-stroke)); }
+svg[data-route-active] [data-route-end] { filter: drop-shadow(0 0 11px var(--security-stroke)); }
+svg[data-route-active] [data-route-step]:not([data-route-start]):not([data-route-end]) { filter: drop-shadow(0 0 7px var(--backend-stroke)); }
+svg[data-route-journey] [data-route-match][data-route-journey-state="past"] { opacity: 0.62; }
+svg[data-route-journey] [data-route-match][data-route-journey-state="future"] { opacity: 0.34; }
+svg[data-route-journey] [data-route-match][data-route-journey-state="current"] { opacity: 1; }
+svg[data-route-journey] [data-node-id][data-route-journey-current] { filter: drop-shadow(0 0 10px var(--backend-stroke)); }
+svg[data-route-journey] [data-edge-from][data-route-journey-current] { opacity: 1; filter: drop-shadow(0 0 6px var(--backend-stroke)); }
+svg[data-preset="blueprint"] [data-route-start], svg[data-preset="blueprint"] [data-route-end], svg[data-preset="blueprint"] [data-route-step], svg[data-preset="blueprint"] .route-probe-flow { filter: none; stroke-linecap: square; }
+svg[data-preset="blueprint"] .route-journey-flow { filter: none; stroke-linecap: square; }
+svg[data-preset="editorial"] [data-route-start], svg[data-preset="editorial"] [data-route-end], svg[data-preset="editorial"] [data-route-step], svg[data-preset="editorial"] .route-probe-flow, svg[data-preset="editorial"] .route-journey-flow { filter: none; }
+svg[data-preset="editorial"] .c-grid { stroke-dasharray: 1, 4; opacity: 0.48; }
+svg[data-preset="editorial"] .c-region { fill: color-mix(in srgb, var(--cloud-fill) 48%, transparent); stroke-dasharray: 9, 4; }
+svg[data-preset="editorial"] [data-node-id]:hover, svg[data-preset="editorial"] [data-node-id]:focus-visible, svg[data-preset="editorial"][data-focus-active] [data-focus-selected] { filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--text) 18%, transparent)); }
+svg[data-preset="blueprint"] .c-grid { stroke-dasharray: 1, 3; opacity: 0.78; }
+svg[data-preset="blueprint"] .c-region { fill: color-mix(in srgb, var(--cloud-fill) 58%, transparent); stroke-dasharray: 12, 4, 2, 4; }
+svg[data-preset="blueprint"] .c-security-group, svg[data-preset="blueprint"] .c-lane { stroke-dasharray: 7, 3; }
+svg[data-preset="blueprint"] [data-node-id]:hover, svg[data-preset="blueprint"] [data-node-id]:focus-visible { filter: drop-shadow(0 0 3px var(--frontend-stroke)); }
+svg[data-preset="blueprint"][data-focus-active] [data-focus-selected] { filter: drop-shadow(0 0 3px var(--frontend-stroke)); }
+svg[data-preset="blueprint"][data-focus-active][data-reach-active] [data-focus-selected][data-reach-origin] { filter: none; }
+svg[data-preset="blueprint"][data-relationship-preview-active] [data-relationship-preview], svg[data-preset="blueprint"][data-relationship-preview-active] [data-relationship-preview-source], svg[data-preset="blueprint"][data-relationship-preview-active] [data-relationship-preview-target] { filter: drop-shadow(0 0 3px var(--frontend-stroke)); }
+svg[data-story-beat] [data-story-step] { opacity: 0.22; filter: saturate(0.42); transition: opacity 180ms, filter 180ms; }
+svg[data-story-beat] [data-story-step][data-story-beat-state="past"] { opacity: 0.72; filter: saturate(0.82); }
+svg[data-story-beat] [data-story-step][data-story-beat-state="next"] { opacity: 0.5; filter: saturate(0.66); }
+svg[data-story-beat] [data-story-step][data-story-beat-state="active"] { opacity: 1; filter: drop-shadow(0 0 7px var(--frontend-stroke)); animation: 360ms cubic-bezier(0.22, 1, 0.36, 1) 0s 1 normal both running archify-story-beat-node; }
+svg[data-story-beat] [data-edge-from][data-story-beat-step] { opacity: 0.16; transition: opacity 160ms; }
+svg[data-story-beat] [data-edge-from][data-story-beat-step][data-story-beat-state="past"] { opacity: 0.58; }
+svg[data-story-beat] [data-edge-from][data-story-beat-step][data-story-beat-state="next"] { opacity: 0.34; }
+svg[data-story-beat] [data-edge-from][data-story-beat-step][data-story-beat-state="active"] { opacity: 1; }
+svg[data-story-beat] .story-trail-flow { opacity: 0; transition: opacity 160ms; }
+svg[data-story-beat] .story-trail-flow[data-story-beat-state="past"] { opacity: 0.34; }
+svg[data-story-beat] .story-trail-flow[data-story-beat-state="next"] { opacity: 0.2; }
+svg[data-story-beat] .story-trail-flow[data-story-beat-state="active"] { opacity: 0.92; }
+svg[data-story-beat] .story-trail-flow[data-story-pulse="true"] { stroke-dasharray: 2, 13; stroke-dashoffset: 30; opacity: 0.92; animation: 0.78s linear 0s 1 normal both running archify-story-flow; }
+svg[data-preset="blueprint"] .story-trail-flow { stroke-linecap: square; filter: none; opacity: 0.5; }
+svg[data-preset="blueprint"][data-story-beat] [data-story-step][data-story-beat-state="active"] { filter: none; animation: auto ease 0s 1 normal none running none; }
+svg[data-preset="editorial"] .story-trail-flow { filter: none; }
+svg[data-preset="editorial"][data-story-beat] [data-story-step][data-story-beat-state="active"] { filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--text) 16%, transparent)); }
+svg[data-chapter-preview] [data-node-id], svg[data-chapter-preview] [data-edge-from] { opacity: 0.1 !important; filter: none !important; transition: none !important; }
+svg[data-chapter-preview] .story-trail-overlay { opacity: 0.08 !important; }
+svg[data-chapter-preview] [data-node-id][data-chapter-preview-role="stay"] { opacity: 0.76 !important; filter: saturate(0.7) !important; }
+svg[data-chapter-preview] [data-node-id][data-chapter-preview-role="enter"] { opacity: 1 !important; filter: saturate(1.2) !important; }
+svg[data-chapter-preview] [data-node-id][data-chapter-preview-role="leave"] { opacity: 0.28 !important; filter: grayscale(0.72) !important; }
+svg[data-preset="blueprint"][data-chapter-preview] [data-node-id] { filter: none !important; }
+.c-security-group { fill: transparent; stroke: var(--security-stroke); stroke-dasharray: 4, 4; }
+.c-region { fill: rgba(251, 191, 36, 0.05); stroke: var(--cloud-stroke); stroke-dasharray: 8, 4; }
+.c-lane { fill: var(--lane-fill); stroke: var(--lane-stroke); stroke-dasharray: 6, 6; }
+svg[data-preset="signal-flow"][data-animation="trace"] [data-animate="edge"] { stroke-linecap: round; filter: drop-shadow(0 0 3px var(--arrow-emphasis)); animation-duration: 1.75s; }
+svg[data-preset="signal-flow"][data-animation="trace"] [data-animate="node"] { animation-duration: 3.1s; }
+svg[data-preset="blueprint"][data-animation="trace"] [data-animate="edge"] { stroke-linecap: square; filter: none; animation-duration: 2.15s; }
+svg[data-preset="blueprint"][data-animation="trace"] [data-animate="node"] { animation-name: archify-blueprint-node-pulse; animation-duration: 3.8s; }
+svg[data-preset="editorial"][data-animation="trace"] [data-animate="edge"] { filter: none; animation-duration: 2.2s; }
+svg[data-preset="editorial"][data-animation="trace"] [data-animate="node"] { animation-name: archify-editorial-node-pulse; animation-duration: 3.5s; }
+@keyframes archify-edge-flow { 
+  0% { stroke-dasharray: 10, 8; stroke-dashoffset: 54; opacity: 0.42; }
+  88% { stroke-dasharray: 10, 8; stroke-dashoffset: 0; opacity: 1; }
+  99.9% { stroke-dasharray: 10, 8; stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+@keyframes archify-node-pulse { 
+  0%, 72%, 100% { filter: none; stroke-width: 1.5; }
+  18%, 36% { filter: drop-shadow(0 0 8px var(--arrow-emphasis)); stroke-width: 2.4; }
+}
+@keyframes archify-blueprint-node-pulse { 
+  0%, 72%, 100% { opacity: 1; filter: none; }
+  18%, 36% { opacity: 0.72; filter: drop-shadow(0 0 2px var(--frontend-stroke)); }
+}
+@keyframes archify-editorial-node-pulse { 
+  0%, 72%, 100% { opacity: 1; filter: none; }
+  18%, 36% { opacity: 0.78; filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--text) 18%, transparent)); }
+}
+@keyframes archify-signal-scan { 
+  0%, 18% { opacity: 1; transform: translateX(-70%); }
+  70% { opacity: 1; transform: translateX(70%); }
+  100% { opacity: 0; transform: translateX(70%); }
+}
+@keyframes archify-radar-live { 
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--backend-stroke) 52%, transparent); }
+  55%, 100% { box-shadow: transparent 0px 0px 0px 0.32rem; }
+}
+@keyframes archify-guided-progress { 
+  0% { transform: scaleX(var(--guided-progress-start, 0)); }
+  100% { transform: scaleX(1); }
+}
+@keyframes archify-story-flow { 
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes archify-intent-trace-flow { 
+  0% { opacity: 0.28; stroke-dashoffset: 0; }
+  12%, 78% { opacity: 0.94; }
+  100% { opacity: 0; stroke-dashoffset: -1; }
+}
+@keyframes archify-route-probe-flow { 
+  0% { stroke-dashoffset: 0; opacity: 0.96; }
+  78% { stroke-dashoffset: -1; opacity: 0.96; }
+  100% { stroke-dasharray: none; stroke-dashoffset: 0; opacity: 0.58; }
+}
+@keyframes archify-route-journey-flow { 
+  0% { opacity: 0.16; stroke-dashoffset: 0; }
+  14%, 76% { opacity: 1; }
+  100% { opacity: 0; stroke-dashoffset: -1; }
+}
+@keyframes archify-semantic-lens-flow { 
+  0% { opacity: 0.2; stroke-dashoffset: 0; }
+  12%, 78% { opacity: 0.9; }
+  100% { opacity: 0; stroke-dashoffset: -1; }
+}
+@keyframes archify-relationship-pulse { 
+  0% { opacity: 0.18; stroke-dashoffset: 0; }
+  10%, 76% { opacity: 0.98; }
+  100% { opacity: 0; stroke-dashoffset: -1; }
+}
+@keyframes archify-relationship-token-life { 
+  0%, 7% { opacity: 0; }
+  13%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes archify-story-beat-node { 
+  0% { opacity: 0.48; filter: saturate(0.6); }
+  58% { opacity: 1; filter: drop-shadow(0 0 10px var(--frontend-stroke)); }
+  100% { opacity: 1; filter: drop-shadow(0 0 7px var(--frontend-stroke)); }
+}
+@keyframes archify-share-cue-enter { 
+  0% { opacity: 0; transform: translate(-50%, -0.45rem); }
+  100% { opacity: 1; transform: translate(-50%, 0px); }
+}
+@keyframes archify-share-cue-pulse { 
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.48; transform: scale(0.78); }
+}
+:root, svg { --bg: #020617; --grid: #1e293b; --text: #ffffff; --text-muted: #94a3b8; --text-dim: #475569; --text-faint: #7d8da1; --panel: rgba(15, 23, 42, 0.5); --panel-border: #1e293b; --lane-fill: rgba(15, 23, 42, 0.22); --lane-stroke: #334155; --arrow: #64748b; --arrow-emphasis: #34d399; --mask: #0f172a; --frontend-fill: rgba(8, 51, 68, 0.4); --frontend-stroke: #22d3ee; --backend-fill: rgba(6, 78, 59, 0.4); --backend-stroke: #34d399; --database-fill: rgba(76, 29, 149, 0.4); --database-stroke: #a78bfa; --cloud-fill: rgba(120, 53, 15, 0.3); --cloud-stroke: #fbbf24; --security-fill: rgba(136, 19, 55, 0.4); --security-stroke: #fb7185; --messagebus-fill: rgba(251, 146, 60, 0.3); --messagebus-stroke: #fb923c; --external-fill: rgba(30, 41, 59, 0.5); --external-stroke: #94a3b8; --toolbar-bg: rgba(15, 23, 42, 0.8); --toolbar-border: #334155; --toolbar-text: #e2e8f0; --toolbar-hover: rgba(15, 23, 42, 0.95); --toolbar-menu-bg: #0f172a; }
+@media (prefers-color-scheme: light) { :root, svg { --bg: #f8fafc; --grid: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --text-dim: #94a3b8; --text-faint: #64748b; --panel: #ffffff; --panel-border: #e2e8f0; --lane-fill: rgba(248, 250, 252, 0.65); --lane-stroke: #cbd5e1; --arrow: #94a3b8; --arrow-emphasis: #059669; --mask: #ffffff; --frontend-fill: rgba(34, 211, 238, 0.15); --frontend-stroke: #0891b2; --backend-fill: rgba(52, 211, 153, 0.18); --backend-stroke: #059669; --database-fill: rgba(167, 139, 250, 0.2); --database-stroke: #7c3aed; --cloud-fill: rgba(251, 191, 36, 0.18); --cloud-stroke: #d97706; --security-fill: rgba(251, 113, 133, 0.15); --security-stroke: #e11d48; --messagebus-fill: rgba(251, 146, 60, 0.15); --messagebus-stroke: #ea580c; --external-fill: rgba(148, 163, 184, 0.18); --external-stroke: #64748b; --toolbar-bg: rgba(255, 255, 255, 0.92); --toolbar-border: #cbd5e1; --toolbar-text: #334155; --toolbar-hover: #ffffff; --toolbar-menu-bg: #ffffff; } }
+svg[data-theme="light"] { --bg: #f8fafc; --grid: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --text-dim: #94a3b8; --text-faint: #64748b; --panel: #ffffff; --panel-border: #e2e8f0; --lane-fill: rgba(248, 250, 252, 0.65); --lane-stroke: #cbd5e1; --arrow: #94a3b8; --arrow-emphasis: #059669; --mask: #ffffff; --frontend-fill: rgba(34, 211, 238, 0.15); --frontend-stroke: #0891b2; --backend-fill: rgba(52, 211, 153, 0.18); --backend-stroke: #059669; --database-fill: rgba(167, 139, 250, 0.2); --database-stroke: #7c3aed; --cloud-fill: rgba(251, 191, 36, 0.18); --cloud-stroke: #d97706; --security-fill: rgba(251, 113, 133, 0.15); --security-stroke: #e11d48; --messagebus-fill: rgba(251, 146, 60, 0.15); --messagebus-stroke: #ea580c; --external-fill: rgba(148, 163, 184, 0.18); --external-stroke: #64748b; --toolbar-bg: rgba(255, 255, 255, 0.92); --toolbar-border: #cbd5e1; --toolbar-text: #334155; --toolbar-hover: #ffffff; --toolbar-menu-bg: #ffffff; }
+svg[data-theme="dark"] { --bg: #020617; --grid: #1e293b; --text: #ffffff; --text-muted: #94a3b8; --text-dim: #475569; --text-faint: #7d8da1; --panel: rgba(15, 23, 42, 0.5); --panel-border: #1e293b; --lane-fill: rgba(15, 23, 42, 0.22); --lane-stroke: #334155; --arrow: #64748b; --arrow-emphasis: #34d399; --mask: #0f172a; --frontend-fill: rgba(8, 51, 68, 0.4); --frontend-stroke: #22d3ee; --backend-fill: rgba(6, 78, 59, 0.4); --backend-stroke: #34d399; --database-fill: rgba(76, 29, 149, 0.4); --database-stroke: #a78bfa; --cloud-fill: rgba(120, 53, 15, 0.3); --cloud-stroke: #fbbf24; --security-fill: rgba(136, 19, 55, 0.4); --security-stroke: #fb7185; --messagebus-fill: rgba(251, 146, 60, 0.3); --messagebus-stroke: #fb923c; --external-fill: rgba(30, 41, 59, 0.5); --external-stroke: #94a3b8; --toolbar-bg: rgba(15, 23, 42, 0.8); --toolbar-border: #334155; --toolbar-text: #e2e8f0; --toolbar-hover: rgba(15, 23, 42, 0.95); --toolbar-menu-bg: #0f172a; }
+rect.c-bg-rect { fill: var(--bg); }
+</style><rect width="100%" height="100%" class="c-bg-rect"/>
+        <title id="archify-diagram-title">@metamask/assets-controller — Component Map</title>
+        <desc id="archify-diagram-description">An architecture diagram generated by Archify.</desc>
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default"/>
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis"/>
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security"/>
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed"/>
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+
+        <!-- Boundaries (behind everything) -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="controller core" x="212" y="144" width="1078" height="248" rx="12" class="c-region" stroke-width="1"/>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="1" data-composition-frame-label="balance sources · first-pick chain assignment" x="46" y="446" width="694" height="112" rx="8" class="c-security-group" stroke-width="1"/>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="2" data-composition-frame-label="enrichment · one parallel stage" x="934" y="446" width="350" height="112" rx="8" class="c-security-group" stroke-width="1"/>
+
+        <!-- Connection paths (before components for correct z-order) -->
+        <path data-edge-from="consumers" data-edge-to="messenger" data-edge-label="getAssets" data-edge-key="0" data-composition-points="595,70;661,70" d="M 595 70 L 661 70" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="messenger" data-edge-to="controller" data-edge-label="action handlers" data-edge-key="1" data-composition-points="751,100;751,168" d="M 751 100 L 751 168" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="controller" data-edge-to="state" data-edge-label="merge + normalize" data-edge-key="2" data-composition-points="841,200;961,200" d="M 841 200 L 961 200" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="state" data-edge-to="events" data-edge-label="on commit" data-edge-key="3" data-composition-points="1071,168;1071,100" d="M 1071 168 L 1071 100" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="controller" data-edge-to="pipeline" data-edge-label="#executeMiddlewares" data-edge-key="4" data-composition-points="751,232;751,300" d="M 751 232 L 751 300" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="activity" data-edge-to="controller" data-edge-label="onAssetsUpdate push" data-edge-key="5" data-composition-points="135,470;135,200;661,200" d="M 135 470 L 135 208 Q 135 200 143 200 L 661 200" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="pipeline" data-edge-to="accounts_api" data-edge-label="balance · pLimit 3" data-edge-key="6" data-composition-points="716,372;716,421;307,421;307,470" d="M 716 372 L 716 413 Q 716 421 708 421 L 315 421 Q 307 421 307 429 L 307 470" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pipeline" data-edge-to="snap_ds" data-edge-label="background lane" data-edge-key="7" data-composition-points="730,372;730,421;479,421;479,470" d="M 730 372 L 730 413 Q 730 421 722 421 L 487 421 Q 479 421 479 429 L 479 470" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pipeline" data-edge-to="rpc_ds" data-edge-label="fallback lane" data-edge-key="8" data-composition-points="744,372;744,421;651,421;651,470" d="M 744 372 L 744 413 Q 744 421 736 421 L 659 421 Q 651 421 651 429 L 651 470" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pipeline" data-edge-to="staked_ds" data-edge-label="extra source" data-edge-key="9" data-composition-points="758,372;758,421;837,421;837,470" d="M 758 372 L 758 413 Q 758 421 766 421 L 829 421 Q 837 421 837 429 L 837 470" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pipeline" data-edge-to="token_ds" data-edge-label="metadata" data-edge-key="10" data-composition-points="772,372;772,421;1023,421;1023,470" d="M 772 372 L 772 413 Q 772 421 780 421 L 1015 421 Q 1023 421 1023 429 L 1023 470" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pipeline" data-edge-to="price_ds" data-edge-label="price" data-edge-key="11" data-composition-points="786,372;786,421;1195,421;1195,470" d="M 786 372 L 786 413 Q 786 421 794 421 L 1187 421 Q 1195 421 1195 429 L 1195 470" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="activity" data-edge-to="activity_ws" data-edge-label="subscribe" data-edge-key="12" data-composition-points="135,538;135,632" d="M 135 538 L 135 632" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="accounts_api" data-edge-to="accounts_api_svc" data-edge-label="balances" data-edge-key="13" data-composition-points="307,538;307,632" d="M 307 538 L 307 632" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="snap_ds" data-edge-to="snaps" data-edge-label="keyring RPC" data-edge-key="14" data-composition-points="479,538;479,632" d="M 479 538 L 479 632" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="rpc_ds" data-edge-to="evm_rpc" data-edge-label="eth_call" data-edge-key="15" data-composition-points="651,538;651,585;737,585;737,632" d="M 651 538 L 651 577 Q 651 585 659 585 L 729 585 Q 737 585 737 593 L 737 632" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="staked_ds" data-edge-to="evm_rpc" data-edge-label="getShares" data-edge-key="16" data-composition-points="837,538;837,585;751,585;751,632" d="M 837 538 L 837 577 Q 837 585 829 585 L 759 585 Q 751 585 751 593 L 751 632" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="token_ds" data-edge-to="token_price_api" data-edge-label="v3 assets" data-edge-key="17" data-composition-points="1023,538;1023,585;1102,585;1102,632" d="M 1023 538 L 1023 577 Q 1023 585 1031 585 L 1094 585 Q 1102 585 1102 593 L 1102 632" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="price_ds" data-edge-to="token_price_api" data-edge-label="spot prices" data-edge-key="18" data-composition-points="1195,538;1195,585;1116,585;1116,632" d="M 1195 538 L 1195 577 Q 1195 585 1187 585 L 1124 585 Q 1116 585 1116 593 L 1116 632" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+        <!-- Components -->
+        <g id="node-consumers" data-node-id="consumers" data-node-label="Client + Controllers" tabindex="0" role="button" aria-label="Focus Client + Controllers, extension · mobile, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="extension · mobile" data-node-context="Architecture component">
+          <title>Client + Controllers · extension · mobile · Architecture component</title>
+          <rect x="405" y="40" width="190" height="60" rx="6" class="c-mask"/>
+          <rect x="405" y="40" width="190" height="60" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(411 46) scale(0.6875)">
+            <rect x="2" y="3" width="12" height="10" rx="2"/>
+            <path d="M2 6.5h12"/>
+            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
+            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" x="500" y="68" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Client + Controllers</text>
+        <text x="500" y="84" class="t-muted" font-size="9" text-anchor="middle">extension · mobile</text>
+        </g>
+
+        <g id="node-messenger" data-node-id="messenger" data-node-label="Messenger" tabindex="0" role="button" aria-label="Focus Messenger, actions · events, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="actions · events" data-node-context="Architecture component">
+          <title>Messenger · actions · events · Architecture component</title>
+          <rect x="661" y="40" width="180" height="60" rx="6" class="c-mask"/>
+          <rect x="661" y="40" width="180" height="60" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(667 46) scale(0.6875)">
+            <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+            <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
+            <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
+            <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" x="751" y="68" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Messenger</text>
+        <text x="751" y="84" class="t-muted" font-size="9" text-anchor="middle">actions · events</text>
+        </g>
+
+        <g id="node-events" data-node-id="events" data-node-label="Published Events" tabindex="0" role="button" aria-label="Focus Published Events, stateChange · balanceChanged, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="stateChange · balanceChanged" data-node-context="Architecture component">
+          <title>Published Events · stateChange · balanceChanged · Architecture component</title>
+          <rect x="961" y="40" width="220" height="60" rx="6" class="c-mask"/>
+          <rect x="961" y="40" width="220" height="60" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(967 46) scale(0.6875)">
+            <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+            <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
+            <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
+            <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" x="1071" y="68" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Published Events</text>
+        <text x="1071" y="84" class="t-muted" font-size="9" text-anchor="middle">stateChange · balanceChanged</text>
+        </g>
+
+        <g id="node-controller" data-node-id="controller" data-node-label="AssetsController" tabindex="0" role="button" aria-label="Focus AssetsController, BaseController, controller core" aria-pressed="false" data-node-kind="backend" data-node-sublabel="BaseController" data-node-tag="core" data-node-context="controller core">
+          <title>AssetsController · BaseController · controller core · core</title>
+          <rect x="661" y="168" width="180" height="64" rx="6" class="c-mask"/>
+          <rect x="661" y="168" width="180" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(667 174) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="751" y="198" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">AssetsController</text>
+        <text x="751" y="214" class="t-muted" font-size="9" text-anchor="middle">BaseController</text>
+        <text x="751" y="224" class="t-backend" font-size="7" text-anchor="middle">core</text>
+        </g>
+
+        <g id="node-state" data-node-id="state" data-node-label="State Commit" tabindex="0" role="button" aria-label="Focus State Commit, assetsInfo · assetsBalance, controller core" aria-pressed="false" data-node-kind="database" data-node-sublabel="assetsInfo · assetsBalance" data-node-context="controller core">
+          <title>State Commit · assetsInfo · assetsBalance · controller core</title>
+          <rect x="961" y="168" width="220" height="64" rx="6" class="c-mask"/>
+          <rect x="961" y="168" width="220" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(967 174) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" x="1071" y="198" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">State Commit</text>
+        <text x="1071" y="214" class="t-muted" font-size="9" text-anchor="middle">assetsInfo · assetsBalance</text>
+        </g>
+
+        <g id="node-pipeline" data-node-id="pipeline" data-node-label="Middleware Pipeline" tabindex="0" role="button" aria-label="Focus Middleware Pipeline, composed with reduceRight · a throwing stage is caught and skipped, controller core" aria-pressed="false" data-node-kind="backend" data-node-sublabel="composed with reduceRight · a throwing stage is caught and skipped" data-node-context="controller core">
+          <title>Middleware Pipeline · composed with reduceRight · a throwing stage is caught and skipped · controller core</title>
+          <rect x="232" y="300" width="1038" height="72" rx="6" class="c-mask"/>
+          <rect x="232" y="300" width="1038" height="72" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(238 306) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="751" y="334" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Middleware Pipeline</text>
+        <text x="751" y="350" class="t-muted" font-size="9" text-anchor="middle">composed with reduceRight · a throwing stage is caught and skipped</text>
+        </g>
+
+        <g id="node-activity" data-node-id="activity" data-node-label="AccountActivity" tabindex="0" role="button" aria-label="Focus AccountActivity, push only · never fetched, balance sources · first-pick chain assignment" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="push only · never fetched" data-node-tag="priority 1" data-node-context="balance sources · first-pick chain assignment">
+          <title>AccountActivity · push only · never fetched · balance sources · first-pick chain assignment · priority 1</title>
+          <rect x="60" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="60" y="470" width="150" height="68" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(66 476) scale(0.6875)">
+            <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+            <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
+            <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
+            <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" x="135" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">AccountActivity</text>
+        <text x="135" y="518" class="t-muted" font-size="9" text-anchor="middle">push only · never fetched</text>
+        <text x="135" y="530" class="t-messagebus" font-size="7" text-anchor="middle">priority 1</text>
+        </g>
+
+        <g id="node-accounts_api" data-node-id="accounts_api" data-node-label="AccountsApi" tabindex="0" role="button" aria-label="Focus AccountsApi, poll 30s · timeout 15s, balance sources · first-pick chain assignment" aria-pressed="false" data-node-kind="backend" data-node-sublabel="poll 30s · timeout 15s" data-node-tag="priority 2" data-node-context="balance sources · first-pick chain assignment">
+          <title>AccountsApi · poll 30s · timeout 15s · balance sources · first-pick chain assignment · priority 2</title>
+          <rect x="232" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="232" y="470" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(238 476) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="307" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">AccountsApi</text>
+        <text x="307" y="518" class="t-muted" font-size="9" text-anchor="middle">poll 30s · timeout 15s</text>
+        <text x="307" y="530" class="t-backend" font-size="7" text-anchor="middle">priority 2</text>
+        </g>
+
+        <g id="node-snap_ds" data-node-id="snap_ds" data-node-label="Snap" tabindex="0" role="button" aria-label="Focus Snap, keyring events, balance sources · first-pick chain assignment" aria-pressed="false" data-node-kind="backend" data-node-sublabel="keyring events" data-node-tag="priority 3" data-node-context="balance sources · first-pick chain assignment">
+          <title>Snap · keyring events · balance sources · first-pick chain assignment · priority 3</title>
+          <rect x="404" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="404" y="470" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(410 476) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="479" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Snap</text>
+        <text x="479" y="518" class="t-muted" font-size="9" text-anchor="middle">keyring events</text>
+        <text x="479" y="530" class="t-backend" font-size="7" text-anchor="middle">priority 3</text>
+        </g>
+
+        <g id="node-rpc_ds" data-node-id="rpc_ds" data-node-label="Rpc" tabindex="0" role="button" aria-label="Focus Rpc, eip155 only · poll 30s, balance sources · first-pick chain assignment" aria-pressed="false" data-node-kind="backend" data-node-sublabel="eip155 only · poll 30s" data-node-tag="priority 4" data-node-context="balance sources · first-pick chain assignment">
+          <title>Rpc · eip155 only · poll 30s · balance sources · first-pick chain assignment · priority 4</title>
+          <rect x="576" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="576" y="470" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(582 476) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="651" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Rpc</text>
+        <text x="651" y="518" class="t-muted" font-size="9" text-anchor="middle">eip155 only · poll 30s</text>
+        <text x="651" y="530" class="t-backend" font-size="7" text-anchor="middle">priority 4</text>
+        </g>
+
+        <g id="node-staked_ds" data-node-id="staked_ds" data-node-label="StakedBalance" tabindex="0" role="button" aria-label="Focus StakedBalance, mainnet + Hoodi, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="mainnet + Hoodi" data-node-tag="no claims" data-node-context="Architecture component">
+          <title>StakedBalance · mainnet + Hoodi · Architecture component · no claims</title>
+          <rect x="762" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="762" y="470" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(768 476) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="837" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">StakedBalance</text>
+        <text x="837" y="518" class="t-muted" font-size="9" text-anchor="middle">mainnet + Hoodi</text>
+        <text x="837" y="530" class="t-backend" font-size="7" text-anchor="middle">no claims</text>
+        </g>
+
+        <g id="node-token_ds" data-node-id="token_ds" data-node-label="Token" tabindex="0" role="button" aria-label="Focus Token, batch 50 · timeout 15s, enrichment · one parallel stage" aria-pressed="false" data-node-kind="backend" data-node-sublabel="batch 50 · timeout 15s" data-node-context="enrichment · one parallel stage">
+          <title>Token · batch 50 · timeout 15s · enrichment · one parallel stage</title>
+          <rect x="948" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="948" y="470" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(954 476) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="1023" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Token</text>
+        <text x="1023" y="518" class="t-muted" font-size="9" text-anchor="middle">batch 50 · timeout 15s</text>
+        </g>
+
+        <g id="node-price_ds" data-node-id="price_ds" data-node-label="Price" tabindex="0" role="button" aria-label="Focus Price, poll 60s · deduped, enrichment · one parallel stage" aria-pressed="false" data-node-kind="backend" data-node-sublabel="poll 60s · deduped" data-node-context="enrichment · one parallel stage">
+          <title>Price · poll 60s · deduped · enrichment · one parallel stage</title>
+          <rect x="1120" y="470" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="1120" y="470" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(1126 476) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" x="1195" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Price</text>
+        <text x="1195" y="518" class="t-muted" font-size="9" text-anchor="middle">poll 60s · deduped</text>
+        </g>
+
+        <g id="node-activity_ws" data-node-id="activity_ws" data-node-label="Activity Service" tabindex="0" role="button" aria-label="Focus Activity Service, WebSocket, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="WebSocket" data-node-context="Architecture component">
+          <title>Activity Service · WebSocket · Architecture component</title>
+          <rect x="60" y="632" width="150" height="60" rx="6" class="c-mask"/>
+          <rect x="60" y="632" width="150" height="60" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(66 638) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <text data-node-label="" x="135" y="660" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Activity Service</text>
+        <text x="135" y="676" class="t-muted" font-size="9" text-anchor="middle">WebSocket</text>
+        </g>
+
+        <g id="node-accounts_api_svc" data-node-id="accounts_api_svc" data-node-label="Accounts API" tabindex="0" role="button" aria-label="Focus Accounts API, v5 / v6 balances, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="v5 / v6 balances" data-node-context="Architecture component">
+          <title>Accounts API · v5 / v6 balances · Architecture component</title>
+          <rect x="232" y="632" width="150" height="60" rx="6" class="c-mask"/>
+          <rect x="232" y="632" width="150" height="60" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(238 638) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <text data-node-label="" x="307" y="660" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Accounts API</text>
+        <text x="307" y="676" class="t-muted" font-size="9" text-anchor="middle">v5 / v6 balances</text>
+        </g>
+
+        <g id="node-snaps" data-node-id="snaps" data-node-label="Keyring Snaps" tabindex="0" role="button" aria-label="Focus Keyring Snaps, Solana · Bitcoin, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="Solana · Bitcoin" data-node-context="Architecture component">
+          <title>Keyring Snaps · Solana · Bitcoin · Architecture component</title>
+          <rect x="404" y="632" width="150" height="60" rx="6" class="c-mask"/>
+          <rect x="404" y="632" width="150" height="60" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(410 638) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" x="479" y="660" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Keyring Snaps</text>
+        <text x="479" y="676" class="t-muted" font-size="9" text-anchor="middle">Solana · Bitcoin</text>
+        </g>
+
+        <g id="node-evm_rpc" data-node-id="evm_rpc" data-node-label="EVM JSON-RPC" tabindex="0" role="button" aria-label="Focus EVM JSON-RPC, Multicall3 · staking vault, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="Multicall3 · staking vault" data-node-context="Architecture component">
+          <title>EVM JSON-RPC · Multicall3 · staking vault · Architecture component</title>
+          <rect x="576" y="632" width="336" height="60" rx="6" class="c-mask"/>
+          <rect x="576" y="632" width="336" height="60" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(582 638) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" x="744" y="660" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">EVM JSON-RPC</text>
+        <text x="744" y="676" class="t-muted" font-size="9" text-anchor="middle">Multicall3 · staking vault</text>
+        </g>
+
+        <g id="node-token_price_api" data-node-id="token_price_api" data-node-label="Tokens + Price API" tabindex="0" role="button" aria-label="Focus Tokens + Price API, metadata · spot prices, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="metadata · spot prices" data-node-context="Architecture component">
+          <title>Tokens + Price API · metadata · spot prices · Architecture component</title>
+          <rect x="948" y="632" width="322" height="60" rx="6" class="c-mask"/>
+          <rect x="948" y="632" width="322" height="60" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(954 638) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <text data-node-label="" x="1109" y="660" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Tokens + Price API</text>
+        <text x="1109" y="676" class="t-muted" font-size="9" text-anchor="middle">metadata · spot prices</text>
+        </g>
+
+        <!-- Connection labels -->
+        <g data-edge-from="consumers" data-edge-to="messenger" data-edge-label="getAssets" data-edge-key="0">
+          <rect x="601.4" y="50" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="628" y="60" class="t-backend" font-size="8" text-anchor="middle">getAssets</text>
+        </g>
+        <g data-edge-from="messenger" data-edge-to="controller" data-edge-label="action handlers" data-edge-key="1">
+          <rect x="710" y="138" width="82" height="14" rx="3" class="c-mask"/>
+          <text x="751" y="148" class="t-backend" font-size="8" text-anchor="middle">action handlers</text>
+        </g>
+        <g data-edge-from="controller" data-edge-to="state" data-edge-label="merge + normalize" data-edge-key="2">
+          <rect x="855.2" y="180" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="901" y="190" class="t-muted" font-size="8" text-anchor="middle">merge + normalize</text>
+        </g>
+        <g data-edge-from="state" data-edge-to="events" data-edge-label="on commit" data-edge-key="3">
+          <rect x="1044.4" y="148" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="1071" y="158" class="t-messagebus" font-size="8" text-anchor="middle">on commit</text>
+        </g>
+        <g data-edge-from="controller" data-edge-to="pipeline" data-edge-label="#executeMiddlewares" data-edge-key="4">
+          <rect x="700.4" y="257" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="751" y="267" class="t-backend" font-size="8" text-anchor="middle">#executeMiddlewares</text>
+        </g>
+        <g data-edge-from="activity" data-edge-to="controller" data-edge-label="onAssetsUpdate push" data-edge-key="5">
+          <rect x="347.4" y="180" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="398" y="190" class="t-messagebus" font-size="8" text-anchor="middle">onAssetsUpdate push</text>
+        </g>
+        <g data-edge-from="pipeline" data-edge-to="accounts_api" data-edge-label="balance · pLimit 3" data-edge-key="6">
+          <rect x="258.8" y="425.5" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="307" y="435.5" class="t-muted" font-size="8" text-anchor="middle">balance · pLimit 3</text>
+        </g>
+        <g data-edge-from="pipeline" data-edge-to="snap_ds" data-edge-label="background lane" data-edge-key="7">
+          <rect x="438" y="425.5" width="82" height="14" rx="3" class="c-mask"/>
+          <text x="479" y="435.5" class="t-muted" font-size="8" text-anchor="middle">background lane</text>
+        </g>
+        <g data-edge-from="pipeline" data-edge-to="rpc_ds" data-edge-label="fallback lane" data-edge-key="8">
+          <rect x="614.8" y="425.5" width="72.4" height="14" rx="3" class="c-mask"/>
+          <text x="651" y="435.5" class="t-muted" font-size="8" text-anchor="middle">fallback lane</text>
+        </g>
+        <g data-edge-from="pipeline" data-edge-to="staked_ds" data-edge-label="extra source" data-edge-key="9">
+          <rect x="803.2" y="425.5" width="67.6" height="14" rx="3" class="c-mask"/>
+          <text x="837" y="435.5" class="t-muted" font-size="8" text-anchor="middle">extra source</text>
+        </g>
+        <g data-edge-from="pipeline" data-edge-to="token_ds" data-edge-label="metadata" data-edge-key="10">
+          <rect x="998.8" y="425.5" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="1023" y="435.5" class="t-muted" font-size="8" text-anchor="middle">metadata</text>
+        </g>
+        <g data-edge-from="pipeline" data-edge-to="price_ds" data-edge-label="price" data-edge-key="11">
+          <rect x="1178" y="425.5" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="1195" y="435.5" class="t-muted" font-size="8" text-anchor="middle">price</text>
+        </g>
+        <g data-edge-from="activity" data-edge-to="activity_ws" data-edge-label="subscribe" data-edge-key="12">
+          <rect x="108.4" y="576" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="135" y="586" class="t-messagebus" font-size="8" text-anchor="middle">subscribe</text>
+        </g>
+        <g data-edge-from="accounts_api" data-edge-to="accounts_api_svc" data-edge-label="balances" data-edge-key="13">
+          <rect x="282.8" y="576" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="307" y="586" class="t-muted" font-size="8" text-anchor="middle">balances</text>
+        </g>
+        <g data-edge-from="snap_ds" data-edge-to="snaps" data-edge-label="keyring RPC" data-edge-key="14">
+          <rect x="447.6" y="576" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="479" y="586" class="t-muted" font-size="8" text-anchor="middle">keyring RPC</text>
+        </g>
+        <g data-edge-from="rpc_ds" data-edge-to="evm_rpc" data-edge-label="eth_call" data-edge-key="15">
+          <rect x="626.8" y="541.5" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="651" y="551.5" class="t-muted" font-size="8" text-anchor="middle">eth_call</text>
+        </g>
+        <g data-edge-from="staked_ds" data-edge-to="evm_rpc" data-edge-label="getShares" data-edge-key="16">
+          <rect x="810.4" y="541.5" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="837" y="551.5" class="t-muted" font-size="8" text-anchor="middle">getShares</text>
+        </g>
+        <g data-edge-from="token_ds" data-edge-to="token_price_api" data-edge-label="v3 assets" data-edge-key="17">
+          <rect x="996.4" y="541.5" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="1023" y="551.5" class="t-muted" font-size="8" text-anchor="middle">v3 assets</text>
+        </g>
+        <g data-edge-from="price_ds" data-edge-to="token_price_api" data-edge-label="spot prices" data-edge-key="18">
+          <rect x="1163.6" y="541.5" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="1195" y="551.5" class="t-muted" font-size="8" text-anchor="middle">spot prices</text>
+        </g>
+
+        <!-- Boundary labels (foreground masks keep routes out of titles) -->
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="controller core">
+          <rect data-graph-role="structural-frame-label-mask" x="216" y="148" width="91" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="220" y="161" class="t-cloud" font-size="9" font-weight="600">controller core</text>
+        </g>
+
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="security-group" data-composition-frame-label="balance sources · first-pick chain assignment">
+          <rect data-graph-role="structural-frame-label-mask" x="50" y="450" width="253" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="54" y="463" class="t-security" font-size="9" font-weight="600">balance sources · first-pick chain assignment</text>
+        </g>
+
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="2" data-composition-frame-kind="security-group" data-composition-frame-label="enrichment · one parallel stage">
+          <rect data-graph-role="structural-frame-label-mask" x="938" y="450" width="177.4" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="942" y="463" class="t-security" font-size="9" font-weight="600">enrichment · one parallel stage</text>
+        </g>
+
+        <!-- Legend -->
+
+      </svg>
