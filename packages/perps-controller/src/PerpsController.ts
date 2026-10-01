@@ -3999,7 +3999,10 @@ export class PerpsController extends BaseController<
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
     const issuedContext = this.#getActionContext();
     const issuedGeneration = this.#lifecycleGeneration;
-    const issuedInstance = this.activeProviderInstance;
+    const issuedInstance =
+      this.isInitialized || this.isCurrentlyReinitializing()
+        ? this.activeProviderInstance
+        : null;
     const isIssuingLifetimeStale = (): boolean =>
       issuedGeneration !== this.#lifecycleGeneration ||
       issuedContext !== this.#getActionContext() ||

@@ -434,6 +434,65 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     },
   );
 
+  it('reports unavailable initialization for a new acknowledgment after a failed network switch', async () => {
+    const { controller, acknowledge, ledgers, provider } = createFixture();
+    const disconnect = jest.spyOn(provider, 'disconnect');
+    failTargetInitialization(createMockHyperLiquidProvider());
+
+    const transition = await controller.toggleTestnet();
+
+    expect(transition.success).toBe(false);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(controller.state.initializationState).toBe(
+      InitializationState.Failed,
+    );
+    expect(controller.isCurrentlyReinitializing()).toBe(false);
+    await expect(
+      controller.acknowledgeRecoveredDispatch(LEGACY_ID),
+    ).rejects.toThrow(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set([LEGACY_ID]));
+    expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+  });
+
+  it('acknowledges through a new initialization after a failed network switch', async () => {
+    const { controller, acknowledge, ledgers } = createFixture();
+    failTargetInitialization(createMockHyperLiquidProvider());
+    const transition = await controller.toggleTestnet();
+    expect(transition.success).toBe(false);
+    const readiness = createDeferred<void>();
+    jest.mocked(wait).mockReturnValueOnce(readiness.promise);
+    const replacement = Object.assign(createMockHyperLiquidProvider(), {
+      acknowledgeRecoveredDispatch: jest.fn(async (id: string) => {
+        ledgers.get(ACCOUNT_A)?.delete(id);
+      }),
+    });
+    jest.mocked(HyperLiquidProvider).mockImplementation(() => replacement);
+    const initialization = controller.init();
+    expect(controller.state.initializationState).toBe(
+      InitializationState.Initializing,
+    );
+    expect(controller.isCurrentlyReinitializing()).toBe(false);
+
+    const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+    const settled = result.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    readiness.resolve();
+    await initialization;
+
+    expect(await settled).toBeUndefined();
+    expect(controller.getActiveProvider()).toBe(replacement);
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(replacement.acknowledgeRecoveredDispatch).toHaveBeenCalledTimes(1);
+    expect(replacement.acknowledgeRecoveredDispatch).toHaveBeenCalledWith(
+      LEGACY_ID,
+    );
+    expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set());
+    expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+  });
+
   it('acknowledges the exact legacy ID in an unchanged context', async () => {
     const { controller, acknowledge, ledgers } = createFixture();
 
