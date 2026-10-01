@@ -11,7 +11,7 @@ permissions:
 jobs:
   lint-suppressions:
     name: Lint suppressions
-    if: ${{ github.event_name != 'merge_group' }}
+    if: ${{ github.event_name != 'merge_group' && !contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,16 +25,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           fetch-depth: 2
       - name: Run yarn lint:suppressions
-        shell: bash
-        run: |
-          if [[ "$IS_WAIVED" == 'true' ]]; then
-            echo "::warning::Skipped, as the '$WAIVER_LABEL' label allows suppressions to be added."
-            exit 0
-          fi
-          yarn lint:suppressions
-        env:
-          WAIVER_LABEL: allow-new-suppressions
-          IS_WAIVED: ${{ contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
+        run: yarn lint:suppressions
       - name: Require clean working directory
         shell: bash
         run: |
