@@ -25,6 +25,13 @@ import {
   LIGHTER_RESOLUTION_MS,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
+  LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_TRADING_API_KEY_INDEX,
+  LIGHTER_TRADING_API_KEY_COUNT,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
+  LIGHTER_FILL_REPLAY_LIMIT,
   LIGHTER_NO_TRIGGER_PRICE,
   LIGHTER_ORDER_EXPIRY_NONE,
   LIGHTER_ORDER_TYPE_LIMIT,
@@ -1180,6 +1187,9 @@ export class LighterProvider implements PerpsProvider {
   /** Signer session dedup. */
   #signerReadyPromise: Promise<void> | null = null;
 
+  /** Set only after key validation, registration and nonce reconciliation succeed. */
+  #readyApiKeyIndex: number | null = null;
+
   /** Cached auth token (deadline-managed). */
   #authToken: { token: string; deadline: number } | null = null;
 
@@ -1489,6 +1499,7 @@ export class LighterProvider implements PerpsProvider {
     // started against the now-dead WASM client.
     this.#sessionGeneration += 1;
     this.#signerReadyPromise = null;
+    this.#readyApiKeyIndex = null;
     this.#authToken = null;
     this.#clearBridgeOwnership();
     this.#deps.debugLogger.log(
@@ -1584,6 +1595,7 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = null;
     this.#apiKeyIndex = this.#preferredApiKeyIndex;
     this.#signerReadyPromise = null;
+    this.#readyApiKeyIndex = null;
     this.#authToken = null;
     this.#replaceSignerResetListener();
     // #tpslUnsettled is NOT cleared: entries are keyed by
@@ -2339,13 +2351,17 @@ export class LighterProvider implements PerpsProvider {
     const generation = this.#sessionGeneration;
     const accountIndex = await this.#ensureAccountIndex();
     this.#assertSession(generation);
+    // A candidate can allocate a signer before reconciliation fails. Wait for
+    // selection to settle, then use successful readiness, never probe identity.
+    await this.#signerReadyPromise?.catch(() => undefined);
+    this.#assertSession(generation);
     // Protection belongs to the wallet and venue account, even after its
     // trading key migrates. Network storage remains separately scoped.
     const identityPrefix = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:`;
     const currentSlotPrefix =
-      this.#signerIdentity === null
+      this.#readyApiKeyIndex === null
         ? null
-        : `${identityPrefix}${this.#apiKeyIndex}:`;
+        : `${identityPrefix}${this.#readyApiKeyIndex}:`;
     const pending: {
       symbol: string;
       settlementKey: string;
@@ -2425,42 +2441,121 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
-   * READ-ONLY view of the durable recovered-dispatch outcomes
-   * (previously ambiguous submissions later resolved). Never mutates the
-   * ledger — acknowledgment is a separate, per-outcome call so a crash
-   * between reading and acting can never silently drop an outcome.
-   * Call after signer initialization has selected the wallet's key slot,
-   * including after an initialization error reports quarantined dispatches.
-   * Before initialization, an empty preferred-slot view is not proof that
-   * every restored key slot has no pending outcomes.
+   * Read local durable outcomes across the bounded trading-slot range without
+   * changing ledgers or registering/signing with previous keys. Corruption
+   * fails closed instead of presenting an incomplete account as empty.
    *
-   * @returns The pending recovered-dispatch outcomes.
+   * @param accountIndex - Captured venue account.
+   * @param generation - Wallet session owning the read.
+   * @returns Slot-labelled local ledger documents.
    */
-  async getRecoveredDispatches(): Promise<LighterRecoveredDispatch[]> {
+  readonly #readAccountRecoveryLedgers = async (
+    accountIndex: number,
+    generation: number,
+  ): Promise<{ apiKeyIndex: number; doc: LighterNonceLedgerDoc }[]> => {
+    const ledgers: { apiKeyIndex: number; doc: LighterNonceLedgerDoc }[] = [];
+    for (
+      let apiKeyIndex = LIGHTER_MIN_TRADING_API_KEY_INDEX;
+      apiKeyIndex <= LIGHTER_MAX_TRADING_API_KEY_INDEX;
+      apiKeyIndex += 1
+    ) {
+      this.#assertSession(generation);
+      const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
+      this.#assertSession(generation);
+      if (doc.recovered.length > 0) {
+        ledgers.push({ apiKeyIndex, doc });
+      }
+    }
+    return ledgers;
+  };
+
+  /**
+   * Read-only account-wide view of durable recovered outcomes, including keys
+   * skipped during discovery. Waits for an in-flight setup but remains usable
+   * after setup failure and before initialization. Opaque IDs bind the selected
+   * wallet, network, account, key slot and original ledger identity. No signing,
+   * nonce reconciliation, quarantine clearing or financial retry occurs.
+   *
+   * @returns Pending outcomes labelled with their original trading-key slot.
+   */
+  async getRecoveredDispatches(): Promise<
+    (LighterRecoveredDispatch & { apiKeyIndex: number })[]
+  > {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     const accountIndex = await this.#ensureAccountIndex();
+    await this.#signerReadyPromise?.catch(() => undefined);
     this.#assertSession(generation);
-    const doc = await this.#readNonceLedger(accountIndex);
-    this.#assertSession(generation);
-    return doc.recovered.map((outcome) => ({ ...outcome }));
+    const ledgers = await this.#readAccountRecoveryLedgers(
+      accountIndex,
+      generation,
+    );
+    return ledgers.flatMap(({ apiKeyIndex, doc }) =>
+      doc.recovered.map((outcome) => ({
+        ...outcome,
+        apiKeyIndex,
+        recoveryId: `lighter:${JSON.stringify([this.#isTestnet ? 'testnet' : 'mainnet', this.#boundAddress, accountIndex, apiKeyIndex, outcome.recoveryId])}`,
+      })),
+    );
   }
 
   /**
-   * Acknowledge ONE recovered-dispatch outcome by its stable id, after
-   * the caller has refreshed venue state and decided how to proceed.
-   * Runs under the ledger mutex and re-verifies the session generation
-   * inside it so an account switch mid-acknowledge can never clear
-   * another account's outcome.
+   * Acknowledge one exact stored outcome after the caller refreshes venue state.
+   * Scoped IDs from any local slot work without changing the active signer.
+   * Legacy unscoped IDs are accepted only when unique across this account.
+   * The slot mutex and session fence preserve concurrent appends, unresolved
+   * entries and all other outcomes. Unknown outcomes require the same explicit
+   * acknowledgment; this is never permission to resubmit an ambiguous intent.
    *
-   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     const accountIndex = await this.#ensureAccountIndex();
+    await this.#signerReadyPromise?.catch(() => undefined);
     this.#assertSession(generation);
-    const apiKeyIndex = this.#apiKeyIndex;
+    const unmatched = (): Error =>
+      new Error(
+        'No pending recovered Lighter dispatch matches this scoped id; refresh and re-read before acknowledging',
+      );
+    let apiKeyIndex: number;
+    let ledgerRecoveryId: string;
+    if (recoveryId.startsWith('lighter:')) {
+      let scope: unknown;
+      try {
+        scope = JSON.parse(recoveryId.slice('lighter:'.length));
+      } catch {
+        throw unmatched();
+      }
+      if (
+        !Array.isArray(scope) ||
+        scope.length !== 5 ||
+        scope[0] !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+        scope[1] !== this.#boundAddress ||
+        scope[2] !== accountIndex ||
+        typeof scope[3] !== 'number' ||
+        !Number.isSafeInteger(scope[3]) ||
+        scope[3] < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
+        scope[3] > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
+        typeof scope[4] !== 'string'
+      ) {
+        throw unmatched();
+      }
+      apiKeyIndex = scope[3];
+      ledgerRecoveryId = scope[4];
+    } else {
+      const matches = (
+        await this.#readAccountRecoveryLedgers(accountIndex, generation)
+      ).filter(({ doc }) =>
+        doc.recovered.some((outcome) => outcome.recoveryId === recoveryId),
+      );
+      if (matches.length !== 1) {
+        throw unmatched();
+      }
+      apiKeyIndex = matches[0].apiKeyIndex;
+      ledgerRecoveryId = recoveryId;
+    }
     await withProcessMutex(
       this.#nonceLedgerKey(accountIndex, apiKeyIndex),
       async () => {
@@ -2468,20 +2563,20 @@ export class LighterProvider implements PerpsProvider {
         this.#assertSession(generation);
         const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
         this.#assertSession(generation);
-        const remaining = doc.recovered.filter(
-          (outcome) => outcome.recoveryId !== recoveryId,
+        const matching = doc.recovered.filter(
+          (outcome) => outcome.recoveryId === ledgerRecoveryId,
         );
-        if (remaining.length === doc.recovered.length) {
-          throw new Error(
-            `No pending recovered Lighter dispatch matches id ${recoveryId}; refresh and re-read before acknowledging`,
-          );
+        if (matching.length !== 1) {
+          throw unmatched();
         }
         await this.#writeNonceLedger(
           accountIndex,
           {
             consumedFloor: doc.consumedFloor,
             entries: doc.entries,
-            recovered: remaining,
+            recovered: doc.recovered.filter(
+              (outcome) => outcome.recoveryId !== ledgerRecoveryId,
+            ),
           },
           apiKeyIndex,
         );
@@ -4373,6 +4468,7 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = null;
     this.#apiKeyIndex = this.#preferredApiKeyIndex;
     this.#signerReadyPromise = null;
+    this.#readyApiKeyIndex = null;
     this.#authToken = null;
     this.#clearBridgeOwnership();
     // #tpslUnsettled survives (address+accountIndex+symbol keyed): a
@@ -4392,6 +4488,7 @@ export class LighterProvider implements PerpsProvider {
       return await this.#signerReadyPromise;
     }
     const generation = this.#sessionGeneration;
+    this.#readyApiKeyIndex = null;
     const setupPromise = this.#setupSigner(generation);
     this.#signerReadyPromise = setupPromise;
     try {
@@ -4401,6 +4498,9 @@ export class LighterProvider implements PerpsProvider {
       // have replaced it, and an old rejection must not tear that down.
       if (this.#signerReadyPromise === setupPromise) {
         this.#signerReadyPromise = null;
+        this.#readyApiKeyIndex = null;
+        this.#apiKeyIndex = this.#preferredApiKeyIndex;
+        this.#clearBridgeOwnership();
       }
       throw error;
     }
@@ -4430,7 +4530,10 @@ export class LighterProvider implements PerpsProvider {
     const requested = [
       ...new Set([this.#preferredApiKeyIndex, ...occupied]),
     ].filter(
-      (index) => Number.isSafeInteger(index) && index >= 2 && index <= 254,
+      (index) =>
+        Number.isSafeInteger(index) &&
+        index >= LIGHTER_MIN_TRADING_API_KEY_INDEX &&
+        index <= LIGHTER_MAX_TRADING_API_KEY_INDEX,
     );
     const stored = await discoverKeys({
       chainId: getLighterChainId(this.#clientService.network),
@@ -4442,20 +4545,21 @@ export class LighterProvider implements PerpsProvider {
     if (stored.some((index) => !requested.includes(index))) {
       throw new Error('Lighter signer returned an unrequested key slot');
     }
-    const unused = Array.from({ length: 253 }, (_, index) => index + 2).filter(
-      (index) => !occupied.has(index),
-    );
+    const unused = Array.from(
+      { length: LIGHTER_TRADING_API_KEY_COUNT },
+      (_, index) => index + LIGHTER_MIN_TRADING_API_KEY_INDEX,
+    ).filter((index) => !occupied.has(index));
     if (
       stored.length === 0 &&
       occupied.has(this.#preferredApiKeyIndex) &&
       unused.length > 0
     ) {
       throw new Error(
-        'Lighter trading key recovery is unavailable for this wallet type. Use an existing registered device.',
+        'No recoverable Lighter trading key is available from this wallet or local storage. Use an existing registered device.',
       );
     }
-    // Wallet recovery uses a stable free-slot order. Legacy storage-only
-    // hosts retain their allocation policy; venue public keys are always checked.
+    // Wallet-derived recovery uses a stable free-slot order. Storage-only
+    // discovery rotates unused slots; venue public keys are always checked.
     const offset = bridge.getRecoverableKeyIndices
       ? 0
       : Math.floor(Math.random() * unused.length);
@@ -4571,6 +4675,7 @@ export class LighterProvider implements PerpsProvider {
         },
       );
       if (ready) {
+        this.#readyApiKeyIndex = apiKeyIndex;
         this.#kickTpslRecovery();
         return;
       }
@@ -4609,8 +4714,13 @@ export class LighterProvider implements PerpsProvider {
     accountIndex: number,
     generation: number,
   ): Promise<void> => {
-    const deadline = Date.now() + 10_000;
-    for (let attempt = 0; attempt < 40; attempt += 1) {
+    const deadline =
+      Date.now() + LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS;
+    for (
+      let attempt = 0;
+      attempt < LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
       this.#assertSession(generation);
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
@@ -4633,7 +4743,9 @@ export class LighterProvider implements PerpsProvider {
       if (status === 'occupied') {
         throw new Error('Lighter trading key changed during registration');
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 250));
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS),
+      );
     }
     throw new Error(
       'Lighter trading key registration is still pending; reconnect to check its status',
@@ -8687,6 +8799,16 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #handleTradesMessage = (message: LighterWsTradesMessage): void => {
     const isSnapshot = (message.type ?? '').startsWith('subscribed');
+    if (
+      message.trades === null ||
+      (message.trades !== undefined &&
+        (typeof message.trades !== 'object' ||
+          Array.isArray(message.trades) ||
+          !Object.values(message.trades).every(Array.isArray)))
+    ) {
+      this.#wsFills = null;
+      throw new Error('Invalid Lighter venue data: malformed trades container');
+    }
     const fills: OrderFill[] = [];
     let droppedUnsupportedFill = false;
     for (const marketTrades of Object.values(message.trades ?? {})) {
@@ -8734,7 +8856,10 @@ export class LighterProvider implements PerpsProvider {
       const seen = new Set<string>();
       this.#wsFills = history
         .filter((fill) => {
-          const id = fill.fillId ?? `${fill.orderId}:${fill.timestamp}`;
+          const id = fill.fillId;
+          if (id === undefined) {
+            throw new Error('Lighter fill is missing its venue trade identity');
+          }
           if (seen.has(id)) {
             return false;
           }
@@ -8742,7 +8867,7 @@ export class LighterProvider implements PerpsProvider {
           return true;
         })
         .sort((first, second) => second.timestamp - first.timestamp)
-        .slice(0, 100);
+        .slice(0, LIGHTER_FILL_REPLAY_LIMIT);
     }
     for (const subscriber of this.#fillSubscribers) {
       try {

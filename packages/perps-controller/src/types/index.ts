@@ -430,8 +430,10 @@ export type PerpsPendingManualRecovery = {
  * state) — except `failed`, which is retry-safe and non-blocking.
  */
 export type PerpsRecoveredDispatch = {
-  /** Stable id for selective acknowledgment. */
+  /** Opaque stable id for selective acknowledgment; preserve exactly, never parse. */
   recoveryId: string;
+  /** Original trading-key slot when the provider has per-key recovery ledgers. */
+  apiKeyIndex?: number;
   /** Venue transaction type of the dispatch. */
   kind: number;
   /** Human-readable operation intent. */
@@ -1149,7 +1151,10 @@ export type LighterCredentials = {
   /** Lighter account index override (testnet tooling). */
   accountIndexTestnet?: number;
   accountIndexMainnet?: number;
-  /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
+  /**
+   * Preferred trading-key slot (defaults to LIGHTER_DEFAULT_API_KEY_INDEX).
+   * Discovery-capable bridges may select another matching or unused slot.
+   */
   apiKeyIndex?: number;
   /**
    * Client-owned Lighter signer. The client creates and persists the venue
@@ -1395,7 +1400,11 @@ export type SubscribePositionsParams = {
 };
 
 export type SubscribeOrderFillsParams = {
-  /** Reports a subscription failure without asserting an empty account. */
+  /**
+   * Reports detectable setup failures without asserting an empty account.
+   * Lighter currently produces these errors; other providers may not report
+   * setup failures through this optional callback.
+   */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   callback: (
     fills: OrderFill[],
@@ -1407,7 +1416,11 @@ export type SubscribeOrderFillsParams = {
 };
 
 export type SubscribeOrdersParams = {
-  /** Reports a subscription failure without asserting an empty account. */
+  /**
+   * Reports detectable setup failures without asserting an empty account.
+   * Lighter currently produces these errors; other providers may not report
+   * setup failures through this optional callback.
+   */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   callback: (orders: Order[], sourceProviderId?: PerpsProviderType) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account

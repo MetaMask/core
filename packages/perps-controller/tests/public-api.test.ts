@@ -13,6 +13,9 @@ import type {
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerSetAgentSignerAction,
   PerpsTypedDataPayload,
+  PerpsRecoveredDispatch,
+  PerpsControllerGetRecoveredDispatchesAction,
+  PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '../src/index.js';
 
 // The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
@@ -22,6 +25,37 @@ jest.mock('@nktkas/hyperliquid', () => ({
 }));
 
 describe('@metamask/perps-controller public API', () => {
+  it('preserves the public recovery action contract and optional original-key identity', async () => {
+    const legacy: PerpsRecoveredDispatch = {
+      recoveryId: 'opaque-id',
+      kind: 13,
+      intent: 'withdraw',
+      txHash: null,
+      outcome: 'unknown',
+      evidence: 'rest-advance',
+    };
+    const fromPreviousKey: PerpsRecoveredDispatch = {
+      ...legacy,
+      apiKeyIndex: 19,
+    };
+    const get: PerpsControllerGetRecoveredDispatchesAction['handler'] =
+      async () => [fromPreviousKey];
+    const acknowledge: PerpsControllerAcknowledgeRecoveredDispatchAction['handler'] =
+      async (recoveryId) => {
+        expect(recoveryId).toBe(fromPreviousKey.recoveryId);
+      };
+    const [outcome] = await get();
+    await acknowledge(outcome.recoveryId);
+    expect(legacy.apiKeyIndex).toBeUndefined();
+    expect(outcome.apiKeyIndex).toBe(19);
+    expect(typeof PerpsController.prototype.getRecoveredDispatches).toBe(
+      'function',
+    );
+    expect(typeof PerpsController.prototype.acknowledgeRecoveredDispatch).toBe(
+      'function',
+    );
+  });
+
   it('exports the EIP-712 shape of a HyperLiquid L1 action', () => {
     expect(HYPERLIQUID_L1_ACTION_DOMAIN_NAME).toBe('Exchange');
     expect(HYPERLIQUID_L1_ACTION_PRIMARY_TYPE).toBe('Agent');

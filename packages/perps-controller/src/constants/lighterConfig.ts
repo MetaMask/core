@@ -196,6 +196,20 @@ export const LIGHTER_NO_TRIGGER_PRICE = 0;
  * slot avoids clobbering keys registered by other clients.
  */
 export const LIGHTER_DEFAULT_API_KEY_INDEX = 7;
+/** Inclusive venue range available for trading API keys. */
+export const LIGHTER_MIN_TRADING_API_KEY_INDEX = 2;
+export const LIGHTER_MAX_TRADING_API_KEY_INDEX = 254;
+/** Bounded number of trading slots scanned for account-local recovery state. */
+export const LIGHTER_TRADING_API_KEY_COUNT =
+  LIGHTER_MAX_TRADING_API_KEY_INDEX - LIGHTER_MIN_TRADING_API_KEY_INDEX + 1;
+/** Bound registration visibility reads before returning a retryable failure. */
+export const LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS = 10_000;
+export const LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS = 250;
+export const LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS =
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS /
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS;
+/** Maximum newest-first complete fill history retained for late subscribers. */
+export const LIGHTER_FILL_REPLAY_LIMIT = 100;
 
 // ============================================================================
 // REST API Configuration

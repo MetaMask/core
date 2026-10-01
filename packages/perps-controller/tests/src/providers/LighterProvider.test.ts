@@ -19,7 +19,10 @@ import type {
   LighterWebSocketCtor,
   LighterWebSocketLike,
 } from '../../../src/types/lighter-types.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createMockInfrastructure,
+  createDeferred,
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/LighterClientService', () => ({
   ...jest.requireActual('../../../src/services/LighterClientService'),
@@ -2300,6 +2303,88 @@ describe('LighterProvider', () => {
       const unsubscribeLate = provider.subscribeToOrders({ callback: late });
 
       expect(late).toHaveBeenCalledWith([]);
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it.each([0, true, null, [], 'invalid', { '1': false }])(
+      'does not authorize late replay from malformed trades container %j',
+      async (trades) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        // Positions initialize the shared authenticated trade channel without a fill subscriber.
+        const unsubscribe = provider.subscribeToPositions({
+          callback: jest.fn(),
+        });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        socket.receive({ type: 'subscribed/account_all_trades', trades });
+        const late = jest.fn();
+        const unsubscribeLate = provider.subscribeToOrderFills({
+          callback: late,
+        });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(late).not.toHaveBeenCalled();
+        unsubscribeLate();
+        unsubscribe();
+        await provider.disconnect();
+      },
+    );
+
+    it('replays the newest 100 unique fills after a repeated fill and older delta', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: '9c'.repeat(40),
+      });
+      const unsubscribe = provider.subscribeToOrderFills({
+        callback: jest.fn(),
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      const trades = Array.from({ length: 105 }, (_, index) => ({
+        trade_id: index + 1,
+        market_id: 1,
+        size: '0.001',
+        price: '90000',
+        ask_id: 1,
+        bid_id: 2,
+        ask_account_id: 28,
+        bid_account_id: 7,
+        is_maker_ask: false,
+        timestamp: 1700000000000 + index * 1000,
+        taker_position_size_before: '0',
+      }));
+      socket.receive({
+        type: 'subscribed/account_all_trades',
+        trades: { '1': trades },
+      });
+      socket.receive({
+        type: 'update/account_all_trades',
+        trades: {
+          '1': [
+            { ...trades[104], price: '91000' },
+            { ...trades[0], trade_id: 200, timestamp: 1699999000000 },
+          ],
+        },
+      });
+      const late = jest.fn<void, [OrderFill[], boolean?]>();
+      const unsubscribeLate = provider.subscribeToOrderFills({
+        callback: late,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const replay = late.mock.calls[0][0];
+      expect(replay.map((fill) => fill.fillId)).toStrictEqual(
+        Array.from({ length: 100 }, (_, index) => String(105 - index)),
+      );
+      expect(replay[0].price).toBe('91000');
+      expect(late.mock.calls[0][1]).toBe(true);
       unsubscribeLate();
       unsubscribe();
       await provider.disconnect();
@@ -12386,6 +12471,273 @@ describe('LighterProvider', () => {
       expect(pending).toHaveLength(1);
       expect(pending[0].reason).toContain('unfinished');
       expect(pending[0].reason).not.toContain('previous trading key');
+    });
+  });
+
+  it.each(['creating', 'cancelling'] as const)(
+    'keeps same-slot %s journals visible after failed signer setup',
+    async (phase) => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+      await infra.diskCache.setItem(
+        'lighterTpslJournalIndex:testnet',
+        JSON.stringify([settlementKey]),
+      );
+      await infra.diskCache.setItem(
+        `lighterTpslJournal:testnet:${settlementKey}`,
+        JSON.stringify({
+          version: 4,
+          recordedAt: 5,
+          operationId: 'startup-slot-19',
+          createdAt: 5,
+          nextAttemptId: 2,
+          apiKeyIndex: 7,
+          intent: 'replace',
+          phase,
+          priorGrouping: 'independent',
+          priorTriggers: [],
+          attempts: [
+            {
+              kind: 'create',
+              attemptId: 1,
+              nonce: 42,
+              outcome: 'unknown',
+              clientIds: [12345],
+              txHash: 'ffff00000001',
+              expiresAt: 9_999_999_999_999,
+              role: 'replacement',
+            },
+          ],
+        }),
+      );
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:7',
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [],
+          recovered: [
+            {
+              recoveryId: '42:beef',
+              kind: 13,
+              intent: 'withdraw:1',
+              txHash: 'beef',
+              outcome: 'unknown',
+              evidence: 'rest-advance',
+            },
+          ],
+        }),
+      );
+      const ready = await built.provider.isReadyToTrade();
+      expect(ready.ready).toBe(false);
+      const pending = await built.provider.getPendingManualRecoveries();
+      expect(pending).toHaveLength(1);
+      expect(pending[0].reason).toContain('unfinished');
+      expect(pending[0].reason).not.toContain('previous trading key');
+    },
+  );
+  describe('account-scoped recovered outcomes', () => {
+    it('lists previous-slot outcomes and acknowledges only the exact scoped slot', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const outcome = {
+        recoveryId: '42:beef',
+        kind: 13,
+        intent: 'withdraw:1',
+        txHash: 'beef',
+        outcome: 'unknown',
+        evidence: 'rest-advance',
+      };
+      const original = JSON.stringify({
+        version: 4,
+        consumedFloor: 43,
+        entries: [
+          {
+            nonce: 43,
+            txHash: 'pending-hash',
+            expiresAt: 9999999999999,
+            kind: 14,
+            intent: 'order:BTC',
+            owner: null,
+          },
+        ],
+        recovered: [outcome],
+      });
+      for (const slot of [7, 19]) {
+        await infra.diskCache.setItem(
+          `lighterNonceLedger:testnet:28:${slot}`,
+          original,
+        );
+      }
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:mainnet:28:19',
+        original,
+      );
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:29:19',
+        original,
+      );
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(2);
+      expect(new Set(outcomes.map((row) => row.recoveryId)).size).toBe(2);
+      expect(outcomes.map((row) => row.apiKeyIndex)).toStrictEqual([7, 19]);
+      expect(
+        await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+      ).toBe(original);
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch('42:beef'),
+      ).rejects.toThrow('No pending recovered');
+      const restarted = buildProvider({ platformDependencies: infra });
+      expect(await restarted.provider.getRecoveredDispatches()).toStrictEqual(
+        outcomes,
+      );
+      const otherNetwork = buildProvider({
+        platformDependencies: infra,
+        isTestnet: false,
+      });
+      await expect(
+        otherNetwork.provider.acknowledgeRecoveredDispatch(
+          outcomes[1].recoveryId,
+        ),
+      ).rejects.toThrow('No pending recovered');
+      const otherAccount = buildProvider({
+        platformDependencies: infra,
+        configuredAccountIndex: 29,
+      });
+      await expect(
+        otherAccount.provider.acknowledgeRecoveredDispatch(
+          outcomes[1].recoveryId,
+        ),
+      ).rejects.toThrow('No pending recovered');
+      built.getUserAddressMock.mockReturnValue(
+        '0x9999999999999999999999999999999999999999',
+      );
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch(outcomes[1].recoveryId),
+      ).rejects.toThrow('not owned by the selected wallet');
+      built.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[1].recoveryId);
+      expect(
+        JSON.parse(
+          (await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19')) ??
+            'null',
+        ),
+      ).toStrictEqual({
+        version: 4,
+        consumedFloor: 43,
+        entries: [
+          {
+            nonce: 43,
+            txHash: 'pending-hash',
+            expiresAt: 9999999999999,
+            kind: 14,
+            intent: 'order:BTC',
+            owner: null,
+          },
+        ],
+        recovered: [],
+      });
+      expect(
+        (await built.provider.getRecoveredDispatches()).map(
+          (row) => row.apiKeyIndex,
+        ),
+      ).toStrictEqual([7]);
+      expect(
+        await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7'),
+      ).toBe(original);
+      expect(
+        await infra.diskCache.getItem('lighterNonceLedger:mainnet:28:19'),
+      ).toBe(original);
+      expect(
+        await infra.diskCache.getItem('lighterNonceLedger:testnet:29:19'),
+      ).toBe(original);
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch(outcomes[1].recoveryId),
+      ).rejects.toThrow('No pending recovered');
+    });
+
+    it('waits for failed candidate selection before exposing account-local recovery state', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const entered = createDeferred<void>();
+      const release = createDeferred<void>();
+      Object.assign(built.bridge, {
+        getRecoverableKeyIndices: async (): Promise<number[]> => {
+          entered.resolve();
+          await release.promise;
+          throw new Error('selection failed');
+        },
+      });
+      const setup = built.provider.isReadyToTrade();
+      await entered.promise;
+      let completed = false;
+      const read = built.provider.getRecoveredDispatches().then((outcomes) => {
+        completed = true;
+        return outcomes;
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      expect(completed).toBe(false);
+      release.resolve();
+      expect((await setup).ready).toBe(false);
+      expect(await read).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('keeps previous-slot quarantine visible after selecting a different venue key', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      Object.assign(built.bridge, {
+        getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+      });
+      built.clientInstance.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [
+          { apiKeyIndex: 19, publicKey: 'ab'.repeat(40) },
+          { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+        ],
+      });
+      const original = JSON.stringify({
+        version: 4,
+        consumedFloor: 43,
+        entries: [],
+        recovered: [
+          {
+            recoveryId: '42:beef',
+            kind: 13,
+            intent: 'withdraw:1',
+            txHash: 'beef',
+            outcome: 'unknown',
+            evidence: 'rest-advance',
+          },
+        ],
+      });
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:19',
+        original,
+      );
+      expect((await built.provider.isReadyToTrade()).ready).toBe(true);
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0]).toMatchObject({
+        apiKeyIndex: 19,
+        outcome: 'unknown',
+      });
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[0].recoveryId);
+      expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
     });
   });
 

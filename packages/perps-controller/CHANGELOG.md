@@ -10,17 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `LighterSignerBridge.getRecoverableKeyIndices` and `getStoredKeyIndices` discovery, and an optional `walletAddress` binding on client creation and discovery. Hosts can restore wallet-derived trading keys; Core verifies registered public keys before reuse and skips unrelated candidate ledgers without changing them ([#10618](https://github.com/MetaMask/core/pull/10618))
-- Add optional `onError` callbacks and delivery provider identifiers to order and fill subscriptions, including empty aggregated updates, so clients can show and retry failures from the affected provider ([#10618](https://github.com/MetaMask/core/pull/10618))
+- Add optional `onError` callbacks and delivery provider identifiers to order and fill subscriptions, including empty aggregated updates, so clients can identify the provider delivering an update. Lighter currently reports detectable subscription setup failures; other providers may not invoke `onError` ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Changed
+
+- Treat `lighterAuthConfig.apiKeyIndex` as a preferred slot when key discovery is available. List local recovered outcomes across all trading slots, including skipped keys, with optional `PerpsRecoveredDispatch.apiKeyIndex` and opaque wallet/network/account/slot-bound IDs. Acknowledge exactly one outcome without switching signers; legacy IDs are accepted only when unique across the account. Readers wait for in-flight selection and failed initialization keeps unfinished TP/SL journals visible ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
 
 ### Fixed
 
-- Preserve omitted realized PnL on Lighter closing and flipping fills as unknown, so valid fills remain available to live Activity and late subscribers ([#10618](https://github.com/MetaMask/core/pull/10618))
-- Reuse matching Lighter trading keys before allocating a free slot, preserve occupied device keys, wait for new registration visibility, and deliver signer failures to the current wallet's subscribers. Confirmed empty orders and validated fill history replay to late subscribers in the same authenticated wallet session ([#10618](https://github.com/MetaMask/core/pull/10618))
-- Accept Lighter trades that omit position-sign flags and preserve omitted account PnL as unknown. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605), [#10618](https://github.com/MetaMask/core/pull/10618))
+- Reuse matching Lighter trading keys before allocating a free slot, preserve occupied device keys and wait for new registration visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
+- Deliver Lighter signer setup failures to the current wallet's subscribers. Replay confirmed empty orders and validated newest-first fill history to late subscribers in the same authenticated session; malformed trade containers never authorize empty replay ([#10618](https://github.com/MetaMask/core/pull/10618))
+- Accept Lighter trades that omit position-sign flags and preserve omitted account PnL, including closing and flipping fill PnL, as unknown for Activity and late-subscriber replay. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605), [#10618](https://github.com/MetaMask/core/pull/10618))
 
 ## [19.0.0]
 

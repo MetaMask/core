@@ -3941,7 +3941,10 @@ export class PerpsController extends BaseController<
   /**
    * List TP/SL protection changes the active provider parked for
    * explicit manual re-establishment. Providers without durable
-   * settlement state return an empty list.
+   * settlement state return an empty list. Lighter includes previous-key and
+   * pre-initialization journals for the selected wallet/account, waits for any
+   * in-flight key selection and keeps failed-setup obligations visible. A
+   * current-key update does not clear an earlier key's unfinished journal.
    *
    * @returns Pending manual-recovery entries.
    */
@@ -3956,9 +3959,13 @@ export class PerpsController extends BaseController<
   /**
    * READ-ONLY list of the active provider's recovered-dispatch outcomes
    * (previously ambiguous submissions later resolved). Providers without
-   * durable dispatch state return an empty list.
+   * durable dispatch state return an empty list. Lighter scans the bounded
+   * local trading-slot range, including skipped keys, without signing or
+   * changing quarantine. This works before initialization and after failure;
+   * an in-flight selection settles first. Preserve opaque recovery IDs exactly.
    *
-   * @returns Pending recovered-dispatch outcomes.
+   * @returns Pending recovered-dispatch outcomes, with their original key slot
+   * when supplied by the provider.
    */
   async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
     const provider = await this.#getActiveProviderWhenReady();
@@ -3971,9 +3978,12 @@ export class PerpsController extends BaseController<
   /**
    * Acknowledge ONE recovered-dispatch outcome by its stable id, after
    * refreshing venue state. Throws when the active provider has no
-   * durable dispatch state or the id no longer matches.
+   * durable dispatch state or the id no longer matches. Lighter scopes IDs to
+   * wallet/network/account/key and accepts legacy IDs only when unambiguous
+   * across local account ledgers. Acknowledgment removes one stored outcome,
+   * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
    *
-   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
    * @returns Resolves when the outcome is acknowledged.
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {

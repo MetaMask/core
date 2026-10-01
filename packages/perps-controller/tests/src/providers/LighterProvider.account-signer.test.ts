@@ -760,7 +760,7 @@ describe('LighterProvider with accountSigner', () => {
       const result = await provider.prepareTradingWallet();
 
       expect(result.ready).toBe(false);
-      expect(result.error).toContain('recovery is unavailable');
+      expect(result.error).toContain('No recoverable Lighter trading key');
       expect(client.sendTx).not.toHaveBeenCalled();
       expect(calls).toStrictEqual([]);
     },
