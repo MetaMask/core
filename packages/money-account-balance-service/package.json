@@ -57,7 +57,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/money-account-api-data-service": "^2.1.0",
-    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-controller": "^37.0.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0"

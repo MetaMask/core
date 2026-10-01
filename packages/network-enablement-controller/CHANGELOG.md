@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.2]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/config-registry-controller` from `^4.0.0` to `^5.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
 
 ## [7.0.1]
 
@@ -441,7 +445,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.2...HEAD
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.1...@metamask/network-enablement-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.0...@metamask/network-enablement-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.5...@metamask/network-enablement-controller@7.0.0
 [6.0.5]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.4...@metamask/network-enablement-controller@6.0.5
