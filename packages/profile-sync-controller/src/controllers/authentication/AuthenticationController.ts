@@ -47,6 +47,8 @@ import type {
   CompleteVerificationRequest,
   VerificationToken,
   GetVerificationTokenRequest,
+  MfaCredentialType,
+  MfaVerificationAssertion,
   VerificationChallenge,
 } from '../../sdk/index.js';
 import {
@@ -178,15 +180,6 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
 };
-
-/**
- * Upper bound on a verification session's lifetime. The session also ends at
- * the verification token's own `exp` (15 minutes today), whichever comes
- * first, so this only matters if the server ever issues longer-lived tokens.
- * Callers needing a fresher proof pass `maxSessionAgeMs` to
- * `getVerificationToken`.
- */
-export const VERIFICATION_SESSION_TTL_MS = 15 * 60_000;
 
 /**
  * Default maximum age of a verification session that may authorize enrolling a
@@ -1036,6 +1029,11 @@ export class AuthenticationController extends BaseController<
   /**
    * Completes credential enrollment and refreshes the credential cache.
    *
+   * The server returns an assertion for the new credential, which opens a
+   * verification session like `completeCredentialVerification`, replacing
+   * any earlier one. If that exchange fails, the earlier session is kept:
+   * the credential is enrolled either way.
+   *
    * A cache-refresh failure does not undo successful enrollment. Email
    * enrollment invalidates the primary SRP session *after* refresh so the
    * credentials call can reuse the still-valid access token; the next token
@@ -1054,10 +1052,11 @@ export class AuthenticationController extends BaseController<
     const sessionEpoch = this.#authSessionEpoch;
     assertValidMfaRequest(request, CompleteEnrollmentRequestStruct);
     const { type } = request.proof;
+    const { operation } = request.reason;
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
-    await this.#runMfaRequest(
+    const assertion = await this.#runMfaRequest(
       'MFA Enroll Complete',
-      request.reason.operation,
+      operation,
       type,
       async () =>
         await this.#auth.completeMfaEnrollment(
@@ -1067,6 +1066,19 @@ export class AuthenticationController extends BaseController<
         ),
     );
 
+    try {
+      await this.#openVerificationSessionFromAssertion(assertion, {
+        operation,
+        type,
+        sessionEpoch,
+        methodName: 'completeCredentialEnrollment',
+      });
+    } catch {
+      // Callers see no session and verify the credential instead.
+    }
+
+    // Also catches a session that ended during the enrollment request; the
+    // exchange above then ran for nothing, and its session was never opened.
     try {
       this.#assertAuthSessionEpoch(
         sessionEpoch,
@@ -1079,9 +1091,6 @@ export class AuthenticationController extends BaseController<
       throw error;
     }
 
-    // The verification session is deliberately kept: adding a factor does not
-    // weaken an earlier proof, and `beginCredentialEnrollment` already limits
-    // which sessions may add the next one.
     try {
       return await this.refreshEnrolledCredentials();
     } catch {
@@ -1155,16 +1164,47 @@ export class AuthenticationController extends BaseController<
       sessionEpoch,
       'completeCredentialVerification',
     );
+    return await this.#openVerificationSessionFromAssertion(assertion, {
+      operation,
+      type,
+      sessionEpoch,
+      methodName: 'completeCredentialVerification',
+    });
+  }
+
+  /**
+   * Exchanges an MFA assertion at Hydra and opens the verification session
+   * with the resulting token.
+   *
+   * @param assertion - Assertion returned by a verify or enroll completion.
+   * @param context - Trace tags and the session the call started in.
+   * @param context.operation - Feature operation, for tracing.
+   * @param context.type - Credential type the assertion proves, for tracing.
+   * @param context.sessionEpoch - Authenticated session the call started in.
+   * @param context.methodName - Public method name, for error messages.
+   * @returns The verification token.
+   */
+  async #openVerificationSessionFromAssertion(
+    assertion: MfaVerificationAssertion,
+    {
+      operation,
+      type,
+      sessionEpoch,
+      methodName,
+    }: {
+      operation: string;
+      type: MfaCredentialType;
+      sessionEpoch: number;
+      methodName: string;
+    },
+  ): Promise<VerificationToken> {
     const accessToken = await this.#runMfaRequest(
       'MFA Token Exchange',
       operation,
       type,
       async () => await this.#auth.exchangeMfaAssertion(assertion.token),
     );
-    this.#assertAuthSessionEpoch(
-      sessionEpoch,
-      'completeCredentialVerification',
-    );
+    this.#assertAuthSessionEpoch(sessionEpoch, methodName);
 
     let decodedClaims: unknown;
     try {
@@ -1173,8 +1213,10 @@ export class AuthenticationController extends BaseController<
       throw new VerificationTokenInvalidError(toErrorMessage(error));
     }
     const claims = parseVerificationTokenClaims(decodedClaims);
-    if (claims.exp * 1000 <= Date.now()) {
-      throw new VerificationTokenInvalidError('Verification token is expired');
+    if (!Number.isFinite(accessToken.expiresIn) || accessToken.expiresIn <= 0) {
+      throw new VerificationTokenInvalidError(
+        'Verification token has no remaining lifetime',
+      );
     }
 
     const token: VerificationToken = { ...accessToken, claims };
@@ -1185,6 +1227,12 @@ export class AuthenticationController extends BaseController<
   /**
    * Returns the active verification token when it meets the requested
    * freshness.
+   *
+   * Low-level: features should go through the client MFA kit
+   * (`verifyOrEnroll`), which reuses a matching session without showing any
+   * screen and checks which method proved it. Read the token directly only
+   * from code that cannot show UI, and treat `null` as "let the UI layer
+   * ask".
    *
    * @param request - Optional maximum session age in milliseconds, measured
    * from when the token was obtained. Zero always requires a new ceremony.
@@ -1216,18 +1264,16 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Opens the verification session. Its lifetime is the session TTL clamped to
-   * the token's own `exp`, so the session never outlives the token.
+   * Opens the verification session for the lifetime the server gave the token.
+   * It is measured from `expires_in` on the local clock rather than read from
+   * `exp`, so a skewed device clock cannot shorten or extend it.
    *
    * @param token - The freshly exchanged verification token.
    */
   #openVerificationSession(token: VerificationToken): void {
     const audience = DEFAULT_AUDIENCE;
     this.#dropVerificationSession(audience);
-    const expiresAt = Math.min(
-      token.obtainedAt + VERIFICATION_SESSION_TTL_MS,
-      token.claims.exp * 1000,
-    );
+    const expiresAt = token.obtainedAt + token.expiresIn * 1000;
     const timer = setTimeout(
       () => this.#dropVerificationSession(audience),
       Math.max(0, expiresAt - Date.now()),
