@@ -776,9 +776,7 @@ export class AccountTreeController extends BaseController<
     }
 
     // Apply persisted UI states
-    if (persistedGroupMetadata?.pinned?.value !== undefined) {
-      group.metadata.pinned = persistedGroupMetadata.pinned.value;
-    } else {
+    if (persistedGroupMetadata?.pinned?.value === undefined) {
       let isPinned = false;
 
       if (this.#accountOrderCallbacks?.isPinnedAccount) {
@@ -792,11 +790,11 @@ export class AccountTreeController extends BaseController<
       };
       // If any accounts was previously pinned, then we consider the group to be pinned as well.
       group.metadata.pinned = isPinned;
+    } else {
+      group.metadata.pinned = persistedGroupMetadata.pinned.value;
     }
 
-    if (persistedGroupMetadata?.hidden?.value !== undefined) {
-      group.metadata.hidden = persistedGroupMetadata.hidden.value;
-    } else {
+    if (persistedGroupMetadata?.hidden?.value === undefined) {
       let isHidden = false;
 
       if (this.#accountOrderCallbacks?.isHiddenAccount) {
@@ -810,6 +808,8 @@ export class AccountTreeController extends BaseController<
       };
       // If any accounts was previously hidden, then we consider the group to be hidden as well.
       group.metadata.hidden = isHidden;
+    } else {
+      group.metadata.hidden = persistedGroupMetadata.hidden.value;
     }
 
     // Apply persisted lastSelected (plain number, not synced).
@@ -1381,7 +1381,29 @@ export class AccountTreeController extends BaseController<
     const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
     const created = !group;
 
-    if (!group) {
+    if (group) {
+      group.accounts.push(id);
+      // We need to do this at every insertion because race conditions can happen
+      // during the account creation process where one provider completes before the other.
+      // The discovery process in the service can also lead to some accounts being created "out of order".
+      const { accounts } = group;
+      accounts.sort(
+        /* istanbul ignore next: Comparator branch execution (a===id vs b===id)
+         * and return attribution vary across engines; final ordering is covered
+         * by behavior tests. Ignoring the entire comparator avoids flaky line
+         * coverage without reducing scenario coverage.
+         */
+        (a, b) => {
+          const aSortOrder =
+            a === id ? sortOrder : this.#accountIdToContext.get(a)?.sortOrder;
+          const bSortOrder =
+            b === id ? sortOrder : this.#accountIdToContext.get(b)?.sortOrder;
+          return (
+            (aSortOrder ?? MAX_SORT_ORDER) - (bSortOrder ?? MAX_SORT_ORDER)
+          );
+        },
+      );
+    } else {
       log(`[${walletId}] Add new group: [${groupId}]`);
       wallet.groups[groupId] = {
         ...result.group,
@@ -1404,28 +1426,6 @@ export class AccountTreeController extends BaseController<
       if (wallet.type === AccountWalletType.Entropy) {
         this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
-    } else {
-      group.accounts.push(id);
-      // We need to do this at every insertion because race conditions can happen
-      // during the account creation process where one provider completes before the other.
-      // The discovery process in the service can also lead to some accounts being created "out of order".
-      const { accounts } = group;
-      accounts.sort(
-        /* istanbul ignore next: Comparator branch execution (a===id vs b===id)
-         * and return attribution vary across engines; final ordering is covered
-         * by behavior tests. Ignoring the entire comparator avoids flaky line
-         * coverage without reducing scenario coverage.
-         */
-        (a, b) => {
-          const aSortOrder =
-            a === id ? sortOrder : this.#accountIdToContext.get(a)?.sortOrder;
-          const bSortOrder =
-            b === id ? sortOrder : this.#accountIdToContext.get(b)?.sortOrder;
-          return (
-            (aSortOrder ?? MAX_SORT_ORDER) - (bSortOrder ?? MAX_SORT_ORDER)
-          );
-        },
-      );
     }
     log(
       `[${groupId}] Add new account: { id: "${account.id}", type: "${account.type}", address: "${account.address}"`,

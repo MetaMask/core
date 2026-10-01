@@ -1,4 +1,3 @@
-import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
   ROOT_AUTHORITY,
   createERC20TransferAmountTerms,
@@ -10,9 +9,10 @@ import { add0x, bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import type { VaultDelegationType } from '../types.js';
 import {
-  equalsIgnoreCase,
-  makeHasVedaRedeemerCaveat,
+  getVaultDelegations,
+  makeMatchesVaultDelegation,
 } from './delegation-matchers.js';
 import type { Step } from './step.js';
 
@@ -21,9 +21,9 @@ const MAX_UINT256_HEX: Hex = add0x(MAX_UINT256.toString(16));
 
 /**
  * Builds, signs, verifies (with CHOMP), and persists a single auto-deposit
- * delegation for the given token. Both the deposit (mUSD) and withdrawal
- * (vmUSD / boring vault) delegations share this shape; only the token
- * address, symbol, and metadata `type` differ.
+ * delegation for the given token. The deposit (mUSD) and withdrawal (vault
+ * share token) delegations of every vault share this shape; only the token
+ * address, symbol, metadata `type`, and redeemer differ.
  *
  * @param params - The parameters for building the delegation.
  * @param params.messenger - The messenger to call signing/verifying actions on.
@@ -45,7 +45,7 @@ async function signAndStoreDelegation(params: {
   delegateAddress: Hex;
   tokenAddress: Hex;
   tokenSymbol: string;
-  delegationType: 'cash-deposit' | 'cash-withdrawal';
+  delegationType: VaultDelegationType;
   vedaVaultAdapterAddress: Hex;
   erc20TransferAmountEnforcer: Hex;
   redeemerEnforcer: Hex;
@@ -142,6 +142,7 @@ export const buildDelegationStep: Step = {
     delegateAddress,
     erc20TransferAmountEnforcer,
     musdTokenAddress,
+    premiumVault,
     redeemerEnforcer,
     valueLteEnforcer,
     vedaVaultAdapterAddress,
@@ -150,39 +151,20 @@ export const buildDelegationStep: Step = {
       'AuthenticatedUserStorageService:listDelegations',
     );
 
-    const hasVedaRedeemerCaveat = makeHasVedaRedeemerCaveat(
-      redeemerEnforcer,
+    const delegations = getVaultDelegations({
+      musdTokenAddress,
+      boringVaultAddress,
       vedaVaultAdapterAddress,
-    );
-
-    const matches =
-      (tokenAddress: Hex) =>
-      (entry: DelegationResponse): boolean =>
-        equalsIgnoreCase(entry.signedDelegation.delegator, address) &&
-        equalsIgnoreCase(entry.signedDelegation.delegate, delegateAddress) &&
-        equalsIgnoreCase(entry.metadata.chainIdHex, chainId) &&
-        equalsIgnoreCase(entry.metadata.tokenAddress, tokenAddress) &&
-        hasVedaRedeemerCaveat(entry);
-
-    // The deposit delegation authorises transfers of mUSD (delegator → vault);
-    // the withdrawal delegation authorises transfers of vmUSD (vault share
-    // token → adapter, which redeems back to mUSD).
-    const delegations = [
-      {
-        tokenAddress: musdTokenAddress,
-        tokenSymbol: 'mUSD',
-        delegationType: 'cash-deposit' as const,
-      },
-      {
-        tokenAddress: boringVaultAddress,
-        tokenSymbol: 'vmUSD',
-        delegationType: 'cash-withdrawal' as const,
-      },
-    ];
+      premiumVault,
+    });
 
     let didWork = false;
-    for (const config of delegations) {
-      if (existingDelegations.some(matches(config.tokenAddress))) {
+    for (const delegation of delegations) {
+      const matches = makeMatchesVaultDelegation(
+        { address, chainId, delegateAddress, redeemerEnforcer },
+        delegation,
+      );
+      if (existingDelegations.some(matches)) {
         continue;
       }
       await signAndStoreDelegation({
@@ -190,8 +172,7 @@ export const buildDelegationStep: Step = {
         address,
         chainId,
         delegateAddress,
-        ...config,
-        vedaVaultAdapterAddress,
+        ...delegation,
         erc20TransferAmountEnforcer,
         redeemerEnforcer,
         valueLteEnforcer,

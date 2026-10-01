@@ -210,7 +210,7 @@ export function getQueryOptionsOverrides(
     queryKey?: unknown;
     queryFn?: unknown;
   };
-  return rest as Record<string, unknown>;
+  return rest;
 }
 
 // ============================================================================

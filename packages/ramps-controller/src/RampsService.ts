@@ -244,6 +244,27 @@ export type BuyWidget = {
    * Order ID if already created.
    */
   orderId?: string | null;
+  /**
+   * Hosted-flow entry to fall back to when the provider turns the user away
+   * inside an embedded checkout (e.g. Coinbase guest limits).
+   */
+  fallback?: BuyWidgetFallback;
+};
+
+/**
+ * Alternate buy-widget entry for the same provider and quote, attached by the
+ * quotes API when the primary flow is an embedded checkout that may reject the
+ * user. Resolve it with `RampsController:getFallbackBuyWidgetData`.
+ */
+export type BuyWidgetFallback = {
+  /**
+   * Buy-widget request URL (same shape as `buyURL`) that yields the hosted flow.
+   */
+  url: string;
+  /**
+   * The browser type to use for opening the hosted flow.
+   */
+  browser: ProviderBrowserType;
 };
 
 /**

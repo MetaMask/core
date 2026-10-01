@@ -16,6 +16,7 @@ import {
   MfaUnavailableError,
   MfaVerificationFailedError,
   OtpResendCooldownError,
+  StepUpRequiredError,
   TooManyAttemptsError,
 } from '../../errors.js';
 import { asRecord } from '../../utils/as-record.js';
@@ -76,8 +77,8 @@ type VerificationServiceResult = {
   publicKey?: PasskeyRequestOptions;
 };
 
-export type MfaStepUpAssertion = {
-  /** AAL2 assertion JWT to exchange at Hydra for an elevated access token. */
+export type MfaVerificationAssertion = {
+  /** Assertion JWT to exchange at Hydra for an access token. */
   token: string;
   /** Assertion lifetime in seconds. */
   expiresIn: number;
@@ -204,9 +205,33 @@ function parseRetryAfter(response: Response): number | undefined {
  * @returns The validated error body, a best-effort salvage of it, or
  * undefined when the body could not be parsed as JSON at all.
  */
+type MfaErrorBody = {
+  code?: string;
+  message: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  retry_after_seconds?: number;
+};
+
+/**
+ * Prefers the documented `retry_after_seconds` error field over the
+ * `Retry-After` header.
+ *
+ * @param body - The parsed error body, if any.
+ * @param response - The throttled response.
+ * @returns The delay in milliseconds, or undefined when neither is usable.
+ */
+function resolveRetryAfterMs(
+  body: MfaErrorBody | undefined,
+  response: Response,
+): number | undefined {
+  return body?.retry_after_seconds === undefined
+    ? parseRetryAfter(response)
+    : body.retry_after_seconds * 1000;
+}
+
 async function readErrorBody(
   response: Response,
-): Promise<{ code?: string; message: string } | undefined> {
+): Promise<MfaErrorBody | undefined> {
   let body: unknown;
   try {
     body = await response.json();
@@ -242,9 +267,12 @@ async function throwMfaError(
   switch (code) {
     case 'credential_already_enrolled':
     case 'email_already_enrolled':
+    case 'email_socially_verified':
       throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
       throw new CredentialNotEnrolledError(message, status);
+    case 'aal2_required':
+      throw new StepUpRequiredError(message, status);
     case 'flow_expired':
     case 'invalid_flow':
       throw new MfaFlowExpiredError(code, message, status);
@@ -263,7 +291,7 @@ async function throwMfaError(
     case 'otp_resend_cooldown':
       throw new OtpResendCooldownError(
         message,
-        parseRetryAfter(response),
+        resolveRetryAfterMs(body, response),
         status,
       );
     case 'kratos_unavailable':
@@ -273,7 +301,11 @@ async function throwMfaError(
   }
 
   if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
-    throw new MfaRateLimitedError(message, parseRetryAfter(response), status);
+    throw new MfaRateLimitedError(
+      message,
+      resolveRetryAfterMs(body, response),
+      status,
+    );
   }
   if (status === HTTP_STATUS_CODES.BAD_GATEWAY) {
     throw new MfaUnavailableError(message, status);
@@ -388,7 +420,7 @@ export async function mfaEnrollComplete(
 }
 
 /**
- * Begins step-up verification with an enrolled credential.
+ * Begins verification with an enrolled credential.
  *
  * @param env - Authentication environment.
  * @param accessToken - Primary profile access token.
@@ -416,18 +448,18 @@ export async function mfaVerify(
 }
 
 /**
- * Completes step-up verification with an enrolled credential.
+ * Completes verification with an enrolled credential.
  *
  * @param env - Authentication environment.
  * @param accessToken - Primary profile access token.
  * @param params - Flow identifier and verification proof.
- * @returns The AAL2 assertion JWT and its lifetime in seconds.
+ * @returns The assertion JWT and its lifetime in seconds.
  */
 export async function mfaVerifyComplete(
   env: Env,
   accessToken: string,
   params: VerificationCompletionParams,
-): Promise<MfaStepUpAssertion> {
+): Promise<MfaVerificationAssertion> {
   let body: MfaVerifyCompleteRequest = {
     credential_type: params.credential_type,
     flow_id: params.flow_id,
@@ -490,13 +522,15 @@ export function toEnrolledCredential(
     };
   }
 
-  if (type === 'email_otp' && credential.email?.address !== undefined) {
+  if (type === 'email_otp') {
+    // The API marks the address optional, so a row without one is kept.
+    const address = credential.email?.address;
     return {
       type,
       ...base,
-      email: credential.email.address,
+      ...(address === undefined ? {} : { email: address }),
       // The spec marks `verified` optional; an active row is verified.
-      verified: credential.email.verified ?? status === 'active',
+      verified: credential.email?.verified ?? status === 'active',
     };
   }
 

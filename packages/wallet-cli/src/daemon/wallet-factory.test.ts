@@ -358,7 +358,7 @@ describe('createWallet', () => {
               if (action === 'KeyringController:submitPassword') {
                 return Promise.reject(failure);
               }
-              return undefined;
+              return;
             }),
             subscribe: jest.fn(),
             unsubscribe: jest.fn(),
@@ -390,7 +390,7 @@ describe('createWallet', () => {
               if (action === 'KeyringController:submitPassword') {
                 return Promise.reject(new Error('wrong password'));
               }
-              return undefined;
+              return;
             }),
             subscribe: jest.fn(),
             unsubscribe: jest.fn(),

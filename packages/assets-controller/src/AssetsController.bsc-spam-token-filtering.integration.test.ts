@@ -28,9 +28,9 @@ import type { AssetsControllerState } from './AssetsController.js';
  *
  * Boots the real controller, answers the same captured APIs as
  * `buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts`, and
- * asserts CDOGE never lands in persisted state.
- *
- * Integration Expectation - CDOGE is correctly filtered out of controller state.
+ * asserts CDOGE never lands in persisted state — unless the user imported it
+ * as a custom asset, in which case it must survive (see the custom-asset
+ * suite below).
  */
 
 type StateSurface = {
@@ -63,14 +63,17 @@ async function withController<ReturnValue>(
   {
     state = buildEmptyAssetsState(),
     queryApiClient = createTestApiClient(),
+    remoteFeatureFlags = {},
   }: {
     state?: Partial<AssetsControllerState>;
     queryApiClient?: ApiPlatformClient;
+    remoteFeatureFlags?: Record<string, boolean>;
   },
   fn: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
-    registerCustomRootActions: registerBscSpamControllerActions,
+    registerCustomRootActions: (messenger) =>
+      registerBscSpamControllerActions(messenger, { remoteFeatureFlags }),
   });
 
   const controller = new AssetsController({
@@ -90,25 +93,31 @@ async function withController<ReturnValue>(
 
 async function fetchWallet(
   state: Partial<AssetsControllerState> = buildEmptyAssetsState(),
+  remoteFeatureFlags: Record<string, boolean> = {},
 ): Promise<AssetsControllerState> {
   const { accountsSupportedNetworks } = mockBscSpamApis();
 
-  return await withController({ state }, async ({ controller }) => {
-    // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
-    await waitFor(() => expect(accountsSupportedNetworks.isDone()).toBe(true));
+  return await withController(
+    { state, remoteFeatureFlags },
+    async ({ controller }) => {
+      // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
+      await waitFor(() =>
+        expect(accountsSupportedNetworks.isDone()).toBe(true),
+      );
 
-    await controller.getAssets([buildBscSpamAccount()], {
-      chainIds: [BSC_CHAIN_ID],
-      forceUpdate: true,
-    });
+      await controller.getAssets([buildBscSpamAccount()], {
+        chainIds: [BSC_CHAIN_ID],
+        forceUpdate: true,
+      });
 
-    // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
-    // and can still be writing. Let state settle so the assertions about CDOGE
-    // being absent cannot pass just because nothing has landed yet.
-    await waitUntilStable(() => controller.state);
+      // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
+      // and can still be writing. Let state settle so the assertions about CDOGE
+      // being absent cannot pass just because nothing has landed yet.
+      await waitUntilStable(() => controller.state);
 
-    return controller.state;
-  });
+      return controller.state;
+    },
+  );
 }
 
 const WALLET_PASSES = [
@@ -162,9 +171,85 @@ describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
     );
 
     // Same gap as the pipeline suite: prices are not occurrence-filtered.
-    // Unlock cleanup eventually strips them; this flags the hole.
+    // Unlock cleanup eventually strips them; this flags the hole. (The v6
+    // suite does not share this gap: the backend omits Malicious rows before
+    // they can reach the price lane.)
     it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
+  });
+});
+
+describe("AssetsController (Accounts API v5): 'merge' update operation - stale tracked spam token already in state", () => {
+  afterEach(() => {
+    cleanAll();
+  });
+
+  /**
+   * State as a wallet would have it after the spam token snuck in through an
+   * older fetch: a tracked CDOGE balance with metadata and a price, but NOT a
+   * custom-asset pin.
+   *
+   * @returns The seeded controller state.
+   */
+  function buildStaleSpamWalletState(): AssetsControllerState {
+    return buildEmptyAssetsState({
+      assetsBalance: {
+        [BSC_SPAM_ACCOUNT_ID]: {
+          [CDOGE_ASSET_ID_CHECKSUM]: { amount: '100' },
+        },
+      },
+      assetsInfo: {
+        [CDOGE_ASSET_ID_CHECKSUM]: {
+          type: 'erc20',
+          symbol: 'CDOGE',
+          name: '$$$DOGECHAIN',
+          decimals: 9,
+        },
+      },
+      assetsPrice: {
+        [CDOGE_ASSET_ID_CHECKSUM]: {
+          price: 1,
+          lastUpdated: 0,
+          assetPriceType: 'fungible',
+          usdPrice: 1,
+        },
+      },
+    });
+  }
+
+  describe('fetching the wallet on the v5 lane', () => {
+    let state: AssetsControllerState;
+
+    beforeAll(async () => {
+      state = await fetchWallet(buildStaleSpamWalletState());
+    });
+
+    // The v5 never wipes stale scam balances. It only gets wiped on unlock cleanup process.
+    // The v5 lane answers with `updateMode: 'merge'`;
+    // We only ever filter out *newly detected assets*
+    // Holdings already in state are exempt, so the API's fresh CDOGE row lands in the response
+    // and overwrites the seed.
+    //
+    // A spam token that got into state is therefore never removed by the v5 lane.
+    // Accounts API v6 suite performs a `updateMode: 'full'` operation which wipes the same seed via its full snapshot.
+    it.failing('wipes the stale balance', () => {
+      expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
+    });
+
+    // The snapshot really covered BNB Chain — the wipe above is the snapshot
+    // replacing covered-chain balances, not a failed fetch.
+    it('keeps the native BNB asset', () => {
+      expect(BALANCES.lookUp(state, BNB_ASSET_ID)).toBeDefined();
+    });
+
+    // Prices and metadata are append-only in state updates, so the stale
+    // price and metadata linger until the unlock cleanup strips them
+    it.each([METADATA, PRICES])(
+      '$surface - stale entry lingers',
+      ({ lookUp }) => {
+        expect(lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeDefined();
+      },
+    );
   });
 });

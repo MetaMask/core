@@ -19,8 +19,8 @@ export type {
   AuthenticationControllerRefreshEnrolledCredentialsAction,
   AuthenticationControllerBeginCredentialEnrollmentAction,
   AuthenticationControllerCompleteCredentialEnrollmentAction,
-  AuthenticationControllerBeginStepUpAction,
-  AuthenticationControllerCompleteStepUpAction,
-  AuthenticationControllerGetElevatedProfileTokenAction,
-  AuthenticationControllerClearStepUpSessionAction,
+  AuthenticationControllerBeginCredentialVerificationAction,
+  AuthenticationControllerCompleteCredentialVerificationAction,
+  AuthenticationControllerGetVerificationTokenAction,
+  AuthenticationControllerClearVerificationSessionAction,
 } from './AuthenticationController-method-action-types.js';

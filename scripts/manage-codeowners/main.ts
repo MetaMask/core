@@ -2,8 +2,8 @@ import fs from 'fs';
 import * as path from 'path';
 import yargs from 'yargs';
 
-import config from '../../codeowners.js';
-import { generateCodeownersFileContent } from './generate.js';
+import config from '../../codeowners.ts';
+import { generateCodeownersFileContent } from './generate.ts';
 
 /**
  * The path to the generated CODEOWNERS file.

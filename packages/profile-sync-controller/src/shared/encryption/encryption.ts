@@ -1,8 +1,13 @@
-import { gcm } from '@noble/ciphers/aes';
-import { randomBytes } from '@noble/ciphers/webcrypto';
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
+import {
+  getErrorMessage,
+  stringToBytes,
+  bytesToHex,
+  concatBytes,
+  remove0x,
+} from '@metamask/utils';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
-import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
 import type { NativeScrypt } from '../types/encryption.js';
 import {
@@ -12,7 +17,6 @@ import {
 } from './cache.js';
 import {
   ALGORITHM_KEY_SIZE,
-  ALGORITHM_NONCE_SIZE,
   MAX_KDF_PROMISE_CACHE_SIZE,
   SCRYPT_N,
   SCRYPT_p,
@@ -53,7 +57,7 @@ class EncryptorDecryptor {
   // Promise cache for ongoing KDF operations to prevent duplicate work
   readonly #kdfPromiseCache = new Map<
     string,
-    Promise<{ key: Uint8Array; salt: Uint8Array }>
+    Promise<{ key: Uint8Array<ArrayBuffer>; salt: Uint8Array<ArrayBuffer> }>
   >();
 
   async encryptString(
@@ -68,8 +72,7 @@ class EncryptorDecryptor {
         nativeScryptCrypto,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to encrypt string - ${errorMessage}`);
+      throw new Error(`Unable to encrypt string - ${getErrorMessage(e)}`);
     }
   }
 
@@ -93,8 +96,7 @@ class EncryptorDecryptor {
         `Unsupported encrypted data payload - ${encryptedDataStr}`,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to decrypt string - ${errorMessage}`);
+      throw new Error(`Unable to decrypt string - ${getErrorMessage(e)}`);
     }
   }
 
@@ -116,11 +118,11 @@ class EncryptorDecryptor {
     );
 
     // Encrypt and prepend salt.
-    const plaintextRaw = utf8ToBytes(plaintext);
-    const ciphertextAndNonceAndSalt = concatBytes(
+    const plaintextRaw = stringToBytes(plaintext);
+    const ciphertextAndNonceAndSalt = concatBytes([
       salt,
-      this.#encrypt(plaintextRaw, key),
-    );
+      await this.#encrypt(plaintextRaw, key),
+    ]);
 
     // Convert to Base64
     const encryptedData = byteArrayToBase64(ciphertextAndNonceAndSalt);
@@ -174,7 +176,7 @@ class EncryptorDecryptor {
     );
 
     // Decrypt and return result.
-    return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
+    return bytesToUtf8(await this.#decrypt(ciphertextAndNonce, key));
   }
 
   getSalt(encryptedDataStr: string) {
@@ -198,8 +200,7 @@ class EncryptorDecryptor {
         `Unsupported encrypted data payload - ${encryptedDataStr}`,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to get salt - ${errorMessage}`);
+      throw new Error(`Unable to get salt - ${getErrorMessage(e)}`);
     }
   }
 
@@ -209,7 +210,7 @@ class EncryptorDecryptor {
         try {
           return this.getSalt(e);
         } catch {
-          return undefined;
+          return;
         }
       })
       .filter((s): s is Uint8Array<ArrayBuffer> => s !== undefined);
@@ -218,33 +219,37 @@ class EncryptorDecryptor {
     return strSet.size === salts.length;
   }
 
-  #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
-    const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
-
+  async #encrypt(
+    plaintext: Uint8Array<ArrayBuffer>,
+    key: Uint8Array<ArrayBuffer>,
+  ): Promise<Uint8Array<ArrayBuffer>> {
     // Encrypt and prepend nonce.
-    const ciphertext = gcm(key, nonce).encrypt(plaintext);
+    const { ciphertext, iv } = await encrypt(key, plaintext);
 
-    return concatBytes(nonce, ciphertext);
+    return concatBytes([iv, ciphertext]);
   }
 
-  #decrypt(ciphertextAndNonce: Uint8Array, key: Uint8Array): Uint8Array {
+  async #decrypt(
+    ciphertextAndNonce: Uint8Array<ArrayBuffer>,
+    key: Uint8Array<ArrayBuffer>,
+  ): Promise<Uint8Array<ArrayBuffer>> {
     // Create buffers of nonce and ciphertext.
-    const nonce = ciphertextAndNonce.slice(0, ALGORITHM_NONCE_SIZE);
+    const nonce = ciphertextAndNonce.slice(0, IV_LENGTH);
     const ciphertext = ciphertextAndNonce.slice(
-      ALGORITHM_NONCE_SIZE,
+      IV_LENGTH,
       ciphertextAndNonce.length,
     );
 
     // Decrypt and return result.
-    return gcm(key, nonce).decrypt(ciphertext);
+    return decrypt(key, nonce, ciphertext);
   }
 
   async #getOrGenerateScryptKey(
     password: string,
     o: EncryptedPayload['o'],
-    salt?: Uint8Array,
+    salt?: Uint8Array<ArrayBuffer>,
     nativeScryptCrypto?: NativeScrypt,
-  ) {
+  ): Promise<{ key: Uint8Array<ArrayBuffer>; salt: Uint8Array<ArrayBuffer> }> {
     const hashedPassword = createSHA256Hash(password);
 
     // Check if we already have the key cached
@@ -318,11 +323,11 @@ class EncryptorDecryptor {
   async #performKdfOperation(
     password: string,
     o: EncryptedPayload['o'],
-    salt: Uint8Array,
+    salt: Uint8Array<ArrayBuffer>,
     hashedPassword: string,
     nativeScryptCrypto?: NativeScrypt,
-  ): Promise<{ key: Uint8Array; salt: Uint8Array }> {
-    let newKey: Uint8Array;
+  ): Promise<{ key: Uint8Array<ArrayBuffer>; salt: Uint8Array<ArrayBuffer> }> {
+    let newKey: Uint8Array<ArrayBuffer>;
 
     if (nativeScryptCrypto) {
       newKey = await nativeScryptCrypto(
@@ -334,12 +339,12 @@ class EncryptorDecryptor {
         o.dkLen,
       );
     } else {
-      newKey = await scryptAsync(password, salt, {
+      newKey = (await scryptAsync(password, salt, {
         N: o.N,
         r: o.r,
         p: o.p,
         dkLen: o.dkLen,
-      });
+      })) as Uint8Array<ArrayBuffer>;
     }
 
     setCachedKey(hashedPassword, salt, newKey);
@@ -362,5 +367,5 @@ export default encryption;
  */
 export function createSHA256Hash(data: string): string {
   const hashedData = sha256(data);
-  return bytesToHex(hashedData);
+  return remove0x(bytesToHex(hashedData));
 }

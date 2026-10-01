@@ -63,9 +63,7 @@ export function buildMermaidNodeLines(workspaces: Workspace[]): string[] {
  * @param workspaces - The Yarn workspaces inside of this project.
  * @returns A set of lines that will go into the final Mermaid graph.
  */
-export function buildMermaidConnectionLines(
-  workspaces: Workspace[],
-): string[] {
+export function buildMermaidConnectionLines(workspaces: Workspace[]): string[] {
   const dependenciesByLocation = new Map(
     workspaces.map((workspace) => [
       workspace.location,

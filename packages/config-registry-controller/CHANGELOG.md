@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ConfigRegistryApiService.fetchEventsConfig`, which hits `/v1/config/events-config` ([#10448](https://github.com/MetaMask/core/pull/10448))
+
 ### Changed
 
+- **BREAKING:** `ConfigRegistryControllerMessenger` requires `ConfigRegistryApiService:fetchEventsConfig` in its allowed actions ([#10448](https://github.com/MetaMask/core/pull/10448))
+- `ConfigRegistryController` now caches the result from `/v1/config/events-config` in `configs.eventsConfig` in its polling loop ([#10448](https://github.com/MetaMask/core/pull/10448))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
 ## [4.0.0]
 

@@ -9,10 +9,10 @@
       "path": "../messenger/tsconfig.lint.json"
     },
     {
-      "path": "../assets-controller/tsconfig.lint.json"
+      "path": "../accounts-controller/tsconfig.lint.json"
     },
     {
-      "path": "../assets-controllers/tsconfig.lint.json"
+      "path": "../assets-controller/tsconfig.lint.json"
     },
     {
       "path": "../base-controller/tsconfig.lint.json"

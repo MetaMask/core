@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import type { Arguments } from 'yargs';
 
-import type { CreatePackageOptions } from './commands.js';
+import type { CreatePackageOptions } from './commands.ts';
 
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported

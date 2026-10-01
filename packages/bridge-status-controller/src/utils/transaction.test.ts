@@ -1239,7 +1239,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const snapResponse = { result: {} } as { result: Record<string, string> };
+      const snapResponse = { result: {} };
 
       const result = snaps.handleNonEvmTxResponse(
         snapResponse,
@@ -1912,7 +1912,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           if (method === 'TransactionController:estimateGasFee') {
             return estimateGasFeeOverrides;
           }
-          return undefined;
+          return;
         }),
       }) as unknown as BridgeStatusControllerMessenger;
 
@@ -2439,7 +2439,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
               transactionMeta: { id: 'tx1', type: TransactionType.swap },
             };
           }
-          return undefined;
+          return;
         }),
       } as unknown as BridgeStatusControllerMessenger;
     };
@@ -2538,7 +2538,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ] as unknown as QuoteAndTxMetadata[];
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
+        messenger: mockMessenger,
         batchId,
         tradeData,
       });
@@ -2584,7 +2584,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       ] as unknown as QuoteAndTxMetadata[];
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
+        messenger: mockMessenger,
         batchId,
         tradeData,
       });
@@ -2641,7 +2641,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ] as unknown as QuoteAndTxMetadata[];
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
+        messenger: mockMessenger,
         batchId,
         tradeData,
       });
@@ -2768,9 +2768,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
 
       const tradeData = [
         {

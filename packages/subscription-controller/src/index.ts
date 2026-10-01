@@ -12,6 +12,7 @@ export type {
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerGetBenefitsAction,
   SubscriptionControllerGetSubscriptionByProductAction,
+  SubscriptionControllerIsUserEligibleForTrialAction,
   SubscriptionControllerGetSubscriptionsEligibilitiesAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerUnCancelSubscriptionAction,
@@ -62,6 +63,8 @@ export type {
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
+  SubscriptionInvoice,
+  InvoicePaymentStatus,
   SubmitUserEventRequest,
   SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
@@ -76,6 +79,7 @@ export type {
   TokenPaymentInfo,
   SpotTokenPaymentInfo,
   VaultTokenPaymentInfo,
+  VaultName,
   ChainPaymentInfo,
   Currency,
   CryptoAuthMethod,
@@ -86,6 +90,9 @@ export type {
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
   CryptoPaymentMethodError,
+  CryptoPaymentError,
+  UpdateErc20PaymentMethodCryptoRequest,
+  UpdateDelegationPaymentMethodCryptoRequest,
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -107,11 +114,15 @@ export type {
 export {
   CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   PAYMENT_TYPES,
   CRYPTO_AUTH_METHODS,
+  VAULT_NAMES,
+  isVaultShareToken,
   SubscriptionUserEvent,
   COHORT_NAMES,
   BALANCE_CATEGORIES,
@@ -124,6 +135,10 @@ export {
   selectHasEntitlement,
   selectIsActiveSubscriber,
   selectIsUsageAvailable,
+  selectIsPaymentFailed,
+  selectPaymentFailureReason,
+  selectIsRenewalNeeded,
+  selectIsDelegationExhausted,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
@@ -176,10 +191,31 @@ export {
 } from './subscription-delegation/SubscriptionDelegationService.js';
 export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type { SubscriptionDelegationServiceStartSubscriptionWithDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type {
+  ChompIntentType,
+  CommitAuthorizationBundleRequest,
+  CommitAuthorizationBundleResult,
+  DecodedPermission,
+  MoneyAccountAuthorizationReason,
   MoneyAccountBalanceCheckRequest,
   MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
+  PrepareAuthorizationBundleResult,
   PreparedSubscriptionDelegation,
+  PreparedSubscriptionDelegationBundle,
+  PreparedSubscriptionPermission,
+  SignedSubscriptionDelegation,
+  StartSubscriptionWithDelegationRequest,
+  StartSubscriptionWithDelegationResult,
+  SubscriptionDelegationApprovalResult,
+  SubscriptionDelegationTypedData,
+  SubscriptionFundingRequest,
+  SubscriptionPermissionId,
+  UnsignedSubscriptionDelegation,
 } from './subscription-delegation/types.js';
-export { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './subscription-delegation/types.js';
+export {
+  CASH_SUBSCRIPTION_DELEGATION_TYPE,
+  SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
+  SUBSCRIPTION_DELEGATION_POLICY_VERSION,
+} from './subscription-delegation/types.js';

@@ -13,8 +13,11 @@ import type { MoneyAccountBalanceService } from './money-account-balance-service
  * Callers must not select a source. Provenance is returned on the result so
  * fallback is never silent. Malformed or unavailable source balances are
  * reported via the messenger's `captureException` before fallback.
+ * Stale API results (behind `options.minBlock`) also fall back to RPC when
+ * the policy allows, without being reported as defects.
  *
  * @param accountAddress - The Money account's Ethereum address.
+ * @param options - Optional freshness / cache-bypass controls (additive).
  * @returns Canonical balance amounts with source provenance.
  * @throws {@link MoneyAccountBalanceFetchError} when every eligible source
  * fails. Never returns a synthetic zero balance.

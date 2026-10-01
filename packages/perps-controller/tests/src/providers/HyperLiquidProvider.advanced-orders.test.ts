@@ -22,6 +22,7 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -322,9 +323,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -438,8 +436,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -841,6 +839,274 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().updateLeverage,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('omitted margin mode', () => {
+    // Mirrors TradingService.flipPosition, which sends leverage without a mode.
+    const order: OrderParams = {
+      symbol: 'BTC',
+      isBuy: false,
+      size: '0.2',
+      orderType: 'market',
+      currentPrice: 50000,
+      leverage: 10,
+    };
+
+    const mockInfoClient = (overrides: Record<string, unknown>): void => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient(overrides) as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+    };
+
+    it.each(['cross', 'isolated'] as const)(
+      'keeps the open %s position mode when updating leverage',
+      async (positionMode) => {
+        mockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '0',
+                  marginUsed: '500',
+                  leverage: { type: positionMode, value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '0',
+                  cumFunding: {
+                    allTime: '0',
+                    sinceOpen: '0',
+                    sinceChange: '0',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+        });
+
+        const result = await provider.placeOrder(order);
+
+        expect(result.success).toBe(true);
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).toHaveBeenCalledWith({
+          asset: 0,
+          isCross: positionMode === 'cross',
+          leverage: 10,
+        });
+      },
+    );
+
+    it('reads the open position mode from fresh cached positions', async () => {
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+      });
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        createMockPosition({ leverage: { type: 'cross', value: 10 } }),
+      ]);
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(true);
+      expect(
+        mockSubscriptionService.getCachedPositionsForDex,
+      ).toHaveBeenCalledWith('');
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 10 });
+    });
+
+    it('defaults to isolated without an open position in the market', async () => {
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        createMockPosition({ symbol: 'ETH' }),
+      ]);
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+      });
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 10 });
+    });
+
+    it('defaults to isolated when positions cannot be read', async () => {
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockRejectedValue(new Error('offline')),
+      });
+
+      await provider.placeOrder(order);
+
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 10 });
+    });
+  });
+
+  describe('getMarginModeLock', () => {
+    const mockInfoClient = (overrides: Record<string, unknown>): void => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient(overrides) as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+    };
+
+    it('reports the mode of an open position', async () => {
+      const activeAssetData = jest.fn();
+      mockInfoClient({ activeAssetData });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+      expect(activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('reports the asset mode of a resting order', async () => {
+      const activeAssetData = jest
+        .fn()
+        .mockResolvedValue({ leverage: { type: 'cross', value: 5 } });
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'cross',
+        reason: 'open_order',
+      });
+      expect(activeAssetData).toHaveBeenCalledWith(
+        expect.objectContaining({ coin: 'BTC' }),
+      );
+    });
+
+    it('reports the asset mode of an active TWAP with no resting order', async () => {
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        twapHistory: jest.fn().mockResolvedValue([
+          {
+            time: 1_700_000_030,
+            twapId: 987,
+            state: { coin: 'BTC' },
+            status: { status: 'activated' },
+          },
+        ]),
+        activeAssetData: jest
+          .fn()
+          .mockResolvedValue({ leverage: { type: 'isolated', value: 5 } }),
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'isolated',
+        reason: 'open_order',
+      });
+    });
+
+    it('reports unlocked when nothing is open for the asset', async () => {
+      const activeAssetData = jest.fn();
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'ETH' }]),
+        activeAssetData,
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unlocked',
+        providerId: 'hyperliquid',
+      });
+      expect(activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('reports unavailable when the selected account changes mid-read', async () => {
+      mockWalletService.getUserAddressWithDefault
+        .mockResolvedValueOnce('0x1234567890123456789012345678901234567890')
+        .mockResolvedValueOnce('0x1234567890123456789012345678901234567890')
+        .mockResolvedValue('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      const activeAssetData = jest.fn();
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('reports unavailable when the selected account changes while the asset mode is read', async () => {
+      let resolveAssetData: (value: unknown) => void = () => undefined;
+      const activeAssetData = jest.fn().mockReturnValue(
+        new Promise((resolve) => {
+          resolveAssetData = resolve;
+        }),
+      );
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const pendingLock = provider.getMarginModeLock({ symbol: 'BTC' });
+      await new Promise(process.nextTick);
+      await new Promise(process.nextTick);
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      resolveAssetData({ leverage: { type: 'cross', value: 5 } });
+      const lock = await pendingLock;
+
+      expect(activeAssetData).toHaveBeenCalled();
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('reports unavailable when positions cannot be read', async () => {
+      mockInfoClient({
+        clearinghouseState: jest.fn().mockRejectedValue(new Error('offline')),
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
     });
   });
 

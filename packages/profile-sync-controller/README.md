@@ -45,19 +45,31 @@ import { ... } from '@metamask/profile-sync-controller/user-storage/mocks'
 ## Multi-factor authentication
 
 `AuthenticationController` exposes UI-independent primitives for passkey and
-email OTP enrollment and step-up verification:
+email OTP enrollment and verification:
 
 - `refreshEnrolledCredentials()` refreshes the in-memory credential list.
 - `beginCredentialEnrollment()` and `completeCredentialEnrollment()` surround
-  a client-owned passkey ceremony or email-code screen.
-- `beginStepUp()` and `completeStepUp()` verify an enrolled credential and
-  return an elevated profile token.
-- `getElevatedProfileToken()` reuses a live elevated session when it satisfies
-  the caller's freshness requirement; `clearStepUpSession()` clears it.
+  a client-owned passkey ceremony or email-code screen. Once the profile has a
+  credential that proves AAL2, the server requires an AAL2 token to begin
+  enrolling another one: `beginCredentialEnrollment()` sends the verification
+  token only while a session younger than `ENROLLMENT_MAX_SESSION_AGE_MS`
+  (2 minutes) is live, and the server otherwise rejects it with
+  `aal2_required`, so clients should verify an existing credential and retry.
+  The controller never inspects the token's assurance level; the server
+  decides. A setup flow that proved a factor itself can pass
+  `maxSessionAgeMs` (for example, the time since the flow started) so chained
+  enrollments reuse that proof. Enrollment does not end the session.
+- `beginCredentialVerification()` and `completeCredentialVerification()`
+  verify an enrolled credential and return a verification token.
+- `getVerificationToken()` reuses a live verification session when it satisfies
+  the caller's freshness requirement; `clearVerificationSession()` clears it. The
+  session lasts as long as the verification token (at most
+  `VERIFICATION_SESSION_TTL_MS`, 15 minutes) and ends on lock, sign-out, reset, or
+  a rejected base session.
 
 Clients must retain the challenge `flowId`, perform the platform ceremony, and
 send the resulting proof to the matching completion method. OTP codes,
-passkey results, and elevated tokens are never persisted in controller state.
+passkey results, and verification tokens are never persisted in controller state.
 
 ## Contributing
 

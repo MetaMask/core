@@ -19,9 +19,9 @@ import type {
   ResourceState,
   UserRegion,
 } from './RampsController.js';
+import type { VbaOnboardingSnapshot } from './RampsController.js';
 import {
   RampsController,
-  VbaOnboardingStage,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -194,7 +194,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -272,7 +271,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2645,7 +2643,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2689,7 +2686,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2709,7 +2705,6 @@ describe('RampsController', () => {
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2777,7 +2772,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -3899,9 +3893,7 @@ describe('RampsController', () => {
         topTokens: [],
         allTokens: [],
       }));
-      const getProvidersSpy = jest.fn(
-        async () => ({ providers: [] }) as { providers: Provider[] },
-      );
+      const getProvidersSpy = jest.fn(async () => ({ providers: [] }));
 
       await withController(
         {
@@ -5773,6 +5765,122 @@ describe('RampsController', () => {
       );
     });
 
+    it('prefers the provider of the most recent completed order over API order', async () => {
+      const incompatible = makeProvider('/providers/moonpay');
+      const coinbase = makeProvider('/providers/coinbase', [ASSET_ID]);
+      const crossmint = makeProvider('/providers/crossmint', [ASSET_ID]);
+      const transak = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, coinbase, crossmint, transak],
+                incompatible,
+              ),
+              orders: [
+                createMockOrder({
+                  provider: crossmint,
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: transak,
+                  createdAt: 2000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: coinbase,
+                  createdAt: 3000,
+                  status: RampsOrderStatus.Failed,
+                }),
+              ],
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(transak);
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('skips previously used providers that do not serve the asset', async () => {
+      const coinbase = makeProvider('/providers/coinbase', [ASSET_ID]);
+      const crossmint = makeProvider('/providers/crossmint', [ASSET_ID]);
+      const moonpay = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [coinbase, crossmint, moonpay],
+                null,
+              ),
+              orders: [
+                createMockOrder({
+                  provider: crossmint,
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: moonpay,
+                  createdAt: 2000,
+                  status: RampsOrderStatus.Completed,
+                }),
+              ],
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(crossmint);
+        },
+      );
+    });
+
+    it('falls back to API order when no previously used provider serves the asset', async () => {
+      const coinbase = makeProvider('/providers/coinbase', [ASSET_ID]);
+      const crossmint = makeProvider('/providers/crossmint', [ASSET_ID]);
+      const moonpay = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [coinbase, crossmint, moonpay],
+                null,
+              ),
+              orders: [
+                createMockOrder({
+                  provider: moonpay,
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+              ],
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(coinbase);
+        },
+      );
+    });
+
     it('is callable via the RampsController:setSelectedProviderForAsset messenger action', async () => {
       const incompatible = makeProvider('/providers/coinbase');
       const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
@@ -5926,6 +6034,60 @@ describe('RampsController', () => {
             ),
           ).toThrow(
             'Tokens not loaded. Cannot set selected token before tokens are fetched.',
+          );
+        },
+      );
+    });
+
+    it('selects the catalog token when an EVM ERC-20 id differs only by hex case', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokensResponse, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedToken',
+            mockToken.assetId.toLowerCase(),
+          );
+
+          expect(controller.state.tokens.selected).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('does not match a non-EVM asset id that differs only by case', async () => {
+      const solanaToken: RampsToken = {
+        ...mockToken,
+        assetId:
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        symbol: 'USDC',
+      };
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(
+                { topTokens: [solanaToken], allTokens: [solanaToken] },
+                null,
+              ),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'RampsController:setSelectedToken',
+              solanaToken.assetId.toLowerCase(),
+            ),
+          ).toThrow(
+            `Token with asset ID "${solanaToken.assetId.toLowerCase()}" not found in available tokens.`,
           );
         },
       );
@@ -9677,6 +9839,133 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getFallbackBuyWidgetData', () => {
+    const fallback = {
+      url: 'https://on-ramp.uat-api.cx.metamask.io/providers/coinbase/buy-widget?checkout=hosted',
+      browser: 'IN_APP_OS_BROWSER' as const,
+    };
+
+    it('fetches the hosted widget for the fallback url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn(async () => ({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+          browser: 'IN_APP_OS_BROWSER' as const,
+          orderId: '/providers/coinbase/orders/abc',
+        }));
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          fallback,
+        );
+
+        expect(getBuyWidgetUrl).toHaveBeenCalledWith(fallback.url);
+        expect(buyWidget).toStrictEqual({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+          browser: 'IN_APP_OS_BROWSER',
+          orderId: '/providers/coinbase/orders/abc',
+        });
+      });
+    });
+
+    it('sets redirectUrl on the fallback url, replacing an existing one', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn(async (_buyUrl: string) => ({
+          url: 'https://pay.coinbase.com/buy?sessionToken=abc',
+        }));
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          { ...fallback, url: `${fallback.url}&redirectUrl=https%3A%2F%2Fold` },
+          { redirectUrl: 'metamask://on-ramp/providers/coinbase' },
+        );
+
+        const requested = new URL(getBuyWidgetUrl.mock.calls[0][0]);
+        expect(requested.searchParams.get('checkout')).toBe('hosted');
+        expect(requested.searchParams.getAll('redirectUrl')).toStrictEqual([
+          'metamask://on-ramp/providers/coinbase',
+        ]);
+      });
+    });
+
+    it('returns null without calling the service when the fallback has no url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          { ...fallback, url: '' },
+        );
+
+        expect(buyWidget).toBeNull();
+        expect(getBuyWidgetUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws without calling the service when the fallback url is malformed', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getBuyWidgetUrl = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          getBuyWidgetUrl,
+        );
+
+        await expect(
+          rootMessenger.call('RampsController:getFallbackBuyWidgetData', {
+            ...fallback,
+            url: 'not a url',
+          }),
+        ).rejects.toThrow('Invalid URL');
+        expect(getBuyWidgetUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns null when the service returns an empty url', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({ url: '', browser: 'IN_APP_OS_BROWSER' as const }),
+        );
+
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getFallbackBuyWidgetData',
+          fallback,
+        );
+
+        expect(buyWidget).toBeNull();
+      });
+    });
+
+    it('propagates errors from the service', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:getFallbackBuyWidgetData',
+            fallback,
+          ),
+        ).rejects.toThrow('Network error');
+      });
+    });
+  });
+
   describe('addPrecreatedOrder', () => {
     it('adds a stub order with Precreated status for polling', async () => {
       await withController(({ controller, rootMessenger }) => {
@@ -9850,13 +10139,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: 'canonical-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
         );
         rootMessenger.registerActionHandler(
           'NeoBankService:getCustomerByExternalId',
@@ -9893,13 +10181,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: 'canonical-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest
           .fn()
@@ -9957,13 +10244,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: '',
-              canonicalProfileId: '',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: '',
+            canonicalProfileId: '',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest.fn();
         rootMessenger.registerActionHandler(
@@ -9988,13 +10274,12 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              canonicalProfileId: '',
-              metaMetricsId: 'mm-1',
-            }) as never,
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: '',
+            metaMetricsId: 'mm-1',
+          }),
         );
         const getCustomerByExternalId = jest
           .fn()
@@ -10187,18 +10472,27 @@ describe('RampsController', () => {
   });
 
   describe('hydrateVbaOnboarding', () => {
+    // A session's externalUserId is the canonical profile id that created it;
+    // hydration only reuses a persisted session when it matches the signed-in
+    // profile returned by AuthenticationController:getSessionProfile.
+    const CANONICAL_PROFILE_ID = 'canonical-1';
+
     type KycSession = {
       id: string;
       finalStatus: string;
       kycStatus: string;
       vendorStatus: string;
+      externalUserId: string;
     };
 
     type KycHandlers = {
       getSessionStatusForVendor: jest.Mock;
       refreshSessionStatus: jest.Mock;
+      getProviderFlowStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
+      clearState: jest.Mock;
+      getSessionProfile: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
@@ -10219,8 +10513,11 @@ describe('RampsController', () => {
        * 404-style error (treated as "no session").
        */
       getSessionRejects: boolean;
+      providerFlowStatus: 'not_started' | 'submitted' | 'abandoned' | 'failed';
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
+      /** Canonical id of the currently signed-in profile. */
+      profileCanonicalId: string | null;
     };
 
     const approvedSession: KycSession = {
@@ -10228,6 +10525,7 @@ describe('RampsController', () => {
       finalStatus: 'approved',
       kycStatus: 'approved',
       vendorStatus: 'approved',
+      externalUserId: CANONICAL_PROFILE_ID,
     };
 
     const registerKycHandlers = (
@@ -10238,8 +10536,10 @@ describe('RampsController', () => {
         session: approvedSession,
         refreshThrows: false,
         getSessionRejects: false,
+        providerFlowStatus: 'not_started',
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
+        profileCanonicalId: CANONICAL_PROFILE_ID,
         ...overrides,
       };
 
@@ -10259,15 +10559,26 @@ describe('RampsController', () => {
       const handlers: KycHandlers = {
         getSessionStatusForVendor,
         refreshSessionStatus,
+        getProviderFlowStatus: jest
+          .fn()
+          .mockReturnValue(values.providerFlowStatus),
         hasCompletedVendorDisclaimers: jest
           .fn()
           .mockResolvedValue(values.vendorDisclaimersCompleted),
         hasCompletedSessionDisclaimers: jest
           .fn()
           .mockResolvedValue(values.sessionDisclaimersCompleted),
+        clearState: jest.fn(),
+        getSessionProfile: jest
+          .fn()
+          .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile' as never,
+        handlers.getSessionProfile as never,
+      );
       rootMessenger.registerActionHandler(
         'KycController:getSessionStatusForVendor' as never,
         handlers.getSessionStatusForVendor as never,
@@ -10275,6 +10586,10 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'KycController:refreshSessionStatus' as never,
         handlers.refreshSessionStatus as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getProviderFlowStatus' as never,
+        handlers.getProviderFlowStatus as never,
       );
       rootMessenger.registerActionHandler(
         'KycController:hasCompletedVendorDisclaimers' as never,
@@ -10285,6 +10600,10 @@ describe('RampsController', () => {
         handlers.hasCompletedSessionDisclaimers as never,
       );
       rootMessenger.registerActionHandler(
+        'KycController:clearState' as never,
+        handlers.clearState as never,
+      );
+      rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
         handlers.getAutoramps as never,
       );
@@ -10292,67 +10611,93 @@ describe('RampsController', () => {
       return handlers;
     };
 
-    const pendingSession = (kycStatus: string): KycSession => ({
+    const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
-      finalStatus: 'pending',
-      kycStatus,
-      vendorStatus: 'pending',
+      finalStatus,
+      // Relay and vendor decisions agree in these cases; the relay-approved,
+      // vendor-pending divergence is covered by its own test below.
+      kycStatus: finalStatus,
+      vendorStatus: finalStatus,
+      externalUserId: CANONICAL_PROFILE_ID,
+    });
+
+    const emptySnapshot = (): VbaOnboardingSnapshot => ({
+      sessionExists: false,
+      vendorDisclaimersComplete: false,
+      sessionDisclaimersComplete: false,
+      providerFlowStatus: 'not_started',
+      kycStatus: 'none',
+      autorampStatus: 'not_ready',
+    });
+
+    const factsSnapshot = (
+      overrides: Partial<VbaOnboardingSnapshot> = {},
+    ): VbaOnboardingSnapshot => ({
+      sessionExists: true,
+      vendorDisclaimersComplete: true,
+      sessionDisclaimersComplete: true,
+      providerFlowStatus: 'not_started',
+      kycStatus: 'pending',
+      autorampStatus: 'not_ready',
+      ...overrides,
     });
 
     it.each([
       {
-        name: 'email OTP when no session exists in state or on the backend',
+        name: 'an empty snapshot when no session exists in state or on the backend',
         overrides: { refreshThrows: true, session: null },
-        expected: VbaOnboardingStage.EmailOtpRequired,
+        expected: emptySnapshot(),
       },
       {
-        name: 'email OTP when the backend session lookup 404s',
+        name: 'an empty snapshot when the backend session lookup 404s',
         overrides: { refreshThrows: true, getSessionRejects: true },
-        expected: VbaOnboardingStage.EmailOtpRequired,
+        expected: emptySnapshot(),
       },
       {
-        name: 'vendor terms when Iron disclaimers are incomplete',
-        overrides: { vendorDisclaimersCompleted: false },
-        expected: VbaOnboardingStage.VendorTermsRequired,
-      },
-      {
-        name: 'provider terms when SumSub session disclaimers are incomplete',
-        overrides: { sessionDisclaimersCompleted: false },
-        expected: VbaOnboardingStage.ProviderTermsRequired,
-      },
-      {
-        name: 'the SumSub widget when KYC has not started',
-        overrides: { session: pendingSession('new') },
-        expected: VbaOnboardingStage.KycRequired,
-      },
-      {
-        name: 'the SumSub widget when KYC needs a retry',
-        overrides: { session: pendingSession('retry') },
-        expected: VbaOnboardingStage.KycRequired,
-      },
-      {
-        name: 'pending KYC while the vendor finalizes',
-        overrides: { session: pendingSession('pending') },
-        expected: VbaOnboardingStage.KycPending,
-      },
-      {
-        name: 'rejected KYC when the vendor finalizes as rejected',
-        overrides: { session: pendingSession('rejected') },
-        expected: VbaOnboardingStage.KycRejected,
-      },
-      {
-        name: 'rejected KYC when the final status is rejected',
+        name: 'incomplete vendor disclaimers without collapsing other facts',
         overrides: {
-          session: {
-            id: 'session-1',
-            finalStatus: 'rejected',
-            kycStatus: 'pending',
-            vendorStatus: 'rejected',
-          },
+          session: sessionWithStatus('pending'),
+          vendorDisclaimersCompleted: false,
         },
-        expected: VbaOnboardingStage.KycRejected,
+        expected: factsSnapshot({ vendorDisclaimersComplete: false }),
       },
-    ])('routes to $name', async ({ overrides, expected }) => {
+      {
+        name: 'incomplete session disclaimers without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          sessionDisclaimersCompleted: false,
+        },
+        expected: factsSnapshot({ sessionDisclaimersComplete: false }),
+      },
+      {
+        name: 'an abandoned provider flow without collapsing other facts',
+        overrides: {
+          session: sessionWithStatus('pending'),
+          providerFlowStatus: 'abandoned',
+        },
+        expected: factsSnapshot({ providerFlowStatus: 'abandoned' }),
+      },
+      {
+        name: 'kycStatus new when KYC has not started',
+        overrides: { session: sessionWithStatus('new') },
+        expected: factsSnapshot({ kycStatus: 'new' }),
+      },
+      {
+        name: 'kycStatus retry when KYC needs a retry',
+        overrides: { session: sessionWithStatus('retry') },
+        expected: factsSnapshot({ kycStatus: 'retry' }),
+      },
+      {
+        name: 'kycStatus pending while the vendor finalizes',
+        overrides: { session: sessionWithStatus('pending') },
+        expected: factsSnapshot({ kycStatus: 'pending' }),
+      },
+      {
+        name: 'kycStatus rejected when KYC is rejected',
+        overrides: { session: sessionWithStatus('rejected') },
+        expected: factsSnapshot({ kycStatus: 'rejected' }),
+      },
+    ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger, overrides);
         const registerWallet = jest.spyOn(
@@ -10363,9 +10708,8 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(expected);
+        ).toStrictEqual(expected);
 
-        expect(controller.state.vbaOnboardingStage).toBe(expected);
         expect(registerWallet).not.toHaveBeenCalled();
         expect(createAutoramp).not.toHaveBeenCalled();
       });
@@ -10380,7 +10724,7 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.EmailOtpRequired);
+        ).toStrictEqual(emptySnapshot());
 
         expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
         expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith('iron');
@@ -10390,19 +10734,92 @@ describe('RampsController', () => {
     it('prefers the in-state session status over the backend fetch', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {
-          session: pendingSession('new'),
+          session: sessionWithStatus('new'),
         });
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycRequired);
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
 
         expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
         expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
       });
     });
 
-    it('registers the wallet, creates the autoramp, and completes onboarding after accepted KYC', async () => {
+    it('discards a persisted session owned by a different profile and returns an empty snapshot', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A persisted session created by a previous identity: its externalUserId
+        // no longer matches the signed-in profile.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: { ...approvedSession, externalUserId: 'previous-identity' },
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(emptySnapshot());
+
+        expect(handlers.clearState).toHaveBeenCalledTimes(1);
+        // The stale session is discarded before any session-scoped call runs.
+        expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not ownership-check a freshly-fetched session (already scoped to the user)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // No in-state session; the backend fetch returns a session whose
+        // externalUserId differs from the resolved profile. It must not be
+        // discarded, since the fetch is already scoped to the current user.
+        const handlers = registerKycHandlers(rootMessenger, {
+          refreshThrows: true,
+          session: {
+            ...sessionWithStatus('new'),
+            externalUserId: 'previous-identity',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps a persisted session owned by the current profile', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+          profileCanonicalId: CANONICAL_PROFILE_ID,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+        expect(handlers.getSessionProfile).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('keeps a persisted session when the current profile id cannot be resolved', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // A transient profile-read failure must not discard a valid session.
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('new'),
+          profileCanonicalId: null,
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
+
+        expect(handlers.clearState).not.toHaveBeenCalled();
+      });
+    });
+
+    it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
@@ -10428,12 +10845,60 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.Completed);
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
 
         expect(createAutoramp).toHaveBeenCalledWith({});
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.Completed,
+      });
+    });
+
+    it('treats a relay-approved session as approved even while the vendor finalizes', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // The relay has approved (`kycStatus: 'approved'`) but the vendor is
+        // still finalizing (`finalStatus: 'pending'`). Activation must proceed
+        // rather than stranding the user on a pending screen.
+        registerKycHandlers(rootMessenger, {
+          session: {
+            ...approvedSession,
+            finalStatus: 'pending',
+            vendorStatus: 'new',
+          },
+        });
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-1',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Created,
+            }),
+          );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
         );
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
       });
     });
 
@@ -10464,7 +10929,12 @@ describe('RampsController', () => {
           await controller.hydrateVbaOnboarding({
             walletAddress: '0xabc',
           }),
-        ).toBe(VbaOnboardingStage.Completed);
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+        );
 
         expect(createAutoramp).not.toHaveBeenCalled();
         expect(
@@ -10566,14 +11036,20 @@ describe('RampsController', () => {
         });
 
         expect(await Promise.all([first, second])).toStrictEqual([
-          VbaOnboardingStage.Completed,
-          VbaOnboardingStage.Completed,
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'ready',
+          }),
         ]);
         expect(registerWallet).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('falls back to pending KYC when wallet registration fails on the approved path', async () => {
+    it('marks the autoramp retryable when wallet registration fails on the approved path', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         const error = new Error('signing rejected');
@@ -10583,14 +11059,16 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycPending);
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.KycPending,
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
         );
       });
     });
 
-    it('falls back to pending KYC when the wallet lookup is unavailable', async () => {
+    it('marks the autoramp retryable when the wallet lookup is unavailable', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger);
         const error = new WalletRegistrationError('lookupUnavailable', {});
@@ -10601,14 +11079,16 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycPending);
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.KycPending,
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
         );
       });
     });
 
-    it('falls back to pending KYC when loading autoramps fails', async () => {
+    it('marks the autoramp retryable when loading autoramps fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
         const error = new Error('autoramp lookup failed');
@@ -10627,11 +11107,13 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toBe(VbaOnboardingStage.KycPending);
-        expect(createAutoramp).not.toHaveBeenCalled();
-        expect(controller.state.vbaOnboardingStage).toBe(
-          VbaOnboardingStage.KycPending,
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
         );
+        expect(createAutoramp).not.toHaveBeenCalled();
       });
     });
 
@@ -10642,7 +11124,6 @@ describe('RampsController', () => {
         await expect(
           controller.hydrateVbaOnboarding({ walletAddress: ' ' }),
         ).rejects.toThrow('walletAddress is required after KYC acceptance.');
-        expect(controller.state.vbaOnboardingStage).toBeNull();
       });
     });
   });

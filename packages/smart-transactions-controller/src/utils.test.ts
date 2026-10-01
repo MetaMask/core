@@ -746,4 +746,77 @@ describe('src/utils.js', () => {
       expect(result.stx_original_transaction_status).toBeUndefined();
     });
   });
+
+  describe('handleFetch', () => {
+    it('returns the response from the fetch', async () => {
+      const response = { transactions: [{ id: '123' }] };
+      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+        json: () => Promise.resolve(response),
+        ok: true,
+        status: 200,
+      } as Response);
+      expect(await utils.handleFetch('https://example.com')).toStrictEqual(
+        response,
+      );
+    });
+
+    it('throws an error if the fetch fails', async () => {
+      jest
+        .spyOn(global, 'fetch')
+        .mockRejectedValueOnce(new Error('Fetch error'));
+      await expect(utils.handleFetch('https://example.com')).rejects.toThrow(
+        'Fetch error',
+      );
+    });
+
+    it('throws an error if the response is not ok', async () => {
+      const consoleLogSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementationOnce(jest.fn());
+      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            data: { error: 'too_cheap', details: 'insufficient funds' },
+          }),
+        ok: false,
+        status: 500,
+      } as Response);
+      await expect(utils.handleFetch('https://example.com')).rejects.toThrow(
+        'Fetch error: 500',
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        'response',
+        expect.objectContaining({
+          ok: false,
+          status: 500,
+        }),
+      );
+    });
+  });
+
+  describe('getErrorData', () => {
+    it('returns data.error from a thrown fetch error object', () => {
+      const error = Object.assign({}, new Error('Fetch error: 400'), {
+        data: { error: 'too_cheap' },
+      });
+
+      expect(error instanceof Error).toBe(false);
+      expect(utils.getErrorData(error)).toBe('too_cheap');
+    });
+
+    it('returns data.error object from a thrown fetch error object', () => {
+      const error = Object.assign({}, new Error('Fetch error: 400'), {
+        data: { error: { message: 'too_cheap' } },
+      });
+
+      expect(error instanceof Error).toBe(false);
+      expect(utils.getErrorData(error)).toBe(
+        '{"error":{"message":"too_cheap"}}',
+      );
+    });
+
+    it('returns error.message for a real Error', () => {
+      expect(utils.getErrorData(new Error('boom'))).toBe('boom');
+    });
+  });
 });

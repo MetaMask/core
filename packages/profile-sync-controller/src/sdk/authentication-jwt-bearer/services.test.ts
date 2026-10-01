@@ -384,6 +384,7 @@ describe('services', () => {
           metaMetricsId: 'mm-1',
           profileId: 'profile-1',
           canonicalProfileId: 'profile-1',
+          pairedIdentifierIds: undefined,
         },
         profileAliases: [],
       });
@@ -397,6 +398,33 @@ describe('services', () => {
           }),
         }),
       );
+    });
+
+    it('should map paired_identifier_ids onto the profile', async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse({
+          ...mockAuthResponse,
+          profile: {
+            ...mockAuthResponse.profile,
+            paired_identifier_ids: [
+              { id: 'id-google', type: 'GOOGLE' },
+              { id: 'id-1', type: 'SRP' },
+            ],
+          },
+        }),
+      );
+
+      const result = await authenticate(
+        'raw-message',
+        'signature',
+        AuthType.SRP,
+        Env.DEV,
+      );
+
+      expect(result.profile.pairedIdentifierIds).toStrictEqual([
+        { id: 'id-google', type: 'GOOGLE' },
+        { id: 'id-1', type: 'SRP' },
+      ]);
     });
 
     it('should send X-MetaMask-Profile-Pairing header for SRP', async () => {
@@ -937,6 +965,31 @@ describe('services', () => {
       });
     });
 
+    it('should map paired_identifier_ids onto the profile', async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse({
+          ...mockPairApiResponse,
+          profile: {
+            ...mockPairApiResponse.profile,
+            paired_identifier_ids: [
+              { id: 'h1', type: 'SRP' },
+              { id: 'id-canonical', type: 'SRP' },
+            ],
+          },
+        }),
+      );
+
+      const result = await pairProfiles(
+        ['token-1', 'token-2'],
+        'auth-access-token',
+        Env.DEV,
+      );
+
+      expect(result.profile.pairedIdentifierIds).toStrictEqual([
+        { id: 'h1', type: 'SRP' },
+        { id: 'id-canonical', type: 'SRP' },
+      ]);
+    });
     it('should throw PairError on network failure', async () => {
       mockFetch.mockRejectedValue(new Error('Connection refused'));
 
@@ -1082,23 +1135,28 @@ describe('services', () => {
       );
     });
 
-    it('should resolve without reading the response body on 2xx', async () => {
-      const mockResponse = createMockResponse(mockSocialPairResponse);
-      const jsonSpy = jest.spyOn(mockResponse, 'json');
-      mockFetch.mockResolvedValue(mockResponse);
+    it('should return the paired identifiers from the response', async () => {
+      const pairedIdentifierIds = [
+        { id: 'id-social', type: 'GOOGLE' },
+        { id: 'id-srp', type: 'SRP' },
+      ];
+      mockFetch.mockResolvedValue(
+        createMockResponse({
+          ...mockSocialPairResponse,
+          profile: {
+            ...mockSocialPairResponse.profile,
+            paired_identifier_ids: pairedIdentifierIds,
+          },
+        }),
+      );
 
       expect(
         await pairSocialIdentifier(
-          {
-            identifierType: 'GOOGLE',
-            socialJwt: 'social-jwt',
-            email: 'user@example.com',
-          },
+          { identifierType: 'APPLE', socialJwt: 'social-jwt' },
           'primary-srp-token',
           Env.DEV,
         ),
-      ).toBeUndefined();
-      expect(jsonSpy).not.toHaveBeenCalled();
+      ).toStrictEqual(pairedIdentifierIds);
     });
 
     it('should throw PairError on network failure', async () => {

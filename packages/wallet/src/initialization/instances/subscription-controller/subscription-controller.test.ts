@@ -106,7 +106,7 @@ describe('subscriptionController', () => {
     expect(instance.getIntervalLength()).toBe(5 * 60 * 1_000);
   });
 
-  it('delegates SubscriptionService actions and performSignOut', () => {
+  it('delegates SubscriptionService actions, performSignOut, and getIsUserAuthenticated', () => {
     const parent = getRootMessenger();
     const delegateSpy = jest.spyOn(parent, 'delegate');
     const messenger = subscriptionController.getMessenger(parent);
@@ -128,7 +128,9 @@ describe('subscriptionController', () => {
         'SubscriptionService:linkRewards',
         'SubscriptionService:getPricing',
         'SubscriptionService:getBillingPortalUrl',
+        'SubscriptionService:getBenefits',
         'AuthenticationController:performSignOut',
+        'SeedlessOnboardingController:getIsUserAuthenticated',
       ],
     });
   });

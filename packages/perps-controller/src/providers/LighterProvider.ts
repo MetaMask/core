@@ -56,6 +56,7 @@ import {
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { hasErrorInCauseChain } from '../services/causeChain.js';
 import {
   convertKeysToCamelCase,
   LighterApiError,
@@ -80,6 +81,7 @@ import type {
   GetAccountStateParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
+  GetMarginModeLockParams,
   GetMarketsParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -97,6 +99,7 @@ import type {
   OrderFill,
   OrderParams,
   OrderResult,
+  PerpsMarginModeLock,
   PerpsMarketData,
   PerpsPlatformDependencies,
   PerpsProvider,
@@ -151,7 +154,7 @@ import type {
   LighterWsMarketStat,
   LighterWsMarketStatsMessage,
 } from '../types/lighter-types.js';
-import { ensureError } from '../utils/errorUtils.js';
+import { ensureError, isKeyringLockedError } from '../utils/errorUtils.js';
 import {
   adaptAccountStateFromLighter,
   adaptAccountStateFromLighterUserStats,
@@ -652,7 +655,7 @@ const withProcessMutex = async <Result>(
       if (processMutexTails.get(key) === settled) {
         processMutexTails.delete(key);
       }
-      return undefined;
+      return;
     })
     .catch(() => undefined);
   return await run;
@@ -993,6 +996,39 @@ class LighterAccountNotFoundError extends Error {
 }
 
 /**
+ * Session-bound work stopped because the provider disconnected or the wallet
+ * switched accounts while it ran.
+ */
+class LighterSessionCancelledError extends Error {
+  constructor(reason: string) {
+    super(`Operation cancelled: ${reason}`);
+    this.name = 'LighterSessionCancelledError';
+  }
+}
+
+// EIP-1193 `userRejectedRequest` error code.
+const USER_REJECTED_REQUEST_CODE = 4001;
+
+// How wallets word a declined signature when they set no code (the same
+// wordings the controller's deposit flow treats as a cancellation).
+const USER_REJECTED_MESSAGE_PATTERN = /user (rejected|denied|cancell?ed)/iu;
+
+/**
+ * Whether the user declined the venue-key signature; the order path asks
+ * again.
+ *
+ * @param error - The caught error.
+ * @returns True for a declined signature.
+ */
+const isDeclinedRegistration = (error: unknown): boolean =>
+  hasErrorInCauseChain(
+    error,
+    (current) =>
+      (current as { code?: unknown }).code === USER_REJECTED_REQUEST_CODE ||
+      USER_REJECTED_MESSAGE_PATTERN.test(current.message),
+  );
+
+/**
  * Empty account state returned when reads fail or no account exists.
  */
 const EMPTY_ACCOUNT_STATE: AccountState = {
@@ -1173,8 +1209,6 @@ export class LighterProvider implements PerpsProvider {
     this.#walletService = new LighterWalletService(this.#deps, {
       isTestnet: this.#isTestnet,
       messenger: options.messenger,
-      personalSigner: options.lighterAuthConfig?.personalSigner,
-      l1Address: options.lighterAuthConfig?.l1Address,
     });
 
     this.#deps.debugLogger.log('[LighterProvider] Constructor complete', {
@@ -1276,6 +1310,76 @@ export class LighterProvider implements PerpsProvider {
       isTestnet: this.#isTestnet,
       error: 'Lighter network is fixed at construction',
     };
+  }
+
+  /**
+   * Register the venue key ahead of the first order, so its main-account
+   * `personal_sign` happens in a guided session. A read-only provider (no
+   * signer bridge) has nothing to prepare and resolves `ready: true` while an
+   * account is selected and the main-account signer is ready.
+   *
+   * @returns The readiness result described on
+   * `PerpsController.prepareTradingWallet`.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    if (!this.#walletService.isMainAccountSignerReady()) {
+      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+    }
+    try {
+      this.#walletService.getUserAddress();
+    } catch {
+      return { ready: false, error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED };
+    }
+    if (!this.#signerBridge) {
+      return { ready: true };
+    }
+    try {
+      await this.#ensureSignerReady();
+      // The signer can lock while the venue key is being registered.
+      if (!this.#walletService.isMainAccountSignerReady()) {
+        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      }
+      return { ready: true };
+    } catch (caughtError) {
+      // A locked signer, or one that locked while registration ran.
+      if (
+        isKeyringLockedError(caughtError) ||
+        !this.#walletService.isMainAccountSignerReady()
+      ) {
+        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      }
+      if (isDeclinedRegistration(caughtError)) {
+        return { ready: false };
+      }
+      // Nothing can be registered before the wallet has a Lighter account.
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return {
+          ready: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        };
+      }
+      // The session moved on while registering; the next preparation
+      // starts over for the current account.
+      if (caughtError instanceof LighterSessionCancelledError) {
+        this.#deps.debugLogger.log(
+          '[prepareTradingWallet] Session changed during preparation',
+          { reason: caughtError.message },
+        );
+        return {
+          ready: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        };
+      }
+      const error = ensureError(
+        caughtError,
+        'LighterProvider.prepareTradingWallet',
+      );
+      this.#deps.logger.error(
+        error,
+        this.#getErrorContext('prepareTradingWallet'),
+      );
+      return { ready: false, error: error.message };
+    }
   }
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
@@ -4119,24 +4223,24 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #assertSession = (generation: number): void => {
     if (this.#isDisconnected) {
-      throw new Error(
-        'Operation cancelled: the Lighter provider was disconnected',
+      throw new LighterSessionCancelledError(
+        'the Lighter provider was disconnected',
       );
     }
     if (generation !== this.#sessionGeneration) {
-      throw new Error(
-        'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+      throw new LighterSessionCancelledError(
+        'the wallet switched accounts (or the signer reset) while this operation was in flight',
       );
     }
     // The generation only advances when some provider call rebinds; also
     // notice a wallet switch nothing has observed yet. Account-bound work
     // must never run without a binding: every legitimate flow (including
-    // headless l1Address and configured-index setups) binds first, so a
-    // null binding here means the wallet was deselected — fail closed even
-    // when a configured account index could still resolve.
+    // configured-index setups) binds first, so a null binding here means the
+    // wallet was deselected — fail closed even when a configured account
+    // index could still resolve.
     if (this.#boundAddress === null) {
-      throw new Error(
-        'Operation cancelled: no wallet account is bound to the venue session',
+      throw new LighterSessionCancelledError(
+        'no wallet account is bound to the venue session',
       );
     }
     let address: string | null = null;
@@ -4156,8 +4260,8 @@ export class LighterProvider implements PerpsProvider {
         // the stale operation.
         this.#ensureSessionBinding();
       }
-      throw new Error(
-        'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+      throw new LighterSessionCancelledError(
+        'the wallet switched accounts (or the signer reset) while this operation was in flight',
       );
     }
   };
@@ -4863,6 +4967,51 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Report the margin mode Lighter currently binds to a market. Only an
+   * open position locks the mode here: the venue refuses a mode change
+   * while a position is open. Resting orders are not treated as a lock.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The current lock, or unavailable when it cannot be read.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
+      const wireMarginMode = await this.#readPositionMarginMode(params.symbol);
+      this.#assertSession(generation);
+      if (wireMarginMode === null) {
+        return { status: 'unlocked', providerId: this.protocolId };
+      }
+      return {
+        status: 'locked',
+        providerId: this.protocolId,
+        marginMode:
+          wireMarginMode === LIGHTER_MARGIN_MODE_ISOLATED
+            ? 'isolated'
+            : 'cross',
+        reason: 'position',
+      };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] getMarginModeLock unavailable',
+        {
+          symbol: params.symbol,
+          error: ensureError(error, 'LighterProvider.getMarginModeLock')
+            .message,
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
   async getAccountState(
     _params?: GetAccountStateParams,
   ): Promise<AccountState> {
@@ -5009,7 +5158,7 @@ export class LighterProvider implements PerpsProvider {
   async getCurrentAccountId(): Promise<CaipAccountId> {
     const address = this.#walletService.getUserAddress();
     const chainId = getLighterChainId(this.#clientService.network);
-    return `eip155:${chainId}:${address}` as CaipAccountId;
+    return `eip155:${chainId}:${address}`;
   }
 
   // ============================================================================
@@ -7341,21 +7490,41 @@ export class LighterProvider implements PerpsProvider {
     symbol: string,
   ): Promise<number> => {
     try {
-      const accountIndex = await this.#ensureAccountIndex();
-      const response =
-        await this.#clientService.getAccountByIndex(accountIndex);
-      const row = response.accounts?.[0]?.positions?.find(
-        (position) =>
-          position.symbol === symbol && parseFloat(position.position) !== 0,
-      );
-      if (row) {
-        return row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS;
+      const positionMarginMode = await this.#readPositionMarginMode(symbol);
+      if (positionMarginMode !== null) {
+        return positionMarginMode;
       }
     } catch {
       // Fall through: prefer isolated; a wrong guess surfaces as an
       // explicit venue rejection of the leverage update, never as state.
     }
     return LIGHTER_MARGIN_MODE_ISOLATED;
+  };
+
+  /**
+   * Wire margin mode of the open position on this market, if any. A missing
+   * `marginMode` field means the venue default, cross.
+   *
+   * @param symbol - Market symbol.
+   * @returns The position's wire margin mode, or null when flat.
+   * @throws When the account or its positions cannot be read, including an
+   * account response without the account or its positions array.
+   */
+  readonly #readPositionMarginMode = async (
+    symbol: string,
+  ): Promise<number | null> => {
+    const accountIndex = await this.#ensureAccountIndex();
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    const positions = response.accounts?.[0]?.positions;
+    // A missing account or positions array is not proof of a flat account.
+    if (!Array.isArray(positions)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const row = positions.find(
+      (position) =>
+        position.symbol === symbol && parseFloat(position.position) !== 0,
+    );
+    return row ? (row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS) : null;
   };
 
   /** Per-market margin fractions + last price from orderBookDetails. */
@@ -7534,6 +7703,8 @@ export class LighterProvider implements PerpsProvider {
       feeAmount: Number.isFinite(amount) ? amount * feeRate : 0,
       protocolFeeRate: feeRate,
       metamaskFeeRate: 0,
+      // Structurally zero on this venue, not a waiver applied to a real fee.
+      chargesMetamaskBuilderFee: false,
     };
   }
 
@@ -7717,7 +7888,7 @@ export class LighterProvider implements PerpsProvider {
         ) {
           this.#accountChannelsPromise = null;
         }
-        return undefined;
+        return;
       })
       .catch(() => undefined);
     this.#ensureStream();
@@ -7748,7 +7919,7 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     this.#wsWantedChannels.set(channel, { auth });
-    if (this.#priceWs && this.#priceWs.readyState === 1) {
+    if (this.#priceWs?.readyState === 1) {
       this.#sendSubscribe(channel, auth);
     }
   };
@@ -7823,11 +7994,11 @@ export class LighterProvider implements PerpsProvider {
                 generationAtOpen !== this.#sessionGeneration ||
                 !this.#wsWantedChannels.has(channel)
               ) {
-                return undefined;
+                return;
               }
               this.#wsWantedChannels.set(channel, { auth: freshToken });
               this.#sendSubscribe(channel, freshToken);
-              return undefined;
+              return;
             })
             .catch((error) => {
               this.#deps.debugLogger.log(
@@ -7970,15 +8141,15 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     if (type.includes('order_book')) {
-      this.#handleOrderBookMessage(type, message as LighterWsOrderBookMessage);
+      this.#handleOrderBookMessage(type, message);
       return;
     }
     if (type.includes('candle')) {
-      this.#handleCandleMessage(message as LighterWsCandleMessage);
+      this.#handleCandleMessage(message);
       return;
     }
     if (type.includes('account_all_trades')) {
-      this.#handleTradesMessage(message as LighterWsTradesMessage);
+      this.#handleTradesMessage(message);
       return;
     }
     if (type.includes('account_all_orders') && message.orders) {
@@ -8399,7 +8570,7 @@ export class LighterProvider implements PerpsProvider {
       .then(async (markets) => {
         const market = markets.get(params.symbol);
         if (this.#isDisconnected || !market || released) {
-          return undefined;
+          return;
         }
         seriesKey = `${market.marketId}:${resolution}`;
         // Seed with history so charts render immediately, then let the WS
@@ -8410,7 +8581,7 @@ export class LighterProvider implements PerpsProvider {
           limit: 120,
         });
         if (this.#isDisconnected || released) {
-          return undefined;
+          return;
         }
         const series = new Map<number, CandleStick>();
         for (const candle of seeded.candles) {
@@ -8426,7 +8597,7 @@ export class LighterProvider implements PerpsProvider {
         params.callback(seeded);
         this.#requestChannel(`candle/${market.marketId}/${resolution}`);
         this.#ensureStream();
-        return undefined;
+        return;
       })
       .catch((error: unknown) => {
         this.#deps.debugLogger.log('[LighterProvider] candle seed failed', {
@@ -8501,7 +8672,7 @@ export class LighterProvider implements PerpsProvider {
       .then((markets) => {
         const market = markets.get(params.symbol);
         if (this.#isDisconnected || !market || released) {
-          return undefined;
+          return;
         }
         marketId = market.marketId;
         let subscribers = this.#orderBookSubscribers.get(marketId);
@@ -8512,7 +8683,7 @@ export class LighterProvider implements PerpsProvider {
         subscribers.add(params);
         this.#requestChannel(`order_book/${marketId}`);
         this.#ensureStream();
-        return undefined;
+        return;
       })
       .catch((error: unknown) => {
         if (!this.#isDisconnected && !released) {
@@ -8603,10 +8774,9 @@ export class LighterProvider implements PerpsProvider {
     const bridge = LIGHTER_BRIDGE_CONFIG.mainnet;
     return [
       {
-        assetId:
-          `${bridge.chainId}/erc20:${bridge.usdcContract}/default` as AssetRoute['assetId'],
-        chainId: bridge.chainId as AssetRoute['chainId'],
-        contractAddress: bridge.bridgeContract as AssetRoute['contractAddress'],
+        assetId: `${bridge.chainId}/erc20:${bridge.usdcContract}/default`,
+        chainId: bridge.chainId,
+        contractAddress: bridge.bridgeContract,
         constraints: { minAmount },
       },
     ];

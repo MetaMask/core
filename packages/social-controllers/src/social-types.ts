@@ -27,6 +27,24 @@ export type ProfileSummary = {
 };
 
 /**
+ * Trader attached to a feed item. Extends {@link ProfileSummary} with the
+ * profile stats the feed hydrator already loaded and used to drop.
+ *
+ * Every field is optional: a social-api that predates them omits the keys,
+ * and `null` means the window has no data (distinct from "not sent").
+ */
+export type FeedActorSummary = ProfileSummary & {
+  /** 30-day win rate as a 0–1 ratio. */
+  winRate30d?: number | null;
+  /** 30-day realized PnL in USD. */
+  pnl30d?: number | null;
+  /** 30-day sell count behind `winRate30d`. */
+  tradeCount30d?: number | null;
+  /** Profiles following this trader. */
+  followerCount?: number | null;
+};
+
+/**
  * Social media handles attached to a trader profile.
  */
 export type SocialHandles = {
@@ -134,12 +152,20 @@ export type TraderStats = {
   roiPercent30d?: number | null;
   /** Renamed from tradeCount. */
   tradeCount30d?: number | null;
+  /** 30-day trading volume in USD. */
+  volumeUsd30d?: number | null;
   pnl7d?: number | null;
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
   /** Median holding time in minutes. */
   medianHoldMinutes?: number | null;
+};
+
+export type CopytradedAllTime = {
+  count: number;
+  volumeUSD: number;
+  distinctActors: number;
 };
 
 export type PerChainBreakdown = {
@@ -169,6 +195,11 @@ export type TraderProfileResponse = {
   socialHandles: SocialHandles;
   followerCount: number;
   followingCount: number;
+  /**
+   * Linked copy-swap stats for this trader. Social-api always sends zeros
+   * when there are none.
+   */
+  copytradedAllTime: CopytradedAllTime;
   /**
    * Backend-derived tier from the Auth primary account 30d PnL. Omitted on older
    * social-api builds; `null` when unclaimed or activity is insufficient.
@@ -283,12 +314,12 @@ export type AuthorComment = {
 
 /**
  * A single trader-activity feed item: a {@link Position} the trade belongs to,
- * plus the {@link ProfileSummary} of the trader who made it (`actor`) and the
+ * plus the {@link FeedActorSummary} of the trader who made it (`actor`) and the
  * item's creation `timestamp` (Unix seconds).
  */
 export type FeedItem = Position & {
   /** The trader who made this trade. */
-  actor: ProfileSummary;
+  actor: FeedActorSummary;
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
@@ -296,6 +327,28 @@ export type FeedItem = Position & {
    * builds; `null` when that phase has no comment.
    */
   authorComment?: AuthorComment | null;
+  /** Author comments on this position. Absent on older social-api builds. */
+  commentCount?: number;
+  /** Replies across those comments. Absent on older social-api builds. */
+  replyCount?: number;
+  /**
+   * Unix seconds of the position's first fill. Count from this to render a
+   * live hold on a position that is still open, where {@link holdTimeMs} is
+   * `null`. `null` when unknown. Absent on older social-api builds.
+   */
+  firstTradeAt?: number | null;
+  /**
+   * Final hold in milliseconds, first fill to last. Only set once the
+   * position is closed; `null` while it is still running, because that span
+   * grows every second — use {@link firstTradeAt} for those. Absent on older
+   * social-api builds.
+   */
+  holdTimeMs?: number | null;
+  /**
+   * Average entry price in USD from remaining cost basis / remaining holding.
+   * `null` when the position is flat. Absent on older social-api builds.
+   */
+  entryPriceUsd?: number | null;
 };
 
 export type ReactToCommentOptions = {
@@ -306,6 +359,68 @@ export type ReactToCommentOptions = {
 
 export type RemoveCommentReactionOptions = {
   commentId: string;
+};
+
+/**
+ * Identifies a swap that may not be indexed yet. Prefer {@link CreateSwapCommentOptions.positionUid}
+ * when the client already has a feed or positions `positionId`.
+ */
+export type TradeInFlight = {
+  transactionHash: string;
+  chain: string;
+  tokenAddress: string;
+};
+
+/**
+ * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
+ * or `tradeInFlight`; the social-api rejects a body that names both or neither.
+ */
+export type CreateSwapCommentOptions = {
+  /**
+   * Message body of the post. May include a `https://static.klipy.com/...gif`
+   * file URL (the social-api allowlists that host); other links are rejected.
+   */
+  commentText: string;
+  /** Free-form origin label stored on the comment. */
+  source?: string;
+  /**
+   * Position UUID (`positionId` / feed `itemId`). The comment attaches to that
+   * position's most recent trade, which must be the caller's own.
+   */
+  positionUid?: string;
+  /** Swap made seconds ago that may not have a position yet. */
+  tradeInFlight?: TradeInFlight;
+};
+
+/**
+ * Author profile on a swap-comment write response. Matches social-api
+ * `ProfileResponseV1`; extra fields from newer builds are allowed.
+ */
+export type SwapCommentAuthor = {
+  id: string;
+  name: string;
+  images?: {
+    raw: string | null;
+    xs: string | null;
+    sm: string | null;
+  };
+  addresses?: string[];
+  externalId?: string;
+};
+
+/**
+ * Response from `POST /v1/swap-comments`.
+ */
+export type SwapCommentResponse = {
+  uid: string;
+  transactionHash: string;
+  chain: string;
+  tokenAddress: string;
+  commentText: string;
+  author: SwapCommentAuthor;
+  timestamp: number;
+  isAppUserComment: boolean;
+  metrics: CommentEngagement;
 };
 
 /**
@@ -395,6 +510,60 @@ export type FetchPositionsOptions = {
 export type FetchFollowersOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
+};
+
+export type FetchTraderFeedOptions = {
+  /** Wallet address or Clicker profile ID. */
+  addressOrId: string;
+  /**
+   * When true, return only positions that carry an author comment.
+   * Omitted from the request when false or unset (API default is false).
+   */
+  commentedOnly?: boolean;
+  /** Number of results to return. */
+  limit?: number;
+  /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
+  olderThan?: string;
+  /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
+  newerThan?: string;
+};
+
+/**
+ * Position status filter for a token feed.
+ * Omit to return both open and recently closed positions.
+ */
+export type TokenFeedStatus = 'open' | 'closed';
+
+/**
+ * Chain name accepted by `GET /v1/tokens/:chain/:contractAddress/feed`.
+ */
+export type TokenFeedChain =
+  | 'base'
+  | 'bsc'
+  | 'ethereum'
+  | 'hyperliquid'
+  | 'robinhood'
+  | 'solana';
+
+/**
+ * Options for `GET /v1/tokens/:chain/:contractAddress/feed`.
+ */
+export type FetchTokenFeedOptions = {
+  /** Chain name where the token is deployed. */
+  chain: TokenFeedChain;
+  /** Token contract address. */
+  contractAddress: string;
+  /**
+   * Only open or only closed positions. Omit for both. Closed positions are
+   * limited to the API's recent lookback.
+   */
+  status?: TokenFeedStatus;
+  /** Number of results to return (1–100). Server default is 25. */
+  limit?: number;
+  /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
+  olderThan?: string;
+  /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
+  newerThan?: string;
 };
 
 export type FetchFeedOptions = {

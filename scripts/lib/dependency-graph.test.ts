@@ -1,8 +1,8 @@
-import type { Workspace } from './dependency-graph.js';
+import type { Workspace } from './dependency-graph.ts';
 import {
   buildMermaidConnectionLines,
   buildMermaidNodeLines,
-} from './dependency-graph.js';
+} from './dependency-graph.ts';
 
 /**
  * Builds a workspace entry as `yarn workspaces list --verbose` reports it.
@@ -103,10 +103,7 @@ describe('buildMermaidConnectionLines', () => {
   });
 
   it('terminates when dependencies form a cycle', () => {
-    const workspaces = [
-      buildWorkspace('a', ['b']),
-      buildWorkspace('b', ['a']),
-    ];
+    const workspaces = [buildWorkspace('a', ['b']), buildWorkspace('b', ['a'])];
 
     expect(buildMermaidConnectionLines(workspaces)).toStrictEqual([
       'a --> b;',

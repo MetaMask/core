@@ -277,7 +277,7 @@ export function adaptAccountStateFromLighterUserStats(
  * @param context.size - Trade size (base units, absolute).
  * @param context.positionBefore - Our side's absolute position size before.
  * @param context.signChanged - Whether our side's position sign changed.
- * @param context.pnl - Realized pnl for our side.
+ * @param context.pnl - Realized pnl for our side, or undefined when omitted.
  * @returns Client-facing direction string.
  */
 export function deriveLighterFillDirection(context: {
@@ -285,16 +285,24 @@ export function deriveLighterFillDirection(context: {
   size: number;
   positionBefore: number;
   signChanged: boolean | undefined;
-  pnl: number;
+  pnl: number | undefined;
 }): string {
   const { isBuy, size, positionBefore, signChanged, pnl } = context;
-  if (!Number.isFinite(positionBefore) || signChanged === undefined) {
+  if (!Number.isFinite(positionBefore)) {
     return isBuy ? 'Buy' : 'Sell';
   }
   if (positionBefore === 0) {
     return isBuy ? 'Open Long' : 'Open Short';
   }
-  if (signChanged) {
+  // A flat baseline proves an open. On an existing position, nonzero
+  // realized PnL proves reduction; otherwise an omitted flag is ambiguous.
+  if (signChanged === undefined && (pnl === undefined || pnl === 0)) {
+    return isBuy ? 'Buy' : 'Sell';
+  }
+  if (
+    signChanged ||
+    (signChanged === undefined && pnl !== undefined && pnl !== 0)
+  ) {
     // Crossed past zero → flipped; landed exactly on zero → full close.
     if (size > positionBefore * 1.000001) {
       return isBuy ? 'Short > Long' : 'Long > Short';
@@ -302,10 +310,10 @@ export function deriveLighterFillDirection(context: {
     return isBuy ? 'Close Short' : 'Close Long';
   }
   // Partial fill on an existing position: realized pnl proves it reduced.
-  if (pnl !== 0) {
+  if (pnl !== undefined && pnl !== 0) {
     return isBuy ? 'Close Short' : 'Close Long';
   }
-  // Zero-pnl partial with no sign change is genuinely ambiguous from this
+  // Zero or unknown pnl with no sign change is ambiguous from this
   // payload (a break-even partial close and an add both fit): fall back to
   // the side-only vocabulary instead of asserting Open without evidence.
   return isBuy ? 'Buy' : 'Sell';
@@ -412,8 +420,8 @@ export function adaptFillFromLighterTrade(
   const fee = '0';
   const isBuy = !accountIsAsk;
   // The account's maker/taker role selects the matching pre-trade position
-  // context. Missing context is rejected above instead of becoming neutral
-  // history that looks authoritative.
+  // context. Omitted sign-change flags retain an unknown direction for
+  // existing positions; malformed supplied context still fails closed.
   const positionBeforeRaw = accountIsMaker
     ? trade.makerPositionSizeBefore
     : trade.takerPositionSizeBefore;
@@ -425,22 +433,22 @@ export function adaptFillFromLighterTrade(
     positionBefore === null ||
     !Number.isFinite(positionBefore) ||
     positionBefore < 0 ||
-    typeof signChanged !== 'boolean'
+    (signChanged !== undefined && typeof signChanged !== 'boolean')
   ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid position context`,
     );
   }
-  const accountPnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
-  // The venue omits PnL on opens from flat. Only a validated zero pre-trade
-  // position proves zero realized PnL; never assume it for an existing position.
-  const pnl =
-    accountPnl === undefined && positionBefore === 0 ? '0' : accountPnl;
-  const parsedPnl = parseLighterStrictDecimal(pnl);
+  const pnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
+  // Omitted amounts remain unknown. A changed sign on an existing position
+  // proves reduction, so its realized PnL must be supplied by the venue.
+  const parsedPnl =
+    pnl === undefined ? undefined : parseLighterStrictDecimal(pnl);
   if (
-    typeof pnl !== 'string' ||
     parsedPnl === null ||
-    !Number.isFinite(parsedPnl)
+    (pnl === undefined && positionBefore !== 0 && signChanged === true) ||
+    (pnl !== undefined &&
+      (typeof pnl !== 'string' || !Number.isFinite(parsedPnl)))
   ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid account pnl`,
@@ -466,12 +474,15 @@ export function adaptFillFromLighterTrade(
   }
   return {
     orderId: String(accountIsAsk ? trade.askId : trade.bidId),
+    // Lighter's unique execution id, validated as a safe non-negative
+    // integer above. Order id alone cannot separate two fills of one order.
+    fillId: String(trade.tradeId),
     symbol,
     side: accountIsAsk ? 'sell' : 'buy',
     size: trade.size,
     price: trade.price,
     // The venue reports realized pnl per side of the trade.
-    pnl,
+    ...(pnl === undefined ? {} : { pnl }),
     direction,
     ...(startPosition === undefined ? {} : { startPosition }),
     fee,

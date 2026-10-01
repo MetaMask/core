@@ -17,7 +17,7 @@ describe('emitTrace', () => {
 
     emitTrace({
       name: 'TestSpan',
-      trace: trace as unknown as TraceCallback,
+      trace,
       data: { duration_ms: 25, chain_count: 2 },
       parentContext: { id: 'parent' },
     });
@@ -44,7 +44,7 @@ describe('emitTrace', () => {
     expect(() =>
       emitTrace({
         name: 'TestSpan',
-        trace: trace as unknown as TraceCallback,
+        trace,
         data: { ok: true },
       }),
     ).not.toThrow();
@@ -76,7 +76,7 @@ describe('withTrace', () => {
 
     const result = await withTrace({
       name: 'Parent',
-      trace: trace as unknown as TraceCallback,
+      trace,
       data: { chain_count: 1 },
       fn: async (parentContext) => {
         expect(parentContext).toBe(parentSpan);
@@ -100,7 +100,7 @@ describe('withTrace', () => {
     expect(
       await withTrace({
         name: 'Parent',
-        trace: trace as unknown as TraceCallback,
+        trace,
         data: {},
         fn: async () => 'ok',
       }),
@@ -113,7 +113,7 @@ describe('withTrace', () => {
     expect(
       await withTrace({
         name: 'Parent',
-        trace: trace as unknown as TraceCallback,
+        trace,
         data: {},
         fn: async () => 'fallback',
       }),
@@ -131,7 +131,7 @@ describe('withTrace', () => {
     await expect(
       withTrace({
         name: 'Parent',
-        trace: trace as unknown as TraceCallback,
+        trace,
         data: {},
         fn: async () => {
           throw new Error('pipeline failed');

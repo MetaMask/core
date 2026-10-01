@@ -32,9 +32,9 @@ type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
 function prfResults(first: string, enabled?: boolean): ExtOutputsWithPrf {
   if (enabled === undefined) {
-    return { prf: { results: { first } } } as ExtOutputsWithPrf;
+    return { prf: { results: { first } } };
   }
-  return { prf: { enabled, results: { first } } } as ExtOutputsWithPrf;
+  return { prf: { enabled, results: { first } } };
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ const TEST_CHALLENGE = 'dGVzdC1jaGFsbGVuZ2U';
 function getPasskeyMessenger(): PasskeyControllerMessenger {
   return new Messenger({
     namespace: 'PasskeyController',
-  }) as PasskeyControllerMessenger;
+  });
 }
 
 const TEST_RP_NAME = 'Test RP';
@@ -150,7 +150,7 @@ function minimalRegistrationResponse(
     clientExtensionResults: {},
     authenticatorAttachment: 'platform',
     ...overrides,
-  } as PasskeyRegistrationResponse;
+  };
 }
 
 function minimalAuthenticationResponse(
@@ -179,7 +179,7 @@ function minimalAuthenticationResponse(
     clientExtensionResults: {},
     authenticatorAttachment: 'platform',
     ...overrides,
-  } as PasskeyAuthenticationResponse;
+  };
 }
 
 function setupRegistrationMocks(options?: {
@@ -1088,7 +1088,7 @@ describe('PasskeyController', () => {
           {
             clientExtensionResults: {
               prf: { enabled: true },
-            } as ExtOutputsWithPrf,
+            },
           },
           regOptions.challenge,
         ),
@@ -1944,7 +1944,7 @@ describe('PasskeyController', () => {
           updater({
             ...getDefaultPasskeyControllerState(),
             passkeyRecord: null,
-          } as PasskeyControllerState);
+          });
         },
       );
 
@@ -2561,7 +2561,7 @@ describe('PasskeyController', () => {
           updater({
             ...getDefaultPasskeyControllerState(),
             passkeyRecord: null,
-          } as PasskeyControllerState);
+          });
         },
       );
 
