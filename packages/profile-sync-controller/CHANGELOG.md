@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Open the verification session on enrollment and let the server set its lifetime ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - `completeCredentialEnrollment` opens a verification session with the assertion `POST /api/v2/mfa/enroll/complete` returns for the new credential, replacing any earlier one, so no separate verification is needed right after enrolling. If the token exchange fails, the enrollment still succeeds and the earlier session is kept
+  - `SRPJwtBearerAuth.completeMfaEnrollment` and `JwtBearerAuth.completeMfaEnrollment` return that assertion
+  - The session lasts for the token's `expires_in`, measured on the device clock, instead of at most 15 minutes. `VERIFICATION_SESSION_TTL_MS` is removed
 - Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
 
 ### Fixed

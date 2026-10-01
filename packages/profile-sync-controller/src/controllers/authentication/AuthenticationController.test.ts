@@ -16,6 +16,7 @@ import {
   MOCK_ACCESS_JWT,
   MOCK_MFA_CREDENTIALS_RESPONSE,
   MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+  MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -36,7 +37,6 @@ import {
   AuthenticationController,
   defaultState,
   ENROLLMENT_MAX_SESSION_AGE_MS,
-  VERIFICATION_SESSION_TTL_MS,
 } from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
@@ -58,6 +58,27 @@ jest.mock('../../shared/utils/message-signing.js', () => ({
 }));
 
 const MOCK_HD_SEED = new Uint8Array(64).fill(1);
+
+/**
+ * Builds an unsigned verification access token.
+ *
+ * @param claims - Token claims.
+ * @param claims.amr - Method the verification used.
+ * @param claims.exp - Expiry, in seconds since the epoch.
+ * @returns The JWT.
+ */
+const buildVerificationJwt = ({
+  amr,
+  exp,
+}: {
+  amr: string;
+  exp: number;
+}): string =>
+  [
+    btoa(JSON.stringify({ alg: 'none', typ: 'JWT' })),
+    btoa(JSON.stringify({ sub: 'profile-id', aal: 2, amr, exp })),
+    'signature',
+  ].join('.');
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -2778,9 +2799,12 @@ describe('MFA credential enrollment', () => {
       await requestStarted;
       baseMessenger.publish('KeyringController:lock');
       release(
-        new globalThis.Response(JSON.stringify({ status: 'enrolled' }), {
-          status: 200,
-        }),
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_ENROLL_COMPLETE_RESPONSE),
+          {
+            status: 200,
+          },
+        ),
       );
 
       await expect(completion).rejects.toThrow(
@@ -2889,9 +2913,12 @@ describe('MFA credential enrollment', () => {
       await requestStarted;
       baseMessenger.publish('KeyringController:lock');
       resolveCompletion?.(
-        new globalThis.Response(JSON.stringify({ status: 'enrolled' }), {
-          status: 200,
-        }),
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_ENROLL_COMPLETE_RESPONSE),
+          {
+            status: 200,
+          },
+        ),
       );
 
       await expect(completion).rejects.toThrow(
@@ -2949,6 +2976,12 @@ describe('MFA credential enrollment', () => {
         enrollCompleteStarted.resolve();
         return enrollComplete.promise;
       })
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
+          { status: 200 },
+        ),
+      )
       .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
         enrollmentCredentialsStarted.resolve();
         return enrollmentCredentials.promise;
@@ -2971,9 +3004,12 @@ describe('MFA credential enrollment', () => {
       // 3. Let the enroll-complete POST resolve, then its internal refresh GET.
       await enrollCompleteStarted.promise;
       enrollComplete.resolve(
-        new globalThis.Response(JSON.stringify({ status: 'enrolled' }), {
-          status: 200,
-        }),
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_ENROLL_COMPLETE_RESPONSE),
+          {
+            status: 200,
+          },
+        ),
       );
 
       await enrollmentCredentialsStarted.promise;
@@ -3216,48 +3252,22 @@ describe('MFA credential verification', () => {
     expect(controller.getVerificationToken()).not.toBeNull();
   });
 
-  it('hard-clears the session at the session TTL', async () => {
-    const fetchSpy = jest
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new globalThis.Response(
-          JSON.stringify(MOCK_MFA_VERIFY_COMPLETE_RESPONSE),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new globalThis.Response(
-          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
-          { status: 200 },
-        ),
-      );
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-    jest.setSystemTime(new Date('2026-09-16T10:00:00Z'));
-    try {
-      const { controller } = createController();
-      await completeCredentialVerification(controller);
-
-      expect(controller.getVerificationToken()).not.toBeNull();
-      jest.advanceTimersByTime(VERIFICATION_SESSION_TTL_MS);
-      expect(controller.getVerificationToken()).toBeNull();
-    } finally {
-      jest.useRealTimers();
-      fetchSpy.mockRestore();
-    }
-  });
-
-  it('hard-clears the session when the verification token expires first', async () => {
-    const now = new Date('2026-09-16T10:00:00Z');
-    const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-    const payload = btoa(
-      JSON.stringify({
-        sub: 'profile-id',
-        aal: 2,
-        amr: 'passkey',
-        exp: Math.floor(now.getTime() / 1000) + 1,
-      }),
-    );
-    const fetchSpy = jest
+  /**
+   * Mocks a verification that exchanges to a token expiring `lifetimeSeconds`
+   * after `now`.
+   *
+   * @param now - Current time.
+   * @param lifetimeSeconds - Token lifetime.
+   * @param serverClockOffsetSeconds - How far the server clock, which sets
+   * `exp`, is ahead of the device clock.
+   * @returns The fetch spy.
+   */
+  function mockVerificationWithLifetime(
+    now: Date,
+    lifetimeSeconds: number,
+    serverClockOffsetSeconds = 0,
+  ): jest.SpyInstance {
+    return jest
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
         new globalThis.Response(
@@ -3268,51 +3278,101 @@ describe('MFA credential verification', () => {
       .mockResolvedValueOnce(
         new globalThis.Response(
           JSON.stringify({
-            access_token: `${header}.${payload}.signature`,
-            expires_in: 900,
+            access_token: buildVerificationJwt({
+              amr: 'passkey',
+              exp:
+                Math.floor(now.getTime() / 1000) +
+                serverClockOffsetSeconds +
+                lifetimeSeconds,
+            }),
+            expires_in: lifetimeSeconds,
           }),
           { status: 200 },
         ),
       );
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-    jest.setSystemTime(now);
-    try {
-      const { controller } = createController();
-      await completeCredentialVerification(controller);
+  }
 
-      jest.advanceTimersByTime(999);
-      expect(controller.getVerificationToken()).not.toBeNull();
-      jest.advanceTimersByTime(1);
+  it.each([
+    ['ahead of', -2 * 60 * 60],
+    ['behind', 2 * 60 * 60],
+  ])(
+    'keeps the session for the token lifetime when the device clock is %s the server',
+    async (_name, serverClockOffsetSeconds) => {
+      const now = new Date('2026-09-16T10:00:00Z');
+      const fetchSpy = mockVerificationWithLifetime(
+        now,
+        60 * 60,
+        serverClockOffsetSeconds,
+      );
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.setSystemTime(now);
+      try {
+        const { controller } = createController();
+        await completeCredentialVerification(controller);
+
+        jest.advanceTimersByTime(60 * 60 * 1000 - 1);
+        expect(controller.getVerificationToken()).not.toBeNull();
+        jest.advanceTimersByTime(1);
+        expect(controller.getVerificationToken()).toBeNull();
+      } finally {
+        jest.useRealTimers();
+        fetchSpy.mockRestore();
+      }
+    },
+  );
+
+  it.each([0, -1, undefined])(
+    'rejects an exchanged token whose lifetime is %s',
+    async (expiresIn) => {
+      mockEndpointMfaVerifyComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: {
+          access_token: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE.access_token,
+          expires_in: expiresIn,
+        },
+      });
+      const { controller } = createController();
+
+      await expect(
+        completeCredentialVerification(controller),
+      ).rejects.toMatchObject({ mfaCode: 'verification_token_invalid' });
       expect(controller.getVerificationToken()).toBeNull();
-    } finally {
-      jest.useRealTimers();
-      fetchSpy.mockRestore();
-    }
-  });
+    },
+  );
+
+  it.each([1, 60 * 60, 24 * 60 * 60])(
+    'keeps the session for exactly the token lifetime the server set (%ss)',
+    async (lifetimeSeconds) => {
+      const now = new Date('2026-09-16T10:00:00Z');
+      const fetchSpy = mockVerificationWithLifetime(now, lifetimeSeconds);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.setSystemTime(now);
+      try {
+        const { controller } = createController();
+        await completeCredentialVerification(controller);
+
+        jest.advanceTimersByTime(lifetimeSeconds * 1000 - 1);
+        expect(controller.getVerificationToken()).not.toBeNull();
+        jest.advanceTimersByTime(1);
+        expect(controller.getVerificationToken()).toBeNull();
+      } finally {
+        jest.useRealTimers();
+        fetchSpy.mockRestore();
+      }
+    },
+  );
 
   it('drops the session when the clock passes expiration before the timer runs', async () => {
     const now = new Date('2026-09-16T10:00:00Z');
-    const fetchSpy = jest
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new globalThis.Response(
-          JSON.stringify(MOCK_MFA_VERIFY_COMPLETE_RESPONSE),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new globalThis.Response(
-          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
-          { status: 200 },
-        ),
-      );
+    const fetchSpy = mockVerificationWithLifetime(now, 60);
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
     jest.setSystemTime(now);
     try {
       const { controller } = createController();
       await completeCredentialVerification(controller);
 
-      jest.setSystemTime(now.getTime() + VERIFICATION_SESSION_TTL_MS + 1_000);
+      jest.setSystemTime(now.getTime() + 61_000);
       expect(controller.getVerificationToken()).toBeNull();
     } finally {
       jest.useRealTimers();
@@ -3637,24 +3697,158 @@ describe('MFA credential verification', () => {
     });
   });
 
-  it('keeps the verification session after successful enrollment so chained enrollments reuse it', async () => {
-    mockSuccessfulCompletion();
-    mockEndpointMfaEnrollComplete();
-    mockEndpointMfaCredentials();
-    const { controller } = createController();
-    await completeCredentialVerification(controller);
-    const verificationToken = controller.getVerificationToken()?.accessToken;
-
-    await controller.completeCredentialEnrollment({
-      flowId: 'enrollment-flow',
-      proof: { type: 'email_otp', code: '123456' },
-      reason: { operation: 'settings.addEmail' },
+  describe('session from the enrollment assertion', () => {
+    const enrolledEmailToken = buildVerificationJwt({
+      amr: 'email_otp',
+      exp: 4102444800,
     });
 
-    expect(controller.getVerificationToken()?.accessToken).toBe(
-      verificationToken,
+    const completeEmailEnrollment = async (
+      controller: AuthenticationController,
+    ): Promise<unknown> =>
+      await controller.completeCredentialEnrollment({
+        flowId: 'enrollment-flow',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'vba.startKyc' },
+      });
+
+    it('opens a verification session for the enrolled credential and traces the exchange', async () => {
+      mockEndpointMfaEnrollComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: { access_token: enrolledEmailToken, expires_in: 3600 },
+      });
+      mockEndpointMfaCredentials();
+      const requests: { name?: string }[] = [];
+      const trace = jest.fn(
+        (
+          request: { name?: string },
+          fn?: (context?: unknown) => unknown,
+        ): Promise<unknown> => {
+          requests.push(request);
+          return Promise.resolve(fn?.());
+        },
+      ) as unknown as TraceCallback;
+      const { controller } = createController({ trace });
+
+      await completeEmailEnrollment(controller);
+
+      expect(controller.getVerificationToken()).toMatchObject({
+        accessToken: enrolledEmailToken,
+        claims: { amr: ['email_otp'] },
+      });
+      expect(requests.map(({ name }) => name)).toStrictEqual([
+        'MFA Enroll Complete',
+        'MFA Token Exchange',
+        'MFA Credentials Refresh',
+      ]);
+      expect(await getEnrollmentBearer(controller)).toBe(enrolledEmailToken);
+    });
+
+    it('replaces an earlier verification session', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      cleanAllNock();
+      mockEndpointMfaEnrollComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: { access_token: enrolledEmailToken, expires_in: 3600 },
+      });
+      mockEndpointMfaCredentials();
+
+      await completeEmailEnrollment(controller);
+
+      expect(controller.getVerificationToken()?.accessToken).toBe(
+        enrolledEmailToken,
+      );
+    });
+
+    it.each([
+      [
+        'the exchange fails',
+        { status: 500, body: { message: 'Internal error' } },
+      ],
+      [
+        'the exchanged token has no verification claims',
+        {
+          status: 200,
+          body: { access_token: MOCK_ACCESS_JWT, expires_in: 900 },
+        },
+      ],
+    ])(
+      'still completes the enrollment and keeps the earlier session when %s',
+      async (_name, exchangeReply) => {
+        mockSuccessfulCompletion();
+        const { controller } = createController();
+        await completeCredentialVerification(controller);
+        const earlier = controller.getVerificationToken()?.accessToken;
+        cleanAllNock();
+        mockEndpointMfaEnrollComplete();
+        mockEndpointAccessToken(exchangeReply);
+        mockEndpointMfaCredentials();
+
+        expect(await completeEmailEnrollment(controller)).toHaveLength(
+          MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
+        );
+        expect(controller.getVerificationToken()?.accessToken).toBe(earlier);
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+            .canonicalProfileId,
+        ).toBe('');
+      },
     );
-    expect(await getEnrollmentBearer(controller)).toBe(verificationToken);
+
+    it('opens no session and still invalidates the SRP session if the wallet locks during the exchange', async () => {
+      let releaseExchange!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+      let exchangeStartedResolve: (() => void) | undefined;
+      const exchangeStarted = new Promise<void>((resolve) => {
+        exchangeStartedResolve = resolve;
+      });
+      const fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(
+            JSON.stringify(MOCK_MFA_VERIFY_COMPLETE_RESPONSE),
+            { status: 200 },
+          ),
+        )
+        .mockImplementationOnce(
+          async (): ReturnType<typeof fetch> =>
+            await new Promise((resolve) => {
+              releaseExchange = resolve;
+              exchangeStartedResolve?.();
+            }),
+        );
+      const { controller, baseMessenger } = createController();
+      try {
+        const completion = completeEmailEnrollment(controller);
+        await exchangeStarted;
+        baseMessenger.publish('KeyringController:lock');
+        releaseExchange(
+          new globalThis.Response(
+            JSON.stringify({
+              access_token: enrolledEmailToken,
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          ),
+        );
+
+        await expect(completion).rejects.toThrow(
+          'the authenticated session ended',
+        );
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        baseMessenger.publish('KeyringController:unlock');
+        expect(controller.getVerificationToken()).toBeNull();
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+            .canonicalProfileId,
+        ).toBe('');
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
   });
 });
 
