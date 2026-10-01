@@ -1066,21 +1066,6 @@ export class AuthenticationController extends BaseController<
         ),
     );
 
-    const assertSessionStillOpen = (): void => {
-      try {
-        this.#assertAuthSessionEpoch(
-          sessionEpoch,
-          'completeCredentialEnrollment',
-        );
-      } catch (error) {
-        if (type === 'email_otp') {
-          this.#invalidateSrpSession(primaryEntropySourceId);
-        }
-        throw error;
-      }
-    };
-
-    assertSessionStillOpen();
     try {
       await this.#openVerificationSessionFromAssertion(assertion, {
         operation,
@@ -1091,7 +1076,20 @@ export class AuthenticationController extends BaseController<
     } catch {
       // Callers see no session and verify the credential instead.
     }
-    assertSessionStillOpen();
+
+    // Also catches a session that ended during the enrollment request; the
+    // exchange above then ran for nothing, and its session was never opened.
+    try {
+      this.#assertAuthSessionEpoch(
+        sessionEpoch,
+        'completeCredentialEnrollment',
+      );
+    } catch (error) {
+      if (type === 'email_otp') {
+        this.#invalidateSrpSession(primaryEntropySourceId);
+      }
+      throw error;
+    }
 
     try {
       return await this.refreshEnrolledCredentials();

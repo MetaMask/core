@@ -2802,13 +2802,21 @@ describe('MFA credential enrollment', () => {
     const requestStarted = new Promise<void>((resolve) => {
       requestStartedResolve = resolve;
     });
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
-      async (): ReturnType<typeof fetch> =>
-        await new Promise((resolve) => {
-          release = resolve;
-          requestStartedResolve?.();
-        }),
-    );
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(
+        async (): ReturnType<typeof fetch> =>
+          await new Promise((resolve) => {
+            release = resolve;
+            requestStartedResolve?.();
+          }),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
+          { status: 200 },
+        ),
+      );
     const { controller, baseMessenger } = createController();
     try {
       const completion = controller.completeCredentialEnrollment({
@@ -2830,8 +2838,12 @@ describe('MFA credential enrollment', () => {
       await expect(completion).rejects.toThrow(
         'the authenticated session ended',
       );
-      // No credentials refresh was attempted after the session ended.
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      // Enrollment and token exchange only: no credentials refresh after the
+      // session ended.
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(() => controller.getVerificationToken()).toThrow(
+        'wallet is locked',
+      );
       expect(controller.state.enrolledCredentials).toStrictEqual([]);
       // The enrollment succeeded server-side, so the token cached across the
       // lock must not be reused without the new email claim.
@@ -2916,13 +2928,21 @@ describe('MFA credential enrollment', () => {
     const requestStarted = new Promise<void>((resolve) => {
       requestStartedResolve = resolve;
     });
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
-      async (): ReturnType<typeof fetch> =>
-        await new Promise((resolve) => {
-          resolveCompletion = resolve;
-          requestStartedResolve?.();
-        }),
-    );
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(
+        async (): ReturnType<typeof fetch> =>
+          await new Promise((resolve) => {
+            resolveCompletion = resolve;
+            requestStartedResolve?.();
+          }),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
+          { status: 200 },
+        ),
+      );
     const { controller, baseMessenger } = createController();
     try {
       const completion = controller.completeCredentialEnrollment({
@@ -2944,7 +2964,8 @@ describe('MFA credential enrollment', () => {
       await expect(completion).rejects.toThrow(
         'the authenticated session ended',
       );
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      // Enrollment and token exchange only: no credentials refresh.
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(controller.state.enrolledCredentials).toStrictEqual([]);
     } finally {
       fetchSpy.mockRestore();
