@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
 
+### Fixed
+
+- Resolve Arc USDC wrapper transfers as the native Arc asset ([#10425](https://github.com/MetaMask/core/pull/10425))
+
 ## [3.0.4]
 
 ### Changed
@@ -18,10 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `eth-chainlist` from `^0.0.795` to `^0.0.844` ([#10438](https://github.com/MetaMask/core/pull/10438), [#10524](https://github.com/MetaMask/core/pull/10524))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 - Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
-
-### Fixed
-
-- Resolve Arc USDC wrapper transfers as the native Arc asset ([#10425](https://github.com/MetaMask/core/pull/10425))
 
 ## [3.0.3]
 
