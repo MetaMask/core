@@ -1541,6 +1541,67 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchMyFollowers', () => {
+    const mockFollowersResponse = {
+      followers: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('fetches followers from the /users/me/followers endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchMyFollowers();
+
+      expect(result).toStrictEqual(mockFollowersResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/followers`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.fetchMyFollowers()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchMyFollowers()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
+      );
+    });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchMyFollowers();
+      await service.fetchMyFollowers();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('follow', () => {
     const mockFollowResponse = {
       followed: [mockProfileSummary],

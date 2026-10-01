@@ -245,6 +245,19 @@ export type SocialServiceFetchFollowingAction = {
 };
 
 /**
+ * Fetches the list of traders following the current user.
+ *
+ * Calls `GET ${baseUrl}/users/me/followers`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @returns The followers response.
+ */
+export type SocialServiceFetchMyFollowersAction = {
+  type: `SocialService:fetchMyFollowers`;
+  handler: SocialService['fetchMyFollowers'];
+};
+
+/**
  * Follows one or more traders on behalf of the current user.
  *
  * Calls `PUT ${baseUrl}/users/me/follows`. The caller is identified
@@ -381,6 +394,7 @@ export type SocialServiceMethodActions =
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
   | SocialServiceFetchFollowingAction
+  | SocialServiceFetchMyFollowersAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
   | SocialServiceOptOutOfLeaderboardAction
