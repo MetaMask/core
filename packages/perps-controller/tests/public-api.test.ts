@@ -6,6 +6,7 @@ import {
   LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
   LIGHTER_FILL_REPLAY_LIMIT,
+  LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
   LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
 } from '../src/constants/index.js';
@@ -33,6 +34,9 @@ import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidC
 import { assertExpectedPosition } from '../src/utils/positionProtection.js';
 
 describe('@metamask/perps-controller public API', () => {
+  it('exports the durable recovery account capacity', () => {
+    expect(LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT).toBe(64);
+  });
   it('exports strict recovery review and explicit protection resolution', () => {
     expect(typeof PerpsController.prototype.reviewRecoveryVenue).toBe(
       'function',

@@ -3905,7 +3905,7 @@ describe('LighterProvider', () => {
         configuredAccountIndex: null,
       });
       const accountA = { ...ACCOUNT, index: 28 };
-      const accountB = { ...ACCOUNT, index: 900 };
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
       // Account A's lookup is slow; B's resolves immediately.
       let resolveLookupA: (value: unknown) => void = () => undefined;
       clientInstance.getAccountsByL1Address
@@ -3947,7 +3947,7 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeStreamCtor,
         configuredAccountIndex: null,
       });
-      const accountB = { ...ACCOUNT, index: 900 };
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
       clientInstance.getAccountsByL1Address.mockImplementation(
         (address: string) =>
           Promise.resolve(
@@ -4061,7 +4061,7 @@ describe('LighterProvider', () => {
           configuredAccountIndex: null,
           registeredKey: '9c'.repeat(40),
         });
-      const accountB = { ...ACCOUNT, index: 900 };
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
       clientInstance.getAccountsByL1Address.mockImplementation(
         (address: string) =>
           Promise.resolve(
@@ -4140,7 +4140,7 @@ describe('LighterProvider', () => {
           configuredAccountIndex: null,
           registeredKey: '9c'.repeat(40),
         });
-      const accountB = { ...ACCOUNT, index: 900 };
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
       clientInstance.getAccountsByL1Address.mockImplementation(
         (address: string) =>
           Promise.resolve(
@@ -4245,7 +4245,7 @@ describe('LighterProvider', () => {
     it('closePosition aborts before trading when the account switches after the position read', async () => {
       const { provider, clientInstance, getUserAddressMock, calls } =
         buildProvider({ configuredAccountIndex: null });
-      const accountB = { ...ACCOUNT, index: 900 };
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
       // Stall the position read (getAccountByIndex) under A.
       let releasePositions: (value: unknown) => void = () => undefined;
       clientInstance.getAccountByIndex
@@ -4284,7 +4284,7 @@ describe('LighterProvider', () => {
     it('updatePositionTPSL cancels nothing when the account switches mid-sequence', async () => {
       const { provider, clientInstance, getUserAddressMock, calls } =
         buildProvider({ configuredAccountIndex: null });
-      const accountB = { ...ACCOUNT, index: 900 };
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
       clientInstance.getAccountsByL1Address.mockImplementation(
         (address: string) =>
           Promise.resolve(
@@ -15280,7 +15280,7 @@ describe('LighterProvider', () => {
   });
 
   describe('round-4 session races', () => {
-    const accountB = { ...ACCOUNT, index: 900 };
+    const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
     const perAddressLookup =
       () =>
       (
@@ -17101,6 +17101,515 @@ describe('LighterProvider', () => {
       expect(pending[0].reason).not.toContain('previous trading key');
     },
   );
+  describe('recovery inventory for absent and unsupported accounts', () => {
+    it.each(
+      (['empty', 'not-found', 'premium'] as const).flatMap((account) =>
+        (
+          [
+            'getRecoveredDispatches',
+            'getPendingManualRecoveries',
+            'reconcileRecoveredDispatches',
+          ] as const
+        ).map((method) => ({ account, method })),
+      ),
+    )(
+      'returns empty $method for expected $account account state without signer work',
+      async ({ account, method }) => {
+        const built = buildProvider({ configuredAccountIndex: null });
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts:
+            account === 'premium' ? [{ ...ACCOUNT, accountType: 1 }] : [],
+        });
+        if (account === 'not-found') {
+          built.clientInstance.getAccountsByL1Address.mockRejectedValue(
+            new LighterApiError('account not found', 21100),
+          );
+        }
+        expect(await built.provider[method]()).toStrictEqual([]);
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(built.clientInstance.getNextNonce).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['empty', 'premium'] as const)(
+      'keeps durable owned obligations visible for %s accounts',
+      async (account) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          configuredAccountIndex: null,
+          platformDependencies: infra,
+        });
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([key]),
+        );
+        await infra.diskCache.setItem(
+          `lighterTpslManual:testnet:${key}`,
+          JSON.stringify({
+            version: 1,
+            settlementKey: key,
+            symbol: 'BTC',
+            reason: 'prior protection failed',
+            priorIntent: 'replace',
+            priorTriggers: [],
+            survivingOrderIds: ['7'],
+            operationId: 'original',
+            recordedAt: 1,
+          }),
+        );
+        const ledger = JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [
+            {
+              nonce: 42,
+              txHash: 'beef',
+              expiresAt: 9999999999999,
+              kind: 13,
+              intent: 'withdraw:1',
+              owner: null,
+            },
+          ],
+          recovered: [],
+        });
+        await infra.diskCache.setItem(
+          'lighterNonceLedger:testnet:28:7',
+          ledger,
+        );
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts:
+            account === 'premium' ? [{ ...ACCOUNT, accountType: 1 }] : [],
+        });
+        const manuals = await built.provider.getPendingManualRecoveries();
+        expect(manuals).toHaveLength(1);
+        expect(manuals[0].survivingOrderIds).toStrictEqual(['7']);
+        const dispatches = await built.provider.getRecoveredDispatches();
+        expect(dispatches).toHaveLength(1);
+        expect(dispatches[0].acknowledgeable).toBe(false);
+        expect(
+          await built.provider.reconcileRecoveredDispatches(),
+        ).toStrictEqual(dispatches);
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7'),
+        ).toBe(ledger);
+        expect(built.clientInstance.getTx).not.toHaveBeenCalled();
+        expect(built.clientInstance.getNextNonce).not.toHaveBeenCalled();
+        expect(built.calls).toStrictEqual([]);
+      },
+    );
+
+    it.each([
+      'getRecoveredDispatches',
+      'getPendingManualRecoveries',
+      'reconcileRecoveredDispatches',
+    ] as const)('preserves transport failures from %s', async (method) => {
+      const built = buildProvider({ configuredAccountIndex: null });
+      built.clientInstance.getAccountsByL1Address.mockRejectedValue(
+        new Error('venue transport unavailable'),
+      );
+      await expect(built.provider[method]()).rejects.toThrow(
+        'venue transport unavailable',
+      );
+      expect(built.calls).toStrictEqual([]);
+    });
+  });
+
+  describe('recovery inventory authority and persistence', () => {
+    it.each([
+      'getRecoveredDispatches',
+      'getPendingManualRecoveries',
+      'reconcileRecoveredDispatches',
+    ] as const)(
+      'surfaces local storage failures from absent-account %s',
+      async (method) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          configuredAccountIndex: null,
+          platformDependencies: infra,
+        });
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts: [],
+        });
+        jest
+          .spyOn(infra.diskCache, 'getItem')
+          .mockRejectedValue(new Error('recovery storage unavailable'));
+        await expect(built.provider[method]()).rejects.toThrow(
+          'recovery storage unavailable',
+        );
+        expect(built.calls).toStrictEqual([]);
+      },
+    );
+
+    it.each(['unknown type', 'wrong wallet'] as const)(
+      'rejects %s recovery metadata without signing',
+      async (issue) => {
+        const built = buildProvider({ configuredAccountIndex: null });
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts: [
+            {
+              ...ACCOUNT,
+              ...(issue === 'unknown type'
+                ? { accountType: 99 }
+                : { l1Address: '0x0000000000000000000000000000000000000002' }),
+            },
+          ],
+        });
+        await expect(built.provider.getRecoveredDispatches()).rejects.toThrow(
+          issue === 'unknown type' ? 'type could not be verified' : 'not owned',
+        );
+        expect(built.calls).toStrictEqual([]);
+      },
+    );
+
+    it('keeps Premium trading unsupported after a successful local inventory read', async () => {
+      const built = buildProvider({ configuredAccountIndex: null });
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [{ ...ACCOUNT, accountType: 1 }],
+      });
+      expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
+      const result = await built.provider.withdraw({ amount: '1' });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Premium accounts are not supported');
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it.each([
+      'malformed JSON',
+      'invalid identity',
+      'duplicate identity',
+    ] as const)(
+      'rejects a %s remembered recovery account index',
+      async (kind) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          configuredAccountIndex: null,
+          platformDependencies: infra,
+        });
+        const entries = kind === 'invalid identity' ? [1.5] : [28, 28];
+        await infra.diskCache.setItem(
+          `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`,
+          kind === 'malformed JSON' ? '{' : JSON.stringify(entries),
+        );
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts: [],
+        });
+        await expect(built.provider.getRecoveredDispatches()).rejects.toThrow(
+          kind === 'malformed JSON'
+            ? /JSON|property|position/u
+            : 'recovery account index is corrupt',
+        );
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses venue mutation if remembering its recovery account fails', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const write = infra.diskCache.setItem.bind(infra.diskCache);
+      infra.diskCache.setItem = async (
+        key: string,
+        value: string,
+      ): Promise<void> => {
+        if (key.startsWith('lighterRecoveryAccounts:')) {
+          throw new Error('recovery account persistence unavailable');
+        }
+        return write(key, value);
+      };
+      const result = await built.provider.withdraw({ amount: '1' });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain(
+        'recovery account persistence unavailable',
+      );
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('preserves nonce-only ambiguous dispatch inventory after restart and venue absence', async () => {
+      const infra = createMockInfrastructure();
+      const first = buildProvider({
+        configuredAccountIndex: null,
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = setupTriggerVenue(first.clientInstance, first.bridge);
+      venue.failResponseOnce(13);
+      expect((await first.provider.withdraw({ amount: '1' })).success).toBe(
+        false,
+      );
+      const before = await infra.diskCache.getItem(
+        'lighterNonceLedger:testnet:28:7',
+      );
+      expect(before).not.toBeNull();
+      const restarted = buildProvider({
+        configuredAccountIndex: null,
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [],
+      });
+      const rows = await restarted.provider.getRecoveredDispatches();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].acknowledgeable).toBe(false);
+      expect(
+        await restarted.provider.reconcileRecoveredDispatches(),
+      ).toStrictEqual(rows);
+      expect(
+        await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7'),
+      ).toBe(before);
+      expect(restarted.calls).toStrictEqual([]);
+      expect(restarted.clientInstance.getTx).not.toHaveBeenCalled();
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [ACCOUNT],
+      });
+      expect(await restarted.provider.getRecoveredDispatches()).toStrictEqual(
+        rows,
+      );
+      const original = (
+        JSON.parse(before ?? '{}') as {
+          entries: { nonce: number; txHash: string }[];
+        }
+      ).entries[0];
+      restarted.clientInstance.getNextNonce.mockResolvedValue({
+        code: 200,
+        nonce: original.nonce + 1,
+      });
+      restarted.clientInstance.getTx.mockResolvedValue({
+        code: 200,
+        hash: original.txHash,
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        nonce: original.nonce,
+        status: 1,
+      });
+      const retry = await restarted.provider.withdraw({ amount: '1' });
+      expect(retry.success).toBe(false);
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(
+        await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7'),
+      ).toBe(before);
+      expect(await restarted.provider.getRecoveredDispatches()).toStrictEqual(
+        rows,
+      );
+      const otherNetwork = buildProvider({
+        configuredAccountIndex: null,
+        platformDependencies: infra,
+        isTestnet: false,
+      });
+      otherNetwork.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [],
+      });
+      expect(
+        await otherNetwork.provider.getRecoveredDispatches(),
+      ).toStrictEqual([]);
+      const otherWallet = buildProvider({
+        configuredAccountIndex: null,
+        platformDependencies: infra,
+      });
+      otherWallet.getUserAddressMock.mockReturnValue(
+        '0x0000000000000000000000000000000000000002',
+      );
+      otherWallet.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [],
+      });
+      expect(await otherWallet.provider.getRecoveredDispatches()).toStrictEqual(
+        [],
+      );
+    });
+  });
+
+  describe('recovery inventory producer authority', () => {
+    it.each(['withdraw', 'setup'] as const)(
+      'rejects a wrong-owner ordinary %s before caching or recording its account',
+      async (operation) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          configuredAccountIndex: null,
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts: [
+            {
+              ...ACCOUNT,
+              l1Address: '0x0000000000000000000000000000000000000002',
+            },
+          ],
+        });
+
+        const result =
+          operation === 'withdraw'
+            ? await built.provider.withdraw({ amount: '1' })
+            : await built.provider.isReadyToTrade();
+        expect(result.error).toContain('not owned by the selected wallet');
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(built.calls).toStrictEqual([]);
+        expect(
+          await infra.diskCache.getItem(
+            `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`,
+          ),
+        ).toBeNull();
+
+        const restarted = buildProvider({
+          configuredAccountIndex: null,
+          platformDependencies: infra,
+        });
+        restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts: [],
+        });
+        expect(await restarted.provider.getRecoveredDispatches()).toStrictEqual(
+          [],
+        );
+        expect(restarted.calls).toStrictEqual([]);
+      },
+    );
+
+    it('rejects a configured response for a different account before producer setup', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, index: 29 }],
+      });
+
+      const result = await built.provider.withdraw({ amount: '1' });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('account index does not match');
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(built.calls).toStrictEqual([]);
+      expect(
+        await infra.diskCache.getItem(
+          `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`,
+        ),
+      ).toBeNull();
+    });
+
+    it.each([-1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+      'rejects invalid ordinary venue index %s before producer setup',
+      async (index) => {
+        const built = buildProvider({ configuredAccountIndex: null });
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts: [{ ...ACCOUNT, index }],
+        });
+
+        const result = await built.provider.isReadyToTrade();
+        expect(result.ready).toBe(false);
+        expect(result.error).toContain('account index is invalid');
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('cannot populate cached recovery authority through a wrong-owner ordinary read', async () => {
+      const built = buildProvider({ configuredAccountIndex: null });
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [
+          {
+            ...ACCOUNT,
+            l1Address: '0x0000000000000000000000000000000000000002',
+          },
+        ],
+      });
+
+      await expect(built.provider.getAccountState()).rejects.toThrow(
+        'not owned by the selected wallet',
+      );
+      await expect(built.provider.getRecoveredDispatches()).rejects.toThrow(
+        'not owned by the selected wallet',
+      );
+      expect(built.clientInstance.getAccountsByL1Address).toHaveBeenCalledTimes(
+        2,
+      );
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it.each(['absent', 'premium'] as const)(
+      'does not advertise acknowledgment of recovered outcomes for %s accounts',
+      async (account) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          configuredAccountIndex: null,
+          platformDependencies: infra,
+        });
+        const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+        const ledger = JSON.stringify({
+          version: 4,
+          consumedFloor: 42,
+          entries: [],
+          recovered: [
+            {
+              recoveryId: '42:beef',
+              kind: 13,
+              intent: 'withdraw:1',
+              txHash: 'beef',
+              outcome: 'failed',
+              evidence: 'tx-status:0',
+            },
+          ],
+        });
+        await infra.diskCache.setItem(ledgerKey, ledger);
+        await infra.diskCache.setItem(
+          `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`,
+          JSON.stringify([28]),
+        );
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          subAccounts:
+            account === 'premium' ? [{ ...ACCOUNT, accountType: 1 }] : [],
+        });
+
+        const rows = await built.provider.getRecoveredDispatches();
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+          outcome: 'failed',
+          evidence: 'tx-status:0',
+          acknowledgeable: false,
+        });
+        expect(
+          await built.provider.reconcileRecoveredDispatches(),
+        ).toStrictEqual(rows);
+        await expect(
+          built.provider.acknowledgeRecoveredDispatch(rows[0].recoveryId),
+        ).rejects.toThrow(
+          account === 'premium'
+            ? 'Premium accounts'
+            : 'No Lighter account exists',
+        );
+        expect(await infra.diskCache.getItem(ledgerKey)).toBe(ledger);
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(built.clientInstance.getTx).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   describe('account-scoped recovered outcomes', () => {
     it.each(['hash', 'account', 'slot', 'nonce', 'wallet-switch'])(
       'refuses previous-slot reconciliation with mismatched %s identity',
@@ -17480,6 +17989,10 @@ describe('LighterProvider', () => {
       const otherAccount = buildProvider({
         platformDependencies: infra,
         configuredAccountIndex: 29,
+      });
+      otherAccount.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, index: 29 }],
       });
       await expect(
         otherAccount.provider.acknowledgeRecoveredDispatch(
