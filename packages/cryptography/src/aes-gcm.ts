@@ -15,6 +15,12 @@ export type AesGcmEncryptOptions = {
 
 export type AesGcmDecryptOptions = {
   /**
+   * Associated data authenticated with the ciphertext but not encrypted.
+   * Encryption and decryption must use the same value.
+   */
+  additionalData?: BufferSource;
+
+  /**
    * Skip the IV length check. Using an IV other than 12 bytes deviates from
    * the standard and is considered less safe.
    */
@@ -71,7 +77,12 @@ export async function encrypt(
 
   const ciphertext = await globalThis.crypto.subtle.encrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    { name: 'AES-GCM', iv },
+    {
+      name: 'AES-GCM',
+      iv,
+      additionalData:
+        options?.additionalData && toUint8Array(options.additionalData),
+    },
     subtleKey,
     toUint8Array(plaintext),
   );
@@ -122,7 +133,12 @@ export async function decrypt(
 
   const plaintext = await globalThis.crypto.subtle.decrypt(
     // Converting to Uint8Array to work around a Node 22 bug, we may be able to remove in the future.
-    { name: 'AES-GCM', iv: toUint8Array(iv) },
+    {
+      name: 'AES-GCM',
+      iv: toUint8Array(iv),
+      additionalData:
+        options?.additionalData && toUint8Array(options.additionalData),
+    },
     subtleKey,
     toUint8Array(ciphertext),
   );
