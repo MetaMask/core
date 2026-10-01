@@ -735,6 +735,8 @@ export class TradingService {
       // Calculate fee discount at execution time (fresh, secure)
       const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
         this.#resolveOrderNotionalUsd(params),
+        provider,
+        context,
       );
 
       this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
@@ -1574,11 +1576,15 @@ export class TradingService {
    * priced. This is what lets the subscription source resolve to a blended
    * rate: omitting it resolves every bounded allowance as a full waiver,
    * charging 0 bips on an order the preview quoted a blend for.
+   * @param provider - The actual provider receiving this submission.
+   * @param context - The submission context, including its network.
    * @returns The resolved fee, or undefined when controller dependencies are
    * unavailable.
    */
   async #calculateFeeDiscountWithMeasurement(
-    orderNotionalUsd?: number,
+    orderNotionalUsd: number | undefined,
+    provider: PerpsProvider,
+    context: ServiceContext,
   ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
@@ -1595,8 +1601,13 @@ export class TradingService {
     // The notional is what lets the subscription source resolve to a blended
     // rate. Submitting without it would resolve every bounded allowance as a
     // full waiver, charging 0 bips on an order the preview quoted a blend for.
-    const resolution =
-      await rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    const resolution = await rewardsIntegrationService.resolveFee(
+      orderNotionalUsd,
+      {
+        providerId: provider.protocolId,
+        isTestnet: context.tracingContext.isTestnet,
+      },
+    );
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -1665,6 +1676,8 @@ export class TradingService {
       // Calculate fee discount only if required dependencies are available
       const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
         this.#resolveOrderNotionalUsd(params.newOrder),
+        provider,
+        context,
       );
 
       // Execute order edit with fee discount management
@@ -2236,6 +2249,8 @@ export class TradingService {
           this.#resolveOrderNotionalUsd({
             usdAmount: position?.positionValue,
           }),
+        provider,
+        context,
       );
 
       // Execute position close with fee discount management
@@ -2399,6 +2414,8 @@ export class TradingService {
         // sum of the positions it will close, not any single one of them.
         const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
           await this.#resolveBatchCloseNotionalUsd({ params, provider }),
+          provider,
+          context,
         );
 
         operationResult = await this.#withFeeDiscount({
@@ -2674,8 +2691,11 @@ export class TradingService {
         pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
           ? Math.max(...pricedTriggerNotionalsUsd)
           : undefined;
-      const feeResolution =
-        await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+        tpslNotionalUsd,
+        provider,
+        context,
+      );
 
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
@@ -3014,6 +3034,8 @@ export class TradingService {
       });
       const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
         flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
+        provider,
+        context,
       );
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await this.#withFeeDiscount({

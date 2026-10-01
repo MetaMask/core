@@ -54,23 +54,36 @@ routing are controlled by client configuration and feature flags.
 The client-owned RewardsController exposes two independent fee candidates.
 `getPerpsDiscountForAccount(account, baseFeeBips)` retains its existing
 `Promise<number | null>` contract for account-scoped VIP and season discounts.
-The optional `getPerpsTradingFeeGrant()` has no account or network input and
-returns an absolute production-Hyperliquid fee with its expiry:
+The optional `getPerpsTradingFeeGrant(scope)` receives the routed provider and
+network and returns an absolute fee candidate for that exact scope:
 
 ```typescript
-import type { PerpsTradingFeeGrant } from '@metamask/perps-controller';
+import type {
+  PerpsFeeResolverScope,
+  PerpsTradingFeeGrant,
+} from '@metamask/perps-controller';
 
+const scope: PerpsFeeResolverScope = {
+  providerId: 'hyperliquid',
+  isTestnet: false,
+};
 const grant: PerpsTradingFeeGrant = {
+  ...scope,
   feeBips: 3,
   expiresAt: Date.now() + 60_000,
 };
 ```
 
 Core retrieves VIP/season and grant concurrently and isolates failures between
-them. It calls the grant method on every resolution and validates that
-`feeBips` is finite and non-negative and that `expiresAt` is finite and still
-in the future after all candidate work settles. The client owns authentication,
-payload validation, and production-Hyperliquid scoping.
+them whenever the resolver has an explicit scope. Scope omission fails closed
+without calling the grant dependency. After all candidate work settles, Core
+validates that `feeBips` is finite and non-negative, `expiresAt` is finite and
+still in the future, and the candidate's `providerId` and `isTestnet` exactly
+match the requested scope. The client owns authentication, payload validation,
+and deciding which routes it supports. The corresponding Mobile integration is
+intended to supply candidates only for Hyperliquid mainnet; Core remains
+provider-agnostic so clients can add Lighter or other route-scoped grants
+without a contract redesign.
 
 Core compares both candidates with the default fee and cached subscription
 waiver. Rewards preserves its existing tie with default. A grant wins only when
@@ -78,7 +91,9 @@ strictly cheaper than the current winner after Hyperliquid's tenths-of-a-basis-
 point quantization, so rewards wins a quantized VIP/grant tie and default beats
 a non-reducing grant. Subscription retains the same strictly-cheaper
 quantized-tie policy. `PerpsController.calculateFees` exposes the result through
-its optional `feeResolution`; grant winners report `source: 'grant'`.
+its optional `feeSource`, populated by the same operation that reprices the
+preview. This is preview-only attribution; every submission resolves again
+against its actual provider route and may have a different winner.
 
 ## Error codes
 
