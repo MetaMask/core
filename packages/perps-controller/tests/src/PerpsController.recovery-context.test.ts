@@ -173,8 +173,8 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
   });
 
-  // Initialization restores its captured provider mode; mode drift is covered
-  // at readiness return and during provider completion instead.
+  // Direct-provider initialization covers account/network drift here. Provider
+  // mode drift is covered at readiness return and during provider completion.
   it.each(CONTEXT_CHANGES.filter(({ name }) => name !== 'provider mode'))(
     'refuses acknowledgment after $name changes during initialization',
     async ({ change }) => {
