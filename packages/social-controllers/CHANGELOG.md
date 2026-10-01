@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `block` calls `PUT /moderation/block` with exactly one of `profileId`, `commentId`, or `replyId`, plus an optional `reason`. The endpoint returns 204.
   - `fetchBlockedProfiles` calls `GET /moderation/blocks/profiles` and returns traders the caller has blocked, most recently blocked first. Pass `cursor` from the previous page; `cursor` is `null` on the last page.
   - `fetchBlockedContent` calls `GET /moderation/blocks/content` and returns comments and replies the caller has blocked, most recently blocked first, with the same cursor pagination.
+- Add `fetchMyFollowers` method to `SocialService` (and the `SocialService:fetchMyFollowers` messenger action) for the authenticated user's inbound followers. Calls `GET /users/me/followers` and returns `FollowersResponse` (`followers` profile summaries plus total `count`) ([#10649](https://github.com/MetaMask/core/pull/10649))
 
 ### Changed
 
@@ -26,7 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `SocialRealtimeService` for subscribing to Social realtime feed events through the shared backend WebSocket connection ([#10561](https://github.com/MetaMask/core/pull/10561))
-- Add `fetchMyFollowers` method to `SocialService` (and the `SocialService:fetchMyFollowers` messenger action) for the authenticated user's inbound followers. Calls `GET /users/me/followers` and returns `FollowersResponse` (`followers` profile summaries plus total `count`) ([#10649](https://github.com/MetaMask/core/pull/10649))
 
 ### Changed
 
