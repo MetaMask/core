@@ -6,6 +6,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
@@ -30,10 +31,10 @@ import {
   base64ToBytes,
   bytesToBase64,
   isNullOrUndefined,
+  bytesToString,
+  stringToBytes,
+  concatBytes,
 } from '@metamask/utils';
-import { gcm } from '@noble/ciphers/aes';
-import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
-import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -679,8 +680,8 @@ export class SeedlessOnboardingController<
         // create a new vault with the resulting authentication data
         await this.#createNewVaultWithAuthData({
           password,
-          rawToprfEncryptionKey: encKey,
-          rawToprfPwEncryptionKey: pwEncKey,
+          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
         });
 
@@ -951,8 +952,8 @@ export class SeedlessOnboardingController<
           // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
           await this.#createNewVaultWithAuthData({
             password,
-            rawToprfEncryptionKey: encKey,
-            rawToprfPwEncryptionKey: pwEncKey,
+            rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+            rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: authKeyPair,
           });
         }
@@ -1007,8 +1008,8 @@ export class SeedlessOnboardingController<
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
           password: newPassword,
-          rawToprfEncryptionKey: newEncKey,
-          rawToprfPwEncryptionKey: newPwEncKey,
+          rawToprfEncryptionKey: newEncKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: newPwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: newAuthKeyPair,
         });
 
@@ -1190,8 +1191,8 @@ export class SeedlessOnboardingController<
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
           password: globalPassword,
-          rawToprfEncryptionKey: encKey,
-          rawToprfPwEncryptionKey: pwEncKey,
+          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
         });
 
@@ -1264,7 +1265,9 @@ export class SeedlessOnboardingController<
         maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
-      const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
+      const vaultKey = await this.#loadSeedlessEncryptionKey(
+        pwEncKey as Uint8Array<ArrayBuffer>,
+      );
 
       // accessToken before unlocking vault and flooding the state with values from the decrypted vault
       // it might be the new token set from the `refreshAuthTokens` method.
@@ -1526,13 +1529,14 @@ export class SeedlessOnboardingController<
    * @param keyringEncryptionKey - The keyring encryption key.
    */
   async #storeKeyringEncryptionKey(
-    encKey: Uint8Array,
+    encKey: Uint8Array<ArrayBuffer>,
     keyringEncryptionKey: string,
   ): Promise<void> {
-    const aes = managedNonce(gcm)(encKey);
-    const encryptedKeyringEncryptionKey = aes.encrypt(
-      utf8ToBytes(keyringEncryptionKey),
+    const { ciphertext, iv } = await encrypt(
+      encKey,
+      stringToBytes(keyringEncryptionKey),
     );
+    const encryptedKeyringEncryptionKey = concatBytes([iv, ciphertext]);
     this.update((state) => {
       state.encryptedKeyringEncryptionKey = bytesToBase64(
         encryptedKeyringEncryptionKey,
@@ -1546,13 +1550,16 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The keyring encryption key.
    */
-  async #loadKeyringEncryptionKey(encKey: Uint8Array): Promise<string> {
+  async #loadKeyringEncryptionKey(
+    encKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
     const { encryptedKeyringEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedKeyringEncryptionKeySet(encryptedKey);
     const encryptedPasswordBytes = base64ToBytes(encryptedKey);
-    const aes = managedNonce(gcm)(encKey);
-    const password = aes.decrypt(encryptedPasswordBytes);
-    return bytesToUtf8(password);
+    const iv = encryptedPasswordBytes.slice(0, IV_LENGTH);
+    const ciphertext = encryptedPasswordBytes.slice(IV_LENGTH);
+    const password = await decrypt(encKey, iv, ciphertext);
+    return bytesToString(password);
   }
 
   /**
@@ -1561,13 +1568,16 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The seedless encryption key.
    */
-  async #loadSeedlessEncryptionKey(encKey: Uint8Array): Promise<string> {
+  async #loadSeedlessEncryptionKey(
+    encKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
     const { encryptedSeedlessEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedSeedlessEncryptionKeySet(encryptedKey);
     const encryptedKeyBytes = base64ToBytes(encryptedKey);
-    const aes = managedNonce(gcm)(encKey);
-    const seedlessEncryptionKey = aes.decrypt(encryptedKeyBytes);
-    return bytesToUtf8(seedlessEncryptionKey);
+    const iv = encryptedKeyBytes.slice(0, IV_LENGTH);
+    const ciphertext = encryptedKeyBytes.slice(IV_LENGTH);
+    const seedlessEncryptionKey = await decrypt(encKey, iv, ciphertext);
+    return bytesToString(seedlessEncryptionKey);
   }
 
   /**
@@ -2061,8 +2071,8 @@ export class SeedlessOnboardingController<
     rawToprfAuthKeyPair,
   }: {
     password: string;
-    rawToprfEncryptionKey: Uint8Array;
-    rawToprfPwEncryptionKey: Uint8Array;
+    rawToprfEncryptionKey: Uint8Array<ArrayBuffer>;
+    rawToprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
@@ -2108,7 +2118,7 @@ export class SeedlessOnboardingController<
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
-    pwEncKey: Uint8Array;
+    pwEncKey: Uint8Array<ArrayBuffer>;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       const serializedVaultData = serializeVaultData(vaultData);
@@ -2144,7 +2154,7 @@ export class SeedlessOnboardingController<
 
         // encrypt the seedless encryption key with the password encryption key from TOPRF network
         updatedState.encryptedSeedlessEncryptionKey =
-          this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
+          await this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
       } else if (vaultEncryptionKey && vaultEncryptionSalt) {
         const encryptionKey =
           await this.#vaultEncryptor.importKey(vaultEncryptionKey);
@@ -2188,13 +2198,15 @@ export class SeedlessOnboardingController<
    * @param pwEncKey - The password encryption key from TOPRF network.
    * @returns The encrypted seedless encryption key.
    */
-  #encryptSeedlessEncryptionKey(
+  async #encryptSeedlessEncryptionKey(
     vaultEncryptionKey: string,
-    pwEncKey: Uint8Array,
-  ): string {
-    const aes = managedNonce(gcm)(pwEncKey);
-    const encryptedKey = aes.encrypt(utf8ToBytes(vaultEncryptionKey));
-    return bytesToBase64(encryptedKey);
+    pwEncKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
+    const { ciphertext, iv } = await encrypt(
+      pwEncKey,
+      stringToBytes(vaultEncryptionKey),
+    );
+    return bytesToBase64(concatBytes([iv, ciphertext]));
   }
 
   /**
