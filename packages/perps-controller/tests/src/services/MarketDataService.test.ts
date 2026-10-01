@@ -867,20 +867,12 @@ describe('MarketDataService', () => {
       expect(result).toEqual(mockFees);
     });
 
-    it('returns the pricing resolution through targeted, non-targeted, legacy and other source previews', async () => {
+    it('returns the pricing resolution through rewards and other source previews', async () => {
       const resolutions: PerpsFeeResolution[] = [
         {
           source: 'rewards',
           feeBips: 3.5,
           discountBips: 6500,
-          targetedDiscountApplied: true,
-          subscription: { eligible: false, reason: 'no-source' },
-        },
-        {
-          source: 'rewards',
-          feeBips: 3.5,
-          discountBips: 6500,
-          targetedDiscountApplied: false,
           subscription: { eligible: false, reason: 'no-source' },
         },
         {
@@ -944,7 +936,6 @@ describe('MarketDataService', () => {
           source: 'rewards',
           feeBips: 3.5,
           discountBips: 6500,
-          targetedDiscountApplied: true,
           subscription: { eligible: false, reason: 'no-source' },
         };
         mockProvider.calculateFees.mockResolvedValue({

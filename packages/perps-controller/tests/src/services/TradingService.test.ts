@@ -145,12 +145,11 @@ describe('TradingService', () => {
       );
     });
 
-    it('passes targeted rewards attribution and its discount in the provider resolution, then clears it', async () => {
+    it('passes the rewards resolution to the provider, then clears it', async () => {
       const resolution: PerpsFeeResolution = {
         feeBips: 3.5,
         discountBips: 6500,
         source: 'rewards',
-        targetedDiscountApplied: true,
         subscription: { eligible: false, reason: 'no-source' },
       };
       const params: OrderParams = {

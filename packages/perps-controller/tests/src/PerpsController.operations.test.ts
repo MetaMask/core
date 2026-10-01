@@ -1866,7 +1866,7 @@ describe('PerpsController', () => {
       refresh.mockRestore();
     });
 
-    it('passes one targeted rewards resolution to the fee preview and returns its attribution', async () => {
+    it('passes one rewards resolution to the fee preview and returns it', async () => {
       const params = {
         orderType: 'market' as const,
         symbol: 'BTC',
@@ -1876,7 +1876,6 @@ describe('PerpsController', () => {
         feeBips: 3.5,
         discountBips: 6500,
         source: 'rewards' as const,
-        targetedDiscountApplied: true,
         subscription: {
           eligible: false,
           reason: 'no-source' as const,
