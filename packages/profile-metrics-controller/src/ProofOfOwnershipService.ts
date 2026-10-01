@@ -4,7 +4,12 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import { string, type as structType } from '@metamask/superstruct';
+import {
+  array,
+  string,
+  type as structType,
+  union,
+} from '@metamask/superstruct';
 import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
@@ -43,6 +48,48 @@ export type ProofOfOwnershipSignRequest = {
 };
 
 /**
+ * The shape of the request object for signing proofs of ownership for multiple
+ * accounts.
+ */
+export type ProofOfOwnershipSignBatchRequest = {
+  /**
+   * The account/nonce pairs to sign proofs for. Results preserve this order.
+   */
+  items: ProofOfOwnershipSignRequest[];
+};
+
+/**
+ * Successful proof-of-ownership batch item.
+ */
+export type ProofOfOwnershipSignBatchSuccess = {
+  proof: AccountOwnershipProof;
+};
+
+/**
+ * Failed proof-of-ownership batch item.
+ */
+export type ProofOfOwnershipSignBatchError = {
+  error: string;
+};
+
+/**
+ * Result for one proof-of-ownership batch signing item.
+ */
+export type ProofOfOwnershipSignBatchResult =
+  | ProofOfOwnershipSignBatchSuccess
+  | ProofOfOwnershipSignBatchError;
+
+/**
+ * Batch proof-of-ownership signing response.
+ */
+export type ProofOfOwnershipSignBatchResponse = {
+  /**
+   * Per-item results in the same order as the input items.
+   */
+  results: ProofOfOwnershipSignBatchResult[];
+};
+
+/**
  * The JSON-RPC method name exposed by non-EVM wallet snaps for silent
  * proof-of-ownership signing. Each supported snap (Bitcoin, Solana, Tron)
  * implements this method under the `onClientRequest` handler and is expected
@@ -50,6 +97,13 @@ export type ProofOfOwnershipSignRequest = {
  * `metamask:proof-of-ownership:`.
  */
 export const SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD = 'signProofOfOwnership';
+
+/**
+ * The JSON-RPC method name exposed by non-EVM wallet snaps for silent batch
+ * proof-of-ownership signing.
+ */
+export const SNAP_SIGN_PROOF_OF_OWNERSHIP_BATCH_METHOD =
+  'signProofOfOwnershipBatch';
 
 /**
  * The shape of a successful response from a non-EVM wallet snap's
@@ -60,6 +114,39 @@ export const SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD = 'signProofOfOwnership';
 const SnapSignProofResponseStruct = structType({
   signature: string(),
 });
+
+/**
+ * The shape of a response from a non-EVM wallet snap's
+ * {@link SNAP_SIGN_PROOF_OF_OWNERSHIP_BATCH_METHOD} handler. Validated at
+ * runtime; declared with `type()` (not `object()`) so additive snap-side schema
+ * changes do not break the client.
+ */
+const SnapSignProofBatchResponseStruct = structType({
+  results: array(
+    union([
+      structType({
+        accountId: string(),
+        signature: string(),
+      }),
+      structType({
+        accountId: string(),
+        error: string(),
+      }),
+    ]),
+  ),
+});
+
+type SnapSignProofBatchResponse = {
+  results: (
+    | { accountId: string; signature: string }
+    | { accountId: string; error: string }
+  )[];
+};
+
+type PreparedProofOfOwnershipRequest = ProofOfOwnershipSignRequest & {
+  index: number;
+  message: string;
+};
 
 /**
  * Builds the canonical message string that all chains sign for a proof of
@@ -74,6 +161,16 @@ const SnapSignProofResponseStruct = structType({
  */
 function buildProofMessage(nonce: string, canonicalAddress: string): string {
   return `metamask:proof-of-ownership:${nonce}:${canonicalAddress}`;
+}
+
+/**
+ * Converts an unknown thrown value into an error message.
+ *
+ * @param error - The thrown value.
+ * @returns A string error message.
+ */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -104,7 +201,7 @@ function getAccountNamespace(account: InternalAccount): string {
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['sign'] as const;
+const MESSENGER_EXPOSED_METHODS = ['sign', 'signBatch'] as const;
 
 /**
  * Actions that {@link ProofOfOwnershipService} exposes to other consumers.
@@ -224,6 +321,85 @@ export class ProofOfOwnershipService {
   }
 
   /**
+   * Sign proofs of ownership for multiple accounts.
+   *
+   * EVM accounts continue to sign through the keyring one account at a time.
+   * Snap-backed accounts are grouped by snap ID and sent through the
+   * `signProofOfOwnershipBatch` snap method once per snap.
+   *
+   * @param data - The account/nonce pairs to prove ownership of.
+   * @returns Per-item proof or error results in input order.
+   * @throws if a snap batch request rejects, returns a malformed response, or
+   * returns a result count/account ordering that does not match the request.
+   */
+  async signBatch(
+    data: ProofOfOwnershipSignBatchRequest,
+  ): Promise<ProofOfOwnershipSignBatchResponse> {
+    const results: ProofOfOwnershipSignBatchResult[] = new Array(
+      data.items.length,
+    );
+    const evmRequests: PreparedProofOfOwnershipRequest[] = [];
+    const snapRequestsBySnapId = new Map<
+      SnapId,
+      PreparedProofOfOwnershipRequest[]
+    >();
+
+    data.items.forEach((item, index) => {
+      try {
+        const namespace = getAccountNamespace(item.account);
+        const canonicalAddress = canonicalizeAddress(
+          item.account.address,
+          namespace,
+        );
+        const message = buildProofMessage(item.nonce, canonicalAddress);
+        const request = { ...item, index, message };
+
+        if (namespace === KnownCaipNamespace.Eip155) {
+          evmRequests.push(request);
+          return;
+        }
+
+        const snapId = item.account.metadata.snap?.id;
+        if (!snapId) {
+          results[index] = {
+            error: `ProofOfOwnershipService: account '${item.account.id}' has no snap to sign a proof of ownership.`,
+          };
+          return;
+        }
+
+        const snapRequests = snapRequestsBySnapId.get(snapId as SnapId) ?? [];
+        snapRequests.push(request);
+        snapRequestsBySnapId.set(snapId as SnapId, snapRequests);
+      } catch (error) {
+        results[index] = { error: getErrorMessage(error) };
+      }
+    });
+
+    await Promise.all([
+      ...evmRequests.map(async (request) => {
+        try {
+          results[request.index] = {
+            proof: {
+              nonce: request.nonce,
+              signature: await this.#signEvm(
+                request.account.address,
+                request.message,
+              ),
+            },
+          };
+        } catch (error) {
+          results[request.index] = { error: getErrorMessage(error) };
+        }
+      }),
+      ...[...snapRequestsBySnapId.entries()].map(async ([snapId, requests]) => {
+        await this.#signViaSnapBatch(snapId, requests, results);
+      }),
+    ]);
+
+    return { results };
+  }
+
+  /**
    * Sign an EIP-191 personal message via the keyring controller.
    *
    * @param address - The EVM address to sign with (must belong to an
@@ -290,5 +466,79 @@ export class ProofOfOwnershipService {
     }
 
     return response.signature;
+  }
+
+  /**
+   * Sign a group of proof messages through a single snap batch request.
+   *
+   * @param snapId - Snap ID shared by every request in the group.
+   * @param requests - Prepared requests for this snap.
+   * @param results - Mutable output array indexed to match the original input.
+   * @throws if the snap response is malformed or does not preserve request
+   * order/account IDs.
+   */
+  async #signViaSnapBatch(
+    snapId: SnapId,
+    requests: PreparedProofOfOwnershipRequest[],
+    results: ProofOfOwnershipSignBatchResult[],
+  ): Promise<void> {
+    const response: unknown = await this.#messenger.call(
+      'SnapController:handleRequest',
+      {
+        snapId,
+        origin: 'metamask',
+        handler: HandlerType.OnClientRequest,
+        request: {
+          id: uuid(),
+          jsonrpc: '2.0',
+          method: SNAP_SIGN_PROOF_OF_OWNERSHIP_BATCH_METHOD,
+          params: {
+            items: requests.map(({ account, message }) => ({
+              accountId: account.id,
+              message,
+            })),
+          },
+        },
+      },
+    );
+
+    if (!SnapSignProofBatchResponseStruct.is(response)) {
+      // Intentionally generic — a malformed snap response may still carry
+      // partial signatures, and we don't want fragments of secret material
+      // landing in error logs.
+      throw new Error(
+        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_BATCH_METHOD}'.`,
+      );
+    }
+
+    const { results: snapResults } = response as SnapSignProofBatchResponse;
+    if (snapResults.length !== requests.length) {
+      throw new Error(
+        `ProofOfOwnershipService: snap '${snapId}' returned ${snapResults.length} results for ${requests.length} '${SNAP_SIGN_PROOF_OF_OWNERSHIP_BATCH_METHOD}' requests.`,
+      );
+    }
+
+    snapResults.forEach((snapResult, position) => {
+      const request = requests[position];
+      if (snapResult.accountId !== request.account.id) {
+        throw new Error(
+          `ProofOfOwnershipService: snap '${snapId}' returned a result for account '${snapResult.accountId}' at index ${position}, expected '${request.account.id}'.`,
+        );
+      }
+
+      const { signature } = snapResult as { signature?: string };
+      if (signature !== undefined) {
+        results[request.index] = {
+          proof: {
+            nonce: request.nonce,
+            signature,
+          },
+        };
+        return;
+      }
+
+      const { error } = snapResult as { error: string };
+      results[request.index] = { error };
+    });
   }
 }
