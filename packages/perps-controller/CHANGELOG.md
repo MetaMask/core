@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1312.0.0 ([#10655](https://github.com/MetaMask/core/pull/10655))
+- Release 1311.0.0 ([#10652](https://github.com/MetaMask/core/pull/10652))
+
 ### Changed
 
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
