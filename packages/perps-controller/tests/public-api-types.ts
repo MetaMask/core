@@ -3,6 +3,7 @@ import type {
   TriggerOrderType,
   PerpsRecoveredDispatch,
   PerpsControllerGetRecoveredDispatchesAction,
+  PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
 
@@ -16,6 +17,24 @@ type IsExact<Actual, Expected> =
     : false;
 type AssertTrue<Value extends true> = Value;
 export type RecoveryConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerReconcileRecoveredDispatchesAction['handler']>,
+      []
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReconcileRecoveredDispatchesAction['handler']>,
+      Promise<PerpsRecoveredDispatch[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerReconcileRecoveredDispatchesAction['type'],
+      'PerpsController:reconcileRecoveredDispatches'
+    >
+  >,
   AssertTrue<
     IsExact<PerpsRecoveredDispatch['apiKeyIndex'], number | undefined>
   >,

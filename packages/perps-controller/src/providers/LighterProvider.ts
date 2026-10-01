@@ -116,6 +116,7 @@ import type {
   PerpsMarketData,
   PerpsPlatformDependencies,
   PerpsProvider,
+  PerpsRecoveredDispatch,
   PerpsReadOptions,
   Position,
   PositionModifyPreviewParams,
@@ -2344,24 +2345,34 @@ export class LighterProvider implements PerpsProvider {
   /**
    * @param apiKeyIndex - Key slot captured for this operation.
    * @param accountIndex - Venue account index.
+   * @param reconciliation - Non-financial pass that retains owned entries and
+   * reports pending/quarantined outcomes instead of granting write permission.
    * @returns Resolves when the pass completes.
    */
   readonly #resolveNonceLedgerLocked = async (
     accountIndex: number,
     apiKeyIndex = this.#apiKeyIndex,
+    reconciliation?: { generation: number },
   ): Promise<void> => {
-    const generation = this.#sessionGeneration;
+    const generation = reconciliation?.generation ?? this.#sessionGeneration;
     this.#assertSession(generation);
     const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
+    this.#assertSession(generation);
     const reservationKey = `${accountIndex}:${apiKeyIndex}`;
-    // The durable consumed watermark always seeds the memory floor.
-    if (doc.consumedFloor > 0) {
+    const releasedNonces: number[] = [];
+    const commitReservations = (): void => {
+      this.#assertSession(generation);
       const floor = this.#nonceReservations.get(reservationKey) ?? 0;
       this.#nonceReservations.set(
         reservationKey,
         Math.max(floor, doc.consumedFloor),
       );
-    }
+      for (const nonce of releasedNonces) {
+        if (nonce >= doc.consumedFloor) {
+          this.#releaseNonceReservation(accountIndex, nonce, apiKeyIndex);
+        }
+      }
+    };
     // QUARANTINE CHECK FIRST: unacknowledged recovered outcomes block
     // EVERY retry, including retries arriving when no unresolved
     // entries remain — an early empty-entries return here would let the
@@ -2380,8 +2391,13 @@ export class LighterProvider implements PerpsProvider {
         );
       }
     };
-    throwIfQuarantined();
-    if (doc.entries.length === 0) {
+    if (!reconciliation) {
+      throwIfQuarantined();
+    }
+    if (!doc.entries.some((entry) => !reconciliation || entry.owner === null)) {
+      if (!reconciliation) {
+        commitReservations();
+      }
       return;
     }
     const quarantine = (
@@ -2408,17 +2424,22 @@ export class LighterProvider implements PerpsProvider {
       accountIndex,
       apiKeyIndex,
     );
+    this.#assertSession(generation);
+    if (!Number.isSafeInteger(nonceResponse.nonce) || nonceResponse.nonce < 0) {
+      throw new Error(
+        'Lighter nonce reconciliation received an invalid venue nonce',
+      );
+    }
     const remaining: typeof doc.entries = [];
     for (const entry of doc.entries) {
+      if (reconciliation && entry.owner !== null) {
+        remaining.push(entry);
+        continue;
+      }
       if (entry.txHash === null && nonceResponse.nonce > entry.nonce) {
         // Only the nonce ADVANCE is proven (possibly by another device):
         // the intent's own fate is UNKNOWN — never reported completed.
         doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
-        const floor = this.#nonceReservations.get(reservationKey) ?? 0;
-        this.#nonceReservations.set(
-          reservationKey,
-          Math.max(floor, entry.nonce + 1),
-        );
         quarantine(entry, 'unknown', 'rest-advance');
         continue;
       }
@@ -2427,11 +2448,13 @@ export class LighterProvider implements PerpsProvider {
         try {
           lookedUp = await this.#clientService.getTx(entry.txHash);
         } catch {
+          this.#assertSession(generation);
           // Lookup failure is AMBIGUITY, never evidence either way: the
           // entry stays and the write remains blocked.
           remaining.push(entry);
           continue;
         }
+        this.#assertSession(generation);
         if (lookedUp !== null) {
           const matchesIdentity =
             typeof lookedUp.hash === 'string' &&
@@ -2457,11 +2480,6 @@ export class LighterProvider implements PerpsProvider {
               continue;
             }
             doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
-            const floor = this.#nonceReservations.get(reservationKey) ?? 0;
-            this.#nonceReservations.set(
-              reservationKey,
-              Math.max(floor, entry.nonce + 1),
-            );
             // The EXACT tx status decides the intent's fate: executed →
             // succeeded (blocking until acknowledged); failed/rejected →
             // retry-safe FAILURE (recorded, non-blocking); anything else
@@ -2491,11 +2509,6 @@ export class LighterProvider implements PerpsProvider {
           // Our payload can never land now — retry-safe never-landed,
           // no quarantine; the floor advances with the venue.
           doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
-          const floor = this.#nonceReservations.get(reservationKey) ?? 0;
-          this.#nonceReservations.set(
-            reservationKey,
-            Math.max(floor, entry.nonce + 1),
-          );
           continue;
         }
         if (
@@ -2505,13 +2518,7 @@ export class LighterProvider implements PerpsProvider {
           // Venue-confirmed absent after the signed validity: PROVEN
           // never landed — the venue still expects this nonce (unless a
           // later dispatch already consumed it: consumedFloor guards).
-          if (entry.nonce >= doc.consumedFloor) {
-            this.#releaseNonceReservation(
-              accountIndex,
-              entry.nonce,
-              apiKeyIndex,
-            );
-          }
+          releasedNonces.push(entry.nonce);
           continue;
         }
       }
@@ -2528,6 +2535,11 @@ export class LighterProvider implements PerpsProvider {
       },
       apiKeyIndex,
     );
+    this.#assertSession(generation);
+    commitReservations();
+    if (reconciliation) {
+      return;
+    }
     if (remaining.length > 0) {
       throw new Error(
         'A previous Lighter submission has an unresolved outcome; writes are blocked until it can be proven consumed or never-landed',
@@ -2706,10 +2718,30 @@ export class LighterProvider implements PerpsProvider {
     const accountIndex = await this.#ensureAccountIndex();
     await this.#signerReadyPromise?.catch(() => undefined);
     this.#assertSession(generation);
+    return this.#listRecoveredDispatches(accountIndex, generation);
+  }
+
+  /**
+   * Format a fenced local view for the already captured account.
+   *
+   * @param accountIndex - Captured venue account.
+   * @param generation - Captured wallet session.
+   * @returns Scoped pending and recovered dispatches.
+   */
+  readonly #listRecoveredDispatches = async (
+    accountIndex: number,
+    generation: number,
+  ): Promise<
+    (LighterRecoveredDispatch & {
+      apiKeyIndex: number;
+      acknowledgeable?: boolean;
+    })[]
+  > => {
     const ledgers = await this.#readAccountRecoveryLedgers(
       accountIndex,
       generation,
     );
+    this.#assertSession(generation);
     return ledgers.flatMap(({ apiKeyIndex, doc }) => [
       ...doc.recovered.map((outcome) => ({
         ...outcome,
@@ -2727,6 +2759,57 @@ export class LighterProvider implements PerpsProvider {
         evidence: 'unresolved-dispatch',
       })),
     ]);
+  };
+
+  /**
+   * Reconcile owner-null dispatches using unauthenticated venue nonce/hash reads
+   * and local persistence. This never initializes a signer, signs, submits,
+   * acknowledges outcomes or starts TP/SL recovery. Owned entries remain pending.
+   * Existing quarantine and ambiguous slots do not prevent inspection of others.
+   * A removed pending row can mean proven absence, not successful execution.
+   * Replace the caller's view with these newly scoped IDs after every pass.
+   *
+   * @returns Current account-wide pending and recovered dispatches.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    this.#assertSession(generation);
+    const network = this.#isTestnet ? 'testnet' : 'mainnet';
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const result = await withProcessMutex(
+      `lighterVenueWrite:${network}:${accountIndex}`,
+      async () => {
+        this.#assertSession(generation);
+        for (
+          let apiKeyIndex = LIGHTER_MIN_TRADING_API_KEY_INDEX;
+          apiKeyIndex <= LIGHTER_MAX_TRADING_API_KEY_INDEX;
+          apiKeyIndex += 1
+        ) {
+          await this.#withLedgerLock(
+            accountIndex,
+            async () => {
+              this.#assertSession(generation);
+              await this.#resolveNonceLedgerLocked(accountIndex, apiKeyIndex, {
+                generation,
+              });
+              this.#assertSession(generation);
+            },
+            apiKeyIndex,
+          );
+          this.#assertSession(generation);
+        }
+        const rows = await this.#listRecoveredDispatches(
+          accountIndex,
+          generation,
+        );
+        this.#assertSession(generation);
+        return rows;
+      },
+    );
+    this.#assertSession(generation);
+    return result;
   }
 
   /**
@@ -2751,7 +2834,7 @@ export class LighterProvider implements PerpsProvider {
       );
     if (recoveryId.startsWith('lighter-pending:')) {
       throw new Error(
-        'Unresolved Lighter dispatches cannot be acknowledged. Listing or waiting does not reconcile them; a later financial action checks authoritative state before dispatch and remains blocked if unresolved',
+        'Unresolved Lighter dispatches cannot be acknowledged. Use reconcileRecoveredDispatches to check authoritative state; unresolved dispatches remain blocked',
       );
     }
     let apiKeyIndex: number;

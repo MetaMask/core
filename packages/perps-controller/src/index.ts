@@ -113,6 +113,7 @@ export type {
   PerpsControllerGetPositionsAction,
   PerpsControllerGetSelectedOrderTypeAction,
   PerpsControllerGetRecoveredDispatchesAction,
+  PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
   PerpsControllerGetTradeConfigurationAction,
   PerpsControllerGetRecentlyViewedMarketsAction,

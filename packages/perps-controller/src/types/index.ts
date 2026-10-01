@@ -433,8 +433,9 @@ export type PerpsPendingManualRecovery = {
  * A local dispatch requiring reconciliation or acknowledgment. Raw unresolved
  * dispatches include current-session in-flight submissions, have
  * acknowledgeable:false and cannot be acknowledged. Listing starts no
- * background reconciliation; a later fenced financial action checks
- * authoritative state before dispatch and remains blocked if unresolved. For
+ * background reconciliation. Explicit reconcileRecoveredDispatches checks venue
+ * evidence without signing or retrying; TP/SL-owned entries remain pending. A
+ * later fenced financial action still blocks unresolved dispatches. For
  * resolved outcomes, writes stay blocked until explicitly acknowledged via
  * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
  * state) — except `failed`, which is retry-safe and non-blocking.
@@ -2128,6 +2129,8 @@ export type PerpsProvider = {
   // explicit acknowledgment; never destructive read-all.
   getPendingManualRecoveries?(): Promise<PerpsPendingManualRecovery[]>;
   getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
+  /** Non-financial venue checks with local persistence; no signing, retry or acknowledgment. */
+  reconcileRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
   acknowledgeRecoveredDispatch?(recoveryId: string): Promise<void>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;

@@ -2014,6 +2014,71 @@ describe('PerpsController', () => {
   });
 
   describe('durable-settlement surfacing (manual recoveries / recovered dispatches)', () => {
+    it('registers the reconciliation messenger action during initialization', async () => {
+      const register = jest.fn();
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({
+          registerMethodActionHandlers: register,
+        }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+      });
+      markControllerAsInitialized();
+      await controller.init();
+      expect(register).toHaveBeenCalledWith(
+        controller,
+        expect.arrayContaining(['reconcileRecoveredDispatches']),
+      );
+    });
+
+    it('reconciles through the active provider, falls back to listing and propagates errors', async () => {
+      markControllerAsInitialized();
+      const rows = [
+        {
+          recoveryId: 'pending',
+          kind: 13,
+          intent: 'withdraw',
+          txHash: null,
+          outcome: 'unknown' as const,
+          evidence: 'unresolved-dispatch',
+          acknowledgeable: false,
+        },
+      ];
+      const listing = jest.fn().mockResolvedValue(rows);
+      const reconcile = jest.fn().mockResolvedValue(rows);
+      controller.testSetProviders(
+        new Map([
+          [
+            'hyperliquid',
+            {
+              ...mockProvider,
+              getRecoveredDispatches: listing,
+              reconcileRecoveredDispatches: reconcile,
+            },
+          ],
+        ]),
+      );
+      expect(await controller.reconcileRecoveredDispatches()).toStrictEqual(
+        rows,
+      );
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(listing).not.toHaveBeenCalled();
+      reconcile.mockRejectedValueOnce(new Error('recovery failed'));
+      await expect(controller.reconcileRecoveredDispatches()).rejects.toThrow(
+        'recovery failed',
+      );
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', { ...mockProvider, getRecoveredDispatches: listing }],
+        ]),
+      );
+      expect(await controller.reconcileRecoveredDispatches()).toStrictEqual(
+        rows,
+      );
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      expect(await controller.reconcileRecoveredDispatches()).toStrictEqual([]);
+    });
+
     it('returns empty lists when the active provider has no durable settlement state', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

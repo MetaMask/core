@@ -37,6 +37,12 @@ jest.mock('@nktkas/hyperliquid', () => ({
 }));
 
 describe('@metamask/perps-controller public API', () => {
+  it('exposes explicit non-financial reconciliation on the public controller', () => {
+    expect(typeof PerpsController.prototype.reconcileRecoveredDispatches).toBe(
+      'function',
+    );
+  });
+
   it('exports the trading configuration constants', () => {
     expect([
       LIGHTER_MIN_TRADING_API_KEY_INDEX,

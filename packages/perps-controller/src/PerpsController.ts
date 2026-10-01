@@ -952,6 +952,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPositions',
   'getSelectedOrderType',
   'getRecoveredDispatches',
+  'reconcileRecoveredDispatches',
   'acknowledgeRecoveredDispatch',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
@@ -3979,6 +3980,21 @@ export class PerpsController extends BaseController<
       return [];
     }
     return provider.getRecoveredDispatches();
+  }
+
+  /**
+   * Explicit non-financial reconciliation with local persistence. Never signs,
+   * retries or acknowledges dispatches. Unsupported providers return their local
+   * listed state, or an empty list when neither capability is available.
+   *
+   * @returns Newly scoped pending and recovered dispatches.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (provider.reconcileRecoveredDispatches) {
+      return provider.reconcileRecoveredDispatches();
+    }
+    return provider.getRecoveredDispatches?.() ?? [];
   }
 
   /**

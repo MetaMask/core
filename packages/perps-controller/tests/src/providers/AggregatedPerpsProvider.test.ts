@@ -235,6 +235,37 @@ describe('AggregatedPerpsProvider', () => {
       evidence: 'tx-status:3',
     };
 
+    it('reconciles all providers with listing fallback and propagates failures', async () => {
+      const reconcile = jest.fn().mockResolvedValue([outcome]);
+      const listing = jest
+        .fn()
+        .mockResolvedValue([{ ...outcome, recoveryId: 'other' }]);
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          [
+            'hyperliquid',
+            { ...mockHLProvider, getRecoveredDispatches: listing },
+          ],
+          [
+            'lighter',
+            { ...mockLighterProvider, reconcileRecoveredDispatches: reconcile },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      expect(await aggregated.reconcileRecoveredDispatches()).toStrictEqual([
+        { ...outcome, recoveryId: 'other' },
+        outcome,
+      ]);
+      expect(listing).toHaveBeenCalledTimes(1);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      reconcile.mockRejectedValueOnce(new Error('recovery failed'));
+      await expect(aggregated.reconcileRecoveredDispatches()).rejects.toThrow(
+        'recovery failed',
+      );
+    });
+
     it('aggregates recoveries and outcomes from providers implementing the contract', async () => {
       const durable = {
         ...mockLighterProvider,

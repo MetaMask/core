@@ -16322,4 +16322,644 @@ describe('LighterProvider', () => {
       );
     });
   });
+  describe('non-financial recovered dispatch reconciliation', () => {
+    const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+    const entry = {
+      nonce: 42,
+      txHash: 'beef',
+      expiresAt: 9999999999999,
+      kind: 13,
+      intent: 'withdraw:1',
+      owner: null,
+    };
+    const terminal = {
+      code: 200,
+      hash: 'beef',
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: 42,
+      status: 2,
+    };
+    const oldOutcome = {
+      recoveryId: '40:old',
+      kind: 13,
+      intent: 'withdraw:old',
+      txHash: 'old',
+      outcome: 'unknown',
+      evidence: 'rest-advance',
+    };
+
+    const parseLedger = (
+      raw: string | null,
+    ): { consumedFloor: number; entries: unknown[]; recovered: unknown[] } =>
+      JSON.parse(raw ?? '{}') as {
+        consumedFloor: number;
+        entries: unknown[];
+        recovered: unknown[];
+      };
+
+    async function fixture(): Promise<
+      BuiltProvider & { infra: ReturnType<typeof createMockInfrastructure> }
+    > {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: infra });
+      await infra.diskCache.setItem(
+        ledgerKey,
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [entry],
+          recovered: [],
+        }),
+      );
+      built.clientInstance.getTx.mockResolvedValue(terminal);
+      return { ...built, infra };
+    }
+
+    it.each([
+      ['executed', terminal, 'succeeded'],
+      ['rejected', { ...terminal, status: 0 }, 'failed'],
+      ['pending', { ...terminal, status: 1 }, 'unknown'],
+      ['unknown numeric status', { ...terminal, status: 999 }, 'unknown'],
+      ['missing status', { ...terminal, status: undefined }, 'unknown'],
+      ['string status', { ...terminal, status: '2' }, 'unknown'],
+      ['wrong hash', { ...terminal, hash: 'different' }, 'unknown'],
+      ['wrong account', { ...terminal, accountIndex: 99 }, 'unknown'],
+      ['wrong slot', { ...terminal, apiKeyIndex: 19 }, 'unknown'],
+      ['wrong nonce', { ...terminal, nonce: 43 }, 'unknown'],
+    ])(
+      'reconciles %s without signer or financial activity',
+      async (_name, response, outcome) => {
+        const built = await fixture();
+        built.clientInstance.getTx.mockResolvedValue(response);
+        const rows = await built.provider.reconcileRecoveredDispatches();
+        const resolved = outcome !== 'unknown';
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ outcome, apiKeyIndex: 7 });
+        expect(rows[0].acknowledgeable).toBe(resolved ? undefined : false);
+        const doc = parseLedger(
+          (await built.infra.diskCache.getItem(ledgerKey)) ?? '{}',
+        );
+        expect(doc.entries).toStrictEqual(resolved ? [] : [entry]);
+        expect(doc.consumedFloor).toBe(resolved ? 43 : 0);
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(built.clientInstance.getApiKeys).not.toHaveBeenCalled();
+        expect(built.clientInstance.getActiveOrders).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['hashless consumed', null, 43, 9999999999999, 1, 'unknown'],
+      ['hashless unconsumed', null, 42, 1, 1, 'unknown'],
+      ['absent unexpired', 'beef', 42, 9999999999999, 1, 'unknown'],
+      ['absent expired', 'beef', 42, 1, 0, undefined],
+      ['absent consumed', 'beef', 43, 9999999999999, 0, undefined],
+    ])(
+      'handles %s using exact nonce and validity evidence',
+      async (_name, hash, nonce, expiry, count, outcome) => {
+        const built = await fixture();
+        await built.infra.diskCache.setItem(
+          ledgerKey,
+          JSON.stringify({
+            version: 4,
+            consumedFloor: 0,
+            entries: [{ ...entry, txHash: hash, expiresAt: expiry }],
+            recovered: [],
+          }),
+        );
+        built.clientInstance.getNextNonce.mockResolvedValue({
+          code: 200,
+          nonce,
+        });
+        built.clientInstance.getTx.mockResolvedValue(null);
+        const rows = await built.provider.reconcileRecoveredDispatches();
+        expect(rows).toHaveLength(count);
+        expect(rows[0]?.outcome).toBe(outcome);
+        const doc = parseLedger(
+          (await built.infra.diskCache.getItem(ledgerKey)) ?? '{}',
+        );
+        expect(doc.consumedFloor).toBe(nonce === 43 ? 43 : 0);
+        expect(doc.entries).toHaveLength(
+          (hash === null && nonce === 42) ||
+            (hash !== null && nonce === 42 && expiry !== 1)
+            ? 1
+            : 0,
+        );
+        expect(built.calls).toStrictEqual([]);
+      },
+    );
+
+    it.each([undefined, -1, Number.NaN, Infinity, '43'])(
+      'rejects malformed venue nonce %s without changing the ledger',
+      async (nonce) => {
+        const built = await fixture();
+        const before = await built.infra.diskCache.getItem(ledgerKey);
+        built.clientInstance.getNextNonce.mockResolvedValue({
+          code: 200,
+          nonce,
+        });
+        await expect(
+          built.provider.reconcileRecoveredDispatches(),
+        ).rejects.toThrow('invalid venue nonce');
+        expect(await built.infra.diskCache.getItem(ledgerKey)).toBe(before);
+        expect(built.clientInstance.getTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('retains lookup errors as pending, then reconciles a later exact success', async () => {
+      const built = await fixture();
+      const before = await built.infra.diskCache.getItem(ledgerKey);
+      built.clientInstance.getTx.mockRejectedValueOnce(new Error('HTTP 503'));
+      expect(await built.provider.reconcileRecoveredDispatches()).toStrictEqual(
+        [expect.objectContaining({ acknowledgeable: false })],
+      );
+      expect(await built.infra.diskCache.getItem(ledgerKey)).toBe(before);
+      expect(await built.provider.reconcileRecoveredDispatches()).toStrictEqual(
+        [expect.objectContaining({ outcome: 'succeeded' })],
+      );
+    });
+
+    it('continues across quarantines and ambiguous slots, preserving owned entries and journals', async () => {
+      const built = await fixture();
+      const owned = { ...entry, nonce: 44, txHash: 'owned', owner: 'journal' };
+      const ownedKey = 'lighterNonceLedger:testnet:28:20';
+      const ownedBytes = JSON.stringify({
+        version: 4,
+        consumedFloor: 0,
+        entries: [owned],
+        recovered: [],
+      });
+      await built.infra.diskCache.setItem(
+        ledgerKey,
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 41,
+          entries: [entry, owned],
+          recovered: [oldOutcome],
+        }),
+      );
+      await built.infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:19',
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [{ ...entry, txHash: 'later' }],
+          recovered: [],
+        }),
+      );
+      await built.infra.diskCache.setItem(ownedKey, ownedBytes);
+      await built.infra.diskCache.setItem(
+        'lighterTpslJournal:testnet:journal',
+        'untouched',
+      );
+      built.clientInstance.getTx.mockImplementation(async (hash: string) =>
+        hash === 'later'
+          ? { ...terminal, hash, apiKeyIndex: 19 }
+          : { ...terminal, status: 1 },
+      );
+      const rows = await built.provider.reconcileRecoveredDispatches();
+      expect(rows).toHaveLength(5);
+      expect(rows).toContainEqual(
+        expect.objectContaining({ outcome: 'succeeded', apiKeyIndex: 19 }),
+      );
+      expect(rows).toContainEqual(
+        expect.objectContaining({
+          outcome: 'unknown',
+          evidence: 'rest-advance',
+        }),
+      );
+      expect(await built.infra.diskCache.getItem(ownedKey)).toBe(ownedBytes);
+      expect(
+        await built.infra.diskCache.getItem(
+          'lighterTpslJournal:testnet:journal',
+        ),
+      ).toBe('untouched');
+      expect(
+        (built.clientInstance.getTx.mock.calls as [string][]).map(
+          ([hash]) => hash,
+        ),
+      ).toStrictEqual(['beef', 'later']);
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it.each(['corrupt', 'full', 'write-error', 'nonce-error', 'read-error'])(
+      'surfaces %s while preserving the original dispatch',
+      async (failure) => {
+        const built = await fixture();
+        if (failure === 'corrupt') {
+          await built.infra.diskCache.setItem(ledgerKey, '{broken');
+        }
+        if (failure === 'full') {
+          await built.infra.diskCache.setItem(
+            ledgerKey,
+            JSON.stringify({
+              version: 4,
+              consumedFloor: 0,
+              entries: [entry],
+              recovered: Array.from({ length: 32 }, (_, index) => ({
+                ...oldOutcome,
+                recoveryId: `${index}:old`,
+              })),
+            }),
+          );
+        }
+        const before = await built.infra.diskCache.getItem(ledgerKey);
+        if (failure === 'write-error') {
+          jest
+            .spyOn(built.infra.diskCache, 'setItem')
+            .mockRejectedValueOnce(new Error('disk failed'));
+        }
+        if (failure === 'nonce-error') {
+          built.clientInstance.getNextNonce.mockRejectedValueOnce(
+            new Error('nonce failed'),
+          );
+        }
+        if (failure === 'read-error') {
+          jest
+            .spyOn(built.infra.diskCache, 'getItem')
+            .mockRejectedValueOnce(new Error('disk read failed'));
+        }
+        await expect(
+          built.provider.reconcileRecoveredDispatches(),
+        ).rejects.toThrow(/corrupt|full|failed/u);
+        expect(await built.infra.diskCache.getItem(ledgerKey)).toBe(before);
+        expect(built.calls).toStrictEqual([]);
+      },
+    );
+
+    it.each(
+      ['nonce', 'transaction', 'read', 'write'].flatMap((boundary) =>
+        ['switch', 'deselect', 'reset', 'disconnect'].map((change) => [
+          boundary,
+          change,
+        ]),
+      ),
+    )('fences the %s await after %s', async (boundary, change) => {
+      const built = await fixture();
+      const held = createDeferred<void>();
+      const entered = createDeferred<void>();
+      const before = await built.infra.diskCache.getItem(ledgerKey);
+      const switchAfter = async <Result>(result: Result): Promise<Result> => {
+        entered.resolve();
+        await held.promise;
+        return result;
+      };
+      if (boundary === 'nonce') {
+        built.clientInstance.getNextNonce.mockImplementationOnce(() =>
+          switchAfter({ code: 200, nonce: 42 }),
+        );
+      }
+      if (boundary === 'transaction') {
+        built.clientInstance.getTx.mockImplementationOnce(() =>
+          switchAfter(terminal),
+        );
+      }
+      if (boundary === 'read') {
+        const get = jest
+          .spyOn(built.infra.diskCache, 'getItem')
+          .getMockImplementation() as (key: string) => Promise<string | null>;
+        jest
+          .spyOn(built.infra.diskCache, 'getItem')
+          .mockImplementation(async (key) =>
+            key === ledgerKey ? switchAfter(await get(key)) : get(key),
+          );
+      }
+      if (boundary === 'write') {
+        const set = jest
+          .spyOn(built.infra.diskCache, 'setItem')
+          .getMockImplementation() as (
+          key: string,
+          value: string,
+        ) => Promise<void>;
+        jest
+          .spyOn(built.infra.diskCache, 'setItem')
+          .mockImplementation(async (key, value) => {
+            await switchAfter(undefined);
+            await set(key, value);
+          });
+      }
+      const pending = built.provider
+        .reconcileRecoveredDispatches()
+        .catch((error: unknown) => error);
+      await entered.promise;
+      if (change === 'switch') {
+        built.getUserAddressMock.mockReturnValue(
+          '0x0000000000000000000000000000000000000099',
+        );
+      }
+      if (change === 'deselect') {
+        built.getUserAddressMock.mockImplementation(() => {
+          throw new Error('no wallet');
+        });
+      }
+      if (change === 'reset') {
+        built.fireReset();
+      }
+      if (change === 'disconnect') {
+        await built.provider.disconnect();
+      }
+      held.resolve();
+      const failure = await pending;
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toMatch(
+        /switch|session|account|disconnect/u,
+      );
+      const after = await built.infra.diskCache.getItem(ledgerKey);
+      expect(
+        boundary === 'write' ? parseLedger(after).recovered.length : after,
+      ).toBe(boundary === 'write' ? 1 : before);
+      expect(
+        await built.infra.diskCache.getItem('lighterNonceLedger:testnet:99:7'),
+      ).toBeNull();
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it('serializes two provider instances and acknowledgment without losing recovered rows', async () => {
+      const built = await fixture();
+      await built.infra.diskCache.setItem(
+        ledgerKey,
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 41,
+          entries: [entry],
+          recovered: [oldOutcome],
+        }),
+      );
+      const second = buildProvider({ platformDependencies: built.infra });
+      second.clientInstance.getTx.mockResolvedValue(terminal);
+      const held = createDeferred<void>();
+      const entered = createDeferred<void>();
+      built.clientInstance.getTx.mockImplementationOnce(async () => {
+        entered.resolve();
+        await held.promise;
+        return terminal;
+      });
+      const pending = built.provider.reconcileRecoveredDispatches();
+      await entered.promise;
+      const concurrent = second.provider.reconcileRecoveredDispatches();
+      const ack = second.provider.acknowledgeRecoveredDispatch('40:old');
+      held.resolve();
+      await Promise.all([pending, concurrent, ack]);
+      const rows = await second.provider.getRecoveredDispatches();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].outcome).toBe('succeeded');
+      expect(built.clientInstance.getTx).toHaveBeenCalledTimes(1);
+      expect(second.clientInstance.getTx).not.toHaveBeenCalled();
+    });
+    it('waits for an in-flight financial send and its durable post-dispatch transition', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      await built.provider.getOpenOrders();
+      const send = built.clientInstance.sendTx.getMockImplementation() as (
+        kind: number,
+        info: string,
+      ) => Promise<unknown>;
+      const entered = createDeferred<void>();
+      const held = createDeferred<void>();
+      built.clientInstance.sendTx.mockImplementationOnce(
+        async (kind: number, info: string) => {
+          entered.resolve();
+          await held.promise;
+          return send(kind, info);
+        },
+      );
+      const order = built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      await entered.promise;
+      expect(
+        parseLedger(await infra.diskCache.getItem(ledgerKey)).entries,
+      ).toHaveLength(1);
+      const nonceCalls = built.clientInstance.getNextNonce.mock.calls.length;
+      const reconcile = built.provider.reconcileRecoveredDispatches();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(built.clientInstance.getNextNonce).toHaveBeenCalledTimes(
+        nonceCalls,
+      );
+      expect(built.clientInstance.getTx).not.toHaveBeenCalled();
+      held.resolve();
+      expect((await order).success).toBe(true);
+      expect(await reconcile).toStrictEqual([]);
+      expect(
+        parseLedger(await infra.diskCache.getItem(ledgerKey)).entries,
+      ).toStrictEqual([]);
+    });
+
+    it.each(['switch', 'deselect', 'reset', 'disconnect', 'round-trip'])(
+      'fences %s while queued for the venue lock',
+      async (change) => {
+        const built = await fixture();
+        const second = buildProvider({ platformDependencies: built.infra });
+        const held = createDeferred<void>();
+        const entered = createDeferred<void>();
+        built.clientInstance.getTx.mockImplementationOnce(async () => {
+          entered.resolve();
+          await held.promise;
+          return terminal;
+        });
+        const first = built.provider.reconcileRecoveredDispatches();
+        await entered.promise;
+        // Establish the second provider binding before its queued operation.
+        await second.provider.getRecoveredDispatches();
+        const pending = second.provider
+          .reconcileRecoveredDispatches()
+          .catch((error: unknown) => error);
+        await Promise.resolve();
+        await Promise.resolve();
+        if (change === 'switch' || change === 'round-trip') {
+          second.getUserAddressMock.mockReturnValue(
+            '0x0000000000000000000000000000000000000099',
+          );
+        }
+        if (change === 'deselect') {
+          second.getUserAddressMock.mockImplementation(() => {
+            throw new Error('no wallet');
+          });
+        }
+        if (change === 'reset') {
+          second.fireReset();
+        }
+        if (change === 'disconnect') {
+          await second.provider.disconnect();
+        }
+        if (change === 'round-trip') {
+          await second.provider.getRecoveredDispatches().catch(() => undefined);
+          second.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+          await second.provider.getRecoveredDispatches();
+        }
+        held.resolve();
+        await first;
+        const failure = await pending;
+        expect(failure).toBeInstanceOf(Error);
+        expect((failure as Error).message).toMatch(
+          /switch|session|account|disconnect/u,
+        );
+        expect(second.clientInstance.getNextNonce).not.toHaveBeenCalled();
+        expect(second.calls).toStrictEqual([]);
+      },
+    );
+
+    it('captures the original session before account lookup and rejects an account switch', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        configuredAccountIndex: null,
+      });
+      const entered = createDeferred<void>();
+      const held = createDeferred<void>();
+      built.clientInstance.getAccountsByL1Address.mockImplementationOnce(
+        async () => {
+          entered.resolve();
+          await held.promise;
+          return { code: 200, subAccounts: [ACCOUNT] };
+        },
+      );
+      const pending = built.provider
+        .reconcileRecoveredDispatches()
+        .catch((error: unknown) => error);
+      await entered.promise;
+      built.getUserAddressMock.mockReturnValue(
+        '0x0000000000000000000000000000000000000099',
+      );
+      held.resolve();
+      const failure = await pending;
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toMatch(/switch|session|account/u);
+      expect(built.clientInstance.getNextNonce).not.toHaveBeenCalled();
+      expect(jest.spyOn(infra.diskCache, 'setItem')).not.toHaveBeenCalled();
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it('rejects a wallet deselection during the final local listing', async () => {
+      const built = await fixture();
+      const get = jest
+        .spyOn(built.infra.diskCache, 'getItem')
+        .getMockImplementation() as (key: string) => Promise<string | null>;
+      let ledgerReads = 0;
+      jest
+        .spyOn(built.infra.diskCache, 'getItem')
+        .mockImplementation(async (key) => {
+          const value = await get(key);
+          if (key === ledgerKey) {
+            ledgerReads += 1;
+          }
+          if (key === ledgerKey && ledgerReads === 2) {
+            built.getUserAddressMock.mockImplementation(() => {
+              throw new Error('deselected');
+            });
+          }
+          return value;
+        });
+      await expect(
+        built.provider.reconcileRecoveredDispatches(),
+      ).rejects.toThrow(/session|account|wallet/u);
+      expect(parseLedger(await get(ledgerKey)).recovered).toHaveLength(1);
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it('keeps identical account and slot numbers isolated across networks', async () => {
+      const built = await fixture();
+      const mainnet = buildProvider({
+        platformDependencies: built.infra,
+        isTestnet: false,
+      });
+      const mainKey = 'lighterNonceLedger:mainnet:28:7';
+      const mainBytes = JSON.stringify({
+        version: 4,
+        consumedFloor: 0,
+        entries: [{ ...entry, txHash: 'main' }],
+        recovered: [],
+      });
+      await built.infra.diskCache.setItem(mainKey, mainBytes);
+      const rows = await built.provider.reconcileRecoveredDispatches();
+      expect(rows[0].recoveryId).toContain('testnet');
+      expect(await built.infra.diskCache.getItem(mainKey)).toBe(mainBytes);
+      mainnet.clientInstance.getTx.mockResolvedValue({
+        ...terminal,
+        hash: 'main',
+        status: 0,
+      });
+      const mainRows = await mainnet.provider.reconcileRecoveredDispatches();
+      expect(mainRows[0]).toMatchObject({ outcome: 'failed' });
+      expect(mainRows[0].recoveryId).toContain('mainnet');
+      expect((await built.provider.getRecoveredDispatches())[0].outcome).toBe(
+        'succeeded',
+      );
+    });
+
+    it('works after failed signer setup without another bridge attempt', async () => {
+      const built = await fixture();
+      const execute = jest
+        .spyOn(built.bridge, 'execute')
+        .mockRejectedValue(new Error('signer unavailable'));
+      expect(await built.provider.getOpenOrders()).toStrictEqual([]);
+      expect(execute).toHaveBeenCalled();
+      const bridgeCalls = execute.mock.calls.length;
+      expect(await built.provider.reconcileRecoveredDispatches()).toStrictEqual(
+        [expect.objectContaining({ outcome: 'succeeded' })],
+      );
+      expect(execute).toHaveBeenCalledTimes(bridgeCalls);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('does not advance memory reservations when persistence fails', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      await built.provider.getOpenOrders();
+      await infra.diskCache.setItem(
+        ledgerKey,
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [{ ...entry, expiresAt: 1 }],
+          recovered: [],
+        }),
+      );
+      built.clientInstance.getTx.mockResolvedValue(terminal);
+      jest
+        .spyOn(infra.diskCache, 'setItem')
+        .mockRejectedValueOnce(new Error('disk failed'));
+      await expect(
+        built.provider.reconcileRecoveredDispatches(),
+      ).rejects.toThrow('disk failed');
+      built.clientInstance.getTx.mockResolvedValue(null);
+      const second = buildProvider({ platformDependencies: infra });
+      second.clientInstance.getTx.mockResolvedValue(null);
+      expect(
+        await second.provider.reconcileRecoveredDispatches(),
+      ).toStrictEqual([]);
+      const result = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(result.success).toBe(true);
+      const signed = built.calls
+        .filter((call) => call.function === '_signCreateOrder')
+        .at(-1);
+      expect(signed).toBeDefined();
+      // The nonce is encoded by the real test bridge in the sent transaction.
+      const sent = (
+        built.clientInstance.sendTx.mock.calls as [number, string][]
+      ).at(-1);
+      expect((JSON.parse(String(sent?.[1])) as { Nonce: number }).Nonce).toBe(
+        42,
+      );
+    });
+  });
 });

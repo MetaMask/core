@@ -172,3 +172,22 @@ deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+
+### Explicit dispatch reconciliation
+
+`getRecoveredDispatches()` lists local recovery state. Call
+`reconcileRecoveredDispatches()` only when the user requests a status check.
+This non-financial operation reads venue evidence and updates local ledgers.
+It does not initialize a signer, register a key, sign, submit, cancel, acknowledge
+or retry an intent. Lighter checks owner-null dispatches across all trading slots;
+TP/SL-owned entries and their journals remain pending for their separate recovery
+flow. Existing quarantines do not prevent checking other unresolved entries.
+
+Replace the displayed list with the returned list, including its opaque IDs.
+Pending rows have `acknowledgeable: false`. A pending row disappearing can mean
+its exact transaction was proven absent, not successful execution. Unknown
+outcomes remain unknown. Acknowledgment still requires explicit user review and
+never grants permission to resubmit an ambiguous intent. Providers without this
+capability return their local listing, or an empty list if they have no recovery
+state. Aggregation rejects when any provider fails; consumers should retain their
+last known rows alongside that error.

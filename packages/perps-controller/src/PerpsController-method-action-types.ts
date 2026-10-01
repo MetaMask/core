@@ -439,6 +439,18 @@ export type PerpsControllerGetRecoveredDispatchesAction = {
 };
 
 /**
+ * Explicit non-financial reconciliation with local persistence. Never signs,
+ * retries or acknowledges dispatches. Unsupported providers return their local
+ * listed state, or an empty list when neither capability is available.
+ *
+ * @returns Newly scoped pending and recovered dispatches.
+ */
+export type PerpsControllerReconcileRecoveredDispatchesAction = {
+  type: `PerpsController:reconcileRecoveredDispatches`;
+  handler: PerpsController['reconcileRecoveredDispatches'];
+};
+
+/**
  * Acknowledge ONE recovered-dispatch outcome by its stable id, after
  * refreshing venue state. Throws when the active provider has no
  * durable dispatch state or the id no longer matches. Lighter scopes IDs to
@@ -1509,6 +1521,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetOrderFillsAction
   | PerpsControllerGetPendingManualRecoveriesAction
   | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerReconcileRecoveredDispatchesAction
   | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction
   | PerpsControllerGetOpenOrdersAction

@@ -845,6 +845,25 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Reconcile every active provider without financial writes. Unsupported
+   * providers contribute their local listing, or an empty list. Any failure
+   * rejects the entire result, so partial evidence is never reported as complete.
+   *
+   * @returns Newly scoped pending and recovered dispatches across providers.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([, provider]) => {
+        if (provider.reconcileRecoveredDispatches) {
+          return provider.reconcileRecoveredDispatches();
+        }
+        return provider.getRecoveredDispatches?.() ?? [];
+      }),
+    );
+    return results.flat();
+  }
+
+  /**
    * Acknowledge ONE recovered-dispatch outcome by its stable id on
    * whichever underlying provider owns it.
    *
