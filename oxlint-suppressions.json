@@ -4490,13 +4490,16 @@
   },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 5
     },
     "typescript/no-unsafe-call": {
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 4
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/notification-api.ts": {
