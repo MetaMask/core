@@ -33,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
 - Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
-
 - `NftController` now attributes its `PhishingController:bulkScanUrls` calls to the `nft-detection` request source, so NFT metadata URL scans are distinguishable from other callers in phishing-detection service metrics ([#10357](https://github.com/MetaMask/core/pull/10357))
 - Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
 
