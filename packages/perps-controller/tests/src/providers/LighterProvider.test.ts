@@ -2855,6 +2855,79 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it.each(
+      ['subscribed', 'update'].flatMap((frameType) =>
+        ['none', 'empty', 'filled'].map((prior) => ({ frameType, prior })),
+      ),
+    )(
+      'ignores omitted $frameType trades with $prior prior history',
+      async ({ frameType, prior }) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        const callback = jest.fn();
+        const unsubscribe = provider.subscribeToOrderFills({ callback });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        let unsubscribeLate = (): void => undefined;
+        try {
+          const trade = {
+            trade_id: 1,
+            market_id: 1,
+            size: '0.001',
+            price: '90000',
+            ask_id: 1,
+            bid_id: 2,
+            ask_account_id: 28,
+            bid_account_id: 7,
+            is_maker_ask: false,
+            timestamp: 1700000000000,
+            taker_position_size_before: '0',
+          };
+          if (prior !== 'none') {
+            socket.receive({
+              type: 'subscribed/account_all_trades',
+              trades: prior === 'empty' ? {} : { '1': [trade] },
+            });
+          }
+          callback.mockClear();
+          socket.receive({
+            type: `${frameType}/account_all_trades`,
+            channel: 'account_all_trades:28',
+          });
+          expect(callback).not.toHaveBeenCalled();
+          const late = jest.fn();
+          unsubscribeLate = provider.subscribeToOrderFills({ callback: late });
+          await new Promise((resolveTick) => setImmediate(resolveTick));
+          const firstFill: unknown = expect.objectContaining({ fillId: '1' });
+          const expectedPrior =
+            prior === 'none'
+              ? []
+              : [[prior === 'empty' ? [] : [firstFill], true]];
+          expect(late.mock.calls).toStrictEqual(expectedPrior);
+          const secondFill: unknown = expect.objectContaining({ fillId: '2' });
+          for (const populated of [false, true]) {
+            callback.mockClear();
+            late.mockClear();
+            socket.receive({
+              type: 'subscribed/account_all_trades',
+              trades: populated ? { '1': [{ ...trade, trade_id: 2 }] } : {},
+            });
+            const expected = populated ? [secondFill] : [];
+            expect(callback).toHaveBeenCalledWith(expected, true);
+            expect(late).toHaveBeenCalledWith(expected, true);
+          }
+        } finally {
+          unsubscribeLate();
+          unsubscribe();
+          await provider.disconnect();
+        }
+      },
+    );
+
     it('replays a confirmed empty fills snapshot to late authenticated subscribers', async () => {
       const { provider } = buildProvider({
         webSocketCtor: fakeCtor,

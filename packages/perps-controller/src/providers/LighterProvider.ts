@@ -8876,6 +8876,9 @@ export class LighterProvider implements PerpsProvider {
    * @param message - Camelized account_all_trades payload.
    */
   readonly #handleTradesMessage = (message: LighterWsTradesMessage): void => {
+    if (message.trades === undefined) {
+      return;
+    }
     const isSnapshot = (message.type ?? '').startsWith('subscribed');
     if (
       message.trades === null ||
