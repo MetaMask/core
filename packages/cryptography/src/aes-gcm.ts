@@ -51,9 +51,7 @@ export async function encrypt(
     );
   }
 
-  const iv = toUint8Array(
-    options?.unsafeIv ?? getRandomBytes(IV_LENGTH),
-  );
+  const iv = toUint8Array(options?.unsafeIv ?? getRandomBytes(IV_LENGTH));
 
   if (iv.byteLength === 0) {
     throw new Error(
