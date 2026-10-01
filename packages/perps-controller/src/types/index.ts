@@ -415,6 +415,13 @@ export type OrderResult = {
  * user. Surfaced by providers with durable settlement state (Lighter).
  */
 export type PerpsPendingManualRecovery = {
+  /** Owning provider route; mandatory on aggregated recovery rows. */
+  providerId?: PerpsProviderType;
+  /** Issuing wallet/network scope when supplied by the provider. */
+  walletAddress?: string;
+  network?: string;
+  /** Opaque selected source-operation identity, when explicit resolution is supported. */
+  recoveryId?: string;
   symbol: string;
   /** Durable identity (address:accountIndex:apiKey:symbol). */
   settlementKey: string;
@@ -429,6 +436,38 @@ export type PerpsPendingManualRecovery = {
   actionNeeded: string;
 };
 
+/** Fresh, authoritative venue state for one issuing provider context. */
+export type PerpsRecoveryVenueReview =
+  | { status: 'unsupported'; providerId: PerpsProviderType; reason: string }
+  | {
+      status: 'ready';
+      providerId: PerpsProviderType;
+      walletAddress: string;
+      network: string;
+      accountIndex: number;
+      positions: Position[];
+      orders: Order[];
+      reviewedAt: number;
+    };
+
+/** Explicit successor protection for one opaque durable source obligation. */
+export type ResolveRecoveryProtectionParams = UpdatePositionTPSLParams & {
+  recoveryId: string;
+};
+
+/** Unsupported capability is distinct from a supported but unresolved intent. */
+export type PerpsRecoveryProtectionResult =
+  | (OrderResult & {
+      status: 'settled' | 'unresolved';
+      providerId: PerpsProviderType;
+    })
+  | {
+      status: 'unsupported';
+      providerId: PerpsProviderType;
+      success: false;
+      error: string;
+    };
+
 /**
  * A local dispatch requiring reconciliation or acknowledgment. Raw unresolved
  * dispatches include current-session in-flight submissions, have
@@ -441,6 +480,10 @@ export type PerpsPendingManualRecovery = {
  * state) — except `failed`, which is retry-safe and non-blocking.
  */
 export type PerpsRecoveredDispatch = {
+  /** Owning provider for strict review and explicit acknowledgment routing. */
+  providerId?: PerpsProviderType;
+  walletAddress?: string;
+  network?: string;
   /** Opaque stable id for selective acknowledgment; preserve exactly, never parse. */
   recoveryId: string;
   /** Original trading-key slot when the provider has per-key recovery ledgers. */
@@ -2128,6 +2171,12 @@ export type PerpsProvider = {
   // settlement state — Lighter). Read-only listings plus selective,
   // explicit acknowledgment; never destructive read-all.
   getPendingManualRecoveries?(): Promise<PerpsPendingManualRecovery[]>;
+  reviewRecoveryVenue?(params?: {
+    providerId?: PerpsProviderType;
+  }): Promise<PerpsRecoveryVenueReview>;
+  resolveRecoveryProtection?(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult>;
   getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
   /** Non-financial venue checks with local persistence; no signing, retry or acknowledgment. */
   reconcileRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;

@@ -2017,6 +2017,135 @@ describe('PerpsController', () => {
   });
 
   describe('durable-settlement surfacing (manual recoveries / recovered dispatches)', () => {
+    it.each(['review', 'resolve'] as const)(
+      'captures the issuing account before %s readiness',
+      async (operation) => {
+        let selectedAccount = createMockEvmAccount();
+        const call = jest.fn().mockImplementation((action: string) => {
+          if (
+            action ===
+            'AccountTreeController:getAccountsFromSelectedAccountGroup'
+          ) {
+            return [selectedAccount];
+          }
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return { remoteFeatureFlags: {} };
+          }
+          return undefined;
+        });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: createMockInfrastructure(),
+        });
+        const invoked = jest.fn().mockResolvedValue({
+          status: 'unsupported',
+          providerId: 'hyperliquid',
+          success: false,
+          error: 'unsupported',
+          reason: 'unsupported',
+        });
+        const provider = Object.assign(mockProvider, {
+          reviewRecoveryVenue: invoked,
+          resolveRecoveryProtection: invoked,
+        });
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          entered.resolve();
+          return release.promise;
+        });
+        const initialization = controller.init();
+        await entered.promise;
+        const pending =
+          operation === 'review'
+            ? controller.reviewRecoveryVenue()
+            : controller.resolveRecoveryProtection({
+                symbol: 'BTC',
+                recoveryId: 'opaque',
+              });
+        const observed = pending.catch((error: unknown) => error);
+        selectedAccount = {
+          ...selectedAccount,
+          address: '0x9999999999999999999999999999999999999999',
+        };
+        release.resolve();
+        await initialization;
+        expect(await observed).toBeInstanceOf(Error);
+        expect(invoked).not.toHaveBeenCalled();
+      },
+    );
+
+    it('reports unsupported strict review and selected recovery without calling ordinary trading reads', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      expect(await controller.reviewRecoveryVenue()).toMatchObject({
+        status: 'unsupported',
+        providerId: 'hyperliquid',
+      });
+      expect(
+        await controller.resolveRecoveryProtection({
+          symbol: 'BTC',
+          recoveryId: 'opaque',
+        }),
+      ).toMatchObject({
+        status: 'unsupported',
+        providerId: 'hyperliquid',
+        success: false,
+      });
+      expect(mockProvider.getPositions).not.toHaveBeenCalled();
+      expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
+    });
+
+    it.each(['review', 'resolve'] as const)(
+      'rejects %s results after the issuing network context changes',
+      async (operation) => {
+        markControllerAsInitialized();
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        const call = jest.fn(async () => {
+          entered.resolve();
+          await release.promise;
+          return {
+            status: 'unsupported' as const,
+            providerId: 'hyperliquid' as const,
+            success: false as const,
+            error: 'unsupported',
+            reason: 'unsupported',
+          };
+        });
+        controller.testSetProviders(
+          new Map([
+            [
+              'hyperliquid',
+              {
+                ...mockProvider,
+                reviewRecoveryVenue: call,
+                resolveRecoveryProtection: call,
+              },
+            ],
+          ]),
+        );
+        const pending =
+          operation === 'review'
+            ? controller.reviewRecoveryVenue()
+            : controller.resolveRecoveryProtection({
+                symbol: 'BTC',
+                recoveryId: 'opaque',
+              });
+        const rejected = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        await entered.promise;
+        controller.testUpdate((state) => {
+          state.isTestnet = !state.isTestnet;
+        });
+        release.resolve();
+        await rejected;
+      },
+    );
+
     it.each(['reconcile', 'listing'] as const)(
       'rejects reconciliation issued during toggle cleanup before replacement %s work',
       async (capability) => {

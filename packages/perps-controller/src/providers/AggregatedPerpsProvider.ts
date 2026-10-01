@@ -75,6 +75,9 @@ import type {
   PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
+  PerpsRecoveryVenueReview,
+  ResolveRecoveryProtectionParams,
+  PerpsRecoveryProtectionResult,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
@@ -818,9 +821,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
     const results = await Promise.all(
-      this.#getActiveProviders().map(async ([, provider]) =>
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
         provider.getPendingManualRecoveries
-          ? provider.getPendingManualRecoveries()
+          ? (await provider.getPendingManualRecoveries()).map((row) => ({
+              ...row,
+              providerId,
+            }))
           : [],
       ),
     );
@@ -835,13 +841,63 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
     const results = await Promise.all(
-      this.#getActiveProviders().map(async ([, provider]) =>
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
         provider.getRecoveredDispatches
-          ? provider.getRecoveredDispatches()
+          ? (await provider.getRecoveredDispatches()).map((row) => ({
+              ...row,
+              providerId,
+            }))
           : [],
       ),
     );
     return results.flat();
+  }
+
+  /**
+   * Execute an explicit successor for one selected durable protection obligation.
+   *
+   * @param params - Owning provider, opaque source ID and new protection intent.
+   * @returns Settled, unresolved or unsupported recovery result.
+   */
+  async resolveRecoveryProtection(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult> {
+    if (!params.providerId) {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.resolveRecoveryProtection?.(params) ?? {
+        status: 'unsupported',
+        providerId: params.providerId,
+        success: false,
+        error: 'Selected protection recovery is unavailable for this provider',
+      }
+    );
+  }
+
+  /**
+   * Review only the selected recovery owner, never an aggregated account snapshot.
+   *
+   * @param params - Explicit owning-provider route.
+   * @param params.providerId - Provider to review.
+   * @returns That provider's strict snapshot or unsupported capability.
+   */
+  async reviewRecoveryVenue(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<PerpsRecoveryVenueReview> {
+    if (!params.providerId) {
+      throw new Error('Recovery review requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.reviewRecoveryVenue?.(params) ?? {
+        status: 'unsupported',
+        providerId: params.providerId,
+        reason:
+          'Authoritative recovery review is unavailable for this provider',
+      }
+    );
   }
 
   /**
@@ -853,11 +909,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
     const results = await Promise.all(
-      this.#getActiveProviders().map(async ([, provider]) => {
-        if (provider.reconcileRecoveredDispatches) {
-          return provider.reconcileRecoveredDispatches();
-        }
-        return provider.getRecoveredDispatches?.() ?? [];
+      this.#getActiveProviders().map(async ([providerId, provider]) => {
+        const rows = provider.reconcileRecoveredDispatches
+          ? await provider.reconcileRecoveredDispatches()
+          : ((await provider.getRecoveredDispatches?.()) ?? []);
+        return rows.map((row) => ({ ...row, providerId }));
       }),
     );
     return results.flat();

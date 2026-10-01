@@ -439,6 +439,30 @@ export type PerpsControllerGetRecoveredDispatchesAction = {
 };
 
 /**
+ * Execute an explicit successor for one selected durable protection obligation.
+ *
+ * @param params - Owning provider, opaque source ID and new protection intent.
+ * @returns Settled, unresolved or unsupported recovery result.
+ */
+export type PerpsControllerResolveRecoveryProtectionAction = {
+  type: `PerpsController:resolveRecoveryProtection`;
+  handler: PerpsController['resolveRecoveryProtection'];
+};
+
+/**
+ * Review fresh venue positions and orders for one issuing provider context.
+ * Auth signing may be required; registration and financial writes are forbidden.
+ *
+ * @param params - Owning provider route.
+ * @param params.providerId - Explicit provider identifier.
+ * @returns Strict venue review or honest unsupported capability.
+ */
+export type PerpsControllerReviewRecoveryVenueAction = {
+  type: `PerpsController:reviewRecoveryVenue`;
+  handler: PerpsController['reviewRecoveryVenue'];
+};
+
+/**
  * Explicit non-financial reconciliation with local persistence. Never signs,
  * retries or acknowledges dispatches. Unsupported providers return their local
  * listed state, or an empty list when neither capability is available.
@@ -1522,6 +1546,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetOrderFillsAction
   | PerpsControllerGetPendingManualRecoveriesAction
   | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerResolveRecoveryProtectionAction
+  | PerpsControllerReviewRecoveryVenueAction
   | PerpsControllerReconcileRecoveredDispatchesAction
   | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction

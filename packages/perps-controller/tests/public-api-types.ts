@@ -2,6 +2,11 @@ import type {
   DirectProviderOrderCapabilities,
   TriggerOrderType,
   PerpsRecoveredDispatch,
+  PerpsRecoveryVenueReview,
+  PerpsRecoveryProtectionResult,
+  ResolveRecoveryProtectionParams,
+  PerpsControllerReviewRecoveryVenueAction,
+  PerpsControllerResolveRecoveryProtectionAction,
   PerpsControllerGetRecoveredDispatchesAction,
   PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
@@ -17,6 +22,25 @@ type IsExact<Actual, Expected> =
     : false;
 type AssertTrue<Value extends true> = Value;
 export type RecoveryConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReviewRecoveryVenueAction['handler']>,
+      Promise<PerpsRecoveryVenueReview>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerResolveRecoveryProtectionAction['handler']>,
+      [params: ResolveRecoveryProtectionParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerResolveRecoveryProtectionAction['handler']>,
+      Promise<PerpsRecoveryProtectionResult>
+    >
+  >,
+
   AssertTrue<
     IsExact<
       Parameters<PerpsControllerReconcileRecoveredDispatchesAction['handler']>,

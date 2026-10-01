@@ -37,6 +37,15 @@ jest.mock('@nktkas/hyperliquid', () => ({
 }));
 
 describe('@metamask/perps-controller public API', () => {
+  it('exports strict recovery review and explicit protection resolution', () => {
+    expect(typeof PerpsController.prototype.reviewRecoveryVenue).toBe(
+      'function',
+    );
+    expect(typeof PerpsController.prototype.resolveRecoveryProtection).toBe(
+      'function',
+    );
+  });
+
   it('exposes explicit non-financial reconciliation on the public controller', () => {
     expect(typeof PerpsController.prototype.reconcileRecoveredDispatches).toBe(
       'function',

@@ -171,6 +171,28 @@ deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 
 ## Explicit dispatch reconciliation
 
+`reviewRecoveryVenue({ providerId })` reads fresh authoritative positions and orders
+for one provider, wallet, network and venue account. A ready response carries that
+scope and `reviewedAt`; transport, identity, authentication or metadata failures
+reject instead of returning an empty account. The read can sign an authentication
+token with a matching locally retained registered key. It never registers a key,
+allocates a venue slot, signs a financial transaction, starts protection recovery,
+or acknowledges or clears an obligation. Missing local read authority requires
+reconnecting a matching key. Aggregated callers must name the owning provider;
+unsupported providers return `status: 'unsupported'`.
+
+A manual protection row may include an opaque `recoveryId`. After review, an
+explicit `resolveRecoveryProtection({ providerId, recoveryId, symbol,
+expectedPosition, takeProfitPrice, stopLossPrice })` selects that exact obligation
+and requests new protection (omit both prices for removal). Preserve the ID
+verbatim. Lighter reconciles pending original-slot attempts by their exact venue
+identity before using a matching current registered key; the original private key
+is not required when this evidence is authoritative. The successor only replaces
+orders owned by the selected obligation. Its durable source relationship survives
+response loss and restart; failed or ambiguous settlement leaves recovery visible.
+The result distinguishes `settled`, `unresolved`, and `unsupported`. This is an
+explicit financial operation and must never run as part of review or rendering.
+
 `getRecoveredDispatches()` lists local recovery state. Call
 `reconcileRecoveredDispatches()` only when the user requests a status check.
 This non-financial operation reads venue evidence and updates local ledgers.

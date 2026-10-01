@@ -217,6 +217,79 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('durable-settlement surfacing', () => {
+    it('routes strict review and selected protection to only the explicit owner', async () => {
+      const review = {
+        status: 'ready' as const,
+        providerId: 'lighter' as const,
+        walletAddress: '0xabc',
+        network: 'testnet',
+        accountIndex: 28,
+        positions: [],
+        orders: [],
+        reviewedAt: 5,
+      };
+      const reviewRecoveryVenue = jest.fn().mockResolvedValue(review);
+      const resolveRecoveryProtection = jest.fn().mockResolvedValue({
+        status: 'settled',
+        providerId: 'lighter',
+        success: true,
+      });
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          [
+            'lighter',
+            {
+              ...mockLighterProvider,
+              reviewRecoveryVenue,
+              resolveRecoveryProtection,
+            },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      expect(
+        await provider.reviewRecoveryVenue({ providerId: 'lighter' }),
+      ).toStrictEqual(review);
+      expect(
+        await provider.resolveRecoveryProtection({
+          providerId: 'lighter',
+          recoveryId: 'opaque',
+          symbol: 'BTC',
+          stopLossPrice: '1',
+        }),
+      ).toMatchObject({ status: 'settled', success: true });
+      expect(reviewRecoveryVenue).toHaveBeenCalledTimes(1);
+      expect(resolveRecoveryProtection).toHaveBeenCalledWith({
+        providerId: 'lighter',
+        recoveryId: 'opaque',
+        symbol: 'BTC',
+        stopLossPrice: '1',
+      });
+      expect(
+        await provider.reviewRecoveryVenue({ providerId: 'hyperliquid' }),
+      ).toMatchObject({ status: 'unsupported', providerId: 'hyperliquid' });
+      expect(
+        await provider.resolveRecoveryProtection({
+          providerId: 'hyperliquid',
+          recoveryId: 'opaque',
+          symbol: 'BTC',
+        }),
+      ).toMatchObject({ status: 'unsupported', success: false });
+      await expect(provider.reviewRecoveryVenue()).rejects.toThrow(
+        /explicit provider/u,
+      );
+      await expect(
+        provider.resolveRecoveryProtection({
+          recoveryId: 'opaque',
+          symbol: 'BTC',
+        }),
+      ).rejects.toThrow(/explicit provider/u);
+      expect(mockHLProvider.getPositions).not.toHaveBeenCalled();
+      expect(mockHLProvider.getOpenOrders).not.toHaveBeenCalled();
+    });
+
     const pending = {
       symbol: 'BTC',
       settlementKey: '0xabc:28:7:BTC',
@@ -259,7 +332,7 @@ describe('AggregatedPerpsProvider', () => {
       });
 
       expect(await aggregated.reconcileRecoveredDispatches()).toStrictEqual([
-        outcome,
+        { ...outcome, providerId: 'lighter' },
       ]);
       expect(reconcile).toHaveBeenCalledTimes(1);
       expect(listing).not.toHaveBeenCalled();
@@ -285,8 +358,8 @@ describe('AggregatedPerpsProvider', () => {
         infrastructure: mockInfrastructure,
       });
       expect(await aggregated.reconcileRecoveredDispatches()).toStrictEqual([
-        { ...outcome, recoveryId: 'other' },
-        outcome,
+        { ...outcome, recoveryId: 'other', providerId: 'hyperliquid' },
+        { ...outcome, providerId: 'lighter' },
       ]);
       expect(listing).toHaveBeenCalledTimes(1);
       expect(reconcile).toHaveBeenCalledTimes(1);
@@ -313,10 +386,10 @@ describe('AggregatedPerpsProvider', () => {
       });
       // The non-durable provider contributes empty lists, never an error.
       expect(await aggregated.getPendingManualRecoveries()).toStrictEqual([
-        pending,
+        { ...pending, providerId: 'lighter' },
       ]);
       expect(await aggregated.getRecoveredDispatches()).toStrictEqual([
-        outcome,
+        { ...outcome, providerId: 'lighter' },
       ]);
       await aggregated.acknowledgeRecoveredDispatch('42:abcd');
       expect(
