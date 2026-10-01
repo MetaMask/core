@@ -38,6 +38,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import {
   hasFeeReductionAppliedFlag,
+  isSubscriptionProgramCloid,
   readSubscriptionCloidFlags,
 } from '../../../src/utils/subscriptionFeeWaiver.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
@@ -2053,84 +2054,104 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
-    it('restores whole-position protection when replacement fails after pre-cancel', async () => {
-      const order = jest
-        .fn()
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: { statuses: [{ error: 'Rejected replacement' }] },
-          },
-        })
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: { statuses: [{ resting: { oid: 789 } }] },
+    it.each([false, true])(
+      'restores whole-position protection when replacement fails after pre-cancel, marked=%s',
+      async (marked) => {
+        const order = jest
+          .fn()
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ error: 'Rejected replacement' }] },
+            },
+          })
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ resting: { oid: 789 } }] },
+            },
+          });
+        const { exchangeClient } = useStrategyClients({
+          exchange: { order },
+          info: {
+            frontendOpenOrders: jest.fn().mockResolvedValue([
+              {
+                coin: 'ETH',
+                side: 'A',
+                limitPx: '3400',
+                sz: '0',
+                origSz: '0',
+                oid: 456,
+                timestamp: 1_700_000_000_000,
+                reduceOnly: true,
+                isTrigger: true,
+                isPositionTpsl: true,
+                triggerCondition: 'Price above 3400',
+                triggerPx: '3400',
+                orderType: 'Take Profit Limit',
+                children: [],
+              },
+            ]),
           },
         });
-      const { exchangeClient } = useStrategyClients({
-        exchange: { order },
-        info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+
+        if (marked) {
+          provider.setUserFeeResolution({
+            feeBips: 0,
+            discountBips: 10000,
+            source: 'subscription',
+            subscription: { eligible: true, reason: 'eligible' },
+            subscriptionWaiverKind: 'full',
+          });
+        }
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+        });
+
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        });
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 456 }],
+        });
+        expect(order).toHaveBeenCalledTimes(2);
+        const requests = order.mock.calls as [{ orders: { c?: string }[] }][];
+        const restorationCloid = requests[1][0].orders[0].c;
+        expect(isSubscriptionProgramCloid(restorationCloid)).toBe(true);
+        expect(hasFeeReductionAppliedFlag(restorationCloid)).toBe(marked);
+        expect(readSubscriptionCloidFlags(restorationCloid)).toBe(
+          marked ? SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied : 0,
+        );
+        expect(restorationCloid).not.toBe(requests[0][0].orders[0].c);
+        expect(order.mock.calls[1][0]).toMatchObject({
+          grouping: 'positionTpsl',
+          orders: [
             {
-              coin: 'ETH',
-              side: 'A',
-              limitPx: '3400',
-              sz: '0',
-              origSz: '0',
-              oid: 456,
-              timestamp: 1_700_000_000_000,
-              reduceOnly: true,
-              isTrigger: true,
-              isPositionTpsl: true,
-              triggerCondition: 'Price above 3400',
-              triggerPx: '3400',
-              orderType: 'Take Profit Limit',
-              children: [],
-            },
-          ]),
-        },
-      });
-
-      const result = await provider.updatePositionTPSL({
-        symbol: 'ETH',
-        takeProfitPrice: '3500',
-      });
-
-      expect(result).toMatchObject({
-        success: false,
-        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-      });
-      expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [{ a: 1, o: 456 }],
-      });
-      expect(order).toHaveBeenCalledTimes(2);
-      expect(order.mock.calls[1][0]).toMatchObject({
-        grouping: 'positionTpsl',
-        orders: [
-          {
-            a: 1,
-            b: false,
-            p: '3400',
-            s: '0',
-            r: true,
-            t: {
-              trigger: {
-                isMarket: false,
-                triggerPx: '3400',
-                tpsl: 'tp',
+              a: 1,
+              b: false,
+              p: '3400',
+              s: '0',
+              r: true,
+              t: {
+                trigger: {
+                  isMarket: false,
+                  triggerPx: '3400',
+                  tpsl: 'tp',
+                },
               },
             },
-          },
-        ],
-      });
-      expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
-        order.mock.invocationCallOrder[0],
-      );
-      expect(order.mock.invocationCallOrder[0]).toBeLessThan(
-        order.mock.invocationCallOrder[1],
-      );
-    });
+          ],
+        });
+        expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+          order.mock.invocationCallOrder[0],
+        );
+        expect(order.mock.invocationCallOrder[0]).toBeLessThan(
+          order.mock.invocationCallOrder[1],
+        );
+      },
+    );
 
     it.each([
       {
@@ -2601,6 +2622,23 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(sent).toHaveLength(2);
       expect(sent[0].c).toMatch(/^0x[0-9a-f]{32}$/u);
       expect(sent[0].c).not.toBe(sent[1].c);
+      expect(
+        sent.map((order) => isSubscriptionProgramCloid(order.c)),
+      ).toStrictEqual([true, true]);
+      expect(
+        sent.map((order) => hasFeeReductionAppliedFlag(order.c)),
+      ).toStrictEqual([mode === 'marked', mode === 'marked']);
+      expect(
+        sent.map((order) => readSubscriptionCloidFlags(order.c)),
+      ).toStrictEqual(
+        mode === 'marked'
+          ? [
+              SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+              SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+            ]
+          : [0, 0],
+      );
+      expect(orderStatus).toHaveBeenCalledTimes(2);
       expect(sent[0].t.trigger?.isMarket).toBe(false);
       expect(sent[1].t.trigger?.isMarket).toBe(true);
       expect(orderStatus).toHaveBeenCalledWith(

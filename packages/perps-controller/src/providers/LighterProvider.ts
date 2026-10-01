@@ -7384,7 +7384,7 @@ export class LighterProvider implements PerpsProvider {
       // decimal field, then the venue-conventional 5%.
       const slippageFraction =
         params.maxSlippageBps === undefined
-          ? (params.slippage ?? 0.05)
+          ? (params.slippage ?? LIGHTER_DEFAULT_SLIPPAGE_BPS / 10_000)
           : params.maxSlippageBps / 10_000;
       // The reference price sizes the order; market orders additionally get
       // a protection price offset by the slippage tolerance. They are kept
@@ -8921,12 +8921,13 @@ export class LighterProvider implements PerpsProvider {
                 row.marketIndex === market.marketId,
             );
           });
+          const managed = await this.#readManagedTpsl(settlementKey);
+          this.#assertSession(generationAtIntent);
           // The public preflight position read occurred before signer
           // setup and write serialization. Re-read the raw venue position
           // inside the held transition immediately before any create or
           // cancel signature: an intervening fill or side flip would make
           // the captured cover payload under-sized or wrong-sided.
-          this.#assertSession(generationAtIntent);
           const liveAccount =
             await this.#clientService.getAccountByIndex(accountIndex);
           this.#assertSession(generationAtIntent);
@@ -8982,9 +8983,6 @@ export class LighterProvider implements PerpsProvider {
               `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
             );
           }
-
-          const managed = await this.#readManagedTpsl(settlementKey);
-          this.#assertSession(generationAtIntent);
           const openOrders = rawOrders.map((order) =>
             adaptOrderFromLighter(
               order,
@@ -10177,7 +10175,7 @@ export class LighterProvider implements PerpsProvider {
     } else if (params.orderType === 'market') {
       const slippageFraction =
         params.maxSlippageBps === undefined
-          ? (params.slippage ?? 0.05)
+          ? (params.slippage ?? LIGHTER_DEFAULT_SLIPPAGE_BPS / 10_000)
           : params.maxSlippageBps / 10_000;
       // A validator must RESOLVE to an invalid result, never reject: the
       // fresh-price lookup can throw on REST failure.
@@ -10371,7 +10369,7 @@ export class LighterProvider implements PerpsProvider {
     } else {
       const slippageFraction =
         params.maxSlippageBps === undefined
-          ? 0.05
+          ? LIGHTER_DEFAULT_SLIPPAGE_BPS / 10_000
           : params.maxSlippageBps / 10_000;
       // Same validator contract as validateOrder: REST failures resolve.
       let resolved:

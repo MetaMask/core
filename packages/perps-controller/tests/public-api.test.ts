@@ -6,6 +6,8 @@ import {
   LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
   LIGHTER_FILL_REPLAY_LIMIT,
+  LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
 } from '../src/constants/index.js';
 // Checks the account-signer and agent surface through the package entrypoint,
 // the way a client imports it, so a dropped or renamed export fails here.
@@ -29,12 +31,6 @@ import type {
 } from '../src/index.js';
 import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
 import { assertExpectedPosition } from '../src/utils/positionProtection.js';
-
-// The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
-// entrypoint only needs its error class to be defined.
-jest.mock('@nktkas/hyperliquid', () => ({
-  HyperliquidError: class MockHyperliquidError extends Error {},
-}));
 
 describe('@metamask/perps-controller public API', () => {
   it('exports strict recovery review and explicit protection resolution', () => {
@@ -100,6 +96,13 @@ describe('@metamask/perps-controller public API', () => {
       'equal-quantity-oco',
     );
     expect(typeof createGuardedHyperLiquidClient).toBe('function');
+  });
+
+  it('exports the native trigger-limit wire types', () => {
+    expect([
+      LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+      LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
+    ]).toStrictEqual([3, 5]);
   });
 
   it('exports optional native price precision and unsupported-market capability reasons', () => {

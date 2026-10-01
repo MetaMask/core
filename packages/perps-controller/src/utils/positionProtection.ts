@@ -21,14 +21,19 @@ export function assertExpectedPosition(
     !actual ||
     ![expected.size, expected.entryPrice, actual.size, actual.entryPrice].every(
       (value) => typeof value === 'string' && decimal.test(value),
-    ) ||
-    !new BigNumber(expected.size).isFinite() ||
-    new BigNumber(expected.size).isZero() ||
-    !new BigNumber(expected.entryPrice).isFinite() ||
-    !new BigNumber(expected.entryPrice).isPositive() ||
-    new BigNumber(expected.entryPrice).isZero() ||
-    !new BigNumber(expected.size).eq(actual.size) ||
-    !new BigNumber(expected.entryPrice).eq(actual.entryPrice)
+    )
+  ) {
+    throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+  }
+  const expectedSize = new BigNumber(expected.size);
+  const expectedEntryPrice = new BigNumber(expected.entryPrice);
+  if (
+    !expectedSize.isFinite() ||
+    expectedSize.isZero() ||
+    !expectedEntryPrice.isFinite() ||
+    !expectedEntryPrice.gt(0) ||
+    !expectedSize.eq(actual.size) ||
+    !expectedEntryPrice.eq(actual.entryPrice)
   ) {
     throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
   }
