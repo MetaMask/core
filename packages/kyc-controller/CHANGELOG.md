@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `aal2Token` parameter to `KycController.startSession` and the `KycController:startSession` messenger action ([#10632](https://github.com/MetaMask/core/pull/10632))
+
 ### Changed
 
-- **BREAKING:** `KycController.startSession` accepts an optional `aal2Token`, required only when a UKYC session must be created. `KycService.createUkycSession` requires `aal2Token`. Session creation (`POST /sessions`) sends that token as the `Authorization` bearer value instead of the wallet bearer token from `AuthenticationController:getBearerToken` ([#10632](https://github.com/MetaMask/core/pull/10632))
-  - Pass `aal2Token` when `startSession` will create a session, and whenever calling `createUkycSession` or `KycService:createUkycSession`
-  - Reusing a session already on state, or the latest vendor session, does not require `aal2Token`
-  - Other KYC requests continue to use the wallet bearer token
+- **BREAKING:** `KycService.createUkycSession` and the `KycService:createUkycSession` messenger action now require an `aal2Token` parameter, which is sent as the `Authorization` bearer value for `POST /sessions` instead of the wallet bearer token from `AuthenticationController:getBearerToken` ([#10632](https://github.com/MetaMask/core/pull/10632))
+  - Other `KycService` requests continue to use the wallet bearer token
+- **BREAKING:** `KycController.startSession` now throws if no existing session is found and `aal2Token` is not provided ([#10632](https://github.com/MetaMask/core/pull/10632))
+  - Pass `aal2Token` whenever `startSession` may need to create a new UKYC session
+  - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
