@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Delegate `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` from the wallet root messenger to `SeedlessOnboardingController`. ([#10568](https://github.com/MetaMask/core/pull/10568))
+
 ## [15.1.0]
 
 ### Changed

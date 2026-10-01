@@ -5597,6 +5597,9 @@
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
     "typescript/no-unsafe-argument": {
       "count": 1
     },
