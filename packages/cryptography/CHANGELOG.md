@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Export AES-GCM IV length ([#10654](https://github.com/MetaMask/core/pull/10654))
+
 ## [1.1.0]
 
 ### Added
