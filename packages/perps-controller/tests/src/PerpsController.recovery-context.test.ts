@@ -18,6 +18,7 @@ import {
   createMockEvmAccount,
 } from '../helpers/serviceMocks.js';
 
+jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('../../src/providers/HyperLiquidProvider.js');
 jest.mock('../../src/utils/wait.js', () => ({ wait: jest.fn() }));
 
