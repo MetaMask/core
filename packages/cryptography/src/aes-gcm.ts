@@ -2,7 +2,7 @@ import { getRandomBytes } from './random.js';
 import { toUint8Array } from './utils.js';
 
 // https://www.rfc-editor.org/rfc/rfc5116#section-5.1
-const AES_GCM_IV_LENGTH = 12;
+export const IV_LENGTH = 12;
 
 export type AesGcmEncryptOptions = {
   /**
@@ -52,7 +52,7 @@ export async function encrypt(
   }
 
   const iv = toUint8Array(
-    options?.unsafeIv ?? getRandomBytes(AES_GCM_IV_LENGTH),
+    options?.unsafeIv ?? getRandomBytes(IV_LENGTH),
   );
 
   if (iv.byteLength === 0) {
@@ -61,9 +61,9 @@ export async function encrypt(
     );
   }
 
-  if (!options?.unsafeIvLength && iv.byteLength !== AES_GCM_IV_LENGTH) {
+  if (!options?.unsafeIvLength && iv.byteLength !== IV_LENGTH) {
     throw new Error(
-      `Unsafe IV length: IV must be exactly ${AES_GCM_IV_LENGTH} bytes for AES-GCM. To bypass this check, set the \`unsafeIvLength\` option to \`true\`.`,
+      `Unsafe IV length: IV must be exactly ${IV_LENGTH} bytes for AES-GCM. To bypass this check, set the \`unsafeIvLength\` option to \`true\`.`,
     );
   }
 
@@ -117,9 +117,9 @@ export async function decrypt(
     );
   }
 
-  if (!options?.unsafeIvLength && iv.byteLength !== AES_GCM_IV_LENGTH) {
+  if (!options?.unsafeIvLength && iv.byteLength !== IV_LENGTH) {
     throw new Error(
-      `Unsafe IV length: IV must be exactly ${AES_GCM_IV_LENGTH} bytes for AES-GCM. To bypass this check, set the \`unsafeIvLength\` option to \`true\`.`,
+      `Unsafe IV length: IV must be exactly ${IV_LENGTH} bytes for AES-GCM. To bypass this check, set the \`unsafeIvLength\` option to \`true\`.`,
     );
   }
 
