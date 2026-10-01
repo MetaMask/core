@@ -1,0 +1,53 @@
+name: Lint Suppressions
+
+on:
+  pull_request:
+    # `labeled` and `unlabeled` are here so that applying the waiver label
+    # starts a fresh run, whose payload then carries the label. A run already
+    # finished keeps the labels it started with, even when it is re-run.
+    types: [opened, synchronize, labeled, unlabeled]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-suppressions:
+    name: Lint suppressions
+    # The branch is only checked out as the merge into its base, which is where
+    # the check reads its baseline from, on a pull request.
+    if: ${{ github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: ${{ matrix.node-version }}
+          fetch-depth: 2
+      - name: Run yarn lint:suppressions
+        shell: bash
+        run: |
+          if yarn lint:suppressions; then
+            exit 0
+          fi
+          if [[ "$IS_WAIVED" == 'true' ]]; then
+            echo "::warning::Suppressions were added, which the '$WAIVER_LABEL' label allows."
+            exit 0
+          fi
+          echo "Apply the '$WAIVER_LABEL' label if these suppressions have to be added."
+          exit 1
+        env:
+          WAIVER_LABEL: allow-new-suppressions
+          IS_WAIVED: ${{ contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi

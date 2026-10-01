@@ -166,51 +166,6 @@ jobs:
             exit 1
           fi
 
-  lint-suppressions:
-    name: Lint (lint:suppressions)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    strategy:
-      matrix:
-        node-version: [24.x]
-    steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
-          persist-credentials: false
-          node-version: ${{ matrix.node-version }}
-          fetch-depth: 2
-      - name: Run yarn lint:suppressions
-        shell: bash
-        run: |
-          if yarn lint:suppressions; then
-            exit 0
-          fi
-          # The labels are read back over the API rather than taken from the
-          # event, which is fixed when the run starts and replayed as it was on
-          # a re-run, so that applying the label and re-running this job works.
-          if gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name' | grep --line-regexp --quiet "$WAIVER_LABEL"; then
-            echo "::warning::Suppressions were added, which the '$WAIVER_LABEL' label allows."
-            exit 0
-          fi
-          echo "Apply the '$WAIVER_LABEL' label and re-run this job if these suppressions have to be added."
-          exit 1
-        env:
-          WAIVER_LABEL: allow-new-suppressions
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ github.token }}
-      - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
-
   validate-changelog-diffs:
     name: Validate changelog diffs
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
