@@ -1,4 +1,5 @@
 import { getChecksumAddress } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { PerpsAgentAccount } from '../../../src/types/index.js';
@@ -40,6 +41,9 @@ jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 const HOUR_MS = 60 * 60 * 1000;
+
+// The agent's signature of a mainnet order, distinct from AGENT_SIGNATURE.
+const MAINNET_ORDER_SIGNATURE = `0x${'1f'.repeat(65)}` as const;
 
 /**
  * The venue's answer to a write for an account that must deposit.
@@ -91,6 +95,47 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
   beforeEach(() => {
     ({ loggerError, mockClientService } = setUpAccountSignerSuite());
   });
+
+  /**
+   * Let `toggleTestnet` switch the mocked client service's network.
+   */
+  function useSwitchableNetwork(): void {
+    let isTestnet = false;
+    mockClientService.isTestnetMode.mockImplementation(() => isTestnet);
+    mockClientService.setTestnetMode.mockImplementation((value: boolean) => {
+      isTestnet = value;
+    });
+  }
+
+  /**
+   * A provider whose L1 actions an agent signs on either network, with its
+   * trading setup (and the referral the agent signs) done.
+   *
+   * @param agents - Answers `extraAgents` for the main account.
+   * @returns The provider and its mocks.
+   */
+  async function createPreparedAgentProvider(
+    agents: () => Promise<ListedAgent[]> = async () => [],
+  ): Promise<
+    AccountSignerFixture & {
+      getAgentSigner: jest.Mock;
+      onAgentRejected: jest.Mock;
+      extraAgents: jest.Mock;
+    }
+  > {
+    const getAgentSigner = jest.fn();
+    const onAgentRejected = jest.fn();
+    const extraAgents = jest.fn(agents);
+    const built = createAccountSignerProvider({
+      abstraction: 'unifiedAccount',
+      getAgentSigner,
+      onAgentRejected,
+      info: { extraAgents },
+    });
+    getAgentSigner.mockResolvedValue(built.agentSigner);
+    await built.accountSignerProvider.prepareTradingWallet();
+    return { ...built, getAgentSigner, onAgentRejected, extraAgents };
+  }
 
   /**
    * A provider whose L1 writes are signed by the agent, then refused by the
@@ -475,11 +520,7 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
   });
 
   it('does not check a request signed before the provider switched networks', async () => {
-    let isTestnet = false;
-    mockClientService.isTestnetMode.mockImplementation(() => isTestnet);
-    mockClientService.setTestnetMode.mockImplementation((value: boolean) => {
-      isTestnet = value;
-    });
+    useSwitchableNetwork();
     const getAgentSigner = jest.fn();
     const onAgentRejected = jest.fn();
     const extraAgents = jest.fn().mockResolvedValue([]);
@@ -527,6 +568,195 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
         ([account]) => account.isTestnet,
       ),
     ).toStrictEqual([[TESTNET_ACCOUNT]]);
+  });
+
+  it('does not check a request whose agent signature finished after the provider switched networks', async () => {
+    useSwitchableNetwork();
+    // The host reuses its agent on both networks.
+    const {
+      accountSignerProvider,
+      agentSigner,
+      exchangeClient,
+      extraAgents,
+      getAgentSigner,
+      onAgentRejected,
+      sdkWallet,
+      signAndSend,
+    } = await createPreparedAgentProvider();
+    const signingStarted = createDeferred<void>();
+    const signing = createDeferred<Hex>();
+    agentSigner.signTypedData.mockImplementationOnce(async () => {
+      signingStarted.resolve();
+      return await signing.promise;
+    });
+    exchangeClient.order.mockImplementationOnce(
+      async () =>
+        await signAndSend(L1_PAYLOAD, mustDepositAnswer(MAIN_ADDRESS)),
+    );
+
+    const ordering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await signingStarted.promise;
+    await accountSignerProvider.toggleTestnet();
+    // The agent signs on testnet, then the mainnet signature finishes and
+    // the venue answers it.
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+    signing.resolve(MAINNET_ORDER_SIGNATURE);
+    await ordering;
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    // The agent stays bound on testnet.
+    expect(
+      (getAgentSigner.mock.calls as [PerpsAgentAccount][]).filter(
+        ([account]) => account.isTestnet,
+      ),
+    ).toStrictEqual([[TESTNET_ACCOUNT]]);
+  });
+
+  it('does not check a request whose agent signature finished after the provider reconnected on the same network', async () => {
+    useSwitchableNetwork();
+    const {
+      accountSignerProvider,
+      agentSigner,
+      exchangeClient,
+      extraAgents,
+      onAgentRejected,
+      signAndSend,
+    } = await createPreparedAgentProvider();
+    const signingStarted = createDeferred<void>();
+    const signing = createDeferred<Hex>();
+    agentSigner.signTypedData.mockImplementationOnce(async () => {
+      signingStarted.resolve();
+      return await signing.promise;
+    });
+    exchangeClient.order.mockImplementationOnce(
+      async () =>
+        await signAndSend(L1_PAYLOAD, mustDepositAnswer(MAIN_ADDRESS)),
+    );
+
+    const ordering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await signingStarted.promise;
+    // Back on mainnet, in a new session.
+    await accountSignerProvider.toggleTestnet();
+    await accountSignerProvider.toggleTestnet();
+    signing.resolve(MAINNET_ORDER_SIGNATURE);
+    await ordering;
+
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+  });
+
+  it('keeps the agent when the provider disconnects while the agent list is read', async () => {
+    const asked = createDeferred<void>();
+    const listing = createDeferred<ListedAgent[]>();
+    const {
+      accountSignerProvider,
+      exchangeClient,
+      extraAgents,
+      onAgentRejected,
+      signAndSend,
+    } = await createPreparedAgentProvider(async () => {
+      asked.resolve();
+      return await listing.promise;
+    });
+    exchangeClient.order.mockImplementationOnce(
+      async () =>
+        await signAndSend(L1_PAYLOAD, mustDepositAnswer(MAIN_ADDRESS)),
+    );
+
+    const ordering = accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await asked.promise;
+    const disconnecting = accountSignerProvider.disconnect();
+    listing.resolve([]);
+    await disconnecting;
+    const order = await ordering;
+
+    expect(order).toStrictEqual({
+      success: false,
+      error: mustDepositError(MAIN_ADDRESS).message,
+    });
+    expect(extraAgents).toHaveBeenCalledTimes(1);
+    expect(onAgentRejected).not.toHaveBeenCalled();
+  });
+
+  it('does not attribute an answer to a request that carries no signature', async () => {
+    const {
+      accountSignerProvider,
+      exchangeClient,
+      extraAgents,
+      onAgentRejected,
+      reportExchangeRequest,
+      sdkWallet,
+    } = await createPreparedAgentProvider();
+    const answer = mustDepositAnswer(MAIN_ADDRESS);
+    exchangeClient.order.mockImplementationOnce(async () => {
+      await sdkWallet().signTypedData(L1_PAYLOAD);
+      reportExchangeRequest({ action: { type: 'order' } }, answer);
+      throw apiRequestError(answer);
+    });
+
+    const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+
+    expect(order).toStrictEqual({
+      success: false,
+      error: mustDepositError(MAIN_ADDRESS).message,
+    });
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+  });
+
+  it('keeps the agent when its request fails without an answer', async () => {
+    const {
+      accountSignerProvider,
+      exchangeClient,
+      extraAgents,
+      getAgentSigner,
+      onAgentRejected,
+      reportAnswer,
+      sdkWallet,
+    } = await createPreparedAgentProvider();
+    exchangeClient.order.mockImplementationOnce(async () => {
+      const signature = await sdkWallet().signTypedData(L1_PAYLOAD);
+      reportAnswer(signature, undefined);
+      throw new Error('fetch failed');
+    });
+
+    const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+    await sdkWallet().signTypedData(L1_PAYLOAD);
+
+    expect(order).toStrictEqual({ success: false, error: 'fetch failed' });
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
+    expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+  });
+
+  it('does not track an agent signature the SDK would refuse', async () => {
+    const {
+      accountSignerProvider,
+      agentSigner,
+      exchangeClient,
+      extraAgents,
+      onAgentRejected,
+      reportAnswer,
+      sdkWallet,
+    } = await createPreparedAgentProvider();
+    // Not a 65-byte signature: the SDK refuses it before sending.
+    agentSigner.signTypedData.mockResolvedValueOnce('0x1234');
+    const answer = mustDepositAnswer(MAIN_ADDRESS);
+    exchangeClient.order.mockImplementationOnce(async () => {
+      reportAnswer(await sdkWallet().signTypedData(L1_PAYLOAD), answer);
+      throw apiRequestError(answer);
+    });
+
+    const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
+
+    expect(order).toStrictEqual({
+      success: false,
+      error: mustDepositError(MAIN_ADDRESS).message,
+    });
+    expect(extraAgents).not.toHaveBeenCalled();
+    expect(onAgentRejected).not.toHaveBeenCalled();
   });
 
   describe('without an agent', () => {

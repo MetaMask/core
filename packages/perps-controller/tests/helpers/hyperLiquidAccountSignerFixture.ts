@@ -350,9 +350,15 @@ export type AccountSignerFixture = {
   initialize: jest.Mock<Promise<void>, [HyperLiquidWalletParams]>;
   // The wallet the provider last initialized the SDK clients with.
   sdkWallet: () => HyperLiquidWalletParams;
-  // Report the venue's answer to a request carrying `signature` to the
-  // provider, as the client service does before the SDK reads the answer.
-  reportAnswer: (signature: Hex, answer: Record<string, unknown>) => void;
+  // Report an exchange request and the venue's answer (undefined when the
+  // request failed without one) to the provider, as the client service does
+  // before the SDK reads the answer.
+  reportExchangeRequest: (payload: unknown, answer: unknown) => void;
+  // reportExchangeRequest for a request carrying `signature`.
+  reportAnswer: (
+    signature: Hex,
+    answer: Record<string, unknown> | undefined,
+  ) => void;
   // Sign an exchange request through the SDK wallet and send it the way the
   // SDK does: the venue's answer is reported to the provider with the
   // request's signature, then thrown as the SDK's ApiRequestError when it is
@@ -407,11 +413,13 @@ export function createAccountSignerProvider(
   let onExchangeRequest:
     | ((payload: unknown, answer: unknown) => void)
     | undefined;
+  const reportExchangeRequest = (payload: unknown, answer: unknown): void =>
+    onExchangeRequest?.(payload, answer);
   const reportAnswer = (
     signature: Hex,
-    answer: Record<string, unknown>,
+    answer: Record<string, unknown> | undefined,
   ): void =>
-    onExchangeRequest?.({ signature: { r: signature.slice(0, 66) } }, answer);
+    reportExchangeRequest({ signature: { r: signature.slice(0, 66) } }, answer);
   const signAndSend = async (
     payload: PerpsTypedDataPayload,
     answer: Record<string, unknown>,
@@ -488,6 +496,7 @@ export function createAccountSignerProvider(
     infoClient,
     initialize,
     sdkWallet,
+    reportExchangeRequest,
     reportAnswer,
     signAndSend,
     selectAccount,

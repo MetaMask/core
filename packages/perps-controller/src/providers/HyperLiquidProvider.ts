@@ -502,7 +502,7 @@ type AgentSignature = {
   key: string;
   account: PerpsAgentAccount;
   agentAddress: Hex;
-  // The provider lifecycle generation it was signed in.
+  // The provider lifecycle generation the signature was asked for in.
   generation?: number;
   // Whether the venue still lists the agent, asked at most once per
   // signature (see #findRevokedAgent).
@@ -1691,7 +1691,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   readonly #agentSignedFor = new Map<string, AgentSignature>();
 
   // Agent signatures whose exchange request has not been answered yet, keyed
-  // by getSignatureKey.
+  // by getSignatureKey. Cleared on disconnect.
   readonly #unansweredAgentSignatures = new Map<string, AgentSignature>();
 
   // The agent signature of each answered exchange request, keyed by the
@@ -1771,12 +1771,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         resolveAgent: async (
           mainAddress: Hex,
         ): Promise<PerpsAgentSigner | null> =>
-          await this.#resolveAgentSigner(mainAddress),
-        onAgentSignature: (
-          signature: Hex,
-          mainAddress: Hex,
-          agent: PerpsAgentSigner,
-        ): void => this.#recordAgentSignature(signature, mainAddress, agent),
+          await this.#resolveTrackedAgentSigner(mainAddress),
       },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
@@ -2416,7 +2411,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * before performing actions", if the venue no longer lists it (revoked, or
    * past its `validUntil`). The venue answers an account with no funds the
    * same way, so the agent list decides; it is asked once per signature. A
-   * request signed on another network or before a disconnect is not checked.
+   * signature asked for on another network or before a disconnect is not
+   * checked.
    *
    * @param signature - The agent signature of the request.
    * @returns The revoked agent, or undefined.
@@ -2436,28 +2432,44 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Note an agent's L1 signature, so the venue's answer to the request it
-   * signs can be attributed to it.
+   * Resolve the agent for an L1 signature, as #resolveAgentSigner does, and
+   * note each signature it makes with the network and session it was asked
+   * in, so the venue's answer to that request is attributed to it. Both are
+   * read before resolving and signing, which can outlast a network switch or
+   * a disconnect.
    *
-   * @param signature - The signature.
-   * @param mainAddress - The main account the agent signed for.
-   * @param agent - The agent.
+   * @param mainAddress - The selected main account.
+   * @returns The agent, or null to sign with the main account.
    */
-  #recordAgentSignature(
-    signature: Hex,
+  async #resolveTrackedAgentSigner(
     mainAddress: Hex,
-    agent: PerpsAgentSigner,
-  ): void {
+  ): Promise<PerpsAgentSigner | null> {
     const account: PerpsAgentAccount = {
       mainAddress,
       isTestnet: this.#clientService.isTestnetMode(),
     };
-    this.#unansweredAgentSignatures.set(getSignatureKey(signature), {
-      key: getAgentAccountKey(account),
-      account,
-      agentAddress: agent.address,
-      generation: this.#lifecycleGeneration,
-    });
+    const generation = this.#lifecycleGeneration;
+    const agent = await this.#resolveAgentSigner(mainAddress);
+    if (!agent) {
+      return null;
+    }
+    return {
+      address: agent.address,
+      signTypedData: async (payload): Promise<Hex> => {
+        const signature = await agent.signTypedData(payload);
+        // The SDK refuses any other signature before sending the request,
+        // so no answer would come for it.
+        if (isHexString(signature) && signature.length === 132) {
+          this.#unansweredAgentSignatures.set(getSignatureKey(signature), {
+            key: getAgentAccountKey(account),
+            account,
+            agentAddress: agent.address,
+            generation,
+          });
+        }
+        return signature;
+      },
+    };
   }
 
   /**
@@ -15921,6 +15933,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#referralCheckCache.clear();
       this.#builderFeeCheckCache.clear();
       this.#builderFeeRefusals.clear();
+      this.#unansweredAgentSignatures.clear();
       this.#subscriptionBuilderApprovalEpoch += 1;
       this.#approvedBuilderAddresses.clear();
       this.#userFeeResolution = undefined;

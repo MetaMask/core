@@ -48,15 +48,6 @@ const HARDWARE_KEYRING_TYPES = new Set<string>([
 type AgentResolver = (mainAddress: Hex) => Promise<PerpsAgentSigner | null>;
 
 /**
- * Told of every L1 signature an agent made for a main account.
- */
-type AgentSignatureListener = (
-  signature: Hex,
-  mainAddress: Hex,
-  agent: PerpsAgentSigner,
-) => void;
-
-/**
  * Whether a signing request is an L1 action.
  *
  * @param params - The typed data the SDK asked the wallet to sign.
@@ -83,22 +74,15 @@ export class HyperLiquidWalletService {
 
   readonly #resolveAgent: AgentResolver | undefined;
 
-  readonly #onAgentSignature: AgentSignatureListener | undefined;
-
   constructor(
     deps: PerpsPlatformDependencies,
     messenger: PerpsControllerMessengerBase,
-    options: {
-      isTestnet?: boolean;
-      resolveAgent?: AgentResolver;
-      onAgentSignature?: AgentSignatureListener;
-    } = {},
+    options: { isTestnet?: boolean; resolveAgent?: AgentResolver } = {},
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
     this.#isTestnet = options.isTestnet ?? false;
     this.#resolveAgent = options.resolveAgent;
-    this.#onAgentSignature = options.onAgentSignature;
   }
 
   /**
@@ -272,16 +256,13 @@ export class HyperLiquidWalletService {
           'HyperLiquidWalletService: Signing L1 action with agent',
           { address: mainAddress, agent: agentSigner.address },
         );
-        let signature: Hex;
         try {
-          signature = await agentSigner.signTypedData(params);
+          return await agentSigner.signTypedData(params);
         } catch (error) {
           // The host could not sign with its agent key (for example it locked
           // after resolving it). Retryable, like a locked keyring.
           throw new AgentSignerUnavailableError(error);
         }
-        this.#onAgentSignature?.(signature, mainAddress, agentSigner);
-        return signature;
       },
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),
