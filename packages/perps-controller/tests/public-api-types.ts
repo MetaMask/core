@@ -11,6 +11,7 @@ import type {
   PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
+import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
@@ -139,4 +140,8 @@ export type TriggerCapabilityConsumerContract = AssertTrue<
     >['supportedTriggerOrderTypes'],
     readonly TriggerOrderType[] | undefined
   >
+>;
+
+export type RecoveryAccountCapacityConsumerContract = AssertTrue<
+  IsExact<typeof LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT, 64>
 >;

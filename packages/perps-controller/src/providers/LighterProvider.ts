@@ -23,6 +23,7 @@ import {
   getLighterChainId,
   getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
+  LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
@@ -148,6 +149,7 @@ import type {
   LighterApiOrder,
   LighterApiPosition,
   LighterAccountsByL1AddressResponse,
+  LighterAccountSummary,
   LighterAuthConfig,
   LighterTxLookupResponse,
   LighterTransferHistoryItem,
@@ -1980,6 +1982,188 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
+   * Local account identities recorded before any venue mutation.
+   *
+   * @returns Storage key scoped to the selected wallet and network.
+   */
+  readonly #recoveryAccountsKey = (): string =>
+    `lighterRecoveryAccounts:${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}`;
+
+  /**
+   * @returns Wallet-scoped previously verified venue accounts.
+   */
+  readonly #readRememberedRecoveryAccounts = async (): Promise<number[]> => {
+    let raw: string | null;
+    try {
+      raw = await this.#deps.diskCache.getItem(this.#recoveryAccountsKey());
+    } catch (error) {
+      throw new Error(
+        `Lighter recovery account index read failed: ${ensureError(error, 'LighterProvider.#readRememberedRecoveryAccounts').message}`,
+      );
+    }
+    if (raw === null) {
+      return [];
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length > LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT ||
+      !parsed.every(
+        (index) =>
+          typeof index === 'number' &&
+          Number.isSafeInteger(index) &&
+          index >= 0,
+      ) ||
+      new Set(parsed).size !== parsed.length
+    ) {
+      throw new Error('Lighter recovery account index is corrupt');
+    }
+    return parsed as number[];
+  };
+
+  /**
+   * Preserve discovery of nonce-only obligations if the venue later reports absence.
+   *
+   * @param accountIndex - Account already verified for this wallet.
+   * @param generation - Issuing session.
+   */
+  readonly #rememberRecoveryAccount = async (
+    accountIndex: number,
+    generation: number,
+  ): Promise<void> => {
+    const key = this.#recoveryAccountsKey();
+    await withStorageMutex(key, async () => {
+      this.#assertSession(generation);
+      const accounts = await this.#readRememberedRecoveryAccounts();
+      this.#assertSession(generation);
+      if (accounts.includes(accountIndex)) {
+        return;
+      }
+      if (accounts.length >= LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT) {
+        throw new Error(
+          'Lighter recovery account index is full; refusing to hide a future obligation',
+        );
+      }
+      await this.#deps.diskCache.setItem(
+        key,
+        JSON.stringify([...accounts, accountIndex]),
+      );
+      this.#assertSession(generation);
+    });
+  };
+
+  /**
+   * Resolve inventory independently of fee/trading capability. Expected absence
+   * and known Premium accounts retain local obligations without venue mutation.
+   * Ownership, malformed metadata, transport and storage failures still reject.
+   *
+   * @param generation - Issuing wallet session.
+   * @returns Inventory accounts and whether current venue reconciliation is supported.
+   */
+  readonly #resolveRecoveryInventory = async (
+    generation: number,
+  ): Promise<{
+    accounts: number[];
+    canReconcile: boolean;
+  }> => {
+    const absent = async (): Promise<{
+      accounts: number[];
+      canReconcile: false;
+    }> => {
+      const [remembered, manual, journals] = await Promise.all([
+        this.#readRememberedRecoveryAccounts(),
+        this.#readTpslManualIndex(),
+        this.#readTpslJournalIndex(),
+      ]);
+      this.#assertSession(generation);
+      const prior = new Set(remembered);
+      for (const key of [...manual, ...journals]) {
+        if (!key.startsWith(`${this.#boundAddress}:`)) {
+          continue;
+        }
+        const account = key.split(':')[1];
+        const index = Number(account);
+        if (
+          !Number.isSafeInteger(index) ||
+          index < 0 ||
+          String(index) !== account
+        ) {
+          throw new Error(
+            'Lighter recovery index contains an invalid account identity',
+          );
+        }
+        prior.add(index);
+      }
+      return {
+        accounts: [...prior].filter(
+          (index) =>
+            this.#configuredAccountIndex === undefined ||
+            index === this.#configuredAccountIndex,
+        ),
+        canReconcile: false,
+      };
+    };
+    if (this.#accountIndex !== null) {
+      return { accounts: [this.#accountIndex], canReconcile: true };
+    }
+    let account: LighterAccountSummary | undefined;
+    try {
+      if (this.#configuredAccountIndex === undefined) {
+        const response = await this.#clientService.getAccountsByL1Address(
+          this.#walletService.getUserAddress(),
+        );
+        account = response.subAccounts.reduce<
+          LighterAccountSummary | undefined
+        >(
+          (selected, next) =>
+            selected === undefined || next.index < selected.index
+              ? next
+              : selected,
+          undefined,
+        );
+      } else {
+        const response = await this.#clientService.getAccountByIndex(
+          this.#configuredAccountIndex,
+        );
+        account = response.accounts[0];
+      }
+    } catch (error) {
+      this.#assertSession(generation);
+      if (error instanceof LighterApiError && error.code === 21100) {
+        return absent();
+      }
+      throw error;
+    }
+    this.#assertSession(generation);
+    if (account === undefined) {
+      return absent();
+    }
+    if (
+      !Number.isSafeInteger(account.index) ||
+      account.index < 0 ||
+      account.l1Address.toLowerCase() !== this.#boundAddress ||
+      (this.#configuredAccountIndex !== undefined &&
+        account.index !== this.#configuredAccountIndex)
+    ) {
+      throw new Error(
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} recovery account is not owned by the selected wallet address`,
+      );
+    }
+    if (account.accountType !== 0 && account.accountType !== 1) {
+      throw new Error(
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} recovery account type could not be verified`,
+      );
+    }
+    if (account.accountType === 0) {
+      this.#accountIndex = account.index;
+    }
+    return {
+      accounts: [account.index],
+      canReconcile: account.accountType === 0,
+    };
+  };
+
+  /**
    * Capability gate: only Standard (0-fee) Lighter accounts are supported.
    * Premium accounts pay nonzero maker/taker fees whose wire unit is
    * unverified — serving their history would show financially false zero
@@ -2613,12 +2797,27 @@ export class LighterProvider implements PerpsProvider {
   > {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
-    const accountIndex = await this.#ensureAccountIndex();
-    this.#assertSession(generation);
-    // A candidate can allocate a signer before reconciliation fails. Wait for
-    // selection to settle, then use successful readiness, never probe identity.
     await this.#signerReadyPromise?.catch(() => undefined);
     this.#assertSession(generation);
+    const inventory = await this.#resolveRecoveryInventory(generation);
+    const rows = await Promise.all(
+      inventory.accounts.map(async (accountIndex) =>
+        this.#listPendingManualRecoveries(accountIndex, generation),
+      ),
+    );
+    this.#assertSession(generation);
+    return rows.flat();
+  }
+
+  /**
+   * @param accountIndex - Verified current or durably remembered account.
+   * @param generation - Issuing wallet session.
+   * @returns Local manual obligations scoped to that account.
+   */
+  readonly #listPendingManualRecoveries = async (
+    accountIndex: number,
+    generation: number,
+  ): ReturnType<LighterProvider['getPendingManualRecoveries']> => {
     // Protection belongs to the wallet and venue account, even after its
     // trading key migrates. Network storage remains separately scoped.
     const identityPrefix = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:`;
@@ -2734,7 +2933,7 @@ export class LighterProvider implements PerpsProvider {
     }
     this.#assertSession(generation);
     return pending;
-  }
+  };
 
   /**
    * Read local durable outcomes across the bounded trading-slot range without
@@ -2783,10 +2982,16 @@ export class LighterProvider implements PerpsProvider {
   > {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
-    const accountIndex = await this.#ensureAccountIndex();
     await this.#signerReadyPromise?.catch(() => undefined);
     this.#assertSession(generation);
-    return this.#listRecoveredDispatches(accountIndex, generation);
+    const inventory = await this.#resolveRecoveryInventory(generation);
+    const rows = await Promise.all(
+      inventory.accounts.map(async (accountIndex) =>
+        this.#listRecoveredDispatches(accountIndex, generation),
+      ),
+    );
+    this.#assertSession(generation);
+    return rows.flat();
   }
 
   /**
@@ -2845,7 +3050,20 @@ export class LighterProvider implements PerpsProvider {
     const generation = this.#sessionGeneration;
     this.#assertSession(generation);
     const network = this.#isTestnet ? 'testnet' : 'mainnet';
-    const accountIndex = await this.#ensureAccountIndex();
+    const inventory = await this.#resolveRecoveryInventory(generation);
+    if (!inventory.canReconcile) {
+      const rows = await Promise.all(
+        inventory.accounts.map(async (index) =>
+          this.#listRecoveredDispatches(index, generation),
+        ),
+      );
+      this.#assertSession(generation);
+      return rows.flat();
+    }
+    const [accountIndex] = inventory.accounts;
+    if (accountIndex === undefined) {
+      throw new Error('Lighter recovery account identity is missing');
+    }
     this.#assertSession(generation);
     const result = await withProcessMutex(
       `lighterVenueWrite:${network}:${accountIndex}`,
@@ -6354,6 +6572,8 @@ export class LighterProvider implements PerpsProvider {
           return inspected.result;
         }
       }
+      await this.#rememberRecoveryAccount(accountIndex, generationAtIntent);
+      this.#assertSession(generationAtIntent);
       // Every unresolved prior dispatch (this session OR a previous one —
       // the ledger is durable) must resolve before this section may issue
       // nonces: a restart would otherwise reuse a consumed-but-lagging

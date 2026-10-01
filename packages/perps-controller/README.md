@@ -193,8 +193,18 @@ response loss and restart; failed or ambiguous settlement leaves recovery visibl
 The result distinguishes `settled`, `unresolved`, and `unsupported`. This is an
 explicit financial operation and must never run as part of review or rendering.
 
-`getRecoveredDispatches()` lists local recovery state. Call
-`reconcileRecoveredDispatches()` only when the user requests a status check.
+`getRecoveredDispatches()` and `getPendingManualRecoveries()` list local recovery
+state. Confirmed account absence and known Premium accounts retain their local rows without signer setup
+or venue reconciliation; a wallet with no recorded obligations returns an empty
+inventory. Premium trading remains unsupported. Transport failures, corrupt or
+unavailable storage, wrong-wallet accounts and unknown account types still reject.
+Verified accounts are indexed before venue mutation so nonce-only obligations
+remain discoverable after restart even if the venue reports account absence.
+Existing protection indices also preserve older account identities. Account
+capacity is bounded by `LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT`, exported through
+`constants` and `constants/lighterConfig`.
+
+Call `reconcileRecoveredDispatches()` only when the user requests a status check.
 This non-financial operation reads venue evidence and updates local ledgers.
 It does not initialize a signer, register a key, sign, submit, cancel, acknowledge
 or retry an intent. Lighter checks owner-null dispatches across all trading slots;

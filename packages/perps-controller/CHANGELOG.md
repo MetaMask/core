@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose `LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT` through `constants` and `constants/lighterConfig` to bound the durable wallet/network recovery account index. Record verified account identity before venue mutation so pending dispatches remain discoverable after account absence.
 - Add strict provider-scoped `reviewRecoveryVenue` and explicit `resolveRecoveryProtection` controller/provider capabilities, including opaque manual-obligation identities, original-slot reconciliation and durable source-to-successor protection settlement. Review uses matching registered read authority without registration or financial writes; unsupported providers report a distinct capability result. Manual and dispatch rows expose optional provider, wallet and network metadata; aggregate rows carry their owning provider. Ordinary protection changes refuse pending selected transfers across trading slots. Pending or unknown transaction statuses remain unresolved even when order books already match; executed (2), pending-final (3) with matching books, or definitive failure resolves them.
 - Add optional `reconcileRecoveredDispatches` provider capability and controller action for explicit non-financial venue checks with local persistence. Lighter checks owner-null dispatches across trading slots without signing, retrying or acknowledging outcomes; unsupported providers return their local listing. Reject account, network or provider changes during controller readiness before forwarding.
 - Expose `utils/positionProtection.assertExpectedPosition` and `utils/guardedHyperLiquidClient.createGuardedHyperLiquidClient` through the existing public wildcard exports for position snapshot validation and operation-local signed-dispatch guards ([#10644](https://github.com/MetaMask/core/pull/10644))
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Treat confirmed absent and known Premium Lighter accounts as local-only recovery inventories. Preserve durable obligations and refuse transport, storage, ownership or unverified account-type failures; Premium trading remains unsupported.
 - Recheck HyperLiquid position protection after SDK signing and correlate partial SDK acknowledgments by exact signed child IDs. Preserve uncertain outcomes and restore only exact pre-call reduce-only protection when replacement becomes stale after cancellation; report protection loss if restoration fails ([#10644](https://github.com/MetaMask/core/pull/10644))
 - Release only proven-unsent Lighter TP/SL attempts, ownership and nonce reservations after final position rejection, allowing a refreshed update or close while retaining older uncertain attempts ([#10644](https://github.com/MetaMask/core/pull/10644))
 - Refuse position-protection dispatch when the final Lighter account response is ambiguous, belongs to another account or has an invalid position sign, while preserving old protection and allowing a refreshed retry ([#10644](https://github.com/MetaMask/core/pull/10644))
