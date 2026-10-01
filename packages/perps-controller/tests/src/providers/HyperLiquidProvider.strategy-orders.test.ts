@@ -1648,6 +1648,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       'returns only complete response-correlated TP/SL receipts: $label',
       async ({ statuses, ids }) => {
         useStrategyClients({
+          info: {
+            orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+          },
           exchange: {
             order: jest.fn().mockResolvedValue({
               status: 'ok',
@@ -1672,6 +1675,204 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toMatchObject({ success: true, childOrderIds: [] });
     });
 
+    it.each([
+      'matched',
+      'marked',
+      'wrong-cloid',
+      'duplicate-id',
+      'unknown',
+      'read-failure',
+      'response-mismatch',
+    ])('correlates final sent protection cloids: %s', async (mode) => {
+      let sent: { c?: string; t: { trigger?: { isMarket: boolean } } }[] = [];
+      const orderStatus = jest
+        .fn()
+        .mockImplementation(async ({ oid }: { oid: string }) => {
+          if (mode === 'read-failure') {
+            throw new Error('status unavailable');
+          }
+          if (mode === 'unknown') {
+            return { status: 'unknownOid' };
+          }
+          const index = sent.findIndex((order) => order.c === oid);
+          return {
+            status: 'order',
+            order: {
+              status: 'filled',
+              order: {
+                cloid:
+                  mode === 'wrong-cloid'
+                    ? '0x11111111111111111111111111111111'
+                    : oid,
+                oid: mode === 'duplicate-id' ? 777 : 777 + index,
+              },
+            },
+          };
+        });
+      useStrategyClients({
+        exchange: {
+          order: jest
+            .fn()
+            .mockImplementation(async (request: { orders: typeof sent }) => {
+              sent = request.orders;
+              return {
+                status: 'ok',
+                response: {
+                  data: {
+                    statuses:
+                      mode === 'response-mismatch'
+                        ? [{ resting: { oid: 999 } }, 'waitingForTrigger']
+                        : ['waitingForTrigger', 'waitingForTrigger'],
+                  },
+                },
+              };
+            }),
+        },
+        info: { orderStatus },
+      });
+      if (mode === 'marked') {
+        provider.setUserFeeResolution({
+          feeBips: 0,
+          discountBips: 10000,
+          source: 'subscription',
+          subscription: { eligible: true, reason: 'eligible' },
+          subscriptionWaiverKind: 'full',
+        });
+      }
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+      expect(result.success).toBe(true);
+      expect(result.childOrderIds).toStrictEqual(
+        mode === 'matched' || mode === 'marked' ? ['777', '778'] : undefined,
+      );
+      expect(sent).toHaveLength(2);
+      expect(sent[0].c).toMatch(/^0x[0-9a-f]{32}$/u);
+      expect(sent[0].c).not.toBe(sent[1].c);
+      expect(sent[0].t.trigger?.isMarket).toBe(false);
+      expect(sent[1].t.trigger?.isMarket).toBe(true);
+      expect(orderStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ oid: sent[0].c }),
+      );
+    });
+
+    it.each(['account', 'network', 'disconnect'])(
+      'fences %s switching during receipt lookup',
+      async (change) => {
+        useStrategyClients({
+          exchange: {
+            order: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: { data: { statuses: ['waitingForTrigger'] } },
+            }),
+          },
+          info: {
+            orderStatus: jest.fn().mockImplementation(async () => {
+              if (change === 'account') {
+                mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+                  '0x2222222222222222222222222222222222222222',
+                );
+              } else if (change === 'disconnect') {
+                await provider.disconnect();
+              } else {
+                mockClientService.isTestnetMode.mockReturnValue(true);
+              }
+              return { status: 'unknownOid' };
+            }),
+          },
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(false);
+        expect(result.childOrderIds).toBeUndefined();
+      },
+    );
+
+    it('rejects expected entry drift during asynchronous order setup', async () => {
+      const { exchangeClient, infoClient } = useStrategyClients();
+      infoClient.frontendOpenOrders.mockImplementation(async () => {
+        infoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            { position: { coin: 'ETH', szi: '1.5', entryPx: '3001' } },
+          ],
+        });
+        return [];
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        expectedPosition: { size: '1.5', entryPrice: '3000' },
+      });
+      expect(result.success).toBe(false);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { size: '2', entryPrice: '3000' },
+      { size: '-1.5', entryPrice: '3000' },
+      { size: '1.5', entryPrice: '3001' },
+    ])(
+      'rejects a different expected protection position %j',
+      async (expectedPosition) => {
+        const { exchangeClient } = useStrategyClients();
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          expectedPosition,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('expected position');
+        expect(exchangeClient.cancel).not.toHaveBeenCalled();
+        expect(exchangeClient.order).not.toHaveBeenCalled();
+      },
+    );
+
+    it('accepts an unchanged expected position through protection setup', async () => {
+      const { exchangeClient } = useStrategyClients({
+        info: {
+          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+        },
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        expectedPosition: { size: '1.50', entryPrice: '3000.0' },
+      });
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['account', 'network', 'disconnect'])(
+      'rejects %s switching during order setup before mutation',
+      async (change) => {
+        const { exchangeClient, infoClient } = useStrategyClients();
+        infoClient.frontendOpenOrders.mockImplementation(async () => {
+          if (change === 'account') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0x2222222222222222222222222222222222222222',
+            );
+          } else if (change === 'disconnect') {
+            await provider.disconnect();
+          } else {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          }
+          return [];
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(false);
+        expect(exchangeClient.order).not.toHaveBeenCalled();
+        expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      },
+    );
+
     it('accepts an old TP/SL order that is already gone before replacement', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
@@ -1690,6 +1891,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
+          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
           frontendOpenOrders: jest.fn().mockResolvedValue([
             {
               coin: 'ETH',
@@ -7064,6 +7266,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7086,6 +7294,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7105,6 +7319,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7139,6 +7359,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          positionTpsl: {
+            supportsExpectedPosition: true,
+            childOrderIds: 'request-correlated',
+            takeProfitOrderType: 'take_profit_limit',
+            stopLossOrderType: 'stop_market',
+          },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -7230,6 +7456,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7346,6 +7578,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7368,6 +7606,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7446,6 +7690,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7466,6 +7716,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7509,6 +7765,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          positionTpsl: {
+            supportsExpectedPosition: true,
+            childOrderIds: 'request-correlated',
+            takeProfitOrderType: 'take_profit_limit',
+            stopLossOrderType: 'stop_market',
+          },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -7521,6 +7783,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          positionTpsl: {
+            supportsExpectedPosition: true,
+            childOrderIds: 'request-correlated',
+            takeProfitOrderType: 'take_profit_limit',
+            stopLossOrderType: 'stop_market',
+          },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -7617,6 +7885,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7732,6 +8006,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7788,6 +8068,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7824,6 +8110,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -7867,6 +8159,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -8089,6 +8387,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',

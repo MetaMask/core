@@ -42,6 +42,7 @@ import {
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
   PROVIDER_CONFIG,
+  SUBSCRIPTION_CLOID_CONFIG,
   TP_SL_CONFIG,
   WITHDRAWAL_CONSTANTS,
 } from '../constants/perpsConfig.js';
@@ -246,6 +247,7 @@ import {
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
+import { assertExpectedPosition } from '../utils/positionProtection.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -9274,8 +9276,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param orders - The SDK order payloads about to be submitted.
    * @param generatedCloids - Cloids this package generated for these orders and
-   * may therefore re-stamp. Only the Scale ladder supplies any; every other path
-   * either has no cloid or carries the caller's own.
+   * may therefore re-stamp. Scale ladders and position TP/SL supply these;
+   * other paths have no cloid or carry the caller's own.
    * @param marksSubscriptionCloid - Overrides the live fee resolution for a
    * chase replacement, which runs after that resolution has been cleared.
    * @returns The same payloads, with cloids marked when subscription won.
@@ -10321,7 +10323,25 @@ export class HyperLiquidProvider implements PerpsProvider {
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
+    const expectedPosition =
+      params.expectedPosition === undefined
+        ? undefined
+        : { ...params.expectedPosition };
     try {
+      const lifecycle = this.#lifecycleGeneration;
+      const isTestnet = this.#clientService.isTestnetMode();
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      const assertScope = async (): Promise<void> => {
+        const current = await this.#walletService.getUserAddressWithDefault();
+        this.#assertProviderLifecycleCurrent(lifecycle, 'updatePositionTPSL');
+        if (
+          current.toLowerCase() !== userAddress.toLowerCase() ||
+          this.#clientService.isTestnetMode() !== isTestnet
+        ) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+      };
+      await assertScope();
       this.#deps.debugLogger.log('Updating position TP/SL:', params);
 
       const {
@@ -10367,6 +10387,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
+      await assertScope();
+      assertExpectedPosition(expectedPosition, position);
       if (!position) {
         throw new Error(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       }
@@ -10396,7 +10418,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // used below, after the trading setup has run.
       const infoClient = this.#clientService.getInfoClient();
       const exchangeClient = this.#clientService.getExchangeClient();
-      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      await assertScope();
 
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(symbol);
@@ -10742,6 +10764,42 @@ export class HyperLiquidProvider implements PerpsProvider {
         orders.push(slOrder);
       }
 
+      const generatedCloids = new Set<string>();
+      for (const order of orders) {
+        const entropy = uuidv4()
+          .replace(/-/gu, '')
+          .slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength);
+        const cloid: Hex = `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}00${entropy}`;
+        if (generatedCloids.has(cloid)) {
+          throw new Error('Duplicate TP/SL client order identity');
+        }
+        generatedCloids.add(cloid);
+        order.c = cloid;
+      }
+      const assertCurrentPosition = async (): Promise<void> => {
+        await assertScope();
+        if (expectedPosition) {
+          const state = await infoClient.clearinghouseState({
+            user: userAddress,
+            ...(dexName ? { dex: dexName } : {}),
+          });
+          await assertScope();
+          const current = state.assetPositions.find(
+            (entry) => entry.position.coin === symbol,
+          );
+          assertExpectedPosition(
+            expectedPosition,
+            current
+              ? {
+                  size: current.position.szi,
+                  entryPrice: current.position.entryPx ?? '',
+                }
+              : undefined,
+          );
+        }
+      };
+      await assertCurrentPosition();
+
       const rollbackRequiresBuilderFee = [
         ...restorablePositionTpslOrders,
         ...restorableStandaloneTpslOrders,
@@ -10760,6 +10818,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       const builderOrderContext = builderFeeSetupContext
         ? await this.#getBuilderOrderContext(builderFeeSetupContext)
         : undefined;
+
+      const sentOrders = this.#applySubscriptionCloid(orders, generatedCloids);
+      if (
+        new Set(sentOrders.map((order) => order.c)).size !== sentOrders.length
+      ) {
+        throw new Error('Duplicate final TP/SL client order identity');
+      }
 
       const restoreCancelledProtection = async (
         cancelledOrderIds: Set<number>,
@@ -10788,6 +10853,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
 
           try {
+            await assertCurrentPosition();
             const result = await exchangeClient.order({
               orders: this.#applySubscriptionCloid(
                 entries.map((entry) => entry.order),
@@ -10869,6 +10935,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Cancel before placing for both position-bound and standalone partial
       // triggers. A place-first partial update leaves both trigger sets live
       // during the cancellation round trip and can reduce more than requested.
+      await assertCurrentPosition();
       const oldCancellation = await this.#cancelOrderRequestBatch(
         exchangeClient,
         cancelRequests,
@@ -10886,6 +10953,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           success: false,
         });
       }
+
+      await assertScope();
 
       // Clearing has no replacement batch to preserve. A partial cancellation
       // is reported so the caller can retry the same clear operation.
@@ -10969,10 +11038,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       }
 
+      await assertCurrentPosition();
       let result: Awaited<ReturnType<ExchangeClient['order']>>;
       try {
         result = await exchangeClient.order({
-          orders: this.#applySubscriptionCloid(orders),
+          orders: sentOrders,
           grouping: isPartialTpsl ? 'na' : 'positionTpsl',
           ...(replacementChargesMetamaskBuilderFee &&
             builderOrderContext && { builder: builderOrderContext }),
@@ -10999,6 +11069,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw error;
       }
 
+      await assertScope();
+
       const placementStatuses = result.response?.data?.statuses ?? [];
       const initialPlacementOutcomes = placementStatuses
         .slice(0, orders.length)
@@ -11016,10 +11088,51 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (placementAccepted) {
         // Only response-correlated IDs form a receipt. A waitingForTrigger
         // acknowledgement without an ID cannot be attributed from book changes.
-        const childOrderIds = initialPlacementOutcomes.flatMap((outcome) =>
-          outcome.orderId === undefined ? [] : [outcome.orderId],
-        );
+        const childOrderIds: string[] = [];
+        let identitiesValid = true;
+        for (const [index, outcome] of initialPlacementOutcomes.entries()) {
+          const cloid = sentOrders[index]?.c;
+          let { orderId } = outcome;
+          if (cloid === undefined) {
+            identitiesValid = false;
+            continue;
+          }
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            await assertScope();
+            try {
+              const status = await infoClient.orderStatus({
+                user: userAddress,
+                oid: cloid,
+              });
+              await assertScope();
+              if (status.status !== 'order') {
+                continue;
+              }
+              const row = status.order.order;
+              if (
+                row.cloid?.toLowerCase() !== cloid.toLowerCase() ||
+                !Number.isSafeInteger(row.oid) ||
+                row.oid <= 0 ||
+                (orderId !== undefined && orderId !== String(row.oid))
+              ) {
+                identitiesValid = false;
+              } else {
+                orderId = String(row.oid);
+              }
+              break;
+            } catch {
+              // A query failure cannot invent an ID. Recheck lifecycle outside
+              // the catch so stale accounts never produce a success receipt.
+              await assertScope();
+              break;
+            }
+          }
+          if (orderId !== undefined) {
+            childOrderIds.push(orderId);
+          }
+        }
         const completeReceipt =
+          identitiesValid &&
           childOrderIds.length === orders.length &&
           childOrderIds.every((id) => Number(id) > 0) &&
           new Set(childOrderIds).size === childOrderIds.length;
@@ -11057,6 +11170,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           outcome.state === 'waitingForTrigger' &&
           outcome.orderId === undefined,
       );
+      await assertScope();
       const remainingReplacementIds = await this.#cancelOrderRequests(
         exchangeClient,
         restingReplacementOrderIds.map((orderId) => ({

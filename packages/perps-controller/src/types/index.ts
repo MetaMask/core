@@ -1762,6 +1762,18 @@ type ReadyPerpsOrderCapabilities = Readonly<{
    */
   supportedTriggerOrderTypes?: readonly TriggerOrderType[];
   /**
+   * Position protection mutation guarantees. Omitted means unsupported or
+   * unreported. Accepted updates can still omit IDs when exact correlation
+   * remains unresolved; clients must not infer identities from book changes.
+   */
+  positionTpsl?: Readonly<{
+    supportsExpectedPosition: true;
+    childOrderIds: 'request-correlated';
+    takeProfitOrderType: 'take_profit_market' | 'take_profit_limit';
+    stopLossOrderType: 'stop_market' | 'stop_limit';
+  }>;
+
+  /**
    * Margin modes the market accepts for `OrderParams.marginMode`. Omitted
    * means the provider does not report it, and clients should not offer an
    * explicit margin mode.
@@ -1983,6 +1995,12 @@ export type PerpsFeeResolution = {
 };
 
 export type UpdatePositionTPSLParams = {
+  /**
+   * Optional mutation precondition, checked against authoritative position data
+   * before setup and again before protection writes. Size is signed base units.
+   * A mismatch rejects the update rather than protecting a different position.
+   */
+  expectedPosition?: { size: string; entryPrice: string };
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
   takeProfitPrice?: string; // Optional: undefined to remove
   stopLossPrice?: string; // Optional: undefined to remove

@@ -223,6 +223,12 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
   supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+  positionTpsl: Object.freeze({
+    supportsExpectedPosition: true,
+    childOrderIds: 'request-correlated',
+    takeProfitOrderType: 'take_profit_limit',
+    stopLossOrderType: 'stop_market',
+  }),
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration

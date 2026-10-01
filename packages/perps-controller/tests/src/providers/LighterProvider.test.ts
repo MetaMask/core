@@ -1695,6 +1695,12 @@ describe('LighterProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_market',
+          stopLossOrderType: 'stop_market',
+        },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -6599,6 +6605,98 @@ describe('LighterProvider', () => {
       },
     );
 
+    it('ignores conflicting inactive identities outside the requested clients', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.setCreateTerminal('filled');
+      clientInstance.getInactiveOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: [
+          ...venue.rawInactive,
+          ...venue.rawInactive.flatMap((row) => [
+            { ...row, clientOrderIndex: 0, orderIndex: 501 },
+            { ...row, clientOrderIndex: 0, orderIndex: 502 },
+          ]),
+        ],
+      }));
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(true);
+      expect(result.childOrderIds).toStrictEqual(
+        venue.rawInactive.map((row) => String(row.orderIndex)),
+      );
+    });
+
+    it.each([
+      { size: '0.2', entryPrice: '100000' },
+      { size: '-0.001', entryPrice: '100000' },
+      { size: '0.001', entryPrice: '99999' },
+    ])(
+      'rejects a different expected protection position %j',
+      async (expectedPosition) => {
+        const { provider, calls } = buildProvider();
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          expectedPosition,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('expected position');
+        expect(
+          calls.filter((call) => call.function.startsWith('_sign')),
+        ).toHaveLength(0);
+      },
+    );
+
+    it.each(['unchanged', 'entry-drift'])(
+      'checks expected position through signer setup: %s',
+      async (mode) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        const oldId = venue.seedTrigger('stop-loss', '80000');
+        let reads = 0;
+        clientInstance.getAccountByIndex.mockImplementation(async () => {
+          reads += 1;
+          return {
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: [
+                  {
+                    ...ACCOUNT.positions[0],
+                    avgEntryPrice:
+                      mode === 'entry-drift' && reads >= 3
+                        ? '100001'
+                        : ACCOUNT.positions[0].avgEntryPrice,
+                  },
+                ],
+              },
+            ],
+          };
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(result.success).toBe(mode === 'unchanged');
+        expect(venue.rawTriggers.some((row) => row.orderIndex === oldId)).toBe(
+          mode !== 'unchanged',
+        );
+        expect(
+          calls.filter((call) =>
+            ['_signCreateOrder', '_signCancelOrder'].includes(call.function),
+          ),
+        ).toHaveLength(mode === 'unchanged' ? 2 : 0);
+      },
+    );
+
     it('retains protection and journal when inactive receipt identities conflict', async () => {
       const infra = createMockInfrastructure();
       const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
@@ -6656,16 +6754,12 @@ describe('LighterProvider', () => {
               if (creationReads === 2) {
                 venue.rawTriggers.splice(0, venue.rawTriggers.length);
                 venue.rawInactive.push(
-                  ...created
-                    .reverse()
-                    .map((row) => ({
-                      ...row,
-                      status: row.type === executedType ? 'filled' : 'canceled',
-                      remainingBaseAmount:
-                        row.type === executedType
-                          ? '0'
-                          : row.remainingBaseAmount,
-                    })),
+                  ...created.reverse().map((row) => ({
+                    ...row,
+                    status: row.type === executedType ? 'filled' : 'canceled',
+                    remainingBaseAmount:
+                      row.type === executedType ? '0' : row.remainingBaseAmount,
+                  })),
                 );
                 return { ...response, orders: [] };
               }

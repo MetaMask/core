@@ -184,6 +184,7 @@ import {
   isTriggerOrderType,
   TRIGGER_ORDER_TYPES,
 } from '../utils/orderTypes.js';
+import { assertExpectedPosition } from '../utils/positionProtection.js';
 
 type LighterFillQuery = GetOrderFillsParams & {
   symbol?: string;
@@ -3935,6 +3936,7 @@ export class LighterProvider implements PerpsProvider {
     marketId: number,
   ): ((targetClientIds: number[]) => Promise<LighterApiOrder[]>) => {
     const terminalCache = new Map<string, LighterApiOrder>();
+    const conflictingClients = new Set<string>();
     let deepTraversalDone = false;
     return async (targetClientIds: number[]): Promise<LighterApiOrder[]> => {
       this.#assertSession(generation);
@@ -3951,9 +3953,7 @@ export class LighterProvider implements PerpsProvider {
               (previous.orderIndex !== order.orderIndex ||
                 previous.marketIndex !== order.marketIndex)
             ) {
-              throw new Error(
-                `${LIGHTER_DATA_INTEGRITY_PREFIX} conflicting inactive-order identity for client ${clientId}; TP/SL recovery is still pending`,
-              );
+              conflictingClients.add(clientId);
             }
             terminalCache.set(clientId, order);
           }
@@ -4017,6 +4017,11 @@ export class LighterProvider implements PerpsProvider {
           cursor = response.nextCursor;
         }
         deepTraversalDone = !cursor || !missing();
+      }
+      if (targets.some((id) => conflictingClients.has(id))) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} conflicting inactive-order identity for requested client; TP/SL recovery is still pending`,
+        );
       }
       return [...terminalCache.values()];
     };
@@ -5935,6 +5940,12 @@ export class LighterProvider implements PerpsProvider {
       providerId: this.protocolId,
       supportedStrategies: Object.freeze([]),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+      positionTpsl: Object.freeze({
+        supportsExpectedPosition: true,
+        childOrderIds: 'request-correlated',
+        takeProfitOrderType: 'take_profit_market',
+        stopLossOrderType: 'stop_market',
+      }),
     });
   }
 
@@ -6987,6 +6998,10 @@ export class LighterProvider implements PerpsProvider {
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
+    const expectedPosition =
+      params.expectedPosition === undefined
+        ? undefined
+        : { ...params.expectedPosition };
     try {
       // Partial TP/SL sizes are NOT wired to this venue path: it always
       // covers the full position. Silently ignoring a requested partial
@@ -7020,6 +7035,8 @@ export class LighterProvider implements PerpsProvider {
       const position = positions.find(
         (entry) => entry.symbol === params.symbol,
       );
+      this.#assertSession(generationAtIntent);
+      assertExpectedPosition(expectedPosition, position);
       if (!position) {
         return {
           success: false,
@@ -7187,6 +7204,28 @@ export class LighterProvider implements PerpsProvider {
       await this.#withVenueWriteLock(
         accountIndex,
         async (nextNonce, submit) => {
+          const assertLiveExpected = async (): Promise<void> => {
+            if (expectedPosition === undefined) {
+              return;
+            }
+            this.#assertSession(generationAtIntent);
+            const account =
+              await this.#clientService.getAccountByIndex(accountIndex);
+            this.#assertSession(generationAtIntent);
+            const current = account.accounts[0]?.positions?.find(
+              (entry) => entry.symbol === params.symbol,
+            );
+            assertExpectedPosition(
+              expectedPosition,
+              current
+                ? {
+                    size: `${current.sign === -1 ? '-' : ''}${current.position}`,
+                    entryPrice: current.avgEntryPrice,
+                  }
+                : undefined,
+            );
+          };
+          await assertLiveExpected();
           // STRICT direct read with the CAPTURED account/auth/generation:
           // a swallowed [] would make remove "succeed" cancelling nothing;
           // a setup-capable helper here could self-deadlock (see auth
@@ -7325,6 +7364,15 @@ export class LighterProvider implements PerpsProvider {
               `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
             );
           }
+          assertExpectedPosition(
+            expectedPosition,
+            livePosition
+              ? {
+                  size: `${livePosition.sign === -1 ? '-' : ''}${livePosition.position}`,
+                  entryPrice: livePosition.avgEntryPrice,
+                }
+              : undefined,
+          );
           const managed = await this.#readManagedTpsl(settlementKey);
           this.#assertSession(generationAtIntent);
           const openOrders = rawOrders.map((order) =>
@@ -7462,6 +7510,7 @@ export class LighterProvider implements PerpsProvider {
           // even when the response is lost), flips to accepted inside
           // onAccepted (pre-fence), and reconciliation disambiguates each
           // attempt individually via books + nonce.
+          await assertLiveExpected();
           const journal: TpslJournalState = {
             attempts: [],
             recordedAt: Date.now(),
