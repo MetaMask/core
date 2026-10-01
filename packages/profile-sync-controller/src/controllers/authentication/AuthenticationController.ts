@@ -610,7 +610,7 @@ export class AuthenticationController extends BaseController<
         this.#ongoingSignIn = undefined;
       }
     });
-    // Assigned before this method awaits, so a second caller joins this flight.
+
     this.#ongoingSignIn = signIn;
     return await signIn;
   }
