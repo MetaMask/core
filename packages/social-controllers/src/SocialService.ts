@@ -1018,7 +1018,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_FAILED,
         );
-        const followersData = await response.json();
+        const followersData = (await response.json()) as unknown;
         if (!is(followersData, FollowersResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
