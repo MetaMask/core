@@ -230,6 +230,80 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     },
   );
 
+  it('rejects a retired lifetime while readiness waits without redirecting to its replacement', async () => {
+    const { controller, provider, acknowledge, ledgers } = createFixture(false);
+    const readiness = createDeferred<void>();
+    jest.mocked(wait).mockReturnValueOnce(readiness.promise);
+    jest.mocked(HyperLiquidProvider).mockImplementation(() => provider);
+    const replacement = Object.assign(createMockHyperLiquidProvider(), {
+      acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+    });
+    const initialization = controller.init();
+    const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+    const disconnected = controller.disconnect();
+    const replaced = disconnected.then(async () => {
+      jest.mocked(HyperLiquidProvider).mockImplementation(() => replacement);
+      await controller.init();
+    });
+    readiness.resolve();
+    await initialization;
+    await replaced;
+
+    await expect(result).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+    );
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(replacement.acknowledgeRecoveredDispatch).not.toHaveBeenCalled();
+    expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set([LEGACY_ID]));
+    expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+  });
+
+  it.each(['success', 'rejection'] as const)(
+    'preserves issuing storage and %s after same-context lifetime retirement',
+    async (outcome) => {
+      const { controller, acknowledge, ledgers } = createFixture();
+      const started = createDeferred<void>();
+      const completion = createDeferred<void>();
+      const failure = new Error('Original retired-provider rejection');
+      const replacement = Object.assign(createMockHyperLiquidProvider(), {
+        acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+      });
+      acknowledge.mockImplementationOnce(async (id) => {
+        started.resolve();
+        await completion.promise;
+        if (outcome === 'rejection') {
+          throw failure;
+        }
+        ledgers.get(ACCOUNT_A)?.delete(id);
+      });
+      const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+      const settled = result.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await started.promise;
+
+      await controller.disconnect();
+      controller.activate(replacement);
+      completion.resolve();
+
+      const error = await settled;
+      expect(error).toStrictEqual(
+        outcome === 'success'
+          ? new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+          : failure,
+      );
+      expect(outcome === 'rejection' ? error === failure : true).toBe(true);
+      expect(acknowledge).toHaveBeenCalledTimes(1);
+      expect(acknowledge).toHaveBeenCalledWith(LEGACY_ID);
+      expect(replacement.acknowledgeRecoveredDispatch).not.toHaveBeenCalled();
+      expect(ledgers.get(ACCOUNT_A)).toStrictEqual(
+        new Set(outcome === 'success' ? [] : [LEGACY_ID]),
+      );
+      expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+    },
+  );
+
   it('acknowledges the exact legacy ID in an unchanged context', async () => {
     const { controller, acknowledge, ledgers } = createFixture();
 
