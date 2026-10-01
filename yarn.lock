@@ -7681,6 +7681,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
+    "@metamask/chomp-api-service": "npm:^6.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-controller": "npm:^2.0.0"

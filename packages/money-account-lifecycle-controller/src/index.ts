@@ -14,7 +14,3 @@ export type {
 } from './money-account-lifecycle-controller.js';
 export type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 export type { MoneyAccountLifecycleControllerInitAction } from './money-account-lifecycle-controller-method-action-types.js';
-export type {
-  DerivedIdentity,
-  DerivedIdentityStatus,
-} from './chomp-api-service-derived-identities.js';

@@ -1,4 +1,4 @@
-import type { DerivedIdentity } from './chomp-api-service-derived-identities.js';
+import type { DerivedIdentity } from '@metamask/chomp-api-service';
 
 export type MoneyAccountLifecycle =
   | { type: 'notInIdentity' }
@@ -11,8 +11,6 @@ export type MoneyAccountLifecycle =
  * @param moneyAccountAddress - The address of the Money Account.
  * @param identities - The derived identities to search.
  * @returns The lifecycle of the Money Account.
- * @throws If the Money Account is a previous address of an identity that has
- * not finished migrating.
  */
 export function getMoneyAccountLifecycle(
   moneyAccountAddress: string,
@@ -29,18 +27,12 @@ export function getMoneyAccountLifecycle(
     return { type: 'sfa', identity: sfaIdentity };
   }
 
-  const successor = identities.find(({ previousAddresses }) =>
+  const mfaIdentity = identities.find(({ previousAddresses }) =>
     previousAddresses.some(isMoneyAccountAddress),
   );
-  if (!successor) {
+  if (!mfaIdentity) {
     return { type: 'notInIdentity' };
   }
 
-  if (successor.status !== 'DONE') {
-    throw new Error(
-      `Money account ${moneyAccountAddress} is a previous address of a derived identity with status '${successor.status}'`,
-    );
-  }
-
-  return { type: 'mfa', identity: successor };
+  return { type: 'mfa', identity: mfaIdentity };
 }
