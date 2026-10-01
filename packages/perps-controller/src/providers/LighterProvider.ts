@@ -7233,7 +7233,17 @@ export class LighterProvider implements PerpsProvider {
           const liveAccount =
             await this.#clientService.getAccountByIndex(accountIndex);
           this.#assertSession(generationAtIntent);
-          const livePosition = liveAccount.accounts[0]?.positions?.find(
+          if (
+            !Array.isArray(liveAccount.accounts) ||
+            liveAccount.accounts.length !== 1 ||
+            liveAccount.accounts[0]?.index !== accountIndex ||
+            !Array.isArray(liveAccount.accounts[0].positions)
+          ) {
+            throw new Error(
+              'Invalid Lighter account position envelope before TP/SL signing',
+            );
+          }
+          const livePosition = liveAccount.accounts[0].positions.find(
             (entry) => entry.symbol === params.symbol,
           );
           const liveMagnitude = livePosition
@@ -7256,10 +7266,10 @@ export class LighterProvider implements PerpsProvider {
             }
           }
           if (
-            liveWireSize === null ||
-            (wantsReplacement &&
-              (liveWireSize !== preflightPositionWireSize ||
-                livePosition?.sign !== preflightPositionSign))
+            wantsReplacement &&
+            (liveWireSize === null ||
+              liveWireSize !== preflightPositionWireSize ||
+              livePosition?.sign !== preflightPositionSign)
           ) {
             throw new Error(
               `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
@@ -7290,6 +7300,7 @@ export class LighterProvider implements PerpsProvider {
                   entry.orderId === order.orderId,
               );
             const isLegacyProtection =
+              liveWireSize !== null &&
               order.side === (livePosition?.sign === 1 ? 'sell' : 'buy') &&
               parseFinitePositive(order.size) === liveMagnitude;
             return (

@@ -164,3 +164,5 @@ deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+
+Managed Lighter TP/SL removal does not require an integerizable position quantity after preflight: exact recorded protection IDs can still be cancelled when an authoritative positions array shows no position, zero size or a size below the tick. Account-read failures or malformed position envelopes still refuse the operation. Unrecorded legacy protection still requires a valid live quantity and side for classification; replacement retains its size and side checks.

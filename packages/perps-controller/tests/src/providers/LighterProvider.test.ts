@@ -6100,6 +6100,202 @@ describe('LighterProvider', () => {
       },
     );
 
+    it.each(['absent', 'zero', 'subtick'] as const)(
+      'removes only durable managed protection after live position becomes %s',
+      async (state) => {
+        const infra = createMockInfrastructure();
+        const { provider, clientInstance, bridge, calls } = buildProvider({
+          infra,
+        });
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const managed = { ...venue.rawTriggers[0] };
+        for (const type of ['stop-loss', 'stop-loss-limit', 'limit']) {
+          venue.seedTrigger(type, '85000');
+        }
+        const partial = venue.seedTrigger('take-profit', '110000');
+        const partialRow = venue.rawTriggers.find(
+          (row) => row.orderIndex === partial,
+        );
+        if (!partialRow) {
+          throw new Error('Missing independent order');
+        }
+        partialRow.initialBaseAmount = '0.001';
+        partialRow.remainingBaseAmount = '0.001';
+        const foreign = venue.seedTrigger('stop-loss', '85000');
+        const foreignRow = venue.rawTriggers.find(
+          (row) => row.orderIndex === foreign,
+        );
+        if (!foreignRow) {
+          throw new Error('Missing foreign order');
+        }
+        foreignRow.ownerAccountIndex = 29;
+        const preserved = venue.rawTriggers
+          .filter((row) => row.orderIndex !== managed.orderIndex)
+          .map((row) => ({ ...row }));
+        clientInstance.getAccountByIndex
+          .mockResolvedValueOnce({ code: 200, accounts: [ACCOUNT] })
+          .mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions:
+                  state === 'absent'
+                    ? []
+                    : [
+                        {
+                          ...ACCOUNT.positions[0],
+                          position: state === 'zero' ? '0' : '0.000000001',
+                        },
+                      ],
+              },
+            ],
+          });
+        calls.length = 0;
+        const result = await provider.updatePositionTPSL({ symbol: 'BTC' });
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        expect(
+          calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => String(call.params[2])),
+        ).toStrictEqual([String(managed.orderIndex)]);
+        expect(
+          calls.filter(
+            (call) =>
+              call.function === '_signCreateOrder' ||
+              call.function === '_signCreateGroupedOrders',
+          ),
+        ).toStrictEqual([]);
+        expect(venue.rawTriggers).toStrictEqual(preserved);
+        const ownership = JSON.parse(
+          (await infra.diskCache.getItem(
+            `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`,
+          )) ?? 'null',
+        ) as { orders: unknown[] } | null;
+        expect(ownership?.orders ?? []).toHaveLength(0);
+      },
+    );
+
+    it.each([
+      'read-failure',
+      'missing-positions',
+      'malformed-positions',
+      'wrong-account',
+      'missing-account',
+    ] as const)(
+      'refuses managed removal with %s live account evidence',
+      async (state) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const before = venue.rawTriggers.map((row) => ({ ...row }));
+        clientInstance.getAccountByIndex.mockResolvedValueOnce({
+          code: 200,
+          accounts: [ACCOUNT],
+        });
+        if (state === 'read-failure') {
+          clientInstance.getAccountByIndex.mockRejectedValue(
+            new Error('unavailable'),
+          );
+        } else {
+          const invalidPositions =
+            state === 'missing-positions' ? undefined : {};
+          clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts:
+              state === 'missing-account'
+                ? []
+                : [
+                    {
+                      ...ACCOUNT,
+                      index: state === 'wrong-account' ? 29 : 28,
+                      positions:
+                        state === 'missing-positions' ||
+                        state === 'malformed-positions'
+                          ? invalidPositions
+                          : [],
+                    },
+                  ],
+          });
+        }
+        calls.length = 0;
+        const result = await provider.updatePositionTPSL({ symbol: 'BTC' });
+        expect(result.success).toBe(false);
+        expect(
+          calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(venue.rawTriggers).toStrictEqual(before);
+      },
+    );
+
+    it.each(['absent', 'zero', 'subtick', 'side-drift'] as const)(
+      'still refuses replacement after live position becomes %s',
+      async (state) => {
+        const { provider, clientInstance, bridge, calls } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        expect(
+          (
+            await provider.updatePositionTPSL({
+              symbol: 'BTC',
+              stopLossPrice: '90000',
+            })
+          ).success,
+        ).toBe(true);
+        const before = venue.rawTriggers.map((row) => ({ ...row }));
+        clientInstance.getAccountByIndex
+          .mockResolvedValueOnce({ code: 200, accounts: [ACCOUNT] })
+          .mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions:
+                  state === 'absent'
+                    ? []
+                    : [
+                        {
+                          ...ACCOUNT.positions[0],
+                          position: {
+                            zero: '0',
+                            subtick: '0.000000001',
+                            absent: '0.1',
+                            'side-drift': '0.1',
+                          }[state],
+                          sign: state === 'side-drift' ? -1 : 1,
+                        },
+                      ],
+              },
+            ],
+          });
+        calls.length = 0;
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(false);
+        expect(
+          calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(venue.rawTriggers).toStrictEqual(before);
+      },
+    );
+
     it('accepts legacy GTT trigger-market protection with a restorable wire intent', async () => {
       const { provider, clientInstance, bridge } = buildProvider();
       const venue = setupTriggerVenue(clientInstance, bridge);
