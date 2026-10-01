@@ -15,13 +15,14 @@ import {
   createDeferred,
   createKeyringlessMessenger,
   createMockInfrastructure,
+  createMockEvmAccount,
 } from '../helpers/serviceMocks.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider.js');
 jest.mock('../../src/utils/wait.js', () => ({ wait: jest.fn() }));
 
-const ACCOUNT_A = '0x1234567890abcdef1234567890abcdef12345678';
-const ACCOUNT_B = '0xabcdef1234567890abcdef1234567890abcdef1234';
+const ACCOUNT_A = createMockEvmAccount().address;
+const ACCOUNT_B = '0xabcdef1234567890abcdef1234567890abcdef12';
 const LEGACY_ID = '42:nohash';
 
 class RecoveryContextController extends PerpsController {
@@ -172,7 +173,9 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
   });
 
-  it.each(CONTEXT_CHANGES.slice(0, 2))(
+  // Initialization restores its captured provider mode; mode drift is covered
+  // at readiness return and during provider completion instead.
+  it.each(CONTEXT_CHANGES.filter(({ name }) => name !== 'provider mode'))(
     'refuses acknowledgment after $name changes during initialization',
     async ({ change }) => {
       const fixture = createFixture(false);
@@ -253,6 +256,33 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set());
     expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
   });
+
+  it.each(CONTEXT_CHANGES)(
+    'preserves the exact provider rejection after $name changes in flight',
+    async ({ change }) => {
+      const fixture = createFixture();
+      const { controller, acknowledge, ledgers } = fixture;
+      const started = createDeferred<void>();
+      const completion = createDeferred<void>();
+      const failure = new Error('Original provider rejection');
+      acknowledge.mockImplementationOnce(async () => {
+        started.resolve();
+        await completion.promise;
+        throw failure;
+      });
+
+      const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
+      await started.promise;
+      change(fixture);
+      completion.resolve();
+
+      await expect(result).rejects.toBe(failure);
+      expect(acknowledge).toHaveBeenCalledTimes(1);
+      expect(acknowledge).toHaveBeenCalledWith(LEGACY_ID);
+      expect(ledgers.get(ACCOUNT_A)).toStrictEqual(new Set([LEGACY_ID]));
+      expect(ledgers.get(ACCOUNT_B)).toStrictEqual(new Set([LEGACY_ID]));
+    },
+  );
 
   it('preserves provider rejection without clearing either ledger', async () => {
     const { controller, acknowledge, ledgers } = createFixture();
