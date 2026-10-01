@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.1]
+
 ### Changed
 
 - Bump `@metamask/ramps-controller` from `^26.0.1` to `^26.1.0` ([#10569](https://github.com/MetaMask/core/pull/10569))
+- Bump `@metamask/assets-controller` from `^17.0.0` to `^18.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
 
 ## [30.0.0]
 
@@ -1658,7 +1661,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.1...HEAD
+[30.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.0...@metamask/transaction-pay-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.3...@metamask/transaction-pay-controller@30.0.0
 [29.2.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.2...@metamask/transaction-pay-controller@29.2.3
 [29.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.1...@metamask/transaction-pay-controller@29.2.2
