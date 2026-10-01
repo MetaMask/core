@@ -16,6 +16,7 @@ import type {
 } from '../../../src/types/index.js';
 import type {
   LighterSignerBridge,
+  LighterApiOrder,
   LighterSignerOperation,
   LighterSignerResult,
   LighterWasmCall,
@@ -255,6 +256,7 @@ function createMockBridge(): MockBridgeBundle {
           case '_signCreateGroupedOrders': {
             signSequence += 1;
             const groupedHash = `cccc${String(signSequence).padStart(12, '0')}`;
+            const groupedDefaultExpiry = Date.now() + 28 * 24 * 60 * 60 * 1000;
             return {
               txInfo: JSON.stringify({
                 createGroupedOrders: true,
@@ -264,7 +266,7 @@ function createMockBridge(): MockBridgeBundle {
                     ClientOrderIndex: Number(call.params[4 + index * 10]),
                     OrderExpiry:
                       Number(call.params[12 + index * 10]) === -1
-                        ? Date.now() + 28 * 24 * 60 * 60 * 1000
+                        ? groupedDefaultExpiry
                         : Number(call.params[12 + index * 10]),
                   }),
                 ),
@@ -624,6 +626,708 @@ const fakeStreamCtor = StreamFakeWebSocket as unknown as LighterWebSocketCtor;
 describe('LighterProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('native attached placement', () => {
+    const attachedIntent: OrderParams = {
+      symbol: 'BTC',
+      isBuy: true,
+      size: '0.001',
+      orderType: 'limit',
+      price: '90000',
+      takeProfitPrice: '110000',
+      stopLossPrice: '80000',
+    };
+    const durableInfrastructure = (): {
+      disk: Map<string, string>;
+      infrastructure: ReturnType<typeof createMockInfrastructure>;
+    } => {
+      const disk = new Map<string, string>();
+      const infrastructure = createMockInfrastructure();
+      jest
+        .mocked(infrastructure.diskCache)
+        .getItem.mockImplementation(async (key) => disk.get(key) ?? null);
+      jest
+        .mocked(infrastructure.diskCache)
+        .setItem.mockImplementation(async (key, value) => {
+          disk.set(key, value);
+        });
+      jest
+        .mocked(infrastructure.diskCache)
+        .removeItem.mockImplementation(async (key) => {
+          disk.delete(key);
+        });
+      return { disk, infrastructure };
+    };
+    const attachedVenue = (
+      bundle: BuiltProvider,
+    ): { active: LighterApiOrder[]; inactive: LighterApiOrder[] } => {
+      const active: LighterApiOrder[] = [];
+      const inactive: LighterApiOrder[] = [];
+      bundle.clientInstance.getActiveOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: [...active],
+      }));
+      bundle.clientInstance.getInactiveOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: [...inactive],
+      }));
+      bundle.clientInstance.sendTx.mockImplementation(async (kind: number) => {
+        if (kind === 28) {
+          const call = bundle.calls
+            .filter((entry) => entry.function === '_signCreateGroupedOrders')
+            .at(-1);
+          if (call?.function !== '_signCreateGroupedOrders') {
+            throw new Error('Missing grouped signature');
+          }
+          for (let index = 0; index < call.params[2]; index += 1) {
+            const offset = 3 + index * 10;
+            active.push({
+              orderIndex: 500 + index,
+              clientOrderIndex: Number(call.params[offset + 1]),
+              marketIndex: 1,
+              ownerAccountIndex: 28,
+              initialBaseAmount: String(
+                Number(call.params[offset + 2]) / 100000,
+              ),
+              remainingBaseAmount: String(
+                Number(call.params[offset + 2]) / 100000,
+              ),
+              price: String(Number(call.params[offset + 3]) / 10),
+              isAsk: call.params[offset + 4] === 1,
+              type: [
+                'limit',
+                'market',
+                'stop-loss',
+                'stop-loss-limit',
+                'take-profit',
+                'take-profit-limit',
+              ][Number(call.params[offset + 5])],
+              timeInForce:
+                call.params[offset + 6] === 1
+                  ? 'good-till-time'
+                  : 'immediate-or-cancel',
+              reduceOnly: Number(call.params[offset + 7]),
+              triggerPrice: String(Number(call.params[offset + 8]) / 10),
+              status: index === 0 ? 'open' : 'pending',
+              orderExpiry: Date.now() + 1000000,
+              timestamp: Math.floor(Date.now() / 1000),
+              ...(index === 0
+                ? { toTriggerOrderId0: '501', toTriggerOrderId1: '502' }
+                : { parentOrderIndex: 500 }),
+            });
+          }
+        } else if (kind === 15) {
+          const call = bundle.calls
+            .filter((entry) => entry.function === '_signCancelOrder')
+            .at(-1);
+          const index = active.findIndex(
+            (row) => String(row.orderIndex) === call?.params[2],
+          );
+          if (index >= 0) {
+            const [row] = active.splice(index, 1);
+            inactive.push({
+              ...row,
+              status: 'canceled',
+              remainingBaseAmount: '0',
+            });
+          }
+        }
+        return { code: 200, txHash: 'aabbcc', predictedExecutionTimeMs: 100 };
+      });
+      return { active, inactive };
+    };
+
+    it('persists unsigned parent and child identities before signing, then lists them after restart in another slot', async () => {
+      const { infrastructure, disk } = durableInfrastructure();
+      const first = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const execute = jest.mocked(first.bridge).execute.getMockImplementation();
+      if (!execute) {
+        throw new Error('Missing mock signer');
+      }
+      let storedBeforeSigning: {
+        submission: string;
+        txHash: null;
+        orders: unknown[][];
+      }[] = [];
+      jest.mocked(first.bridge).execute.mockImplementation(async (call) => {
+        if (call.function === '_signCreateGroupedOrders') {
+          const stored = [...disk.entries()].find(([key]) =>
+            key.startsWith('lighterAttachedOrders:'),
+          );
+          storedBeforeSigning = JSON.parse(
+            stored?.[1] ?? '[]',
+          ) as typeof storedBeforeSigning;
+        }
+        return execute(call);
+      });
+      const result = await first.provider.placeOrder(attachedIntent);
+      expect(result.error).toBeUndefined();
+      expect(result.attachedOrderGroup?.submission).toBe('accepted');
+      expect(storedBeforeSigning).toHaveLength(1);
+      expect(storedBeforeSigning[0].submission).toBe('prepared');
+      expect(storedBeforeSigning[0].txHash).toBeNull();
+      expect(
+        storedBeforeSigning[0].orders.map((order) => order[8]),
+      ).toStrictEqual(['0', '1100000', '800000']);
+      const second = buildProvider({
+        platformDependencies: infrastructure,
+        apiKeyIndex: 8,
+      });
+      expect(await second.provider.getAttachedOrderGroups()).toStrictEqual([
+        result.attachedOrderGroup,
+      ]);
+      expect(second.calls).toHaveLength(0);
+      expect(second.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('retains unknown acceptance and blocks replay across restart and trading-key migration', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const first = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      first.clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('response lost'),
+      );
+      const result = await first.provider.placeOrder(attachedIntent);
+      expect(result.success).toBe(false);
+      expect(result.attachedOrderGroup?.submission).toBe('unknown');
+      const second = buildProvider({
+        platformDependencies: infrastructure,
+        apiKeyIndex: 8,
+        registeredKey: '9c'.repeat(40),
+      });
+      expect((await second.provider.getAttachedOrderGroups())[0].groupId).toBe(
+        result.attachedOrderGroup?.groupId,
+      );
+      const retry = await second.provider.placeOrder(attachedIntent);
+      expect(retry.success).toBe(false);
+      expect(
+        second.calls.filter(
+          (call) => call.function === '_signCreateGroupedOrders',
+        ),
+      ).toHaveLength(0);
+      expect(second.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it.each(['signing', 'prepared-storage', 'unknown-storage'] as const)(
+      'refuses dispatch after account A-to-B-to-A during %s',
+      async (boundary) => {
+        const { infrastructure } = durableInfrastructure();
+        const bundle = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        const held = createDeferred<void>();
+        const entered = createDeferred<void>();
+        const execute = jest
+          .mocked(bundle.bridge)
+          .execute.getMockImplementation();
+        if (!execute) {
+          throw new Error('Missing mock signer');
+        }
+        const write = jest
+          .mocked(infrastructure.diskCache)
+          .setItem.getMockImplementation();
+        if (!write) {
+          throw new Error('Missing mock storage');
+        }
+        jest.mocked(bundle.bridge).execute.mockImplementation(async (call) => {
+          const result = await execute(call);
+          if (
+            boundary === 'signing' &&
+            call.function === '_signCreateGroupedOrders'
+          ) {
+            entered.resolve();
+            await held.promise;
+          }
+          return result;
+        });
+        jest
+          .mocked(infrastructure.diskCache)
+          .setItem.mockImplementation(async (key, value) => {
+            await write(key, value);
+            if (
+              key.startsWith('lighterAttachedOrders:') &&
+              value.includes(
+                `"submission":"${boundary === 'prepared-storage' ? 'prepared' : 'unknown'}"`,
+              ) &&
+              boundary !== 'signing'
+            ) {
+              entered.resolve();
+              await held.promise;
+            }
+          });
+        const pending = bundle.provider.placeOrder(attachedIntent);
+        await entered.promise;
+        bundle.getUserAddressMock.mockReturnValue(
+          '0x1111111111111111111111111111111111111111',
+        );
+        await expect(bundle.provider.getAttachedOrderGroups()).rejects.toThrow(
+          'not owned',
+        );
+        bundle.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+        await bundle.provider.getAttachedOrderGroups();
+        held.resolve();
+        const result = await pending;
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('cancelled');
+        expect(bundle.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('fails closed when durable intent storage fails before grouped signing', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const write = jest
+        .mocked(infrastructure.diskCache)
+        .setItem.getMockImplementation();
+      if (!write) {
+        throw new Error('Missing mock storage');
+      }
+      jest
+        .mocked(infrastructure.diskCache)
+        .setItem.mockImplementation(async (key, value) => {
+          if (key.startsWith('lighterAttachedOrders:')) {
+            throw new Error('disk full');
+          }
+          await write(key, value);
+        });
+      const result = await bundle.provider.placeOrder(attachedIntent);
+      expect(result.error).toContain('disk full');
+      expect(
+        bundle.calls.filter(
+          (call) => call.function === '_signCreateGroupedOrders',
+        ),
+      ).toHaveLength(0);
+      expect(bundle.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('reviews waiting children and a partially filled parent using exact identities and linkage', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      await bundle.provider.placeOrder(attachedIntent);
+      venue.active[0].filledBaseAmount = '0.0004';
+      venue.active[0].remainingBaseAmount = '0.0006';
+      const writes = bundle.clientInstance.sendTx.mock.calls.length;
+      const result = await bundle.provider.reviewAttachedOrderGroups();
+      expect(result[0]).toMatchObject({
+        linkage: 'confirmed',
+        parentOrderId: '500',
+        childOrderIds: ['501', '502'],
+      });
+      expect(result[0].orders?.map((order) => order.status)).toStrictEqual([
+        'partially-filled',
+        'waiting',
+        'waiting',
+      ]);
+      expect(result[0].orders?.[0].filledSize).toBe('0.0004');
+      expect(bundle.clientInstance.sendTx).toHaveBeenCalledTimes(writes);
+    });
+
+    it('does not confirm contradictory parent linkage even when the parent lists the child', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      await bundle.provider.placeOrder(attachedIntent);
+      venue.active[1].parentOrderIndex = 999;
+      const review = await bundle.provider.reviewAttachedOrderGroups();
+      expect(review[0].linkage).toBe('unknown');
+    });
+
+    it('keeps missing children unknown instead of using an unrelated new trigger', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      await bundle.provider.placeOrder(attachedIntent);
+      venue.active[1].clientOrderIndex += 1;
+      venue.active[1].orderIndex = 999;
+      const result = await bundle.provider.reviewAttachedOrderGroups();
+      expect(result[0].orders?.[1]).toMatchObject({ status: 'unknown' });
+      expect(result[0].childOrderIds).toBeUndefined();
+      expect(result[0].linkage).toBe('unknown');
+    });
+
+    it('cancels only the exact owned parent and children, preserving an unrelated trigger', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      const placed = await bundle.provider.placeOrder(attachedIntent);
+      venue.active.push({
+        ...venue.active[1],
+        orderIndex: 999,
+        clientOrderIndex: 12345,
+        parentOrderIndex: undefined,
+      });
+      venue.active[0].filledBaseAmount = '0.0004';
+      venue.active[0].remainingBaseAmount = '0.0006';
+      const result = await bundle.provider.cancelOrder({
+        symbol: 'BTC',
+        orderId: placed.attachedOrderGroup?.groupId ?? '',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      expect(
+        bundle.calls
+          .filter((call) => call.function === '_signCancelOrder')
+          .map((call) => call.params[2]),
+      ).toStrictEqual(['500', '501', '502']);
+      expect(venue.active.map((row) => row.orderIndex)).toStrictEqual([999]);
+      expect(
+        (await bundle.provider.getAttachedOrderGroups())[0].submission,
+      ).toBe('canceled');
+    });
+
+    it('refuses a group cancellation with missing owned identities before cancel signing', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      const placed = await bundle.provider.placeOrder(attachedIntent);
+      venue.active.pop();
+      const result = await bundle.provider.cancelOrder({
+        symbol: 'BTC',
+        orderId: placed.attachedOrderGroup?.groupId ?? '',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('unresolved');
+      expect(
+        bundle.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(venue.active).toHaveLength(2);
+    });
+
+    it('retains prepared intent after signer failure and requires explicit abandonment before a fresh placement', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const first = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const execute = jest.mocked(first.bridge).execute.getMockImplementation();
+      if (!execute) {
+        throw new Error('Missing signer');
+      }
+      jest.mocked(first.bridge).execute.mockImplementation(async (call) => {
+        if (call.function === '_signCreateGroupedOrders') {
+          throw new Error('signer interrupted');
+        }
+        return execute(call);
+      });
+      const failed = await first.provider.placeOrder(attachedIntent);
+      expect(failed.attachedOrderGroup?.submission).toBe('prepared');
+      expect(first.clientInstance.sendTx).not.toHaveBeenCalled();
+      const second = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      expect((await second.provider.placeOrder(attachedIntent)).success).toBe(
+        false,
+      );
+      expect(
+        second.calls.filter(
+          (call) => call.function === '_signCreateGroupedOrders',
+        ),
+      ).toHaveLength(0);
+      const canceled = await second.provider.cancelOrder({
+        symbol: 'BTC',
+        orderId: failed.attachedOrderGroup?.groupId ?? '',
+      });
+      expect(canceled.success).toBe(true);
+      expect(
+        second.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect((await second.provider.placeOrder(attachedIntent)).success).toBe(
+        true,
+      );
+      expect(
+        second.calls.filter(
+          (call) => call.function === '_signCreateGroupedOrders',
+        ),
+      ).toHaveLength(1);
+    });
+
+    it('does not cancel again when parent cancellation already canceled its children', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      const placed = await bundle.provider.placeOrder(attachedIntent);
+      const send = bundle.clientInstance.sendTx.getMockImplementation();
+      if (!send) {
+        throw new Error('Missing venue');
+      }
+      bundle.clientInstance.sendTx.mockImplementation(async (kind: number) => {
+        const result: unknown = await send(kind);
+        if (kind === 15) {
+          venue.inactive.push(
+            ...venue.active.splice(0).map((row) => ({
+              ...row,
+              status: 'canceled-child',
+              remainingBaseAmount: '0',
+            })),
+          );
+        }
+        return result;
+      });
+      const result = await bundle.provider.cancelOrder({
+        symbol: 'BTC',
+        orderId: placed.attachedOrderGroup?.groupId ?? '',
+      });
+      expect(result.success).toBe(true);
+      expect(
+        bundle.calls
+          .filter((call) => call.function === '_signCancelOrder')
+          .map((call) => call.params[2]),
+      ).toStrictEqual(['500']);
+    });
+
+    it('refuses unknown group handles before signer setup', async () => {
+      const bundle = buildProvider();
+      expect(
+        (
+          await bundle.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: 'lighter-attached:other-account',
+          })
+        ).success,
+      ).toBe(false);
+      expect(bundle.calls).toHaveLength(0);
+    });
+
+    it('retains accepted ownership when post-dispatch persistence fails', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const write = jest
+        .mocked(infrastructure.diskCache)
+        .setItem.getMockImplementation();
+      if (!write) {
+        throw new Error('Missing storage');
+      }
+      jest
+        .mocked(infrastructure.diskCache)
+        .setItem.mockImplementation(async (key, value) => {
+          if (
+            key.startsWith('lighterAttachedOrders:') &&
+            value.includes('"submission":"accepted"')
+          ) {
+            throw new Error('post-send disk failure');
+          }
+          await write(key, value);
+        });
+      const placed = await bundle.provider.placeOrder(attachedIntent);
+      expect(placed.success).toBe(false);
+      expect(placed.attachedOrderGroup?.submission).toBe('accepted');
+      const second = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      expect(
+        (await second.provider.getAttachedOrderGroups())[0].submission,
+      ).toBe('unknown');
+      expect((await second.provider.placeOrder(attachedIntent)).success).toBe(
+        false,
+      );
+      expect(
+        second.calls.filter(
+          (call) => call.function === '_signCreateGroupedOrders',
+        ),
+      ).toHaveLength(0);
+    });
+
+    it('does not erase accepted live children when acceptance persistence failed and transaction history later omits the hash', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      const write = jest
+        .mocked(infrastructure.diskCache)
+        .setItem.getMockImplementation();
+      if (!write) {
+        throw new Error('Missing storage');
+      }
+      jest
+        .mocked(infrastructure.diskCache)
+        .setItem.mockImplementation(async (key, value) => {
+          if (
+            key.startsWith('lighterAttachedOrders:') &&
+            value.includes('"submission":"accepted"')
+          ) {
+            throw new Error('post-send disk failure');
+          }
+          await write(key, value);
+        });
+      const placed = await bundle.provider.placeOrder(attachedIntent);
+      const now = Date.now();
+      const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 700000);
+      try {
+        const result = await bundle.provider.cancelOrder({
+          symbol: 'BTC',
+          orderId: placed.attachedOrderGroup?.groupId ?? '',
+        });
+        expect(result.success).toBe(true);
+        expect(venue.active).toHaveLength(0);
+        expect(
+          bundle.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => call.params[2]),
+        ).toStrictEqual(['500', '501', '502']);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it('preserves activated attached children during position protection removal', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const bundle = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(bundle);
+      await bundle.provider.placeOrder(attachedIntent);
+      for (const child of venue.active.slice(1)) {
+        child.initialBaseAmount = '0.1';
+        child.remainingBaseAmount = '0.1';
+        child.status = 'open';
+      }
+      const removed = await bundle.provider.updatePositionTPSL({
+        symbol: 'BTC',
+      });
+      expect(removed.error).toBeUndefined();
+      expect(removed.success).toBe(true);
+      expect(
+        bundle.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(venue.active.map((row) => row.orderIndex)).toStrictEqual([
+        500, 501, 502,
+      ]);
+    });
+
+    it('keeps lifecycle guarantees pending in capabilities', async () => {
+      const { provider } = buildProvider();
+      const result = await provider.getOrderCapabilities({ symbol: 'BTC' });
+      expect(result.status).toBe('ready');
+      expect(result).toMatchObject({
+        attachedTpsl: {
+          lifecycleVerification: 'pending',
+          partialSizes: false,
+          childCoverage: 'venue-native-zero-size',
+        },
+      });
+    });
+
+    it.each([
+      ['market', undefined, { stopLossPrice: '80000' }, 1, 2],
+      ['market', undefined, { takeProfitPrice: '110000' }, 1, 2],
+      ['limit', undefined, { stopLossPrice: '80000' }, 1, 2],
+      ['limit', 'IOC', { takeProfitPrice: '110000' }, 1, 2],
+      [
+        'market',
+        undefined,
+        { takeProfitPrice: '110000', stopLossPrice: '80000' },
+        3,
+        3,
+      ],
+      [
+        'limit',
+        undefined,
+        { takeProfitPrice: '110000', stopLossPrice: '80000' },
+        3,
+        3,
+      ],
+    ] as const)(
+      'signs one native %s group with %s and %j',
+      async (orderType, timeInForce, triggers, grouping, count) => {
+        const { provider, calls, clientInstance } = buildProvider();
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType,
+          price: '90000',
+          timeInForce,
+          ...triggers,
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        const groups = calls.filter(
+          (call) => call.function === '_signCreateGroupedOrders',
+        );
+        expect(groups).toHaveLength(1);
+        expect(groups[0].params).toHaveLength(4 + count * 10);
+        expect(groups[0].params.slice(1, 3)).toStrictEqual([grouping, count]);
+        expect(groups[0].params[5]).toBe('100');
+        for (let child = 1; child < count; child += 1) {
+          expect(groups[0].params[5 + child * 10]).toBe('0');
+          expect(groups[0].params[7 + child * 10]).toBe(1);
+          expect(groups[0].params[10 + child * 10]).toBe(1);
+        }
+        expect(
+          calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(0);
+        expect(
+          clientInstance.sendTx.mock.calls.filter(([kind]) => kind === 28),
+        ).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      { takeProfitSize: '0.0005' },
+      { stopLossSize: '0' },
+      { tpslLinkage: 'position' },
+      { tpslLinkage: 'none' },
+      { grouping: 'positionTpsl' },
+      { takeProfitPrice: '' },
+      { takeProfitPrice: '110000.01' },
+      { reduceOnly: true },
+      { clientOrderId: 'explicit-caller-id' },
+    ] as const)(
+      'rejects unsupported attached intent before signer setup: %j',
+      async (invalid) => {
+        const { provider, calls, clientInstance } = buildProvider();
+        const params: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+          takeProfitPrice: '110000',
+          ...invalid,
+        };
+        expect((await provider.validateOrder(params)).isValid).toBe(false);
+        expect((await provider.placeOrder(params)).success).toBe(false);
+        expect(calls).toHaveLength(0);
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('lifecycle', () => {
@@ -1685,7 +2389,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it('reports only native standalone trigger support for a known active market', async () => {
+    it('reports native trigger support and pending attached lifecycle verification for a known active market', async () => {
       const { provider, calls } = buildProvider();
 
       const capabilities = await provider.getOrderCapabilities({
@@ -1696,6 +2400,13 @@ describe('LighterProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
+        attachedTpsl: {
+          submission: 'native-oto-otoco',
+          childCoverage: 'venue-native-zero-size',
+          partialSizes: false,
+          lifecycleVerification: 'pending',
+          cancellation: 'explicit-exact-owned-orders',
+        },
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -2203,7 +2914,7 @@ describe('LighterProvider', () => {
       expect(baseAmount).toBe('20');
     });
 
-    it('rejects non-positive sizes and attached TP/SL', async () => {
+    it('rejects non-positive sizes and partial attached TP/SL', async () => {
       const { provider } = buildProvider();
       const negative = await provider.placeOrder({
         symbol: 'BTC',
@@ -2222,9 +2933,10 @@ describe('LighterProvider', () => {
         orderType: 'limit',
         price: '90000',
         takeProfitPrice: '100000',
+        takeProfitSize: '0.0005',
       });
       expect(withTpsl.success).toBe(false);
-      expect(withTpsl.error).toContain('updatePositionTPSL');
+      expect(withTpsl.error).toContain('explicit child sizes');
     });
 
     it('allows a below-maker-minimum market partial close without bumping it', async () => {

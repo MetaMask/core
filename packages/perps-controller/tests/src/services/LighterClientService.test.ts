@@ -308,6 +308,65 @@ describe('LighterClientService', () => {
       timestamp: 1700000000,
     };
 
+    it.each(['getActiveOrders', 'getInactiveOrders'] as const)(
+      'accepts zero native attached children with explicit parent linkage through %s',
+      async (method) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            orders: [
+              {
+                ...order,
+                initial_base_amount: '0',
+                remaining_base_amount: '0',
+                type: 'stop-loss',
+                reduce_only: 1,
+                parent_order_index: 100,
+                trigger_price: '80000',
+                status: 'pending',
+              },
+            ],
+          }),
+        );
+        const result = await buildService()[method](28, 'auth-token');
+        expect(result.orders[0]).toMatchObject({
+          initialBaseAmount: '0',
+          parentOrderIndex: 100,
+          status: 'pending',
+        });
+      },
+    );
+
+    it.each([
+      { type: 'limit' },
+      { reduce_only: 0 },
+      { parent_order_index: undefined },
+      { parent_order_index: 0 },
+      { initial_base_amount: '-1' },
+    ])('refuses an unproven zero-size child: %j', async (invalid) => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          orders: [
+            {
+              ...order,
+              initial_base_amount: '0',
+              remaining_base_amount: '0',
+              type: 'stop-loss',
+              reduce_only: 1,
+              parent_order_index: 100,
+              trigger_price: '80000',
+              status: 'pending',
+              ...invalid,
+            },
+          ],
+        }),
+      );
+      await expect(
+        buildService().getActiveOrders(28, 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
+    });
+
     it.each(['0', '0.2', undefined])(
       'accepts reported filled amount %s',
       async (filledBaseAmount) => {

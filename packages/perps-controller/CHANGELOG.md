@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add native Lighter parent orders with attached TP/SL through OTO and OTOCO groups, durable parent/child identities, local `getAttachedOrderGroups`, explicit read-only `reviewAttachedOrderGroups`, and exact group cancellation. Explicit partial child sizes and position linkage remain unsupported; activation, partial-fill coverage and automatic cancellation guarantees remain unverified.
+
 - Support fixed partial Lighter position protection with single triggers or equal-quantity OCO pairs. Cancel managed protection before replacement, preserve interrupted intent for explicit recovery, and report provider coverage and linkage capabilities.
 
 - Add strict provider-scoped `reviewRecoveryVenue` and explicit `resolveRecoveryProtection` controller/provider capabilities, including opaque manual-obligation identities, original-slot reconciliation and durable source-to-successor protection settlement. Review uses matching registered read authority without registration or financial writes; unsupported providers report a distinct capability result. Manual and dispatch rows expose optional provider, wallet and network metadata; aggregate rows carry their owning provider. Ordinary protection changes refuse pending selected transfers across trading slots. Pending or unknown transaction statuses remain unresolved even when order books already match; executed (2), pending-final (3) with matching books, or definitive failure resolves them.

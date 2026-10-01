@@ -1,6 +1,9 @@
 import type {
   DirectProviderOrderCapabilities,
   LighterWasmCall,
+  AttachedOrderGroup,
+  PerpsControllerGetAttachedOrderGroupsAction,
+  PerpsControllerReviewAttachedOrderGroupsAction,
   TriggerOrderType,
   PerpsRecoveredDispatch,
   PerpsRecoveryVenueReview,
@@ -205,4 +208,25 @@ export type GroupedSigningConsumerContracts = [
   AssertTrue<RejectsParams<[number, 1, 2, ...WireOrder, ...WireOrder, string]>>,
   AssertTrue<RejectsParams<[number, 1, 2, ...WireOrder, number]>>,
   AssertTrue<RejectsParams<(number | string)[]>>,
+];
+
+export type AttachedGroupConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetAttachedOrderGroupsAction['handler']>,
+      Promise<AttachedOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReviewAttachedOrderGroupsAction['handler']>,
+      Promise<AttachedOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AttachedOrderGroup['submission'],
+      'prepared' | 'unknown' | 'accepted' | 'canceled'
+    >
+  >,
 ];

@@ -231,30 +231,53 @@ const MarketDetailStruct = refine(
   'positive margin fractions for tradable markets',
   hasValidMarketMarginFractions,
 );
-const OrderStruct = type({
-  orderIndex: NonNegativeIntegerStruct,
-  clientOrderIndex: NonNegativeIntegerStruct,
-  marketIndex: NonNegativeIntegerStruct,
-  ownerAccountIndex: NonNegativeIntegerStruct,
-  initialBaseAmount: PositiveDecimalStringStruct,
-  remainingBaseAmount: NonNegativeDecimalStringStruct,
-  filledBaseAmount: optional(NonNegativeDecimalStringStruct),
-  price: PositiveDecimalStringStruct,
-  isAsk: boolean(),
-  type: string(),
-  timeInForce: string(),
-  reduceOnly: union([FiniteNumberStruct, boolean()]),
-  status: string(),
-  orderExpiry: SafeIntegerStruct,
-  timestamp: NonNegativeIntegerStruct,
-  triggerPrice: optional(NonNegativeDecimalStringStruct),
-  orderId: optional(string()),
-  parentOrderIndex: optional(NonNegativeIntegerStruct),
-  parentOrderId: optional(string()),
-  toCancelOrderId0: optional(string()),
-  toTriggerOrderId0: optional(string()),
-  toTriggerOrderId1: optional(string()),
-});
+const OrderStruct = refine(
+  type({
+    orderIndex: NonNegativeIntegerStruct,
+    clientOrderIndex: NonNegativeIntegerStruct,
+    marketIndex: NonNegativeIntegerStruct,
+    ownerAccountIndex: NonNegativeIntegerStruct,
+    initialBaseAmount: NonNegativeDecimalStringStruct,
+    remainingBaseAmount: NonNegativeDecimalStringStruct,
+    filledBaseAmount: optional(NonNegativeDecimalStringStruct),
+    price: PositiveDecimalStringStruct,
+    isAsk: boolean(),
+    type: string(),
+    timeInForce: string(),
+    reduceOnly: union([FiniteNumberStruct, boolean()]),
+    status: string(),
+    orderExpiry: SafeIntegerStruct,
+    timestamp: NonNegativeIntegerStruct,
+    triggerPrice: optional(NonNegativeDecimalStringStruct),
+    orderId: optional(string()),
+    parentOrderIndex: optional(NonNegativeIntegerStruct),
+    parentOrderId: optional(string()),
+    toCancelOrderId0: optional(string()),
+    toTriggerOrderId0: optional(string()),
+    toTriggerOrderId1: optional(string()),
+  }),
+  'positive order size or explicitly linked zero-size reduce-only trigger',
+  (order) => {
+    if (Number(order.initialBaseAmount) > 0) {
+      return true;
+    }
+    const hasParent =
+      (order.parentOrderIndex !== undefined && order.parentOrderIndex > 0) ||
+      (typeof order.parentOrderId === 'string' &&
+        /^[1-9]\d*$/u.test(order.parentOrderId));
+    return (
+      hasParent &&
+      (order.reduceOnly === 1 || order.reduceOnly === true) &&
+      [
+        'stop-loss',
+        'stop-loss-limit',
+        'take-profit',
+        'take-profit-limit',
+      ].includes(order.type) &&
+      Number(order.triggerPrice) > 0
+    );
+  },
+);
 const TradeStruct = type({
   tradeId: NonNegativeIntegerStruct,
   txHash: string(),
