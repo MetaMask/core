@@ -386,11 +386,6 @@ const config = {
   overrides: [
     { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
     {
-      pattern: '/oxlint-suppressions.json',
-      owners: ['@MetaMask/core-platform'],
-    },
-    { pattern: '/tsc-suppressions.json', owners: ['@MetaMask/core-platform'] },
-    {
       pattern: '/packages/eth-json-rpc-middleware/src/methods',
       owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
