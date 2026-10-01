@@ -1,4 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type {
+  DerivedIdentitiesResponse,
+  DerivedIdentity,
+} from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -15,10 +19,6 @@ import type {
 import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type {
-  DerivedIdentitiesResponse,
-  DerivedIdentity,
-} from './chomp-api-service-derived-identities.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from './money-account-lifecycle-controller.js';
@@ -34,12 +34,14 @@ const SFA_IDENTITY: DerivedIdentity = {
   currentAddress: MONEY_ACCOUNT_ADDRESS,
   previousAddresses: [],
   status: 'DONE',
+  migration: null,
 };
 
 const MFA_IDENTITY: DerivedIdentity = {
   currentAddress: SUCCESSOR_ADDRESS,
   previousAddresses: [MONEY_ACCOUNT_ADDRESS],
   status: 'DONE',
+  migration: null,
 };
 
 describe('MoneyAccountLifecycleController', () => {
@@ -325,6 +327,21 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
+    it('reports an error and does not record anything when the money account cannot be read', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const error = new Error('Money account unavailable');
+        mocks.getMoneyAccount.mockImplementation(() => {
+          throw error;
+        });
+
+        await init();
+
+        expect(controller.state.moneyAccounts).toStrictEqual({});
+        expect(mocks.getRegistrationStatus).not.toHaveBeenCalled();
+        expect(mocks.captureException).toHaveBeenCalledWith(error);
+      });
+    });
+
     it('records a valid SFA without switching to the MPC keyring', async () => {
       await withController(async ({ controller, mocks, init }) => {
         await init();
@@ -355,22 +372,35 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('reports an error and does not record anything when the lifecycle cannot be determined', async () => {
+    it('records a valid MFA and switches to the MPC keyring when its identity is migrating to a further address', async () => {
+      const migratingIdentity: DerivedIdentity = {
+        ...MFA_IDENTITY,
+        status: 'MIGRATING',
+        migration: {
+          from: SUCCESSOR_ADDRESS,
+          to: '0x00000000000000000000000000000000000000cc',
+          requiredSteps: ['ROOT_DELEGATION'],
+          completedSteps: [],
+          missingSteps: ['ROOT_DELEGATION'],
+        },
+      };
+
       await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [{ ...MFA_IDENTITY, status: 'MIGRATING' }],
+          identities: [migratingIdentity],
         });
 
         await init();
 
-        expect(controller.state.moneyAccounts).toStrictEqual({});
-        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
-        expect(mocks.getRegistrationStatus).not.toHaveBeenCalled();
-        expect(mocks.captureException).toHaveBeenCalledWith(
-          new Error(
-            `Money account ${MONEY_ACCOUNT_ADDRESS} is a previous address of a derived identity with status 'MIGRATING'`,
-          ),
-        );
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'mfa',
+          identity: migratingIdentity,
+        });
+        expect(mocks.useMpcKeyring).toHaveBeenCalledWith({
+          moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
+          mpcAddress: SUCCESSOR_ADDRESS,
+        });
+        expect(mocks.captureException).not.toHaveBeenCalled();
       });
     });
 
@@ -419,6 +449,7 @@ describe('MoneyAccountLifecycleController', () => {
         currentAddress: newSuccessorAddress,
         previousAddresses: [MONEY_ACCOUNT_ADDRESS, SUCCESSOR_ADDRESS],
         status: 'DONE',
+        migration: null,
       };
 
       await withController(async ({ controller, mocks, init, refetch }) => {

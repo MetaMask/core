@@ -5,6 +5,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../chomp-api-service"
+    },
+    {
       "path": "../messenger"
     },
     {

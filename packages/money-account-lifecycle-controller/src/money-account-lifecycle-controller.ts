@@ -4,6 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  ChompApiServiceGetDerivedIdentitiesAction,
+  DerivedIdentity,
+} from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -24,10 +28,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
-import type {
-  ChompApiServiceGetDerivedIdentitiesAction,
-  DerivedIdentity,
-} from './chomp-api-service-derived-identities.js';
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountControllerUseMpcKeyringAction } from './money-account-controller-mpc-keyring.js';
