@@ -3961,8 +3961,11 @@ export class PerpsController extends BaseController<
    * (previously ambiguous submissions later resolved). Providers without
    * durable dispatch state return an empty list. Lighter scans the bounded
    * local trading-slot range, including skipped keys, without signing or
-   * changing quarantine. This works before initialization and after failure;
-   * an in-flight selection settles first. Preserve opaque recovery IDs exactly.
+   * changing quarantine. After controller initialization, this works before
+   * Lighter signer initialization and after signer setup failure; an in-flight
+   * selection settles first. Preserve opaque recovery IDs exactly. Raw pending
+   * dispatches report unknown with acknowledgeable:false and cannot be cleared
+   * by acknowledgment. Financial writes reconcile and fence all account slots.
    *
    * @returns Pending recovered-dispatch outcomes, with their original key slot
    * when supplied by the provider.

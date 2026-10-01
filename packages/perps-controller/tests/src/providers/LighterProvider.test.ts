@@ -2336,6 +2336,116 @@ describe('LighterProvider', () => {
       },
     );
 
+    it.each([false, true])(
+      'invalidates fills replay for null rows after populated=%s snapshot',
+      async (populated) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        const unsubscribe = provider.subscribeToOrderFills({
+          callback: jest.fn(),
+        });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        const trade = {
+          trade_id: 1,
+          market_id: 1,
+          size: '0.001',
+          price: '90000',
+          ask_id: 1,
+          bid_id: 2,
+          ask_account_id: 28,
+          bid_account_id: 7,
+          is_maker_ask: false,
+          timestamp: 1700000000000,
+          taker_position_size_before: '0',
+        };
+        socket.receive({
+          type: 'subscribed/account_all_trades',
+          trades: populated ? { '1': [trade] } : {},
+        });
+        socket.receive({
+          type: 'update/account_all_trades',
+          trades: { '1': [null] },
+        });
+        const late = jest.fn();
+        const stop = provider.subscribeToOrderFills({ callback: late });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(late).not.toHaveBeenCalled();
+        stop();
+        unsubscribe();
+        await provider.disconnect();
+      },
+    );
+
+    it.each([true, [], { '1': false }, { '1': [null] }])(
+      'rejects malformed order containers %j before late replay',
+      async (orders) => {
+        const { provider } = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+        });
+        const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        socket.receive({ type: 'subscribed/account_all_orders', orders });
+        const late = jest.fn();
+        const stop = provider.subscribeToOrders({ callback: late });
+        expect(late).not.toHaveBeenCalled();
+        stop();
+        unsubscribe();
+        await provider.disconnect();
+      },
+    );
+
+    it.each(['account', 'auth'])(
+      'isolates throwing error subscribers on %s setup failure and retries',
+      async (stage) => {
+        const built = buildProvider({
+          webSocketCtor: fakeCtor,
+          registeredKey: '9c'.repeat(40),
+          configuredAccountIndex: null,
+        });
+        if (stage === 'account') {
+          built.clientInstance.getAccountsByL1Address.mockRejectedValue(
+            new Error('setup failed'),
+          );
+        } else {
+          built.clientInstance.getApiKeys.mockRejectedValue(
+            new Error('setup failed'),
+          );
+        }
+        const stopFirst = built.provider.subscribeToOrders({
+          callback: jest.fn(),
+          onError: () => {
+            throw new Error('listener failed');
+          },
+        });
+        const sibling = jest.fn();
+        const stopSibling = built.provider.subscribeToOrderFills({
+          callback: jest.fn(),
+          onError: sibling,
+        });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(sibling).toHaveBeenCalled();
+        sibling.mockClear();
+        const retry = built.provider.subscribeToOrders({ callback: jest.fn() });
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(sibling).toHaveBeenCalled();
+        retry();
+        stopSibling();
+        stopFirst();
+        await built.provider.disconnect();
+      },
+    );
+
     it('replays the newest 100 unique fills after a repeated fill and older delta', async () => {
       const { provider } = buildProvider({
         webSocketCtor: fakeCtor,
@@ -4575,7 +4685,7 @@ describe('LighterProvider', () => {
       });
     };
 
-    it('journals are bound to the API key slot: another slot neither consumes nor is blocked by them', async () => {
+    it('preserves original-slot journals while their unresolved dispatch blocks another slot', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
       (infra.diskCache.getItem as jest.Mock).mockImplementation(
@@ -4606,7 +4716,7 @@ describe('LighterProvider', () => {
       );
       expect(journalKeys.some((key) => key.includes(':7:'))).toBe(true);
       // A slot-8 provider (same account, shared disk) must not load,
-      // clear, or be blocked by the slot-7 journal.
+      // clear the slot-7 journal; its unresolved dispatch blocks new writes.
       const slot8 = buildProvider({
         platformDependencies: infra,
         apiKeyIndex: 8,
@@ -4617,8 +4727,8 @@ describe('LighterProvider', () => {
         symbol: 'BTC',
         stopLossPrice: '87000',
       });
-      expect(other.error).toBeUndefined();
-      expect(other.success).toBe(true);
+      expect(other.error).toContain('unresolved outcome');
+      expect(other.success).toBe(false);
       // The slot-7 obligation is untouched.
       expect(
         [...disk.keys()].some(
@@ -11936,7 +12046,17 @@ describe('LighterProvider', () => {
       const pendingRetry = await built.provider.withdraw({ amount: '25' });
       expect(pendingRetry.success).toBe(false);
       expect(pendingRetry.error).toContain('unresolved outcome');
-      expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
+      const pendingOutcomes = await built.provider.getRecoveredDispatches();
+      expect(pendingOutcomes).toHaveLength(1);
+      expect(pendingOutcomes[0]).toMatchObject({
+        outcome: 'unknown',
+        acknowledgeable: false,
+      });
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch(
+          pendingOutcomes[0].recoveryId,
+        ),
+      ).rejects.toThrow('cannot be acknowledged');
       const pendingDoc = JSON.parse(
         (await infra.diskCache.getItem(
           'lighterNonceLedger:testnet:28:7',
@@ -12541,6 +12661,222 @@ describe('LighterProvider', () => {
     },
   );
   describe('account-scoped recovered outcomes', () => {
+    it.each(['hash', 'account', 'slot', 'nonce', 'wallet-switch'])(
+      'refuses previous-slot reconciliation with mismatched %s identity',
+      async (field) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const original = JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [
+            {
+              nonce: 42,
+              txHash: 'beef',
+              expiresAt: 9999999999999,
+              kind: 13,
+              intent: 'withdraw:1',
+              owner: null,
+            },
+          ],
+          recovered: [],
+        });
+        await infra.diskCache.setItem(
+          'lighterNonceLedger:testnet:28:19',
+          original,
+        );
+        built.clientInstance.getTx.mockImplementation(async () => {
+          if (field === 'wallet-switch') {
+            built.getUserAddressMock.mockReturnValue(
+              '0x9999999999999999999999999999999999999999',
+            );
+          }
+          return {
+            code: 200,
+            hash: field === 'hash' ? 'different' : 'beef',
+            accountIndex: field === 'account' ? 29 : 28,
+            apiKeyIndex: field === 'slot' ? 20 : 19,
+            nonce: field === 'nonce' ? 43 : 42,
+            status: 2,
+          };
+        });
+        expect((await built.provider.isReadyToTrade()).ready).toBe(true);
+        built.clientInstance.sendTx.mockClear();
+        expect((await built.provider.withdraw({ amount: '1' })).success).toBe(
+          false,
+        );
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+        ).toBe(original);
+      },
+    );
+
+    it.each([0, 2, 1])(
+      'reconciles previous-slot exact transaction status %s without blind retry',
+      async (status) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        await infra.diskCache.setItem(
+          'lighterNonceLedger:testnet:28:19',
+          JSON.stringify({
+            version: 4,
+            consumedFloor: 0,
+            entries: [
+              {
+                nonce: 42,
+                txHash: 'beef',
+                expiresAt: 9999999999999,
+                kind: 13,
+                intent: 'withdraw:1',
+                owner: null,
+              },
+            ],
+            recovered: [],
+          }),
+        );
+        built.clientInstance.getTx.mockResolvedValue({
+          code: 200,
+          hash: 'beef',
+          accountIndex: 28,
+          apiKeyIndex: 19,
+          nonce: 42,
+          status,
+        });
+        const result = await built.provider.withdraw({ amount: '1' });
+        expect(result.success).toBe(status === 0);
+        const outcomes = await built.provider.getRecoveredDispatches();
+        expect(outcomes).toHaveLength(1);
+        expect(outcomes[0]).toMatchObject({
+          apiKeyIndex: 19,
+          outcome:
+            ({ 0: 'failed', 2: 'succeeded' } as Record<number, string>)[
+              status
+            ] ?? 'unknown',
+        });
+        expect(outcomes[0].acknowledgeable).toBe(
+          status === 1 ? false : undefined,
+        );
+      },
+    );
+
+    it.each(['network', 'account'])(
+      'does not gate an unrelated %s on local dispatch obligations',
+      async (scope) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const key =
+          scope === 'network'
+            ? 'lighterNonceLedger:mainnet:28:19'
+            : 'lighterNonceLedger:testnet:29:19';
+        const original = JSON.stringify({
+          version: 4,
+          consumedFloor: 43,
+          entries: [],
+          recovered: [
+            {
+              recoveryId: '42:beef',
+              kind: 13,
+              intent: 'withdraw:1',
+              txHash: 'beef',
+              outcome: 'unknown',
+              evidence: 'rest-advance',
+            },
+          ],
+        });
+        await infra.diskCache.setItem(key, original);
+        expect((await built.provider.withdraw({ amount: '1' })).success).toBe(
+          true,
+        );
+        expect(await infra.diskCache.getItem(key)).toBe(original);
+      },
+    );
+
+    it.each([
+      'succeeded',
+      'unknown',
+      'pending',
+      'failed',
+      'never-landed',
+    ] as const)(
+      'fences migrated financial writes for previous-slot %s obligations',
+      async (state) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const entry = {
+          nonce: 42,
+          txHash: 'beef',
+          expiresAt: state === 'never-landed' ? 1 : 9999999999999,
+          kind: 13,
+          intent: 'withdraw:1',
+          owner: null,
+        };
+        const original = JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries:
+            state === 'pending' || state === 'never-landed' ? [entry] : [],
+          recovered:
+            state === 'pending' || state === 'never-landed'
+              ? []
+              : [
+                  {
+                    recoveryId: '42:beef',
+                    kind: 13,
+                    intent: 'withdraw:1',
+                    txHash: 'beef',
+                    outcome: state,
+                    evidence: 'tx-status:2',
+                  },
+                ],
+        });
+        await infra.diskCache.setItem(
+          'lighterNonceLedger:testnet:28:19',
+          original,
+        );
+        built.clientInstance.getTx.mockResolvedValue(
+          state === 'pending'
+            ? {
+                code: 200,
+                hash: 'beef',
+                accountIndex: 28,
+                apiKeyIndex: 19,
+                nonce: 42,
+                status: 1,
+              }
+            : null,
+        );
+        expect((await built.provider.isReadyToTrade()).ready).toBe(true);
+        built.clientInstance.sendTx.mockClear();
+        const result = await built.provider.withdraw({ amount: '1' });
+        const permitted = state === 'failed' || state === 'never-landed';
+        expect(result.success).toBe(permitted);
+        expect(built.clientInstance.sendTx.mock.calls.length > 0).toBe(
+          permitted,
+        );
+        const after = await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:19',
+        );
+        expect(permitted || after === original).toBe(true);
+      },
+    );
+
     it('lists previous-slot outcomes and acknowledges only the exact scoped slot', async () => {
       const infra = createMockInfrastructure();
       const built = buildProvider({
@@ -12584,7 +12920,13 @@ describe('LighterProvider', () => {
         'lighterNonceLedger:testnet:29:19',
         original,
       );
-      const outcomes = await built.provider.getRecoveredDispatches();
+      const listed = await built.provider.getRecoveredDispatches();
+      const pending = listed.filter((row) => row.acknowledgeable === false);
+      expect(pending).toHaveLength(2);
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch(pending[1].recoveryId),
+      ).rejects.toThrow('cannot be acknowledged');
+      const outcomes = listed.filter((row) => row.acknowledgeable !== false);
       expect(outcomes).toHaveLength(2);
       expect(new Set(outcomes.map((row) => row.recoveryId)).size).toBe(2);
       expect(outcomes.map((row) => row.apiKeyIndex)).toStrictEqual([7, 19]);
@@ -12596,7 +12938,7 @@ describe('LighterProvider', () => {
       ).rejects.toThrow('No pending recovered');
       const restarted = buildProvider({ platformDependencies: infra });
       expect(await restarted.provider.getRecoveredDispatches()).toStrictEqual(
-        outcomes,
+        listed,
       );
       const otherNetwork = buildProvider({
         platformDependencies: infra,
@@ -12645,9 +12987,9 @@ describe('LighterProvider', () => {
         recovered: [],
       });
       expect(
-        (await built.provider.getRecoveredDispatches()).map(
-          (row) => row.apiKeyIndex,
-        ),
+        (await built.provider.getRecoveredDispatches())
+          .filter((row) => row.acknowledgeable !== false)
+          .map((row) => row.apiKeyIndex),
       ).toStrictEqual([7]);
       expect(
         await infra.diskCache.getItem('lighterNonceLedger:testnet:28:7'),

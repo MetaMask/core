@@ -424,8 +424,9 @@ export type PerpsPendingManualRecovery = {
 };
 
 /**
- * A previously ambiguous dispatch whose outcome was later resolved.
- * Writes stay blocked until each outcome is explicitly acknowledged via
+ * A local dispatch requiring reconciliation or acknowledgment. Raw unresolved
+ * dispatches have acknowledgeable:false and cannot be acknowledged. For
+ * resolved outcomes, writes stay blocked until explicitly acknowledged via
  * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
  * state) — except `failed`, which is retry-safe and non-blocking.
  */
@@ -434,6 +435,8 @@ export type PerpsRecoveredDispatch = {
   recoveryId: string;
   /** Original trading-key slot when the provider has per-key recovery ledgers. */
   apiKeyIndex?: number;
+  /** False for unresolved raw dispatches: acknowledgment is forbidden until reconciled. */
+  acknowledgeable?: boolean;
   /** Venue transaction type of the dispatch. */
   kind: number;
   /** Human-readable operation intent. */

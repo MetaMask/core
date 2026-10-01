@@ -9,19 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export Lighter trading-slot bounds/count, registration visibility timeout/poll/attempt cap and fill replay capacity from `constants/lighterConfig`: `LIGHTER_MIN_TRADING_API_KEY_INDEX`, `LIGHTER_MAX_TRADING_API_KEY_INDEX`, `LIGHTER_TRADING_API_KEY_COUNT`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS`, and `LIGHTER_FILL_REPLAY_LIMIT` ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Add optional `LighterSignerBridge.getRecoverableKeyIndices` and `getStoredKeyIndices` discovery, and an optional `walletAddress` binding on client creation and discovery. Hosts can restore wallet-derived trading keys; Core verifies registered public keys before reuse and skips unrelated candidate ledgers without changing them ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Add optional `onError` callbacks and delivery provider identifiers to order and fill subscriptions, including empty aggregated updates, so clients can identify the provider delivering an update. Lighter currently reports detectable subscription setup failures; other providers may not invoke `onError` ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Changed
 
-- Treat `lighterAuthConfig.apiKeyIndex` as a preferred slot when key discovery is available. List local recovered outcomes across all trading slots, including skipped keys, with optional `PerpsRecoveredDispatch.apiKeyIndex` and opaque wallet/network/account/slot-bound IDs. Acknowledge exactly one outcome without switching signers; legacy IDs are accepted only when unique across the account. Readers wait for in-flight selection and failed initialization keeps unfinished TP/SL journals visible ([#10618](https://github.com/MetaMask/core/pull/10618))
-
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+- Treat `lighterAuthConfig.apiKeyIndex` as a preferred slot when key discovery is available; `getRecoverableKeyIndices` takes precedence over `getStoredKeyIndices` ([#10618](https://github.com/MetaMask/core/pull/10618))
+- List local recovery obligations across all trading slots with optional `PerpsRecoveredDispatch.apiKeyIndex` and opaque wallet/network/account/slot-bound IDs. Raw pending dispatches have `acknowledgeable:false`; only resolved stored outcomes can be acknowledged, and legacy IDs must be unique across the account ([#10618](https://github.com/MetaMask/core/pull/10618))
+- Wait for in-flight key selection in recovery readers and retain unfinished TP/SL journals after failed signer initialization ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Fixed
 
+- Fence Lighter financial writes across every local account key slot so migration cannot bypass a pending or quarantined dispatch. Reconcile exact transaction identities under an account-wide write mutex; discovery and key registration remain separate. Nonterminal or mismatched transactions stay unresolved and cannot be acknowledged ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reuse matching Lighter trading keys before allocating a free slot, preserve occupied device keys and wait for new registration visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
-- Deliver Lighter signer setup failures to the current wallet's subscribers. Replay confirmed empty orders and validated newest-first fill history to late subscribers in the same authenticated session; malformed trade containers never authorize empty replay ([#10618](https://github.com/MetaMask/core/pull/10618))
+- Deliver Lighter signer setup failures to the current wallet's subscribers. Replay confirmed empty orders and validated newest-first fill history to late subscribers in the same authenticated session; malformed order/trade containers and null trade rows never authorize empty replay; throwing error listeners cannot suppress sibling delivery or prevent setup retries ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Accept Lighter trades that omit position-sign flags and preserve omitted account PnL, including closing and flipping fill PnL, as unknown for Activity and late-subscriber replay. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605), [#10618](https://github.com/MetaMask/core/pull/10618))
 
 ## [19.0.0]

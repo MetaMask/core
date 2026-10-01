@@ -2140,6 +2140,8 @@ export class LighterProvider implements PerpsProvider {
     accountIndex: number,
     apiKeyIndex = this.#apiKeyIndex,
   ): Promise<void> => {
+    const generation = this.#sessionGeneration;
+    this.#assertSession(generation);
     const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
     const reservationKey = `${accountIndex}:${apiKeyIndex}`;
     // The durable consumed watermark always seeds the memory floor.
@@ -2306,6 +2308,7 @@ export class LighterProvider implements PerpsProvider {
       // Hashless, or hash present but unexpired-and-absent: ambiguous.
       remaining.push(entry);
     }
+    this.#assertSession(generation);
     await this.#writeNonceLedger(
       accountIndex,
       {
@@ -2462,7 +2465,7 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       const doc = await this.#readNonceLedger(accountIndex, apiKeyIndex);
       this.#assertSession(generation);
-      if (doc.recovered.length > 0) {
+      if (doc.recovered.length > 0 || doc.entries.length > 0) {
         ledgers.push({ apiKeyIndex, doc });
       }
     }
@@ -2475,11 +2478,16 @@ export class LighterProvider implements PerpsProvider {
    * after setup failure and before initialization. Opaque IDs bind the selected
    * wallet, network, account, key slot and original ledger identity. No signing,
    * nonce reconciliation, quarantine clearing or financial retry occurs.
+   * Unresolved raw entries are reported separately as unknown with
+   * acknowledgeable:false; listing cannot make them safe to acknowledge.
    *
    * @returns Pending outcomes labelled with their original trading-key slot.
    */
   async getRecoveredDispatches(): Promise<
-    (LighterRecoveredDispatch & { apiKeyIndex: number })[]
+    (LighterRecoveredDispatch & {
+      apiKeyIndex: number;
+      acknowledgeable?: boolean;
+    })[]
   > {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
@@ -2490,13 +2498,23 @@ export class LighterProvider implements PerpsProvider {
       accountIndex,
       generation,
     );
-    return ledgers.flatMap(({ apiKeyIndex, doc }) =>
-      doc.recovered.map((outcome) => ({
+    return ledgers.flatMap(({ apiKeyIndex, doc }) => [
+      ...doc.recovered.map((outcome) => ({
         ...outcome,
         apiKeyIndex,
         recoveryId: `lighter:${JSON.stringify([this.#isTestnet ? 'testnet' : 'mainnet', this.#boundAddress, accountIndex, apiKeyIndex, outcome.recoveryId])}`,
       })),
-    );
+      ...doc.entries.map((entry) => ({
+        recoveryId: `lighter-pending:${JSON.stringify([this.#isTestnet ? 'testnet' : 'mainnet', this.#boundAddress, accountIndex, apiKeyIndex, entry.nonce, entry.txHash])}`,
+        apiKeyIndex,
+        acknowledgeable: false,
+        kind: entry.kind,
+        intent: entry.intent,
+        txHash: entry.txHash,
+        outcome: 'unknown' as const,
+        evidence: 'unresolved-dispatch',
+      })),
+    ]);
   }
 
   /**
@@ -2519,6 +2537,11 @@ export class LighterProvider implements PerpsProvider {
       new Error(
         'No pending recovered Lighter dispatch matches this scoped id; refresh and re-read before acknowledging',
       );
+    if (recoveryId.startsWith('lighter-pending:')) {
+      throw new Error(
+        'Unresolved Lighter dispatches cannot be acknowledged; wait for authoritative reconciliation',
+      );
+    }
     let apiKeyIndex: number;
     let ledgerRecoveryId: string;
     if (recoveryId.startsWith('lighter:')) {
@@ -4914,6 +4937,22 @@ export class LighterProvider implements PerpsProvider {
       // the ledger is durable) must resolve before this section may issue
       // nonces: a restart would otherwise reuse a consumed-but-lagging
       // nonce, and a proven never-landed dispatch must release its nonce.
+      // Key discovery/registration must remain possible without touching an
+      // unrelated candidate's obligations. Financial operations, however,
+      // cannot escape account-local quarantine by switching signing slots.
+      if (!inspectCandidate) {
+        for (
+          let previousSlot = LIGHTER_MIN_TRADING_API_KEY_INDEX;
+          previousSlot <= LIGHTER_MAX_TRADING_API_KEY_INDEX;
+          previousSlot += 1
+        ) {
+          this.#assertSession(generationAtIntent);
+          if (previousSlot !== apiKeyIndex) {
+            await this.#resolveNonceLedger(accountIndex, previousSlot);
+            this.#assertSession(generationAtIntent);
+          }
+        }
+      }
       await this.#resolveNonceLedger(accountIndex, apiKeyIndex);
       this.#assertSession(generationAtIntent);
       // Monotonic nonce reservation: the venue's nextNonce endpoint can
@@ -5073,12 +5112,12 @@ export class LighterProvider implements PerpsProvider {
       return await section(nextNonce, submit);
     };
     // The ENTIRE nonce resolve→fetch→sign/append→dispatch sequence is
-    // serialized PROCESS-WIDE per network+account+api-key slot: the
+    // serialized PROCESS-WIDE per network+account across key slots: the
     // instance chain alone cannot stop a second live provider from
     // issuing the same nonce or interleaving ledger writes.
     const guardedSection = async (): Promise<Result> =>
       await withProcessMutex(
-        `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}:${apiKeyIndex}`,
+        `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
         // INNERMOST: the bridge mutex — the WASM client is a singleton
         // per bridge, so ensure-correct-client + every sign of a section
         // are serialized across ALL providers sharing the bridge.
@@ -8270,10 +8309,18 @@ export class LighterProvider implements PerpsProvider {
             this.#accountChannelsPromise === setupPromise
           ) {
             for (const subscriber of this.#orderSubscribers) {
-              subscriber.onError?.(ensureError(error));
+              try {
+                subscriber.onError?.(ensureError(error));
+              } catch (subscriberError) {
+                this.#logSubscriberError('subscription error', subscriberError);
+              }
             }
             for (const subscriber of this.#fillSubscribers) {
-              subscriber.onError?.(ensureError(error));
+              try {
+                subscriber.onError?.(ensureError(error));
+              } catch (subscriberError) {
+                this.#logSubscriberError('subscription error', subscriberError);
+              }
             }
           }
           // Setup failures are not authoritative empty order state. Account
@@ -8303,10 +8350,18 @@ export class LighterProvider implements PerpsProvider {
           this.#accountChannelsPromise === setupPromise
         ) {
           for (const subscriber of this.#orderSubscribers) {
-            subscriber.onError?.(ensureError(error));
+            try {
+              subscriber.onError?.(ensureError(error));
+            } catch (subscriberError) {
+              this.#logSubscriberError('subscription error', subscriberError);
+            }
           }
           for (const subscriber of this.#fillSubscribers) {
-            subscriber.onError?.(ensureError(error));
+            try {
+              subscriber.onError?.(ensureError(error));
+            } catch (subscriberError) {
+              this.#logSubscriberError('subscription error', subscriberError);
+            }
           }
         }
         // An aborted previous-account setup has no authority over the new
@@ -8590,12 +8645,33 @@ export class LighterProvider implements PerpsProvider {
       this.#handleTradesMessage(message);
       return;
     }
-    if (type.includes('account_all_orders') && message.orders) {
+    if (type.includes('account_all_orders')) {
+      if (
+        message.orders === null ||
+        (message.orders !== undefined &&
+          (typeof message.orders !== 'object' ||
+            Array.isArray(message.orders) ||
+            !Object.values(message.orders).every(
+              (rows) =>
+                Array.isArray(rows) &&
+                rows.every(
+                  (row) =>
+                    row !== null &&
+                    typeof row === 'object' &&
+                    !Array.isArray(row),
+                ),
+            )))
+      ) {
+        this.#hasOrdersSnapshot = false;
+        throw new Error(
+          'Invalid Lighter venue data: malformed orders container',
+        );
+      }
       const isSnapshot = type.startsWith('subscribed');
       const nextOrders = isSnapshot
         ? new Map<string, Order>()
         : new Map(this.#wsOrders);
-      for (const marketOrders of Object.values(message.orders)) {
+      for (const marketOrders of Object.values(message.orders ?? {})) {
         for (const order of marketOrders) {
           const adapted = adaptOrderFromLighter(
             order,
@@ -8804,7 +8880,16 @@ export class LighterProvider implements PerpsProvider {
       (message.trades !== undefined &&
         (typeof message.trades !== 'object' ||
           Array.isArray(message.trades) ||
-          !Object.values(message.trades).every(Array.isArray)))
+          !Object.values(message.trades).every(
+            (rows) =>
+              Array.isArray(rows) &&
+              rows.every(
+                (row) =>
+                  row !== null &&
+                  typeof row === 'object' &&
+                  !Array.isArray(row),
+              ),
+          )))
     ) {
       this.#wsFills = null;
       throw new Error('Invalid Lighter venue data: malformed trades container');

@@ -210,6 +210,8 @@ export type LighterSignerBridge = {
    * wallet-owned deterministic derivation. This must never generate unrelated
    * random keys for slots reported as recoverable. Core still verifies the
    * derived public key against the venue before reusing any registration.
+   * When both discovery hooks exist, Core uses this hook exclusively;
+   * getStoredKeyIndices is the fallback only when this hook is absent.
    */
   getRecoverableKeyIndices?(params: {
     chainId: number;

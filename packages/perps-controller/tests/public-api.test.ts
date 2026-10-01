@@ -1,3 +1,12 @@
+import {
+  LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_TRADING_API_KEY_INDEX,
+  LIGHTER_TRADING_API_KEY_COUNT,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
+  LIGHTER_FILL_REPLAY_LIMIT,
+} from '../src/constants/index.js';
 // Checks the account-signer and agent surface through the package entrypoint,
 // the way a client imports it, so a dropped or renamed export fails here.
 import {
@@ -25,7 +34,7 @@ jest.mock('@nktkas/hyperliquid', () => ({
 }));
 
 describe('@metamask/perps-controller public API', () => {
-  it('preserves the public recovery action contract and optional original-key identity', async () => {
+  it('exports backward-compatible recovery types and the trading configuration constants', () => {
     const legacy: PerpsRecoveredDispatch = {
       recoveryId: 'opaque-id',
       kind: 13,
@@ -34,26 +43,35 @@ describe('@metamask/perps-controller public API', () => {
       outcome: 'unknown',
       evidence: 'rest-advance',
     };
-    const fromPreviousKey: PerpsRecoveredDispatch = {
+    const pending: PerpsRecoveredDispatch = {
       ...legacy,
       apiKeyIndex: 19,
+      acknowledgeable: false,
     };
-    const get: PerpsControllerGetRecoveredDispatchesAction['handler'] =
-      async () => [fromPreviousKey];
-    const acknowledge: PerpsControllerAcknowledgeRecoveredDispatchAction['handler'] =
-      async (recoveryId) => {
-        expect(recoveryId).toBe(fromPreviousKey.recoveryId);
-      };
-    const [outcome] = await get();
-    await acknowledge(outcome.recoveryId);
-    expect(legacy.apiKeyIndex).toBeUndefined();
-    expect(outcome.apiKeyIndex).toBe(19);
-    expect(typeof PerpsController.prototype.getRecoveredDispatches).toBe(
-      'function',
-    );
-    expect(typeof PerpsController.prototype.acknowledgeRecoveredDispatch).toBe(
-      'function',
-    );
+    const listAction: PerpsControllerGetRecoveredDispatchesAction['type'] =
+      'PerpsController:getRecoveredDispatches';
+    const ackAction: PerpsControllerAcknowledgeRecoveredDispatchAction['type'] =
+      'PerpsController:acknowledgeRecoveredDispatch';
+    expect([
+      legacy.apiKeyIndex,
+      pending.acknowledgeable,
+      listAction,
+      ackAction,
+    ]).toStrictEqual([
+      undefined,
+      false,
+      'PerpsController:getRecoveredDispatches',
+      'PerpsController:acknowledgeRecoveredDispatch',
+    ]);
+    expect([
+      LIGHTER_MIN_TRADING_API_KEY_INDEX,
+      LIGHTER_MAX_TRADING_API_KEY_INDEX,
+      LIGHTER_TRADING_API_KEY_COUNT,
+      LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
+      LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
+      LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
+      LIGHTER_FILL_REPLAY_LIMIT,
+    ]).toStrictEqual([2, 254, 253, 10000, 250, 40, 100]);
   });
 
   it('exports the EIP-712 shape of a HyperLiquid L1 action', () => {
