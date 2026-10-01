@@ -169,13 +169,14 @@ export class MoneyAccountLifecycleController extends BaseController<
    * the next trigger after a failed fetch.
    *
    * After each fetch, and whenever the primary Money Account changes, records
-   * whether that account is not in an identity, a valid SFA, or a valid MFA,
-   * along with its identity. After each fetch, or when the recorded lifecycle
+   * whether that account is not in an identity, a valid SFA, migrating to a
+   * successor, or a valid MFA, along with its identity. After each fetch, or when the recorded lifecycle
    * changes, looks up whether the Money Account address, and the identity's
    * current address for a valid MFA, are registered with CHOMP, and switches
    * `MoneyAccountController` to the MPC keyring for a valid MFA. Registers the
    * Money Account address through `MoneyAccountUpgradeController` when it is
-   * not registered and is not a valid MFA.
+   * not registered and is either not in an identity or a valid SFA. A
+   * migrating Money Account is frozen by CHOMP, so it is never registered.
    */
   init(): void {
     if (this.#initialized) {
@@ -322,8 +323,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         if (
           shouldReconcile &&
           !isRegistered &&
-          lifecycle &&
-          lifecycle.type !== 'mfa'
+          (lifecycle?.type === 'sfa' || lifecycle?.type === 'notInIdentity')
         ) {
           this.#registerAddress(address);
         }

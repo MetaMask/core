@@ -26,17 +26,13 @@ describe('getMoneyAccountLifecycle', () => {
     ).toStrictEqual({ type: 'notInIdentity' });
   });
 
-  it.each([
-    { status: 'DONE', currentAddress: MONEY_ACCOUNT_ADDRESS },
-    { status: 'MIGRATING', currentAddress: MONEY_ACCOUNT_ADDRESS },
-    { status: 'DONE', currentAddress: MONEY_ACCOUNT_ADDRESS.toLowerCase() },
-  ] as const)(
-    'returns sfa when the address is the current address $currentAddress of a $status identity',
-    ({ status, currentAddress }) => {
+  it.each([MONEY_ACCOUNT_ADDRESS, MONEY_ACCOUNT_ADDRESS.toLowerCase()])(
+    'returns sfa when the address is the current address %s of a settled identity',
+    (currentAddress) => {
       const identity: DerivedIdentity = {
         currentAddress,
         previousAddresses: [],
-        status,
+        status: 'DONE',
         migration: null,
       };
 
@@ -48,6 +44,28 @@ describe('getMoneyAccountLifecycle', () => {
       ).toStrictEqual({ type: 'sfa', identity });
     },
   );
+
+  it('returns migrating when the address is the current address of an identity migrating away from it', () => {
+    const identity: DerivedIdentity = {
+      currentAddress: MONEY_ACCOUNT_ADDRESS.toLowerCase(),
+      previousAddresses: [],
+      status: 'MIGRATING',
+      migration: {
+        from: MONEY_ACCOUNT_ADDRESS.toLowerCase(),
+        to: SUCCESSOR_ADDRESS.toLowerCase(),
+        requiredSteps: ['ROOT_DELEGATION'],
+        completedSteps: [],
+        missingSteps: ['ROOT_DELEGATION'],
+      },
+    };
+
+    expect(
+      getMoneyAccountLifecycle(MONEY_ACCOUNT_ADDRESS, [
+        UNRELATED_IDENTITY,
+        identity,
+      ]),
+    ).toStrictEqual({ type: 'migrating', identity });
+  });
 
   it('returns mfa when the address is a previous address of a done identity, ignoring case', () => {
     const identity: DerivedIdentity = {

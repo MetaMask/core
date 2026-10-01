@@ -44,6 +44,19 @@ const MFA_IDENTITY: DerivedIdentity = {
   migration: null,
 };
 
+const MIGRATING_IDENTITY: DerivedIdentity = {
+  currentAddress: MONEY_ACCOUNT_ADDRESS,
+  previousAddresses: [],
+  status: 'MIGRATING',
+  migration: {
+    from: MONEY_ACCOUNT_ADDRESS,
+    to: SUCCESSOR_ADDRESS,
+    requiredSteps: ['SUCCESSOR_DEPOSIT_INTENT', 'ROOT_DELEGATION'],
+    completedSteps: [],
+    missingSteps: ['SUCCESSOR_DEPOSIT_INTENT', 'ROOT_DELEGATION'],
+  },
+};
+
 describe('MoneyAccountLifecycleController', () => {
   describe('constructor', () => {
     it('fills in missing initial state with defaults', async () => {
@@ -348,6 +361,24 @@ describe('MoneyAccountLifecycleController', () => {
 
         expect(controller.state.moneyAccounts).toStrictEqual({
           [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
+        });
+        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
+      });
+    });
+
+    it('records a money account that is migrating to a successor without switching to the MPC keyring', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
+        });
+
+        await init();
+
+        expect(controller.state.moneyAccounts).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: {
+            type: 'migrating',
+            identity: MIGRATING_IDENTITY,
+          },
         });
         expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
       });
@@ -682,6 +713,46 @@ describe('MoneyAccountLifecycleController', () => {
         await init();
 
         expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('records the registration status of a migrating money account without registering it', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
+        });
+        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
+
+        await init();
+
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
+        expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
+        );
+        expect(controller.state.addressRegistrations).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
+        });
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not register the money account when it has started migrating by the time its registration status arrives', async () => {
+      await withController(async ({ mocks, init, refetch }) => {
+        const { promise, resolve } =
+          createDeferredPromise<RegistrationStatus>();
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+        mocks.getRegistrationStatus
+          .mockReturnValueOnce(promise)
+          .mockResolvedValue({ isRegistered: false });
+
+        await init();
+        await refetch();
+        resolve({ isRegistered: false });
+        await flushPromises();
+
         expect(mocks.upgradeAccount).not.toHaveBeenCalled();
       });
     });
