@@ -256,49 +256,56 @@ reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
 Hyperliquid continues to report independent fixed partial triggers and dynamic
 whole-position coverage through its existing implementation.
 
-## Contributing
+## Durable Lighter Scale groups
 
-This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+Lighter advertises Scale as a provider source capability for active markets.
+Preview, validation and placement share fixed-grid ladder normalization and
+reject collapsed price ticks, underfunded rungs and unsupported execution
+fields. Sizes conserve whole base lots; USD sizing bounds the sum of every
+rung's limit notional. Margin and reduce-only reservations are checked before
+placement and again before each send. Caller-supplied slippage, trigger,
+attached-protection, time-in-force, full-close and other strategy fields are
+rejected rather than ignored.
 
-### Durable Lighter Scale groups
+Each group persists wallet, network, account, trading slot, immutable rung
+intent and signed dispatch identity before transport. Placement polls through
+bounded venue visibility lag and stops after unresolved acceptance;
+reconnection never resumes or replays it. `getScaleOrderGroups()` lists local
+ownership, including groups without any venue order ID.
+`reviewScaleOrderGroups({ providerId })` reconciles with registered read
+authority and may sign authentication, but does not register a trading key or
+send financial transactions. Aggregated review requires an explicit provider.
+Controller calls reject changes to the issuing account, network or provider
+while awaiting readiness or results.
 
-Lighter advertises Scale as a provider source capability for active markets. Preview,
-validation and placement share fixed-grid ladder normalization and reject collapsed
-price ticks, underfunded rungs and unsupported execution fields. Sizes conserve whole
-base lots; USD sizing bounds the sum of every rung's limit notional. Margin and
-reduce-only reservations are checked before placement and again before each send.
-Caller-supplied slippage, trigger, attached-protection, time-in-force, full-close and
-other strategy fields are rejected rather than ignored.
+`OrderResult.submittedSize` includes attempted children whose acceptance is
+unknown. `acceptedSize` and `weightedAverageLimitPrice` are omitted while any
+attempted child remains uncertain. `acceptedChildren` retains confirmed
+accepted children, including canceled children; `childOrderIds` contains
+resting children only. Filled quantities require authoritative venue data;
+limit prices never stand in for execution prices. Wholly unknown groups never
+create synthetic `Order` rows. Real venue rows that match the persisted intent
+carry `strategyGroupId`.
 
-Each group persists wallet, network, account, trading slot, immutable rung intent and
-signed dispatch identity before transport. Placement stops after ambiguous acceptance;
-reconnection never resumes or replays it. `getScaleOrderGroups()` lists local ownership,
-including groups without any venue order ID. `reviewScaleOrderGroups({ providerId })`
-reconciles with registered read authority and may sign authentication, but does not
-register a trading key or send financial transactions. Aggregated review requires an
-explicit provider. Controller calls reject changes to the issuing account, network or
-provider while awaiting readiness or results.
-
-`OrderResult.submittedSize` includes attempted children whose acceptance is unknown.
-`acceptedSize` and `weightedAverageLimitPrice` are omitted while any attempted child
-remains uncertain. `acceptedChildren` retains confirmed accepted children, including
-canceled children; `childOrderIds` contains resting children only. Filled quantities
-require authoritative venue data; limit prices never stand in for execution prices.
-Wholly unknown groups never create synthetic `Order` rows. Real venue rows that match
-the persisted intent carry `strategyGroupId`.
-
-Cancel with `{ orderType: 'scale', orderId: groupId, symbol }`. Only exact group children
-are canceled, using the currently registered trading slot even when placement belonged
-to a previous slot. Unknown dispatches remain protected until exact terminal transaction
-proof, or durable expiry proof followed by fresh absent transaction and order history,
-allows settlement. Order history traversal is bounded and incomplete or inconsistent
-history fails closed. The local journal retains at most 64 groups and only reclaims
-proven-terminal groups. Local disk loss cannot reconstruct an unknown group's identity;
+Cancel with `{ orderType: 'scale', orderId: groupId, symbol }`. Only exact
+group children are canceled, using the currently registered trading slot even
+when placement belonged to a previous slot. Unknown dispatches remain protected
+until exact terminal transaction proof, or durable expiry proof followed by
+fresh absent transaction and order history, allows settlement. Explicit group
+review can retire expired absent children without canceling accepted siblings.
+Fresh exact rows can recover a pending child's receipt; recovered outcomes
+still require explicit acknowledgment before another financial write. Proven
+terminal cancellation never initializes a trading signer. Order history
+traversal is bounded and incomplete or inconsistent history fails closed. The
+local journal retains at most 64 groups and only reclaims proven-terminal
+groups. Local disk loss cannot reconstruct an unknown group's identity;
 consumers must preserve the configured durable storage.
 
-This source contract does not establish Mobile or live-venue availability. Mobile must
-remove its provider-specific Scale restriction in favor of `getOrderCapabilities`, use
-`getScalePriceLadder` for its preview, display durable groups alongside real order rows,
-route review and cancellation to the owning provider, and distinguish submitted exposure
-from confirmed acceptance. It must not infer fills or successful cancellation from a
-group ID or an HTTP acknowledgment. Runtime adoption requires independent validation.
+Clients must gate availability on `getOrderCapabilities` and route review and
+cancellation to the owning provider. An HTTP acknowledgment or group ID never
+proves a fill or successful cancellation.
+
+## Contributing
+
+This package is part of a monorepo. Instructions for contributing can be found
+in the [monorepo README](https://github.com/MetaMask/core#readme).

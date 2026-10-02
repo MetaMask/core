@@ -880,11 +880,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     params: { providerId?: PerpsProviderType } = {},
   ): Promise<ScaleOrderGroup[]> {
     if (!params.providerId) {
-      throw new Error('Scale review requires an explicit provider');
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
     const [, provider] = this.#getProviderOrDefault(params.providerId);
     if (!provider.reviewScaleOrderGroups) {
-      throw new Error('Scale review is unavailable for this provider');
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
     return provider.reviewScaleOrderGroups(params);
   }

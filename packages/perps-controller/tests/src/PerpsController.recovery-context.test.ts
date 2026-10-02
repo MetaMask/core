@@ -196,6 +196,28 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
   );
 
   it.each(CONTEXT_CHANGES)(
+    'refuses stale Scale inventory after awaited provider call and $name changes',
+    async ({ change }) => {
+      const fixture = createFixture();
+      const review = createDeferred<[]>();
+      const entered = createDeferred<void>();
+      Object.assign(fixture.provider, {
+        getScaleOrderGroups: jest.fn(async () => {
+          entered.resolve();
+          return review.promise;
+        }),
+      });
+      const result = fixture.controller.getScaleOrderGroups();
+      await entered.promise;
+      change(fixture);
+      review.resolve([]);
+      await expect(result).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+    },
+  );
+
+  it.each(CONTEXT_CHANGES)(
     'refuses stale Scale review after awaited provider call and $name changes',
     async ({ change }) => {
       const fixture = createFixture();
@@ -219,13 +241,21 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     },
   );
 
+  it('requires an explicit Scale review route in aggregated mode', async () => {
+    const fixture = createFixture();
+    fixture.controller.changeContext({ activeProvider: 'aggregated' });
+    await expect(fixture.controller.reviewScaleOrderGroups()).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+    );
+  });
+
   it('refuses a Scale review route that differs from the active provider', async () => {
     const fixture = createFixture();
     const reviewScaleOrderGroups = jest.fn().mockResolvedValue([]);
     Object.assign(fixture.provider, { reviewScaleOrderGroups });
     await expect(
       fixture.controller.reviewScaleOrderGroups({ providerId: 'lighter' }),
-    ).rejects.toThrow('does not match');
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
   });
 

@@ -402,3 +402,6 @@ export const LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX =
 
 /** Maximum verified venue accounts remembered per wallet/network for recovery inventory. */
 export const LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT = 64;
+
+/** Maximum unsigned 32-bit venue price. */
+export const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;

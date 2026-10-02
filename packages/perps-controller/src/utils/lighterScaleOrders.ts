@@ -1,9 +1,11 @@
 import { BigNumber } from 'bignumber.js';
 
 import {
+  LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
 } from '../constants/lighterConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   OrderParams,
   OrderResult,
@@ -16,7 +18,13 @@ import {
 } from './orderCalculations.js';
 import { SCALE_ORDER_COUNT } from './orderTypes.js';
 
-const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
+const LIGHTER_SCALE_MAX_DECIMALS = 18;
+const LIGHTER_SCALE_MAX_JOURNAL_LENGTH = 2_000_000;
+const LIGHTER_SCALE_MAX_GROUP_ID_LENGTH = 256;
+const LIGHTER_SCALE_MAX_SYMBOL_LENGTH = 100;
+const LIGHTER_SCALE_CLIENT_ID_LIMIT = 2 ** 48;
+const LIGHTER_SCALE_MAX_HASH_LENGTH = 128;
+export const LIGHTER_SCALE_JOURNAL_PREFIX = 'lighterScaleOrders:';
 
 export const LIGHTER_SCALE_PREFIX = 'lighter-scale:';
 export const LIGHTER_SCALE_MAX_GROUPS = 64;
@@ -43,7 +51,6 @@ export type LighterScaleRung = {
   expiresAt: number | null;
   orderId?: string;
   filledSize?: string;
-  averagePrice?: string;
 };
 export type LighterScaleGroup = {
   version: 1;
@@ -94,14 +101,30 @@ export function normalizeLighterScalePrices(
   count: number,
   decimals: number,
 ): string[] {
-  const low = parseScaleDecimal(min);
-  const high = parseScaleDecimal(max);
+  let low: BigNumber;
+  let high: BigNumber;
+  try {
+    low = parseScaleDecimal(min);
+    high = parseScaleDecimal(max);
+  } catch {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+  if (
+    !low.shiftedBy(decimals).isInteger() ||
+    !high.shiftedBy(decimals).isInteger()
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
   computeScalePriceLadder({
     minPrice: low.toNumber(),
     maxPrice: high.toNumber(),
     count,
   });
-  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
+  if (
+    !Number.isInteger(decimals) ||
+    decimals < 0 ||
+    decimals > LIGHTER_SCALE_MAX_DECIMALS
+  ) {
     throw new Error('Invalid Lighter Scale precision');
   }
   const prices = Array.from({ length: count }, (_, index) =>
@@ -122,7 +145,7 @@ export function normalizeLighterScalePrices(
     ) ||
     new Set(wire.map(String)).size !== count
   ) {
-    throw new Error('Lighter Scale prices collapse or exceed the wire range');
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
   }
   return prices.map((price) => price.toFixed());
 }
@@ -171,8 +194,11 @@ export function buildLighterScaleLadder(
     scaleMinPrice: min,
     scaleMaxPrice: max,
   } = params;
-  if (count === undefined || min === undefined || max === undefined) {
-    throw new Error('Lighter Scale range and count are required');
+  if (min === undefined || max === undefined) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED);
+  }
+  if (count === undefined) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
   }
   const prices = normalizeLighterScalePrices(
     min,
@@ -181,7 +207,11 @@ export function buildLighterScaleLadder(
     market.supportedPriceDecimals,
   );
   const decimals = market.supportedSizeDecimals;
-  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
+  if (
+    !Number.isInteger(decimals) ||
+    decimals < 0 ||
+    decimals > LIGHTER_SCALE_MAX_DECIMALS
+  ) {
     throw new Error('Invalid Lighter Scale precision');
   }
   const budget =
@@ -193,7 +223,7 @@ export function buildLighterScaleLadder(
     : parseScaleDecimal(params.size);
   const units = rawSize.shiftedBy(decimals).integerValue(BigNumber.ROUND_DOWN);
   if (units.gt(Number.MAX_SAFE_INTEGER) || units.lt(count)) {
-    throw new Error('Lighter Scale size is outside the safe grid');
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
   }
   const split = (total: number): string[] => {
     const sizes = splitScaleSizes({
@@ -242,7 +272,7 @@ export function buildLighterScaleLadder(
       }
     }
     if (feasible === undefined) {
-      throw new Error('Lighter Scale budget cannot fund every rung');
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
     }
     total = feasible;
   }
@@ -254,7 +284,7 @@ export function buildLighterScaleLadder(
       new BigNumber(size).lt(minimumBase) ||
       new BigNumber(size).times(prices[index]).lt(minimumQuote)
     ) {
-      throw new Error('Lighter Scale rung is below the venue minimum');
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
     }
   }
   const normalized = new BigNumber(total).shiftedBy(-decimals);
@@ -318,21 +348,6 @@ export function toLighterScaleGroup(group: LighterScaleGroup): ScaleOrderGroup {
       rung.filledSize === undefined ? sum : sum.plus(rung.filledSize),
     new BigNumber(0),
   );
-  const positiveFills = accepted.filter(
-    (rung) =>
-      rung.filledSize !== undefined && new BigNumber(rung.filledSize).gt(0),
-  );
-  const averageKnown =
-    fillsKnown &&
-    positiveFills.length > 0 &&
-    positiveFills.every((rung) => rung.averagePrice !== undefined);
-  const fillNotional = positiveFills.reduce(
-    (sum, rung) =>
-      rung.filledSize === undefined || rung.averagePrice === undefined
-        ? sum
-        : sum.plus(new BigNumber(rung.filledSize).times(rung.averagePrice)),
-    new BigNumber(0),
-  );
   let state: ScaleOrderGroup['state'] = 'placing';
   if (group.placementStopped) {
     state = 'stopped';
@@ -374,9 +389,6 @@ export function toLighterScaleGroup(group: LighterScaleGroup): ScaleOrderGroup {
         }
       : {}),
     ...(fillsKnown ? { filledSize: filledSize.toFixed() } : {}),
-    ...(averageKnown
-      ? { averagePrice: fillNotional.div(filledSize).toFixed() }
-      : {}),
   };
 }
 
@@ -390,7 +402,7 @@ export function parseLighterScaleGroups(
   if (raw === null) {
     return [];
   }
-  if (raw.length > 2_000_000) {
+  if (raw.length > LIGHTER_SCALE_MAX_JOURNAL_LENGTH) {
     throw new Error('Lighter Scale journal exceeds its storage bound');
   }
   const groups: unknown = JSON.parse(raw);
@@ -407,11 +419,11 @@ export function parseLighterScaleGroups(
       group?.version !== 1 ||
       typeof group.groupId !== 'string' ||
       !group.groupId.startsWith(LIGHTER_SCALE_PREFIX) ||
-      group.groupId.length > 256 ||
+      group.groupId.length > LIGHTER_SCALE_MAX_GROUP_ID_LENGTH ||
       groupsSeen.has(group.groupId) ||
       typeof group.symbol !== 'string' ||
       !group.symbol ||
-      group.symbol.length > 100 ||
+      group.symbol.length > LIGHTER_SCALE_MAX_SYMBOL_LENGTH ||
       !integer(group.accountIndex) ||
       !integer(group.apiKeyIndex) ||
       group.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
@@ -422,9 +434,9 @@ export function parseLighterScaleGroups(
       !/^0x[0-9a-f]{40}$/u.test(group.walletAddress) ||
       !['mainnet', 'testnet'].includes(group.network ?? '') ||
       !integer(group.sizeDecimals) ||
-      group.sizeDecimals > 18 ||
+      group.sizeDecimals > LIGHTER_SCALE_MAX_DECIMALS ||
       !integer(group.priceDecimals) ||
-      group.priceDecimals > 18 ||
+      group.priceDecimals > LIGHTER_SCALE_MAX_DECIMALS ||
       typeof group.isBuy !== 'boolean' ||
       typeof group.reduceOnly !== 'boolean' ||
       typeof group.placementStopped !== 'boolean' ||
@@ -442,7 +454,7 @@ export function parseLighterScaleGroups(
         !rung ||
         !integer(rung.clientOrderId) ||
         rung.clientOrderId === 0 ||
-        rung.clientOrderId >= 2 ** 48 ||
+        rung.clientOrderId >= LIGHTER_SCALE_CLIENT_ID_LIMIT ||
         ids.has(rung.clientOrderId) ||
         !integer(rung.priceInt) ||
         rung.priceInt < 1 ||
@@ -463,7 +475,8 @@ export function parseLighterScaleGroups(
         !(
           rung.txHash === null ||
           (typeof rung.txHash === 'string' &&
-            /^[a-f\d]{1,128}$/iu.test(rung.txHash))
+            /^[a-f\d]+$/iu.test(rung.txHash) &&
+            rung.txHash.length <= LIGHTER_SCALE_MAX_HASH_LENGTH)
         ) ||
         !(
           rung.expiresAt === null ||
@@ -510,7 +523,7 @@ export function parseLighterScaleGroups(
         (!['failed', 'expired', 'nonce-consumed'].includes(
           rung.nonAcceptance,
         ) ||
-          rung.state !== 'unknown' ||
+          !['unknown', 'rejected'].includes(rung.state) ||
           rung.orderId !== undefined)
       ) {
         throw new Error('Invalid Lighter Scale non-acceptance proof');
@@ -536,9 +549,6 @@ export function parseLighterScaleGroups(
           new BigNumber(rung.filledSize).gt(rung.size))
       ) {
         throw new Error('Invalid Lighter Scale fill');
-      }
-      if (rung.averagePrice !== undefined) {
-        parseScaleDecimal(rung.averagePrice);
       }
     }
   }

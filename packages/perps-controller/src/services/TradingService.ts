@@ -220,8 +220,15 @@ export class TradingService {
       result?.success === true
         ? PERPS_EVENT_VALUE.STATUS.EXECUTED
         : PERPS_EVENT_VALUE.STATUS.FAILED;
+    // A known zero fill can still represent accepted resting exposure.
+    // Keep execution quantities intact on the receipt and partial-fill event.
+    const trackedFillSize =
+      result?.filledSize !== undefined &&
+      new BigNumber(result.filledSize).isZero()
+        ? (result.acceptedSize ?? result.filledSize)
+        : result?.filledSize;
     const trackedOrderSize = parseFloat(
-      result?.filledSize ??
+      trackedFillSize ??
         result?.acceptedSize ??
         result?.submittedSize ??
         params.size,

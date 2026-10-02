@@ -1,6 +1,7 @@
 import type {
   DirectProviderOrderCapabilities,
   ScaleOrderGroup,
+  PerpsProvider,
   ScaleOrderChild,
   PerpsControllerGetScaleOrderGroupsAction,
   PerpsControllerReviewScaleOrderGroupsAction,
@@ -183,6 +184,18 @@ export type RecoveryAccountCapacityConsumerContract = AssertTrue<
 >;
 
 export type ScaleInventoryConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Extract<
+        keyof ScaleOrderGroup,
+        'success' | 'error' | 'partialState' | 'averagePrice'
+      >,
+      never
+    >
+  >,
+  AssertTrue<
+    IsExact<Parameters<NonNullable<PerpsProvider['getScaleOrderGroups']>>, []>
+  >,
   AssertTrue<
     IsExact<
       ReturnType<PerpsControllerGetScaleOrderGroupsAction['handler']>,

@@ -1,5 +1,6 @@
 import { BigNumber } from 'bignumber.js';
 
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { OrderParams } from '../../../src/types/index.js';
 import type { LighterOrderBookMeta } from '../../../src/types/lighter-types.js';
 import {
@@ -86,6 +87,32 @@ function groupFixture(): LighterScaleGroup {
 }
 
 describe('Lighter Scale exact builder', () => {
+  it.each([
+    [
+      { scaleMinPrice: undefined },
+      PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED,
+    ],
+    [
+      { scaleNumOrders: undefined },
+      PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID,
+    ],
+    [{ scaleNumOrders: 1 }, PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID],
+    [
+      { scaleMinPrice: '125.0001', isBuy: false },
+      PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
+    ],
+    [{ scaleMaxPrice: '125' }, PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID],
+    [{ size: '0.0001' }, PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
+    [{ usdAmount: '1' }, PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
+  ] as const)(
+    'scale02 returns shared Scale error codes for %j',
+    (override, code) => {
+      expect(() =>
+        buildLighterScaleLadder({ ...intent, ...override }, market),
+      ).toThrow(code);
+    },
+  );
+
   it('conserves skewed integer lots and the exact quote budget', () => {
     const explicit = buildLighterScaleLadder(intent, market);
     const budget = buildLighterScaleLadder(
@@ -172,7 +199,7 @@ describe('Lighter Scale durable receipt', () => {
       acceptedChildren: [{ state: 'canceled', orderId: '800' }],
       filledSize: '0',
     });
-    expect(receipt.averagePrice).toBeUndefined();
+    expect(receipt).not.toHaveProperty('averagePrice');
   });
 
   it('does not substitute the limit price for execution evidence', () => {
@@ -180,9 +207,7 @@ describe('Lighter Scale durable receipt', () => {
     group.rungs[0].state = 'filled';
     group.rungs[0].filledSize = '0.08';
     expect(toLighterScaleGroup(group).filledSize).toBe('0.08');
-    expect(toLighterScaleGroup(group).averagePrice).toBeUndefined();
-    group.rungs[0].averagePrice = '130';
-    expect(toLighterScaleGroup(group).averagePrice).toBe('130');
+    expect(toLighterScaleGroup(group)).not.toHaveProperty('averagePrice');
   });
 
   it('round trips validated immutable scope and rejects duplicated identities', () => {

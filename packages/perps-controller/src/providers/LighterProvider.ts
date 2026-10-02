@@ -24,6 +24,7 @@ import {
   getLighterChainId,
   getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
+  LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
@@ -199,6 +200,7 @@ import {
   toLighterScaleGroup,
   isLighterScaleTerminal,
   LIGHTER_SCALE_PREFIX,
+  LIGHTER_SCALE_JOURNAL_PREFIX,
   LIGHTER_SCALE_MAX_GROUPS,
 } from '../utils/lighterScaleOrders.js';
 import type {
@@ -412,7 +414,6 @@ const toFiniteCandle = (candle: LighterCandle): CandleStick | null => {
 };
 
 /** The pinned signer casts price fields to uint32. */
-const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
 
 /**
  * One recorded TP/SL venue mutation attempt. Each attempt carries its own
@@ -1054,6 +1055,22 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 
 /** Bounded attempts for TP/SL settlement visibility. */
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
+
+/** Convert authoritative position percentage or default basis points to leverage.
+ * @param positionMargin - Position margin percentage, when a position exists.
+ * @param defaultInitial - Market initial margin in basis points.
+ * @returns Leverage, or NaN when unavailable.
+ */
+const scaleLeverageFromMargin = (
+  positionMargin: string | undefined,
+  defaultInitial: number | undefined,
+): number => {
+  let margin = defaultInitial === undefined ? null : defaultInitial / 100;
+  if (positionMargin !== undefined) {
+    margin = parseStrictDecimal(positionMargin);
+  }
+  return margin !== null && margin > 0 ? 100 / margin : Number.NaN;
+};
 
 /**
  * Integerize a signer-bound PRICE (order price / trigger price): the
@@ -2753,8 +2770,11 @@ export class LighterProvider implements PerpsProvider {
       if (!entry.intent.startsWith('placeScale:')) {
         return true;
       }
+      if (entry.kind !== LIGHTER_TX_TYPE_CREATE_ORDER || entry.owner !== null) {
+        return false;
+      }
       const key = this.#scaleKey(accountIndex);
-      const groups = await this.#readScaleGroups(key);
+      const groups = await this.#readScaleGroups(key, accountIndex);
       this.#assertSession(generation);
       const group = groups.find((candidate) =>
         candidate.rungs.some(
@@ -2797,14 +2817,18 @@ export class LighterProvider implements PerpsProvider {
         rung.txHash !== entry.txHash ||
         rung.expiresAt !== entry.expiresAt ||
         rung.orderId !== undefined ||
-        (rung.state !== 'unknown' && rung.state !== 'submitted') ||
+        (rung.state !== 'unknown' &&
+          rung.state !== 'submitted' &&
+          !(rung.state === 'rejected' && rung.nonAcceptance !== undefined)) ||
         (proof === 'nonce-consumed' &&
           (entry.expiresAt === null ||
             Date.now() <= entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS))
       ) {
         return false;
       }
-      rung.state = 'unknown';
+      if (rung.state !== 'rejected') {
+        rung.state = 'unknown';
+      }
       rung.nonAcceptance = proof;
       group.placementStopped = true;
       await this.#writeScaleGroup(key, group, generation);
@@ -7315,10 +7339,11 @@ export class LighterProvider implements PerpsProvider {
   }
 
   readonly #scaleKey = (accountIndex: number): string =>
-    `lighterScaleOrders:${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}:${accountIndex}`;
+    `${LIGHTER_SCALE_JOURNAL_PREFIX}${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}:${accountIndex}`;
 
   readonly #readScaleGroups = async (
     key: string,
+    accountIndex: number,
   ): Promise<LighterScaleGroup[]> => {
     let groups: LighterScaleGroup[];
     try {
@@ -7328,10 +7353,10 @@ export class LighterProvider implements PerpsProvider {
         `${LIGHTER_DATA_INTEGRITY_PREFIX} Lighter Scale journal is unavailable or invalid`,
       );
     }
-    const scope = `${LIGHTER_SCALE_PREFIX}${key.slice('lighterScaleOrders:'.length)}:`;
+    const scope = `${LIGHTER_SCALE_PREFIX}${key.slice(LIGHTER_SCALE_JOURNAL_PREFIX.length)}:`;
     for (const group of groups) {
       if (
-        group.accountIndex !== Number(key.split(':').at(-1)) ||
+        group.accountIndex !== accountIndex ||
         group.walletAddress !== this.#boundAddress ||
         group.network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
         group.groupId !== `${scope}${group.rungs[0].clientOrderId}`
@@ -7354,7 +7379,7 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<void> => {
     await withStorageMutex(key, async () => {
       this.#assertSession(generation);
-      const groups = await this.#readScaleGroups(key);
+      const groups = await this.#readScaleGroups(key, group.accountIndex);
       this.#assertSession(generation);
       const index = groups.findIndex((item) => item.groupId === group.groupId);
       if (index < 0) {
@@ -7379,9 +7404,53 @@ export class LighterProvider implements PerpsProvider {
     });
   };
 
+  readonly #readScaleReservations = async (
+    accountIndex: number,
+    marketId: number,
+    isBuy: boolean,
+    token: string,
+    generation: number,
+  ): Promise<{ reserved: BigNumber; identities: Set<string> }> => {
+    const active = await this.#clientService.getActiveOrders(
+      accountIndex,
+      token,
+      marketId,
+    );
+    this.#assertSession(generation);
+    if (!Array.isArray(active.orders)) {
+      throw new Error('Lighter Scale active reservations are unavailable');
+    }
+    let reserved = new BigNumber(0);
+    const identities = new Set<string>();
+    for (const row of active.orders) {
+      if (
+        row.ownerAccountIndex !== accountIndex ||
+        row.marketIndex !== marketId ||
+        ![0, 1, false, true].includes(row.reduceOnly)
+      ) {
+        throw new Error('Invalid Lighter Scale active reservation scope');
+      }
+      const identity = String(row.orderIndex);
+      if (identities.has(identity)) {
+        throw new Error('Duplicate Lighter Scale active reservation');
+      }
+      identities.add(identity);
+      if (!row.reduceOnly) {
+        continue;
+      }
+      const quantity = parseStrictDecimal(row.remainingBaseAmount);
+      if (quantity === null || quantity < 0 || row.isAsk !== !isBuy) {
+        throw new Error('Invalid Lighter Scale reduce-only reservation');
+      }
+      reserved = reserved.plus(row.remainingBaseAmount);
+    }
+    return { reserved, identities };
+  };
+
   readonly #prepareScaleOrder = async (
     params: OrderParams,
     generation: number,
+    readToken?: string,
   ): Promise<{
     market: LighterOrderBookMeta;
     ladder: ReturnType<typeof buildLighterScaleLadder>;
@@ -7421,6 +7490,16 @@ export class LighterProvider implements PerpsProvider {
       throw new Error('Ambiguous Lighter Scale position');
     }
     const held = matches[0];
+    const maximum = await this.#requireMarketMaxLeverage(params.symbol);
+    this.#assertSession(generation);
+    if (
+      maximum === null ||
+      (params.leverage !== undefined && params.leverage > maximum)
+    ) {
+      throw new Error(
+        'Lighter Scale leverage metadata is unavailable or exceeded',
+      );
+    }
     if (params.reduceOnly) {
       if (
         !held ||
@@ -7433,32 +7512,28 @@ export class LighterProvider implements PerpsProvider {
           'Lighter Scale reduce-only size or side exceeds the live position',
         );
       }
-    } else {
-      const maximum = await this.#requireMarketMaxLeverage(params.symbol);
-      this.#assertSession(generation);
-      if (
-        maximum === null ||
-        (params.leverage !== undefined && params.leverage > maximum)
-      ) {
+      const token =
+        readToken ??
+        (await this.#getRecoveryReadToken(accountIndex, generation)).token;
+      const { reserved } = await this.#readScaleReservations(
+        accountIndex,
+        market.marketId,
+        params.isBuy,
+        token,
+        generation,
+      );
+      if (reserved.plus(ladder.size).gt(held.position)) {
         throw new Error(
-          'Lighter Scale leverage metadata is unavailable or exceeded',
+          'Lighter Scale aggregate reduce-only reservation exceeds live position',
         );
       }
-      const defaultMargin = this.#marginBySymbol.get(
-        params.symbol,
-      )?.defaultInitial;
-      let actualMargin =
-        defaultMargin === undefined ? null : defaultMargin / 100;
-      if (held) {
-        actualMargin = parseStrictDecimal(held.initialMarginFraction);
-      }
-      if (
-        params.leverage === undefined &&
-        (actualMargin === null || actualMargin <= 0)
-      ) {
-        throw new Error('Lighter Scale current leverage is unavailable');
-      }
-      const leverage = params.leverage ?? 100 / Number(actualMargin);
+    } else {
+      const leverage =
+        params.leverage ??
+        scaleLeverageFromMargin(
+          held?.initialMarginFraction,
+          this.#marginBySymbol.get(params.symbol)?.defaultInitial,
+        );
       if (
         !Number.isFinite(leverage) ||
         leverage < 1 ||
@@ -7493,6 +7568,31 @@ export class LighterProvider implements PerpsProvider {
     generation: number,
     pendingClientId: number,
   ): Promise<void> => {
+    // Refresh prior children before reading the position: filled reduce-only
+    // children may have left active orders and already reduced the position.
+    if (
+      group.reduceOnly &&
+      group.rungs.some(
+        (rung) => rung.state === 'resting' || rung.state === 'accepted',
+      )
+    ) {
+      await this.#refreshScaleGroup(
+        group,
+        this.#scaleKey(group.accountIndex),
+        token,
+        generation,
+      );
+    }
+    const maximum = await this.#requireMarketMaxLeverage(group.symbol);
+    this.#assertSession(generation);
+    if (
+      maximum === null ||
+      (requestedLeverage !== undefined && requestedLeverage > maximum)
+    ) {
+      throw new Error(
+        'Lighter Scale leverage metadata is unavailable or exceeded',
+      );
+    }
     const response = await this.#clientService.getAccountByIndex(
       group.accountIndex,
     );
@@ -7533,39 +7633,13 @@ export class LighterProvider implements PerpsProvider {
           'Lighter Scale reduce-only position changed before dispatch',
         );
       }
-      const active = await this.#clientService.getActiveOrders(
+      const { reserved, identities } = await this.#readScaleReservations(
         group.accountIndex,
-        token,
         group.marketId,
+        group.isBuy,
+        token,
+        generation,
       );
-      this.#assertSession(generation);
-      if (!Array.isArray(active.orders)) {
-        throw new Error('Lighter Scale active reservations are unavailable');
-      }
-      let reserved = new BigNumber(0);
-      const identities = new Set<string>();
-      for (const row of active.orders) {
-        if (
-          row.ownerAccountIndex !== group.accountIndex ||
-          row.marketIndex !== group.marketId ||
-          ![0, 1, false, true].includes(row.reduceOnly)
-        ) {
-          throw new Error('Invalid Lighter Scale active reservation scope');
-        }
-        const identity = String(row.orderIndex);
-        if (identities.has(identity)) {
-          throw new Error('Duplicate Lighter Scale active reservation');
-        }
-        identities.add(identity);
-        if (!row.reduceOnly) {
-          continue;
-        }
-        const quantity = parseStrictDecimal(row.remainingBaseAmount);
-        if (quantity === null || quantity < 0 || row.isAsk !== !group.isBuy) {
-          throw new Error('Invalid Lighter Scale reduce-only reservation');
-        }
-        reserved = reserved.plus(row.remainingBaseAmount);
-      }
       for (const rung of group.rungs) {
         if (rung.clientOrderId === pendingClientId) {
           continue;
@@ -7593,20 +7667,13 @@ export class LighterProvider implements PerpsProvider {
       }
       return;
     }
-    const defaultMargin = this.#marginBySymbol.get(
-      group.symbol,
-    )?.defaultInitial;
-    let margin = defaultMargin === undefined ? null : defaultMargin / 100;
-    if (held) {
-      margin = parseStrictDecimal(held.initialMarginFraction);
-    }
-    if (requestedLeverage === undefined && (margin === null || margin <= 0)) {
-      throw new Error('Lighter Scale current leverage is unavailable');
-    }
-    const leverage = requestedLeverage ?? 100 / Number(margin);
+    const leverage =
+      requestedLeverage ??
+      scaleLeverageFromMargin(
+        held?.initialMarginFraction,
+        this.#marginBySymbol.get(group.symbol)?.defaultInitial,
+      );
     const balance = parseStrictDecimal(account.availableBalance);
-    const maximum = await this.#requireMarketMaxLeverage(group.symbol);
-    this.#assertSession(generation);
     if (
       maximum === null ||
       !Number.isFinite(leverage) ||
@@ -7637,12 +7704,89 @@ export class LighterProvider implements PerpsProvider {
     const inventory = await this.#resolveRecoveryInventory(generation);
     const groups = await Promise.all(
       inventory.accounts.map(async (account) =>
-        this.#readScaleGroups(this.#scaleKey(account)),
+        this.#readScaleGroups(this.#scaleKey(account), account),
       ),
     );
     this.#assertSession(generation);
     return groups.flat().map(toLighterScaleGroup);
   }
+
+  readonly #settleObservedScaleAcceptance = async (
+    group: LighterScaleGroup,
+    observed: LighterScaleRung[],
+    generation: number,
+  ): Promise<void> => {
+    for (const rung of observed) {
+      if (
+        rung.txHash === null ||
+        rung.nonce === null ||
+        rung.expiresAt === null
+      ) {
+        continue;
+      }
+      const transaction = await this.#clientService.getTx(rung.txHash);
+      this.#assertSession(generation);
+      if (transaction !== null) {
+        continue;
+      }
+      const nonce = await this.#clientService.getNextNonce(
+        group.accountIndex,
+        group.apiKeyIndex,
+      );
+      this.#assertSession(generation);
+      if (!Number.isSafeInteger(nonce.nonce) || nonce.nonce <= rung.nonce) {
+        continue;
+      }
+      await this.#withLedgerLock(
+        group.accountIndex,
+        async () => {
+          const doc = await this.#readNonceLedger(
+            group.accountIndex,
+            group.apiKeyIndex,
+          );
+          this.#assertSession(generation);
+          const entry = doc.entries.find(
+            (candidate) =>
+              candidate.owner === null &&
+              candidate.intent ===
+                `placeScale:${group.groupId}:${rung.clientOrderId}` &&
+              candidate.kind === LIGHTER_TX_TYPE_CREATE_ORDER &&
+              candidate.nonce === rung.nonce &&
+              candidate.txHash === rung.txHash &&
+              candidate.expiresAt === rung.expiresAt,
+          );
+          if (!entry) {
+            return;
+          }
+          this.#appendRecoveredDispatch(doc, {
+            recoveryId: `${entry.nonce}:${entry.txHash}`,
+            kind: entry.kind,
+            intent: entry.intent,
+            txHash: entry.txHash,
+            outcome: rung.state === 'rejected' ? 'failed' : 'succeeded',
+            evidence: 'fresh-exact-scale-child',
+          });
+          doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+          doc.entries = doc.entries.filter((candidate) => candidate !== entry);
+          await this.#writeNonceLedger(
+            group.accountIndex,
+            doc,
+            group.apiKeyIndex,
+          );
+          this.#assertSession(generation);
+          const reservationKey = `${group.accountIndex}:${group.apiKeyIndex}`;
+          this.#nonceReservations.set(
+            reservationKey,
+            Math.max(
+              this.#nonceReservations.get(reservationKey) ?? 0,
+              entry.nonce + 1,
+            ),
+          );
+        },
+        group.apiKeyIndex,
+      );
+    }
+  };
 
   readonly #refreshScaleGroup = async (
     group: LighterScaleGroup,
@@ -7650,26 +7794,51 @@ export class LighterProvider implements PerpsProvider {
     token: string,
     generation: number,
     abandon = false,
+    settleLedger = false,
   ): Promise<void> => {
-    if (isLighterScaleTerminal(group)) {
+    const pending = settleLedger
+      ? (await this.#readNonceLedger(group.accountIndex, group.apiKeyIndex))
+          .entries
+      : [];
+    this.#assertSession(generation);
+    if (
+      isLighterScaleTerminal(group) &&
+      !pending.some((entry) =>
+        entry.intent.startsWith(`placeScale:${group.groupId}:`),
+      )
+    ) {
       return;
     }
+    const observed: LighterScaleRung[] = [];
     const active = await this.#clientService.getActiveOrders(
       group.accountIndex,
       token,
       group.marketId,
     );
     this.#assertSession(generation);
-    if (!Array.isArray(active.orders)) {
-      throw new Error('Lighter Scale active orders are unavailable');
+    if (
+      !Array.isArray(active.orders) ||
+      active.orders.some(
+        (row) =>
+          row.ownerAccountIndex !== group.accountIndex ||
+          row.marketIndex !== group.marketId,
+      )
+    ) {
+      throw new Error(
+        'Lighter Scale active orders are unavailable or unscoped',
+      );
     }
     const rows = [...active.orders];
     const missing = (): boolean =>
       group.rungs.some(
         (rung) =>
-          !['prepared', 'filled', 'canceled', 'rejected'].includes(
-            rung.state,
-          ) &&
+          rung.state !== 'prepared' &&
+          (!['filled', 'canceled', 'rejected'].includes(rung.state) ||
+            pending.some(
+              (entry) =>
+                entry.intent ===
+                `placeScale:${group.groupId}:${rung.clientOrderId}`,
+            )) &&
           !rows.some(
             (row) =>
               row.ownerAccountIndex === group.accountIndex &&
@@ -7680,7 +7849,7 @@ export class LighterProvider implements PerpsProvider {
     let cursor: string | undefined;
     let historyRows = 0;
     const cursors = new Set<string>();
-    do {
+    while (missing()) {
       const page = await this.#clientService.getInactiveOrders(
         group.accountIndex,
         token,
@@ -7702,6 +7871,15 @@ export class LighterProvider implements PerpsProvider {
       if (historyRows > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT) {
         throw new Error('Lighter Scale order history limit exceeded');
       }
+      if (
+        page.orders.some(
+          (row) =>
+            row.ownerAccountIndex !== group.accountIndex ||
+            row.marketIndex !== group.marketId,
+        )
+      ) {
+        throw new Error('Lighter Scale history scope is invalid');
+      }
       rows.push(...page.orders);
       cursor = page.nextCursor;
       if (cursor !== undefined) {
@@ -7716,12 +7894,12 @@ export class LighterProvider implements PerpsProvider {
         }
         cursors.add(cursor);
       }
-    } while (cursor !== undefined && missing());
+      if (cursor === undefined) {
+        break;
+      }
+    }
     for (const rung of group.rungs) {
-      if (
-        rung.state === 'prepared' ||
-        ['filled', 'canceled', 'rejected'].includes(rung.state)
-      ) {
+      if (rung.state === 'prepared') {
         continue;
       }
       const matches = rows.filter(
@@ -7750,7 +7928,10 @@ export class LighterProvider implements PerpsProvider {
         }
         delete rung.nonAcceptance;
         rung.orderId = orderId;
-        const adapted = adaptOrderFromLighter(row, group.symbol);
+        const adapted =
+          row.status === 'rejected'
+            ? undefined
+            : adaptOrderFromLighter(row, group.symbol);
         if (row.filledBaseAmount !== undefined) {
           const filled = parseStrictDecimal(row.filledBaseAmount);
           if (
@@ -7765,18 +7946,19 @@ export class LighterProvider implements PerpsProvider {
         // Limit price is not execution price. No average fill price is inferred.
         if (row.status === 'rejected') {
           rung.state = 'rejected';
-        } else if (adapted.status === 'canceled') {
+        } else if (adapted?.status === 'canceled') {
           rung.state = 'canceled';
         } else if (
-          adapted.status === 'filled' &&
+          adapted?.status === 'filled' &&
           parseStrictDecimal(row.remainingBaseAmount) === 0
         ) {
           rung.state = 'filled';
-        } else if (adapted.status === 'open') {
+        } else if (adapted?.status === 'open') {
           rung.state = 'resting';
         } else {
           rung.state = 'accepted';
         }
+        observed.push(rung);
       } else if (rung.txHash !== null && rung.orderId === undefined) {
         const transaction = await this.#clientService.getTx(rung.txHash);
         this.#assertSession(generation);
@@ -7794,24 +7976,48 @@ export class LighterProvider implements PerpsProvider {
             delete rung.nonAcceptance;
             rung.state = 'accepted';
           } else if (outcome === 'failed') {
-            delete rung.nonAcceptance;
+            rung.nonAcceptance = 'failed';
             rung.state = 'rejected';
           }
         } else if (
           abandon &&
           transaction === null &&
-          rung.nonAcceptance !== undefined &&
+          cursor === undefined &&
           rung.expiresAt !== null &&
           Date.now() > rung.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
         ) {
-          // The ledger transferred durable proof before releasing its nonce.
-          // Fresh absent history and hash must still agree before abandonment.
-          delete rung.nonAcceptance;
+          // Complete fresh absence and the exact signed expiry also cover an
+          // acknowledged dispatch whose nonce ledger has already retired.
+          rung.nonAcceptance = 'expired';
           rung.state = 'rejected';
         }
       }
     }
     await this.#writeScaleGroup(key, group, generation);
+    if (settleLedger) {
+      await this.#settleObservedScaleAcceptance(group, observed, generation);
+    }
+  };
+
+  readonly #awaitScaleVisibility = async (
+    group: LighterScaleGroup,
+    key: string,
+    token: string,
+    generation: number,
+    settled: () => boolean,
+  ): Promise<void> => {
+    for (let poll = 0; poll < LIGHTER_TPSL_SETTLE_ATTEMPTS; poll += 1) {
+      await this.#refreshScaleGroup(group, key, token, generation, true);
+      if (settled()) {
+        return;
+      }
+      if (poll + 1 < LIGHTER_TPSL_SETTLE_ATTEMPTS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
+        );
+        this.#assertSession(generation);
+      }
+    }
   };
 
   /** Reconcile exact Scale children without signing financial transactions.
@@ -7826,9 +8032,22 @@ export class LighterProvider implements PerpsProvider {
     return await withProcessMutex(
       `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
       async () => {
-        const groups = await this.#readScaleGroups(key);
+        const groups = await this.#readScaleGroups(key, accountIndex);
         this.#assertSession(generation);
-        if (groups.every(isLighterScaleTerminal)) {
+        const pending = await Promise.all(
+          groups.map(async (group) =>
+            (
+              await this.#readNonceLedger(accountIndex, group.apiKeyIndex)
+            ).entries.some((entry) =>
+              entry.intent.startsWith(`placeScale:${group.groupId}:`),
+            ),
+          ),
+        );
+        this.#assertSession(generation);
+        if (
+          groups.every(isLighterScaleTerminal) &&
+          pending.every((value) => !value)
+        ) {
           return groups.map(toLighterScaleGroup);
         }
         const { token } = await this.#getRecoveryReadToken(
@@ -7838,8 +8057,26 @@ export class LighterProvider implements PerpsProvider {
         for (const group of groups) {
           // A restart stops the coordinator permanently; it never resumes rungs.
           group.placementStopped = true;
-          await this.#refreshScaleGroup(group, key, token, generation);
+          await this.#refreshScaleGroup(
+            group,
+            key,
+            token,
+            generation,
+            true,
+            true,
+          );
           await this.#writeScaleGroup(key, group, generation);
+          await this.#withLedgerLock(
+            accountIndex,
+            async () => {
+              await this.#resolveNonceLedgerLocked(
+                accountIndex,
+                group.apiKeyIndex,
+                { generation },
+              );
+            },
+            group.apiKeyIndex,
+          );
         }
         this.#assertSession(generation);
         return groups.map(toLighterScaleGroup);
@@ -7862,7 +8099,7 @@ export class LighterProvider implements PerpsProvider {
       const prepared = await this.#prepareScaleOrder(params, generation);
       const { market, ladder, accountIndex } = prepared;
       key = this.#scaleKey(accountIndex);
-      const prior = await this.#readScaleGroups(key);
+      const prior = await this.#readScaleGroups(key, accountIndex);
       this.#assertSession(generation);
       if (
         prior.some(
@@ -7900,6 +8137,7 @@ export class LighterProvider implements PerpsProvider {
           const fresh = await this.#prepareScaleOrder(
             params,
             capturedGeneration,
+            token,
           );
           if (
             JSON.stringify(fresh.ladder) !== JSON.stringify(ladder) ||
@@ -7907,7 +8145,7 @@ export class LighterProvider implements PerpsProvider {
           ) {
             throw new Error('Lighter Scale grid changed before dispatch');
           }
-          const groups = await this.#readScaleGroups(capturedKey);
+          const groups = await this.#readScaleGroups(capturedKey, accountIndex);
           this.#assertSession(capturedGeneration);
           if (
             groups.some(
@@ -7927,7 +8165,7 @@ export class LighterProvider implements PerpsProvider {
           }
           const ownedGroup: LighterScaleGroup = {
             version: 1,
-            groupId: `${LIGHTER_SCALE_PREFIX}${capturedKey.slice('lighterScaleOrders:'.length)}:${ids[0]}`,
+            groupId: `${LIGHTER_SCALE_PREFIX}${capturedKey.slice(LIGHTER_SCALE_JOURNAL_PREFIX.length)}:${ids[0]}`,
             symbol: params.symbol,
             accountIndex,
             apiKeyIndex: this.#apiKeyIndex,
@@ -8089,11 +8327,12 @@ export class LighterProvider implements PerpsProvider {
               ownedGroup,
               capturedGeneration,
             );
-            await this.#refreshScaleGroup(
-              group,
+            await this.#awaitScaleVisibility(
+              ownedGroup,
               capturedKey,
               token,
               capturedGeneration,
+              () => !['unknown', 'submitted'].includes(rung.state),
             );
             if (
               rung.state === 'unknown' ||
@@ -8143,7 +8382,7 @@ export class LighterProvider implements PerpsProvider {
     this.#assertSession(generation);
     const key = this.#scaleKey(accountIndex);
     const lookup = async (): Promise<LighterScaleGroup> => {
-      const groups = await this.#readScaleGroups(key);
+      const groups = await this.#readScaleGroups(key, accountIndex);
       this.#assertSession(generation);
       const group = groups.find(
         (entry) =>
@@ -8154,7 +8393,46 @@ export class LighterProvider implements PerpsProvider {
       }
       return group;
     };
-    await lookup();
+    const terminal = await withProcessMutex(
+      `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
+      async () => {
+        const current = await lookup();
+        current.placementStopped = true;
+        if (!isLighterScaleTerminal(current)) {
+          const { token: readToken } = await this.#getRecoveryReadToken(
+            accountIndex,
+            generation,
+          );
+          await this.#refreshScaleGroup(
+            current,
+            key,
+            readToken,
+            generation,
+            true,
+          );
+        }
+        await this.#writeScaleGroup(key, current, generation);
+        if (!isLighterScaleTerminal(current)) {
+          return false;
+        }
+        await this.#withLedgerLock(
+          accountIndex,
+          async () => {
+            await this.#resolveNonceLedgerLocked(
+              accountIndex,
+              current.apiKeyIndex,
+              { generation },
+            );
+          },
+          current.apiKeyIndex,
+        );
+        return true;
+      },
+    );
+    this.#assertSession(generation);
+    if (terminal) {
+      return { success: true, orderId: params.orderId, providerId: 'lighter' };
+    }
     await this.#ensureSignerReady();
     const token = await this.#getAuthToken();
     this.#assertSession(generation);
@@ -8172,7 +8450,7 @@ export class LighterProvider implements PerpsProvider {
             continue;
           }
           if (rung.state !== 'resting' || rung.orderId === undefined) {
-            throw new Error('Lighter Scale child identity is unresolved');
+            continue;
           }
           const signed = await this.#getSignerBridge().execute({
             function: '_signCancelOrder',
@@ -8190,10 +8468,13 @@ export class LighterProvider implements PerpsProvider {
             ...extractDispatchIdentity(signed),
             intent: `cancelScale:${group.groupId}:${rung.clientOrderId}`,
           });
-          await this.#refreshScaleGroup(group, key, token, generation, true);
-          if (rung.state === 'resting') {
-            throw new Error('Lighter Scale cancellation is not yet confirmed');
-          }
+          await this.#awaitScaleVisibility(
+            group,
+            key,
+            token,
+            generation,
+            () => rung.state !== 'resting',
+          );
         }
         await this.#refreshScaleGroup(group, key, token, generation, true);
         if (!isLighterScaleTerminal(group)) {
@@ -8455,7 +8736,15 @@ export class LighterProvider implements PerpsProvider {
     accountIndex: number,
     generation: number,
   ): Promise<Order[]> => {
-    const groups = await this.#readScaleGroups(this.#scaleKey(accountIndex));
+    let groups: LighterScaleGroup[] = [];
+    try {
+      groups = await this.#readScaleGroups(
+        this.#scaleKey(accountIndex),
+        accountIndex,
+      );
+    } catch {
+      // Attribution is optional; group inventory still exposes integrity errors.
+    }
     this.#assertSession(generation);
     return rows.map((row) => {
       const order = adaptOrderFromLighter(

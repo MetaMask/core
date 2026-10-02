@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add durable Lighter Scale ladders with shared exact-grid preview and validation, aggregate exposure checks, uncertain-child retention without replay, and exact group cancellation. Expose optional `getScaleOrderGroups` and `reviewScaleOrderGroups` provider methods and controller actions, `ScaleOrderGroup`, and real-order `strategyGroupId` attribution. Scale receipts distinguish submitted from confirmed accepted exposure; `ScaleOrderChild` additionally reports canceled accepted children.
+- Add durable Lighter Scale ladders with exact-grid preview, aggregate exposure checks, uncertain-child retention and exact group cancellation.
+- Add optional `getScaleOrderGroups` and `reviewScaleOrderGroups` provider methods and controller actions, with the exported `ScaleOrderGroup` inventory type.
+- Attribute real Lighter Scale order rows through `strategyGroupId`; retain ordinary order reads when optional attribution is unavailable.
+- Reconcile Scale dispatch proof across review, expiry and nonce recovery, and poll bounded venue visibility after placement and cancellation.
 - Support fixed partial Lighter position protection with single triggers or equal-quantity OCO pairs, exact downward quantity normalization and cancellation-first replacement. Expose optional `positionTpsl.defaultCoverage`, `positionTpsl.partialCoverage` and `PerpsPendingManualRecovery.partialIntent`. Lighter reports snapshot defaults, equal-quantity OCO and explicit current-position recovery; `HYPERLIQUID_ORDER_CAPABILITIES` reports dynamic defaults, independent partial pairs and provider-default recovery. Release proven-unsent partial attempts without removing prior protection or unresolved dispatched obligations.
 - Expose `LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT` through `constants` and `constants/lighterConfig` to bound the durable wallet/network recovery account index. Record verified account identity before venue mutation so pending dispatches remain discoverable after account absence.
 - Add strict provider-scoped `reviewRecoveryVenue` and explicit `resolveRecoveryProtection` controller/provider capabilities, including opaque manual-obligation identities, original-slot reconciliation and durable source-to-successor protection settlement. Review uses matching registered read authority without registration or financial writes; unsupported providers report a distinct capability result. Manual and dispatch rows expose optional provider, wallet and network metadata; aggregate rows carry their owning provider. Ordinary protection changes refuse pending selected transfers across trading slots. Pending or unknown transaction statuses remain unresolved even when order books already match; executed (2), pending-final (3) with matching books, or definitive failure resolves them.
@@ -26,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `onError` callbacks and delivery provider identifiers to order and fill subscriptions, including empty aggregated updates, so clients can identify the provider delivering an update. Lighter currently reports detectable subscription setup failures; other providers may not invoke `onError` ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Changed
+
+- Add `canceled` to `ScaleOrderChild.state` for accepted children canceled after placement. Scale receipts distinguish submitted, accepted and known filled exposure.
 
 - **BREAKING:** Add `order_market_unsupported` to `DirectProviderOrderCapabilitiesUnavailableReason` and `OrderCapabilitiesUnavailableReason` for known inactive markets that cannot accept native triggers. Consumers exhaustively matching these unions must include the new reason; Scale price-ladder reasons are unchanged ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Refuse stray `triggerPrice` on Lighter basic market and limit orders with `ORDER_TRIGGER_PRICE_NOT_SUPPORTED` rather than silently ignoring it. Omit the field or select an explicit trigger order type ([#10638](https://github.com/MetaMask/core/pull/10638))

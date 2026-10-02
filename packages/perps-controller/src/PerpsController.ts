@@ -4098,19 +4098,17 @@ export class PerpsController extends BaseController<
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
     if (this.state.activeProvider === 'aggregated' && !params.providerId) {
-      throw new Error('Scale review requires an explicit provider');
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
     if (
       params.providerId &&
       this.state.activeProvider !== 'aggregated' &&
       params.providerId !== this.state.activeProvider
     ) {
-      throw new Error(
-        'Scale review provider does not match the active context',
-      );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
     if (!provider.reviewScaleOrderGroups) {
-      throw new Error('Scale review is unavailable for this provider');
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
     const groups = await provider.reviewScaleOrderGroups(params);
     if (context !== this.#getActionContext()) {

@@ -236,11 +236,11 @@ describe('AggregatedPerpsProvider', () => {
     });
     expect(await aggregatedProvider.getScaleOrderGroups()).toEqual(groups);
     await expect(aggregatedProvider.reviewScaleOrderGroups()).rejects.toThrow(
-      'explicit provider',
+      PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
     );
     await expect(
       aggregatedProvider.reviewScaleOrderGroups({ providerId: 'hyperliquid' }),
-    ).rejects.toThrow('unavailable');
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
     expect(
       await aggregatedProvider.reviewScaleOrderGroups({

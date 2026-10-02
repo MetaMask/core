@@ -338,7 +338,16 @@ export type ScaleOrderChild =
     };
 
 /** Durable strategy inventory without fabricated venue IDs or unknown fills. */
-export type ScaleOrderGroup = Partial<OrderResult> & {
+export type ScaleOrderGroup = Pick<
+  OrderResult,
+  | 'orderId'
+  | 'submittedSize'
+  | 'acceptedSize'
+  | 'acceptedChildren'
+  | 'childOrderIds'
+  | 'weightedAverageLimitPrice'
+  | 'filledSize'
+> & {
   groupId: string;
   symbol: string;
   providerId: PerpsProviderType;
@@ -2151,9 +2160,7 @@ export type Funding = {
 
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
-  getScaleOrderGroups?(params?: {
-    providerId?: PerpsProviderType;
-  }): Promise<ScaleOrderGroup[]>;
+  getScaleOrderGroups?(): Promise<ScaleOrderGroup[]>;
   /** Explicit read-only venue reconciliation, without placement replay. */
   reviewScaleOrderGroups?(params?: {
     providerId?: PerpsProviderType;
