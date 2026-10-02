@@ -536,13 +536,6 @@ type LighterNonceLedgerDoc = {
 const TPSL_GUARDED_REMOVAL_REVIEW_REASON =
   'Protection removal requires review because its position precondition failed or the guarded session ended; review surviving orders before changing protection';
 
-/**
- * Durable transition state: 'creating' means the old protection is still
- * untouched (a failed replacement needs at most a rollback of surviving
- * legs); 'cancelling' means old cancels are underway/done; 'manual'
- * parks failed replacements or guarded removals for explicit user action.
- * A guarded removal is non-resumable from its first durable attempt.
- */
 /** Durable identity of a key registration that must settle before allocation. */
 type LighterPendingKeyRegistration = {
   version: 1;
@@ -555,6 +548,13 @@ type LighterPendingKeyRegistration = {
   accepted: boolean;
 };
 
+/**
+ * Durable transition state: 'creating' means the old protection is still
+ * untouched (a failed replacement needs at most a rollback of surviving
+ * legs); 'cancelling' means old cancels are underway/done; 'manual'
+ * parks failed replacements or guarded removals for explicit user action.
+ * A guarded removal is non-resumable from its first durable attempt.
+ */
 type TpslJournalState = {
   attempts: TpslAttempt[];
   recordedAt: number;
@@ -892,9 +892,9 @@ const parseTpslJournalPointer = (
  * Best-effort dispatch identity from a bridge signing result. The pinned
  * WASM contract (web-wasm light_client.go) returns `{txHash, txInfo}`
  * where txInfo is the marshaled wire payload — it carries Nonce and
- * ExpiredAt but NEVER the hash. Non-throwing: ops whose signers omit a
- * field dispatch with a partial identity (resolvable only by REST
- * advance, never by expiry).
+ * ExpiredAt but NEVER the hash. Missing fields return null without throwing.
+ * Dispatch validation separately requires complete identities; extraction
+ * alone does not authorize submitting a partial signing result.
  *
  * @param signed - Bridge signing result.
  * @param signed.txHash - Signed transaction hash from the RESULT.
@@ -5491,6 +5491,21 @@ export class LighterProvider implements PerpsProvider {
       tx.nonce === pending.nonce;
     const failed =
       matches && getLighterTransactionOutcome(tx.status) === 'failed';
+    if (
+      matches &&
+      getLighterTransactionOutcome(tx.status) === 'executed' &&
+      !pending.accepted
+    ) {
+      // Retain the strongest observed outcome before another reconnect can
+      // mistake expired index absence for proof that this registration failed.
+      pending.accepted = true;
+      await this.#deps.diskCache.setItem(
+        this.#pendingKeyRegistrationKey(pending.accountIndex),
+        JSON.stringify(pending),
+      );
+      this.#assertSession(generation);
+    }
+
     let expiredUnsent = false;
     if (
       !pending.accepted &&
@@ -5863,11 +5878,6 @@ export class LighterProvider implements PerpsProvider {
     }
     this.#assertSession(generation);
     const identity = extractDispatchIdentity(signed);
-    if (identity.txHash === null || identity.expiresAt === null) {
-      throw new Error(
-        'Lighter registration signing result has no complete transaction identity',
-      );
-    }
     let result: LighterSendTxResponse;
     if (!bridge.getRecoverableKeyIndices && !bridge.getStoredKeyIndices) {
       // Legacy bridges use only their explicitly configured slot. Preserve
@@ -5879,6 +5889,11 @@ export class LighterProvider implements PerpsProvider {
         identity,
       );
     } else {
+      if (identity.txHash === null || identity.expiresAt === null) {
+        throw new Error(
+          'Lighter registration signing result has no complete transaction identity',
+        );
+      }
       const registrationKey = this.#pendingKeyRegistrationKey(accountIndex);
       const pending: LighterPendingKeyRegistration = {
         version: 1,

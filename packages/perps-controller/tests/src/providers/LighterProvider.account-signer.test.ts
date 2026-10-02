@@ -1041,13 +1041,118 @@ describe('LighterProvider with accountSigner', () => {
       const canRetry = outcome === 'failed' || outcome === 'expired-absent';
       expect(retry.ready).toBe(canRetry);
       expect(restarted.client.sendTx).toHaveBeenCalledTimes(canRetry ? 1 : 0);
+      const expectedBytes =
+        outcome === 'executed'
+          ? JSON.stringify({
+              ...(JSON.parse(before ?? '') as Record<string, unknown>),
+              accepted: true,
+            })
+          : before;
       expect(await first.deps.diskCache.getItem(pendingKey)).toBe(
-        canRetry ? null : before,
+        canRetry ? null : expectedBytes,
       );
       expect(
         restarted.calls.filter((call) => call.function === '_signChangePubKey'),
       ).toHaveLength(canRetry ? 1 : 0);
       await restarted.provider.disconnect();
+    },
+  );
+
+  it('retains observed execution before an expired absent lookup across another restart', async () => {
+    const first = buildProvider({ storedKeyIndices: [] });
+    first.client.sendTx.mockRejectedValue(new Error('Response lost'));
+    expect(await first.provider.prepareTradingWallet()).toMatchObject({
+      ready: false,
+    });
+    const pendingKey = `lighterKeyRegistration:testnet:${first.address.toLowerCase()}:28`;
+    await first.provider.disconnect();
+    const observed = buildProvider({
+      storedKeyIndices: [7],
+      infrastructure: first.deps,
+    });
+    observed.client.getTx.mockResolvedValue({
+      code: 200,
+      hash: 'dddd000000000001',
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: 42,
+      status: 2,
+    });
+    expect(await observed.provider.prepareTradingWallet()).toMatchObject({
+      ready: false,
+    });
+    expect(observed.client.sendTx).not.toHaveBeenCalled();
+    expect(
+      JSON.parse((await first.deps.diskCache.getItem(pendingKey)) ?? ''),
+    ).toMatchObject({ accepted: true });
+    await observed.provider.disconnect();
+    jest.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
+    const absent = buildProvider({
+      storedKeyIndices: [7],
+      infrastructure: first.deps,
+    });
+    absent.client.getTx.mockResolvedValue(null);
+    expect(await absent.provider.prepareTradingWallet()).toMatchObject({
+      ready: false,
+    });
+    expect(absent.client.sendTx).not.toHaveBeenCalled();
+    expect(
+      absent.calls.filter((call) => call.function === '_signChangePubKey'),
+    ).toStrictEqual([]);
+    expect(
+      JSON.parse((await first.deps.diskCache.getItem(pendingKey)) ?? ''),
+    ).toMatchObject({
+      accepted: true,
+      apiKeyIndex: 7,
+      txHash: 'dddd000000000001',
+      nonce: 42,
+    });
+    await absent.provider.disconnect();
+  });
+
+  it.each(['hash', 'expiry'] as const)(
+    'preserves the existing legacy dispatch refusal for omitted %s and the discovery identity guard',
+    async (missing) => {
+      const legacy = buildProvider();
+      const discovery = buildProvider({ storedKeyIndices: [] });
+      for (const built of [legacy, discovery]) {
+        const execute = jest.spyOn(built.bridge, 'execute');
+        const sign = execute.getMockImplementation();
+        if (!sign) {
+          throw new Error('Missing signer fixture');
+        }
+        execute.mockImplementation(
+          async <Operation extends LighterSignerOperation>(
+            call: LighterWasmCall<Operation>,
+          ): Promise<LighterSignerResult<Operation>> => {
+            if (call.function === '_signChangePubKey') {
+              return {
+                txInfo: JSON.stringify({
+                  changePubKey: true,
+                  Nonce: NEXT_NONCE,
+                  ...(missing === 'expiry'
+                    ? {}
+                    : { ExpiredAt: NOW + TX_EXPIRY_MS }),
+                }),
+                ...(missing === 'hash' ? {} : { txHash: 'dddd000000000001' }),
+              } as LighterSignerResult<Operation>;
+            }
+            return sign(call);
+          },
+        );
+      }
+      expect(await legacy.provider.prepareTradingWallet()).toStrictEqual({
+        ready: false,
+        error:
+          'Lighter dispatch refused: the signing result did not provide a complete transaction identity (hash + expiry)',
+      });
+      expect(legacy.client.sendTx).not.toHaveBeenCalled();
+      expect(await discovery.provider.prepareTradingWallet()).toMatchObject({
+        ready: false,
+      });
+      expect(discovery.client.sendTx).not.toHaveBeenCalled();
+      await legacy.provider.disconnect();
+      await discovery.provider.disconnect();
     },
   );
 
