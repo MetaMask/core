@@ -9,10 +9,8 @@ import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
-import {
-  ensureError,
-  isMissingActionHandlerError,
-} from '../utils/errorUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { isMissingActionHandlerError } from './missingActionHandler.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -57,7 +55,12 @@ export class DataLakeService {
     } catch (error) {
       // Reporting is optional: a host without authentication skips it rather
       // than logging and retrying a call that can never succeed.
-      if (isMissingActionHandlerError(error)) {
+      if (
+        isMissingActionHandlerError(
+          error,
+          'AuthenticationController:getBearerToken',
+        )
+      ) {
         return undefined;
       }
       throw error;

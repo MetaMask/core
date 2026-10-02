@@ -20,15 +20,13 @@ import type {
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
-import {
-  ensureError,
-  isMissingActionHandlerError,
-} from '../utils/errorUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
 import { formatAccountToCaipAccountId } from '../utils/rewardsUtils.js';
 import {
   quantizeBuilderFeeTenthsBps,
   resolveSubscriptionWaiverRate,
 } from '../utils/subscriptionFeeWaiver.js';
+import { isMissingActionHandlerError } from './missingActionHandler.js';
 
 /**
  * Default MetaMask builder fee, in basis points.
@@ -148,7 +146,12 @@ export class RewardsIntegrationService {
     } catch (error) {
       // An absent NetworkController is not a missing network client; let the
       // caller degrade without reporting it as one.
-      if (isMissingActionHandlerError(error)) {
+      if (
+        isMissingActionHandlerError(
+          error,
+          'NetworkController:getNetworkClientById',
+        )
+      ) {
         throw error;
       }
       // Network client may not exist
@@ -546,7 +549,13 @@ export class RewardsIntegrationService {
       // exists and failed, so it must not be mistaken for an absent action and
       // cached as `null` — including on the very first call, before one has
       // ever answered.
-      if (!isMissingActionHandlerError(error) && !this.#deps.subscription) {
+      if (
+        !isMissingActionHandlerError(
+          error,
+          'SubscriptionController:getBenefits',
+        ) &&
+        !this.#deps.subscription
+      ) {
         throw error;
       }
       // Otherwise: missing handler, or a throw with a DI source to fall
@@ -655,7 +664,13 @@ export class RewardsIntegrationService {
           registration = Promise.resolve(result);
         }
       } catch (error) {
-        if (!isMissingActionHandlerError(error) && !this.#deps.subscription) {
+        if (
+          !isMissingActionHandlerError(
+            error,
+            'SubscriptionController:registerAddress',
+          ) &&
+          !this.#deps.subscription
+        ) {
           throw error;
         }
       }
@@ -738,10 +753,32 @@ export class RewardsIntegrationService {
         return undefined;
       }
 
-      // Get the chain ID via DI network controller
-      const networkState = this.#messenger.call('NetworkController:getState');
-      const { selectedNetworkClientId } = networkState;
-      const chainId = this.#getChainIdForNetwork(selectedNetworkClientId);
+      // Get the chain ID via DI network controller. A host without
+      // NetworkController (or one that does not delegate it) simply has no
+      // rewards discount: the fee falls back to the next source.
+      let selectedNetworkClientId: string;
+      let chainId: string | undefined;
+      try {
+        ({ selectedNetworkClientId } = this.#messenger.call(
+          'NetworkController:getState',
+        ));
+        chainId = this.#getChainIdForNetwork(selectedNetworkClientId);
+      } catch (error) {
+        if (
+          !isMissingActionHandlerError(error, 'NetworkController:getState') &&
+          !isMissingActionHandlerError(
+            error,
+            'NetworkController:getNetworkClientById',
+          )
+        ) {
+          throw error;
+        }
+        this.#deps.debugLogger.log(
+          'RewardsIntegrationService: Fee discount unavailable (NetworkController not provided)',
+          { error: ensureError(error).message },
+        );
+        return undefined;
+      }
 
       if (!chainId) {
         this.#deps.logger.error(
@@ -814,15 +851,6 @@ export class RewardsIntegrationService {
 
       return discountBips;
     } catch (error) {
-      // A host without NetworkController (or one that does not delegate it)
-      // simply has no rewards discount: the fee falls back to the next source.
-      if (isMissingActionHandlerError(error)) {
-        this.#deps.debugLogger.log(
-          'RewardsIntegrationService: Fee discount unavailable (messenger action not provided)',
-          { error: ensureError(error).message },
-        );
-        return undefined;
-      }
       this.#deps.logger.error(
         ensureError(
           error,

@@ -1,31 +1,10 @@
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
-
-import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
 import {
   isAbortError,
   ensureError,
   isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
-  isMissingActionHandlerError,
 } from '../../../src/utils/errorUtils.js';
-import { createPartiallyDelegatedMessenger } from '../../helpers/serviceMocks.js';
-
-/**
- * Capture what a call throws.
- *
- * @param fn - The call to make.
- * @returns The thrown value.
- */
-const thrownBy = (fn: () => unknown): unknown => {
-  try {
-    fn();
-  } catch (error) {
-    return error;
-  }
-  throw new Error('Expected the call to throw');
-};
 
 describe('errorUtils', () => {
   describe('isAbortError', () => {
@@ -181,49 +160,6 @@ describe('errorUtils', () => {
         ),
       ).toBe(false);
       expect(isHyperLiquidMultiSigRequiredError(undefined)).toBe(false);
-    });
-  });
-
-  describe('isMissingActionHandlerError', () => {
-    it('returns true when the action was never registered', () => {
-      const messenger = new Messenger<
-        MockAnyNamespace,
-        MessengerActions<PerpsControllerMessenger>
-      >({ namespace: MOCK_ANY_NAMESPACE });
-
-      const error = thrownBy(() =>
-        messenger.call('GeolocationController:getGeolocation'),
-      );
-
-      expect(ensureError(error).message).toBe(
-        'A handler for GeolocationController:getGeolocation has not been registered',
-      );
-      expect(isMissingActionHandlerError(error)).toBe(true);
-    });
-
-    it('returns true when the host did not delegate the action', () => {
-      const messenger = createPartiallyDelegatedMessenger();
-
-      const error = thrownBy(() =>
-        messenger.call('GeolocationController:getGeolocation'),
-      );
-
-      expect(ensureError(error).message).toBe(
-        'A handler for GeolocationController:getGeolocation has not been delegated to PerpsController',
-      );
-      expect(isMissingActionHandlerError(error)).toBe(true);
-    });
-
-    it('returns false for a failure thrown by a handler', () => {
-      expect(isMissingActionHandlerError(new Error('handler exploded'))).toBe(
-        false,
-      );
-      expect(
-        isMissingActionHandlerError(
-          'A handler for Host:action has not been registered',
-        ),
-      ).toBe(false);
-      expect(isMissingActionHandlerError(undefined)).toBe(false);
     });
   });
 });

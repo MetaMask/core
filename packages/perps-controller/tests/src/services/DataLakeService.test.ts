@@ -237,30 +237,42 @@ describe('DataLakeService', () => {
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
-    it('still logs and retries when a delegated getBearerToken handler fails', async () => {
-      dataLakeService = new DataLakeService(
-        mockDeps,
-        createPartiallyDelegatedMessenger({
-          'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
-            mockEvmAccount,
-          ],
-          'AuthenticationController:getBearerToken': async () => {
-            throw new Error('Not signed in');
-          },
-        }),
-      );
+    it.each([
+      ['fails', 'Not signed in'],
+      [
+        'fails on a missing dependency of its own',
+        'A handler for KeyringController:getState has not been delegated to AuthenticationController',
+      ],
+    ])(
+      'still logs and retries when a delegated getBearerToken handler %s',
+      async (_case, message) => {
+        dataLakeService = new DataLakeService(
+          mockDeps,
+          createPartiallyDelegatedMessenger({
+            'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+              mockEvmAccount,
+            ],
+            'AuthenticationController:getBearerToken': async () => {
+              throw new Error(message);
+            },
+          }),
+        );
 
-      const result = await dataLakeService.reportOrder({
-        action: 'open',
-        symbol: 'BTC',
-        isTestnet: false,
-        context: mockContext,
-      });
+        const result = await dataLakeService.reportOrder({
+          action: 'open',
+          symbol: 'BTC',
+          isTestnet: false,
+          context: mockContext,
+        });
 
-      expect(result).toEqual({ success: false, error: 'Not signed in' });
-      expect(mockDeps.logger.error).toHaveBeenCalled();
-      expect(setTimeout).toHaveBeenCalled();
-    });
+        expect(result).toEqual({ success: false, error: message });
+        expect(mockDeps.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message }),
+          expect.anything(),
+        );
+        expect(setTimeout).toHaveBeenCalled();
+      },
+    );
 
     it('retries on network error with exponential backoff', async () => {
       (fetch as jest.Mock)

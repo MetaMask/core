@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `isMissingActionHandlerError` to `@metamask/perps-controller/utils`, matching the `Messenger` error for an action that is neither registered nor delegated ([#10665](https://github.com/MetaMask/core/pull/10665))
-
 ### Changed
 
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
@@ -21,9 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#10651](https://github.com/MetaMask/core/pull/10651))
   - After such a failure, provider entry waits one minute before running the setup again instead of retrying every time; `reconnect()` or `disconnect()` ends the wait, and trading and withdraw still run the setup
   - Venue rejections, signing failures and other setup errors are still reported
-- Treat an optional messenger action the host does not delegate to `PerpsController` like an unregistered one, degrading without logging an error ([#10665](https://github.com/MetaMask/core/pull/10665))
-  - Covers `SubscriptionController:getBenefits` / `registerAddress` (fee waiver), `NetworkController:getState` / `getNetworkClientById` (rewards discount), `AuthenticationController:getBearerToken` (data-lake report, no longer retried) and `AuthenticatedUserStorageService` (watchlist sync, which now keeps the local change instead of reverting it)
-  - Required actions (`KeyringController`, `TransactionController`, `GeolocationController`, `RemoteFeatureFlagController`) are still reported as errors
+- Degrade without logging an error when the host does not provide an optional messenger action, whether it is unregistered or not delegated to `PerpsController` ([#10665](https://github.com/MetaMask/core/pull/10665))
+  - `SubscriptionController:getBenefits` (fee waiver): an undelegated action now reads as no subscription source, as an unregistered one already did, instead of logging an error when no injected `subscription` source is wired
+  - `NetworkController:getState` / `getNetworkClientById` (rewards discount): no discount instead of an error
+  - `AuthenticationController:getBearerToken` (data-lake report): skipped instead of logged and retried
+  - `AuthenticatedUserStorageService:getNotificationPreferences` / `putNotificationPreferences` (watchlist sync): the local watchlist is kept instead of logging an error and reverting the toggle
+  - Only a missing handler for the action itself counts; a handler that fails, including on a missing dependency of its own, is still reported
+  - `RemoteFeatureFlagController:getState` in the constructor and `startEligibilityMonitoring`, `GeolocationController`, `KeyringController` and `TransactionController` are unchanged and still report errors
 
 ## [19.0.0]
 

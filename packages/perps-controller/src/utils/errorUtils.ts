@@ -41,27 +41,6 @@ export function isKeyringLockedError(error: unknown): boolean {
 }
 
 /**
- * Detects the error `Messenger.call` throws when no handler is reachable for an
- * action: nothing registered it (`has not been registered`), or the host's
- * messenger did not delegate it to this one (`has not been delegated to ...`).
- *
- * Optional-dependency call sites use it to degrade quietly when the host does
- * not provide an action, while a handler that exists and fails still surfaces
- * as an error.
- *
- * @param error - The error thrown by a messenger call.
- * @returns True when the action has no reachable handler.
- */
-export function isMissingActionHandlerError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /A handler for \S+ has not been (?:registered|delegated to )/u.test(
-      error.message,
-    )
-  );
-}
-
-/**
  * Ensures we have a proper Error object for logging.
  * Converts unknown/string errors to proper Error instances.
  * Handles undefined/null specially for better Sentry context.

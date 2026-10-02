@@ -1594,14 +1594,16 @@ describe('RewardsIntegrationService', () => {
       },
     );
 
-    it('still logs an error when a delegated NetworkController handler fails', async () => {
+    it('still logs an error when a delegated NetworkController handler fails on a missing dependency of its own', async () => {
+      const nested =
+        'A handler for SelectedNetworkController:getState has not been delegated to NetworkController';
       service = new RewardsIntegrationService(
         mockDeps,
         createPartiallyDelegatedMessenger({
           ...accountHandlers,
           ...networkHandlers,
           'NetworkController:getState': () => {
-            throw new Error('network state unavailable');
+            throw new Error(nested);
           },
         }),
       );
@@ -1610,9 +1612,54 @@ describe('RewardsIntegrationService', () => {
 
       expect(result).toBeUndefined();
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'network state unavailable' }),
+        expect.objectContaining({ message: nested }),
         expect.anything(),
       );
+    });
+
+    it('still logs an error when the injected rewards source fails on a missing NetworkController handler', async () => {
+      const nested =
+        'A handler for NetworkController:getState has not been delegated to RewardsController';
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+        }),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockRejectedValue(new Error(nested));
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: nested }),
+        expect.anything(),
+      );
+    });
+
+    it('skips and retries a registration whose delegated handler throws, with no injected fallback', async () => {
+      const registerAddress = jest.fn(() => {
+        throw new Error('registration exploded');
+      });
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          'SubscriptionController:registerAddress': registerAddress,
+        }),
+      );
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: Trading address registration skipped',
+        { address: mockEvmAccount.address, error: 'registration exploded' },
+      );
+      // Not cached as registered, so the next preview tries again.
+      expect(registerAddress).toHaveBeenCalledTimes(2);
     });
   });
 });

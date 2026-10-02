@@ -1519,22 +1519,40 @@ describe('PerpsController', () => {
     });
 
     describe('when the host does not delegate AuthenticatedUserStorageService', () => {
-      const buildController = (mainnetWatchlist: string[] = []) => {
-        const undelegated = createPartiallyDelegatedMessenger();
-        const call = jest.fn().mockImplementation((action: string) => {
-          if (action === 'RemoteFeatureFlagController:getState') {
-            return { remoteFeatureFlags: {} };
-          }
-          if (
-            action ===
-            'AuthenticatedUserStorageService:getNotificationPreferences'
-          ) {
-            return undelegated.call(
-              'AuthenticatedUserStorageService:getNotificationPreferences',
-            );
-          }
-          return undefined;
-        });
+      const GET = 'AuthenticatedUserStorageService:getNotificationPreferences';
+      const PUT = 'AuthenticatedUserStorageService:putNotificationPreferences';
+
+      /**
+       * Build a controller whose AUS calls go through a real child messenger
+       * that delegates only the given AUS handlers.
+       *
+       * @param options - Options.
+       * @param options.mainnetWatchlist - Local mainnet watchlist.
+       * @param options.handlers - AUS handlers the host delegates.
+       * @returns The controller, its messenger `call` mock and infrastructure.
+       */
+      const buildController = ({
+        mainnetWatchlist = [],
+        handlers = {},
+      }: {
+        mainnetWatchlist?: string[];
+        handlers?: Record<string, (...args: never[]) => unknown>;
+      } = {}) => {
+        const aus = createPartiallyDelegatedMessenger(handlers);
+        const call = jest
+          .fn()
+          .mockImplementation((action: string, ...args: unknown[]) => {
+            if (action === 'RemoteFeatureFlagController:getState') {
+              return { remoteFeatureFlags: {} };
+            }
+            if (action === GET) {
+              return aus.call(GET);
+            }
+            if (action === PUT) {
+              return aus.call(PUT, args[0] as never);
+            }
+            return undefined;
+          });
         const infrastructure = createMockInfrastructure();
         const state = getDefaultPerpsControllerState();
         state.isTestnet = false;
@@ -1553,24 +1571,86 @@ describe('PerpsController', () => {
 
         await controller.toggleWatchlistMarket('BTC');
 
-        expect(call).toHaveBeenCalledWith(
-          'AuthenticatedUserStorageService:getNotificationPreferences',
-        );
+        expect(call).toHaveBeenCalledWith(GET);
+        expect(controller.getWatchlistMarkets()).toContain('BTC');
+        expect(infrastructure.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('keeps a toggled market without logging an error when only the read is delegated', async () => {
+        const { controller, call, infrastructure } = buildController({
+          handlers: { [GET]: async () => MOCK_PREFS_BASE },
+        });
+
+        await controller.toggleWatchlistMarket('BTC');
+
+        expect(call).toHaveBeenCalledWith(PUT, expect.anything());
         expect(controller.getWatchlistMarkets()).toContain('BTC');
         expect(infrastructure.logger.error).not.toHaveBeenCalled();
       });
 
       it('keeps the local watchlist on init without logging an error', async () => {
-        const { controller, call, infrastructure } = buildController(['BTC']);
+        const { controller, call, infrastructure } = buildController({
+          mainnetWatchlist: ['BTC'],
+        });
 
         await controller.init();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(call).toHaveBeenCalledWith(
-          'AuthenticatedUserStorageService:getNotificationPreferences',
-        );
+        expect(call).toHaveBeenCalledWith(GET);
         expect(controller.state.watchlistMarkets.mainnet).toEqual(['BTC']);
         expect(infrastructure.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('keeps the local watchlist on init without logging an error when only the read is delegated', async () => {
+        const { controller, call, infrastructure } = buildController({
+          mainnetWatchlist: ['BTC'],
+          handlers: { [GET]: async () => MOCK_PREFS_BASE },
+        });
+
+        await controller.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // The blob has no watchlist yet, so init tries the one-time migration.
+        expect(call).toHaveBeenCalledWith(PUT, expect.anything());
+        expect(controller.state.watchlistMarkets.mainnet).toEqual(['BTC']);
+        expect(infrastructure.logger.error).not.toHaveBeenCalled();
+      });
+
+      describe('when a delegated AUS handler fails on a missing dependency of its own', () => {
+        const nested =
+          'A handler for AuthenticationController:getBearerToken has not been delegated to AuthenticatedUserStorageService';
+        const handlers = {
+          [GET]: async () => {
+            throw new Error(nested);
+          },
+        };
+
+        it('logs an error and reverts the toggle', async () => {
+          const { controller, infrastructure } = buildController({ handlers });
+
+          await controller.toggleWatchlistMarket('BTC');
+
+          expect(controller.getWatchlistMarkets()).not.toContain('BTC');
+          expect(infrastructure.logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ message: nested }),
+            expect.anything(),
+          );
+        });
+
+        it('logs an error on init', async () => {
+          const { controller, infrastructure } = buildController({
+            mainnetWatchlist: ['BTC'],
+            handlers,
+          });
+
+          await controller.init();
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(infrastructure.logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ message: nested }),
+            expect.anything(),
+          );
+        });
       });
     });
   });

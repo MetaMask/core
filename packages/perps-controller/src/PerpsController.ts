@@ -58,6 +58,7 @@ import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
 import { MarketDataService } from './services/MarketDataService.js';
+import { isMissingActionHandlerError } from './services/missingActionHandler.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
@@ -177,10 +178,7 @@ import {
   TransactionStatus,
 } from './types/transactionTypes.js';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
-import {
-  ensureError,
-  isMissingActionHandlerError,
-} from './utils/errorUtils.js';
+import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
 import {
   clonePerpsMarketData,
@@ -199,6 +197,27 @@ import { wait } from './utils/wait.js';
 
 /** Derived type for logger options from PerpsLogger interface */
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
+
+/**
+ * Whether the host does not provide the AuthenticatedUserStorageService action
+ * a watchlist sync just called. A missing handler deeper in AUS (for example
+ * its own `AuthenticationController` dependency) is not matched.
+ *
+ * @param error - The error from the AUS call.
+ * @returns True when the AUS action itself has no reachable handler.
+ */
+function isAuthenticatedUserStorageMissingError(error: unknown): boolean {
+  return (
+    isMissingActionHandlerError(
+      error,
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+    ) ||
+    isMissingActionHandlerError(
+      error,
+      'AuthenticatedUserStorageService:putNotificationPreferences',
+    )
+  );
+}
 
 function cloneUserDataSnapshot(
   snapshot: PerpsUserDataSnapshot,
@@ -7215,8 +7234,8 @@ export class PerpsController extends BaseController<
    * - The remote preferences blob does not yet exist (returns `null` / 404).
    *   In that case, `NotificationServicesController.createOnChainTriggers` is
    *   the canonical owner that creates the initial blob.
-   * - The host does not provide `AuthenticatedUserStorageService`; local state
-   *   is then the only watchlist.
+   * - The host does not provide the AuthenticatedUserStorageService actions;
+   *   local state is then the only watchlist.
    *
    * Throws on remote write failure so the caller can decide whether to revert.
    *
@@ -7240,7 +7259,7 @@ export class PerpsController extends BaseController<
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
     } catch (error) {
-      if (!isMissingActionHandlerError(error)) {
+      if (!isAuthenticatedUserStorageMissingError(error)) {
         throw error;
       }
       this.#debugLog(
@@ -7279,10 +7298,21 @@ export class PerpsController extends BaseController<
       },
     };
 
-    await this.messenger.call(
-      'AuthenticatedUserStorageService:putNotificationPreferences',
-      nextPrefs,
-    );
+    try {
+      await this.messenger.call(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        nextPrefs,
+      );
+    } catch (error) {
+      if (!isAuthenticatedUserStorageMissingError(error)) {
+        throw error;
+      }
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist write — AuthenticatedUserStorageService not provided',
+        { exchangeKey, network },
+      );
+      return;
+    }
 
     this.#debugLog('PerpsController: Watchlist synced to AUS', {
       exchangeKey,
@@ -7382,7 +7412,7 @@ export class PerpsController extends BaseController<
         });
       }
     } catch (error) {
-      if (isMissingActionHandlerError(error)) {
+      if (isAuthenticatedUserStorageMissingError(error)) {
         this.#debugLog(
           'PerpsController: AuthenticatedUserStorageService not provided — using local watchlist',
         );
