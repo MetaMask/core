@@ -1,3 +1,8 @@
+import type {
+  StateConstraint,
+  ValidatableController,
+} from '@metamask/base-controller';
+
 import type { InstanceSpecificOptions } from '../types.js';
 import type {
   DefaultActions,
@@ -53,4 +58,10 @@ export type InitializationConfiguration<Instance, InstanceMessenger> = {
   getMessenger(
     parent: RootMessenger<DefaultActions, DefaultEvents>,
   ): InstanceMessenger;
-};
+} & (InstanceState<Instance> extends StateConstraint
+  ? {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reference: (new (...args: any[]) => Instance) &
+        Partial<ValidatableController<Instance, InstanceState<Instance>>>;
+    }
+  : { reference?: undefined });

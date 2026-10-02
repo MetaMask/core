@@ -1,3 +1,5 @@
+import { validateControllerState } from '@metamask/base-controller';
+
 import type { InstanceSpecificOptions, WalletOptions } from '../types.js';
 import type {
   DefaultActions,
@@ -38,9 +40,20 @@ export function initialize(options: InitializeOptions): DefaultInstances {
   const instances: Record<string, unknown> = {};
 
   for (const config of configurationEntries) {
-    const { name } = config;
+    const { name, reference } = config;
 
-    const instanceState = state[name];
+    const rawState = state[name];
+
+    const instanceState =
+      rawState && reference?.struct
+        ? validateControllerState(
+            name,
+            reference as never,
+            rawState,
+            'lenient',
+            messenger.captureException,
+          )
+        : rawState;
 
     const instanceMessenger = config.getMessenger(messenger);
 
