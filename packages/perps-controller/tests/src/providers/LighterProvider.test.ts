@@ -16782,16 +16782,20 @@ describe('LighterProvider', () => {
         );
         expect(await getItem(docKey)).toBe(bytes);
         expect(await getItem(indexKey)).toBe(JSON.stringify([key]));
-        if (failure !== 'corrupt') {
-          expect(
-            await built.provider.getPendingManualRecoveries(),
-          ).toStrictEqual([
-            expect.objectContaining({
-              settlementKey: key,
-              survivingOrderIds: ['777'],
-            }),
-          ]);
-        }
+        const pending =
+          failure === 'corrupt'
+            ? undefined
+            : await built.provider.getPendingManualRecoveries();
+        expect(
+          pending?.map(({ settlementKey, survivingOrderIds }) => ({
+            settlementKey,
+            survivingOrderIds,
+          })),
+        ).toStrictEqual(
+          failure === 'corrupt'
+            ? undefined
+            : [{ settlementKey: key, survivingOrderIds: ['777'] }],
+        );
         await built.provider.disconnect();
       },
     );
