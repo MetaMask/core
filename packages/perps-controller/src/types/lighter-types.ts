@@ -930,3 +930,23 @@ export type LighterTransferHistoryResponse = {
   transfers: LighterTransferHistoryItem[];
   cursor?: string;
 };
+
+/** Public native book rows; individual orders permit exact own-order subtraction. */
+export type LighterBookOrder = {
+  orderIndex: number;
+  orderId: string;
+  ownerAccountIndex: number;
+  initialBaseAmount: string;
+  remainingBaseAmount: string;
+  price: string;
+  orderExpiry: number;
+  transactionTime: number;
+};
+
+export type LighterOrderBookOrdersResponse = {
+  code: number;
+  totalBids: number;
+  totalAsks: number;
+  bids: LighterBookOrder[];
+  asks: LighterBookOrder[];
+};

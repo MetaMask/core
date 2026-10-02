@@ -45,6 +45,7 @@ import type {
   LighterNextNonceResponse,
   LighterTxLookupResponse,
   LighterOrderBookMeta,
+  LighterOrderBookOrdersResponse,
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
   LighterCandlesResponse,
@@ -285,7 +286,25 @@ const TradeStruct = type({
   makerPositionSignChanged: optional(boolean()),
 });
 
+const BookOrderStruct = type({
+  orderIndex: NonNegativeIntegerStruct,
+  orderId: string(),
+  ownerAccountIndex: NonNegativeIntegerStruct,
+  initialBaseAmount: PositiveDecimalStringStruct,
+  remainingBaseAmount: PositiveDecimalStringStruct,
+  price: PositiveDecimalStringStruct,
+  orderExpiry: NonNegativeIntegerStruct,
+  transactionTime: NonNegativeIntegerStruct,
+});
+
 const ResponseStructs = {
+  orderBookOrders: type({
+    code: SafeIntegerStruct,
+    totalBids: NonNegativeIntegerStruct,
+    totalAsks: NonNegativeIntegerStruct,
+    bids: array(BookOrderStruct),
+    asks: array(BookOrderStruct),
+  }),
   orderBooks: type({
     ...BaseResponseStruct.schema,
     orderBooks: array(MarketStruct),
@@ -535,6 +554,24 @@ export class LighterClientService {
     this.#marketsCache = response.orderBooks;
     this.#marketsCacheTime = now;
     return response.orderBooks;
+  }
+
+  /**
+   * Read a new public native order book snapshot without a local cache.
+   *
+   * @param marketId - Native signed int16 market ID.
+   * @returns Up to 250 individual orders on each side.
+   */
+  async getOrderBookOrders(
+    marketId: number,
+  ): Promise<LighterOrderBookOrdersResponse> {
+    if (!Number.isSafeInteger(marketId) || marketId < 0 || marketId > 32767) {
+      throw new Error('Invalid Lighter market ID');
+    }
+    return await this.#get<LighterOrderBookOrdersResponse>(
+      `/api/v1/orderBookOrders?market_id=${marketId}&limit=250`,
+      ResponseStructs.orderBookOrders,
+    );
   }
 
   /**

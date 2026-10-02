@@ -77,6 +77,63 @@ describe('LighterClientService', () => {
     global.fetch = fetchMock;
   });
 
+  describe('post-only book reads', () => {
+    it('requests a bounded fresh public book and validates its full order identities', async () => {
+      const row = {
+        order_index: 5,
+        order_id: '5',
+        owner_account_index: 28,
+        initial_base_amount: '1',
+        remaining_base_amount: '1',
+        price: '100',
+        order_expiry: 0,
+        transaction_time: 1,
+      };
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 1,
+          total_asks: 0,
+          bids: [row],
+          asks: [],
+        }),
+      );
+      expect(await buildService().getOrderBookOrders(1)).toMatchObject({
+        totalBids: 1,
+        bids: [{ orderId: '5', ownerAccountIndex: 28 }],
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/api/v1/orderBookOrders?market_id=1&limit=250',
+        ),
+        expect.anything(),
+      );
+    });
+    it.each([-1, 32768, 1.5])(
+      'refuses invalid market %s without transport',
+      async (id) => {
+        await expect(buildService().getOrderBookOrders(id)).rejects.toThrow(
+          'market',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+    it('rejects malformed public book levels', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 1,
+          total_asks: 0,
+          bids: [{ price: 'garbage' }],
+          asks: [],
+        }),
+      );
+      await expect(buildService().getOrderBookOrders(1)).rejects.toThrow(
+        'Lighter',
+      );
+    });
+  });
+
   describe('network resolution', () => {
     it('uses the testnet base URL in testnet mode', () => {
       expect(buildService(true).baseUrl).toBe(

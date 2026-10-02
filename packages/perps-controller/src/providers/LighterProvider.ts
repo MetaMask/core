@@ -39,6 +39,7 @@ import {
   LIGHTER_ORDER_TYPE_LIMIT,
   LIGHTER_ORDER_TYPE_MARKET,
   LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME,
+  LIGHTER_TIME_IN_FORCE_POST_ONLY,
   getLighterWsEndpoint,
   LIGHTER_PRICE_POLLING_INTERVAL_MS,
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
@@ -1206,6 +1207,44 @@ const LIGHTER_TRIGGER_WIRE_TYPES: Readonly<Record<TriggerOrderType, number>> =
     take_profit_market: LIGHTER_ORDER_TYPE_TAKE_PROFIT,
     take_profit_limit: LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
   });
+
+/**
+ * Keep unsupported post-only fields from silently changing caller intent.
+ *
+ * @param params - Caller order intent.
+ * @returns An unsupported field error, or null for ordinary ALO intent.
+ */
+const getLighterPostOnlyIntentError = (params: OrderParams): string | null => {
+  if (params.timeInForce !== 'ALO') {
+    return null;
+  }
+  if (params.orderType !== 'limit') {
+    return 'Lighter post-only requires an ordinary limit order';
+  }
+  const fields: (keyof OrderParams)[] = [
+    'twapDuration',
+    'twapRandomize',
+    'scaleMinPrice',
+    'scaleMaxPrice',
+    'scaleNumOrders',
+    'scaleSkew',
+    'chaseIntervalMs',
+    'chaseMaxDurationMs',
+    'chaseMaxRepricings',
+    'chaseMaxDistanceBps',
+    'takeProfitPrice',
+    'stopLossPrice',
+    'takeProfitSize',
+    'stopLossSize',
+    'clientOrderId',
+    'tpslLinkage',
+    'grouping',
+  ];
+  const unsupported = fields.find((field) => params[field] !== undefined);
+  return unsupported
+    ? `Lighter post-only does not support ${unsupported}`
+    : null;
+};
 
 /**
  * Refuse trigger fields that the native standalone transaction cannot carry.
@@ -7611,14 +7650,58 @@ export class LighterProvider implements PerpsProvider {
     return Math.round(10_000 / requested);
   };
 
+  /**
+   * Reject a crossing post-only intent using a bounded fresh public read.
+   * TIF2 remains the venue-side crossing guard if the book moves after this read.
+   *
+   * @param marketId - Exact native market.
+   * @param isBuy - Intent side.
+   * @param price - Integerized wire price projected onto the native tick grid.
+   * @param generation - Optional financial intent fence.
+   */
+  async #assertPostOnlyBook(
+    marketId: number,
+    isBuy: boolean,
+    price: number,
+    generation?: number,
+  ): Promise<void> {
+    const startedAt = Date.now();
+    const book = await this.#clientService.getOrderBookOrders(marketId);
+    if (generation !== undefined) {
+      this.#assertSession(generation);
+    }
+    if (Date.now() < startedAt || Date.now() - startedAt > 5000) {
+      throw new Error('Lighter post-only book is stale');
+    }
+    const opposing = isBuy ? book.asks : book.bids;
+    const total = isBuy ? book.totalAsks : book.totalBids;
+    if (total < opposing.length || (total > 0 && opposing.length === 0)) {
+      throw new Error('Lighter post-only book is incomplete');
+    }
+    for (const row of opposing) {
+      const restingPrice = parseFinitePositive(row.price);
+      if (
+        restingPrice === null ||
+        parseFinitePositive(row.remainingBaseAmount) === null
+      ) {
+        throw new Error('Lighter post-only book is malformed');
+      }
+      if (isBuy ? price >= restingPrice : price <= restingPrice) {
+        throw new Error('Lighter post-only order would cross the book');
+      }
+    }
+  }
+
   async placeOrder(
-    params: OrderParams,
+    input: OrderParams,
     inheritedGeneration?: number,
   ): Promise<OrderResult> {
     // Tracks a COMMITTED leverage change so an order failing afterwards
     // reports the partial venue state explicitly instead of implying no
     // mutation happened.
     let leverageCommitted = false;
+    let postOnlyClientOrderId: string | undefined;
+    const params = { ...input };
     try {
       if (params.orderType === 'twap' && this.#nativeTwapTestnetProbe) {
         return await this.#placeNativeTwapProbe(params);
@@ -7649,11 +7732,9 @@ export class LighterProvider implements PerpsProvider {
             'Lighter does not support TP/SL attached at placement; place the order, then call updatePositionTPSL',
         };
       }
-      if (params.timeInForce === 'ALO') {
-        return {
-          success: false,
-          error: 'Lighter placement does not support post-only (ALO) yet',
-        };
+      const postOnlyError = getLighterPostOnlyIntentError(params);
+      if (postOnlyError) {
+        return { success: false, error: postOnlyError };
       }
       const leverageError = lighterLeverageError(params.leverage);
       if (leverageError) {
@@ -7671,13 +7752,19 @@ export class LighterProvider implements PerpsProvider {
       // causes zero bridge calls (no client creation or key registration
       // side effects).
       const markets = await this.#ensureMarkets(
-        isTriggerOrderType(params.orderType),
+        isTriggerOrderType(params.orderType) || params.timeInForce === 'ALO',
       );
       const market = markets.get(params.symbol);
       if (!market) {
         return {
           success: false,
           error: `Unknown Lighter market: ${params.symbol}`,
+        };
+      }
+      if (params.timeInForce === 'ALO' && market.status !== 'active') {
+        return {
+          success: false,
+          error: 'Lighter post-only requires an active market',
         };
       }
       if (isTriggerOrderType(params.orderType) && market.status !== 'active') {
@@ -7849,6 +7936,10 @@ export class LighterProvider implements PerpsProvider {
         market.supportedPriceDecimals,
       );
       const sizeInt = toSignerWireInteger(size, market.supportedSizeDecimals);
+      const timeInForce =
+        params.timeInForce === 'ALO'
+          ? LIGHTER_TIME_IN_FORCE_POST_ONLY
+          : LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME;
       let orderTypeInt = LIGHTER_ORDER_TYPE_MARKET;
       if (isTriggerOrderType(params.orderType)) {
         orderTypeInt = LIGHTER_TRIGGER_WIRE_TYPES[params.orderType];
@@ -7856,6 +7947,14 @@ export class LighterProvider implements PerpsProvider {
         orderTypeInt = LIGHTER_ORDER_TYPE_LIMIT;
       }
 
+      if (params.timeInForce === 'ALO') {
+        await this.#assertPostOnlyBook(
+          market.marketId,
+          params.isBuy,
+          fromLighterInteger(priceInt, market.supportedPriceDecimals),
+          generationAtIntent,
+        );
+      }
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
       // Margin mode is sent only with an explicit leverage update. An
       // omitted leverage leaves both leverage and margin mode unchanged;
@@ -7875,6 +7974,9 @@ export class LighterProvider implements PerpsProvider {
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
       const [clientOrderIndex] = this.#allocateClientOrderIndexes(1);
+      if (params.timeInForce === 'ALO') {
+        postOnlyClientOrderId = String(clientOrderIndex);
+      }
 
       // Leverage update and order placement share ONE lock acquisition so a
       // concurrent write can never interleave between the caller's leverage
@@ -7882,6 +7984,14 @@ export class LighterProvider implements PerpsProvider {
       const result = await this.#withVenueWriteLock(
         accountIndex,
         async (nextNonce, submit) => {
+          if (params.timeInForce === 'ALO') {
+            await this.#assertPostOnlyBook(
+              market.marketId,
+              params.isBuy,
+              fromLighterInteger(priceInt, market.supportedPriceDecimals),
+              generationAtIntent,
+            );
+          }
           if (leverageImfHundredths !== null && leverageMarginMode !== null) {
             const signedLeverage = await this.#getSignerBridge().execute({
               function: '_signUpdateLeverage',
@@ -7922,7 +8032,7 @@ export class LighterProvider implements PerpsProvider {
               params.isBuy ? 0 : 1,
               orderTypeInt,
               isLighterMakerOrder(params)
-                ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
+                ? timeInForce
                 : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
               params.reduceOnly ? 1 : 0,
               String(
@@ -7984,6 +8094,9 @@ export class LighterProvider implements PerpsProvider {
       return {
         success: false,
         error: `${partialPrefix}${wrappedError.message}`,
+        ...(postOnlyClientOrderId
+          ? { orderId: postOnlyClientOrderId, providerId: 'lighter' as const }
+          : {}),
         ...(leverageCommitted
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
@@ -10838,7 +10951,7 @@ export class LighterProvider implements PerpsProvider {
     // whichever awaited venue read fails (markets, margin metadata, fresh
     // price, live positions, data integrity).
     try {
-      return await this.#validateOrderChecks(params);
+      return await this.#validateOrderChecks({ ...params });
     } catch (error) {
       return {
         isValid: false,
@@ -10876,11 +10989,9 @@ export class LighterProvider implements PerpsProvider {
           'Lighter does not support TP/SL attached at placement; place the order, then call updatePositionTPSL',
       };
     }
-    if (params.timeInForce === 'ALO') {
-      return {
-        isValid: false,
-        error: 'Lighter placement does not support post-only (ALO) yet',
-      };
+    const postOnlyError = getLighterPostOnlyIntentError(params);
+    if (postOnlyError) {
+      return { isValid: false, error: postOnlyError };
     }
     if (isLimitExecutionOrderType(params.orderType) && !params.price) {
       return { isValid: false, error: 'Limit order requires a price' };
@@ -10921,13 +11032,19 @@ export class LighterProvider implements PerpsProvider {
       return { isValid: false, error: 'Order size must be positive' };
     }
     const markets = await this.#ensureMarkets(
-      isTriggerOrderType(params.orderType),
+      isTriggerOrderType(params.orderType) || params.timeInForce === 'ALO',
     );
     const market = markets.get(params.symbol);
     if (!market) {
       return {
         isValid: false,
         error: `Unknown Lighter market: ${params.symbol}`,
+      };
+    }
+    if (params.timeInForce === 'ALO' && market.status !== 'active') {
+      return {
+        isValid: false,
+        error: 'Lighter post-only requires an active market',
       };
     }
     if (isTriggerOrderType(params.orderType) && market.status !== 'active') {
@@ -11081,6 +11198,19 @@ export class LighterProvider implements PerpsProvider {
           error: ensureError(error, 'LighterProvider.validateOrder').message,
         };
       }
+    }
+    if (params.timeInForce === 'ALO') {
+      await this.#assertPostOnlyBook(
+        market.marketId,
+        params.isBuy,
+        fromLighterInteger(
+          toSignerWirePriceInteger(
+            executionPrice,
+            market.supportedPriceDecimals,
+          ),
+          market.supportedPriceDecimals,
+        ),
+      );
     }
     return { isValid: true };
   };

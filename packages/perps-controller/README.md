@@ -322,6 +322,24 @@ and cancellation race ordering still require root-owned testnet evidence.
 Candidate observations and unit fixtures are not venue proof. The constructor
 probe option is not exposed as a production feature flag or controller action.
 
+## Lighter post-only limits
+
+Ordinary `limit` orders accept `timeInForce: 'ALO'`. Validation and placement
+require active market metadata, native price/size grids and maker minimums.
+Unsupported strategy, attached protection and caller client-ID fields are
+rejected before signer setup. Fresh public native book reads reject a crossing
+price before setup and again inside the serialized write section. A book read
+older than five seconds fails closed. Native TIF 2 is the final venue guard if
+the book changes after local validation; GTT and IOC behavior is unchanged.
+
+A successful ordinary placement receipt means the transaction was submitted;
+it does not assert that a post-only order rested or filled. A racing book can
+still produce native `canceled-post-only` history. Reconcile exact order state
+through ordinary venue reads. Response loss retains the exact client handle in
+the failure receipt and the inherited durable nonce/transaction journal blocks
+replay across restart until authoritative recovery. No automatic retry is added.
+This transport support does not advertise Chase or establish its venue proof.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
