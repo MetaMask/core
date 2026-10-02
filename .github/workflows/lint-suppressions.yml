@@ -1,0 +1,35 @@
+name: Lint Suppressions
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-suppressions:
+    name: Lint suppressions
+    if: ${{ github.event_name != 'merge_group' && !contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: ${{ matrix.node-version }}
+          fetch-depth: 2
+      - name: Run yarn lint:suppressions
+        run: yarn lint:suppressions
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi

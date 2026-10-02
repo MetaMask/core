@@ -10,6 +10,7 @@ jest.unstable_mockModule('execa', () => ({
 }));
 
 jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
+  SUPPRESSIONS_FILE_NAME: 'tsc-suppressions.json',
   parseTscOutput: jest.fn(),
   isTscError: jest.fn(),
   addSuppressions: jest.fn(),

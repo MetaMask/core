@@ -104,6 +104,14 @@ export default createConfig({
     },
 
     {
+      // Jest does not inject its globals in ESM, so the scripts' tests import
+      // `jest` from `@jest/globals`. Declaring it as a global as well would
+      // make every one of those imports shadow it.
+      files: ['scripts/**/*.test.ts'],
+      rules: { 'no-shadow': ['error', { allow: ['jest'] }] },
+    },
+
+    {
       files: ['scripts/**/*.ts'],
       rules: {
         'import/extensions': [
