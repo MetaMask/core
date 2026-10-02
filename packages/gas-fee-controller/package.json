@@ -55,7 +55,7 @@
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-controller": "^37.0.1",
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/utils": "^12.0.0",
     "@types/bn.js": "^5.2.0",

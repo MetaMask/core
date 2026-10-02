@@ -56,7 +56,7 @@
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/keyring-internal-api": "^12.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-controller": "^37.0.1",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
     "@solana/addresses": "^2.3.0",

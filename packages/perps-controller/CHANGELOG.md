@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Attribute a HyperLiquid "User or API Wallet ... does not exist" rejection to the network of the request it answers, so an agent used on both networks is dropped, and `onAgentRejected` called, only for that network ([#10643](https://github.com/MetaMask/core/pull/10643))
 - Stop asking again for a HyperLiquid builder fee approval the venue refused for a reason signing again cannot fix, such as "Builder has insufficient balance to be approved" ([#10643](https://github.com/MetaMask/core/pull/10643))
   - Until the provider disconnects, the approval is not requested again: orders are sent as after any failed approval, TP/SL updates fail with `TPSL_UPDATE_FAILED`, and `prepareTradingWallet` returns the venue error
+- Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#10651](https://github.com/MetaMask/core/pull/10651))
+  - After such a failure, provider entry waits one minute before running the setup again instead of retrying every time; `reconnect()` or `disconnect()` ends the wait, and trading and withdraw still run the setup
+  - Venue rejections, signing failures and other setup errors are still reported
 
 ## [19.0.0]
 
