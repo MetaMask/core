@@ -467,6 +467,11 @@ export type LighterApiPosition = {
   symbol: string;
   initialMarginFraction: string;
   openOrderCount: number;
+  /** Optional in legacy captures; live mode changes require authoritative counts. */
+  pendingOrderCount?: number;
+  positionTiedOrderCount?: number;
+  /** Isolated collateral allocated to this market, in USDC. */
+  allocatedMargin?: string;
   /** 1 = long, -1 = short (sign convention per API). */
   sign: number;
   position: string;

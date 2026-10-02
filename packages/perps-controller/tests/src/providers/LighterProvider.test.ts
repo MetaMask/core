@@ -6564,6 +6564,7 @@ describe('LighterProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: ['scale'],
+        supportedMarginModes: ['cross', 'isolated'],
         attachedTpsl: {
           submission: 'native-oto-otoco',
           childCoverage: 'venue-native-zero-size',
@@ -6954,8 +6955,8 @@ describe('LighterProvider', () => {
   });
 
   describe('placeOrder', () => {
-    it.each(['cross', 'isolated'] as const)(
-      'rejects explicit %s before signing',
+    it.each(['invalid', ''] as const)(
+      'rejects malformed explicit mode %s before signing',
       async (marginMode) => {
         const { provider, calls } = buildProvider();
         const params = {
@@ -6965,7 +6966,7 @@ describe('LighterProvider', () => {
           orderType: 'limit' as const,
           price: '90000',
           leverage: 5,
-          marginMode,
+          marginMode: marginMode as OrderParams['marginMode'],
         };
 
         const validation = await provider.validateOrder(params);
@@ -6973,10 +6974,10 @@ describe('LighterProvider', () => {
 
         expect(validation).toStrictEqual({
           isValid: false,
-          error: 'ORDER_MARGIN_MODE_UNSUPPORTED',
+          error: 'ORDER_MARGIN_MODE_INVALID',
         });
         expect(result.success).toBe(false);
-        expect(result.error).toBe('ORDER_MARGIN_MODE_UNSUPPORTED');
+        expect(result.error).toBe('ORDER_MARGIN_MODE_INVALID');
         expect(calls).toHaveLength(0);
       },
     );
@@ -7175,79 +7176,272 @@ describe('LighterProvider', () => {
 
     describe('explicit Lighter margin selection', () => {
       const request: OrderParams = {
-        symbol: 'BTC', isBuy: true, size: '0.001', orderType: 'limit',
-        price: '90000', leverage: 10, marginMode: 'cross',
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        leverage: 10,
+        marginMode: 'cross',
       };
 
       it('reports both native modes for an active perpetual market', async () => {
         const { provider } = buildProvider();
-        expect(await provider.getOrderCapabilities({ symbol: 'BTC' })).toMatchObject({
+        expect(
+          await provider.getOrderCapabilities({ symbol: 'BTC' }),
+        ).toMatchObject({
           supportedMarginModes: ['cross', 'isolated'],
         });
       });
 
-      it.each(['cross', 'isolated'] as const)('validates a flat %s selection without signer calls', async (marginMode) => {
-        const { provider, clientInstance, calls } = buildProvider();
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [] }] });
-        expect(await provider.validateOrder({ ...request, marginMode })).toEqual({ isValid: true });
-        expect(calls).toHaveLength(0);
-      });
+      it.each(['cross', 'isolated'] as const)(
+        'validates a flat %s selection without signer calls',
+        async (marginMode) => {
+          const { provider, clientInstance, calls } = buildProvider();
+          clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [{ ...ACCOUNT, positions: [] }],
+          });
+          expect(
+            await provider.validateOrder({ ...request, marginMode }),
+          ).toStrictEqual({ isValid: true });
+          expect(calls).toHaveLength(0);
+        },
+      );
 
       it('refuses changing the authoritative open position mode before signing', async () => {
         const { provider, calls } = buildProvider();
-        const result = await provider.placeOrder({ ...request, marginMode: 'isolated' });
-        expect(result).toMatchObject({ success: false, error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN });
+        const result = await provider.placeOrder({
+          ...request,
+          marginMode: 'isolated',
+        });
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+        });
         expect(calls).toHaveLength(0);
       });
 
       it('refuses changing the authoritative resting order mode before signing', async () => {
         const { provider, clientInstance, calls } = buildProvider();
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, totalOrderCount: 1, positions: [{ ...ACCOUNT.positions[0], position: '0', openOrderCount: 1, marginMode: 1 }] }] });
-        expect(await provider.placeOrder(request)).toMatchObject({ success: false, error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              totalOrderCount: 1,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  position: '0',
+                  openOrderCount: 1,
+                  marginMode: 1,
+                },
+              ],
+            },
+          ],
+        });
+        expect(await provider.placeOrder(request)).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+        });
         expect(calls).toHaveLength(0);
       });
 
       it('keeps an accepted mode update from placing exposure before exact execution proof', async () => {
-        const { provider, calls, clientInstance } = buildProvider({ registeredKey: '9c'.repeat(40) });
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [] }] });
+        const { provider, calls, clientInstance } = buildProvider({
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [{ ...ACCOUNT, positions: [] }],
+        });
         const result = await provider.placeOrder(request);
         expect(result).toMatchObject({ success: false });
         expect(result.error).toContain('margin mode update remains unresolved');
-        expect(calls.filter((call) => call.function === '_signUpdateLeverage')).toHaveLength(1);
-        expect(calls.filter((call) => call.function === '_signCreateOrder')).toHaveLength(0);
+        expect(
+          calls.filter((call) => call.function === '_signUpdateLeverage'),
+        ).toHaveLength(1);
+        expect(
+          calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(0);
       });
 
-      it.each(['cross', 'isolated'] as const)('submits %s only after its exact mode transaction executes', async (marginMode) => {
-        const { provider, clientInstance, calls } = buildProvider({ registeredKey: '9c'.repeat(40) });
-        const mode = marginMode === 'cross' ? 0 : 1;
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [{ ...ACCOUNT.positions[0], position: '0', marginMode: mode }] }] });
-        clientInstance.getTx.mockImplementation(async (hash: string) => {
-          const call = calls.find((entry) => entry.function === '_signUpdateLeverage');
-          return { code: 200, hash, accountIndex: 28, apiKeyIndex: 7, nonce: call?.params.at(-1), status: 2 };
+      it.each(['cross', 'isolated'] as const)(
+        'submits %s only after its exact mode transaction executes',
+        async (marginMode) => {
+          const { provider, clientInstance, calls } = buildProvider({
+            registeredKey: '9c'.repeat(40),
+          });
+          const mode = marginMode === 'cross' ? 0 : 1;
+          clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: [
+                  { ...ACCOUNT.positions[0], position: '0', marginMode: mode },
+                ],
+              },
+            ],
+          });
+          clientInstance.getTx.mockImplementation(async (hash: string) => {
+            const call = calls.find(
+              (entry) => entry.function === '_signUpdateLeverage',
+            );
+            return {
+              code: 200,
+              hash,
+              accountIndex: 28,
+              apiKeyIndex: 7,
+              nonce: call?.params.at(-1),
+              status: 2,
+            };
+          });
+          expect(
+            await provider.placeOrder({ ...request, marginMode }),
+          ).toMatchObject({ success: true });
+          expect(
+            calls.find((call) => call.function === '_signUpdateLeverage')
+              ?.params[3],
+          ).toBe(mode);
+          expect(clientInstance.getTx).toHaveBeenCalledTimes(1);
+          expect(
+            calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(1);
+        },
+      );
+
+      it('requires selected mode visibility after the exact mode transaction executes', async () => {
+        const { provider, clientInstance, calls } = buildProvider({
+          registeredKey: '9c'.repeat(40),
         });
-        expect(await provider.placeOrder({ ...request, marginMode })).toMatchObject({ success: true });
-        expect(calls.find((call) => call.function === '_signUpdateLeverage')?.params[3]).toBe(mode);
-        expect(clientInstance.getTx).toHaveBeenCalledTimes(1);
-        expect(calls.filter((call) => call.function === '_signCreateOrder')).toHaveLength(1);
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                { ...ACCOUNT.positions[0], position: '0', marginMode: 1 },
+              ],
+            },
+          ],
+        });
+        clientInstance.getTx.mockImplementation(async (hash: string) => {
+          const call = calls.find(
+            (entry) => entry.function === '_signUpdateLeverage',
+          );
+          return {
+            code: 200,
+            hash,
+            accountIndex: 28,
+            apiKeyIndex: 7,
+            nonce: call?.params.at(-1),
+            status: 2,
+          };
+        });
+        const result = await provider.placeOrder(request);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('selected margin mode');
+        expect(
+          calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(0);
+      });
+
+      it('retires a proven-unsent attached group when the selected mode changes during signing', async () => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const account = {
+          ...ACCOUNT,
+          positions: [{ ...ACCOUNT.positions[0], marginMode: 0 }],
+        };
+        built.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [account],
+        });
+        built.clientInstance.getTx.mockImplementation(async (hash: string) => {
+          const call = built.calls.find(
+            (entry) => entry.function === '_signUpdateLeverage',
+          );
+          return {
+            code: 200,
+            hash,
+            accountIndex: 28,
+            apiKeyIndex: 7,
+            nonce: call?.params.at(-1),
+            status: 2,
+          };
+        });
+        const execute = jest.spyOn(built.bridge, 'execute');
+        const sign = execute.getMockImplementation();
+        if (!sign) {
+          throw new Error('Missing signer fixture');
+        }
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          const result = await sign(call);
+          if (call.function === '_signCreateGroupedOrders') {
+            account.positions[0].marginMode = 1;
+          }
+          return result;
+        });
+        const result = await built.provider.placeOrder({
+          ...request,
+          takeProfitPrice: '110000',
+        });
+        expect(result.success).toBe(false);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(result.attachedOrderGroup).toMatchObject({
+          submission: 'canceled',
+        });
+        expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
       });
 
       it('locks native pending orders even before a child rests', async () => {
         const { provider, clientInstance, calls } = buildProvider();
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, pendingOrderCount: 1, positions: [{ ...ACCOUNT.positions[0], position: '0', pendingOrderCount: 1, marginMode: 1 }] }] });
-        expect(await provider.placeOrder(request)).toMatchObject({ success: false, error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              pendingOrderCount: 1,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  position: '0',
+                  pendingOrderCount: 1,
+                  marginMode: 1,
+                },
+              ],
+            },
+          ],
+        });
+        expect(await provider.placeOrder(request)).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+        });
         expect(calls).toHaveLength(0);
       });
 
       it('requires explicit leverage rather than inventing the mode update IMF', async () => {
         const { provider, calls } = buildProvider();
-        expect(await provider.validateOrder({ ...request, leverage: undefined })).toMatchObject({ isValid: false, error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID });
+        expect(
+          await provider.validateOrder({ ...request, leverage: undefined }),
+        ).toMatchObject({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+        });
         expect(calls).toHaveLength(0);
       });
 
       it('does not treat unavailable positions as a flat account', async () => {
         const { provider, clientInstance, calls } = buildProvider();
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: undefined }] });
-        expect(await provider.placeOrder(request)).toMatchObject({ success: false, error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [{ ...ACCOUNT, positions: undefined }],
+        });
+        expect(await provider.placeOrder(request)).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        });
         expect(calls).toHaveLength(0);
       });
     });
@@ -17794,6 +17988,21 @@ describe('LighterProvider', () => {
       const registeredKey = '9c'.repeat(40);
       const built = buildProvider({ registeredKey });
       const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              {
+                ...ACCOUNT.positions[0],
+                marginMode: 1,
+                allocatedMargin: '2000',
+              },
+            ],
+          },
+        ],
+      });
       venue.failResponseOnce(29);
       const first = await built.provider.updateMargin({
         symbol: 'BTC',
@@ -19995,26 +20204,332 @@ describe('LighterProvider', () => {
     });
 
     describe('isolated margin settlement', () => {
+      it.each([
+        ['foreign-account', { index: 99 }, {}],
+        ['foreign-wallet', { l1Address: '0xforeign' }, {}],
+        ['foreign-market', {}, { marketId: 99 }],
+        ['invalid-sign', {}, { sign: 0 }],
+        ['flat', {}, { position: '0' }],
+        ['missing-allocation', {}, { allocatedMargin: undefined }],
+        ['negative-allocation', {}, { allocatedMargin: '-1' }],
+      ])(
+        'refuses %s removal state before signing',
+        async (_name, accountChange, positionChange) => {
+          const { provider, clientInstance, calls } = buildProvider();
+          clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                ...accountChange,
+                positions: [
+                  {
+                    ...ACCOUNT.positions[0],
+                    marginMode: 1,
+                    allocatedMargin: '2000',
+                    ...positionChange,
+                  },
+                ],
+              },
+            ],
+          });
+          expect(
+            (await provider.updateMargin({ symbol: 'BTC', amount: '-5' }))
+              .success,
+          ).toBe(false);
+          expect(calls).toHaveLength(0);
+        },
+      );
+
+      it('refuses fractional micro-USDC rather than signing rounded collateral', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  marginMode: 1,
+                  allocatedMargin: '2000',
+                },
+              ],
+            },
+          ],
+        });
+        expect(
+          (await provider.updateMargin({ symbol: 'BTC', amount: '5.0000009' }))
+            .success,
+        ).toBe(false);
+        expect(calls).toHaveLength(0);
+      });
+
+      it('reports exact failed margin execution without claiming success or pending acceptance', async () => {
+        const { provider, clientInstance, calls } = buildProvider({
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  marginMode: 1,
+                  allocatedMargin: '2000',
+                },
+              ],
+            },
+          ],
+        });
+        clientInstance.getTx.mockImplementation(async (hash: string) => {
+          const call = calls.find(
+            (item) => item.function === '_signUpdateMargin',
+          );
+          return {
+            code: 200,
+            hash,
+            accountIndex: 28,
+            apiKeyIndex: 7,
+            nonce: call?.params.at(-1),
+            status: 0,
+          };
+        });
+        expect(
+          await provider.updateMargin({ symbol: 'BTC', amount: '5' }),
+        ).toMatchObject({
+          success: false,
+          error:
+            'Lighter margin transaction failed; refresh its exact outcome before retrying',
+        });
+      });
+
+      it.each(['5', '-5'])(
+        'confirms exact transaction execution before reporting margin %s success',
+        async (amount) => {
+          const { provider, clientInstance, calls } = buildProvider({
+            registeredKey: '9c'.repeat(40),
+          });
+          clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: [
+                  {
+                    ...ACCOUNT.positions[0],
+                    marginMode: 1,
+                    allocatedMargin: '2000',
+                  },
+                ],
+              },
+            ],
+          });
+          clientInstance.getTx.mockImplementation(async (hash: string) => {
+            const call = calls.find(
+              (item) => item.function === '_signUpdateMargin',
+            );
+            return {
+              code: 200,
+              hash,
+              accountIndex: 28,
+              apiKeyIndex: 7,
+              nonce: call?.params.at(-1),
+              status: 2,
+            };
+          });
+          expect(
+            await provider.updateMargin({ symbol: 'BTC', amount }),
+          ).toStrictEqual({ success: true });
+          expect(clientInstance.getTx).toHaveBeenCalledTimes(1);
+          expect(
+            calls.find((item) => item.function === '_signUpdateMargin')
+              ?.params[3],
+          ).toBe(amount === '5' ? 1 : 0);
+        },
+      );
+
+      it('keeps accepted margin blocked after expiry and nonce advance across provider restart', async () => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const account = {
+          ...ACCOUNT,
+          positions: [
+            { ...ACCOUNT.positions[0], marginMode: 1, allocatedMargin: '2000' },
+          ],
+        };
+        built.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [account],
+        });
+        const first = await built.provider.updateMargin({
+          symbol: 'BTC',
+          amount: '5',
+        });
+        expect(first.success).toBe(false);
+        const clock = jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Date.now() + 1_000_000);
+        try {
+          const restarted = buildProvider({
+            registeredKey: '9c'.repeat(40),
+            platformDependencies: infra,
+          });
+          restarted.clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [account],
+          });
+          restarted.clientInstance.getNextNonce.mockResolvedValue({
+            code: 200,
+            nonce: 1000,
+          });
+          restarted.clientInstance.getTx.mockResolvedValue(null);
+          expect(
+            (
+              await restarted.provider.updateMargin({
+                symbol: 'BTC',
+                amount: '5',
+              })
+            ).success,
+          ).toBe(false);
+          expect(
+            restarted.calls.filter(
+              (call) => call.function === '_signUpdateMargin',
+            ),
+          ).toHaveLength(0);
+          expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          clock.mockRestore();
+        }
+      });
+
+      it('rechecks allocated margin after signing and clears only the unsent attempt', async () => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const account = {
+          ...ACCOUNT,
+          positions: [
+            { ...ACCOUNT.positions[0], marginMode: 1, allocatedMargin: '2000' },
+          ],
+        };
+        built.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [account],
+        });
+        const execute = jest.spyOn(built.bridge, 'execute');
+        const sign = execute.getMockImplementation();
+        if (!sign) {
+          throw new Error('Missing signer fixture');
+        }
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          const result = await sign(call);
+          if (call.function === '_signUpdateMargin') {
+            account.positions[0].allocatedMargin = '2';
+          }
+          return result;
+        });
+        const result = await built.provider.updateMargin({
+          symbol: 'BTC',
+          amount: '-5',
+        });
+        expect(result.success).toBe(false);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
+      });
+
+      it('rejects an addition beyond authoritative available balance without signing', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              availableBalance: '2',
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  marginMode: 1,
+                  allocatedMargin: '2000',
+                },
+              ],
+            },
+          ],
+        });
+        expect(
+          (await provider.updateMargin({ symbol: 'BTC', amount: '5' })).success,
+        ).toBe(false);
+        expect(calls).toHaveLength(0);
+      });
+
       it('rejects cross-position margin adjustment before signing', async () => {
         const { provider, calls } = buildProvider();
-        expect(await provider.updateMargin({ symbol: 'BTC', amount: '5' })).toMatchObject({ success: false, error: 'Lighter margin adjustment requires an open isolated position' });
+        expect(
+          await provider.updateMargin({ symbol: 'BTC', amount: '5' }),
+        ).toMatchObject({
+          success: false,
+          error: 'Lighter margin adjustment requires an open isolated position',
+        });
         expect(calls).toHaveLength(0);
       });
 
       it('keeps accepted additive margin unresolved across another request', async () => {
-        const { provider, clientInstance, calls } = buildProvider({ registeredKey: '9c'.repeat(40) });
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [{ ...ACCOUNT.positions[0], marginMode: 1, allocatedMargin: '2000' }] }] });
-        const first = await provider.updateMargin({ symbol: 'BTC', amount: '5' });
+        const { provider, clientInstance, calls } = buildProvider({
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  marginMode: 1,
+                  allocatedMargin: '2000',
+                },
+              ],
+            },
+          ],
+        });
+        const first = await provider.updateMargin({
+          symbol: 'BTC',
+          amount: '5',
+        });
         expect(first.success).toBe(false);
         expect(first.error).toContain('pending');
-        expect((await provider.updateMargin({ symbol: 'BTC', amount: '5' })).success).toBe(false);
-        expect(calls.filter((call) => call.function === '_signUpdateMargin')).toHaveLength(1);
+        expect(
+          (await provider.updateMargin({ symbol: 'BTC', amount: '5' })).success,
+        ).toBe(false);
+        expect(
+          calls.filter((call) => call.function === '_signUpdateMargin'),
+        ).toHaveLength(1);
       });
 
       it('refuses removal larger than authoritative allocated margin', async () => {
         const { provider, clientInstance, calls } = buildProvider();
-        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [{ ...ACCOUNT.positions[0], marginMode: 1, allocatedMargin: '2' }] }] });
-        expect((await provider.updateMargin({ symbol: 'BTC', amount: '-5' })).success).toBe(false);
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [
+                {
+                  ...ACCOUNT.positions[0],
+                  marginMode: 1,
+                  allocatedMargin: '2',
+                },
+              ],
+            },
+          ],
+        });
+        expect(
+          (await provider.updateMargin({ symbol: 'BTC', amount: '-5' }))
+            .success,
+        ).toBe(false);
         expect(calls).toHaveLength(0);
       });
     });
@@ -22158,6 +22673,21 @@ describe('LighterProvider', () => {
       const registeredKey = '9c'.repeat(40);
       const built = buildProvider({ registeredKey });
       const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              {
+                ...ACCOUNT.positions[0],
+                marginMode: 1,
+                allocatedMargin: '2000',
+              },
+            ],
+          },
+        ],
+      });
       venue.failResponseOnce(13);
       expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
         false,

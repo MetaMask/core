@@ -900,6 +900,56 @@ describe('LighterClientService', () => {
       );
     });
 
+    it.each([
+      { pending_order_count: -1 },
+      { position_tied_order_count: 0.5 },
+      { allocated_margin: '-1' },
+      { allocated_margin: '5USDC' },
+    ])(
+      'rejects malformed collateral and pending inventory fields %j',
+      async (change) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            accounts: [
+              {
+                code: 200,
+                account_type: 0,
+                index: 28,
+                l1_address: '0xabc',
+                cancel_all_time: 0,
+                total_order_count: 0,
+                pending_order_count: 0,
+                status: 1,
+                collateral: '10000',
+                available_balance: '9000',
+                positions: [
+                  {
+                    market_id: 1,
+                    symbol: 'BTC',
+                    initial_margin_fraction: '20',
+                    open_order_count: 0,
+                    sign: 1,
+                    position: '0.1',
+                    avg_entry_price: '100000',
+                    position_value: '10000',
+                    unrealized_pnl: '0',
+                    realized_pnl: '0',
+                    liquidation_price: '80000',
+                    margin_mode: 1,
+                    ...change,
+                  },
+                ],
+              },
+            ],
+          }),
+        );
+        await expect(buildService().getAccountByIndex(28)).rejects.toThrow(
+          'Invalid Lighter venue data',
+        );
+      },
+    );
+
     it('queries the account by index', async () => {
       fetchMock.mockResolvedValue(
         mockJsonResponse({ code: 200, accounts: [] }),

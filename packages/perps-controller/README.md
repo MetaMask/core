@@ -66,6 +66,27 @@ an asset with an open position, resting order, or active native TWAP schedule,
 including schedules whose first slice has not filled. Orders in the same mode may
 increase or reduce the existing position.
 
+## Explicit Lighter margin mode and collateral adjustments
+
+Lighter accepts explicit `cross` or `isolated` mode with a positive integer
+`leverage` on ordinary native orders and attached protection orders for active
+perpetual markets. Existing positions and resting, pending or position-tied
+orders prevent changing their market mode. Omitted mode preserves existing
+selection behavior. Scale and strategy probes continue to reject explicit mode.
+
+A mode selection must have an exactly identified executed transaction and a
+fresh account row showing the selected mode before dependent exposure is signed
+or dispatched. Transport acceptance alone does not establish execution.
+
+`updateMargin` requires an open isolated position and exact micro-USDC precision.
+Positive amounts are bounded by fresh available account collateral; negative
+amounts require authoritative allocated position margin. The original position
+identity and bounds are checked again before signing and final dispatch. The
+venue still enforces its own position-risk limits. Success requires exact
+transaction execution. Unresolved collateral and mode transactions remain
+blocked across restart, nonce advance and expiry until exact terminal proof;
+refresh recovered outcomes before explicitly acknowledging them.
+
 ## Signing without a `KeyringController`
 
 By default the controller signs through the `KeyringController:*` messenger

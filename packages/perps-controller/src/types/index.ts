@@ -312,7 +312,9 @@ export type OrderParams = {
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)
   /**
-   * Explicit collateral mode. Requires leverage. HyperLiquid validates market
+   * Explicit collateral mode. Requires leverage. Lighter native orders verify
+   * mode execution and visibility before exposure and refuse changes with an
+   * open position or resting/pending orders. HyperLiquid validates market
    * support and refuses mode changes with an open position or resting order.
    * Omit to let the provider choose: HyperLiquid keeps an open position's
    * mode and otherwise uses isolated.

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support explicit Lighter `marginMode` selections with required leverage, authoritative position/order locks and exact mode transaction execution before dependent exposure. Ready active perpetual capabilities report both native modes ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Preserve attached exact-failure settlement across review and nonce-ledger retries. Explicit attached review can settle fresh complete exact-leg acceptance into an acknowledgeable recovered outcome when the transaction hash is absent and its nonce advanced; saved IDs alone remain insufficient. Bound history by preparation time and page/row budgets, reporting optional `AttachedOrderGroup.historyStatus` for incomplete reviews.
 - Expose `OrderResult.attachedOrderGroup`, `AttachedOrderGroup`, `ReadyPerpsOrderCapabilities.attachedTpsl`, optional provider `getAttachedOrderGroups`/`reviewAttachedOrderGroups`, and controller messenger actions `PerpsControllerGetAttachedOrderGroupsAction`/`PerpsControllerReviewAttachedOrderGroupsAction`. The group submission union includes `completed` for exactly correlated terminal legs.
 - Export `LIGHTER_MAX_WIRE_PRICE`, `LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER` and `LIGHTER_GROUPING_ONE_TRIGGERS_OCO` through `constants` and `constants/lighterConfig`. The public `utils/lighterAttachedOrders` subpath exposes `LighterAttachedGroup`, `parseLighterAttachedGroups`, `correlateLighterAttachedOrders`, `toAttachedOrderGroup`, `LIGHTER_ATTACHED_MAX_GROUPS` and `LIGHTER_ATTACHED_HANDLE_PREFIX`.
@@ -58,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wait for in-flight key selection in recovery readers and retain unfinished TP/SL journals after failed signer initialization ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Fixed
+
+- Require fresh isolated-position identity and collateral bounds for Lighter margin adjustments, recheck before signing and dispatch, and report success only after exact transaction execution. Preserve unresolved collateral/mode transactions across expiry, nonce advance and restart until exact terminal proof; require exact micro-USDC amounts ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Persist guarded Lighter protection removals as non-resumable before dispatch. Recovery reconciles earlier cancellations and preserves surviving protection even when saving a later position refusal fails.
 

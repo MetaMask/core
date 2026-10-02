@@ -3187,6 +3187,16 @@ export class LighterProvider implements PerpsProvider {
           remaining.push(entry);
           continue;
         }
+        if (
+          entry.intent.startsWith('updateMargin:') ||
+          entry.intent.startsWith('updateMarginMode:')
+        ) {
+          // Additive collateral and mode changes require exact terminal proof.
+          // An accepted transaction can disappear from an indexing endpoint;
+          // nonce advance or elapsed expiry alone must not authorize a repeat.
+          remaining.push(entry);
+          continue;
+        }
         if (nonceResponse.nonce > entry.nonce) {
           // The venue moved past this nonce while OUR exact hash is
           // absent: another dispatch (e.g. a second device) consumed it.
@@ -7370,18 +7380,31 @@ export class LighterProvider implements PerpsProvider {
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
         if (identity?.requireExecution) {
-          // Accepted transport is not execution. Keep the original durable
-          // attempt until exact transaction identity proves terminal success;
-          // unresolved additive margin must never become retryable on restart.
+          // Transport acceptance cannot retire additive collateral intent.
+          // Keep its durable record until its exact transaction executes.
           this.#assertSession(generationAtIntent);
           const transaction = ledgerEntry?.txHash
             ? await this.#clientService.getTx(ledgerEntry.txHash)
             : null;
           this.#assertSession(generationAtIntent);
-          if (!ledgerEntry || !transaction ||
-              transaction.hash.toLowerCase().replace(/^0x/u, '') !== ledgerEntry.txHash?.toLowerCase().replace(/^0x/u, '') ||
-              transaction.accountIndex !== accountIndex || transaction.apiKeyIndex !== apiKeyIndex ||
-              transaction.nonce !== ledgerEntry.nonce || getLighterTransactionOutcome(transaction.status) !== 'executed') {
+          const matches =
+            ledgerEntry !== null &&
+            transaction !== null &&
+            typeof transaction.hash === 'string' &&
+            transaction.hash.toLowerCase().replace(/^0x/u, '') ===
+              ledgerEntry.txHash?.toLowerCase().replace(/^0x/u, '') &&
+            transaction.accountIndex === accountIndex &&
+            transaction.apiKeyIndex === apiKeyIndex &&
+            transaction.nonce === ledgerEntry.nonce;
+          const outcome = matches
+            ? getLighterTransactionOutcome(transaction.status)
+            : null;
+          if (outcome === 'failed') {
+            throw new Error(
+              'Lighter margin transaction failed; refresh its exact outcome before retrying',
+            );
+          }
+          if (outcome !== 'executed') {
             throw new Error(
               'Lighter margin mode update remains unresolved or margin adjustment is pending; review its exact transaction before retrying',
             );
@@ -10215,7 +10238,8 @@ export class LighterProvider implements PerpsProvider {
       const markets = await this.#ensureMarkets(
         isTriggerOrderType(params.orderType) ||
           hasAttached ||
-          params.timeInForce === 'ALO' || params.marginMode !== undefined,
+          params.timeInForce === 'ALO' ||
+          params.marginMode !== undefined,
       );
       const market = markets.get(params.symbol);
       if (!market) {
@@ -10430,11 +10454,14 @@ export class LighterProvider implements PerpsProvider {
         );
       }
       const explicitMarginMode = await this.#validateExplicitMarginMode(
-        params, market, generationAtIntent,
+        params,
+        market,
+        generationAtIntent,
       );
-      const leverageImfHundredths = explicitMarginMode === null
-        ? await this.#resolveLeverageIntent(params)
-        : Math.round(10_000 / (params.leverage as number));
+      const leverageImfHundredths =
+        explicitMarginMode === null
+          ? await this.#resolveLeverageIntent(params)
+          : Math.round(10_000 / (params.leverage as number));
       // Margin mode is sent only with an explicit leverage update. An
       // omitted leverage leaves both leverage and margin mode unchanged;
       // an explicit update preserves an existing position's venue mode and
@@ -10442,7 +10469,8 @@ export class LighterProvider implements PerpsProvider {
       const leverageMarginMode =
         leverageImfHundredths === null
           ? null
-          : explicitMarginMode ?? await this.#resolveMarginModeForSymbol(params.symbol);
+          : (explicitMarginMode ??
+            (await this.#resolveMarginModeForSymbol(params.symbol)));
 
       // Intent validated — only now do signer and account setup run.
       // Re-fence FIRST: the preflight awaited public/account reads during
@@ -10523,7 +10551,11 @@ export class LighterProvider implements PerpsProvider {
               generationAtIntent,
             );
           }
-          await this.#validateExplicitMarginMode(params, market, generationAtIntent);
+          await this.#validateExplicitMarginMode(
+            params,
+            market,
+            generationAtIntent,
+          );
           if (leverageImfHundredths !== null && leverageMarginMode !== null) {
             const signedLeverage = await this.#getSignerBridge().execute({
               function: '_signUpdateLeverage',
@@ -10548,15 +10580,25 @@ export class LighterProvider implements PerpsProvider {
               undefined,
               {
                 ...extractDispatchIdentity(signedLeverage),
-                intent: `updateLeverage:${params.symbol}:${String(params.leverage)}`,
+                intent: `${explicitMarginMode === null ? 'updateLeverage' : 'updateMarginMode'}:${params.symbol}:${String(params.leverage)}`,
                 requireExecution: explicitMarginMode !== null,
                 beforeDispatch: async () => {
-                  await this.#validateExplicitMarginMode(params, market, generationAtIntent);
+                  await this.#validateExplicitMarginMode(
+                    params,
+                    market,
+                    generationAtIntent,
+                  );
                 },
               },
             );
             leverageCommitted = true;
           }
+          await this.#validateExplicitMarginMode(
+            params,
+            market,
+            generationAtIntent,
+            true,
+          );
           const parent: LighterCreateOrderWireParams = [
             market.marketId,
             clientOrderIndex,
@@ -10689,7 +10731,26 @@ export class LighterProvider implements PerpsProvider {
                 ? `placeAttached:${attachedGroup.groupId}`
                 : `placeOrder:${params.symbol}:${clientOrderIndex}`,
               beforeDispatch: async () => {
-                await this.#validateExplicitMarginMode(params, market, generationAtIntent);
+                await this.#validateExplicitMarginMode(
+                  params,
+                  market,
+                  generationAtIntent,
+                  true,
+                );
+              },
+              onNotDispatched: async () => {
+                if (attachedGroup) {
+                  attachedGroup.submission = 'canceled';
+                  attachedGroup.nonce = null;
+                  attachedGroup.txHash = null;
+                  attachedGroup.expiresAt = null;
+                  delete attachedGroup.nonAcceptance;
+                  await this.#writeAttachedGroup(
+                    attachedKey,
+                    attachedGroup,
+                    generationAtIntent,
+                  );
+                }
               },
             },
           );
@@ -13495,6 +13556,12 @@ export class LighterProvider implements PerpsProvider {
           // onAccepted (pre-fence), and reconciliation disambiguates each
           // attempt individually via books + nonce.
           await assertLiveExpected();
+          let initialPhase: TpslJournalState['phase'] = partialIntent
+            ? 'cancelling'
+            : 'creating';
+          if (!wantsReplacement && expectedPosition !== undefined) {
+            initialPhase = 'manual';
+          }
           const journal: TpslJournalState = {
             partialIntent,
             attempts: [],
@@ -13514,12 +13581,7 @@ export class LighterProvider implements PerpsProvider {
             // A guard belongs only to this foreground session. Persist its
             // non-resumable authority before the first dispatch, so a failed
             // refusal write cannot reauthorize later recovery cancellations.
-            phase:
-              !wantsReplacement && expectedPosition !== undefined
-                ? 'manual'
-                : partialIntent
-                  ? 'cancelling'
-                  : 'creating',
+            phase: initialPhase,
             priorGrouping,
             priorTriggers,
           };
@@ -14037,11 +14099,108 @@ export class LighterProvider implements PerpsProvider {
     }
   };
 
-  async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
+  /** Validate isolated collateral against a fresh, uniquely identified position.
+   * @param symbol - Requested market symbol.
+   * @param market - Native market identity.
+   * @param amount - Signed collateral adjustment.
+   * @param generation - Original session generation.
+   * @param expected - Original position identity, when rechecking a queued intent.
+   * @returns The captured position identity.
+   */
+  readonly #validateIsolatedMargin = async (
+    symbol: string,
+    market: LighterOrderBookMeta,
+    amount: number,
+    generation: number,
+    expected?: Pick<LighterApiPosition, 'position' | 'sign' | 'avgEntryPrice'>,
+  ): Promise<
+    Pick<LighterApiPosition, 'position' | 'sign' | 'avgEntryPrice'>
+  > => {
+    if (market.status !== 'active' || market.marketType !== 'perp') {
+      throw new Error(
+        'Lighter margin adjustment requires an active perpetual market',
+      );
+    }
+    this.#assertSession(generation);
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    const accounts = Array.isArray(response.accounts) ? response.accounts : [];
+    const account = accounts.length === 1 ? accounts[0] : undefined;
+    if (
+      !account ||
+      account.index !== accountIndex ||
+      account.accountType !== 0 ||
+      typeof account.l1Address !== 'string' ||
+      account.l1Address.toLowerCase() !== this.#boundAddress ||
+      !Array.isArray(account.positions)
+    ) {
+      throw new Error('Lighter margin account state is not authoritative');
+    }
+    const rows = account.positions.filter(
+      (row) => row.marketId === market.marketId || row.symbol === symbol,
+    );
+    const row = rows.length === 1 ? rows[0] : undefined;
+    if (
+      !row ||
+      row.marketId !== market.marketId ||
+      row.symbol !== symbol ||
+      row.marginMode !== LIGHTER_MARGIN_MODE_ISOLATED ||
+      (row.sign !== 1 && row.sign !== -1) ||
+      parseFinitePositive(row.position) === null ||
+      parseFinitePositive(row.avgEntryPrice) === null
+    ) {
+      throw new Error(
+        'Lighter margin adjustment requires an open isolated position',
+      );
+    }
+    if (
+      expected &&
+      (row.sign !== expected.sign ||
+        !new BigNumber(row.position).eq(expected.position) ||
+        !new BigNumber(row.avgEntryPrice).eq(expected.avgEntryPrice))
+    ) {
+      throw new Error(
+        'Lighter margin position changed; refresh before adjusting collateral',
+      );
+    }
+    const available = parseStrictDecimal(account.availableBalance);
+    const allocated =
+      row.allocatedMargin === undefined
+        ? null
+        : parseStrictDecimal(row.allocatedMargin);
+    if (
+      amount > 0 &&
+      (available === null ||
+        available < 0 ||
+        new BigNumber(amount).gt(account.availableBalance))
+    ) {
+      throw new Error('Lighter margin addition exceeds available collateral');
+    }
+    if (
+      amount < 0 &&
+      (allocated === null ||
+        allocated < 0 ||
+        new BigNumber(-amount).gt(row.allocatedMargin ?? '0'))
+    ) {
+      throw new Error(
+        'Lighter margin removal exceeds authoritative allocated collateral',
+      );
+    }
+    return {
+      position: row.position,
+      sign: row.sign,
+      avgEntryPrice: row.avgEntryPrice,
+    };
+  };
+
+  async updateMargin(input: UpdateMarginParams): Promise<MarginResult> {
+    const params = { ...input };
     try {
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
-      const markets = await this.#ensureMarkets();
+      const markets = await this.#ensureMarkets(true);
       const market = markets.get(params.symbol);
       if (!market) {
         return {
@@ -14062,9 +14221,22 @@ export class LighterProvider implements PerpsProvider {
       // finite amount fails closed with zero bridge calls instead of
       // raw-scaling to an unsafe integer inside signer params.
       const marginAmountInt = toSignerWireInteger(Math.abs(amount), 6);
+      if (
+        !new BigNumber(params.amount).abs().shiftedBy(6).eq(marginAmountInt)
+      ) {
+        throw new Error(
+          'Lighter margin adjustment requires exact micro-USDC precision',
+        );
+      }
       // Re-fence before signer setup: the market lookup above awaited, and
       // a stale intent must never initialize the new account's signer.
       this.#assertSession(generationAtIntent);
+      const position = await this.#validateIsolatedMargin(
+        params.symbol,
+        market,
+        amount,
+        generationAtIntent,
+      );
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       // USDC uses 6 decimals; direction 1 adds isolated margin, 0 removes it
@@ -14072,6 +14244,13 @@ export class LighterProvider implements PerpsProvider {
       await this.#withVenueNonce(
         accountIndex,
         async (nonce, submit) => {
+          await this.#validateIsolatedMargin(
+            params.symbol,
+            market,
+            amount,
+            generationAtIntent,
+            position,
+          );
           const signed = await this.#getSignerBridge().execute({
             function: '_signUpdateMargin',
             params: [
@@ -14092,6 +14271,16 @@ export class LighterProvider implements PerpsProvider {
             {
               ...extractDispatchIdentity(signed),
               intent: `updateMargin:${params.symbol}:${params.amount}`,
+              requireExecution: true,
+              beforeDispatch: async () => {
+                await this.#validateIsolatedMargin(
+                  params.symbol,
+                  market,
+                  amount,
+                  generationAtIntent,
+                  position,
+                );
+              },
             },
           );
         },
@@ -14561,7 +14750,8 @@ export class LighterProvider implements PerpsProvider {
     const markets = await this.#ensureMarkets(
       isTriggerOrderType(params.orderType) ||
         hasAttached ||
-        params.timeInForce === 'ALO' || params.marginMode !== undefined,
+        params.timeInForce === 'ALO' ||
+        params.marginMode !== undefined,
     );
     const market = markets.get(params.symbol);
     if (!market) {
@@ -14588,7 +14778,11 @@ export class LighterProvider implements PerpsProvider {
         error: 'Lighter trigger orders require an active perpetual market',
       };
     }
-    await this.#validateExplicitMarginMode(params, market, this.#sessionGeneration);
+    await this.#validateExplicitMarginMode(
+      params,
+      market,
+      this.#sessionGeneration,
+    );
     if (params.leverage !== undefined) {
       // Same authoritative-metadata requirement as placement.
       const maxLeverage = await this.#requireMarketMaxLeverage(params.symbol);
@@ -14997,12 +15191,14 @@ export class LighterProvider implements PerpsProvider {
    * @param params - Requested order intent; explicit mode requires leverage.
    * @param market - Refreshed public market metadata.
    * @param generation - Session captured before the reads.
+   * @param requireSelectedMode - Require the executed selection to be visible before exposure.
    * @returns Wire mode, or null for the unchanged omitted-mode behavior.
    */
   readonly #validateExplicitMarginMode = async (
     params: OrderParams,
     market: LighterOrderBookMeta,
     generation: number,
+    requireSelectedMode = false,
   ): Promise<number | null> => {
     if (params.marginMode === undefined) {
       return null;
@@ -15021,34 +15217,79 @@ export class LighterProvider implements PerpsProvider {
     this.#assertSession(generation);
     const response = await this.#clientService.getAccountByIndex(accountIndex);
     this.#assertSession(generation);
-    const accounts = response.accounts.filter((account) => account.index === accountIndex);
+    const accounts = Array.isArray(response.accounts) ? response.accounts : [];
     const account = accounts.length === 1 ? accounts[0] : undefined;
-    if (!account || account.l1Address.toLowerCase() !== this.#boundAddress || !Array.isArray(account.positions)) {
+    if (
+      !account ||
+      account.index !== accountIndex ||
+      account.accountType !== 0 ||
+      typeof account.l1Address !== 'string' ||
+      account.l1Address.toLowerCase() !== this.#boundAddress ||
+      !Array.isArray(account.positions)
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
-    const rows = account.positions.filter((row) => row.marketId === market.marketId || row.symbol === params.symbol);
+    const rows = account.positions.filter(
+      (row) => row.marketId === market.marketId || row.symbol === params.symbol,
+    );
     const row = rows.length === 1 ? rows[0] : undefined;
-    if (rows.length > 1 || (row && (row.marketId !== market.marketId || row.symbol !== params.symbol))) {
+    if (
+      rows.length > 1 ||
+      (row &&
+        (row.marketId !== market.marketId || row.symbol !== params.symbol))
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
     // Counts are the account endpoint's authoritative resting/pending order
     // inventory. Without a target row, any order makes its mode unprovable.
-    if (!Number.isSafeInteger(account.totalOrderCount) || account.totalOrderCount < 0 ||
-        !Number.isSafeInteger(account.pendingOrderCount) || account.pendingOrderCount < 0 ||
-        (!row && (account.totalOrderCount > 0 || account.pendingOrderCount > 0))) {
+    if (
+      !Number.isSafeInteger(account.totalOrderCount) ||
+      account.totalOrderCount < 0 ||
+      !Number.isSafeInteger(account.pendingOrderCount) ||
+      account.pendingOrderCount < 0 ||
+      (!row && (account.totalOrderCount > 0 || account.pendingOrderCount > 0))
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
-    const requested = params.marginMode === 'cross' ? LIGHTER_MARGIN_MODE_CROSS : LIGHTER_MARGIN_MODE_ISOLATED;
+    const requested =
+      params.marginMode === 'cross'
+        ? LIGHTER_MARGIN_MODE_CROSS
+        : LIGHTER_MARGIN_MODE_ISOLATED;
     if (row) {
       const size = parseStrictDecimal(row.position);
       const mode = row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS;
-      if (size === null || !Number.isSafeInteger(row.openOrderCount) || row.openOrderCount < 0 ||
-          (mode !== LIGHTER_MARGIN_MODE_CROSS && mode !== LIGHTER_MARGIN_MODE_ISOLATED)) {
+      const pending = row.pendingOrderCount ?? account.pendingOrderCount;
+      const tied = row.positionTiedOrderCount ?? account.totalOrderCount;
+      if (
+        size === null ||
+        size < 0 ||
+        (size > 0 && row.sign !== 1 && row.sign !== -1) ||
+        !Number.isSafeInteger(pending) ||
+        pending < 0 ||
+        !Number.isSafeInteger(tied) ||
+        tied < 0 ||
+        !Number.isSafeInteger(row.openOrderCount) ||
+        row.openOrderCount < 0 ||
+        (mode !== LIGHTER_MARGIN_MODE_CROSS &&
+          mode !== LIGHTER_MARGIN_MODE_ISOLATED)
+      ) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
-      if (mode !== requested && (size !== 0 || row.openOrderCount > 0)) {
-        throw new Error(size !== 0 ? PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN : PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN);
+      if (
+        mode !== requested &&
+        (size !== 0 || row.openOrderCount > 0 || pending > 0 || tied > 0)
+      ) {
+        throw new Error(
+          size === 0
+            ? PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN
+            : PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+        );
       }
+    }
+    if (requireSelectedMode && (!row || row.marginMode !== requested)) {
+      throw new Error(
+        'Lighter selected margin mode is not visible; refresh before placing exposure',
+      );
     }
     return requested;
   };
