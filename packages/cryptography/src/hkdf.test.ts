@@ -69,7 +69,22 @@ describe('hkdfSha256', () => {
 
   it('throws if the IKM is empty', async () => {
     await expect(hkdfSha256(new Uint8Array(0), salt, info, 32)).rejects.toThrow(
-      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-256.',
+      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-256. To bypass this check, set the `unsafeInputKeyingMaterial` option to `true`.',
+    );
+  });
+
+  it('derives key material from an empty IKM when the length check is skipped', async () => {
+    // HKDF-SHA-256, 32-byte salt of 0x01, empty IKM and info, 64-byte output.
+    // Matches Node crypto.hkdfSync and the Noise Split input shape.
+    const key = await hkdfSha256(
+      new Uint8Array(0),
+      new Uint8Array(32).fill(1),
+      new Uint8Array(0),
+      64,
+      { unsafeInputKeyingMaterial: true },
+    );
+    expect(bytesToHex(key)).toBe(
+      '0xb5a5789af1d00c74773ef327dc63f0f11c7041252d4916c43a252b92e3358ad272d7e204fba7b0ac19964ebcba5e88e3609cb8c3cafa4b940945df49da83680f',
     );
   });
 });
@@ -129,7 +144,7 @@ describe('hkdfSha384', () => {
 
   it('throws if the IKM is empty', async () => {
     await expect(hkdfSha384(new Uint8Array(0), salt, info, 48)).rejects.toThrow(
-      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-384.',
+      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-384. To bypass this check, set the `unsafeInputKeyingMaterial` option to `true`.',
     );
   });
 });
@@ -189,7 +204,7 @@ describe('hkdfSha512', () => {
 
   it('throws if the IKM is empty', async () => {
     await expect(hkdfSha512(new Uint8Array(0), salt, info, 64)).rejects.toThrow(
-      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-512.',
+      'Unsafe input keying material length: IKM must not be zero bytes for HKDF-SHA-512. To bypass this check, set the `unsafeInputKeyingMaterial` option to `true`.',
     );
   });
 });

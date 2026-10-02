@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "37.0.0",
+  "version": "37.0.1",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
@@ -50,9 +50,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^3.2.0",
+    "@metamask/analytics-controller": "^4.0.0",
     "@metamask/base-controller": "^10.0.0",
-    "@metamask/config-registry-controller": "^4.0.0",
+    "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-block-tracker": "^16.0.0",

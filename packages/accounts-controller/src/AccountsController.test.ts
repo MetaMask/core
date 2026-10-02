@@ -680,7 +680,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('does not add Money keyring accounts', async () => {
+      it('does not add Money or MPC keyring accounts', async () => {
         mockUUIDWithNormalAccounts([mockAccount]);
 
         const messenger = buildMessenger();
@@ -711,6 +711,14 @@ describe('AccountsController', () => {
               metadata: {
                 id: 'mock-id-money',
                 name: 'mock-name-money',
+              },
+            },
+            {
+              type: KeyringTypes.mpc,
+              accounts: [mockAccount3.address],
+              metadata: {
+                id: 'mock-id-mpc',
+                name: 'mock-name-mpc',
               },
             },
           ],

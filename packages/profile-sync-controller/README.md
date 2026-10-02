@@ -58,14 +58,21 @@ email OTP enrollment and verification:
   The controller never inspects the token's assurance level; the server
   decides. A setup flow that proved a factor itself can pass
   `maxSessionAgeMs` (for example, the time since the flow started) so chained
-  enrollments reuse that proof. Enrollment does not end the session.
+  enrollments reuse that proof. `completeCredentialEnrollment()` opens a
+  verification session with the assertion the server returns for the new
+  credential (replacing any earlier one), so no separate verification is
+  needed right after enrolling.
 - `beginCredentialVerification()` and `completeCredentialVerification()`
   verify an enrolled credential and return a verification token.
 - `getVerificationToken()` reuses a live verification session when it satisfies
   the caller's freshness requirement; `clearVerificationSession()` clears it. The
-  session lasts as long as the verification token (at most
-  `VERIFICATION_SESSION_TTL_MS`, 15 minutes) and ends on lock, sign-out, reset, or
-  a rejected base session.
+  session lasts as long as the server says the token does (`expires_in`,
+  measured from when it was obtained) and ends on lock, sign-out, reset, or a
+  rejected base session. It is
+  a low-level read: features should go through the client MFA kit
+  (`verifyOrEnroll`), which reuses a matching session without showing any
+  screen. Read it directly only from code that cannot show UI, and treat `null`
+  as "let the UI layer ask".
 
 Clients must retain the challenge `flowId`, perform the platform ceremony, and
 send the resulting proof to the matching completion method. OTP codes,
