@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add default-off bounded Lighter Chase probe coordination with durable child ownership, exact fill-aware cancel/replace, public management views and explicit termination; production strategy capabilities remain unavailable
+- Add default-off bounded Lighter Chase probe coordination with durable child ownership, exact fill-aware cancel/replace, public management views and explicit termination; production strategy capabilities remain unavailable. Expose `utils/lighterChase.readLighterChaseQuote`, `reconcileLighterChaseChild` and `identifyLighterChaseChild` for native quote, fill and immutable child validation.
 
 - Support ordinary Lighter post-only limit placement with native TIF 2, fresh crossing checks and durable dispatch recovery; strategy capabilities remain unavailable
 
-- Add gated Lighter native TWAP lifecycle machinery with durable account/network/slot ownership, exact nonce/hash/expiry dispatch records, parent/client-ID reads and complete child-trade reconciliation. Expose provider-only read observations and a default-off, testnet-only bounded probe constructor option. Cancellation acknowledgment remains unresolved until separately verified native terminal mapping; ordinary strategy capabilities remain unchanged.
+- Add the default-off `nativeTwapTestnetProbe` constructor option for bounded Lighter native TWAP validation with durable account/network/slot ownership. Unresolved TWAP and Chase probes exclude further probe placement on the same account.
+- Add provider-only `getNativeTwapObservations()` for exact parent/client-ID reads and complete child-trade reconciliation. Cancellation acknowledgment retains ownership pending independently verified terminal mapping.
+- Expose `utils/lighterTwapReconciliation.reconcileLighterTwapObservation` and `identifyLighterTwapParent` for exact native reconciliation and immutable cancellation ownership. Exact cancellation remains available when mutable fill history is unavailable.
+- Release provably unsent native probe transactions and expired, never-landed TWAP transactions while retaining attempted and uncertain cleanup obligations. Validate optional native trade string IDs against numeric counterparts.
 
 - Add `utils/lighterTwap.prepareLighterTwapOrder` for exact native TWAP wire preparation only. Keep Lighter TWAP unavailable pending authoritative parent-fill and terminal-cancellation semantics. Reject unsupported management reads and TWAP cancellation before signer setup rather than reporting an empty inventory or treating generic cancel acknowledgment as schedule termination.
 

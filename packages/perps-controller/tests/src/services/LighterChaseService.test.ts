@@ -71,7 +71,7 @@ const setup = (): TestEnvironment => {
   const sign = async (hooks: LighterChaseDispatchHooks): Promise<void> => {
     await hooks.signed({
       nonce: nextId,
-      txHash: `hash-${nextId}`,
+      txHash: nextId.toString(16).padStart(8, '0'),
       expiresAt: now + 10000,
     });
     await hooks.beforeDispatch();
@@ -127,12 +127,52 @@ const setup = (): TestEnvironment => {
 };
 
 describe('Lighter bounded Chase lifecycle', () => {
+  it('cancels the exact owned child despite unavailable fill reconciliation and retains pending termination', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    jest
+      .mocked(env.io.observe)
+      .mockRejectedValue(new Error('fill history unavailable'));
+    const result = await env.service.stop(
+      owner,
+      intent.handle,
+      env.io,
+      'canceled',
+    );
+    expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe('termination_pending');
+    expect(result.error).toContain('fill history unavailable');
+    expect(env.io.place).toHaveBeenCalledTimes(1);
+  });
+  it('accepts supported slot 2 for bounded Chase ownership', async () => {
+    const env = setup();
+    expect(
+      (
+        await env.service.start(
+          { ...intent, owner: { ...owner, apiKeyIndex: 2 } },
+          env.io,
+        )
+      ).status,
+    ).toBe('active');
+  });
+  it.each(['abcd', 'gggggggg'])(
+    'rejects invalid exact signed hash %s before transport',
+    async (txHash) => {
+      const env = setup();
+      jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+        await hooks.signed({ nonce: 8, txHash, expiresAt: 110000 });
+      });
+      const result = await env.service.start(intent, env.io);
+      expect(result.error).toBe('Invalid Lighter Chase signing identity');
+      expect(result.children[0].placement.phase).toBe('failed');
+    },
+  );
   it('persists immutable child ownership before sign and attempt before transport', async () => {
     const env = setup();
     const submitted: LighterChaseChild[] = [];
     jest.mocked(env.io.place).mockImplementation(async (child, hooks) => {
       expect([...env.disk.values()].join(' ')).toContain(child.clientOrderId);
-      await hooks.signed({ nonce: 8, txHash: 'signed', expiresAt: 110000 });
+      await hooks.signed({ nonce: 8, txHash: 'abcdabcd', expiresAt: 110000 });
       expect([...env.disk.values()].join(' ')).toContain('signed');
       await hooks.beforeDispatch();
       expect([...env.disk.values()].join(' ')).toContain('attempted');
@@ -152,7 +192,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     const env = setup();
     await env.service.start(intent, env.io);
     jest.mocked(env.io.cancel).mockImplementation(async (child, hooks) => {
-      await hooks.signed({ nonce: 9, txHash: 'cancel', expiresAt: 111000 });
+      await hooks.signed({ nonce: 9, txHash: 'cdefcdef', expiresAt: 111000 });
       await hooks.beforeDispatch();
       env.observed.set(child.clientOrderId, {
         orderId: `9${child.clientOrderId}`,
@@ -176,7 +216,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     const env = setup();
     await env.service.start(intent, env.io);
     jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
-      await hooks.signed({ nonce: 9, txHash: 'cancel', expiresAt: 111000 });
+      await hooks.signed({ nonce: 9, txHash: 'cdefcdef', expiresAt: 111000 });
       await hooks.beforeDispatch();
     });
     env.setNow(101000);
@@ -190,7 +230,7 @@ describe('Lighter bounded Chase lifecycle', () => {
   it('preserves response loss across restart without creating or resuming a child', async () => {
     const env = setup();
     jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
-      await hooks.signed({ nonce: 8, txHash: 'lost', expiresAt: 110000 });
+      await hooks.signed({ nonce: 8, txHash: 'deadbeef', expiresAt: 110000 });
       await hooks.beforeDispatch();
       throw new Error('response lost');
     });
@@ -232,6 +272,21 @@ describe('Lighter bounded Chase lifecycle', () => {
     );
     expect(env.io.place).toHaveBeenCalledTimes(1);
   });
+  it('releases a signed child refused before transport so stop needs no cancel', async () => {
+    const env = setup();
+    jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+      await hooks.signed({ nonce: 8, txHash: 'abcdabcd', expiresAt: 110000 });
+      throw new Error('nonce ledger full');
+    });
+    expect(await env.service.start(intent, env.io)).toMatchObject({
+      status: 'failed',
+      error: 'nonce ledger full',
+    });
+    const records = await env.service.list(owner, env.io);
+    expect(records[0].children[0].placement.phase).toBe('failed');
+    await env.service.stop(owner, intent.handle, env.io, 'canceled');
+    expect(env.io.cancel).not.toHaveBeenCalled();
+  });
   it('retains a signed child when attempted-state persistence fails before transport', async () => {
     const env = setup();
     env.storage.setItem.mockImplementation(async (key, value) => {
@@ -245,6 +300,10 @@ describe('Lighter bounded Chase lifecycle', () => {
     );
     expect([...env.disk.values()].join(' ')).toContain('signed');
     expect(env.observed.size).toBe(0);
+    const restarted = new LighterChaseService({ storage: env.storage });
+    const records = await restarted.list(owner, env.io);
+    expect(records[0].children[0].placement.phase).toBe('failed');
+    expect(records[0].status).toBe('failed');
   });
   it.each([
     {
@@ -310,7 +369,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     const pending = createDeferred<void>();
     const signed = createDeferred<void>();
     jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
-      await hooks.signed({ nonce: 8, txHash: 'signed', expiresAt: 110000 });
+      await hooks.signed({ nonce: 8, txHash: 'abcdabcd', expiresAt: 110000 });
       signed.resolve();
       await pending.promise;
       await hooks.beforeDispatch();
@@ -319,10 +378,8 @@ describe('Lighter bounded Chase lifecycle', () => {
     await signed.promise;
     env.service.interrupt();
     pending.resolve();
-    expect((await starting).status).toBe('termination_pending');
-    expect((await env.service.list(owner, env.io))[0].status).toBe(
-      'termination_pending',
-    );
+    expect((await starting).status).toBe('failed');
+    expect((await env.service.list(owner, env.io))[0].status).toBe('failed');
   });
   it('does not report an active session when interrupted after an accepted child', async () => {
     const env = setup();
@@ -342,12 +399,13 @@ describe('Lighter bounded Chase lifecycle', () => {
   it('refuses a financial continuation whose quote aged during signing', async () => {
     const env = setup();
     jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
-      await hooks.signed({ nonce: 8, txHash: 'delayed', expiresAt: 120000 });
+      await hooks.signed({ nonce: 8, txHash: 'abcddcba', expiresAt: 120000 });
       env.setNow(106000);
       await hooks.beforeDispatch();
     });
     const result = await env.service.start(intent, env.io);
-    expect(result.status).toBe('termination_pending');
+    expect(result.status).toBe('failed');
+    expect(result.children[0].placement.phase).toBe('failed');
     expect(result.error).toContain('stale');
   });
   it('refuses stale account/network authority before signing and during reads', async () => {

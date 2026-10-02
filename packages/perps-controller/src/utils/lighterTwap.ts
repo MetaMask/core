@@ -1,10 +1,15 @@
 import { BigNumber } from 'bignumber.js';
 
+import {
+  LIGHTER_MAX_ORDER_PRICE,
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MINUTE_MS,
+} from '../constants/lighterConfig.js';
 import { LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME } from '../constants/lighterConfig.js';
 
-const MAX_ORDER_PRICE = new BigNumber('4294967295');
-const MAX_BASE_AMOUNT = new BigNumber('281474976710655');
-const MINUTE_MILLISECONDS = 60_000;
+const MAX_ORDER_PRICE = new BigNumber(LIGHTER_MAX_ORDER_PRICE);
+const MAX_BASE_AMOUNT = new BigNumber(LIGHTER_MAX_BASE_AMOUNT);
+const MINUTE_MILLISECONDS = LIGHTER_MINUTE_MS;
 
 /** Inputs for native TWAP wire preparation; this does not authorize dispatch. */
 type LighterTwapWireIntent = {

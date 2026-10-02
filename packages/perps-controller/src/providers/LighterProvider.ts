@@ -12,6 +12,7 @@ import {
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_TX_EXPIRY_SLACK_MS,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
   LIGHTER_TRADING_API_KEY_COUNT,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
@@ -83,6 +84,7 @@ import {
   LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
+import { requireSignedTxIdentity } from '../services/lighterDispatchIdentity.js';
 import { LighterTwapService } from '../services/LighterTwapService.js';
 import type {
   LighterTwapOwner,
@@ -205,11 +207,13 @@ import {
   adaptPriceUpdateFromLighter,
   adaptPriceUpdateFromLighterWsStat,
 } from '../utils/lighterAdapter.js';
+import { identifyLighterChaseChild } from '../utils/lighterChase.js';
 import {
   readLighterChaseQuote,
   reconcileLighterChaseChild,
 } from '../utils/lighterChase.js';
 import { prepareLighterTwapOrder } from '../utils/lighterTwap.js';
+import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js';
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
@@ -742,57 +746,14 @@ type TpslManualRecovery = {
   recordedAt: number;
 };
 
-/**
- * Clock slack added to a signed payload's ExpiredAt before a not-found
- * transaction hash is declared never-landed.
- */
-const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
 /** Maximum durable recovered-dispatch outcomes retained per nonce ledger. */
 const LIGHTER_RECOVERED_DISPATCH_LIMIT = 32;
+/** Bounded native testnet probes retain a one-percent slippage default. */
+const LIGHTER_NATIVE_PROBE_DEFAULT_SLIPPAGE = 0.01;
+/** Maximum notional for a bounded native testnet probe. */
+const LIGHTER_NATIVE_PROBE_MAX_NOTIONAL = 20;
 /** Maximum durable TP/SL manual-recovery obligations retained per network. */
 const LIGHTER_TPSL_MANUAL_RECOVERY_LIMIT = 64;
-
-/**
- * Extract the signed txHash and ExpiredAt from a bridge signing result,
- * failing CLOSED: without them the settlement journal cannot resolve a
- * lost response authoritatively, so the mutation must not be submitted.
- *
- * @param signed - Bridge signing result.
- * @param signed.txHash - Signed transaction hash (hex).
- * @param signed.txInfo - Signed wire payload JSON (carries ExpiredAt).
- * @returns The transaction hash and expiry (ms).
- */
-const requireSignedTxIdentity = (signed: {
-  txHash?: string;
-  txInfo?: string;
-}): { txHash: string; expiresAt: number } => {
-  const { txHash } = signed;
-  if (
-    typeof txHash !== 'string' ||
-    !/^(0x)?[0-9a-fA-F]{8,128}$/u.test(txHash)
-  ) {
-    throw new Error(
-      'Lighter signing result carries no usable txHash; refusing to submit an unreconcilable mutation',
-    );
-  }
-  let expiresAt: unknown;
-  try {
-    expiresAt = (JSON.parse(signed.txInfo ?? '') as Record<string, unknown>)
-      .ExpiredAt;
-  } catch {
-    expiresAt = undefined;
-  }
-  if (
-    typeof expiresAt !== 'number' ||
-    !Number.isSafeInteger(expiresAt) ||
-    expiresAt <= 0
-  ) {
-    throw new Error(
-      'Lighter signing result carries no usable ExpiredAt; refusing to submit an unreconcilable mutation',
-    );
-  }
-  return { txHash, expiresAt };
-};
 
 /**
  * Capture each exact client's signed absolute order expiry. Transaction expiry
@@ -8154,7 +8115,7 @@ export class LighterProvider implements PerpsProvider {
     if (records.length === 0) {
       return [];
     }
-    const authority = await this.#getRecoveryReadToken(
+    const authority = await this.#getNativeProbeReadToken(
       accountIndex,
       generation,
     );
@@ -8163,6 +8124,56 @@ export class LighterProvider implements PerpsProvider {
       owner,
       this.#clientService,
       authority.token,
+    );
+  }
+
+  async #withNativeProbeStart<Result>(
+    owner: LighterTwapOwner,
+    strategy: 'twap' | 'chase',
+    generation: number,
+    start: () => Promise<Result>,
+  ): Promise<Result> {
+    return await withProcessMutex(
+      `lighterNativeProbe:${owner.network}:${owner.accountIndex}`,
+      async () => {
+        this.#assertSession(generation);
+        if (strategy === 'chase') {
+          const records = await this.#nativeTwapService.list(owner);
+          this.#assertSession(generation);
+          if (records.some((record) => record.placement.phase !== 'failed')) {
+            throw new Error(
+              'An earlier Lighter native probe remains unresolved for this account',
+            );
+          }
+        } else {
+          const records = await this.#chaseService.list(owner, {
+            assertCurrent: () => this.#assertSession(generation),
+          });
+          this.#assertSession(generation);
+          if (
+            records.some(
+              (record) =>
+                record.status === 'active' ||
+                record.status === 'termination_pending',
+            )
+          ) {
+            throw new Error(
+              'An earlier Lighter native probe remains unresolved for this account',
+            );
+          }
+        }
+        return await start();
+      },
+    );
+  }
+
+  async #getNativeProbeReadToken(
+    accountIndex: number,
+    generation: number,
+  ): Promise<{ token: string; apiKeyIndex: number; publicKey: string }> {
+    return await withProcessMutex(
+      `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
+      async () => await this.#getRecoveryReadToken(accountIndex, generation),
     );
   }
 
@@ -8444,7 +8455,7 @@ export class LighterProvider implements PerpsProvider {
         ) {
           throw new Error('Lighter Chase native market constraints changed');
         }
-        const { token } = await this.#getRecoveryReadToken(
+        const { token } = await this.#getNativeProbeReadToken(
           intent.owner.accountIndex,
           generation,
         );
@@ -8495,10 +8506,7 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter Chase create signing failed: ${signed.error}`,
               );
             }
-            const identity = extractDispatchIdentity(signed);
-            if (identity.txHash === null || identity.expiresAt === null) {
-              throw new Error('Lighter Chase create identity is missing');
-            }
+            const identity = requireSignedTxIdentity(signed);
             await hooks.signed({
               nonce,
               txHash: identity.txHash,
@@ -8534,9 +8542,30 @@ export class LighterProvider implements PerpsProvider {
       },
       cancel: async (child, hooks) => {
         assertSigning();
-        if (!child.observation?.orderId) {
+        const { token } = await this.#getNativeProbeReadToken(
+          intent.owner.accountIndex,
+          generation,
+        );
+        assertSigning();
+        const exact = await this.#clientService.getOrdersByClientIds(
+          intent.owner.accountIndex,
+          token,
+          [child.clientOrderId],
+        );
+        assertSigning();
+        if (exact.orders.length !== 1) {
           throw new Error(
             'Lighter Chase exact child is not visible for cancellation',
+          );
+        }
+        const orderId = identifyLighterChaseChild(
+          intent,
+          { ...child, nonce: child.placement.nonce },
+          exact.orders[0],
+        );
+        if (child.observation && child.observation.orderId !== orderId) {
+          throw new Error(
+            'Lighter Chase child identity changed before cancellation',
           );
         }
         await this.#ensureSignerReady();
@@ -8550,7 +8579,7 @@ export class LighterProvider implements PerpsProvider {
               params: [
                 intent.owner.accountIndex,
                 intent.marketId,
-                child.observation?.orderId ?? '',
+                orderId,
                 nonce,
               ],
             });
@@ -8560,10 +8589,7 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter Chase cancel signing failed: ${signed.error}`,
               );
             }
-            const identity = extractDispatchIdentity(signed);
-            if (identity.txHash === null || identity.expiresAt === null) {
-              throw new Error('Lighter Chase cancel identity is missing');
-            }
+            const identity = requireSignedTxIdentity(signed);
             await hooks.signed({
               nonce,
               txHash: identity.txHash,
@@ -8588,7 +8614,7 @@ export class LighterProvider implements PerpsProvider {
       },
       observe: async (child) => {
         assertCurrent();
-        const { token } = await this.#getRecoveryReadToken(
+        const { token } = await this.#getNativeProbeReadToken(
           intent.owner.accountIndex,
           generation,
         );
@@ -8718,7 +8744,12 @@ export class LighterProvider implements PerpsProvider {
     intent.handle = `lighter-chase:${this.#allocateClientOrderIndexes(1)[0]}`;
     const io = this.#chaseIo(intent, generation);
     try {
-      const record = await this.#chaseService.start(intent, io);
+      const record = await this.#withNativeProbeStart(
+        intent.owner,
+        'chase',
+        generation,
+        async () => await this.#chaseService.start(intent, io),
+      );
       this.#assertSession(generation);
       this.#scheduleChase(record, io, generation);
       const current = record.children.at(-1);
@@ -8876,6 +8907,13 @@ export class LighterProvider implements PerpsProvider {
         'Native TWAP probe requires exact size, existing 1x leverage and no unsupported order fields',
       );
     }
+    if (
+      params.twapDuration === undefined ||
+      !Number.isSafeInteger(params.twapDuration) ||
+      params.twapDuration <= 0
+    ) {
+      throw new Error('Native TWAP probe requires a positive integer duration');
+    }
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     const market = (await this.#ensureMarkets(true)).get(params.symbol);
@@ -8885,7 +8923,7 @@ export class LighterProvider implements PerpsProvider {
     }
     const slippage =
       params.maxSlippageBps === undefined
-        ? (params.slippage ?? 0.01)
+        ? (params.slippage ?? LIGHTER_NATIVE_PROBE_DEFAULT_SLIPPAGE)
         : params.maxSlippageBps / 10_000;
     const resolved = await this.#resolveMarketReferencePrice(
       params.symbol,
@@ -8895,33 +8933,40 @@ export class LighterProvider implements PerpsProvider {
     if (resolved.error !== null) {
       throw new Error(resolved.error);
     }
-    const reference = resolved.referencePrice;
-    this.#assertSession(generation);
-    const startedAt = Date.now();
-    const prepared = prepareLighterTwapOrder({
-      size: params.size,
-      referencePrice: String(reference),
-      sizeDecimals: market.supportedSizeDecimals,
-      priceDecimals: market.supportedPriceDecimals,
-      isBuy: params.isBuy,
-      slippage: String(slippage),
-      durationMinutes: params.twapDuration ?? 0,
-      nowMilliseconds: startedAt,
-      randomize: params.twapRandomize ?? false,
-      reduceOnly: params.reduceOnly ?? false,
-    });
-    const maximumNotional = new BigNumber(params.size)
-      .times(reference)
-      .times(new BigNumber(1).plus(slippage));
-    if (
-      maximumNotional.gt(20) ||
-      maximumNotional.lt(market.minQuoteAmount) ||
-      new BigNumber(params.size).lt(market.minBaseAmount)
-    ) {
-      throw new Error(
-        'Native TWAP probe must fit venue parent minimums and the 20 USD limit',
-      );
-    }
+    const durationMinutes = params.twapDuration;
+    const prepare = (
+      referencePrice: number,
+      nowMilliseconds: number,
+    ): ReturnType<typeof prepareLighterTwapOrder> => {
+      const maximumNotional = new BigNumber(params.size)
+        .times(referencePrice)
+        .times(new BigNumber(1).plus(slippage));
+      if (
+        maximumNotional.gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL) ||
+        new BigNumber(params.size)
+          .times(referencePrice)
+          .times(new BigNumber(1).minus(slippage))
+          .lt(market.minQuoteAmount) ||
+        new BigNumber(params.size).lt(market.minBaseAmount)
+      ) {
+        throw new Error(
+          'Native TWAP probe must fit venue parent minimums and the 20 USD limit',
+        );
+      }
+      return prepareLighterTwapOrder({
+        size: params.size,
+        referencePrice: String(referencePrice),
+        sizeDecimals: market.supportedSizeDecimals,
+        priceDecimals: market.supportedPriceDecimals,
+        isBuy: params.isBuy,
+        slippage: String(slippage),
+        durationMinutes,
+        nowMilliseconds,
+        randomize: params.twapRandomize ?? false,
+        reduceOnly: params.reduceOnly ?? false,
+      });
+    };
+    prepare(resolved.referencePrice, Date.now());
     const accountIndex = await this.#ensureAccountIndex();
     const response = await this.#clientService.getAccountByIndex(accountIndex);
     this.#assertSession(generation);
@@ -8945,6 +8990,17 @@ export class LighterProvider implements PerpsProvider {
     this.#assertSession(generation);
     await this.#ensureSignerReady();
     this.#assertSession(generation);
+    const refreshed = await this.#resolveMarketReferencePrice(
+      params.symbol,
+      slippage,
+      params.priceAtCalculation,
+    );
+    this.#assertSession(generation);
+    if (refreshed.error !== null) {
+      throw new Error(refreshed.error);
+    }
+    const startedAt = Date.now();
+    const prepared = prepare(refreshed.referencePrice, startedAt);
     const owner = this.#nativeTwapOwner(accountIndex);
     const [clientId] = this.#allocateClientOrderIndexes(1);
     const intent = {
@@ -8960,68 +9016,69 @@ export class LighterProvider implements PerpsProvider {
       reduceOnly: params.reduceOnly ?? false,
       sizeDecimals: market.supportedSizeDecimals,
       priceDecimals: market.supportedPriceDecimals,
-      durationMinutes: params.twapDuration ?? 0,
+      durationMinutes: params.twapDuration,
       startedAt,
       orderExpiry: prepared.orderExpiry,
     };
     try {
-      await this.#nativeTwapService.place(intent, async (hooks) => {
-        await this.#withVenueNonce(
-          accountIndex,
-          async (nonce, submit) => {
-            this.#assertSession(generation);
-            if (
-              this.#apiKeyIndex !== owner.apiKeyIndex ||
-              Date.now() >= intent.orderExpiry
-            ) {
-              throw new Error('Native TWAP intent became stale');
-            }
-            const signed = await this.#getSignerBridge().execute({
-              function: '_signCreateOrder',
-              params: [
-                accountIndex,
-                market.marketId,
-                clientId,
-                prepared.baseAmount,
-                prepared.price,
-                prepared.isAsk,
-                prepared.orderType,
-                prepared.timeInForce,
-                prepared.reduceOnly,
-                prepared.triggerPrice,
-                prepared.orderExpiry,
-                nonce,
-              ],
-            });
-            if (signed.error) {
-              throw new Error('Native TWAP signer refused the placement');
-            }
-            const identity = extractDispatchIdentity(signed);
-            if (identity.txHash === null || identity.expiresAt === null) {
-              throw new Error(
-                'Native TWAP signer omitted exact dispatch identity',
-              );
-            }
-            await hooks.signed({
-              nonce,
-              txHash: identity.txHash,
-              expiresAt: identity.expiresAt,
-            });
-            await submit(
-              LIGHTER_TX_TYPE_CREATE_ORDER,
-              signed.txInfo,
-              undefined,
-              {
-                ...identity,
-                intent: `nativeTwap:${params.symbol}:${clientId}`,
-                beforeDispatch: hooks.beforeDispatch,
-                onNotDispatched: hooks.notDispatched,
+      await this.#withNativeProbeStart(
+        owner,
+        'twap',
+        generation,
+        async () =>
+          await this.#nativeTwapService.place(intent, async (hooks) => {
+            await this.#withVenueNonce(
+              accountIndex,
+              async (nonce, submit) => {
+                this.#assertSession(generation);
+                if (
+                  this.#apiKeyIndex !== owner.apiKeyIndex ||
+                  Date.now() >= intent.orderExpiry
+                ) {
+                  throw new Error('Native TWAP intent became stale');
+                }
+                const signed = await this.#getSignerBridge().execute({
+                  function: '_signCreateOrder',
+                  params: [
+                    accountIndex,
+                    market.marketId,
+                    clientId,
+                    prepared.baseAmount,
+                    prepared.price,
+                    prepared.isAsk,
+                    prepared.orderType,
+                    prepared.timeInForce,
+                    prepared.reduceOnly,
+                    prepared.triggerPrice,
+                    prepared.orderExpiry,
+                    nonce,
+                  ],
+                });
+                if (signed.error) {
+                  throw new Error('Native TWAP signer refused the placement');
+                }
+                const identity = requireSignedTxIdentity(signed);
+                await hooks.signed({
+                  nonce,
+                  txHash: identity.txHash,
+                  expiresAt: identity.expiresAt,
+                });
+                await submit(
+                  LIGHTER_TX_TYPE_CREATE_ORDER,
+                  signed.txInfo,
+                  undefined,
+                  {
+                    ...identity,
+                    intent: `nativeTwap:${params.symbol}:${clientId}`,
+                    beforeDispatch: hooks.beforeDispatch,
+                    onNotDispatched: hooks.notDispatched,
+                  },
+                );
               },
+              generation,
             );
-          },
-          generation,
-        );
-      });
+          }),
+      );
     } catch (error) {
       return {
         success: false,
@@ -9067,30 +9124,41 @@ export class LighterProvider implements PerpsProvider {
     const params = { ...input };
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
-    const observations = await this.getNativeTwapObservations();
+    const accountIndex = await this.#ensureAccountIndex();
     this.#assertSession(generation);
-    const owned = observations.filter(
-      (entry) =>
-        entry.record.intent.symbol === params.symbol &&
-        (entry.record.intent.clientOrderId === params.orderId ||
-          entry.record.parentOrderId === params.orderId),
+    const records = await this.#nativeTwapService.list(
+      this.#nativeTwapOwner(accountIndex),
     );
-    if (owned.length !== 1 || !owned[0].observation) {
+    this.#assertSession(generation);
+    const owned = records.filter(
+      (record) =>
+        record.intent.symbol === params.symbol &&
+        (record.intent.clientOrderId === params.orderId ||
+          record.parentOrderId === params.orderId),
+    );
+    if (owned.length !== 1) {
       throw new Error(
         'Native TWAP cancellation requires an exact owned visible parent',
       );
     }
-    const { record, observation } = owned[0];
-    if (!observation) {
-      throw new Error('Native TWAP parent observation missing');
+    const record = owned[0];
+    const authority = await this.#getNativeProbeReadToken(
+      accountIndex,
+      generation,
+    );
+    this.#assertSession(generation);
+    const exact = await this.#clientService.getOrdersByClientIds(
+      accountIndex,
+      authority.token,
+      [record.intent.clientOrderId],
+    );
+    this.#assertSession(generation);
+    if (exact.orders.length !== 1) {
+      throw new Error(
+        'Native TWAP cancellation requires an exact owned visible parent',
+      );
     }
-    if (record.terminalConfirmed) {
-      return {
-        success: true,
-        orderId: observation.parentOrderId,
-        providerId: 'lighter',
-      };
-    }
+    const parentOrderId = identifyLighterTwapParent(record, exact.orders[0]);
     await this.#ensureSignerReady();
     this.#assertSession(generation);
     if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
@@ -9105,24 +9173,25 @@ export class LighterProvider implements PerpsProvider {
         await this.#withVenueNonce(
           record.intent.owner.accountIndex,
           async (nonce, submit) => {
+            this.#assertSession(generation);
+            if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
+              throw new Error(
+                'Native TWAP cancellation requires the original signing slot',
+              );
+            }
             const signed = await this.#getSignerBridge().execute({
               function: '_signCancelOrder',
               params: [
                 record.intent.owner.accountIndex,
                 record.intent.marketId,
-                observation.parentOrderId,
+                parentOrderId,
                 nonce,
               ],
             });
             if (signed.error) {
               throw new Error('Native TWAP signer refused cancellation');
             }
-            const identity = extractDispatchIdentity(signed);
-            if (identity.txHash === null || identity.expiresAt === null) {
-              throw new Error(
-                'Native TWAP cancel signer omitted exact dispatch identity',
-              );
-            }
+            const identity = requireSignedTxIdentity(signed);
             await hooks.signed({
               nonce,
               txHash: identity.txHash,
@@ -9135,7 +9204,15 @@ export class LighterProvider implements PerpsProvider {
               {
                 ...identity,
                 intent: `cancelNativeTwap:${record.intent.symbol}:${record.intent.clientOrderId}`,
-                beforeDispatch: hooks.beforeDispatch,
+                beforeDispatch: async () => {
+                  this.#assertSession(generation);
+                  if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
+                    throw new Error(
+                      'Native TWAP cancellation requires the original signing slot',
+                    );
+                  }
+                  await hooks.beforeDispatch();
+                },
                 onNotDispatched: hooks.notDispatched,
               },
             );
@@ -9144,13 +9221,17 @@ export class LighterProvider implements PerpsProvider {
         );
       },
     );
-    await this.getNativeTwapObservations();
+    let readIssue = '';
+    try {
+      await this.getNativeTwapObservations();
+    } catch (error) {
+      readIssue = `; observation failed: ${ensureError(error, 'LighterProvider.nativeTwapCancelRead').message}`;
+    }
     return {
       success: false,
-      orderId: observation.parentOrderId,
+      orderId: parentOrderId,
       providerId: 'lighter',
-      error:
-        'Native TWAP cancellation submitted; authoritative schedule termination remains unverified',
+      error: `Native TWAP cancellation submitted; authoritative schedule termination remains unverified${readIssue}`,
     };
   }
 

@@ -11,7 +11,23 @@ import {
 import type { Infer } from '@metamask/superstruct';
 import { BigNumber } from 'bignumber.js';
 
-import { getLighterTransactionOutcome } from '../constants/lighterConfig.js';
+import {
+  LIGHTER_MAX_MARKET_ID,
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_ORDER_PRICE,
+  LIGHTER_MAX_DECIMALS,
+  LIGHTER_MINUTE_MS,
+  LIGHTER_NATIVE_PROBE_RECORD_LIMIT,
+  LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
+  LIGHTER_NATIVE_PROBE_PAGE_LIMIT,
+  LIGHTER_NATIVE_PROBE_PAGE_SIZE,
+} from '../constants/lighterConfig.js';
+import {
+  LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_TRADING_API_KEY_INDEX,
+  LIGHTER_TX_EXPIRY_SLACK_MS,
+  getLighterTransactionOutcome,
+} from '../constants/lighterConfig.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type {
   LighterApiOrder,
@@ -20,6 +36,10 @@ import type {
 import { reconcileLighterTwapObservation } from '../utils/lighterTwapReconciliation.js';
 import type { LighterTwapObservation } from '../utils/lighterTwapReconciliation.js';
 import type { LighterClientService } from './LighterClientService.js';
+import {
+  isLighterTxHash,
+  isLighterTxExpiry,
+} from './lighterDispatchIdentity.js';
 
 const OwnerStruct = type({
   wallet: string(),
@@ -105,6 +125,23 @@ type ReadClient = Pick<
 const queues = new Map<string, Promise<unknown>>();
 
 /**
+ * @param row - Venue row with numeric and optional exact client ID.
+ * @param clientOrderId - Persisted canonical client identity.
+ * @returns Whether both available counterparts identify this schedule.
+ */
+function matchesClientId(row: LighterApiOrder, clientOrderId: string): boolean {
+  if (
+    !Number.isSafeInteger(row.clientOrderIndex) ||
+    row.clientOrderIndex < 0 ||
+    (row.clientOrderId !== undefined &&
+      row.clientOrderId !== String(row.clientOrderIndex))
+  ) {
+    throw new Error('Lighter TWAP order identity is unsafe or inconsistent');
+  }
+  return String(row.clientOrderIndex) === clientOrderId;
+}
+
+/**
  * Validate immutable venue ownership and exact native intent, including stored
  * records. Storage corruption must never become an empty inventory.
  *
@@ -119,33 +156,34 @@ function validateIntent(intent: LighterTwapIntent): void {
     !Number.isSafeInteger(owner.accountIndex) ||
     owner.accountIndex < 0 ||
     !Number.isSafeInteger(owner.apiKeyIndex) ||
-    owner.apiKeyIndex < 3 ||
-    owner.apiKeyIndex > 254 ||
+    owner.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
+    owner.apiKeyIndex > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
     !Number.isSafeInteger(intent.marketId) ||
     intent.marketId < 0 ||
-    intent.marketId > 65535 ||
+    intent.marketId > LIGHTER_MAX_MARKET_ID ||
     !/^[1-9]\d*$/u.test(intent.clientOrderId) ||
-    BigInt(intent.clientOrderId) > 281474976710655n ||
+    BigInt(intent.clientOrderId) > BigInt(LIGHTER_MAX_BASE_AMOUNT) ||
     !intent.symbol ||
     !Number.isSafeInteger(intent.startedAt) ||
     intent.startedAt <= 0 ||
     !Number.isSafeInteger(intent.durationMinutes) ||
     intent.durationMinutes <= 0 ||
     !Number.isSafeInteger(intent.orderExpiry) ||
-    intent.orderExpiry !== intent.startedAt + intent.durationMinutes * 60_000
+    intent.orderExpiry !==
+      intent.startedAt + intent.durationMinutes * LIGHTER_MINUTE_MS
   ) {
     throw new Error('Invalid Lighter TWAP ownership or immutable intent');
   }
   for (const [value, decimals, maximum] of [
-    [intent.size, intent.sizeDecimals, '281474976710655'],
-    [intent.price, intent.priceDecimals, '4294967295'],
+    [intent.size, intent.sizeDecimals, LIGHTER_MAX_BASE_AMOUNT],
+    [intent.price, intent.priceDecimals, LIGHTER_MAX_ORDER_PRICE],
   ] as const) {
     const integer = new BigNumber(value).shiftedBy(decimals);
     if (
       !/^\d+(?:\.\d+)?$/u.test(value) ||
       !Number.isInteger(decimals) ||
       decimals < 0 ||
-      decimals > 255 ||
+      decimals > LIGHTER_MAX_DECIMALS ||
       !integer.isInteger() ||
       integer.lt(1) ||
       integer.gt(maximum)
@@ -213,7 +251,7 @@ export class LighterTwapService {
     const parsed: unknown = JSON.parse(raw);
     assert(parsed, JournalStruct);
     const seen = new Set<string>();
-    if (parsed.records.length > 64) {
+    if (parsed.records.length > LIGHTER_NATIVE_PROBE_RECORD_LIMIT) {
       throw new Error('Lighter TWAP journal capacity exceeded');
     }
     for (const record of parsed.records) {
@@ -267,9 +305,8 @@ export class LighterTwapService {
     if (
       !Number.isSafeInteger(identity.nonce) ||
       identity.nonce < 0 ||
-      !/^(?:0x)?[a-f\d]+$/iu.test(identity.txHash) ||
-      !Number.isSafeInteger(identity.expiresAt) ||
-      identity.expiresAt <= 0
+      !isLighterTxHash(identity.txHash) ||
+      !isLighterTxExpiry(identity.expiresAt)
     ) {
       throw new Error('Invalid Lighter TWAP signed dispatch identity');
     }
@@ -322,11 +359,11 @@ export class LighterTwapService {
       dispatch.phase = 'acknowledged';
       await this.#write(owner, journal);
     } catch (error) {
-      if (dispatch.phase === 'prepared') {
+      if (dispatch.phase === 'prepared' || dispatch.phase === 'signed') {
         dispatch.phase = 'failed';
         await this.#write(owner, journal);
       }
-      // Signed/attempted records survive every ambiguous error and restart.
+      // Attempted records survive ambiguous transport errors and restart.
       throw error;
     }
   }
@@ -369,19 +406,18 @@ export class LighterTwapService {
           'Lighter TWAP client order ID is already tracked; never replay schedules',
         );
       }
-      if (journal.records.length >= 64) {
+      if (journal.records.length >= LIGHTER_NATIVE_PROBE_RECORD_LIMIT) {
         throw new Error('Lighter TWAP journal capacity exceeded');
       }
       if (
         journal.records.some(
           (record) =>
             !(this.#terminalMappingVerified && record.terminalConfirmed) &&
-            record.placement.phase !== 'failed' &&
-            record.intent.symbol === frozenIntent.symbol,
+            record.placement.phase !== 'failed',
         )
       ) {
         throw new Error(
-          'An earlier Lighter TWAP schedule remains unresolved for this market',
+          'An earlier Lighter TWAP schedule remains unresolved for this account',
         );
       }
       const record: LighterTwapRecord = {
@@ -423,7 +459,7 @@ export class LighterTwapService {
       if (latest && latest.phase !== 'failed') {
         throw new Error('Lighter TWAP cancellation remains unresolved');
       }
-      if (record.cancellations.length >= 16) {
+      if (record.cancellations.length >= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT) {
         throw new Error('Lighter TWAP cancel attempt limit reached');
       }
       const dispatch: LighterTwapDispatch = { phase: 'prepared' };
@@ -458,12 +494,13 @@ export class LighterTwapService {
         };
         results.push(result);
         const previousPlacement = { ...record.placement };
-        const previousCancellations = record.cancellations.map((dispatch) => ({
-          ...dispatch,
-        }));
         try {
           const account = record.intent.owner.accountIndex;
           for (const dispatch of [record.placement, ...record.cancellations]) {
+            if (dispatch.phase === 'prepared' || dispatch.phase === 'signed') {
+              // Transport can start only after attempted is persisted.
+              dispatch.phase = 'failed';
+            }
             if (
               dispatch.txHash === undefined ||
               dispatch.phase === 'failed' ||
@@ -474,6 +511,12 @@ export class LighterTwapService {
             const transaction = await client.getTx(dispatch.txHash);
             this.#assertCurrent(owner);
             if (transaction === null) {
+              if (
+                dispatch.expiresAt !== undefined &&
+                Date.now() > dispatch.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+              ) {
+                dispatch.phase = 'failed';
+              }
               continue;
             }
             if (
@@ -506,11 +549,15 @@ export class LighterTwapService {
           let cursor: string | undefined;
           const cursors = new Set<string>();
           let complete = false;
-          for (let page = 0; page < 100; page += 1) {
+          for (
+            let page = 0;
+            page < LIGHTER_NATIVE_PROBE_PAGE_LIMIT;
+            page += 1
+          ) {
             const response = await client.getInactiveOrders(
               account,
               token,
-              100,
+              LIGHTER_NATIVE_PROBE_PAGE_SIZE,
               cursor,
               record.intent.marketId,
             );
@@ -537,11 +584,8 @@ export class LighterTwapService {
             );
           }
           const allRows = [...exact.orders, ...active.orders, ...history];
-          const parentCandidates = allRows.filter(
-            (row) =>
-              row.clientOrderId === record.intent.clientOrderId ||
-              (Number.isSafeInteger(row.clientOrderIndex) &&
-                String(row.clientOrderIndex) === record.intent.clientOrderId),
+          const parentCandidates = allRows.filter((row) =>
+            matchesClientId(row, record.intent.clientOrderId),
           );
           const parentIds = new Set(
             parentCandidates.map(
@@ -565,9 +609,8 @@ export class LighterTwapService {
             byId.set(id, row);
           }
           result.orders = [...byId.values()];
-          const parents = result.orders.filter(
-            (row) =>
-              String(row.clientOrderIndex) === record.intent.clientOrderId,
+          const parents = result.orders.filter((row) =>
+            matchesClientId(row, record.intent.clientOrderId),
           );
           if (parents.length === 0 && record.placement.phase === 'failed') {
             result.issue =
@@ -596,12 +639,16 @@ export class LighterTwapService {
             let tradeCursor: string | undefined;
             const tradeCursors = new Set<string>();
             let tradesComplete = false;
-            for (let page = 0; page < 100; page += 1) {
+            for (
+              let page = 0;
+              page < LIGHTER_NATIVE_PROBE_PAGE_LIMIT;
+              page += 1
+            ) {
               const response = await client.getTrades(account, token, {
                 marketId: record.intent.marketId,
                 orderIndex,
                 aggregate: false,
-                limit: 100,
+                limit: LIGHTER_NATIVE_PROBE_PAGE_SIZE,
                 cursor: tradeCursor,
               });
               this.#assertCurrent(owner);
@@ -671,8 +718,15 @@ export class LighterTwapService {
           this.#assertCurrent(owner);
           // An inconsistent/incomplete snapshot must not release an obligation
           // based on only the earlier transaction half of the observation.
-          record.placement = previousPlacement;
-          record.cancellations = previousCancellations;
+          if (
+            record.placement.phase === 'succeeded' ||
+            result.orders.some(
+              (row) =>
+                String(row.clientOrderIndex) === record.intent.clientOrderId,
+            )
+          ) {
+            record.placement = previousPlacement;
+          }
           result.issue = error instanceof Error ? error.message : String(error);
         }
       }

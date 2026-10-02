@@ -1,3 +1,4 @@
+import type { Struct } from '@metamask/superstruct';
 /**
  * Lighter Client Service
  *
@@ -15,8 +16,6 @@
  * - GET  /api/v1/accountActiveOrders  open orders (auth token header)
  * - POST /api/v1/sendTx               submit signed L2 transaction
  */
-
-import type { Struct } from '@metamask/superstruct';
 import {
   array,
   assert,
@@ -30,6 +29,11 @@ import {
   union,
 } from '@metamask/superstruct';
 
+import {
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_ORDER_ID,
+  LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT,
+} from '../constants/lighterConfig.js';
 import {
   getLighterHttpEndpoint,
   LIGHTER_DATA_INTEGRITY_PREFIX,
@@ -263,6 +267,9 @@ const OrderStruct = type({
   toTriggerOrderId1: optional(string()),
 });
 const TradeStruct = type({
+  tradeIdStr: optional(string()),
+  bidIdStr: optional(string()),
+  askIdStr: optional(string()),
   tradeId: NonNegativeIntegerStruct,
   txHash: string(),
   type: string(),
@@ -716,13 +723,13 @@ export class LighterClientService {
     }
     if (
       clientOrderIds.length === 0 ||
-      clientOrderIds.length > 20 ||
+      clientOrderIds.length > LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT ||
       new Set(clientOrderIds).size !== clientOrderIds.length ||
       clientOrderIds.some(
         (id) =>
           typeof id !== 'string' ||
           !/^[1-9]\d*$/u.test(id) ||
-          BigInt(id) > 281474976710655n,
+          BigInt(id) > BigInt(LIGHTER_MAX_BASE_AMOUNT),
       )
     ) {
       throw new Error('Invalid Lighter client order IDs');
@@ -837,7 +844,7 @@ export class LighterClientService {
       orderIndex !== undefined &&
       (typeof orderIndex !== 'string' ||
         !/^[1-9]\d*$/u.test(orderIndex) ||
-        BigInt(orderIndex) > 1152921504606846975n)
+        BigInt(orderIndex) > BigInt(LIGHTER_MAX_ORDER_ID))
     ) {
       throw new Error('Invalid Lighter exact trade order index');
     }

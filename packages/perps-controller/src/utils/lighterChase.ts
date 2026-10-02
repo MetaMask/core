@@ -155,28 +155,14 @@ export function reconcileLighterChaseChild(
   order: LighterApiOrder,
   trades: readonly LighterRestTrade[],
 ): LighterChaseChildObservation {
-  const orderId = exactId(order.orderIndex, order.orderId);
-  if (
-    exactId(order.clientOrderIndex, order.clientOrderId) !==
-      child.clientOrderId ||
-    order.ownerAccountIndex !== intent.owner.accountIndex ||
-    order.marketIndex !== intent.marketId ||
-    order.isAsk === intent.isBuy ||
-    order.type !== 'limit' ||
-    order.timeInForce !== 'post-only' ||
-    Boolean(order.reduceOnly) !== intent.reduceOnly ||
-    child.nonce === undefined ||
-    order.nonce !== child.nonce ||
-    !amount(order.initialBaseAmount).eq(child.size) ||
-    !amount(order.price).eq(child.price)
-  ) {
-    throw new Error('Lighter Chase child identity mismatch');
-  }
+  const orderId = identifyLighterChaseChild(intent, child, order);
   const unique = new Map<string, LighterRestTrade>();
   let filled = new BigNumber(0);
   let notional = new BigNumber(0);
   for (const trade of trades) {
-    const id = exactId(trade.tradeId);
+    exactId(trade.bidId, trade.bidIdStr);
+    exactId(trade.askId, trade.askIdStr);
+    const id = exactId(trade.tradeId, trade.tradeIdStr);
     const previous = unique.get(id);
     if (previous) {
       if (JSON.stringify(previous) !== JSON.stringify(trade)) {
@@ -238,4 +224,43 @@ export function reconcileLighterChaseChild(
     filledNotional: notional.toFixed(),
     remainingSize: remaining.toFixed(),
   };
+}
+
+/**
+ * Validate exact immutable child ownership independently of execution reads.
+ *
+ * @param intent - Immutable session ownership.
+ * @param child - Persisted signed child.
+ * @param order - Exact client-ID venue lookup.
+ * @returns The exact venue order ID eligible for cancellation.
+ */
+export function identifyLighterChaseChild(
+  intent: {
+    owner: { accountIndex: number };
+    symbol: string;
+    marketId: number;
+    isBuy: boolean;
+    reduceOnly: boolean;
+  },
+  child: { clientOrderId: string; size: string; price: string; nonce?: number },
+  order: LighterApiOrder,
+): string {
+  const orderId = exactId(order.orderIndex, order.orderId);
+  if (
+    exactId(order.clientOrderIndex, order.clientOrderId) !==
+      child.clientOrderId ||
+    order.ownerAccountIndex !== intent.owner.accountIndex ||
+    order.marketIndex !== intent.marketId ||
+    order.isAsk === intent.isBuy ||
+    order.type !== 'limit' ||
+    order.timeInForce !== 'post-only' ||
+    Boolean(order.reduceOnly) !== intent.reduceOnly ||
+    child.nonce === undefined ||
+    order.nonce !== child.nonce ||
+    !amount(order.initialBaseAmount).eq(child.size) ||
+    !amount(order.price).eq(child.price)
+  ) {
+    throw new Error('Lighter Chase child identity mismatch');
+  }
+  return orderId;
 }

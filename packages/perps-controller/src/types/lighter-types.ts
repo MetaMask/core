@@ -673,6 +673,9 @@ export type LighterWsTradesMessage = {
  * One trade from `GET /api/v1/trades` (post-camelization).
  */
 export type LighterRestTrade = {
+  tradeIdStr?: string;
+  bidIdStr?: string;
+  askIdStr?: string;
   tradeId: number;
   txHash: string;
   type: string;

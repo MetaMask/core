@@ -11,12 +11,20 @@ import {
 import type { Infer } from '@metamask/superstruct';
 import { BigNumber } from 'bignumber.js';
 
+import {
+  LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_TRADING_API_KEY_INDEX,
+} from '../constants/lighterConfig.js';
 import type {
   ChaseOrder,
   ChaseOrderStatus,
   PerpsPlatformDependencies,
 } from '../types/index.js';
 import type { LighterChaseChildObservation } from '../utils/lighterChase.js';
+import {
+  isLighterTxHash,
+  isLighterTxExpiry,
+} from './lighterDispatchIdentity.js';
 
 const OwnerStruct = type({
   wallet: string(),
@@ -179,8 +187,8 @@ function validateIntent(intent: LighterChaseIntent): void {
     !Number.isSafeInteger(owner.accountIndex) ||
     owner.accountIndex < 0 ||
     !Number.isSafeInteger(owner.apiKeyIndex) ||
-    owner.apiKeyIndex < 3 ||
-    owner.apiKeyIndex > 254 ||
+    owner.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
+    owner.apiKeyIndex > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
     !intent.handle ||
     intent.handle.length > 128 ||
     !intent.symbol ||
@@ -306,9 +314,8 @@ export class LighterChaseService {
             if (
               !Number.isSafeInteger(dispatch.nonce) ||
               (dispatch.nonce ?? -1) < 0 ||
-              !dispatch.txHash ||
-              !Number.isSafeInteger(dispatch.expiresAt) ||
-              (dispatch.expiresAt ?? 0) <= 0
+              !isLighterTxHash(dispatch.txHash) ||
+              !isLighterTxExpiry(dispatch.expiresAt)
             ) {
               throw new Error('Lighter Chase persisted dispatch is invalid');
             }
@@ -330,7 +337,7 @@ export class LighterChaseService {
   async #write(
     owner: LighterChaseOwner,
     journal: Journal,
-    io: LighterChaseIo,
+    io: Pick<LighterChaseIo, 'assertCurrent'>,
   ): Promise<void> {
     io.assertCurrent();
     await this.#storage.setItem(ownerKey(owner), JSON.stringify(journal));
@@ -446,8 +453,8 @@ export class LighterChaseService {
           dispatch.phase !== 'prepared' ||
           !Number.isSafeInteger(identity.nonce) ||
           identity.nonce < 0 ||
-          !identity.txHash ||
-          !Number.isSafeInteger(identity.expiresAt) ||
+          !isLighterTxHash(identity.txHash) ||
+          !isLighterTxExpiry(identity.expiresAt) ||
           identity.expiresAt <= io.now()
         ) {
           throw new Error('Invalid Lighter Chase signing identity');
@@ -488,7 +495,7 @@ export class LighterChaseService {
       dispatch.phase = 'acknowledged';
       await this.#write(record.intent.owner, journal, io);
     } catch (error) {
-      if (dispatch.phase === 'prepared') {
+      if (dispatch.phase === 'prepared' || dispatch.phase === 'signed') {
         dispatch.phase = 'failed';
         await this.#write(record.intent.owner, journal, io);
       }
@@ -587,7 +594,14 @@ export class LighterChaseService {
     if (!child || child.placement.phase === 'failed') {
       return;
     }
-    await this.#observe(record, child, io);
+    try {
+      await this.#observe(record, child, io);
+    } catch (error) {
+      io.assertCurrent();
+      // Mutable fill reads must not prevent exact immutable-child cleanup.
+      // The provider cancel path independently validates the owned child.
+      record.error = error instanceof Error ? error.message : String(error);
+    }
     await this.#write(record.intent.owner, journal, io);
     if (child.observation?.terminal) {
       return;
@@ -852,11 +866,41 @@ export class LighterChaseService {
     owner: LighterChaseOwner,
     io: Pick<LighterChaseIo, 'assertCurrent'>,
   ): Promise<LighterChaseRecord[]> {
-    return await this.#locked(owner, async () =>
-      (await this.#read(owner, io)).records.map((record) =>
-        this.#visible(record),
-      ),
-    );
+    return await this.#locked(owner, async () => {
+      const journal = await this.#read(owner, io);
+      let changed = false;
+      for (const record of journal.records) {
+        let recordChanged = false;
+        for (const child of record.children) {
+          for (const dispatch of [child.placement, ...child.cancellations]) {
+            if (dispatch.phase === 'prepared' || dispatch.phase === 'signed') {
+              if (dispatch === child.placement && child.observation) {
+                throw new Error(
+                  'Lighter Chase unsent child has conflicting venue evidence',
+                );
+              }
+              // Account lock excludes in-flight dispatch; attempted is durable
+              // before transport, so these persisted phases are provably unsent.
+              dispatch.phase = 'failed';
+              changed = true;
+              recordChanged = true;
+            }
+          }
+        }
+        if (recordChanged && this.#settled(record)) {
+          record.status = amount(record.executedSize).eq(
+            record.intent.originalSize,
+          )
+            ? 'filled'
+            : 'failed';
+          this.#active.delete(record.intent.handle);
+        }
+      }
+      if (changed) {
+        await this.#write(owner, journal, io);
+      }
+      return journal.records.map((record) => this.#visible(record));
+    });
   }
 }
 

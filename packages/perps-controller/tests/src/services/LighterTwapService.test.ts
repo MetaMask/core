@@ -25,7 +25,7 @@ const intent: LighterTwapIntent = {
   startedAt: 1_800_000_000_000,
   orderExpiry: 1_800_000_060_000,
 };
-const identity = { nonce: 4, txHash: 'abcd', expiresAt: 1_800_000_100_000 };
+const identity = { nonce: 4, txHash: 'abcdabcd', expiresAt: 1_800_000_100_000 };
 
 const readDisk = (raw: string): { records: LighterTwapRecord[] } =>
   JSON.parse(raw) as { records: LighterTwapRecord[] };
@@ -58,6 +58,17 @@ const build = (
 };
 
 describe('LighterTwapService durable ownership', () => {
+  it.each(['abcd', 'g'.repeat(8), 'a'.repeat(129)])(
+    'rejects an unusable signed transaction hash %s before transport',
+    async (txHash) => {
+      const { service } = build();
+      await expect(
+        service.place(intent, async (hooks) => {
+          await hooks.signed({ ...identity, txHash });
+        }),
+      ).rejects.toThrow('identity');
+    },
+  );
   it('persists immutable intent and exact dispatch identity before transport', async () => {
     const { service, disk } = build();
     await service.place(intent, async (hooks) => {
@@ -129,7 +140,7 @@ describe('LighterTwapService durable ownership', () => {
       intent.owner,
       intent.clientOrderId,
       async (hooks) => {
-        await hooks.signed({ ...identity, nonce: 5, txHash: 'cdef' });
+        await hooks.signed({ ...identity, nonce: 5, txHash: 'cdefcdef' });
         await hooks.beforeDispatch();
       },
     );
@@ -226,7 +237,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
         hash,
         accountIndex: 28,
         apiKeyIndex: 3,
-        nonce: hash === 'abcd' ? 4 : 5,
+        nonce: hash === 'abcdabcd' ? 4 : 5,
         status: 2,
       })),
     };
@@ -265,7 +276,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
     const { service } = build();
     await sendPlacement(service);
     await service.cancel(intent.owner, '123', async (hooks) => {
-      await hooks.signed({ ...identity, nonce: 5, txHash: 'cdef' });
+      await hooks.signed({ ...identity, nonce: 5, txHash: 'cdefcdef' });
       await hooks.beforeDispatch();
     });
     const observed = await service.observe(
@@ -281,7 +292,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
     const { service } = build(new Map(), true);
     await sendPlacement(service);
     await service.cancel(intent.owner, '123', async (hooks) => {
-      await hooks.signed({ ...identity, nonce: 5, txHash: 'cdef' });
+      await hooks.signed({ ...identity, nonce: 5, txHash: 'cdefcdef' });
       await hooks.beforeDispatch();
     });
     const client = readClient('canceled');
@@ -290,8 +301,8 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       hash,
       accountIndex: 28,
       apiKeyIndex: 3,
-      nonce: hash === 'abcd' ? 4 : 5,
-      status: hash === 'abcd' ? 2 : 1,
+      nonce: hash === 'abcdabcd' ? 4 : 5,
+      status: hash === 'abcdabcd' ? 2 : 1,
     }));
     expect(
       (await service.observe(intent.owner, client, 'read-token'))[0].record
@@ -302,7 +313,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       hash,
       accountIndex: 28,
       apiKeyIndex: 3,
-      nonce: hash === 'abcd' ? 4 : 5,
+      nonce: hash === 'abcdabcd' ? 4 : 5,
       status: 2,
     }));
     expect(
@@ -361,5 +372,290 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       service.observe(intent.owner, client, 'read-token'),
     ).rejects.toThrow('account changed');
     expect(storage.setItem).toHaveBeenCalledTimes(before);
+  });
+
+  describe('TWAP review corrections', () => {
+    it('accepts the provider-supported trading slot 2', async () => {
+      const { service } = build();
+      const slot2 = { ...intent, owner: { ...intent.owner, apiKeyIndex: 2 } };
+      await service.place(slot2, async (hooks) => {
+        await hooks.signed(identity);
+        await hooks.beforeDispatch();
+      });
+      expect((await service.list(slot2.owner))[0].placement.phase).toBe(
+        'acknowledged',
+      );
+    });
+    it('releases a signed placement refused by the nonce ledger before transport', async () => {
+      const { service } = build();
+      await expect(
+        service.place(intent, async (hooks) => {
+          await hooks.signed(identity);
+          throw new Error('nonce ledger full');
+        }),
+      ).rejects.toThrow('nonce ledger full');
+      expect((await service.list(intent.owner))[0].placement.phase).toBe(
+        'failed',
+      );
+      await service.place(
+        { ...intent, clientOrderId: '124' },
+        async (hooks) => {
+          await hooks.signed({ ...identity, nonce: 5 });
+          await hooks.beforeDispatch();
+        },
+      );
+    });
+    it.each(['prepared', 'signed'] as const)(
+      'releases persisted %s ownership after a crash or stale session',
+      async (phase) => {
+        const { service, disk } = build();
+        await sendPlacement(service);
+        const key = [...disk.keys()][0];
+        const doc = readDisk(disk.get(key) ?? '');
+        doc.records[0].placement =
+          phase === 'prepared' ? { phase } : { phase, ...identity };
+        disk.set(key, JSON.stringify({ version: 1, records: doc.records }));
+        const client = readClient();
+        client.getOrdersByClientIds.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        client.getActiveOrders.mockResolvedValue({ code: 200, orders: [] });
+        const restarted = build(disk).service;
+        await restarted.observe(intent.owner, client, 'read-token');
+        expect((await restarted.list(intent.owner))[0].placement.phase).toBe(
+          'failed',
+        );
+      },
+    );
+    it('releases never-landed response loss after signed expiry plus clock slack', async () => {
+      const { service } = build();
+      await sendPlacement(service);
+      const client = readClient();
+      client.getTx.mockResolvedValue(null);
+      client.getOrdersByClientIds.mockResolvedValue({ code: 200, orders: [] });
+      client.getActiveOrders.mockResolvedValue({ code: 200, orders: [] });
+      const now = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(identity.expiresAt + 30001);
+      try {
+        await service.observe(intent.owner, client, 'read-token');
+        expect((await service.list(intent.owner))[0].placement.phase).toBe(
+          'failed',
+        );
+      } finally {
+        now.mockRestore();
+      }
+    });
+    it('retains definitive failed cancel outcomes when later parent reads fail', async () => {
+      const { service } = build();
+      await sendPlacement(service);
+      await service.cancel(intent.owner, '123', async (hooks) => {
+        await hooks.signed({ ...identity, nonce: 5, txHash: 'cdefcdef' });
+        await hooks.beforeDispatch();
+      });
+      const client = readClient();
+      client.getTx.mockImplementation(async (hash: string) => ({
+        code: 200,
+        hash,
+        accountIndex: 28,
+        apiKeyIndex: 3,
+        nonce: hash === 'abcdabcd' ? 4 : 5,
+        status: hash === 'abcdabcd' ? 2 : 0,
+      }));
+      client.getOrdersByClientIds.mockRejectedValue(
+        new Error('parent read unavailable'),
+      );
+      await service.observe(intent.owner, client, 'read-token');
+      expect((await service.list(intent.owner))[0].cancellations[0].phase).toBe(
+        'failed',
+      );
+      await service.cancel(intent.owner, '123', async (hooks) => {
+        await hooks.signed({ ...identity, nonce: 6, txHash: 'dddddddd' });
+        await hooks.beforeDispatch();
+      });
+      expect((await service.list(intent.owner))[0].cancellations).toHaveLength(
+        2,
+      );
+    });
+    it('blocks a second market after restart while the first native probe is unresolved', async () => {
+      const { service, disk } = build();
+      await sendPlacement(service);
+      const restarted = build(disk).service;
+      await expect(
+        restarted.place(
+          { ...intent, marketId: 4096, symbol: 'BTC', clientOrderId: '124' },
+          jest.fn(),
+        ),
+      ).rejects.toThrow('unresolved');
+    });
+    it('retains bounded native history and cancel attempt capacity', async () => {
+      const { service, disk } = build();
+      await sendPlacement(service);
+      const key = [...disk.keys()][0];
+      const doc = readDisk(disk.get(key) ?? '');
+      doc.records[0].cancellations = Array.from({ length: 16 }, () => ({
+        phase: 'failed' as const,
+      }));
+      disk.set(key, JSON.stringify({ version: 1, records: doc.records }));
+      await expect(
+        service.cancel(intent.owner, '123', jest.fn()),
+      ).rejects.toThrow('attempt limit');
+      doc.records = Array.from({ length: 64 }, (_, index) => ({
+        ...doc.records[0],
+        intent: { ...intent, clientOrderId: String(index + 1000) },
+        placement: { phase: 'failed' as const },
+      }));
+      disk.set(key, JSON.stringify({ version: 1, records: doc.records }));
+      await expect(
+        service.place({ ...intent, clientOrderId: '2000' }, jest.fn()),
+      ).rejects.toThrow('capacity');
+    });
+    it('reconciles two history pages and unequal children with three paginated trades', async () => {
+      const { service } = build();
+      await sendPlacement(service);
+      const client = readClient();
+      const filledParent = {
+        ...parent,
+        filledBaseAmount: '0.05',
+        filledQuoteAmount: '6',
+        remainingBaseAmount: '0.10',
+      };
+      const children = ['0.02', '0.03'].map((size, index) => ({
+        ...parent,
+        orderIndex: 1001 + index,
+        orderId: String(1001 + index),
+        clientOrderIndex: 124 + index,
+        clientOrderId: String(124 + index),
+        parentOrderIndex: parent.orderIndex,
+        parentOrderId: parent.orderId,
+        type: 'twap-sub',
+        status: 'filled',
+        initialBaseAmount: size,
+        remainingBaseAmount: '0',
+        filledBaseAmount: size,
+        filledQuoteAmount: index === 0 ? '2.4' : '3.6',
+      }));
+      client.getOrdersByClientIds.mockResolvedValue({
+        code: 200,
+        orders: [filledParent],
+      });
+      client.getActiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [filledParent],
+      });
+      client.getInactiveOrders
+        .mockResolvedValueOnce({
+          code: 200,
+          orders: [children[0]],
+          nextCursor: 'child-page-2',
+        })
+        .mockResolvedValueOnce({ code: 200, orders: [children[1]] });
+      client.getTrades.mockImplementation(async (_account, _token, options) => {
+        const secondChild = options?.orderIndex === '1002';
+        const secondPage = options?.cursor === 'trade-page-2';
+        return {
+          code: 200,
+          trades: [
+            {
+              tradeId: secondChild ? 3 : Number(secondPage) + 1,
+              txHash: 'abc1',
+              type: 'trade',
+              marketId: intent.marketId,
+              size: secondChild ? '0.03' : '0.01',
+              price: '120',
+              usdAmount: secondChild ? '3.6' : '1.2',
+              askId: 999,
+              bidId: secondChild ? 1002 : 1001,
+              askAccountId: 99,
+              bidAccountId: 28,
+              isMakerAsk: true,
+              timestamp: intent.startedAt + 1000,
+              makerPositionSizeBefore: '0',
+              takerPositionSizeBefore: '0',
+            },
+          ],
+          ...(!secondChild && !secondPage
+            ? { nextCursor: 'trade-page-2' }
+            : {}),
+        };
+      });
+      const [result] = await service.observe(
+        intent.owner,
+        client,
+        'read-token',
+      );
+      expect(result.issue).toBeUndefined();
+      expect(result.observation?.order).toMatchObject({
+        executedSize: '0.05',
+        executedNotional: '6',
+        averagePrice: '120',
+      });
+      expect(result.observation?.order.fills).toHaveLength(3);
+      expect(client.getInactiveOrders).toHaveBeenCalledTimes(2);
+      expect(client.getTrades).toHaveBeenCalledTimes(3);
+    });
+    it('rejects conflicting exact client ID counterparts before parent collection', async () => {
+      const { service } = build();
+      await sendPlacement(service);
+      const client = readClient();
+      client.getOrdersByClientIds.mockResolvedValue({
+        code: 200,
+        orders: [{ ...parent, clientOrderId: '124' }],
+      });
+      const [result] = await service.observe(
+        intent.owner,
+        client,
+        'read-token',
+      );
+      expect(result.issue).toBe(
+        'Lighter TWAP order identity is unsafe or inconsistent',
+      );
+      expect(client.getTrades).not.toHaveBeenCalled();
+    });
+    it('refuses repeated history cursors without accepting a partial snapshot', async () => {
+      const { service } = build();
+      await sendPlacement(service);
+      const client = readClient();
+      client.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [parent],
+        nextCursor: 'repeat',
+      });
+      const [result] = await service.observe(
+        intent.owner,
+        client,
+        'read-token',
+      );
+      expect(result.issue).toBe(
+        'Lighter TWAP order history pagination is incomplete',
+      );
+      expect(client.getInactiveOrders).toHaveBeenCalledTimes(2);
+    });
+    it('refuses a history page cap without discarding pending ownership', async () => {
+      const { service } = build();
+      await sendPlacement(service);
+      const client = readClient();
+      let page = 0;
+      client.getInactiveOrders.mockImplementation(async () => {
+        page += 1;
+        return {
+          code: 200,
+          orders: [
+            {
+              ...parent,
+              orderIndex: 5000 + page,
+              orderId: String(5000 + page),
+              clientOrderIndex: 6000 + page,
+              clientOrderId: String(6000 + page),
+            },
+          ],
+          nextCursor: String(page),
+        };
+      });
+      const result = await service.observe(intent.owner, client, 'read-token');
+      expect(result[0].issue).toContain('pagination limit');
+      expect(client.getInactiveOrders).toHaveBeenCalledTimes(100);
+    });
   });
 });

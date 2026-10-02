@@ -318,7 +318,7 @@ executed cancellation for canceled parents and elapsed expiry for expired
 parents. Disconnecting the provider never completes or deletes schedules.
 
 Native slice minimums, cumulative parent/child semantics, terminal timestamps
-and cancellation race ordering still require root-owned testnet evidence.
+and cancellation race ordering still require testnet evidence.
 Candidate observations and unit fixtures are not venue proof. The constructor
 probe option is not exposed as a production feature flag or controller action.
 
@@ -402,3 +402,17 @@ proof remain separate acceptance evidence.
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+
+`utils/lighterTwapReconciliation.reconcileLighterTwapObservation` reconciles
+complete native parent/child rows and unaggregated trades against persisted
+signed intent. `identifyLighterTwapParent` validates immutable parent ownership
+without requiring fill reconciliation, so incomplete history does not block
+exact cancellation. Neither utility proves venue termination. Numeric and
+string trade IDs must agree; trade provenance allows 30 seconds of clock skew.
+
+Native TWAP and Chase probes share one unresolved-account exclusion, including
+across provider instances and restarts. Unverified TWAP terminal observations
+retain that exclusion. The provider class is not a package export, controller
+registration omits probe constructor options, and observation collection needs
+a direct Lighter provider rather than the aggregated provider. Probe callers
+must supply a development integration; these are not enabled product features.

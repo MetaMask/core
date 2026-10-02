@@ -29,7 +29,7 @@ const record: LighterTwapRecord = {
   placement: {
     phase: 'succeeded',
     nonce: 4,
-    txHash: 'abcd',
+    txHash: 'abcdabcd',
     expiresAt: 1_800_000_100_000,
   },
   cancellations: [],
@@ -129,12 +129,17 @@ describe('native TWAP parent/child reconciliation', () => {
       { ownerAccountIndex: 29 },
       { nonce: 5 },
       { orderExpiry: 1 },
-      { orderId: '1002' },
     ]) {
       expect(() => observe([{ ...parent, ...override }, child])).toThrow(
-        /TWAP/u,
+        'parent does not match immutable signed intent',
       );
     }
+  });
+
+  it('rejects a conflicting parent order ID', () => {
+    expect(() => observe([{ ...parent, orderId: '1002' }, child])).toThrow(
+      'identity is unsafe or inconsistent',
+    );
   });
 
   it('rejects children with conflicting numeric and string parent links', () => {
@@ -162,5 +167,80 @@ describe('native TWAP parent/child reconciliation', () => {
     expect(() =>
       observe([{ ...parent, filledQuoteAmount: '7' }, child]),
     ).toThrow('parent fill totals');
+  });
+  describe('TWAP review identity and totals', () => {
+    it.each([{ bidIdStr: '1002' }, { askIdStr: '1002' }, { tradeIdStr: '2' }])(
+      'rejects conflicting native numeric/string trade IDs %s',
+      (override) => {
+        expect(() =>
+          observe([parent, child], [{ ...trade, ...override }]),
+        ).toThrow('identity');
+      },
+    );
+    it('accepts matching native string counterparts', () => {
+      expect(
+        observe(
+          [parent, child],
+          [{ ...trade, bidIdStr: '1001', askIdStr: '999', tradeIdStr: '1' }],
+        ).order.executedSize,
+      ).toBe('0.05');
+    });
+    it('allows bounded device clock skew for trade provenance', () => {
+      expect(
+        observe(
+          [parent, child],
+          [{ ...trade, timestamp: record.intent.startedAt - 1000 }],
+        ).order.executedSize,
+      ).toBe('0.05');
+      expect(() =>
+        observe(
+          [parent, child],
+          [{ ...trade, timestamp: record.intent.startedAt - 60000 }],
+        ),
+      ).toThrow('provenance');
+    });
+    it('sums unequal children and multiple fills without copied parent totals', () => {
+      const first = {
+        ...child,
+        filledBaseAmount: '0.03',
+        filledQuoteAmount: '3.59',
+        initialBaseAmount: '0.03',
+      };
+      const second = {
+        ...child,
+        orderIndex: 1002,
+        orderId: '1002',
+        clientOrderIndex: 125,
+        clientOrderId: '125',
+        initialBaseAmount: '0.02',
+        filledBaseAmount: '0.02',
+        filledQuoteAmount: '2.42',
+      };
+      const result = observe(
+        [{ ...parent, filledQuoteAmount: '6.01' }, first, second],
+        [
+          {
+            ...trade,
+            tradeId: 1,
+            size: '0.01',
+            price: '119',
+            usdAmount: '1.19',
+          },
+          { ...trade, tradeId: 2, size: '0.02', usdAmount: '2.4' },
+          {
+            ...trade,
+            tradeId: 3,
+            bidId: 1002,
+            size: '0.02',
+            price: '121',
+            usdAmount: '2.42',
+          },
+        ],
+      );
+      expect(result.order.executedSize).toBe('0.05');
+      expect(result.order.executedNotional).toBe('6.01');
+      expect(result.order.averagePrice).toBe('120.2');
+      expect(result.order.fills).toHaveLength(3);
+    });
   });
 });

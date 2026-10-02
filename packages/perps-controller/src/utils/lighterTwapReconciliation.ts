@@ -1,5 +1,9 @@
 import { BigNumber } from 'bignumber.js';
 
+import {
+  LIGHTER_MINUTE_MS,
+  LIGHTER_TX_EXPIRY_SLACK_MS,
+} from '../constants/lighterConfig.js';
 import type { LighterTwapRecord } from '../services/LighterTwapService.js';
 import type {
   TwapOrder,
@@ -51,6 +55,53 @@ function amount(value: string | undefined): BigNumber {
 }
 
 /**
+ * Validate an exact parent independently of mutable fill reconciliation.
+ *
+ * @param record - Persisted signed schedule ownership.
+ * @param parent - Exact client-ID lookup row.
+ * @returns The immutable venue parent ID eligible for cancellation.
+ */
+export function identifyLighterTwapParent(
+  record: LighterTwapRecord,
+  parent: LighterApiOrder,
+): string {
+  const { intent } = record;
+  if (
+    exactId(parent.clientOrderIndex, parent.clientOrderId) !==
+    intent.clientOrderId
+  ) {
+    throw new Error(
+      'Lighter TWAP parent does not match immutable signed intent',
+    );
+  }
+  const parentOrderId = exactId(parent.orderIndex, parent.orderId);
+  if (
+    !Number.isSafeInteger(record.placement.nonce) ||
+    parent.type !== 'twap' ||
+    parent.ownerAccountIndex !== intent.owner.accountIndex ||
+    parent.marketIndex !== intent.marketId ||
+    parent.isAsk === intent.isBuy ||
+    Boolean(parent.reduceOnly) !== intent.reduceOnly ||
+    (parent.reduceOnly !== true &&
+      parent.reduceOnly !== false &&
+      parent.reduceOnly !== 0 &&
+      parent.reduceOnly !== 1) ||
+    parent.timeInForce !== 'good-till-time' ||
+    parent.orderExpiry !== intent.orderExpiry ||
+    parent.nonce !== record.placement.nonce ||
+    !amount(parent.initialBaseAmount).eq(intent.size) ||
+    !amount(parent.price).eq(intent.price) ||
+    (record.parentOrderId !== undefined &&
+      record.parentOrderId !== parentOrderId)
+  ) {
+    throw new Error(
+      'Lighter TWAP parent does not match immutable signed intent',
+    );
+  }
+  return parentOrderId;
+}
+
+/**
  * Build an observational snapshot from complete parent/child and trade reads.
  * Callers must exhaust pagination and fence concurrent parent changes first.
  * Terminal observations are not authorization to clear durable obligations;
@@ -77,30 +128,7 @@ export function reconcileLighterTwapObservation(
     throw new Error('Lighter TWAP exact parent is missing or ambiguous');
   }
   const parent = parents[0];
-  const parentOrderId = exactId(parent.orderIndex, parent.orderId);
-  if (
-    !Number.isSafeInteger(record.placement.nonce) ||
-    parent.type !== 'twap' ||
-    parent.ownerAccountIndex !== intent.owner.accountIndex ||
-    parent.marketIndex !== intent.marketId ||
-    parent.isAsk === intent.isBuy ||
-    Boolean(parent.reduceOnly) !== intent.reduceOnly ||
-    (parent.reduceOnly !== true &&
-      parent.reduceOnly !== false &&
-      parent.reduceOnly !== 0 &&
-      parent.reduceOnly !== 1) ||
-    parent.timeInForce !== 'good-till-time' ||
-    parent.orderExpiry !== intent.orderExpiry ||
-    parent.nonce !== record.placement.nonce ||
-    !amount(parent.initialBaseAmount).eq(intent.size) ||
-    !amount(parent.price).eq(intent.price) ||
-    (record.parentOrderId !== undefined &&
-      record.parentOrderId !== parentOrderId)
-  ) {
-    throw new Error(
-      'Lighter TWAP parent does not match immutable signed intent',
-    );
-  }
+  const parentOrderId = identifyLighterTwapParent(record, parent);
   const children: LighterApiOrder[] = [];
   const childIds = new Set<string>();
   for (const row of rows) {
@@ -137,6 +165,8 @@ export function reconcileLighterTwapObservation(
   const fills: TwapOrderFill[] = [];
   const totals = new Map<string, { base: BigNumber; quote: BigNumber }>();
   for (const trade of trades) {
+    exactId(trade.bidId, trade.bidIdStr);
+    exactId(trade.askId, trade.askIdStr);
     const sideId = intent.isBuy ? trade.bidId : trade.askId;
     const sideOwner = intent.isBuy ? trade.bidAccountId : trade.askAccountId;
     if (
@@ -146,7 +176,7 @@ export function reconcileLighterTwapObservation(
     ) {
       throw new Error('Lighter TWAP trade is not owned by an exact child');
     }
-    const id = exactId(trade.tradeId);
+    const id = exactId(trade.tradeId, trade.tradeIdStr);
     const previous = uniqueTrades.get(id);
     if (previous) {
       if (JSON.stringify(previous) !== JSON.stringify(trade)) {
@@ -157,7 +187,7 @@ export function reconcileLighterTwapObservation(
     if (
       !trade.txHash ||
       !Number.isSafeInteger(trade.timestamp) ||
-      trade.timestamp < intent.startedAt
+      trade.timestamp < intent.startedAt - LIGHTER_TX_EXPIRY_SLACK_MS
     ) {
       throw new Error(
         'Lighter TWAP trade provenance is missing or predates intent',
@@ -265,7 +295,9 @@ export function reconcileLighterTwapObservation(
       .toNumber(),
     timeProgressBps: Math.min(
       10_000,
-      Math.floor((elapsed / (intent.durationMinutes * 60_000)) * 10_000),
+      Math.floor(
+        (elapsed / (intent.durationMinutes * LIGHTER_MINUTE_MS)) * 10_000,
+      ),
     ),
     elapsedTimeMilliseconds: elapsed,
     durationMinutes: intent.durationMinutes,

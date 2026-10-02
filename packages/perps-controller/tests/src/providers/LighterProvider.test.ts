@@ -1,5 +1,9 @@
 import { webcrypto } from 'crypto';
 
+import {
+  LIGHTER_TX_TYPE_CREATE_ORDER,
+  LIGHTER_TX_TYPE_CANCEL_ORDER,
+} from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import {
@@ -2423,6 +2427,120 @@ describe('LighterProvider', () => {
       ).toThrow('testnet-only');
     });
 
+    it('rejects missing native TWAP duration before market or account reads', async () => {
+      const { provider, calls, clientInstance } = buildProvider({
+        nativeTwapTestnetProbe: true,
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.00020',
+        leverage: 1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('duration');
+      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
+      expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+      expect(calls).toHaveLength(0);
+    });
+
+    it('checks native TWAP minimum notional against the lower protected bound before signing', async () => {
+      const { provider, calls, clientInstance } = buildProvider({
+        nativeTwapTestnetProbe: true,
+      });
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, minQuoteAmount: '18' },
+      ]);
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          { ...BTC_MARKET, lastTradePrice: 90000, minQuoteAmount: '18' },
+        ],
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: false,
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('parent minimums');
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each([
+      { slippage: undefined, priceAtCalculation: undefined },
+      { slippage: 0.005, priceAtCalculation: undefined },
+      { slippage: 0.01, priceAtCalculation: 90000 },
+    ])(
+      'prepares fresh native TWAP reference and duration after readiness with slippage %s',
+      async ({ slippage, priceAtCalculation }) => {
+        let clock = Date.now();
+        let reference = 90000;
+        const now = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+        const { provider, calls, clientInstance } = buildProvider({
+          nativeTwapTestnetProbe: true,
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getOrderBookDetails.mockImplementation(async () => ({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: reference,
+              defaultInitialMarginFraction: 100,
+              minInitialMarginFraction: 100,
+              maintenanceMarginFraction: 50,
+            },
+          ],
+        }));
+        clientInstance.getAccountByIndex.mockImplementation(async () => {
+          clock += 20000;
+          reference = 88000;
+          return {
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: ACCOUNT.positions.map((position) => ({
+                  ...position,
+                  initialMarginFraction: '100',
+                })),
+              },
+            ],
+          };
+        });
+        try {
+          await provider.placeOrder({
+            symbol: 'BTC',
+            orderType: 'twap',
+            isBuy: true,
+            size: '0.00020',
+            leverage: 1,
+            twapDuration: 1,
+            ...(slippage === undefined ? {} : { slippage }),
+            ...(priceAtCalculation === undefined ? {} : { priceAtCalculation }),
+          });
+          const native = calls.find(
+            (call) => call.function === '_signCreateOrder',
+          );
+          expect(native?.params[10]).toBe(
+            priceAtCalculation === undefined ? clock + 60000 : undefined,
+          );
+          expect(native?.params[4]).toBe(
+            priceAtCalculation === undefined
+              ? String(Math.round(88000 * (1 + (slippage ?? 0.01)) * 10))
+              : undefined,
+          );
+        } finally {
+          now.mockRestore();
+        }
+      },
+    );
+
     it('rejects over-budget intent before signer setup', async () => {
       const { provider, calls } = buildProvider({
         nativeTwapTestnetProbe: true,
@@ -2585,7 +2703,7 @@ describe('LighterProvider', () => {
       });
       const persistedAtSend: boolean[] = [];
       clientInstance.sendTx.mockImplementation(async (kind: number) => {
-        if (kind === 14) {
+        if (kind === LIGHTER_TX_TYPE_CREATE_ORDER) {
           persistedAtSend.push(
             [...disk.keys()].some((key) =>
               key.startsWith('lighterNativeTwap:'),
@@ -2619,125 +2737,154 @@ describe('LighterProvider', () => {
   });
 
   describe('native TWAP exact-parent provider lifecycle', () => {
-    it('returns the exact parent receipt and preserves cancel-requested state without duplicate dispatch', async () => {
-      const { provider, calls, clientInstance } = buildProvider({
-        nativeTwapTestnetProbe: true,
-        registeredKey: '9c'.repeat(40),
-      });
-      clientInstance.getOrderBookDetails.mockResolvedValue({
-        code: 200,
-        orderBookDetails: [
-          {
-            ...BTC_MARKET,
-            lastTradePrice: 90000,
-            defaultInitialMarginFraction: 100,
-            minInitialMarginFraction: 100,
-            maintenanceMarginFraction: 50,
-          },
-        ],
-      });
-      clientInstance.getAccountByIndex.mockResolvedValue({
-        code: 200,
-        accounts: [
-          {
-            ...ACCOUNT,
-            positions: ACCOUNT.positions.map((position) => ({
-              ...position,
-              initialMarginFraction: '100',
-            })),
-          },
-        ],
-      });
-      let status = 'in-progress';
-      const parentRows = (): LighterApiOrder[] => {
-        const call = calls.find(
-          (entry) => entry.function === '_signCreateOrder',
+    it.each([
+      { historyUnavailable: false, trailingFailure: false },
+      { historyUnavailable: true, trailingFailure: false },
+      { historyUnavailable: false, trailingFailure: true },
+    ])(
+      'returns the exact parent receipt and cancels with history unavailable=%s without duplicate dispatch',
+      async ({ historyUnavailable, trailingFailure }) => {
+        const { provider, calls, clientInstance } = buildProvider({
+          nativeTwapTestnetProbe: true,
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: 90000,
+              defaultInitialMarginFraction: 100,
+              minInitialMarginFraction: 100,
+              maintenanceMarginFraction: 50,
+            },
+          ],
+        });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: ACCOUNT.positions.map((position) => ({
+                ...position,
+                initialMarginFraction: '100',
+              })),
+            },
+          ],
+        });
+        let status = 'in-progress';
+        const parentRows = (): LighterApiOrder[] => {
+          const call = calls.find(
+            (entry) => entry.function === '_signCreateOrder',
+          );
+          if (!call) {
+            return [];
+          }
+          const values = call.params;
+          return [
+            {
+              orderIndex: 9001,
+              orderId: '9001',
+              clientOrderIndex: values[2],
+              clientOrderId: String(values[2]),
+              marketIndex: 1,
+              ownerAccountIndex: 28,
+              initialBaseAmount: '0.00020',
+              remainingBaseAmount: '0.00020',
+              filledBaseAmount: '0',
+              filledQuoteAmount: '0',
+              price: String(Number(values[4]) / 10),
+              isAsk: false,
+              type: 'twap',
+              timeInForce: 'good-till-time',
+              reduceOnly: false,
+              status,
+              orderExpiry: values[10],
+              timestamp: Math.floor((values[10] - 60_000) / 1000),
+              nonce: values[11],
+            },
+          ];
+        };
+        clientInstance.getOrdersByClientIds.mockImplementation(async () => ({
+          code: 200,
+          orders: parentRows(),
+        }));
+        clientInstance.getActiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: status === 'in-progress' ? parentRows() : [],
+        }));
+        clientInstance.getInactiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: status === 'canceled' ? parentRows() : [],
+        }));
+        clientInstance.getTx.mockImplementation(async (hash: string) => ({
+          code: 200,
+          hash,
+          accountIndex: 28,
+          apiKeyIndex: 7,
+          nonce: hash.startsWith('aaaa') ? 42 : 43,
+          status: 2,
+        }));
+        clientInstance.sendTx.mockImplementation(async (kind: number) => {
+          if (kind === LIGHTER_TX_TYPE_CANCEL_ORDER) {
+            status = 'canceled';
+          }
+          return { code: 200, txHash: 'accepted' };
+        });
+        const placed = await provider.placeOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          isBuy: true,
+          size: '0.00020',
+          leverage: 1,
+          twapDuration: 1,
+        });
+        expect(placed).toMatchObject({ success: true, orderId: '9001' });
+        if (historyUnavailable) {
+          clientInstance.getInactiveOrders.mockRejectedValue(
+            new Error('history unavailable'),
+          );
+        }
+        if (trailingFailure) {
+          jest
+            .spyOn(provider, 'getNativeTwapObservations')
+            .mockRejectedValueOnce(new Error('after cancel read failed'));
+        }
+        const cancellation = await provider.cancelOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          orderId: '9001',
+        });
+        expect(cancellation.success).toBe(false);
+        expect(cancellation.error).toContain(
+          trailingFailure
+            ? 'observation failed: after cancel read failed'
+            : 'termination remains unverified',
         );
-        if (!call) {
-          return [];
-        }
-        const values = call.params;
-        return [
-          {
-            orderIndex: 9001,
-            orderId: '9001',
-            clientOrderIndex: values[2],
-            clientOrderId: String(values[2]),
-            marketIndex: 1,
-            ownerAccountIndex: 28,
-            initialBaseAmount: '0.00020',
-            remainingBaseAmount: '0.00020',
-            filledBaseAmount: '0',
-            filledQuoteAmount: '0',
-            price: String(Number(values[4]) / 10),
-            isAsk: false,
-            type: 'twap',
-            timeInForce: 'good-till-time',
-            reduceOnly: false,
-            status,
-            orderExpiry: values[10],
-            timestamp: Math.floor((values[10] - 60_000) / 1000),
-            nonce: values[11],
-          },
-        ];
-      };
-      clientInstance.getOrdersByClientIds.mockImplementation(async () => ({
-        code: 200,
-        orders: parentRows(),
-      }));
-      clientInstance.getActiveOrders.mockImplementation(async () => ({
-        code: 200,
-        orders: status === 'in-progress' ? parentRows() : [],
-      }));
-      clientInstance.getInactiveOrders.mockImplementation(async () => ({
-        code: 200,
-        orders: status === 'canceled' ? parentRows() : [],
-      }));
-      clientInstance.getTx.mockImplementation(async (hash: string) => ({
-        code: 200,
-        hash,
-        accountIndex: 28,
-        apiKeyIndex: 7,
-        nonce: hash.startsWith('aaaa') ? 42 : 43,
-        status: 2,
-      }));
-      clientInstance.sendTx.mockImplementation(async (kind: number) => {
-        if (kind === 15) {
-          status = 'canceled';
-        }
-        return { code: 200, txHash: 'accepted' };
-      });
-      const placed = await provider.placeOrder({
-        symbol: 'BTC',
-        orderType: 'twap',
-        isBuy: true,
-        size: '0.00020',
-        leverage: 1,
-        twapDuration: 1,
-      });
-      expect(placed).toMatchObject({ success: true, orderId: '9001' });
-      const cancellation = await provider.cancelOrder({
-        symbol: 'BTC',
-        orderType: 'twap',
-        orderId: '9001',
-      });
-      expect(cancellation.success).toBe(false);
-      expect(cancellation.error).toContain('termination remains unverified');
-      const observations = await provider.getNativeTwapObservations();
-      expect(observations[0].observation?.terminalObserved).toBe(true);
-      expect(observations[0].record.terminalConfirmed).toBe(false);
-      await provider.cancelOrder({
-        symbol: 'BTC',
-        orderType: 'twap',
-        orderId: '9001',
-      });
-      expect(
-        calls.filter((call) => call.function === '_signCancelOrder'),
-      ).toHaveLength(1);
-      expect(
-        calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(1);
-    });
+        const observations = await provider.getNativeTwapObservations();
+        expect(observations[0]).toMatchObject(
+          historyUnavailable
+            ? { issue: 'history unavailable' }
+            : { observation: { terminalObserved: true } },
+        );
+        expect(observations[0].record.terminalConfirmed).toBe(false);
+        const secondCancellation = await provider.cancelOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          orderId: '9001',
+        });
+        expect(secondCancellation).toMatchObject({
+          success: false,
+          error: 'Lighter TWAP cancellation remains unresolved',
+        });
+        expect(
+          calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+        expect(
+          calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      },
+    );
   });
 
   describe('native TWAP unavailable lifecycle', () => {
@@ -21221,7 +21368,7 @@ describe('Lighter post-only placement', () => {
       });
     const built = buildProvider({ platformDependencies: deps });
     built.clientInstance.sendTx.mockImplementation(async (kind: number) => {
-      if (kind === 14) {
+      if (kind === LIGHTER_TX_TYPE_CREATE_ORDER) {
         throw new Error('response lost');
       }
       return { code: 200, txHash: 'registered' };
@@ -21259,6 +21406,7 @@ describe('Lighter bounded Chase provider probe', () => {
   const setup = (): BuiltProvider => {
     const built = buildProvider({
       chaseTestnetProbe: true,
+      nativeTwapTestnetProbe: true,
       registeredKey: '9c'.repeat(40),
     });
     const expiry = Date.now() + 100000;
@@ -21367,6 +21515,51 @@ describe('Lighter bounded Chase provider probe', () => {
     );
     return built;
   };
+  it.each(['chase', 'twap'] as const)(
+    'excludes a second native probe across strategies after %s dispatch',
+    async (first) => {
+      jest.useFakeTimers();
+      const built = setup();
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      const twap: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'twap',
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      };
+      try {
+        await built.provider.placeOrder(first === 'chase' ? intent : twap);
+        const creates = built.calls.filter(
+          (call) => call.function === '_signCreateOrder',
+        ).length;
+        expect(creates).toBe(1);
+        const result = await built.provider.placeOrder(
+          first === 'chase' ? twap : intent,
+        );
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('native probe remains unresolved');
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(creates);
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
   it('keeps normal strategy advertisement unavailable and rejects mainnet probe construction', async () => {
     expect(() =>
       buildProvider({ chaseTestnetProbe: true, isTestnet: false }),

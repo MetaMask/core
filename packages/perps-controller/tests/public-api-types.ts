@@ -15,8 +15,16 @@ import type {
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
 import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
-import type { readLighterChaseQuote } from '@metamask/perps-controller/utils/lighterChase';
+import type {
+  readLighterChaseQuote,
+  reconcileLighterChaseChild,
+  identifyLighterChaseChild,
+} from '@metamask/perps-controller/utils/lighterChase';
 import type { prepareLighterTwapOrder } from '@metamask/perps-controller/utils/lighterTwap';
+import {
+  reconcileLighterTwapObservation,
+  identifyLighterTwapParent,
+} from '@metamask/perps-controller/utils/lighterTwapReconciliation';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
@@ -205,4 +213,29 @@ export type LighterChaseConsumerContracts = [
     >
   >,
   AssertTrue<IsExact<ReturnType<typeof readLighterChaseQuote>, string>>,
+];
+
+export type LighterTwapObservationConsumerContracts = [
+  AssertTrue<IsExact<ReturnType<typeof identifyLighterTwapParent>, string>>,
+  AssertTrue<
+    IsExact<
+      Parameters<
+        typeof reconcileLighterTwapObservation
+      >[0]['intent']['clientOrderId'],
+      string
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof reconcileLighterTwapObservation>['terminalObserved'],
+      boolean
+    >
+  >,
+];
+
+export type LighterChaseIdentityConsumerContracts = [
+  AssertTrue<IsExact<ReturnType<typeof identifyLighterChaseChild>, string>>,
+  AssertTrue<
+    IsExact<ReturnType<typeof reconcileLighterChaseChild>['filledSize'], string>
+  >,
 ];

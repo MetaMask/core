@@ -138,6 +138,16 @@ describe('Lighter Chase native book and fill accounting', () => {
       remainingSize: '0.00015',
     });
   });
+  it.each([{ bidIdStr: '2' }, { askIdStr: '2' }, { tradeIdStr: '2' }])(
+    'rejects conflicting numeric/string trade counterparts %s',
+    (override) => {
+      expect(() =>
+        reconcileLighterChaseChild(intent, child, order, [
+          { ...trade, ...override },
+        ]),
+      ).toThrow('identity');
+    },
+  );
   it('deduplicates identical fill replay without increasing execution', () => {
     expect(
       reconcileLighterChaseChild(intent, child, order, [trade, trade])
