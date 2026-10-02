@@ -2551,7 +2551,8 @@ export class LighterProvider implements PerpsProvider {
    * venue removed (or rejected) protection in a way that cannot be
    * safely re-established automatically. Surfaced to callers/UI; each
    * current-key entry resolves after a successful explicit TP/SL update.
-   * Previous-key obligations remain until reconciled under their own key.
+   * Previous-key transactions settle read-only using their original identity;
+   * an explicit current-key update clears warnings after recorded orders settle.
    *
    * @returns Parked manual-recovery entries.
    */
@@ -3605,10 +3606,12 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param settlementKey - Settlement identity.
    * @param expectedOperationId - Optional observed warning identity; never clear a successor.
+   * @param generation - Captured session when retiring a previous-slot warning.
    */
   readonly #clearTpslManualRecovery = async (
     settlementKey: string,
     expectedOperationId?: string,
+    generation?: number,
   ): Promise<void> => {
     await withStorageMutex(this.#tpslManualIndexKey(), async () => {
       const index = await this.#readTpslManualIndex();
@@ -3618,6 +3621,13 @@ export class LighterProvider implements PerpsProvider {
           expectedOperationId
       ) {
         return;
+      }
+      if (generation !== undefined) {
+        const journal = await this.#loadTpslJournal(settlementKey);
+        this.#assertSession(generation);
+        if (journal) {
+          return;
+        }
       }
       await this.#deps.diskCache.removeItem(this.#tpslManualKey(settlementKey));
       if (index.includes(settlementKey)) {
@@ -3667,6 +3677,21 @@ export class LighterProvider implements PerpsProvider {
       const doc = await this.#loadTpslManualRecovery(key);
       this.#assertSession(generation);
       if (!doc) {
+        // A document removal may have landed before its index write failed.
+        // Recheck under the writer mutex so a newly parked warning survives.
+        await withStorageMutex(this.#tpslManualIndexKey(), async () => {
+          const currentIndex = await this.#readTpslManualIndex();
+          const currentDoc = await this.#loadTpslManualRecovery(key);
+          const currentJournal = await this.#loadTpslJournal(key);
+          this.#assertSession(generation);
+          if (!currentDoc && !currentJournal && currentIndex.includes(key)) {
+            await this.#deps.diskCache.setItem(
+              this.#tpslManualIndexKey(),
+              JSON.stringify(currentIndex.filter((entry) => entry !== key)),
+            );
+            this.#assertSession(generation);
+          }
+        });
         continue;
       }
       if (doc.settlementKey !== key || doc.symbol !== symbol) {
@@ -3678,7 +3703,14 @@ export class LighterProvider implements PerpsProvider {
         ...doc.survivingOrderIds,
         ...doc.priorTriggers.map((prior) => prior.orderId),
       ];
-      if (ids.some((id) => typeof id !== 'string' || id.length === 0)) {
+      if (
+        ids.some(
+          (id) =>
+            typeof id !== 'string' ||
+            !/^[1-9]\d*$/u.test(id) ||
+            !Number.isSafeInteger(Number(id)),
+        )
+      ) {
         throw new Error(
           'Lighter previous-slot protection warning order identity is invalid',
         );
@@ -3712,7 +3744,7 @@ export class LighterProvider implements PerpsProvider {
         continue;
       }
       this.#assertSession(generation);
-      await this.#clearTpslManualRecovery(key, doc.operationId);
+      await this.#clearTpslManualRecovery(key, doc.operationId, generation);
       this.#assertSession(generation);
     }
   };
@@ -8177,13 +8209,24 @@ export class LighterProvider implements PerpsProvider {
           // failed successor leaves the warning untouched.
           await this.#clearTpslManualRecovery(settlementKey);
           this.#assertSession(generationAtIntent);
-          await this.#clearSettledPreviousSlotWarnings(
-            settlementKey,
-            accountIndex,
-            params.symbol,
-            generationAtIntent,
-            readActiveRaw,
-          );
+          try {
+            await this.#clearSettledPreviousSlotWarnings(
+              settlementKey,
+              accountIndex,
+              params.symbol,
+              generationAtIntent,
+              readActiveRaw,
+            );
+          } catch (error) {
+            if (error instanceof LighterSessionCancelledError) {
+              throw error;
+            }
+            this.#deps.debugLogger.log(
+              '[LighterProvider] Previous-slot warning cleanup remains pending',
+              { error: String(error), symbol: params.symbol },
+            );
+          }
+          this.#assertSession(generationAtIntent);
         },
         generationAtIntent,
       );
