@@ -16770,13 +16770,28 @@ describe('LighterProvider', () => {
           symbol: 'BTC',
           stopLossPrice: replacement ? '85000' : undefined,
         });
-        expect(result).toMatchObject({ success: true });
+        expect(result).toStrictEqual({
+          success: true,
+          childOrderIds: replacement
+            ? venue.rawTriggers.map((order) => String(order.orderIndex))
+            : [],
+        });
         expect(venue.rawTriggers).toHaveLength(replacement ? 1 : 0);
         expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(
           replacement ? 2 : 1,
         );
         expect(await getItem(docKey)).toBe(bytes);
         expect(await getItem(indexKey)).toBe(JSON.stringify([key]));
+        if (failure !== 'corrupt') {
+          expect(
+            await built.provider.getPendingManualRecoveries(),
+          ).toStrictEqual([
+            expect.objectContaining({
+              settlementKey: key,
+              survivingOrderIds: ['777'],
+            }),
+          ]);
+        }
         await built.provider.disconnect();
       },
     );
