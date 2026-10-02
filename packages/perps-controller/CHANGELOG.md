@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#10651](https://github.com/MetaMask/core/pull/10651))
   - After such a failure, provider entry waits one minute before running the setup again instead of retrying every time; `reconnect()` or `disconnect()` ends the wait, and trading and withdraw still run the setup
   - Venue rejections, signing failures and other setup errors are still reported
+- Degrade without logging an error when the host does not provide an optional messenger action, whether it is unregistered or not delegated to `PerpsController` ([#10665](https://github.com/MetaMask/core/pull/10665))
+  - `SubscriptionController:getBenefits` (fee waiver): an undelegated action now reads as no subscription source, as an unregistered one already did, instead of logging an error when no injected `subscription` source is wired
+  - `NetworkController:getState` / `getNetworkClientById` (rewards discount): no discount instead of an error
+  - `AuthenticationController:getBearerToken` (data-lake report): skipped instead of logged and retried; a report skipped for a missing account or token now also ends its trace
+  - `AuthenticatedUserStorageService:getNotificationPreferences` / `putNotificationPreferences` (watchlist sync): the local watchlist is kept instead of logging an error and reverting the toggle. AUS stays the source of truth: with the read but not the write, a toggle is replaced by the next hydration from AUS that starts after it, which every initialization runs (`init()`, including after `disconnect()`, `toggleTestnet()` and `switchProvider()`)
+  - Only a missing handler for the exact action called counts. A delegated handler that fails is still reported, including when it fails on a missing handler for another action (such as AUS missing `AuthenticationController:getBearerToken`, or a `NetworkController` read missing the other one), and so is a failure of the injected `rewards` dependency. The exceptions are unchanged: when an injected `subscription` source is wired, a failing `SubscriptionController:getBenefits` handler still falls back to it, and so does a `registerAddress` handler that throws synchronously (an asynchronous `registerAddress` rejection skips registration)
+  - The "Chain ID not found" error for the rewards discount now includes the `getNetworkClientById` failure that caused it
+  - `RemoteFeatureFlagController:getState` in the constructor and `startEligibilityMonitoring`, `GeolocationController`, `KeyringController` and `TransactionController` are unchanged and still report errors
+- Keep watchlist toggles made while the AuthenticatedUserStorageService hydration read is in flight, applying them on top of the remote watchlist instead of overwriting them with it, unless another initialization starts before it resolves ([#10665](https://github.com/MetaMask/core/pull/10665))
 
 ## [19.0.0]
 
