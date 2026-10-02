@@ -6001,6 +6001,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
+    if (params.expectedScaleLadder !== undefined) {
+      return {
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+      };
+    }
     // Hoisted so the retry path in the catch block can use the fetched price
     // even when the caller (e.g. flipPosition) omits currentPrice from params.
     let effectivePrice: number | undefined;
@@ -14046,6 +14052,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
     try {
+      if (params.expectedScaleLadder !== undefined) {
+        return {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+        };
+      }
       // Basic parameter validation
       const basicValidation = validateOrderParams({
         coin: params.symbol,

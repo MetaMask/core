@@ -8,6 +8,7 @@ import {
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   OrderParams,
+  ExpectedScaleLadder,
   OrderResult,
   ScaleOrderGroup,
 } from '../types/index.js';
@@ -148,6 +149,75 @@ export function normalizeLighterScalePrices(
     throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
   }
   return prices.map((price) => price.toFixed());
+}
+
+/** Capture a preview constraint before the first asynchronous operation.
+ * @param expected - Caller-supplied normalized intent.
+ * @returns An independent snapshot, or an explicit malformed-preview refusal.
+ */
+export function captureExpectedScaleLadder(
+  expected: ExpectedScaleLadder | undefined,
+): ExpectedScaleLadder | undefined {
+  if (expected === undefined) {
+    return undefined;
+  }
+  if (expected === null || typeof expected !== 'object') {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+  }
+  const { prices, sizes } = expected;
+  if (
+    !Array.isArray(expected.prices) ||
+    !Array.isArray(expected.sizes) ||
+    Object.keys(expected).some(
+      (key) =>
+        ![
+          'prices',
+          'sizes',
+          'totalSize',
+          'totalNotional',
+          'minimumBaseSize',
+          'minimumQuoteAmount',
+          'sizeDecimals',
+        ].includes(key),
+    )
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+  }
+  return {
+    ...expected,
+    prices: [...prices],
+    sizes: [...sizes],
+  };
+}
+
+/** Refuse any change to the approved normalized financial intent.
+ * @param expected - Optional caller constraint; omission is legacy unbound placement.
+ * @param ladder - Fresh normalized placement quantities and prices.
+ * @param market - Fresh venue minimums and quantity grid.
+ */
+export function assertExpectedScaleLadder(
+  expected: ExpectedScaleLadder | undefined,
+  ladder: { prices: string[]; sizes: string[]; size: string; notional: string },
+  market: LighterOrderBookMeta,
+): void {
+  if (expected === undefined) {
+    return;
+  }
+  const captured = captureExpectedScaleLadder(expected);
+  if (
+    !captured ||
+    captured.prices.length !== ladder.prices.length ||
+    captured.sizes.length !== ladder.sizes.length ||
+    ladder.prices.some((price, index) => price !== captured.prices[index]) ||
+    ladder.sizes.some((size, index) => size !== captured.sizes[index]) ||
+    captured.totalSize !== ladder.size ||
+    captured.totalNotional !== ladder.notional ||
+    captured.minimumBaseSize !== market.minBaseAmount ||
+    captured.minimumQuoteAmount !== market.minQuoteAmount ||
+    captured.sizeDecimals !== market.supportedSizeDecimals
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+  }
 }
 
 /** Build all rungs and prove exact base and quote bounds before any write.

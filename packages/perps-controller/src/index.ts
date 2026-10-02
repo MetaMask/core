@@ -214,6 +214,7 @@ export type {
   TrackingData,
   TPSLTrackingData,
   OrderParams,
+  ExpectedScaleLadder,
   MarginMode,
   OrderResult,
   ScaleOrderChild,

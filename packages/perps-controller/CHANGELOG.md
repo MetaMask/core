@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `OrderParams.expectedScaleLadder` and exported `ExpectedScaleLadder` to bind Lighter Scale placement to approved prices, quantities, totals, minimums and size precision. Refuse stale or malformed constraints with `ORDER_SCALE_PREVIEW_STALE` before writes and recheck inside the write lock. Omission preserves unbound placement-time normalization; other providers refuse the constraint.
+
 - Add optional `GetScalePriceLadderParams.sizing` for exact base size or bounded quote budget and optional skew. Lighter returns venue-valid `PerpsScalePriceLadder.sizingPreview` quantities, totals and maker minimums without account or signer setup; unsupported providers leave the preview absent.
 - Add durable Lighter Scale ladders with exact-grid preview, aggregate exposure checks, uncertain-child retention and exact group cancellation.
 - Add optional `getScaleOrderGroups` and `reviewScaleOrderGroups` provider methods and controller actions, with the exported `ScaleOrderGroup` inventory type.
