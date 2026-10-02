@@ -13191,21 +13191,45 @@ describe('LighterProvider', () => {
         );
         const manualKey = `lighterTpslManual:testnet:${sourceKey}`;
         const manualIndexKey = 'lighterTpslManualIndex:testnet';
+        let failureProof:
+          | {
+              hadWarning: boolean;
+              hadIndexEntry: boolean;
+              success: boolean;
+              warningUnchanged: boolean;
+              indexUnchanged: boolean;
+            }
+          | undefined;
         if (recoveryMode === 'read' && hasPrior) {
           const warningBefore = await infra.diskCache.getItem(manualKey);
           const indexBefore = await infra.diskCache.getItem(manualIndexKey);
-          expect(warningBefore).not.toBeNull();
-          expect(JSON.parse(indexBefore ?? '[]')).toContain(sourceKey);
           const failed = await migrated.provider.updatePositionTPSL({
             symbol: 'BTC',
             stopLossPrice: '-1',
           });
-          expect(failed.success).toBe(false);
-          expect(await infra.diskCache.getItem(manualKey)).toBe(warningBefore);
-          expect(await infra.diskCache.getItem(manualIndexKey)).toBe(
-            indexBefore,
-          );
+          failureProof = {
+            hadWarning: warningBefore !== null,
+            hadIndexEntry: (
+              JSON.parse(indexBefore ?? '[]') as string[]
+            ).includes(sourceKey),
+            success: failed.success,
+            warningUnchanged:
+              (await infra.diskCache.getItem(manualKey)) === warningBefore,
+            indexUnchanged:
+              (await infra.diskCache.getItem(manualIndexKey)) === indexBefore,
+          };
         }
+        expect(failureProof).toStrictEqual(
+          recoveryMode === 'read' && hasPrior
+            ? {
+                hadWarning: true,
+                hadIndexEntry: true,
+                success: false,
+                warningUnchanged: true,
+                indexUnchanged: true,
+              }
+            : undefined,
+        );
         const cleared = await migrated.provider.updatePositionTPSL({
           symbol: 'BTC',
           stopLossPrice: replacement ? '85000' : undefined,
