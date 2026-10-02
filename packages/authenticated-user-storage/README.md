@@ -2,11 +2,12 @@
 
 A TypeScript SDK for MetaMask's Authenticated User Storage API. Unlike E2EE user-storage, authenticated user storage holds **structured JSON** scoped to the authenticated user. The server can read and validate the contents, which allows other backend services to consume the data (e.g. delegation execution, notification delivery).
 
-The SDK currently supports three domains:
+The SDK currently supports four domains:
 
 - **Delegations** -- immutable, EIP-712 signed delegation records (list, create, revoke).
 - **Notification Preferences** -- mutable per-user notification settings (get, put).
 - **Assets watchlist** -- mutable per-user list of CAIP-19 asset identifiers (get, set).
+- **User assets (custom tokens)** -- mutable per-user record of imported and hidden tokens (get, set, import, hide).
 
 ## Installation
 
@@ -152,6 +153,50 @@ const updated: AssetsWatchlistBlob = {
   ],
 };
 await service.setAssetsWatchlist(updated, 'extension');
+```
+
+### User assets (custom tokens)
+
+The user-assets blob is a mutable per-user singleton blob recording which custom tokens the user chose to import and which they chose to hide. The first call to `setUserAssets` creates the record; subsequent calls overwrite it. Each entry of `importedAssets` and `hiddenAssets` is a [CAIP-19](https://chainagnostic.org/CAIPs/caip-19) asset identifier (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`). The blob carries an explicit `version: 1` literal so the shape can evolve without breaking existing consumers. It is stored at the `GET`/`PUT /api/v1/custom-tokens` endpoints of the user-storage API, which enforce a server-side cap of 100 entries per list; writes mirror that cap with `USER_ASSETS_MAX_ASSETS`.
+
+The two lists are mutually exclusive by contract: a given identifier may appear in at most one of them. Every write is normalized before the request is sent — entries are de-duplicated (order-preserving) and conflicts are resolved "fail-open": an identifier present in both lists stays in `importedAssets` (the user's intent to import wins) and is removed from `hiddenAssets`, so a write is never rejected because of a conflict. On writes, every entry must be a valid CAIP-19 asset identifier; malformed blobs throw a superstruct `StructError` before the request is sent.
+
+Most consumers should not read-modify-write the blob themselves. The high-level `importTokens` and `hideTokens` methods fetch the current blob (creating a fresh one if none exists yet), apply the merge with deduplication and mutual exclusivity, persist the result, and return the resolved blob:
+
+```typescript
+import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
+
+// Retrieve the current user-assets blob (returns null on the first read)
+const userAssets: UserAssetsBlob | null = await service.getUserAssets();
+
+// Import custom tokens (de-duplicated; removes them from hiddenAssets)
+const imported: UserAssetsBlob = await service.importTokens(
+  [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+  ],
+  'extension',
+);
+
+// Hide tokens (de-duplicated; removes them from importedAssets)
+const hidden: UserAssetsBlob = await service.hideTokens([
+  'eip155:10/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce36000000',
+]);
+
+// Low-level: replace the whole blob (still normalized and validated)
+await service.setUserAssets(
+  {
+    version: 1,
+    importedAssets: [
+      'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    ],
+    hiddenAssets: [],
+  },
+  'extension',
+);
+
+// Wipe all custom tokens (clean slate: both lists empty)
+await service.clearUserAssets();
 ```
 
 ## Response validation

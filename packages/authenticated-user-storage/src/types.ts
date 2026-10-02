@@ -166,6 +166,13 @@ export type IdentitySharingConsentWrite = {
 export type { AssetsWatchlistBlob } from './validators.js';
 
 // ---------------------------------------------------------------------------
+// User assets (custom tokens)
+// ---------------------------------------------------------------------------
+
+// Re-exported from './validators' so the public type surface stays in './types'.
+export type { UserAssetsBlob } from './validators.js';
+
+// ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
 

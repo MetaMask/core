@@ -7,6 +7,7 @@ import type {
   IdentitySharingConsent,
   IdentitySharingConsentWrite,
   NotificationPreferences,
+  UserAssetsBlob,
 } from '../../src/types.js';
 import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators.js';
 
@@ -15,6 +16,7 @@ export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('
 export const MOCK_MARKETING_CONSENT_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/marketing-consent`;
 export const MOCK_IDENTITY_SHARING_CONSENT_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/identity-sharing-consent`;
 export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/assets-watchlist`;
+export const MOCK_USER_ASSETS_URL = `${getAuthenticatedStorageUrl('prod')}/custom-tokens`;
 
 export const MOCK_DELEGATION_SUBMISSION: DelegationSubmission = {
   signedDelegation: {
@@ -106,4 +108,19 @@ export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {
 export const MOCK_INVALID_ASSETS_WATCHLIST_BLOB = {
   version: 2,
   assets: 'not-an-array',
+} as const;
+
+export const MOCK_USER_ASSETS_BLOB: UserAssetsBlob = {
+  version: 1,
+  importedAssets: [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+  ],
+  hiddenAssets: ['eip155:10/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce36000000'],
+};
+
+export const MOCK_INVALID_USER_ASSETS_BLOB = {
+  version: 2,
+  importedAssets: 'not-an-array',
+  hiddenAssets: [],
 } as const;
